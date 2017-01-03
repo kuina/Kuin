@@ -38,6 +38,7 @@ int wmain(int argc, Char** argv)
 	Bool help = False;
 	Bool version = False;
 	Quiet = False;
+	int ret_code = 0;
 
 	_setmode(_fileno(stdout), _O_U16TEXT); // Set the output format to UTF-16.
 	{
@@ -177,11 +178,14 @@ int wmain(int argc, Char** argv)
 			}
 			if (func_build(input, sys_dir, output, icon, rls, env, Allocator, Log))
 			{
-				if (!Quiet)
+				if (!Quiet) {
 					wprintf(L"Success.\n");
+				}
 			}
-			else
+			else {
 				wprintf(L"Failure.\n");
+				ret_code = 1;
+			}
 			{
 				SMemList* ptr = TopMem;
 				while (ptr != NULL)
@@ -195,7 +199,7 @@ int wmain(int argc, Char** argv)
 		}
 		FreeLibrary(library);
 	}
-	return 0;
+	return ret_code;
 }
 
 static void* Allocator(size_t size)
