@@ -443,7 +443,7 @@ static Char ReadStrict(void)
 		if (c == L'\n')
 		{
 			Err(L"EP0011", NewPos(SrcName, Row, Col));
-			continue;
+			break;
 		}
 		return c;
 	}
