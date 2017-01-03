@@ -1,0 +1,15 @@
+func main()
+	for i(2, 100)
+		var b: bool :: false
+
+		for j(2, i - 1)
+			if(i % j = 0)
+				do b :: true
+			end if
+		end for
+
+		if(!b)
+			do cui@print(i.toStr() ~ "\n")
+		end if
+	end for
+end func

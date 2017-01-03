@@ -1,0 +1,342 @@
+Begin: ../../test/output/output0004.exe
+Excpt: 80000003
+> abcdef
+> ab, cd, ef
+> 120
+> 2, ab, ef
+> 1, 1
+> 3, 3
+> 3, 1
+> 5, 5
+> 5, 3
+> 5, 1
+> 1, 1
+> 3, 3
+> 3, 1
+> 5, 5
+> 5, 3
+> 5, 1
+> 1
+> 2
+> 1
+> 2
+> Fizz
+> 4
+> Buzz
+> Fizz
+> 7
+> 8
+> Fizz
+> Buzz
+> 11
+> Fizz
+> 13
+> 14
+> FizzBuzz
+> 1
+> abc
+> 3
+> def
+> def
+> abc
+> abc
+> 8
+> def
+> 10
+> 1
+> abc
+> 3
+> def
+> def
+> abc
+> abc
+> 8
+> def
+> 10
+> 0x01
+> abc
+> 0x03
+> def
+> def
+> abc
+> abc
+> 0x08
+> def
+> 0x0A
+> 0x0001
+> abc
+> 0x0003
+> def
+> def
+> abc
+> abc
+> 0x0008
+> def
+> 0x000A
+> 0x00000001
+> abc
+> 0x00000003
+> def
+> def
+> abc
+> abc
+> 0x00000008
+> def
+> 0x0000000A
+> 0x0000000000000001
+> abc
+> 0x0000000000000003
+> def
+> def
+> abc
+> abc
+> 0x0000000000000008
+> def
+> 0x000000000000000A
+> B
+> abc
+> D
+> abc
+> abc
+> def
+> def
+> I
+> def
+> K
+> 1
+> abc
+> 3
+> def
+> def
+> abc
+> abc
+> 8
+> def
+> 10
+> abcdef
+> ab, cd, ef
+> 120
+> 2, ab, ef
+> 1, 1
+> 3, 3
+> 3, 1
+> 5, 5
+> 5, 3
+> 5, 1
+> 1, 1
+> 3, 3
+> 3, 1
+> 5, 5
+> 5, 3
+> 5, 1
+> 1
+> 2
+> 1
+> 2
+> Fizz
+> 4
+> Buzz
+> Fizz
+> 7
+> 8
+> Fizz
+> Buzz
+> 11
+> Fizz
+> 13
+> 14
+> FizzBuzz
+> 1
+> abc
+> 3
+> def
+> def
+> abc
+> abc
+> 8
+> def
+> 10
+> 1
+> abc
+> 3
+> def
+> def
+> abc
+> abc
+> 8
+> def
+> 10
+> 0x01
+> abc
+> 0x03
+> def
+> def
+> abc
+> abc
+> 0x08
+> def
+> 0x0A
+> 0x0001
+> abc
+> 0x0003
+> def
+> def
+> abc
+> abc
+> 0x0008
+> def
+> 0x000A
+> 0x00000001
+> abc
+> 0x00000003
+> def
+> def
+> abc
+> abc
+> 0x00000008
+> def
+> 0x0000000A
+> 0x0000000000000001
+> abc
+> 0x0000000000000003
+> def
+> def
+> abc
+> abc
+> 0x0000000000000008
+> def
+> 0x000000000000000A
+> B
+> abc
+> D
+> abc
+> abc
+> def
+> def
+> I
+> def
+> K
+> 1
+> abc
+> 3
+> def
+> def
+> abc
+> abc
+> 8
+> def
+> 10
+> abcdef
+> ab, cd, ef
+> 120
+> 2, ab, ef
+> 1, 1
+> 3, 3
+> 3, 1
+> 5, 5
+> 5, 3
+> 5, 1
+> 1, 1
+> 3, 3
+> 3, 1
+> 5, 5
+> 5, 3
+> 5, 1
+> 1
+> 2
+> 1
+> 2
+> Fizz
+> 4
+> Buzz
+> Fizz
+> 7
+> 8
+> Fizz
+> Buzz
+> 11
+> Fizz
+> 13
+> 14
+> FizzBuzz
+> 1
+> abc
+> 3
+> def
+> def
+> abc
+> abc
+> 8
+> def
+> 10
+> 1
+> abc
+> 3
+> def
+> def
+> abc
+> abc
+> 8
+> def
+> 10
+> 0x01
+> abc
+> 0x03
+> def
+> def
+> abc
+> abc
+> 0x08
+> def
+> 0x0A
+> 0x0001
+> abc
+> 0x0003
+> def
+> def
+> abc
+> abc
+> 0x0008
+> def
+> 0x000A
+> 0x00000001
+> abc
+> 0x00000003
+> def
+> def
+> abc
+> abc
+> 0x00000008
+> def
+> 0x0000000A
+> 0x0000000000000001
+> abc
+> 0x0000000000000003
+> def
+> def
+> abc
+> abc
+> 0x0000000000000008
+> def
+> 0x000000000000000A
+> B
+> abc
+> D
+> abc
+> abc
+> def
+> def
+> I
+> def
+> K
+> 1
+> abc
+> 3
+> def
+> def
+> abc
+> abc
+> 8
+> def
+> 10
+end: ../../test/output/output0004.exe

@@ -1,0 +1,75 @@
+Begin: ../../test/output/output0002.exe
+Excpt: 80000003
+> false, true
+> true, false
+> false, true
+> false, true
+> true, false
+> true, false
+> true, false
+> true, true
+> false, true
+> false, true
+> false, false
+> T
+> F
+> F
+> T
+> true, true
+> false, true
+> false, true
+> false, false
+> T
+> F
+> F
+> T
+> true, false
+> false, true
+> true, false
+> false, true
+> false, true
+> true, false
+> true, false
+> true, false
+> true, true
+> false, true
+> false, true
+> false, false
+> T
+> F
+> F
+> T
+> true, true
+> false, true
+> false, true
+> false, false
+> T
+> F
+> F
+> T
+> true, false
+> false, true
+> true, false
+> false, true
+> false, true
+> true, false
+> true, false
+> true, false
+> true, true
+> false, true
+> false, true
+> false, false
+> T
+> F
+> F
+> T
+> true, true
+> false, true
+> false, true
+> false, false
+> T
+> F
+> F
+> T
+> true, false
+end: ../../test/output/output0002.exe

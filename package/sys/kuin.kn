@@ -1,0 +1,170 @@
++class Class()
+	func ctor()
+	end func
+
+	func dtor()
+	end func
+
+	func cmp(t: @Class): int
+		throw 3009
+	end func
+
+	func copy(): @Class
+	end func
+
+	+func toBin(): []bit8
+	end func
+
+	+func fromBin(bin: []bit8, idx: int): int
+	end func
+end class
+
++class Excpt()
+	+var code: int
+	+var msg: []char
+	+var pos: int
+end class
+
++func [d0000.knd] rnd(min: int, max: int): int
+end func
+
++func [d0000.knd] rndFloat(min: float, max: float): float
+end func
+
++func [d0000.knd] rndBit64(): bit64
+end func
+
+func [d0000.knd, _init] _init()
+end func
+
+func [d0000.knd] _fin()
+end func
+
+func [d0000.knd] _err(excpt: @Excpt)
+end func
+
+func _initVars()
+end func
+
+func _finVars()
+end func
+
+func [d0000.knd, _any_type] _toBin(me_: []bit8, type: int): []bit8
+end func
+
+func [d0000.knd, _any_type, _overwrite] _fromBin(me_: &[]bit8, type: int, bin: []bit8, idx: int): int
+end func
+
+func [d0000.knd, _any_type] _toStr(me_: []bit8, type: int): []char
+end func
+
+func [d0000.knd, _any_type, _take_me, _ret_me] _or(me_: []bit8, type: int, n: []bit8): int
+end func
+
+func [d0000.knd, _any_type, _take_me, _ret_me] _and(me_: []bit8, type: int, n: []bit8): int
+end func
+
+func [d0000.knd, _any_type, _take_me, _ret_me] _xor(me_: []bit8, type: int, n: []bit8): int
+end func
+
+func [d0000.knd, _any_type, _ret_me] _not(me_: []bit8, type: int): int
+end func
+
+func [d0000.knd, _any_type, _ret_me] _shl(me_: []bit8, type: int, n: int): int
+end func
+
+func [d0000.knd, _any_type, _ret_me] _shr(me_: []bit8, type: int, n: int): int
+end func
+
+func [d0000.knd, _any_type, _ret_me] _sar(me_: []bit8, type: int, n: int): int
+end func
+
+func [d0000.knd, _any_type, _ret_me] _sub(me_: []bit8, type: int, start: int, len: int): int
+end func
+
+func [d0000.knd, _any_type] _reverse(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _shuffle(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _sortAsc(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _sortDesc(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type, _take_child] _find(me_: []bit8, type: int, item: []bit8): int
+end func
+
+func [d0000.knd, _any_type, _take_child] _findLast(me_: []bit8, type: int, item: []bit8): int
+end func
+
+func [d0000.knd] _toInt(me_: []char): int
+end func
+
+func [d0000.knd] _toFloat(me_: []char): float
+end func
+
+func [d0000.knd] _lower(me_: []char): []char
+end func
+
+func [d0000.knd] _upper(me_: []char): []char
+end func
+
+func [d0000.knd] _trim(me_: []char): []char
+end func
+
+func [d0000.knd] _trimLeft(me_: []char): []char
+end func
+
+func [d0000.knd] _trimRight(me_: []char): []char
+end func
+
+func [d0000.knd, _any_type, _take_child] _addList(me_: []bit8, type: int, item: []bit8)
+end func
+
+func [d0000.knd, _any_type, _take_key_value] _addDict(me_: []bit8, type: int, itemType: int, key: []bit8, item: []bit8)
+end func
+
+func [d0000.knd, _any_type, _ret_child] _getList(me_: []bit8, type: int): int
+end func
+
+func [d0000.knd, _any_type, _take_child, _ret_child] _getDict(me_: []bit8, type: int, key: []bit8): int
+end func
+
+func [d0000.knd, _any_type] _head(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _tail(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _next(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _prev(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _end(me_: []bit8, type: int): bool
+end func
+
+func [d0000.knd, _any_type] _del(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type, _take_child] _ins(me_: []bit8, type: int, item: []bit8)
+end func
+
+func [d0000.knd, _any_type, _ret_child] _peek(me_: []bit8, type: int): int
+end func
+
+func [d0000.knd, _any_type, _take_child] _push(me_: []bit8, type: int, item: []bit8)
+end func
+
+func [d0000.knd, _any_type, _ret_child] _pop(me_: []bit8, type: int): int
+end func
+
+func [d0000.knd, _any_type, _take_child] _enq(me_: []bit8, type: int, item: []bit8)
+end func
+
+func [d0000.knd, _any_type, _ret_child] _deq(me_: []bit8, type: int): int
+end func

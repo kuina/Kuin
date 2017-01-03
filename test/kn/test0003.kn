@@ -1,0 +1,217 @@
+func main()
+	for(0, 2)
+		block
+			do cui@print((^("abcdef")).toStr())
+			do cui@print((^(5)).toStr())
+			do cui@print((^(-5)).toStr())
+			do cui@print((^(5.0)).toStr())
+			do cui@print((^(-5.0)).toStr())
+		end block
+
+		block
+			var a: int :: 3
+			var b: int :: 5
+			do a :$ b
+			do cui@print(a.toStr() ~ ", " ~ b.toStr())
+
+			var c: []char :: "abc"
+			var d: []char :: "def"
+			do c :$ d
+			do cui@print(c ~ ", " ~ d)
+		end block
+
+		block
+			do cui@print((65537 $ int).toStr())
+			do cui@print((65537 $ float).toStr())
+			do cui@print((65537 $ bit8).toStr())
+			do cui@print((65537 $ bit16).toStr())
+			do cui@print((65537 $ bit32).toStr())
+			do cui@print((65537 $ bit64).toStr())
+			do cui@print((33 $ char).toStr())
+			do cui@print((0 $ bool).toStr())
+			do cui@print((5 $ bool).toStr())
+
+			var n: int :: 65537
+			do cui@print((n $ int).toStr())
+			do cui@print((n $ float).toStr())
+			do cui@print((n $ bit8).toStr())
+			do cui@print((n $ bit16).toStr())
+			do cui@print((n $ bit32).toStr())
+			do cui@print((n $ bit64).toStr())
+			do n :: 33
+			do cui@print((n $ char).toStr())
+			do n :: 0
+			do cui@print((n $ bool).toStr())
+			do n :: 5
+			do cui@print((n $ bool).toStr())
+		end block
+
+		block
+			do cui@print((65537.5 $ int).toStr())
+			do cui@print((65537.5 $ float).toStr())
+			do cui@print((65537.5 $ bit8).toStr())
+			do cui@print((65537.5 $ bit16).toStr())
+			do cui@print((65537.5 $ bit32).toStr())
+			do cui@print((65537.5 $ bit64).toStr())
+
+			var n: float :: 65537.5
+			do cui@print((n $ int).toStr())
+			do cui@print((n $ float).toStr())
+			do cui@print((n $ bit8).toStr())
+			do cui@print((n $ bit16).toStr())
+			do cui@print((n $ bit32).toStr())
+			do cui@print((n $ bit64).toStr())
+		end block
+
+		block
+			do cui@print(('A' $ int).toStr())
+			do cui@print(('A' $ char).toStr())
+			do cui@print(('A' $ bit8).toStr())
+			do cui@print(('A' $ bit16).toStr())
+			do cui@print(('A' $ bit32).toStr())
+			do cui@print(('A' $ bit64).toStr())
+
+			var n: char :: 'A'
+			do cui@print((n $ int).toStr())
+			do cui@print((n $ char).toStr())
+			do cui@print((n $ bit8).toStr())
+			do cui@print((n $ bit16).toStr())
+			do cui@print((n $ bit32).toStr())
+			do cui@print((n $ bit64).toStr())
+		end block
+
+		block
+			do cui@print((false $ int).toStr())
+			do cui@print((false $ bool).toStr())
+			do cui@print((false $ bit8).toStr())
+			do cui@print((false $ bit16).toStr())
+			do cui@print((false $ bit32).toStr())
+			do cui@print((false $ bit64).toStr())
+			do cui@print((true $ int).toStr())
+			do cui@print((true $ bool).toStr())
+			do cui@print((true $ bit8).toStr())
+			do cui@print((true $ bit16).toStr())
+			do cui@print((true $ bit32).toStr())
+			do cui@print((true $ bit64).toStr())
+
+			var n: bool :: false
+			var m: bool :: true
+			do cui@print((n $ int).toStr())
+			do cui@print((n $ bool).toStr())
+			do cui@print((n $ bit8).toStr())
+			do cui@print((n $ bit16).toStr())
+			do cui@print((n $ bit32).toStr())
+			do cui@print((n $ bit64).toStr())
+			do cui@print((m $ int).toStr())
+			do cui@print((m $ bool).toStr())
+			do cui@print((m $ bit8).toStr())
+			do cui@print((m $ bit16).toStr())
+			do cui@print((m $ bit32).toStr())
+			do cui@print((m $ bit64).toStr())
+		end block
+
+		block
+			do cui@print((255b8 $ int).toStr())
+			do cui@print((255b8 $ float).toStr())
+			do cui@print((33b8 $ char).toStr())
+			do cui@print((0b8 $ bool).toStr())
+			do cui@print((5b8 $ bool).toStr())
+			do cui@print((255b8 $ bit8).toStr())
+			do cui@print((255b8 $ bit16).toStr())
+			do cui@print((255b8 $ bit32).toStr())
+			do cui@print((255b8 $ bit64).toStr())
+
+			var n: bit8 :: 255b8
+			var m: bit8 :: 33b8
+			var f: bit8 :: 0b8
+			var t: bit8 :: 5b8
+			do cui@print((n $ int).toStr())
+			do cui@print((n $ float).toStr())
+			do cui@print((m $ char).toStr())
+			do cui@print((f $ bool).toStr())
+			do cui@print((t $ bool).toStr())
+			do cui@print((n $ bit8).toStr())
+			do cui@print((n $ bit16).toStr())
+			do cui@print((n $ bit32).toStr())
+			do cui@print((n $ bit64).toStr())
+		end block
+
+		block
+			do cui@print((255b16 $ int).toStr())
+			do cui@print((255b16 $ float).toStr())
+			do cui@print((33b16 $ char).toStr())
+			do cui@print((0b16 $ bool).toStr())
+			do cui@print((5b16 $ bool).toStr())
+			do cui@print((255b16 $ bit8).toStr())
+			do cui@print((255b16 $ bit16).toStr())
+			do cui@print((255b16 $ bit32).toStr())
+			do cui@print((255b16 $ bit64).toStr())
+
+			var n: bit16 :: 255b16
+			var m: bit16 :: 33b16
+			var f: bit16 :: 0b16
+			var t: bit16 :: 5b16
+			do cui@print((n $ int).toStr())
+			do cui@print((n $ float).toStr())
+			do cui@print((m $ char).toStr())
+			do cui@print((f $ bool).toStr())
+			do cui@print((t $ bool).toStr())
+			do cui@print((n $ bit8).toStr())
+			do cui@print((n $ bit16).toStr())
+			do cui@print((n $ bit32).toStr())
+			do cui@print((n $ bit64).toStr())
+		end block
+
+		block
+			do cui@print((255b32 $ int).toStr())
+			do cui@print((255b32 $ float).toStr())
+			do cui@print((33b32 $ char).toStr())
+			do cui@print((0b32 $ bool).toStr())
+			do cui@print((5b32 $ bool).toStr())
+			do cui@print((255b32 $ bit8).toStr())
+			do cui@print((255b32 $ bit16).toStr())
+			do cui@print((255b32 $ bit32).toStr())
+			do cui@print((255b32 $ bit64).toStr())
+
+			var n: bit32 :: 255b32
+			var m: bit32 :: 33b32
+			var f: bit32 :: 0b32
+			var t: bit32 :: 5b32
+			do cui@print((n $ int).toStr())
+			do cui@print((n $ float).toStr())
+			do cui@print((m $ char).toStr())
+			do cui@print((f $ bool).toStr())
+			do cui@print((t $ bool).toStr())
+			do cui@print((n $ bit8).toStr())
+			do cui@print((n $ bit16).toStr())
+			do cui@print((n $ bit32).toStr())
+			do cui@print((n $ bit64).toStr())
+		end block
+
+		block
+			do cui@print((255b64 $ int).toStr())
+			do cui@print((255b64 $ float).toStr())
+			do cui@print((33b64 $ char).toStr())
+			do cui@print((0b64 $ bool).toStr())
+			do cui@print((5b64 $ bool).toStr())
+			do cui@print((255b64 $ bit8).toStr())
+			do cui@print((255b64 $ bit16).toStr())
+			do cui@print((255b64 $ bit32).toStr())
+			do cui@print((255b64 $ bit64).toStr())
+
+			var n: bit64 :: 255b64
+			var m: bit64 :: 33b64
+			var f: bit64 :: 0b64
+			var t: bit64 :: 5b64
+			do cui@print((n $ int).toStr())
+			do cui@print((n $ float).toStr())
+			do cui@print((m $ char).toStr())
+			do cui@print((f $ bool).toStr())
+			do cui@print((t $ bool).toStr())
+			do cui@print((n $ bit8).toStr())
+			do cui@print((n $ bit16).toStr())
+			do cui@print((n $ bit32).toStr())
+			do cui@print((n $ bit64).toStr())
+		end block
+	end for
+end func

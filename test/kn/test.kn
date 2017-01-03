@@ -1,0 +1,5 @@
+func main()
+	for(0, 100)
+		do cui@print(kuin@rndBit64().toStr() ~ "\n")
+	end for
+end func

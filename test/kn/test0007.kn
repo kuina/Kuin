@@ -1,0 +1,71 @@
+func main()
+	for(1, 3)
+		block
+			var ns: stack<int> :: #stack<int>
+			do ns.push(1)
+			do ns.push(2)
+			do ns.push(3)
+			do ns.push(4)
+			do ns.push(5)
+			do cui@print(ns.peek().toStr())
+			foreach n(ns)
+				do cui@print(n.toStr())
+			end foreach
+			while(^ns <> 0)
+				do cui@print(ns.pop().toStr())
+			end while
+			do ns.push(0)
+		end block
+
+		block
+			var ns: stack<[]char> :: #stack<[]char>
+			do ns.push("a")
+			do ns.push("b")
+			do ns.push("c")
+			do ns.push("d")
+			do ns.push("e")
+			do cui@print(ns.peek())
+			foreach n(ns)
+				do cui@print(n)
+			end foreach
+			while(^ns <> 0)
+				do cui@print(ns.pop())
+			end while
+			do ns.push("f")
+		end block
+
+		block
+			var ns: queue<int> :: #queue<int>
+			do ns.enq(1)
+			do ns.enq(2)
+			do ns.enq(3)
+			do ns.enq(4)
+			do ns.enq(5)
+			do cui@print(ns.peek().toStr())
+			foreach n(ns)
+				do cui@print(n.toStr())
+			end foreach
+			while(^ns <> 0)
+				do cui@print(ns.deq().toStr())
+			end while
+			do ns.enq(0)
+		end block
+
+		block
+			var ns: queue<[]char> :: #queue<[]char>
+			do ns.enq("a")
+			do ns.enq("b")
+			do ns.enq("c")
+			do ns.enq("d")
+			do ns.enq("e")
+			do cui@print(ns.peek())
+			foreach n(ns)
+				do cui@print(n)
+			end foreach
+			while(^ns <> 0)
+				do cui@print(ns.deq())
+			end while
+			do ns.enq("f")
+		end block
+	end for
+end func

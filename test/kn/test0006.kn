@@ -1,0 +1,106 @@
+func main()
+	for(1, 3)
+		block
+			class A()
+			end class
+
+			class B()
+			end class
+
+			var a: A :: #A
+			var b: B :: #B
+			do cui@print((a =$ kuin@Class).toStr() ~ ", " ~ (b =$ kuin@Class).toStr() ~ ", " ~ (a =$ A).toStr() ~ ", " ~ (b =$ B).toStr() ~ ", " ~ (a =$ B).toStr() ~ ", " ~ (b =$ A).toStr())
+			do cui@print((a <>$ kuin@Class).toStr() ~ ", " ~ (b <>$ kuin@Class).toStr() ~ ", " ~ (a <>$ A).toStr() ~ ", " ~ (b <>$ B).toStr() ~ ", " ~ (a <>$ B).toStr() ~ ", " ~ (b <>$ A).toStr())
+		end block
+
+		block
+			class A()
+				var a: int
+
+				*func ctor()
+					do me.a :: 5
+				end func
+
+				+func f(): int
+					ret me.a
+				end func
+			end class
+
+			class B(A)
+				+*func f(): int
+					ret 1234
+				end func
+			end class
+
+			do cui@print((#A).f().toStr() ~ ", " ~ (#B).f().toStr())
+			var a: A :: #A
+			var b: A :: #B
+			do cui@print(a.f().toStr() ~ ", " ~ b.f().toStr())
+		end block
+
+		block
+			var ns: list<int> :: #list<int>
+			do ns.add(1)
+			do ns.add(2)
+			do ns.add(3)
+			do ns.head()
+			do ns.ins(4)
+			do ns.ins(5)
+			do ns.tail()
+			do ns.ins(6)
+			do ns.ins(7)
+			do ns.head()
+			while(!ns.end())
+				do cui@print(ns.get().toStr())
+				do ns.next()
+			end while
+			do ns.head()
+			do ns.del()
+			do ns.tail()
+			do ns.del()
+			do cui@print((^ns).toStr())
+			foreach n(ns)
+				do cui@print(n.toStr())
+				do n :+ 5
+			end foreach
+			foreach n(ns)
+				do cui@print(n.toStr())
+			end foreach
+
+			var ss: list<[]char> :: #list<[]char>
+			do ss.add("ab")
+			do ss.add("cd")
+			do ss.add("ef")
+			do ss.head()
+			do ss.ins("gh")
+			do ss.ins("ij")
+			do ss.tail()
+			do ss.ins("kl")
+			do ss.ins("mn")
+			do ss.tail()
+			while(!ss.end())
+				do cui@print(ss.get())
+				do ss.prev()
+			end while
+			foreach s(ss)
+				do cui@print(s)
+				if(s = "cd")
+					do s :: "xx"
+					skip s
+				elif(s = "ef")
+					do s :: "xx"
+					break s
+				end if
+				do s :: "xx"
+			end foreach
+			do ss.head()
+			do ss.del()
+			do ss.tail()
+			do ss.del()
+			do cui@print((^ss).toStr())
+			foreach s(ss)
+				do cui@print(s)
+			end foreach
+		end block
+	end for
+end func

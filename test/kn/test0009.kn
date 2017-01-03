@@ -1,0 +1,104 @@
+func main()
+	for(1, 3)
+		block
+			var n: [][]char :: ["abc", "def"]
+			var m: [][]char :: ##n
+			do cui@print((n[0] = m[0]).toStr() ~ ", " ~ (n[0] =& m[0]).toStr())
+		end block
+
+		block
+			var n: list<list<int>> :: #list<list<int>>
+			var n2: list<int> :: #list<int>
+			do n2.add(3)
+			do n2.add(5)
+			do n.add(n2)
+			var m: list<list<int>> :: ##n
+			do n.head()
+			do n.get().head()
+			do m.head()
+			do m.get().head()
+			do cui@print(n.get().get().toStr() ~ ", " ~ m.get().get().toStr())
+		end block
+
+		block
+			var n: stack<stack<int>> :: #stack<stack<int>>
+			var n2: stack<int> :: #stack<int>
+			do n2.push(3)
+			do n2.push(5)
+			do n.push(n2)
+			var m: stack<stack<int>> :: ##n
+			do cui@print(n.peek().pop().toStr() ~ ", " ~ m.peek().pop().toStr())
+			do cui@print(n.pop().pop().toStr() ~ ", " ~ m.pop().pop().toStr())
+		end block
+
+		block
+			var n: queue<queue<int>> :: #queue<queue<int>>
+			var n2: queue<int> :: #queue<int>
+			do n2.enq(3)
+			do n2.enq(5)
+			do n.enq(n2)
+			var m: queue<queue<int>> :: ##n
+			do cui@print(n.peek().deq().toStr() ~ ", " ~ m.peek().deq().toStr())
+			do cui@print(n.deq().deq().toStr() ~ ", " ~ m.deq().deq().toStr())
+		end block
+
+		block
+			var n: dict<[]char, []char> :: #dict<[]char, []char>
+			do n.add("a", "A")
+			do n.add("c", "C")
+			do n.add("b", "B")
+			var m: dict<[]char, []char> :: ##n
+			do cui@print(n.get("a") ~ n.get("b") ~ n.get("c"))
+			do cui@print(m.get("a") ~ m.get("b") ~ m.get("c"))
+			do cui@print((n.get("a") = m.get("a")).toStr() ~ ", " ~ (n.get("a") =& m.get("a")).toStr())
+		end block
+
+		block
+			var n: bit8 :: 16#F6b8
+			var m: bit8 :: 16#0Ab8
+			do cui@print(n.or(m).toStr())
+			do cui@print(n.and(m).toStr())
+			do cui@print(n.xor(m).toStr())
+			do cui@print(n.not().toStr())
+			do cui@print(n.shl(1).toStr())
+			do cui@print(n.shr(1).toStr())
+			do cui@print(n.sar(1).toStr())
+		end block
+
+		block
+			var n: bit16 :: 16#F6F6b16
+			var m: bit16 :: 16#0A0Ab16
+			do cui@print(n.or(m).toStr())
+			do cui@print(n.and(m).toStr())
+			do cui@print(n.xor(m).toStr())
+			do cui@print(n.not().toStr())
+			do cui@print(n.shl(1).toStr())
+			do cui@print(n.shr(1).toStr())
+			do cui@print(n.sar(1).toStr())
+		end block
+
+		block
+			var n: bit32 :: 16#F6F6F6F6b32
+			var m: bit32 :: 16#0A0A0A0Ab32
+			do cui@print(n.or(m).toStr())
+			do cui@print(n.and(m).toStr())
+			do cui@print(n.xor(m).toStr())
+			do cui@print(n.not().toStr())
+			do cui@print(n.shl(1).toStr())
+			do cui@print(n.shr(1).toStr())
+			do cui@print(n.sar(1).toStr())
+		end block
+
+		block
+			var n: bit64 :: 16#F6F6F6F6F6F6F6F6b64
+			var m: bit64 :: 16#0A0A0A0A0A0A0A0Ab64
+			do cui@print(n.or(m).toStr())
+			do cui@print(n.and(m).toStr())
+			do cui@print(n.xor(m).toStr())
+			do cui@print(n.not().toStr())
+			do cui@print(n.shl(1).toStr())
+			do cui@print(n.shr(1).toStr())
+			do cui@print(n.sar(1).toStr())
+		end block
+	end for
+end func

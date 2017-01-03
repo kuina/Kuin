@@ -1,0 +1,71 @@
+func main()
+	for(1, 3)
+		block
+			var n: dict<int, int> :: #dict<int, int>
+			do n.add(6, 16)
+			do n.add(8, 18)
+			do n.add(10, 20)
+			do n.add(4, 14)
+			do n.add(2, 12)
+			do n.add(3, 13)
+			do n.add(7, 17)
+			do n.add(1, 11)
+			do n.add(9, 19)
+			do cui@print((^n).toStr())
+			for i(0, 11)
+				do cui@print(n.get(i).toStr())
+			end for
+		end block
+
+		block
+			var n: dict<int, []char> :: #dict<int, []char>
+			do n.add(6, "f")
+			do n.add(8, "h")
+			do n.add(10, "j")
+			do n.add(4, "d")
+			do n.add(2, "b")
+			do n.add(3, "c")
+			do n.add(7, "g")
+			do n.add(1, "a")
+			do n.add(9, "i")
+			do cui@print((^n).toStr())
+			for i(0, 11)
+				do cui@print(n.get(i))
+			end for
+		end block
+
+		block
+			var n: dict<[]char, int> :: #dict<[]char, int>
+			do n.add("f", 6)
+			do n.add("h", 8)
+			do n.add("j", 10)
+			do n.add("d", 4)
+			do n.add("b", 2)
+			do n.add("c", 3)
+			do n.add("g", 7)
+			do n.add("a", 1)
+			do n.add("i", 9)
+			do cui@print((^n).toStr())
+			for i(0, 11)
+				do cui@print(n.get((('a' $ int + i - 1) $ char).toStr()).toStr())
+			end for
+		end block
+
+		block
+			var n: dict<[]char, []char> :: #dict<[]char, []char>
+			do n.add("f", "F")
+			do n.add("h", "H")
+			do n.add("j", "J")
+			do n.add("d", "D")
+			do n.add("b", "B")
+			do n.add("c", "C")
+			do n.add("g", "G")
+			do n.add("a", "A")
+			do n.add("i", "I")
+			do cui@print((^n).toStr())
+			for i(0, 11)
+				do cui@print(n.get((('a' $ int + i - 1) $ char).toStr()))
+			end for
+		end block
+	end for
+end func

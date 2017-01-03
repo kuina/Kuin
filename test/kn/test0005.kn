@@ -1,0 +1,92 @@
+func main()
+	for(1, 3)
+		block
+			var s: []char :: "abcde"
+			foreach c(s)
+				do cui@print(c.toStr())
+				do c :: 'x'
+			end foreach
+			do cui@print(s)
+
+			var a: [][]char :: ["ab", "cd", "ef"]
+			foreach b(a)
+				do cui@print(b)
+				if(b = "cd")
+					do b :: "xx"
+					skip b
+				elif(b="ef")
+					do b :: "xx"
+					break b
+				end if
+				do b :: "xx"
+			end foreach
+			do cui@print(a[0] ~ ", " ~ a[1] ~ ", " ~ a[2])
+		end block
+
+		block
+			for i(1, 10)
+				for j(1, 10)
+					if(i = 2)
+						skip i
+					elif(i = 4)
+						break i
+					elif(j = 3)
+						skip j
+					elif(j = 5)
+						break j
+					end if
+					do cui@print(i.toStr() ~ ", " ~ j.toStr())
+				end for
+			end for
+		end block
+
+		block
+			const n: int :: 5
+			do cui@print(n.toStr())
+		end block
+
+		ifdef(dbg)
+			do cui@print("dbg")
+		end ifdef
+		ifdef(rls)
+			do cui@print("rls")
+		end ifdef
+
+		enum A
+			a
+			b
+			c :: 5
+			d
+			e :: -2
+			f
+		end enum
+		enum B
+			a :: -1
+		end enum
+		block
+			do cui@print((A#a $ int).toStr())
+			do cui@print((A#b $ int).toStr())
+			do cui@print((A#c $ int).toStr())
+			do cui@print((A#d $ int).toStr())
+			do cui@print((A#e $ int).toStr())
+			do cui@print((A#f $ int).toStr())
+			do cui@print((A#e $ bit8).toStr())
+			do cui@print((A#e $ bit16).toStr())
+			do cui@print((A#e $ bit32).toStr())
+			do cui@print((A#e $ bit64).toStr())
+			var n: A
+			do n :: B#a $ A
+			do cui@print((n $ int).toStr() ~ ", " ~ (n = A#f).toStr() ~ ", " ~ (n <> A#f).toStr() ~ ", " ~ (n < A#e).toStr() ~ ", " ~ (n > A#e).toStr())
+			do n :: 1234 $ A
+			do cui@print((n $ int).toStr())
+			do n :: 16#FFb8 $ A
+			do cui@print((n $ int).toStr())
+			do n :: 16#FFb16 $ A
+			do cui@print((n $ int).toStr())
+			do n :: 16#FFb32 $ A
+			do cui@print((n $ int).toStr())
+			do n :: 16#FFb64 $ A
+			do cui@print((n $ int).toStr())
+		end block
+	end for
+end func

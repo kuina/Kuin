@@ -1,0 +1,3455 @@
+#include "analyze.h"
+
+#include "list.h"
+#include "log.h"
+#include "mem.h"
+#include "util.h"
+
+static SDict* Asts;
+static const SOption* Option;
+static SDictI* EnumItems;
+static SDict* DLLs;
+static Bool LocalErr;
+
+static SAstFunc* SearchMain(void);
+static const void* ResolveIdentifier(const Char* key, const void* value, void* param);
+static void ResolveIdentifierRecursion(const Char* src, const SAst* scope);
+static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos);
+static SList* RefreshStats(SList* stats, SAstType* ret_type);
+static Bool CmpType(const SAstType* type1, const SAstType* type2);
+static Bool IsComparable(const SAstType* type, Bool less_or_greater);
+static U64 BitCast(int size, U64 n);
+static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name);
+static SAst* SearchStdItem(const Char* src, const Char* identifier, Bool make_expr_ref);
+static SAstExprDot* MakeMeDot(SAstClass* class_, SAstArg* arg, const Char* name);
+static void AddDLLFunc(const Char* dll_name, const Char* func_name);
+static SAstFunc* Rebuild(const SAstFunc* main_func);
+static const void* RebuildEnumCallback(U64 key, const void* value, void* param);
+static const void* RebuildRootCallback(const Char* key, const void* value, void* param);
+static void RebuildRoot(SAstRoot* ast);
+static void RebuildFunc(SAstFunc* ast);
+static void RebuildVar(SAstVar* ast);
+static void RebuildConst(SAstConst* ast);
+static void RebuildAlias(SAstAlias* ast);
+static void RebuildClass(SAstClass* ast);
+static void RebuildEnum(SAstEnum* ast);
+static void RebuildArg(SAstArg* ast);
+static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type);
+static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type);
+static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type);
+static SAstStat* RebuildWhile(SAstStatWhile* ast, SAstType* ret_type);
+static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type);
+static SAstStat* RebuildForEach(SAstStatForEach* ast, SAstType* ret_type);
+static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type);
+static SAstStat* RebuildThrow(SAstStatThrow* ast);
+static SAstStat* RebuildIfDef(SAstStatIfDef* ast, SAstType* ret_type);
+static SAstStat* RebuildBlock(SAstStatBlock* ast, SAstType* ret_type);
+static SAstStat* RebuildRet(SAstStatRet* ast, SAstType* ret_type);
+static SAstStat* RebuildDo(SAstStatDo* ast);
+static SAstStat* RebuildBreak(SAstStat* ast, SAstType* ret_type);
+static SAstStat* RebuildSkip(SAstStat* ast, SAstType* ret_type);
+static SAstStat* RebuildAssert(SAstStatAssert* ast);
+static SAstType* RebuildType(SAstType* ast);
+static SAstExpr* RebuildExpr(SAstExpr* ast, Bool nullable);
+static SAstExpr* RebuildExpr1(SAstExpr1* ast);
+static SAstExpr* RebuildExpr2(SAstExpr2* ast);
+static SAstExpr* RebuildExpr3(SAstExpr3* ast);
+static SAstExpr* RebuildExprNew(SAstExprNew* ast);
+static SAstExpr* RebuildExprNewArray(SAstExprNewArray* ast);
+static SAstExpr* RebuildExprAs(SAstExprAs* ast);
+static SAstExpr* RebuildExprCall(SAstExprCall* ast);
+static SAstExpr* RebuildExprArray(SAstExprArray* ast);
+static SAstExpr* RebuildExprDot(SAstExprDot* ast);
+static SAstExpr* RebuildExprValue(SAstExprValue* ast);
+static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast);
+static SAstExpr* RebuildExprRef(SAstExpr* ast);
+
+SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
+{
+	SAstFunc* result = NULL;
+	Asts = asts;
+	Option = option;
+	EnumItems = NULL;
+	DLLs = NULL;
+	LocalErr = False;
+	{
+		SAstFunc* main_func = SearchMain();
+		DictForEach(Asts, ResolveIdentifier, NULL);
+		if (!ErrOccurred())
+			result = Rebuild(main_func);
+#if defined(_DEBUG)
+		if (!ErrOccurred())
+			Dump1(NewStr(NULL, L"%s_analyzed.xml", Option->OutputFile), (SAst*)main_func);
+#endif
+	}
+	{
+		// DLL functions loaded when the program starts.
+		const Char* dll_name = L"d0000.knd";
+		AddDLLFunc(dll_name, L"_freeSet");
+		AddDLLFunc(dll_name, L"_copy");
+		AddDLLFunc(dll_name, L"_powInt");
+		AddDLLFunc(dll_name, L"_powFloat");
+		AddDLLFunc(dll_name, L"_mod");
+		AddDLLFunc(dll_name, L"_cmpStr");
+	}
+	*dlls = DLLs;
+	return result;
+}
+
+static SAstFunc* SearchMain(void)
+{
+	const SAst* ast = (const SAst*)DictSearch(Asts, NewStr(NULL, L"\\%s", Option->SrcName));
+	SAst* func = (SAst*)DictSearch(ast->ScopeChildren, L"main");
+	if (func != NULL && (func->TypeId & AstTypeId_Func) == AstTypeId_Func)
+	{
+		SAstFunc* func2 = (SAstFunc*)func;
+		if (func2->Args->Len != 0 || func2->Ret != NULL || func2->FuncAttr != FuncAttr_None || func2->DLLName != NULL)
+			Err(L"EA0001", ((SAst*)func2)->Pos);
+		return func2;
+	}
+	return NULL;
+}
+
+static const void* ResolveIdentifier(const Char* key, const void* value, void* param)
+{
+	if (param != NULL)
+	{
+		// 'key' is the source name and 'param' is 'NULL' when the compiler searches the roots of sources.
+		// 'key' is the identifier of the scope's parent and 'param' is the source name when the compiler searches each scope.
+		key = (Char*)param;
+	}
+	ResolveIdentifierRecursion(key, (const SAst*)value);
+	return value;
+}
+
+static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
+{
+	if (scope->ScopeRefedItems == NULL)
+	{
+		ASSERT(scope->ScopeChildren == NULL);
+		return;
+	}
+	{
+		// Search scopes for identifiers and resolve references.
+		SListNode* ptr = scope->ScopeRefedItems->Top;
+		while (ptr != NULL)
+		{
+			SAst* ast = (SAst*)ptr->Data;
+			ASSERT(ast->RefItem == NULL); // Must not resolve references that have been already resolved.
+			ASSERT(ast->RefName != NULL);
+			{
+				Bool other_file = False;
+				const Char* ptr_at = wcschr(ast->RefName, L'@');
+				Char name[129];
+				const Char* ptr_name; // The identifier right after '@'.
+				Char path[129];
+				const Char* ptr_path; // The path after '#'.
+				{
+					const Char* s = ptr_at == NULL ? ast->RefName : ptr_at + 1;
+					const Char* ptr_sharp = wcschr(s, L'#');
+					if (ptr_sharp == NULL)
+					{
+						ptr_name = s;
+						ptr_path = L"";
+					}
+					else
+					{
+						int len;
+						len = (int)(ptr_sharp - s);
+						memcpy(name, s, sizeof(Char) * (size_t)len);
+						name[len] = L'\0';
+						ptr_name = name;
+						len = (int)wcslen(ptr_sharp + 1);
+						memcpy(path, ptr_sharp + 1, sizeof(Char) * (size_t)len);
+						path[len] = L'\0';
+						ptr_path = path;
+					}
+				}
+				{
+					const SAst* found_ast = NULL;
+					Bool found = False;
+					if (ptr_at != NULL)
+					{
+						// Search the root of the source.
+						Char src2[129];
+						const Char* ptr_src; // The source name before '@'.
+						if (ptr_at == ast->RefName)
+							ptr_src = src;
+						else
+						{
+							int len = (int)(ptr_at - ast->RefName);
+							memcpy(src2, ast->RefName, sizeof(Char) * (size_t)len);
+							src2[len] = L'\0';
+							ptr_src = src2;
+							if (wcscmp(ptr_src, src) == 0)
+								Err(L"EA0002", ast->Pos, ptr_src);
+							other_file = True;
+						}
+						{
+							const SAst* ast2 = (const SAst*)DictSearch(Asts, ptr_src);
+							if (ast2 != NULL)
+								found_ast = (const SAst*)DictSearch(ast2->ScopeChildren, ptr_name);
+						}
+					}
+					else
+					{
+						// Search from the current scope toward its parent's scope.
+						const SAst* ast2 = scope;
+						for (; ; )
+						{
+							if (ast2->ScopeParent == NULL)
+								break; // No more parent scope exists.
+							if (ast2->Name != NULL && wcscmp(ast2->Name, ptr_name) == 0)
+							{
+								// The compiler also looks at the current scope's name.
+								found_ast = ast2;
+								break;
+							}
+							{
+								const SAst* ast3 = (const SAst*)DictSearch(ast2->ScopeChildren, ptr_name);
+								if (ast3 != NULL)
+								{
+									found_ast = ast3;
+									break;
+								}
+							}
+							// TODO: Is there a need to be able to explore beyond members?
+							if ((ast2->TypeId & AstTypeId_Func) == AstTypeId_Func && ast2->RefName == NULL)
+								break; // Not search any more scopes when the search reaches a function that is not a member.
+							ast2 = ast2->ScopeParent;
+						}
+					}
+					if (found_ast != NULL)
+					{
+						// Search the found scope for '#' items.
+						if (other_file && !found_ast->Public)
+							Err(L"EA0003", ast->Pos, ast->RefName);
+						else
+						{
+							while (*ptr_path != L'\0')
+							{
+								// Search while the path contains '#'.
+								const Char* ptr_sharp = wcschr(ptr_path, L'#');
+								if (ptr_sharp == NULL)
+								{
+									ptr_name = ptr_path;
+									ptr_path = L"";
+								}
+								else
+								{
+									int len;
+									len = (int)(ptr_sharp - ptr_path);
+									memcpy(name, ptr_path, sizeof(Char) * (size_t)len);
+									name[len] = L'\0';
+									ptr_name = name;
+									len = (int)wcslen(ptr_sharp + 1);
+									{
+										// The memory areas can overlap each other, so copy via another buffer.
+										Char buf[129];
+										memcpy(buf, ptr_sharp + 1, sizeof(Char) * (size_t)len);
+										memcpy(path, buf, sizeof(Char) * (size_t)len);
+									}
+									path[len] = L'\0';
+									ptr_path = path;
+								}
+								{
+									const SAst* ast2 = (const SAst*)DictSearch(found_ast->ScopeChildren, ptr_name);
+									if (ast2 == NULL)
+									{
+										found_ast = NULL;
+										break;
+									}
+									if (found_ast->TypeId == AstTypeId_Class)
+									{
+										if (ast2->TypeId == AstTypeId_Func || ast2->TypeId == AstTypeId_Var)
+										{
+											// TODO: Should it not be possible for properties and methods to be referenced by '#'?
+											found_ast = NULL;
+											break;
+										}
+									}
+									else if (found_ast->TypeId == AstTypeId_Enum)
+										EnumItems = DictIAdd(EnumItems, (U64)found_ast, DummyPtr);
+									else
+									{
+										// TODO: Should it be only 'class' members and 'enum' elements to be referenced by '#'?
+										found_ast = NULL;
+										break;
+									}
+									found_ast = ast2;
+								}
+							}
+							if (found_ast != NULL)
+							{
+								ast->RefItem = (SAst*)found_ast;
+								found = True;
+							}
+						}
+					}
+					if (!found)
+						Err(L"EA0000", ast->Pos, ast->RefName);
+				}
+			}
+			ptr = ptr->Next;
+		}
+	}
+	DictForEach(scope->ScopeChildren, ResolveIdentifier, (void*)src);
+}
+
+static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos)
+{
+	ast->TypeId = type_id;
+	ast->Pos = pos;
+	ast->Name = NULL;
+	ast->ScopeParent = NULL;
+	ast->ScopeChildren = NULL;
+	ast->ScopeRefedItems = NULL;
+	ast->RefName = NULL;
+	ast->RefItem = NULL;
+	ast->AnalyzedCache = NULL;
+	ast->Public = False;
+}
+
+static void InitAstExpr(SAstExpr* ast, EAstTypeId type_id, const SPos* pos)
+{
+	InitAst((SAst*)ast, type_id, pos);
+	ast->Type = NULL;
+	ast->VarKind = AstExprVarKind_Unknown;
+}
+
+static SList* RefreshStats(SList* stats, SAstType* ret_type)
+{
+	SList* stats2 = ListNew();
+	{
+		SListNode* ptr = stats->Top;
+		while (ptr != NULL)
+		{
+			SAstStat* stat = RebuildStat((SAstStat*)ptr->Data, ret_type);
+			if (stat != NULL)
+				ListAdd(stats2, stat);
+			ptr = ptr->Next;
+		}
+	}
+	return stats2;
+}
+
+static Bool CmpType(const SAstType* type1, const SAstType* type2)
+{
+	EAstTypeId type_id1 = ((SAst*)type1)->TypeId;
+	EAstTypeId type_id2 = ((SAst*)type2)->TypeId;
+	ASSERT(type1 != NULL && type2 != NULL);
+	{
+		// Comparing 'null' and 'nullable' is true.
+		Bool nullable1 = type_id1 == AstTypeId_TypeUser && ((SAst*)type1)->RefItem->TypeId == AstTypeId_Enum ? False : ((type_id1 & AstTypeId_TypeNullable) == AstTypeId_TypeNullable);
+		Bool nullable2 = type_id2 == AstTypeId_TypeUser && ((SAst*)type2)->RefItem->TypeId == AstTypeId_Enum ? False : ((type_id2 & AstTypeId_TypeNullable) == AstTypeId_TypeNullable);
+		if (nullable1 && type_id2 == AstTypeId_TypeNull || type_id1 == AstTypeId_TypeNull && nullable2 || type_id1 == AstTypeId_TypeNull && type_id2 == AstTypeId_TypeNull)
+			return True;
+	}
+	if (type_id1 == AstTypeId_TypeArray && type_id2 == AstTypeId_TypeArray)
+		return CmpType(((SAstTypeArray*)type1)->ItemType, ((SAstTypeArray*)type2)->ItemType);
+	if (type_id1 == AstTypeId_TypeBit && type_id2 == AstTypeId_TypeBit)
+		return ((SAstTypeBit*)type1)->Size == ((SAstTypeBit*)type2)->Size;
+	if (type_id1 == AstTypeId_TypeFunc && type_id2 == AstTypeId_TypeFunc)
+	{
+		SAstTypeFunc* func1 = (SAstTypeFunc*)type1;
+		SAstTypeFunc* func2 = (SAstTypeFunc*)type2;
+		SListNode* ptr1 = func1->Args->Top;
+		SListNode* ptr2 = func2->Args->Top;
+		if (func1->FuncAttr != func2->FuncAttr)
+			return False;
+		while (ptr1 != NULL && ptr2 != NULL)
+		{
+			if (!CmpType(((SAstArg*)ptr1->Data)->Type, ((SAstArg*)ptr2->Data)->Type))
+				return False;
+			ptr1 = ptr1->Next;
+			ptr2 = ptr2->Next;
+		}
+		if (ptr1 == NULL || ptr2 == NULL)
+			return False;
+		if (func1->Ret == NULL && func2->Ret == NULL)
+			return True;
+		if (func1->Ret == NULL || func2->Ret == NULL)
+			return False;
+		return CmpType(func1->Ret, func2->Ret);
+	}
+	if (type_id1 == AstTypeId_TypeGen && type_id2 == AstTypeId_TypeGen)
+	{
+		if (((SAstTypeGen*)type1)->Kind != ((SAstTypeGen*)type2)->Kind)
+			return False;
+		return CmpType(((SAstTypeGen*)type1)->ItemType, ((SAstTypeGen*)type2)->ItemType);
+	}
+	if (type_id1 == AstTypeId_TypeDict && type_id2 == AstTypeId_TypeDict)
+		return CmpType(((SAstTypeDict*)type1)->ItemTypeKey, ((SAstTypeDict*)type2)->ItemTypeKey) && CmpType(((SAstTypeDict*)type1)->ItemTypeValue, ((SAstTypeDict*)type2)->ItemTypeValue);
+	if (type_id1 == AstTypeId_TypePrim && type_id2 == AstTypeId_TypePrim)
+		return ((SAstTypePrim*)type1)->Kind == ((SAstTypePrim*)type2)->Kind;
+	if (type_id1 == AstTypeId_TypeUser && type_id2 == AstTypeId_TypeUser)
+	{
+		if (((SAst*)type1)->RefItem->TypeId == AstTypeId_Class && ((SAst*)type2)->RefItem->TypeId == AstTypeId_Class)
+		{
+			// Check whether they are parent-child relationship.
+			SAstClass* class0 = (SAstClass*)((SAst*)type1)->RefItem;
+			SAstClass* class1 = (SAstClass*)((SAst*)type2)->RefItem;
+			Bool found = False;
+			SAstClass* ptr = class1;
+			while (ptr != NULL)
+			{
+				if (ptr == class0)
+				{
+					found = True;
+					break;
+				}
+				ptr = (SAstClass*)((SAst*)ptr)->RefItem;
+			}
+			if (found)
+				return True;
+			ptr = class0;
+			while (ptr != NULL)
+			{
+				if (ptr == class1)
+				{
+					found = True;
+					break;
+				}
+				ptr = (SAstClass*)((SAst*)ptr)->RefItem;
+			}
+			if (found)
+				return True;
+			return False;
+		}
+		return ((SAst*)type1)->RefItem == ((SAst*)type2)->RefItem;
+	}
+	return False;
+}
+
+static Bool IsComparable(const SAstType* type, Bool less_or_greater)
+{
+	// Note: 'null' itself is an incomparable type.
+	// The following types can be compared.
+	if (((SAst*)type)->TypeId == AstTypeId_TypeBit || IsInt(type) || IsFloat(type) || IsChar(type) || IsEnum(type) || IsClass(type) || IsStr(type))
+		return True;
+	// 'bool' can be just determined whether the values match.
+	if (!less_or_greater && IsBool(type))
+		return True;
+	return False;
+}
+
+static U64 BitCast(int size, U64 n)
+{
+	switch (size)
+	{
+		case 1: return (U64)(U8)n;
+		case 2: return (U64)(U16)n;
+		case 4: return (U64)(U32)n;
+		case 8: return n;
+		default:
+			ASSERT(False);
+			break;
+	}
+	return 0;
+}
+
+static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name)
+{
+	// Make frameworks for 'dtor', 'copy', 'toBin', and 'fromBin'.
+	SAstFunc* func = (SAstFunc*)Alloc(sizeof(SAstFunc));
+	InitAst((SAst*)func, AstTypeId_Func, ((SAst*)class_)->Pos);
+	((SAst*)func)->Name = name;
+	func->Addr = NewAddr();
+	func->DLLName = NULL;
+	func->FuncAttr = FuncAttr_None;
+	func->Args = ListNew();
+	func->Ret = NULL;
+	func->Stats = ListNew();
+	func->RetPoint = AsmLabel();
+	{
+		SAstArg* me = (SAstArg*)Alloc(sizeof(SAstArg));
+		InitAst((SAst*)me, AstTypeId_Arg, ((SAst*)class_)->Pos);
+		me->Addr = NewAddr();
+		me->Kind = AstArgKind_LocalArg;
+		me->RefVar = False;
+		me->Expr = NULL;
+		{
+			SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
+			InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)class_)->Pos);
+			((SAst*)type)->RefItem = (SAst*)class_;
+			me->Type = (SAstType*)type;
+		}
+		ListAdd(func->Args, me);
+	}
+	{
+		// These functions override functions of the root class.
+		SAstClassItem* item = (SAstClassItem*)Alloc(sizeof(SAstClassItem));
+		item->Override = True;
+		item->Def = (SAst*)func;
+		item->ParentItem = NULL;
+		item->Addr = -1;
+		{
+			SAstClass* ptr = (SAstClass*)((SAst*)class_)->RefItem;
+			while (((SAst*)ptr)->RefItem != NULL)
+				ptr = (SAstClass*)((SAst*)ptr)->RefItem;
+			{
+				SListNode* ptr2 = ptr->Items->Top;
+				while (ptr2 != NULL)
+				{
+					SAstClassItem* item2 = (SAstClassItem*)ptr2->Data;
+					if (wcscmp(item2->Def->Name, name) == 0)
+					{
+						item->ParentItem = item2;
+						break;
+					}
+					ptr2 = ptr2->Next;
+				}
+				ASSERT(item->ParentItem != NULL);
+				item->Public = item->ParentItem->Public;
+			}
+		}
+		ListAdd(class_->Items, item);
+	}
+	return func;
+}
+
+static SAst* SearchStdItem(const Char* src, const Char* identifier, Bool make_expr_ref)
+{
+	SAst* ast = (SAst*)DictSearch(Asts, src);
+	if (ast == NULL)
+	{
+		Err(L"EK0000", NULL, src);
+		LocalErr = True;
+		return (SAst*)DummyPtr;
+	}
+	{
+		SAst* ast2 = (SAst*)DictSearch(ast->ScopeChildren, identifier);
+		if (ast2 == NULL)
+		{
+			Err(L"EK0001", NULL, src);
+			LocalErr = True;
+			return (SAst*)DummyPtr;
+		}
+		if (make_expr_ref)
+		{
+			SAstExpr* expr = (SAstExpr*)Alloc(sizeof(SAstExpr));
+			InitAstExpr(expr, AstTypeId_ExprRef, NewPos(L"kuin", 1, 1));
+			((SAst*)expr)->RefItem = ast2;
+			return (SAst*)RebuildExprRef(expr);
+		}
+		return ast2;
+	}
+}
+
+static SAstExprDot* MakeMeDot(SAstClass* class_, SAstArg* arg, const Char* name)
+{
+	SAstExprDot* dot = (SAstExprDot*)Alloc(sizeof(SAstExprDot));
+	InitAstExpr((SAstExpr*)dot, AstTypeId_ExprDot, ((SAst*)class_)->Pos);
+	dot->Member = name;
+	dot->ClassItem = NULL;
+	{
+		SAstExpr* me = (SAstExpr*)Alloc(sizeof(SAstExpr));
+		InitAstExpr(me, AstTypeId_ExprRef, ((SAst*)class_)->Pos);
+		((SAst*)me)->RefItem = (SAst*)arg;
+		{
+			SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
+			InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)class_)->Pos);
+			((SAst*)type)->RefItem = (SAst*)class_;
+			me->Type = (SAstType*)type;
+		}
+		dot->Var = me;
+	}
+	return dot;
+}
+
+static void AddDLLFunc(const Char* dll_name, const Char* func_name)
+{
+	SDict* dll = (SDict*)DictSearch(DLLs, dll_name);
+	dll = DictAdd(dll, NewStr(NULL, L"%s$%s", dll_name, func_name), func_name);
+	DLLs = DictAdd(DLLs, dll_name, dll);
+}
+
+static SAstFunc* Rebuild(const SAstFunc* main_func)
+{
+	// Build the entry point.
+	const SPos* pos = NewPos(L"kuin", 1, 1);
+	SAstFunc* func = (SAstFunc*)Alloc(sizeof(SAstFunc));
+	InitAst((SAst*)func, AstTypeId_Func, pos);
+	((SAst*)func)->Name = L"$";
+	func->Addr = NewAddr();
+	func->DLLName = NULL;
+	func->FuncAttr = FuncAttr_None;
+	func->Args = ListNew();
+	func->Ret = NULL;
+	func->Stats = ListNew();
+	func->RetPoint = NULL;
+	{
+		SAstStatTry* try_ = (SAstStatTry*)Alloc(sizeof(SAstStatTry));
+		InitAst((SAst*)try_, AstTypeId_StatTry, pos);
+		{
+			SAstArg* var = (SAstArg*)Alloc(sizeof(SAstArg));
+			InitAst((SAst*)var, AstTypeId_Arg, pos);
+			((SAst*)var)->Name = L"$";
+			var->Addr = NewAddr();
+			var->Kind = AstArgKind_LocalVar;
+			var->RefVar = False;
+			{
+				SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
+				InitAst((SAst*)type, AstTypeId_TypeUser, pos);
+				((SAst*)type)->RefItem = SearchStdItem(L"kuin", L"Excpt", False);
+				var->Type = (SAstType*)type;
+			}
+			var->Expr = NULL;
+			((SAstStatBreakable*)try_)->BlockVar = var;
+		}
+		((SAstStatBreakable*)try_)->BreakPoint = AsmLabel();
+		try_->Stats = ListNew();
+		try_->Catches = ListNew();
+		try_->FinallyStats = ListNew();
+		{
+			// Make the program to call 'init' and 'main'.
+			SList* funcs = ListNew();
+			ListAdd(funcs, SearchStdItem(L"kuin", L"_init", False));
+			switch (Option->Env)
+			{
+				case Env_Wnd:
+					ListAdd(funcs, SearchStdItem(L"wnd", L"_init", False));
+					break;
+				case Env_Cui:
+					ListAdd(funcs, SearchStdItem(L"cui", L"_init", False));
+					break;
+				case Env_Web:
+					// TODO:
+					break;
+				default:
+					ASSERT(False);
+					break;
+			}
+			ListAdd(funcs, SearchStdItem(L"kuin", L"_initVars", False));
+			ListAdd(funcs, main_func);
+			{
+				SListNode* ptr = funcs->Top;
+				while (ptr != NULL)
+				{
+					SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+					InitAst((SAst*)do_, AstTypeId_StatDo, pos);
+					{
+						SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
+						InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, pos);
+						call->Args = ListNew();
+						{
+							SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
+							InitAstExpr(ref_, AstTypeId_ExprRef, pos);
+							((SAst*)ref_)->RefItem = (SAst*)ptr->Data;
+							call->Func = ref_;
+						}
+						do_->Expr = (SAstExpr*)call;
+					}
+					ListAdd(try_->Stats, do_);
+					ptr = ptr->Next;
+				}
+			}
+		}
+		{
+			SAstStatCatch* catch_ = (SAstStatCatch*)Alloc(sizeof(SAstStatCatch));
+			InitAst((SAst*)catch_, AstTypeId_StatCatch, pos);
+			catch_->Conds = ListNew();
+			catch_->Stats = ListNew();
+			{
+				SAstExpr** exprs = (SAstExpr**)Alloc(sizeof(SAstExpr*) * 2);
+				{
+					exprs[0] = (SAstExpr*)Alloc(sizeof(SAstExprValue));
+					InitAst((SAst*)exprs[0], AstTypeId_ExprValue, pos);
+					exprs[0]->VarKind = AstExprVarKind_Value;
+					*(S64*)((SAstExprValue*)exprs[0])->Value = 0;
+					{
+						SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+						InitAst((SAst*)type, AstTypeId_TypePrim, pos);
+						type->Kind = AstTypePrimKind_Int;
+						exprs[0]->Type = (SAstType*)type;
+					}
+				}
+				{
+					exprs[1] = (SAstExpr*)Alloc(sizeof(SAstExprValue));
+					InitAst((SAst*)exprs[1], AstTypeId_ExprValue, pos);
+					exprs[1]->VarKind = AstExprVarKind_Value;
+					*(S64*)((SAstExprValue*)exprs[1])->Value = _UI32_MAX;
+					{
+						SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+						InitAst((SAst*)type, AstTypeId_TypePrim, pos);
+						type->Kind = AstTypePrimKind_Int;
+						exprs[1]->Type = (SAstType*)type;
+					}
+				}
+				ListAdd(catch_->Conds, exprs);
+			}
+			{
+				// Make the program to call 'err'.
+				SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+				InitAst((SAst*)do_, AstTypeId_StatDo, pos);
+				{
+					SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
+					InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, pos);
+					call->Args = ListNew();
+					{
+						SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
+						InitAstExpr(ref_, AstTypeId_ExprRef, pos);
+						((SAst*)ref_)->RefItem = SearchStdItem(L"kuin", L"_err", False);
+						call->Func = ref_;
+					}
+					{
+						SAstExprCallArg* excpt = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+						excpt->RefVar = False;
+						{
+							SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
+							InitAstExpr(ref_, AstTypeId_ExprRef, pos);
+							((SAst*)ref_)->RefItem = (SAst*)((SAstStatBreakable*)try_)->BlockVar;
+							excpt->Arg = ref_;
+						}
+						ListAdd(call->Args, excpt);
+					}
+					do_->Expr = (SAstExpr*)call;
+				}
+				ListAdd(catch_->Stats, do_);
+			}
+			ListAdd(try_->Catches, catch_);
+		}
+		{
+			// Make the program to call 'fin'.
+			SList* funcs = ListNew();
+			ListAdd(funcs, SearchStdItem(L"kuin", L"_finVars", False));
+			switch (Option->Env)
+			{
+			case Env_Wnd:
+				ListAdd(funcs, SearchStdItem(L"wnd", L"_fin", False));
+				break;
+			case Env_Cui:
+				ListAdd(funcs, SearchStdItem(L"cui", L"_fin", False));
+				break;
+			case Env_Web:
+				// TODO:
+				break;
+			default:
+				ASSERT(False);
+				break;
+			}
+			ListAdd(funcs, SearchStdItem(L"kuin", L"_fin", False));
+			{
+				SListNode* ptr = funcs->Top;
+				while (ptr != NULL)
+				{
+					SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+					InitAst((SAst*)do_, AstTypeId_StatDo, pos);
+					{
+						SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
+						InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, pos);
+						call->Args = ListNew();
+						{
+							SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
+							InitAstExpr(ref_, AstTypeId_ExprRef, pos);
+							((SAst*)ref_)->RefItem = (SAst*)ptr->Data;
+							call->Func = ref_;
+						}
+						do_->Expr = (SAstExpr*)call;
+					}
+					ListAdd(try_->FinallyStats, do_);
+					ptr = ptr->Next;
+				}
+			}
+		}
+		ListAdd(func->Stats, try_);
+	}
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstFunc*)DummyPtr;
+	}
+	DictIForEach(EnumItems, RebuildEnumCallback, NULL);
+	RebuildFunc(func);
+	ListAdd(((const SAstRoot*)DictSearch(Asts, NewStr(NULL, L"\\%s", Option->SrcName)))->Items, func);
+	DictForEach(Asts, RebuildRootCallback, NULL);
+	return func;
+}
+
+static const void* RebuildEnumCallback(U64 key, const void* value, void* param)
+{
+	UNUSED(param);
+	RebuildEnum((SAstEnum*)key);
+	return value;
+}
+
+static const void* RebuildRootCallback(const Char* key, const void* value, void* param)
+{
+	UNUSED(param);
+	UNUSED(key);
+	RebuildRoot((SAstRoot*)value);
+	return value;
+}
+
+static void RebuildRoot(SAstRoot* ast)
+{
+	// TODO: Is this 'RebuildRoot' function really necessary? Is it just initializing and finalizing global variables?
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	{
+		SAstFunc* init_vars = (SAstFunc*)SearchStdItem(L"kuin", L"_initVars", False);
+		SAstFunc* fin_vars = (SAstFunc*)SearchStdItem(L"kuin", L"_finVars", False);
+		ASSERT(!LocalErr);
+		{
+			SListNode* ptr = ast->Items->Top;
+			while (ptr != NULL)
+			{
+				SAst* item = (SAst*)ptr->Data;
+				if ((item->TypeId & AstTypeId_Func) == AstTypeId_Func)
+					RebuildFunc((SAstFunc*)item);
+				else if (item->TypeId == AstTypeId_Var)
+				{
+					SAstVar* var = (SAstVar*)item;
+					ASSERT(var->Var->Kind == AstArgKind_Global);
+					if (var->Var->Expr != NULL)
+					{
+						// Add initialization processing of global variables to '_initVars'.
+						var->Var->Expr = RebuildExpr(var->Var->Expr, False);
+						if (LocalErr)
+						{
+							LocalErr = False;
+							ptr = ptr->Next;
+							continue;
+						}
+						{
+							SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+							InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
+							{
+								SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+								InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+								assign->Kind = AstExpr2Kind_Assign;
+								{
+									SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
+									InitAstExpr((SAstExpr*)ref_, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+									((SAstExpr*)ref_)->Type = var->Var->Type;
+									((SAst*)ref_)->RefItem = (SAst*)var->Var;
+									assign->Children[0] = ref_;
+								}
+								assign->Children[1] = var->Var->Expr;
+								do_->Expr = (SAstExpr*)assign;
+							}
+							ListAdd(init_vars->Stats, RebuildStat((SAstStat*)do_, NULL));
+						}
+					}
+					if (IsRef(var->Var->Type))
+					{
+						// Add finalization processing of global variables to '_finVars'.
+						SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+						InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
+						{
+							SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+							InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+							assign->Kind = AstExpr2Kind_Assign;
+							{
+								SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
+								InitAstExpr((SAstExpr*)ref_, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+								((SAstExpr*)ref_)->Type = var->Var->Type;
+								((SAst*)ref_)->RefItem = (SAst*)var->Var;
+								assign->Children[0] = ref_;
+							}
+							{
+								SAstExprValue* value = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+								InitAstExpr((SAstExpr*)value, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+								*(S64*)value->Value = 0;
+								{
+									SAstTypeNull* null_ = (SAstTypeNull*)Alloc(sizeof(SAstTypeNull));
+									InitAst((SAst*)null_, AstTypeId_TypeNull, ((SAst*)ast)->Pos);
+									((SAstExpr*)value)->Type = (SAstType*)null_;
+								}
+								assign->Children[1] = (SAstExpr*)value;
+							}
+							do_->Expr = (SAstExpr*)assign;
+						}
+						ListAdd(fin_vars->Stats, RebuildStat((SAstStat*)do_, NULL));
+					}
+				}
+				else
+					ASSERT(item->TypeId == AstTypeId_Const || item->TypeId == AstTypeId_Alias || item->TypeId == AstTypeId_Class || item->TypeId == AstTypeId_Enum);
+				ptr = ptr->Next;
+			}
+		}
+	}
+}
+
+static void RebuildFunc(SAstFunc* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	if (ast->DLLName != NULL)
+		AddDLLFunc(ast->DLLName, ((SAst*)ast)->Name);
+	{
+		SListNode* ptr = ast->Args->Top;
+		while (ptr != NULL)
+		{
+			RebuildArg((SAstArg*)ptr->Data);
+			ptr = ptr->Next;
+		}
+	}
+	ast->Stats = RefreshStats(ast->Stats, ast->Ret);
+}
+
+static void RebuildVar(SAstVar* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	RebuildArg(ast->Var);
+}
+
+static void RebuildConst(SAstConst* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	RebuildArg(ast->Var);
+}
+
+static void RebuildAlias(SAstAlias* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	// TODO:
+}
+
+static void RebuildClass(SAstClass* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	if (((SAst*)ast)->RefItem != NULL)
+		RebuildClass((SAstClass*)((SAst*)ast)->RefItem);
+	{
+		// Make sure that the class references do not circulate.
+		SAstClass* parent = ast;
+		SDictI* chk = NULL;
+		while (parent != NULL)
+		{
+			U64 addr = (U64)parent;
+			if (DictISearch(chk, addr) != NULL)
+			{
+				Err(L"EA0004", ((SAst*)ast)->Pos, ((SAst*)ast)->Name);
+				return;
+			}
+			chk = DictIAdd(chk, addr, DummyPtr);
+			parent = (SAstClass*)((SAst*)parent)->RefItem;
+		}
+	}
+	{
+		SAstFunc* dtor = NULL;
+		SAstFunc* copy = NULL;
+		SAstFunc* to_bin = NULL;
+		SAstFunc* from_bin = NULL;
+		{
+			SListNode* ptr = ast->Items->Top;
+			while (ptr != NULL)
+			{
+				SAstClassItem* item = (SAstClassItem*)ptr->Data;
+				const Char* member_name;
+				{
+					SAst* def = item->Def;
+					if (def->TypeId == AstTypeId_Var)
+						member_name = ((SAst*)((SAstVar*)def)->Var)->Name;
+					else if (def->TypeId == AstTypeId_Const)
+						member_name = ((SAst*)((SAstConst*)def)->Var)->Name;
+					else
+						member_name = def->Name;
+				}
+				{
+					// Check whether functions are overriding another.
+					SAstClassItem* parent_item = NULL;
+					{
+						SAstClass* parent = (SAstClass*)((SAst*)ast)->RefItem;
+						while (parent_item == NULL && parent != NULL)
+						{
+							SListNode* ptr2 = parent->Items->Top;
+							while (ptr2 != NULL)
+							{
+								const Char* parent_name;
+								{
+									SAst* def = ((SAstClassItem*)ptr2->Data)->Def;
+									if (def->TypeId == AstTypeId_Var)
+										parent_name = ((SAst*)((SAstVar*)def)->Var)->Name;
+									else if (def->TypeId == AstTypeId_Const)
+										parent_name = ((SAst*)((SAstConst*)def)->Var)->Name;
+									else
+										parent_name = def->Name;
+								}
+								if (wcscmp(member_name, parent_name) == 0)
+								{
+									parent_item = (SAstClassItem*)ptr2->Data;
+								}
+								ptr2 = ptr2->Next;
+							}
+							parent = (SAstClass*)((SAst*)parent)->RefItem;
+						}
+					}
+					if (parent_item == NULL)
+					{
+						if (item->Override)
+						{
+							Err(L"EA0005", item->Def->Pos, member_name);
+							return;
+						}
+					}
+					else
+					{
+						if (!item->Override)
+						{
+							Err(L"EA0006", item->Def->Pos, member_name);
+							return;
+						}
+						if (!(item->Def->TypeId == AstTypeId_Func && parent_item->Def->TypeId == AstTypeId_Func))
+						{
+							Err(L"EA0007", item->Def->Pos, member_name);
+							return;
+						}
+						if (item->Public != parent_item->Public)
+						{
+							Err(L"EA0008", item->Def->Pos, member_name);
+							return;
+						}
+						{
+							SAstFunc* func1 = (SAstFunc*)item->Def;
+							SAstFunc* func2 = (SAstFunc*)parent_item->Def;
+							if (func1->Ret == NULL && func2->Ret != NULL || func1->Ret != NULL && func2->Ret == NULL || (func1->Ret != NULL && func2->Ret != NULL && !CmpType(func1->Ret, func2->Ret)) || func1->Args->Len != func2->Args->Len)
+							{
+								Err(L"EA0009", item->Def->Pos, member_name);
+								return;
+							}
+							{
+								int i;
+								SListNode* node1 = func1->Args->Top;
+								SListNode* node2 = func2->Args->Top;
+								for (i = 0; i < func1->Args->Len; i++)
+								{
+									SAstArg* arg1 = (SAstArg*)node1->Data;
+									SAstArg* arg2 = (SAstArg*)node2->Data;
+									if (!CmpType(arg1->Type, arg2->Type) || wcscmp(((SAst*)arg1)->Name, ((SAst*)arg2)->Name) != 0 || arg1->RefVar != arg2->RefVar)
+									{
+										Err(L"EA0009", item->Def->Pos, member_name);
+										return;
+									}
+									node1 = node1->Next;
+									node2 = node2->Next;
+								}
+							}
+						}
+						item->ParentItem = parent_item;
+					}
+				}
+				if (wcscmp(member_name, L"dtor") == 0 || wcscmp(member_name, L"copy") == 0 || wcscmp(member_name, L"toBin") == 0 || wcscmp(member_name, L"fromBin") == 0)
+				{
+					ASSERT(item->Def->TypeId == AstTypeId_Func);
+					if (item->Override)
+					{
+						Err(L"EA0010", item->Def->Pos, member_name);
+						return;
+					}
+					switch (member_name[0])
+					{
+						case L'd': dtor = (SAstFunc*)item->Def; break;
+						case L'c': copy = (SAstFunc*)item->Def; break;
+						case L't': to_bin = (SAstFunc*)item->Def; break;
+						case L'f': from_bin = (SAstFunc*)item->Def; break;
+						default:
+							ASSERT(False);
+					}
+					// Skip 'RebuildFunc' to add the contents later.
+					ptr = ptr->Next;
+					continue;
+				}
+				{
+					// Analyze functions and variables in classes because they can be referred to as instances.
+					SAst* def = item->Def;
+					if (def->TypeId == AstTypeId_Func)
+						RebuildFunc((SAstFunc*)def);
+					else if (def->TypeId == AstTypeId_Var)
+						RebuildVar((SAstVar*)def);
+				}
+				ptr = ptr->Next;
+			}
+		}
+		{
+			// Get 'me' of special functions.
+			if (((SAst*)ast)->RefItem == NULL)
+			{
+				ASSERT(dtor != NULL);
+				ASSERT(copy != NULL);
+				ASSERT(to_bin != NULL);
+				ASSERT(from_bin != NULL);
+			}
+			else
+			{
+				dtor = AddSpecialFunc(ast, L"dtor");
+				copy = AddSpecialFunc(ast, L"copy");
+				{
+					SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
+					InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)ast)->Pos);
+					((SAst*)type)->RefItem = (SAst*)ast;
+					copy->Ret = (SAstType*)type;
+				}
+				to_bin = AddSpecialFunc(ast, L"toBin");
+				{
+					SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+					InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+					{
+						SAstTypeBit* type2 = (SAstTypeBit*)Alloc(sizeof(SAstTypeBit));
+						InitAst((SAst*)type2, AstTypeId_TypeBit, ((SAst*)ast)->Pos);
+						type2->Size = 1;
+						type->ItemType = (SAstType*)type2;
+					}
+					to_bin->Ret = (SAstType*)type;
+				}
+				from_bin = AddSpecialFunc(ast, L"fromBin");
+				{
+					// 'bin'.
+					SAstArg* arg = (SAstArg*)Alloc(sizeof(SAstArg));
+					InitAst((SAst*)arg, AstTypeId_Arg, ((SAst*)ast)->Pos);
+					arg->Addr = NewAddr();
+					arg->Kind = AstArgKind_LocalArg;
+					arg->RefVar = False;
+					arg->Expr = NULL;
+					{
+						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+						{
+							SAstTypeBit* type2 = (SAstTypeBit*)Alloc(sizeof(SAstTypeBit));
+							InitAst((SAst*)type2, AstTypeId_TypeBit, ((SAst*)ast)->Pos);
+							type2->Size = 1;
+							type->ItemType = (SAstType*)type2;
+						}
+						arg->Type = (SAstType*)type;
+					}
+					ListAdd(from_bin->Args, arg);
+				}
+				{
+					// 'idx'.
+					SAstArg* arg = (SAstArg*)Alloc(sizeof(SAstArg));
+					InitAst((SAst*)arg, AstTypeId_Arg, ((SAst*)ast)->Pos);
+					arg->Addr = NewAddr();
+					arg->Kind = AstArgKind_LocalArg;
+					arg->RefVar = False;
+					arg->Expr = NULL;
+					{
+						SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+						InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+						type->Kind = AstTypePrimKind_Int;
+						arg->Type = (SAstType*)type;
+					}
+					ListAdd(from_bin->Args, arg);
+				}
+				{
+					SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+					InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+					type->Kind = AstTypePrimKind_Int;
+					from_bin->Ret = (SAstType*)type;
+				}
+			}
+			// The 'dtor' function.
+			{
+				SAstClass* ptr = ast;
+				while (ptr != NULL)
+				{
+					SListNode* ptr2 = ptr->Items->Top;
+					while (ptr2 != NULL)
+					{
+						SAstClassItem* item = (SAstClassItem*)ptr2->Data;
+						if (item->Def->TypeId == AstTypeId_Var && IsRef(((SAstVar*)item->Def)->Var->Type))
+						{
+							SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+							InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
+							{
+								SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+								InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+								assign->Kind = AstExpr2Kind_Assign;
+								assign->Children[0] = (SAstExpr*)MakeMeDot(ast, (SAstArg*)dtor->Args->Top->Data, ((SAst*)((SAstVar*)item->Def)->Var)->Name);
+								{
+									SAstExprValue* value = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+									InitAstExpr((SAstExpr*)value, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+									*(S64*)value->Value = 0;
+									{
+										SAstTypeNull* null = (SAstTypeNull*)Alloc(sizeof(SAstTypeNull));
+										InitAst((SAst*)null, AstTypeId_TypeNull, ((SAst*)ast)->Pos);
+										((SAstExpr*)value)->Type = (SAstType*)null;
+									}
+									assign->Children[1] = (SAstExpr*)value;
+								}
+								do_->Expr = (SAstExpr*)assign;
+							}
+							ListAdd(dtor->Stats, do_);
+						}
+						ptr2 = ptr2->Next;
+					}
+					ptr = (SAstClass*)((SAst*)ptr)->RefItem;
+				}
+			}
+			// The 'copy' function.
+			{
+				SAstExpr* result;
+				{
+					SAstStatVar* var = (SAstStatVar*)Alloc(sizeof(SAstStatVar));
+					InitAst((SAst*)var, AstTypeId_StatVar, ((SAst*)ast)->Pos);
+					{
+						SAstVar* var2 = (SAstVar*)Alloc(sizeof(SAstVar));
+						InitAst((SAst*)var2, AstTypeId_Var, ((SAst*)ast)->Pos);
+						{
+							SAstArg* arg = (SAstArg*)Alloc(sizeof(SAstArg));
+							InitAst((SAst*)arg, AstTypeId_Arg, ((SAst*)ast)->Pos);
+							arg->Addr = NewAddr();
+							arg->Kind = AstArgKind_LocalVar;
+							arg->RefVar = False;
+							{
+								SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
+								InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)ast)->Pos);
+								((SAst*)type)->RefItem = (SAst*)ast;
+								arg->Type = (SAstType*)type;
+							}
+							{
+								SAstExprNew* new_ = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
+								InitAstExpr((SAstExpr*)new_, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
+								new_->ItemType = arg->Type;
+								arg->Expr = (SAstExpr*)new_;
+							}
+							var2->Var = arg;
+						}
+						var->Def = var2;
+					}
+					ListAdd(copy->Stats, var);
+					{
+						result = (SAstExpr*)Alloc(sizeof(SAstExpr));
+						InitAstExpr(result, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+						((SAst*)result)->RefItem = (SAst*)var->Def->Var;
+						{
+							SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
+							InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)ast)->Pos);
+							((SAst*)type)->RefItem = (SAst*)ast;
+							result->Type = (SAstType*)type;
+						}
+					}
+				}
+				{
+					SAstClass* ptr = ast;
+					while (ptr != NULL)
+					{
+						SListNode* ptr2 = ptr->Items->Top;
+						while (ptr2 != NULL)
+						{
+							SAstClassItem* item = (SAstClassItem*)ptr2->Data;
+							if (item->Def->TypeId == AstTypeId_Var)
+							{
+								SAstArg* member = ((SAstVar*)item->Def)->Var;
+								EAstTypeId type_id = ((SAst*)member->Type)->TypeId;
+								/*
+								// TODO: Should the all types be written?
+								if (type_id == AstTypeId_TypeArray || type_id == AstTypeId_TypeBit || type_id == AstTypeId_TypeGen || type_id == AstTypeId_TypeDict || type_id == AstTypeId_TypePrim || IsClass(member->Type) || IsEnum(member->Type))
+								*/
+								{
+									SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+									InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
+									{
+										SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+										InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+										assign->Kind = AstExpr2Kind_Assign;
+										{
+											SAstExprDot* dot = (SAstExprDot*)Alloc(sizeof(SAstExprDot));
+											InitAstExpr((SAstExpr*)dot, AstTypeId_ExprDot, ((SAst*)ast)->Pos);
+											dot->Var = result;
+											dot->Member = ((SAst*)member)->Name;
+											dot->ClassItem = NULL;
+											assign->Children[0] = (SAstExpr*)dot;
+										}
+										{
+											SAstExprDot* dot = MakeMeDot(ast, (SAstArg*)copy->Args->Top->Data, ((SAst*)member)->Name);
+											if (IsRef(member->Type))
+											{
+												SAstExpr1* copy2 = (SAstExpr1*)Alloc(sizeof(SAstExpr1));
+												InitAstExpr((SAstExpr*)copy2, AstTypeId_Expr1, ((SAst*)ast)->Pos);
+												copy2->Kind = AstExpr1Kind_Copy;
+												copy2->Child = (SAstExpr*)dot;
+												assign->Children[1] = (SAstExpr*)copy2;
+											}
+											else
+												assign->Children[1] = (SAstExpr*)dot;
+										}
+										do_->Expr = (SAstExpr*)assign;
+									}
+									ListAdd(copy->Stats, do_);
+								}
+							}
+							ptr2 = ptr2->Next;
+						}
+						ptr = (SAstClass*)((SAst*)ptr)->RefItem;
+					}
+				}
+				{
+					SAstStatRet* ret = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
+					InitAst((SAst*)ret, AstTypeId_StatRet, ((SAst*)ast)->Pos);
+					{
+						SAstExprAs* as = (SAstExprAs*)Alloc(sizeof(SAstExprAs));
+						InitAstExpr((SAstExpr*)as, AstTypeId_ExprAs, ((SAst*)ast)->Pos);
+						as->Kind = AstExprAsKind_As;
+						as->Child = result;
+						as->ChildType = copy->Ret;
+						ret->Value = (SAstExpr*)as;
+					}
+					ListAdd(copy->Stats, ret);
+				}
+			}
+			// The 'toBin' function.
+			{
+				SAstExpr* result;
+				{
+					SAstStatVar* var = (SAstStatVar*)Alloc(sizeof(SAstStatVar));
+					InitAst((SAst*)var, AstTypeId_StatVar, ((SAst*)ast)->Pos);
+					{
+						SAstVar* var2 = (SAstVar*)Alloc(sizeof(SAstVar));
+						InitAst((SAst*)var2, AstTypeId_Var, ((SAst*)ast)->Pos);
+						{
+							SAstArg* arg = (SAstArg*)Alloc(sizeof(SAstArg));
+							InitAst((SAst*)arg, AstTypeId_Arg, ((SAst*)ast)->Pos);
+							arg->Addr = NewAddr();
+							arg->Kind = AstArgKind_LocalVar;
+							arg->RefVar = False;
+							arg->Expr = NULL;
+							{
+								SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+								InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+								{
+									SAstTypeBit* type2 = (SAstTypeBit*)Alloc(sizeof(SAstTypeBit));
+									InitAst((SAst*)type2, AstTypeId_TypeBit, ((SAst*)ast)->Pos);
+									type2->Size = 1;
+									type->ItemType = (SAstType*)type2;
+								}
+								arg->Type = (SAstType*)type;
+							}
+							var2->Var = arg;
+						}
+						var->Def = var2;
+					}
+					ListAdd(to_bin->Stats, var);
+					{
+						result = (SAstExpr*)Alloc(sizeof(SAstExpr));
+						InitAstExpr(result, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+						((SAst*)result)->RefItem = (SAst*)var->Def->Var;
+						{
+							SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
+							InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)ast)->Pos);
+							((SAst*)type)->RefItem = (SAst*)ast;
+							result->Type = (SAstType*)type;
+						}
+					}
+				}
+				{
+					Bool first = True;
+					SAstClass* ptr = ast;
+					while (ptr != NULL)
+					{
+						SListNode* ptr2 = ptr->Items->Top;
+						while (ptr2 != NULL)
+						{
+							SAstClassItem* item = (SAstClassItem*)ptr2->Data;
+							if (item->Def->TypeId == AstTypeId_Var)
+							{
+								SAstArg* member = ((SAstVar*)item->Def)->Var;
+								/*
+								// TODO: Should the all types be written?
+								if (type_id == AstTypeId_TypeArray || type_id == AstTypeId_TypeBit || type_id == AstTypeId_TypeGen || type_id == AstTypeId_TypeDict || type_id == AstTypeId_TypePrim || IsClass(member->Type) || IsEnum(member->Type))
+								*/
+								{
+									SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+									InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
+									{
+										SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+										InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+										if (first)
+										{
+											assign->Kind = AstExpr2Kind_Assign;
+											first = False;
+										}
+										else
+											assign->Kind = AstExpr2Kind_AssignCat;
+										assign->Children[0] = result;
+										{
+											SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
+											InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, ((SAst*)ast)->Pos);
+											call->Args = ListNew();
+											{
+												SAstExprDot* dot = (SAstExprDot*)Alloc(sizeof(SAstExprDot));
+												InitAstExpr((SAstExpr*)dot, AstTypeId_ExprDot, ((SAst*)ast)->Pos);
+												dot->Var = (SAstExpr*)MakeMeDot(ast, (SAstArg*)to_bin->Args->Top->Data, ((SAst*)member)->Name);
+												dot->Member = L"toBin";
+												dot->ClassItem = NULL;
+												call->Func = (SAstExpr*)dot;
+											}
+											assign->Children[1] = (SAstExpr*)call;
+										}
+										do_->Expr = (SAstExpr*)assign;
+									}
+									ListAdd(to_bin->Stats, do_);
+								}
+							}
+							ptr2 = ptr2->Next;
+						}
+						ptr = (SAstClass*)((SAst*)ptr)->RefItem;
+					}
+				}
+				{
+					SAstStatRet* ret = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
+					InitAst((SAst*)ret, AstTypeId_StatRet, ((SAst*)ast)->Pos);
+					ret->Value = (SAstExpr*)result;
+					ListAdd(to_bin->Stats, ret);
+				}
+			}
+			// The 'fromBin' function.
+			{
+				SAstClass* ptr = ast;
+				while (ptr != NULL)
+				{
+					SListNode* ptr2 = ptr->Items->Top;
+					while (ptr2 != NULL)
+					{
+						SAstClassItem* item = (SAstClassItem*)ptr2->Data;
+						if (item->Def->TypeId == AstTypeId_Var)
+						{
+							SAstArg* member = ((SAstVar*)item->Def)->Var;
+							/*
+							// TODO: Should the all types be written?
+							if (type_id == AstTypeId_TypeArray || type_id == AstTypeId_TypeBit || type_id == AstTypeId_TypeGen || type_id == AstTypeId_TypeDict || type_id == AstTypeId_TypePrim || IsClass(member->Type) || IsEnum(member->Type))
+							*/
+							{
+								SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+								InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
+								{
+									SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+									InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+									assign->Kind = AstExpr2Kind_Assign;
+									{
+										SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
+										InitAstExpr(ref_, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+										((SAst*)ref_)->RefItem = (SAst*)from_bin->Args->Top->Next->Next->Data;
+										assign->Children[0] = ref_;
+									}
+									{
+										SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
+										InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, ((SAst*)ast)->Pos);
+										call->Args = ListNew();
+										{
+											SAstExprDot* dot = (SAstExprDot*)Alloc(sizeof(SAstExprDot));
+											InitAstExpr((SAstExpr*)dot, AstTypeId_ExprDot, ((SAst*)ast)->Pos);
+											dot->Var = (SAstExpr*)MakeMeDot(ast, (SAstArg*)from_bin->Args->Top->Data, ((SAst*)member)->Name);
+											dot->Member = L"fromBin";
+											dot->ClassItem = NULL;
+											call->Func = (SAstExpr*)dot;
+										}
+										{
+											SAstExprCallArg* bin = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+											bin->RefVar = False;
+											{
+												SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
+												InitAstExpr(ref_, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+												((SAst*)ref_)->RefItem = (SAst*)from_bin->Args->Top->Next->Data;
+												bin->Arg = ref_;
+											}
+											ListAdd(call->Args, bin);
+										}
+										{
+											SAstExprCallArg* idx = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+											idx->RefVar = False;
+											{
+												SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
+												InitAstExpr(ref_, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+												((SAst*)ref_)->RefItem = (SAst*)from_bin->Args->Top->Next->Next->Data;
+												idx->Arg = ref_;
+											}
+											ListAdd(call->Args, idx);
+										}
+										assign->Children[1] = (SAstExpr*)call;
+									}
+									do_->Expr = (SAstExpr*)assign;
+								}
+								ListAdd(from_bin->Stats, do_);
+							}
+						}
+						ptr2 = ptr2->Next;
+					}
+					ptr = (SAstClass*)((SAst*)ptr)->RefItem;
+				}
+				{
+					SAstStatRet* ret = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
+					InitAst((SAst*)ret, AstTypeId_StatRet, ((SAst*)ast)->Pos);
+					{
+						SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
+						InitAstExpr(ref_, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+						((SAst*)ref_)->RefItem = (SAst*)from_bin->Args->Top->Next->Next->Data;
+						ret->Value = ref_;
+					}
+					ListAdd(from_bin->Stats, ret);
+				}
+			}
+			RebuildFunc(dtor);
+			RebuildFunc(copy);
+			RebuildFunc(to_bin);
+			RebuildFunc(from_bin);
+		}
+	}
+}
+
+static void RebuildEnum(SAstEnum* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	{
+		SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
+		{
+			InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)ast)->Pos);
+			((SAst*)type)->AnalyzedCache = (SAst*)type;
+			((SAst*)type)->RefItem = (SAst*)ast;
+		}
+		{
+			// Assign values to items.
+			S64 default_num = -1;
+			SListNode* ptr = ast->Items->Top;
+			SDictI* enum_values = NULL;
+			while (ptr != NULL)
+			{
+				SAstExpr* item = (SAstExpr*)ptr->Data;
+				item = RebuildExpr(item, item->Type == NULL);
+				if (LocalErr)
+				{
+					LocalErr = False;
+					ptr = ptr->Next;
+					continue;
+				}
+				ptr->Data = item;
+				if (((SAst*)item)->TypeId != AstTypeId_ExprValue || (item->Type != NULL && !IsInt(item->Type)))
+					Err(L"EA0011", ((SAst*)ast)->Pos, ((SAst*)ast)->Name, ((SAst*)item)->Name);
+				if (item->Type == NULL)
+				{
+					// 'Type' is 'NULL' when the value is not set.
+					if (default_num == LLONG_MAX)
+						Err(L"EA0012", ((SAst*)ast)->Pos, ((SAst*)ast)->Name, ((SAst*)item)->Name);
+					default_num++;
+					*((S64*)((SAstExprValue*)item)->Value) = default_num;
+				}
+				else
+					default_num = *((S64*)((SAstExprValue*)item)->Value);
+				{
+					U64 value = *(U64*)((SAstExprValue*)item)->Value;
+					if (DictISearch(enum_values, value) != NULL)
+						Err(L"EA0013", ((SAst*)ast)->Pos, ((SAst*)ast)->Name, ((SAst*)item)->Name, (S64)value);
+					enum_values = DictIAdd(enum_values, value, DummyPtr);
+				}
+				item->Type = (SAstType*)type; // Cast values of 'int' to 'enum' so as not to being treated as 'int'.
+				ptr = ptr->Next;
+			}
+		}
+	}
+}
+
+static void RebuildArg(SAstArg* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Type = RebuildType(ast->Type);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		ast->Expr = NULL;
+		return;
+	}
+	if (ast->Expr != NULL)
+	{
+		ast->Expr = RebuildExpr(ast->Expr, False);
+		if (LocalErr)
+		{
+			LocalErr = False;
+			ast->Expr = NULL;
+			return;
+		}
+		if (ast->Kind == AstArgKind_Global && !(((SAst*)ast->Expr)->TypeId == AstTypeId_ExprValue))
+			Err(L"EA0014", ((SAst*)ast)->Pos, ((SAst*)ast)->Name);
+		if (ast->Kind == AstArgKind_Const && !(((SAst*)ast->Expr)->TypeId == AstTypeId_ExprValue))
+			Err(L"EA0015", ((SAst*)ast)->Pos, ((SAst*)ast)->Name);
+		if (!CmpType(ast->Expr->Type, ast->Type))
+			Err(L"EA0056", ((SAst*)ast)->Pos);
+	}
+}
+
+static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type)
+{
+	switch (((SAst*)ast)->TypeId)
+	{
+		case AstTypeId_StatFunc:
+		case AstTypeId_StatConst:
+		case AstTypeId_StatAlias:
+		case AstTypeId_StatClass:
+		case AstTypeId_StatEnum:
+			return NULL;
+		case AstTypeId_StatVar:
+			{
+				SAstStatVar* ast2 = (SAstStatVar*)ast;
+				if (ast2->Def->Var->Expr == NULL)
+					return NULL;
+				RebuildVar(ast2->Def);
+				if (ast2->Def->Var->Expr == NULL)
+					return NULL;
+				{
+					// Replace initializers with assignment operators.
+					SAstStatDo* ast_do = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+					InitAst((SAst*)ast_do, AstTypeId_StatDo, ((SAst*)ast)->Pos);
+					{
+						SAstExpr2* ast_assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+						InitAst((SAst*)ast_assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+						ast_assign->Kind = AstExpr2Kind_Assign;
+						{
+							SAstExpr* ast_ref = (SAstExpr*)Alloc(sizeof(SAstExpr));
+							InitAstExpr(ast_ref, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+							((SAst*)ast_ref)->RefItem = (SAst*)ast2->Def->Var;
+							ast_assign->Children[0] = ast_ref;
+						}
+						ast_assign->Children[1] = ast2->Def->Var->Expr;
+						ast_do->Expr = (SAstExpr*)ast_assign;
+					}
+					ast2->Def->Var->Expr = NULL;
+					ast = RebuildStat((SAstStat*)ast_do, ret_type);
+				}
+			}
+			break;
+		case AstTypeId_StatIf: ast = RebuildIf((SAstStatIf*)ast, ret_type); break;
+		case AstTypeId_StatSwitch: ast = RebuildSwitch((SAstStatSwitch*)ast, ret_type); break;
+		case AstTypeId_StatWhile: ast = RebuildWhile((SAstStatWhile*)ast, ret_type); break;
+		case AstTypeId_StatFor: ast = RebuildFor((SAstStatFor*)ast, ret_type); break;
+		case AstTypeId_StatForEach: ast = RebuildForEach((SAstStatForEach*)ast, ret_type); break;
+		case AstTypeId_StatTry: ast = RebuildTry((SAstStatTry*)ast, ret_type); break;
+		case AstTypeId_StatThrow: ast = RebuildThrow((SAstStatThrow*)ast); break;
+		case AstTypeId_StatIfDef: ast = RebuildIfDef((SAstStatIfDef*)ast, ret_type); break;
+		case AstTypeId_StatBlock: ast = RebuildBlock((SAstStatBlock*)ast, ret_type); break;
+		case AstTypeId_StatRet: ast = RebuildRet((SAstStatRet*)ast, ret_type); break;
+		case AstTypeId_StatDo: ast = RebuildDo((SAstStatDo*)ast); break;
+		case AstTypeId_StatBreak: ast = RebuildBreak((SAstStat*)ast, ret_type); break;
+		case AstTypeId_StatSkip: ast = RebuildSkip((SAstStat*)ast, ret_type); break;
+		case AstTypeId_StatAssert: ast = RebuildAssert((SAstStatAssert*)ast); break;
+		default:
+			ASSERT(False);
+			break;
+	}
+	if (ast == (SAstStat*)DummyPtr)
+		return (SAstStat*)DummyPtr;
+	if (ast != NULL)
+		ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
+	return ast;
+}
+
+static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Cond = RebuildExpr(ast->Cond, False);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstStat*)DummyPtr;
+	}
+	if (!IsBool(ast->Cond->Type))
+		Err(L"EA0016", ((SAst*)ast->Cond)->Pos);
+	ast->Stats = RefreshStats(ast->Stats, ret_type);
+	{
+		SListNode* ptr = ast->ElIfs->Top;
+		while (ptr != NULL)
+		{
+			SAstStatElIf* elif = (SAstStatElIf*)ptr->Data;
+			elif->Cond = RebuildExpr(elif->Cond, False);
+			if (LocalErr)
+			{
+				LocalErr = False;
+				return (SAstStat*)DummyPtr;
+			}
+			if (!IsBool(elif->Cond->Type))
+				Err(L"EA0017", ((SAst*)elif->Cond)->Pos);
+			elif->Stats = RefreshStats(elif->Stats, ret_type);
+			ptr = ptr->Next;
+		}
+	}
+	ast->ElseStats = RefreshStats(ast->ElseStats, ret_type);
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Cond = RebuildExpr(ast->Cond, False);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstStat*)DummyPtr;
+	}
+	if (!IsComparable(ast->Cond->Type, True))
+		Err(L"EA0018", ((SAst*)ast->Cond)->Pos);
+	((SAstStatBreakable*)ast)->BlockVar->Type = ast->Cond->Type;
+	{
+		SListNode* ptr = ast->Cases->Top;
+		while (ptr != NULL)
+		{
+			SAstStatCase* case_ = (SAstStatCase*)ptr->Data;
+			SListNode* ptr2 = case_->Conds->Top;
+			while (ptr2 != NULL)
+			{
+				SAstExpr** exprs = (SAstExpr**)ptr2->Data;
+				exprs[0] = RebuildExpr(exprs[0], False);
+				if (LocalErr)
+				{
+					LocalErr = False;
+					return (SAstStat*)DummyPtr;
+				}
+				if (!CmpType(ast->Cond->Type, exprs[0]->Type))
+					Err(L"EA0019", ((SAst*)exprs[0])->Pos);
+				if (exprs[1] != NULL)
+				{
+					exprs[1] = RebuildExpr(exprs[1], False);
+					if (LocalErr)
+					{
+						LocalErr = False;
+						return (SAstStat*)DummyPtr;
+					}
+					if (!CmpType(ast->Cond->Type, exprs[1]->Type))
+						Err(L"EA0019", ((SAst*)exprs[1])->Pos);
+				}
+				ptr2 = ptr2->Next;
+			}
+			case_->Stats = RefreshStats(case_->Stats, ret_type);
+			ptr = ptr->Next;
+		}
+	}
+	ast->DefaultStats = RefreshStats(ast->DefaultStats, ret_type);
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildWhile(SAstStatWhile* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	if (ast->Cond != NULL)
+	{
+		ast->Cond = RebuildExpr(ast->Cond, False);
+		if (LocalErr)
+		{
+			LocalErr = False;
+			return (SAstStat*)DummyPtr;
+		}
+		if (!IsBool(ast->Cond->Type))
+			Err(L"EA0020", ((SAst*)ast->Cond)->Pos);
+	}
+	ast->Stats = RefreshStats(ast->Stats, ret_type);
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Start = RebuildExpr(ast->Start, False);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstStat*)DummyPtr;
+	}
+	if (!IsInt(ast->Start->Type))
+		Err(L"EA0021", ((SAst*)ast->Start)->Pos);
+	((SAstStatBreakable*)ast)->BlockVar->Type = ast->Start->Type;
+	ast->Cond = RebuildExpr(ast->Cond, False);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstStat*)DummyPtr;
+	}
+	if (!IsInt(ast->Cond->Type))
+		Err(L"EA0022", ((SAst*)ast->Cond)->Pos);
+	ast->Step = RebuildExpr(ast->Step, False);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstStat*)DummyPtr;
+	}
+	if (!IsInt(ast->Step->Type))
+		Err(L"EA0023", ((SAst*)ast->Step)->Pos);
+	if (((SAst*)ast->Step)->TypeId != AstTypeId_ExprValue)
+		Err(L"EA0024", ((SAst*)ast->Step)->Pos);
+	if (*((S64*)((SAstExprValue*)ast->Step)->Value) == 0)
+		Err(L"EA0025", ((SAst*)ast->Step)->Pos);
+	ast->Stats = RefreshStats(ast->Stats, ret_type);
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildForEach(SAstStatForEach* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Cond = RebuildExpr(ast->Cond, False);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstStat*)DummyPtr;
+	}
+	if (((SAst*)ast->Cond->Type)->TypeId == AstTypeId_TypeArray)
+		((SAstStatBreakable*)ast)->BlockVar->Type = ((SAstTypeArray*)ast->Cond->Type)->ItemType;
+	else if (((SAst*)ast->Cond->Type)->TypeId == AstTypeId_TypeGen)
+		((SAstStatBreakable*)ast)->BlockVar->Type = ((SAstTypeGen*)ast->Cond->Type)->ItemType;
+	else
+		Err(L"EA0026", ((SAst*)ast->Cond)->Pos);
+	ast->Stats = RefreshStats(ast->Stats, ret_type);
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	RebuildArg(((SAstStatBreakable*)ast)->BlockVar);
+	ast->Stats = RefreshStats(ast->Stats, ret_type);
+	if (ast->Catches->Len != 0)
+	{
+		SListNode* ptr = ast->Catches->Top;
+		while (ptr != NULL)
+		{
+			SAstStatCatch* catch_ = (SAstStatCatch*)ptr->Data;
+			SListNode* ptr2 = catch_->Conds->Top;
+			while (ptr2 != NULL)
+			{
+				SAstExpr** exprs = (SAstExpr**)ptr2->Data;
+				exprs[0] = RebuildExpr(exprs[0], False);
+				if (LocalErr)
+				{
+					LocalErr = False;
+					return (SAstStat*)DummyPtr;
+				}
+				if (!IsInt(exprs[0]->Type) || ((SAst*)exprs[0])->TypeId != AstTypeId_ExprValue)
+					Err(L"EA0027", ((SAst*)exprs[0])->Pos);
+				if (exprs[1] != NULL)
+				{
+					exprs[1] = RebuildExpr(exprs[1], False);
+					if (LocalErr)
+					{
+						LocalErr = False;
+						return (SAstStat*)DummyPtr;
+					}
+					if (!IsInt(exprs[1]->Type) || ((SAst*)exprs[1])->TypeId != AstTypeId_ExprValue)
+						Err(L"EA0027", ((SAst*)exprs[1])->Pos);
+				}
+				ptr2 = ptr2->Next;
+			}
+			catch_->Stats = RefreshStats(catch_->Stats, ret_type);
+			ptr = ptr->Next;
+		}
+	}
+	if (ast->FinallyStats != NULL)
+		ast->FinallyStats = RefreshStats(ast->FinallyStats, ret_type);
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildThrow(SAstStatThrow* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Code = RebuildExpr(ast->Code, False);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstStat*)DummyPtr;
+	}
+	if (!IsInt(ast->Code->Type))
+		Err(L"EA0028", ((SAst*)ast->Code)->Pos);
+	if (ast->Msg != NULL)
+	{
+		ast->Msg = RebuildExpr(ast->Msg, False);
+		if (LocalErr)
+		{
+			LocalErr = False;
+			return (SAstStat*)DummyPtr;
+		}
+		if (!IsStr(ast->Msg->Type))
+			Err(L"EA0029", ((SAst*)ast->Msg)->Pos);
+	}
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildIfDef(SAstStatIfDef* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	if (ast->Dbg == Option->Rls)
+		return NULL;
+	{
+		SAstStatBlock* ast2 = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
+		InitAst((SAst*)ast2, AstTypeId_StatBlock, ((SAst*)ast)->Pos);
+		((SAstStatBreakable*)ast2)->BlockVar = NULL;
+		((SAstStatBreakable*)ast2)->BreakPoint = AsmLabel();
+		ast2->Stats = RefreshStats(ast->Stats, ret_type);
+		((SAst*)ast2)->AnalyzedCache = (SAst*)ast2;
+		((SAst*)ast)->AnalyzedCache = (SAst*)ast2;
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	}
+}
+
+static SAstStat* RebuildBlock(SAstStatBlock* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Stats = RefreshStats(ast->Stats, ret_type);
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildRet(SAstStatRet* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	if (ast->Value == NULL)
+	{
+		if (ret_type != NULL)
+			Err(L"EA0030", ((SAst*)ast)->Pos);
+	}
+	else
+	{
+		ast->Value = RebuildExpr(ast->Value, False);
+		if (LocalErr)
+		{
+			LocalErr = False;
+			return (SAstStat*)DummyPtr;
+		}
+		if (ret_type == NULL || !CmpType(ast->Value->Type, ret_type))
+			Err(L"EA0031", ((SAst*)ast)->Pos);
+	}
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildDo(SAstStatDo* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Expr = RebuildExpr(ast->Expr, True);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstStat*)DummyPtr;
+	}
+	// 'do' needs to end with side effects.
+	if (!(((SAst*)ast->Expr)->TypeId == AstTypeId_Expr2 && (((SAstExpr2*)ast->Expr)->Kind == AstExpr2Kind_Assign || ((SAstExpr2*)ast->Expr)->Kind == AstExpr2Kind_Swap) || ((SAst*)ast->Expr)->TypeId == AstTypeId_ExprCall))
+		Err(L"EA0032", ((SAst*)ast->Expr)->Pos);
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildBreak(SAstStat* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	if ((((SAst*)ast)->RefItem->TypeId & AstTypeId_StatBreakable) != AstTypeId_StatBreakable)
+	{
+		Err(L"EA0033", ((SAst*)ast)->Pos);
+		return (SAstStat*)DummyPtr;
+	}
+	((SAst*)ast)->RefItem = (SAst*)RebuildStat((SAstStat*)((SAst*)ast)->RefItem, ret_type);
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildSkip(SAstStat* ast, SAstType* ret_type)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	if ((((SAst*)ast)->RefItem->TypeId & AstTypeId_StatSkipable) != AstTypeId_StatSkipable)
+	{
+		Err(L"EA0034", ((SAst*)ast)->Pos);
+		return (SAstStat*)DummyPtr;
+	}
+	((SAst*)ast)->RefItem = (SAst*)RebuildStat((SAstStat*)((SAst*)ast)->RefItem, ret_type);
+	return (SAstStat*)ast;
+}
+
+static SAstStat* RebuildAssert(SAstStatAssert* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
+	if (Option->Rls)
+		return NULL;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Cond = RebuildExpr(ast->Cond, False);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstStat*)DummyPtr;
+	}
+	if (!IsBool(ast->Cond->Type))
+		Err(L"EA0035", ((SAst*)ast->Cond)->Pos);
+	ast->Msg = RebuildExpr(ast->Msg, False);
+	if (LocalErr)
+	{
+		LocalErr = False;
+		return (SAstStat*)DummyPtr;
+	}
+	ASSERT(IsStr(ast->Msg->Type));
+	return (SAstStat*)ast;
+}
+
+static SAstType* RebuildType(SAstType* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstType*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	{
+		EAstTypeId type = ((SAst*)ast)->TypeId;
+		switch (type)
+		{
+			case AstTypeId_TypeUser:
+				{
+					SAst* ref_item = ((SAst*)ast)->RefItem;
+					if (ref_item->TypeId == AstTypeId_Class)
+						RebuildClass((SAstClass*)ref_item);
+					else if (ref_item->TypeId == AstTypeId_Enum)
+						RebuildEnum((SAstEnum*)ref_item);
+					else if (ref_item->TypeId == AstTypeId_Alias)
+						RebuildAlias((SAstAlias*)ref_item);
+					else
+					{
+						Err(L"EA0037", ((SAst*)ast)->Pos);
+						LocalErr = True;
+						return (SAstType*)DummyPtr;
+					}
+				}
+				break;
+			case AstTypeId_TypeArray:
+				((SAstTypeArray*)ast)->ItemType = RebuildType(((SAstTypeArray*)ast)->ItemType);
+				break;
+			case AstTypeId_TypeFunc:
+				{
+					SAstTypeFunc* ast2 = (SAstTypeFunc*)ast;
+					SListNode* ptr = ast2->Args->Top;
+					while (ptr != NULL)
+					{
+						SAstTypeFuncArg* arg = (SAstTypeFuncArg*)ptr->Data;
+						arg->Arg = RebuildType(arg->Arg);
+						ptr = ptr->Next;
+					}
+					if (ast2->Ret != NULL)
+						ast2->Ret = RebuildType(ast2->Ret);
+				}
+				break;
+			case AstTypeId_TypeGen:
+				((SAstTypeGen*)ast)->ItemType = RebuildType(((SAstTypeGen*)ast)->ItemType);
+				break;
+			case AstTypeId_TypeDict:
+				((SAstTypeDict*)ast)->ItemTypeKey = RebuildType(((SAstTypeDict*)ast)->ItemTypeKey);
+				((SAstTypeDict*)ast)->ItemTypeValue = RebuildType(((SAstTypeDict*)ast)->ItemTypeValue);
+				break;
+			default:
+				ASSERT(type == AstTypeId_TypeBit || type == AstTypeId_TypePrim || type == AstTypeId_TypeNull);
+				break;
+		}
+	}
+	if (LocalErr)
+		return (SAstType*)DummyPtr;
+	return (SAstType*)ast;
+}
+
+static SAstExpr* RebuildExpr(SAstExpr* ast, Bool nullable)
+{
+	switch (((SAst*)ast)->TypeId)
+	{
+		case AstTypeId_Expr1: ast = RebuildExpr1((SAstExpr1*)ast); break;
+		case AstTypeId_Expr2: ast = RebuildExpr2((SAstExpr2*)ast); break;
+		case AstTypeId_Expr3: ast = RebuildExpr3((SAstExpr3*)ast); break;
+		case AstTypeId_ExprNew: ast = RebuildExprNew((SAstExprNew*)ast); break;
+		case AstTypeId_ExprNewArray: ast = RebuildExprNewArray((SAstExprNewArray*)ast); break;
+		case AstTypeId_ExprAs: ast = RebuildExprAs((SAstExprAs*)ast); break;
+		case AstTypeId_ExprCall: ast = RebuildExprCall((SAstExprCall*)ast); break;
+		case AstTypeId_ExprArray: ast = RebuildExprArray((SAstExprArray*)ast); break;
+		case AstTypeId_ExprDot: ast = RebuildExprDot((SAstExprDot*)ast); break;
+		case AstTypeId_ExprValue: ast = RebuildExprValue((SAstExprValue*)ast); break;
+		case AstTypeId_ExprValueArray: ast = RebuildExprValueArray((SAstExprValueArray*)ast); break;
+		case AstTypeId_ExprRef: ast = RebuildExprRef((SAstExpr*)ast); break;
+		default:
+			ASSERT(False);
+	}
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	if (!nullable && ast->Type == NULL)
+	{
+		// 'Type' is NULL, for example, when calling a function whose return value is 'void'.
+		Err(L"EA0056", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExpr1(SAstExpr1* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Child = RebuildExpr(ast->Child, False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	ASSERT(((SAstExpr*)ast)->Type == NULL);
+	switch (ast->Kind)
+	{
+		case AstExpr1Kind_Plus:
+			if (IsInt(ast->Child->Type) || IsFloat(ast->Child->Type) || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeBit)
+			{
+				if (((SAst*)ast->Child)->TypeId == AstTypeId_ExprValue)
+				{
+					((SAst*)ast)->AnalyzedCache = (SAst*)ast->Child;
+					return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+				}
+				((SAstExpr*)ast)->Type = ast->Child->Type;
+			}
+			break;
+		case AstExpr1Kind_Minus:
+			if (IsInt(ast->Child->Type) || IsFloat(ast->Child->Type) || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeBit)
+			{
+				if (((SAst*)ast->Child)->TypeId == AstTypeId_ExprValue)
+				{
+					SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+					InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+					((SAstExpr*)expr)->Type = ast->Child->Type;
+					if (IsInt(ast->Child->Type))
+						*(S64*)expr->Value = -*(S64*)((SAstExprValue*)ast->Child)->Value;
+					else if (IsFloat(ast->Child->Type))
+						*(double*)expr->Value = -*(double*)((SAstExprValue*)ast->Child)->Value;
+					else
+					{
+						ASSERT(((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeBit);
+						{
+							U64 n = *(U64*)((SAstExprValue*)ast->Child)->Value;
+							n = 0 - n;
+							n = BitCast(((SAstTypeBit*)ast->Child->Type)->Size, n);
+							*(U64*)expr->Value = n;
+						}
+					}
+					expr = (SAstExprValue*)RebuildExprValue(expr);
+					if (LocalErr)
+						return (SAstExpr*)DummyPtr;
+					((SAst*)ast)->AnalyzedCache = (SAst*)expr;
+					return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+				}
+				((SAstExpr*)ast)->Type = ast->Child->Type;
+			}
+			break;
+		case AstExpr1Kind_Not:
+			if (IsBool(ast->Child->Type))
+			{
+				if (((SAst*)ast->Child)->TypeId == AstTypeId_ExprValue)
+				{
+					SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+					InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+					((SAstExpr*)expr)->Type = ast->Child->Type;
+					*(U64*)expr->Value = *(U64*)((SAstExprValue*)ast->Child)->Value != 0 ? 0 : 1;
+					expr = (SAstExprValue*)RebuildExprValue(expr);
+					if (LocalErr)
+						return (SAstExpr*)DummyPtr;
+					((SAst*)ast)->AnalyzedCache = (SAst*)expr;
+					return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+				}
+				((SAstExpr*)ast)->Type = ast->Child->Type;
+			}
+			break;
+		case AstExpr1Kind_Copy:
+			if (((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeArray || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeDict || IsClass(ast->Child->Type))
+				((SAstExpr*)ast)->Type = ast->Child->Type;
+			break;
+		case AstExpr1Kind_Len:
+			if (IsInt(ast->Child->Type) || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeArray || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeDict)
+			{
+				SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+				InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+				type->Kind = AstTypePrimKind_Int;
+				((SAstExpr*)ast)->Type = (SAstType*)type;
+			}
+			else if (IsFloat(ast->Child->Type))
+			{
+				SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+				InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+				type->Kind = AstTypePrimKind_Float;
+				((SAstExpr*)ast)->Type = (SAstType*)type;
+			}
+			break;
+		default:
+			ASSERT(False);
+			break;
+	}
+	if (((SAstExpr*)ast)->Type == NULL)
+	{
+		Err(L"EA0056", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExpr2(SAstExpr2* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	// Replace all assignment operators that are not '::' with '::'
+	{
+		EAstExpr2Kind kind = AstExpr2Kind_Assign;
+		switch (ast->Kind)
+		{
+			case AstExpr2Kind_AssignAdd: kind = AstExpr2Kind_Add; break;
+			case AstExpr2Kind_AssignSub: kind = AstExpr2Kind_Sub; break;
+			case AstExpr2Kind_AssignMul: kind = AstExpr2Kind_Mul; break;
+			case AstExpr2Kind_AssignDiv: kind = AstExpr2Kind_Div; break;
+			case AstExpr2Kind_AssignMod: kind = AstExpr2Kind_Mod; break;
+			case AstExpr2Kind_AssignPow: kind = AstExpr2Kind_Pow; break;
+			case AstExpr2Kind_AssignCat: kind = AstExpr2Kind_Cat; break;
+		}
+		if (kind != AstExpr2Kind_Assign)
+		{
+			SAstExpr2* expr_assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+			InitAstExpr((SAstExpr*)expr_assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+			expr_assign->Kind = AstExpr2Kind_Assign;
+			expr_assign->Children[0] = ast->Children[0];
+			{
+				SAstExpr2* expr_ope = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+				InitAst((SAst*)expr_ope, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+				expr_ope->Kind = kind;
+				expr_ope->Children[0] = ast->Children[0];
+				expr_ope->Children[1] = ast->Children[1];
+				expr_assign->Children[1] = (SAstExpr*)expr_ope;
+			}
+			((SAst*)ast)->AnalyzedCache = (SAst*)RebuildExpr((SAstExpr*)expr_assign, True);
+			if (LocalErr)
+				return (SAstExpr*)DummyPtr;
+			return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+		}
+	}
+	ast->Children[0] = RebuildExpr(ast->Children[0], False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	ast->Children[1] = RebuildExpr(ast->Children[1], False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	if (!CmpType(ast->Children[0]->Type, ast->Children[1]->Type))
+	{
+		Err(L"EA0056", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	{
+		Bool correct = False;
+		switch (ast->Kind)
+		{
+			case AstExpr2Kind_Assign:
+				if (ast->Children[0]->VarKind == AstExprVarKind_Value)
+				{
+					Err(L"EA0038", ((SAst*)ast)->Pos);
+					LocalErr = True;
+					return (SAstExpr*)DummyPtr;
+				}
+				if (IsClass(ast->Children[0]->Type) && IsClass(ast->Children[1]->Type))
+				{
+					SAstClass* ptr = (SAstClass*)((SAst*)ast->Children[1]->Type)->RefItem;
+					while ((SAstClass*)((SAst*)ast->Children[0]->Type)->RefItem != ptr)
+					{
+						ptr = (SAstClass*)((SAst*)ptr)->RefItem;
+						if (ptr == NULL)
+						{
+							Err(L"EA0056", ((SAst*)ast)->Pos);
+							LocalErr = True;
+							return (SAstExpr*)DummyPtr;
+						}
+					}
+				}
+				((SAstExpr*)ast)->Type = NULL;
+				correct = True;
+				break;
+			case AstExpr2Kind_Or:
+			case AstExpr2Kind_And:
+				if (IsBool(ast->Children[0]->Type))
+				{
+					if (((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue)
+					{
+						Bool b = *(U64*)((SAstExprValue*)ast->Children[0])->Value != 0;
+						// 'true | x' becomes 'true'. 'false & x' becomes 'false'.
+						if (ast->Kind == AstExpr2Kind_Or)
+							((SAst*)ast)->AnalyzedCache = (SAst*)(b ? ast->Children[0] : ast->Children[1]);
+						else
+						{
+							ASSERT(ast->Kind == AstExpr2Kind_And);
+							((SAst*)ast)->AnalyzedCache = (SAst*)(!b ? ast->Children[0] : ast->Children[1]);
+						}
+						return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+					}
+					((SAstExpr*)ast)->Type = ast->Children[0]->Type;
+					correct = True;
+				}
+				break;
+			case AstExpr2Kind_LT:
+			case AstExpr2Kind_GT:
+			case AstExpr2Kind_LE:
+			case AstExpr2Kind_GE:
+				if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeNull || ((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeNull)
+				{
+					Err(L"EA0039", ((SAst*)ast)->Pos);
+					LocalErr = True;
+					return (SAstExpr*)DummyPtr;
+				}
+				else if (IsComparable(ast->Children[0]->Type, True))
+				{
+					SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+					InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+					type->Kind = AstTypePrimKind_Bool;
+					if (((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue && ((SAst*)ast->Children[1])->TypeId == AstTypeId_ExprValue)
+					{
+						Bool b = False;
+						if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeBit || IsChar(ast->Children[0]->Type))
+						{
+							U64 n1 = *(U64*)((SAstExprValue*)ast->Children[0])->Value;
+							U64 n2 = *(U64*)((SAstExprValue*)ast->Children[1])->Value;
+							switch (ast->Kind)
+							{
+								case AstExpr2Kind_LT: b = n1 < n2; break;
+								case AstExpr2Kind_GT: b = n1 > n2; break;
+								case AstExpr2Kind_LE: b = n1 <= n2; break;
+								case AstExpr2Kind_GE: b = n1 >= n2; break;
+								default:
+									ASSERT(False);
+									break;
+							}
+						}
+						else if (IsInt(ast->Children[0]->Type) || IsEnum(ast->Children[0]->Type))
+						{
+							S64 n1 = *(S64*)((SAstExprValue*)ast->Children[0])->Value;
+							S64 n2 = *(S64*)((SAstExprValue*)ast->Children[1])->Value;
+							switch (ast->Kind)
+							{
+								case AstExpr2Kind_LT: b = n1 < n2; break;
+								case AstExpr2Kind_GT: b = n1 > n2; break;
+								case AstExpr2Kind_LE: b = n1 <= n2; break;
+								case AstExpr2Kind_GE: b = n1 >= n2; break;
+								default:
+									ASSERT(False);
+									break;
+							}
+						}
+						else if (IsFloat(ast->Children[0]->Type))
+						{
+							double n1 = *(double*)((SAstExprValue*)ast->Children[0])->Value;
+							double n2 = *(double*)((SAstExprValue*)ast->Children[1])->Value;
+							switch (ast->Kind)
+							{
+								case AstExpr2Kind_LT: b = n1 < n2; break;
+								case AstExpr2Kind_GT: b = n1 > n2; break;
+								case AstExpr2Kind_LE: b = n1 <= n2; break;
+								case AstExpr2Kind_GE: b = n1 >= n2; break;
+								default:
+									ASSERT(False);
+									break;
+							}
+						}
+						else
+						{
+							ASSERT(IsStr(ast->Children[0]->Type));
+							{
+								int cmp = wcscmp(*(const Char**)((SAstExprValue*)ast->Children[0])->Value, *(const Char**)((SAstExprValue*)ast->Children[1])->Value);
+								switch (ast->Kind)
+								{
+									case AstExpr2Kind_LT: b = cmp < 0; break;
+									case AstExpr2Kind_GT: b = cmp > 0; break;
+									case AstExpr2Kind_LE: b = cmp <= 0; break;
+									case AstExpr2Kind_GE: b = cmp >= 0; break;
+									default:
+										ASSERT(False);
+										break;
+								}
+							}
+						}
+						{
+							SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+							InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+							((SAstExpr*)expr)->Type = (SAstType*)type;
+							*(U64*)expr->Value = b ? 1 : 0;
+							expr = (SAstExprValue*)RebuildExprValue(expr);
+							if (LocalErr)
+								return (SAstExpr*)DummyPtr;
+							((SAst*)ast)->AnalyzedCache = (SAst*)expr;
+							return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+						}
+					}
+					((SAstExpr*)ast)->Type = (SAstType*)type;
+					correct = True;
+				}
+				break;
+			case AstExpr2Kind_Eq:
+			case AstExpr2Kind_NEq:
+				if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeNull || ((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeNull)
+				{
+					Err(L"EA0039", ((SAst*)ast)->Pos);
+					LocalErr = True;
+					return (SAstExpr*)DummyPtr;
+				}
+				else if (IsComparable(ast->Children[0]->Type, False))
+				{
+					SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+					InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+					type->Kind = AstTypePrimKind_Bool;
+					if (((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue && ((SAst*)ast->Children[1])->TypeId == AstTypeId_ExprValue)
+					{
+						Bool b = False;
+						// TODO: Is it not possible to compare the values of 'enum'?
+						if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeBit || IsChar(ast->Children[0]->Type) || IsInt(ast->Children[0]->Type) || IsFloat(ast->Children[0]->Type))
+						{
+							U64 n1 = *(U64*)((SAstExprValue*)ast->Children[0])->Value;
+							U64 n2 = *(U64*)((SAstExprValue*)ast->Children[1])->Value;
+							switch (ast->Kind)
+							{
+								case AstExpr2Kind_Eq: b = n1 == n2; break;
+								case AstExpr2Kind_NEq: b = n1 != n2; break;
+								default:
+									ASSERT(False);
+									break;
+							}
+						}
+						else
+						{
+							int cmp = wcscmp(*(const Char**)((SAstExprValue*)ast->Children[0])->Value, *(const Char**)((SAstExprValue*)ast->Children[1])->Value);
+							switch (ast->Kind)
+							{
+								case AstExpr2Kind_Eq: b = cmp == 0; break;
+								case AstExpr2Kind_NEq: b = cmp != 0; break;
+								default:
+									ASSERT(False);
+									break;
+							}
+							ASSERT(IsStr(ast->Children[0]->Type));
+						}
+						{
+							SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+							InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+							((SAstExpr*)expr)->Type = (SAstType*)type;
+							*(U64*)expr->Value = b ? 1 : 0;
+							expr = (SAstExprValue*)RebuildExprValue(expr);
+							if (LocalErr)
+								return (SAstExpr*)DummyPtr;
+							((SAst*)ast)->AnalyzedCache = (SAst*)expr;
+							return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+						}
+					}
+					((SAstExpr*)ast)->Type = (SAstType*)type;
+					correct = True;
+				}
+				break;
+			case AstExpr2Kind_EqRef:
+			case AstExpr2Kind_NEqRef:
+				if (IsRef(ast->Children[0]->Type) || ((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeNull)
+				{
+					SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+					InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+					type->Kind = AstTypePrimKind_Bool;
+					((SAstExpr*)ast)->Type = (SAstType*)type;
+					correct = True;
+				}
+				break;
+			case AstExpr2Kind_Cat:
+				if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeNull || ((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeNull)
+				{
+					Err(L"EA0040", ((SAst*)ast)->Pos);
+					LocalErr = True;
+					return (SAstExpr*)DummyPtr;
+				}
+				else if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeArray)
+				{
+					if (((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue && ((SAst*)ast->Children[1])->TypeId == AstTypeId_ExprValue)
+					{
+						if (IsStr(ast->Children[0]->Type))
+						{
+							const Char* s1 = *(const Char**)((SAstExprValue*)ast->Children[0])->Value;
+							const Char* s2 = *(const Char**)((SAstExprValue*)ast->Children[1])->Value;
+							size_t len1 = wcslen(s1);
+							size_t len2 = wcslen(s2);
+							Char* buf = (Char*)Alloc(sizeof(Char) * (len1 + len2 + 1));
+							Char* p = buf;
+							size_t i;
+							for (i = 0; i < len1; i++)
+							{
+								*p = s1[i];
+								p++;
+							}
+							for (i = 0; i < len2; i++)
+							{
+								*p = s2[i];
+								p++;
+							}
+							*p = L'\0';
+							{
+								SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+								InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+								((SAstExpr*)expr)->Type = ast->Children[0]->Type;
+								*(Char**)expr->Value = buf;
+								expr = (SAstExprValue*)RebuildExprValue(expr);
+								if (LocalErr)
+									return (SAstExpr*)DummyPtr;
+								((SAst*)ast)->AnalyzedCache = (SAst*)expr;
+								return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+							}
+						}
+					}
+					((SAstExpr*)ast)->Type = ast->Children[0]->Type;
+					correct = True;
+				}
+				break;
+			case AstExpr2Kind_Add:
+			case AstExpr2Kind_Sub:
+			case AstExpr2Kind_Mul:
+			case AstExpr2Kind_Div:
+			case AstExpr2Kind_Mod:
+				if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeBit || IsInt(ast->Children[0]->Type) || IsFloat(ast->Children[0]->Type))
+				{
+					if (((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue && ((SAst*)ast->Children[1])->TypeId == AstTypeId_ExprValue)
+					{
+						SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+						InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+						((SAstExpr*)expr)->Type = ast->Children[0]->Type;
+						// TODO: Deal with division by zero.
+						if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeBit)
+						{
+							U64 n1 = *(U64*)((SAstExprValue*)ast->Children[0])->Value;
+							U64 n2 = *(U64*)((SAstExprValue*)ast->Children[1])->Value;
+							switch (ast->Kind)
+							{
+								case AstExpr2Kind_Add: n1 += n2; break;
+								case AstExpr2Kind_Sub: n1 -= n2; break;
+								case AstExpr2Kind_Mul: n1 *= n2; break;
+								case AstExpr2Kind_Div: n1 /= n2; break;
+								case AstExpr2Kind_Mod: n1 %= n2; break;
+								default:
+									ASSERT(False);
+									break;
+							}
+							n1 = BitCast(((SAstTypeBit*)ast->Children[0]->Type)->Size, n1);
+							*(U64*)expr->Value = n1;
+						}
+						else if (IsInt(ast->Children[0]->Type))
+						{
+							S64 n1 = *(S64*)((SAstExprValue*)ast->Children[0])->Value;
+							S64 n2 = *(S64*)((SAstExprValue*)ast->Children[1])->Value;
+							switch (ast->Kind)
+							{
+								case AstExpr2Kind_Add: n1 += n2; break;
+								case AstExpr2Kind_Sub: n1 -= n2; break;
+								case AstExpr2Kind_Mul: n1 *= n2; break;
+								case AstExpr2Kind_Div: n1 /= n2; break;
+								case AstExpr2Kind_Mod: n1 %= n2; break;
+								default:
+									ASSERT(False);
+									break;
+							}
+							*(S64*)expr->Value = n1;
+						}
+						else
+						{
+							ASSERT(IsFloat(ast->Children[0]->Type));
+							{
+								double n1 = *(double*)((SAstExprValue*)ast->Children[0])->Value;
+								double n2 = *(double*)((SAstExprValue*)ast->Children[1])->Value;
+								switch (ast->Kind)
+								{
+									case AstExpr2Kind_Add: n1 += n2; break;
+									case AstExpr2Kind_Sub: n1 -= n2; break;
+									case AstExpr2Kind_Mul: n1 *= n2; break;
+									case AstExpr2Kind_Div: n1 /= n2; break;
+									case AstExpr2Kind_Mod: n1 = fmod(n1, n2); break;
+									default:
+										ASSERT(False);
+										break;
+								}
+								*(double*)expr->Value = n1;
+							}
+						}
+						expr = (SAstExprValue*)RebuildExprValue(expr);
+						if (LocalErr)
+							return (SAstExpr*)DummyPtr;
+						((SAst*)ast)->AnalyzedCache = (SAst*)expr;
+						return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+					}
+					((SAstExpr*)ast)->Type = ast->Children[0]->Type;
+					correct = True;
+				}
+				break;
+			case AstExpr2Kind_Pow:
+				if (IsInt(ast->Children[0]->Type) || IsFloat(ast->Children[0]->Type))
+				{
+					((SAstExpr*)ast)->Type = ast->Children[0]->Type;
+					correct = True;
+				}
+				break;
+			case AstExpr2Kind_Swap:
+				if (ast->Children[0]->VarKind == AstExprVarKind_Value || ast->Children[1]->VarKind == AstExprVarKind_Value)
+				{
+					Err(L"EA0041", ((SAst*)ast)->Pos);
+					LocalErr = True;
+					return (SAstExpr*)DummyPtr;
+				}
+				if (!(IsClass(ast->Children[0]->Type) && ((SAst*)ast->Children[0]->Type)->RefItem != ((SAst*)ast->Children[1]->Type)->RefItem))
+				{
+					((SAstExpr*)ast)->Type = ast->Children[0]->Type;
+					correct = True;
+				}
+				break;
+			default:
+				ASSERT(False);
+				break;
+		}
+		if (!correct)
+		{
+			Err(L"EA0056", ((SAst*)ast)->Pos);
+			LocalErr = True;
+			return (SAstExpr*)DummyPtr;
+		}
+	}
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExpr3(SAstExpr3* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Children[0] = RebuildExpr(ast->Children[0], False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	ast->Children[1] = RebuildExpr(ast->Children[1], False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	ast->Children[2] = RebuildExpr(ast->Children[2], False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	if (!IsBool(ast->Children[0]->Type))
+	{
+		Err(L"EA0042", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	if (!CmpType(ast->Children[1]->Type, ast->Children[2]->Type))
+	{
+		Err(L"EA0043", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	if (((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue)
+	{
+		((SAst*)ast)->AnalyzedCache = (SAst*)(*((S64*)((SAstExprValue*)ast->Children[0])->Value) != 0 ? ast->Children[1] : ast->Children[2]);
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	}
+	((SAstExpr*)ast)->Type = ast->Children[1]->Type;
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExprNew(SAstExprNew* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->ItemType = RebuildType(ast->ItemType);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	if (!(((SAst*)ast->ItemType)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->ItemType)->TypeId == AstTypeId_TypeDict || IsClass(ast->ItemType)))
+	{
+		Err(L"EA0044", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	((SAstExpr*)ast)->Type = ast->ItemType;
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExprNewArray(SAstExprNewArray* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	{
+		SListNode* ptr = ast->Idces->Top;
+		while (ptr != NULL)
+		{
+			ptr->Data = RebuildExpr((SAstExpr*)ptr->Data, False);
+			if (LocalErr)
+				return (SAstExpr*)DummyPtr;
+			if (!IsInt(((SAstExpr*)ptr->Data)->Type))
+			{
+				Err(L"EA0045", ((SAst*)ptr->Data)->Pos);
+				LocalErr = True;
+				return (SAstExpr*)DummyPtr;
+			}
+			ptr = ptr->Next;
+		}
+	}
+	ast->ItemType = RebuildType(ast->ItemType);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	{
+		SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+		InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+		type->ItemType = ast->ItemType;
+		((SAstExpr*)ast)->Type = (SAstType*)type;
+	}
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExprAs(SAstExprAs* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Child = RebuildExpr(ast->Child, False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	ASSERT(((SAstExpr*)ast)->Type == NULL);
+	switch (ast->Kind)
+	{
+		case AstExprAsKind_As:
+			{
+				SAstType* t1 = ast->Child->Type;
+				SAstType* t2 = ast->ChildType;
+				if (((SAst*)t1)->TypeId == AstTypeId_TypeBit)
+				{
+					if (((SAst*)t2)->TypeId == AstTypeId_TypeBit || IsInt(t2) || IsFloat(t2) || IsChar(t2) || IsBool(t2) || IsEnum(t2))
+						((SAstExpr*)ast)->Type = t2;
+				}
+				else if (IsInt(t1))
+				{
+					if (((SAst*)t2)->TypeId == AstTypeId_TypeBit || IsInt(t2) || IsFloat(t2) || IsChar(t2) || IsBool(t2) || IsEnum(t2))
+						((SAstExpr*)ast)->Type = t2;
+				}
+				else if (IsFloat(t1))
+				{
+					if (((SAst*)t2)->TypeId == AstTypeId_TypeBit || IsInt(t2) || IsFloat(t2))
+						((SAstExpr*)ast)->Type = t2;
+				}
+				else if (IsChar(t1))
+				{
+					if (((SAst*)t2)->TypeId == AstTypeId_TypeBit || IsInt(t2) || IsChar(t2))
+						((SAstExpr*)ast)->Type = t2;
+				}
+				else if (IsBool(t1))
+				{
+					if (((SAst*)t2)->TypeId == AstTypeId_TypeBit || IsInt(t2) || IsBool(t2))
+						((SAstExpr*)ast)->Type = t2;
+				}
+				else if (IsClass(t1))
+				{
+					if (IsClass(t2))
+						((SAstExpr*)ast)->Type = t2;
+				}
+				else if (IsEnum(t1))
+				{
+					if (((SAst*)t2)->TypeId == AstTypeId_TypeBit || IsInt(t2) || IsEnum(t2))
+						((SAstExpr*)ast)->Type = t2;
+				}
+				if (((SAstExpr*)ast)->Type != NULL)
+				{
+					if (((SAst*)ast->Child)->TypeId == AstTypeId_ExprValue)
+					{
+						SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+						InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+						((SAstExpr*)expr)->Type = ((SAstExpr*)ast)->Type;
+						if (((SAst*)t1)->TypeId == AstTypeId_TypeBit || IsChar(t1) || IsBool(t1))
+						{
+							U64 n = *(U64*)((SAstExprValue*)ast->Child)->Value;
+							if (((SAst*)t2)->TypeId == AstTypeId_TypeBit)
+								*(U64*)expr->Value = BitCast(((SAstTypeBit*)t2)->Size, n);
+							else if (IsInt(t2) || IsEnum(t2))
+								*(S64*)expr->Value = (S64)n;
+							else if (IsFloat(t2))
+								*(double*)expr->Value = (double)n;
+							else if (IsChar(t2))
+								*(U64*)expr->Value = BitCast(2, n);
+							else
+							{
+								ASSERT(IsBool(t2));
+								*(U64*)expr->Value = n != 0 ? 1 : 0;
+							}
+						}
+						else if (IsInt(t1) || IsEnum(t1))
+						{
+							S64 n = *(S64*)((SAstExprValue*)ast->Child)->Value;
+							if (((SAst*)t2)->TypeId == AstTypeId_TypeBit)
+								*(U64*)expr->Value = BitCast(((SAstTypeBit*)t2)->Size, (U64)n);
+							else if (IsInt(t2) || IsEnum(t2))
+								*(S64*)expr->Value = n;
+							else if (IsFloat(t2))
+								*(double*)expr->Value = (double)n;
+							else if (IsChar(t2))
+								*(U64*)expr->Value = BitCast(2, (U64)n);
+							else
+							{
+								ASSERT(IsBool(t2));
+								*(U64*)expr->Value = n != 0 ? 1 : 0;
+							}
+						}
+						else
+						{
+							ASSERT(IsFloat(t1));
+							{
+								double n = *(double*)((SAstExprValue*)ast->Child)->Value;
+								if (((SAst*)t2)->TypeId == AstTypeId_TypeBit)
+									*(U64*)expr->Value = BitCast(((SAstTypeBit*)t2)->Size, (U64)n);
+								else if (IsFloat(t2))
+									*(double*)expr->Value = n;
+								else
+								{
+									ASSERT(IsInt(t2));
+									*(U64*)expr->Value = (U64)n;
+								}
+							}
+						}
+						expr = (SAstExprValue*)RebuildExprValue(expr);
+						if (LocalErr)
+							return (SAstExpr*)DummyPtr;
+						((SAst*)ast)->AnalyzedCache = (SAst*)expr;
+						return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+					}
+				}
+			}
+			break;
+		case AstExprAsKind_Is:
+		case AstExprAsKind_NIs:
+			if (IsClass(ast->Child->Type) && IsClass(ast->ChildType))
+			{
+				SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+				InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+				type->Kind = AstTypePrimKind_Bool;
+				((SAstExpr*)ast)->Type = (SAstType*)type;
+			}
+			break;
+		default:
+			ASSERT(False);
+			break;
+	}
+	if (((SAstExpr*)ast)->Type == NULL)
+	{
+		Err(L"EA0056", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExprCall(SAstExprCall* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Func = RebuildExpr(ast->Func, False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	{
+		SAstTypeFunc* type;
+		if (((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot)
+		{
+			ASSERT(((SAst*)ast->Func->Type)->TypeId == AstTypeId_TypeFunc);
+			type = (SAstTypeFunc*)ast->Func->Type;
+			{
+				SAstExprCallArg* me = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+				me->Arg = ((SAstExprDot*)ast->Func)->Var;
+				me->RefVar = (type->FuncAttr & FuncAttr_Overwrite) != 0;
+				ListIns(ast->Args, ast->Args->Top, me);
+			}
+			if ((type->FuncAttr & FuncAttr_AnyType) != 0)
+			{
+				// Add the type of 'me' to the second argument when '_any_type' is specified.
+				SAstExprCallArg* me_type = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+				{
+					SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+					InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+					*(S64*)expr->Value = 0;
+					{
+						SAstTypePrim* prim = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+						InitAst((SAst*)prim, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+						prim->Kind = AstTypePrimKind_Int;
+						((SAstExpr*)expr)->Type = (SAstType*)prim;
+					}
+					me_type->Arg = RebuildExpr((SAstExpr*)expr, False);
+					if (LocalErr)
+						return (SAstExpr*)DummyPtr;
+				}
+				me_type->RefVar = False;
+				ListIns(ast->Args, ast->Args->Top->Next, me_type);
+			}
+			if ((type->FuncAttr & FuncAttr_TakeKeyValue) != 0)
+			{
+				// Add the type of 'value' to the third argument when '_take_key_value' is specified.
+				SAstExprCallArg* value_type = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+				{
+					SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+					InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+					*(S64*)expr->Value = 0;
+					{
+						SAstTypePrim* prim = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+						InitAst((SAst*)prim, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+						prim->Kind = AstTypePrimKind_Int;
+						((SAstExpr*)expr)->Type = (SAstType*)prim;
+					}
+					value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
+					if (LocalErr)
+						return (SAstExpr*)DummyPtr;
+				}
+				value_type->RefVar = False;
+				ListIns(ast->Args, ast->Args->Top->Next->Next, value_type);
+			}
+		}
+		else
+		{
+			if (((SAst*)ast->Func->Type)->TypeId != AstTypeId_TypeFunc)
+			{
+				Err(L"EA0046", ((SAst*)ast)->Pos);
+				LocalErr = True;
+				return (SAstExpr*)DummyPtr;
+			}
+			type = (SAstTypeFunc*)ast->Func->Type;
+		}
+		((SAstExpr*)ast)->Type = type->Ret;
+		if (ast->Args->Len != type->Args->Len)
+		{
+			Err(L"EA0047", ((SAst*)ast)->Pos, type->Args->Len, ast->Args->Len);
+			LocalErr = True;
+			return (SAstExpr*)DummyPtr;
+		}
+		{
+			SListNode* ptr_expr = ast->Args->Top;
+			SListNode* ptr_type = type->Args->Top;
+			while (ptr_expr != NULL)
+			{
+				SAstExprCallArg* arg_expr = (SAstExprCallArg*)ptr_expr->Data;
+				SAstTypeFuncArg* arg_type = (SAstTypeFuncArg*)ptr_type->Data;
+				arg_expr->Arg = RebuildExpr(arg_expr->Arg, False);
+				if (LocalErr)
+					return (SAstExpr*)DummyPtr;
+				if (arg_expr->RefVar != arg_type->RefVar || !CmpType(arg_expr->Arg->Type, arg_type->Arg))
+				{
+					Err(L"EA0048", ((SAst*)ast)->Pos);
+					LocalErr = True;
+					return (SAstExpr*)DummyPtr;
+				}
+				ptr_expr = ptr_expr->Next;
+				ptr_type = ptr_type->Next;
+			}
+		}
+		((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	}
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExprArray(SAstExprArray* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Var = RebuildExpr(ast->Var, False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	if (((SAst*)ast->Var->Type)->TypeId != AstTypeId_TypeArray)
+	{
+		Err(L"EA0049", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	ast->Idx = RebuildExpr(ast->Idx, False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	if (!IsInt(ast->Idx->Type))
+	{
+		Err(L"EA0050", ((SAst*)ast->Idx)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	((SAstExpr*)ast)->Type = ((SAstTypeArray*)ast->Var->Type)->ItemType;
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_GlobalVar;
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExprDot(SAstExprDot* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Var = RebuildExpr(ast->Var, False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	if (IsClass(ast->Var->Type))
+	{
+		Bool found = False;
+		SAstClass* ptr = (SAstClass*)((SAst*)ast->Var->Type)->RefItem;
+		while (ptr != NULL)
+		{
+			SListNode* ptr2 = ptr->Items->Top;
+			while (ptr2 != NULL)
+			{
+				SAstClassItem* item = (SAstClassItem*)ptr2->Data;
+				if (item->Def->TypeId == AstTypeId_Var && wcscmp(ast->Member, ((SAst*)((SAstVar*)item->Def)->Var)->Name) == 0)
+				{
+					((SAstExpr*)ast)->Type = ((SAstVar*)item->Def)->Var->Type;
+					((SAstExpr*)ast)->VarKind = AstExprVarKind_GlobalVar; // Properties' addresses are treated as those of global variables.
+					found = True;
+				}
+				else if (item->Def->TypeId == AstTypeId_Func && wcscmp(ast->Member, ((SAst*)item->Def)->Name) == 0)
+				{
+					{
+						SAstTypeFunc* type = (SAstTypeFunc*)Alloc(sizeof(SAstTypeFunc));
+						InitAst((SAst*)type, AstTypeId_TypeFunc, ((SAst*)ast)->Pos);
+						type->FuncAttr = ((SAstFunc*)item->Def)->FuncAttr;
+						type->Args = ListNew();
+						{
+							SListNode* ptr3 = ((SAstFunc*)item->Def)->Args->Top;
+							while (ptr3 != NULL)
+							{
+								SAstArg* arg = (SAstArg*)ptr3->Data;
+								{
+									SAstTypeFuncArg* item2 = (SAstTypeFuncArg*)Alloc(sizeof(SAstTypeFuncArg));
+									item2->Arg = arg->Type;
+									item2->RefVar = arg->RefVar;
+									ListAdd(type->Args, item2);
+								}
+								ptr3 = ptr3->Next;
+							}
+						}
+						type->Ret = ((SAstFunc*)item->Def)->Ret;
+						((SAstExpr*)ast)->Type = (SAstType*)type;
+					}
+					((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+					found = True;
+				}
+				if (found)
+				{
+					// 'me' and automatically generated arguments can be accessed even though they are private.
+					if (!item->Public && ((SAst*)ast->Var)->RefName != NULL && wcscmp(((SAst*)ast->Var)->RefName, L"me") != 0)
+					{
+						Err(L"EA0051", ((SAst*)ast)->Pos, ast->Member);
+						LocalErr = True;
+						return (SAstExpr*)DummyPtr;
+					}
+					ast->ClassItem = item;
+					return (SAstExpr*)ast;
+				}
+				ptr2 = ptr2->Next;
+			}
+			ptr = (SAstClass*)((SAst*)ptr)->RefItem;
+		}
+	}
+	else
+	{
+		SAstType* var_type = ast->Var->Type;
+		const Char* member = ast->Member;
+		Bool correct = False;
+		if (wcscmp(member, L"toBin") == 0 || wcscmp(member, L"fromBin") == 0)
+			correct = True;
+		else if (wcscmp(member, L"toStr") == 0)
+		{
+			if (IsInt(var_type) || IsFloat(var_type) || IsChar(var_type) || IsBool(var_type) || ((SAst*)var_type)->TypeId == AstTypeId_TypeBit)
+				correct = True;
+		}
+		else if (wcscmp(member, L"or") == 0 || wcscmp(member, L"and") == 0 || wcscmp(member, L"xor") == 0 || wcscmp(member, L"not") == 0 || wcscmp(member, L"shl") == 0 || wcscmp(member, L"shr") == 0 || wcscmp(member, L"sar") == 0)
+		{
+			if (((SAst*)var_type)->TypeId == AstTypeId_TypeBit)
+				correct = True;
+		}
+		else if (wcscmp(member, L"sub") == 0 || wcscmp(member, L"reverse") == 0 || wcscmp(member, L"shuffle") == 0 || wcscmp(member, L"sortAsc") == 0 || wcscmp(member, L"sortDesc") == 0 || wcscmp(member, L"find") == 0 || wcscmp(member, L"findLast") == 0)
+		{
+			if (((SAst*)var_type)->TypeId == AstTypeId_TypeArray)
+				correct = True;
+		}
+		else if (wcscmp(member, L"toInt") == 0 || wcscmp(member, L"toFloat") == 0 || wcscmp(member, L"lower") == 0 || wcscmp(member, L"upper") == 0 || wcscmp(member, L"trim") == 0 || wcscmp(member, L"trimLeft") == 0 || wcscmp(member, L"trimRight") == 0)
+		{
+			if (IsStr(var_type))
+				correct = True;
+		}
+		else if (wcscmp(member, L"add") == 0)
+		{
+			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
+			{
+				correct = True;
+				member = L"addList";
+			}
+			else if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
+			{
+				correct = True;
+				member = L"addDict";
+			}
+		}
+		else if (wcscmp(member, L"get") == 0)
+		{
+			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
+			{
+				correct = True;
+				member = L"getList";
+			}
+			else if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
+			{
+				correct = True;
+				member = L"getDict";
+			}
+		}
+		else if (wcscmp(member, L"head") == 0 || wcscmp(member, L"tail") == 0 || wcscmp(member, L"next") == 0 || wcscmp(member, L"prev") == 0 || wcscmp(member, L"end") == 0 || wcscmp(member, L"del") == 0 || wcscmp(member, L"toArray") == 0 || wcscmp(member, L"ins") == 0)
+		{
+			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
+				correct = True;
+		}
+		else if (wcscmp(member, L"peek") == 0)
+		{
+			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && (((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Stack || ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Queue))
+				correct = True;
+		}
+		else if (wcscmp(member, L"push") == 0|| wcscmp(member, L"pop") == 0)
+		{
+			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Stack)
+				correct = True;
+		}
+		else if (wcscmp(member, L"enq") == 0|| wcscmp(member, L"deq") == 0)
+		{
+			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Queue)
+				correct = True;
+		}
+		if (correct)
+		{
+			SAstExpr* expr;
+			Char name[32];
+			wcscpy(name, L"_");
+			wcscat(name, member);
+			expr = (SAstExpr*)SearchStdItem(L"kuin", name, True);
+			if (LocalErr)
+				return (SAstExpr*)DummyPtr;
+			{
+				SAstTypeFunc* func = (SAstTypeFunc*)expr->Type;
+				if ((func->FuncAttr & FuncAttr_AnyType) != 0)
+				{
+					ASSERT(func->Args->Len >= 2);
+#if defined(_DEBUG)
+					{
+						SAstType* arg = ((SAstTypeFuncArg*)func->Args->Top->Data)->Arg;
+						ASSERT(((SAst*)arg)->TypeId == AstTypeId_TypeArray && ((SAst*)((SAstTypeArray*)arg)->ItemType)->TypeId == AstTypeId_TypeBit && ((SAstTypeBit*)((SAstTypeArray*)arg)->ItemType)->Size == 1);
+					}
+#endif
+					ASSERT(IsInt(((SAstTypeFuncArg*)func->Args->Top->Next->Data)->Arg));
+					((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Data)->Arg = var_type;
+				}
+				if ((func->FuncAttr & FuncAttr_TakeMe) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeChild) == 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeKeyValue) == 0);
+					ASSERT(func->Args->Len >= 3);
+#if defined(_DEBUG)
+					{
+						SAstType* arg = ((SAstTypeFuncArg*)func->Args->Top->Next->Next->Data)->Arg;
+						ASSERT(((SAst*)arg)->TypeId == AstTypeId_TypeArray && ((SAst*)((SAstTypeArray*)arg)->ItemType)->TypeId == AstTypeId_TypeBit && ((SAstTypeBit*)((SAstTypeArray*)arg)->ItemType)->Size == 1);
+					}
+#endif
+					((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Next->Next->Data)->Arg = var_type;
+				}
+				if ((func->FuncAttr & FuncAttr_TakeChild) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeMe) == 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeKeyValue) == 0);
+					ASSERT(func->Args->Len >= 3);
+#if defined(_DEBUG)
+					{
+						SAstType* arg = ((SAstTypeFuncArg*)func->Args->Top->Next->Next->Data)->Arg;
+						ASSERT(((SAst*)arg)->TypeId == AstTypeId_TypeArray && ((SAst*)((SAstTypeArray*)arg)->ItemType)->TypeId == AstTypeId_TypeBit && ((SAstTypeBit*)((SAstTypeArray*)arg)->ItemType)->Size == 1);
+					}
+#endif
+					if (((SAst*)var_type)->TypeId == AstTypeId_TypeArray)
+						((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Next->Next->Data)->Arg = ((SAstTypeArray*)var_type)->ItemType;
+					else if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen)
+						((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Next->Next->Data)->Arg = ((SAstTypeGen*)var_type)->ItemType;
+					else
+					{
+						ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
+						((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Next->Next->Data)->Arg = ((SAstTypeDict*)var_type)->ItemTypeKey;
+					}
+				}
+				if ((func->FuncAttr & FuncAttr_TakeKeyValue) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeMe) == 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeChild) == 0);
+					ASSERT(func->Args->Len >= 4);
+#if defined(_DEBUG)
+					{
+						SAstType* arg = ((SAstTypeFuncArg*)func->Args->Top->Next->Next->Next->Data)->Arg;
+						ASSERT(((SAst*)arg)->TypeId == AstTypeId_TypeArray && ((SAst*)((SAstTypeArray*)arg)->ItemType)->TypeId == AstTypeId_TypeBit && ((SAstTypeBit*)((SAstTypeArray*)arg)->ItemType)->Size == 1);
+					}
+					{
+						SAstType* arg = ((SAstTypeFuncArg*)func->Args->Top->Next->Next->Next->Next->Data)->Arg;
+						ASSERT(((SAst*)arg)->TypeId == AstTypeId_TypeArray && ((SAst*)((SAstTypeArray*)arg)->ItemType)->TypeId == AstTypeId_TypeBit && ((SAstTypeBit*)((SAstTypeArray*)arg)->ItemType)->Size == 1);
+					}
+#endif
+					ASSERT(IsInt(((SAstTypeFuncArg*)func->Args->Top->Next->Next->Data)->Arg));
+					ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
+					((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Next->Next->Next->Data)->Arg = ((SAstTypeDict*)var_type)->ItemTypeKey;
+					((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Next->Next->Next->Next->Data)->Arg = ((SAstTypeDict*)var_type)->ItemTypeValue;
+				}
+				if ((func->FuncAttr & FuncAttr_RetMe) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT((func->FuncAttr & FuncAttr_RetChild) == 0);
+					ASSERT(IsInt(func->Ret));
+					((SAstTypeFunc*)expr->Type)->Ret = var_type;
+				}
+				if ((func->FuncAttr & FuncAttr_RetChild) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT((func->FuncAttr & FuncAttr_RetMe) == 0);
+					ASSERT(IsInt(func->Ret));
+					if (((SAst*)var_type)->TypeId == AstTypeId_TypeArray)
+						((SAstTypeFunc*)expr->Type)->Ret = ((SAstTypeArray*)var_type)->ItemType;
+					else if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen)
+						((SAstTypeFunc*)expr->Type)->Ret = ((SAstTypeGen*)var_type)->ItemType;
+					else
+					{
+						ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
+						((SAstTypeFunc*)expr->Type)->Ret = ((SAstTypeDict*)var_type)->ItemTypeValue;
+					}
+				}
+			}
+			((SAst*)ast)->RefItem = (SAst*)expr;
+			((SAstExpr*)ast)->Type = expr->Type;
+			((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+			return (SAstExpr*)ast;
+		}
+	}
+	Err(L"EA0052", ((SAst*)ast)->Pos, ast->Member);
+	LocalErr = True;
+	return (SAstExpr*)DummyPtr;
+}
+
+static SAstExpr* RebuildExprValue(SAstExprValue* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ASSERT(((SAstExpr*)ast)->Type == NULL);
+	{
+		SListNode* ptr = ast->Values->Top;
+		Bool null_set = False;
+		while (ptr != NULL)
+		{
+			ptr->Data = RebuildExpr((SAstExpr*)ptr->Data, False);
+			if (LocalErr)
+				return (SAstExpr*)DummyPtr;
+			if (((SAstExpr*)ast)->Type == NULL)
+			{
+				if (((SAst*)((SAstExpr*)ptr->Data)->Type)->TypeId == AstTypeId_TypeNull)
+					null_set = True;
+				else
+				{
+					// Determine the type of the array initializer when a value other than 'null' is specified.
+					if (null_set && !IsRef(((SAstExpr*)ptr->Data)->Type))
+					{
+						Err(L"EA0053", ((SAst*)ast)->Pos);
+						LocalErr = True;
+						return (SAstExpr*)DummyPtr;
+					}
+					{
+						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)((SAstExpr*)ptr->Data)->Type)->Pos);
+						type->ItemType = ((SAstExpr*)ptr->Data)->Type;
+						((SAstExpr*)ast)->Type = (SAstType*)type;
+					}
+				}
+			}
+			else if (!CmpType(((SAstTypeArray*)((SAstExpr*)ast)->Type)->ItemType, ((SAstExpr*)ptr->Data)->Type))
+			{
+				// The types of the second and subsequent elements of the array initializer do not match the type of the first element.
+				Err(L"EA0054", ((SAst*)ast)->Pos);
+				LocalErr = True;
+				return (SAstExpr*)DummyPtr;
+			}
+			ptr = ptr->Next;
+		}
+	}
+	if (((SAstExpr*)ast)->Type == NULL)
+	{
+		Err(L"EA0055", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	if (IsStr(((SAstExpr*)ast)->Type))
+	{
+		// Replace constants consisting only of characters with string literals.
+		Bool is_const = True;
+		{
+			SListNode* ptr = ast->Values->Top;
+			while (ptr != NULL)
+			{
+				if (((SAst*)ptr->Data)->TypeId != AstTypeId_ExprValue)
+				{
+					is_const = False;
+					break;
+				}
+				ptr = ptr->Next;
+			}
+		}
+		if (is_const)
+		{
+			SAstExprValue* ast2 = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+			InitAst((SAst*)ast2, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+			((SAstExpr*)ast2)->Type = ((SAstExpr*)ast)->Type;
+			*(const Char**)ast2->Value = (Char*)Alloc(sizeof(Char) * (size_t)(ast->Values->Len + 1));
+			{
+				SListNode* ptr = ast->Values->Top;
+				Char* p = *(Char**)ast2->Value;
+				while (ptr != NULL)
+				{
+					*p = *(Char*)((SAstExprValue*)ptr->Data)->Value;
+					ptr = ptr->Next;
+					p++;
+				}
+				*p = L'\0';
+			}
+			ast2 = (SAstExprValue*)RebuildExprValue(ast2);
+			if (LocalErr)
+				return (SAstExpr*)DummyPtr;
+			((SAst*)ast)->AnalyzedCache = (SAst*)ast2;
+			return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+		}
+	}
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExprRef(SAstExpr* ast)
+{
+	ASSERT(((SAst*)ast)->TypeId == AstTypeId_ExprRef);
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	{
+		SAst* ref_item = ((SAst*)ast)->RefItem;
+		switch (ref_item->TypeId)
+		{
+			case AstTypeId_Func:
+				{
+					SAstFunc* func = (SAstFunc*)((SAst*)ast)->RefItem;
+					RebuildFunc(func);
+					{
+						SAstTypeFunc* type = (SAstTypeFunc*)Alloc(sizeof(SAstTypeFunc));
+						InitAst((SAst*)type, AstTypeId_TypeFunc, ((SAst*)ast)->Pos);
+						type->FuncAttr = func->FuncAttr;
+						type->Args = ListNew();
+						{
+							SListNode* ptr = func->Args->Top;
+							while (ptr != NULL)
+							{
+								SAstTypeFuncArg* arg = (SAstTypeFuncArg*)Alloc(sizeof(SAstTypeFuncArg));
+								arg->RefVar = ((SAstArg*)ptr->Data)->RefVar;
+								arg->Arg = ((SAstArg*)ptr->Data)->Type;
+								ListAdd(type->Args, arg);
+								ptr = ptr->Next;
+							}
+						}
+						type->Ret = func->Ret;
+						((SAstExpr*)ast)->Type = (SAstType*)type;
+					}
+					((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+				}
+				break;
+			case AstTypeId_Arg:
+				{
+					SAstArg* arg = (SAstArg*)((SAst*)ast)->RefItem;
+					RebuildArg(arg);
+					switch (arg->Kind)
+					{
+						case AstArgKind_Global:
+							ast->Type = arg->Type;
+							((SAstExpr*)ast)->VarKind = AstExprVarKind_GlobalVar;
+							break;
+						case AstArgKind_LocalArg:
+							ast->Type = arg->Type;
+							((SAstExpr*)ast)->VarKind = arg->RefVar ? AstExprVarKind_RefVar : AstExprVarKind_LocalVar;
+							break;
+						case AstArgKind_LocalVar:
+							ast->Type = arg->Type;
+							((SAstExpr*)ast)->VarKind = AstExprVarKind_LocalVar;
+							break;
+						case AstArgKind_Const:
+							{
+								SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+								InitAst((SAst*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+								((SAstExpr*)expr)->Type = arg->Expr->Type;
+								*(U64*)expr->Value = *(U64*)((SAstExprValue*)arg->Expr)->Value;
+								expr = (SAstExprValue*)RebuildExprValue(expr);
+								if (LocalErr)
+									return (SAstExpr*)DummyPtr;
+								((SAst*)ast)->AnalyzedCache = (SAst*)expr;
+							}
+							return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+						case AstArgKind_Member:
+							{
+								Err(L"EA0057", ((SAst*)ast)->Pos, ((SAst*)ast)->RefName);
+								LocalErr = True;
+								return (SAstExpr*)DummyPtr;
+							}
+							break;
+						default:
+							ASSERT(False);
+					}
+				}
+				break;
+			case AstTypeId_StatSwitch:
+			case AstTypeId_StatFor:
+			case AstTypeId_StatForEach:
+			case AstTypeId_StatTry:
+				ASSERT(ref_item->AnalyzedCache != NULL);
+				((SAst*)ast)->RefItem = (SAst*)((SAstStatBreakable*)ref_item)->BlockVar;
+				((SAstExpr*)ast)->Type = ((SAstArg*)((SAstStatBreakable*)ref_item)->BlockVar)->Type;
+				((SAstExpr*)ast)->VarKind = AstExprVarKind_LocalVar;
+				break;
+			default:
+				if ((ref_item->TypeId & AstTypeId_Expr) != 0 && ref_item->AnalyzedCache != NULL && IsEnum(((SAstExpr*)ref_item->AnalyzedCache)->Type))
+				{
+					((SAst*)ast)->AnalyzedCache = ref_item->AnalyzedCache;
+					return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+				}
+				else
+				{
+					Err(L"EA0036", ((SAst*)ast)->Pos, ((SAst*)ast)->RefName);
+					LocalErr = True;
+					return (SAstExpr*)DummyPtr;
+				}
+				break;
+		}
+	}
+	return (SAstExpr*)ast;
+}

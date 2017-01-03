@@ -1,0 +1,8 @@
+func main()
+	block
+		do cui@print("abcdeabcde".find('d').toStr())
+		do cui@print("abcdeabcde".find('f').toStr())
+		do cui@print("abcdeabcde".findLast('d').toStr())
+		do cui@print("abcdeabcde".findLast('f').toStr())
+	end block
+end func

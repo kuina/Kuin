@@ -1,0 +1,51 @@
+const Pi: float :: 3.14159265358979323846
+const E: float :: 2.71828182845904523536
+
++func Cos(x: float): float
+end func
+
++func Sin(x: float): float
+end func
+
++func Tan(x: float): float
+end func
+
++func ACos(x: float): float
+end func
+
++func ASin(x: float): float
+end func
+
++func ATan(x: float): float
+end func
+
++func Sqrt(x: float): float
+end func
+
++func Exp(x: float): float
+end func
+
++func Ln(x: float): float
+end func
+
++func Log(x: float, base: float): float
+	return @Ln(x) / @Ln(base)
+end func
+
++func Rot(x: &float, y: &float, cx: float, cy: float, angle: float)
+end func
+
++func InvRot(x: float, y: float): float
+end func
+
++func Hypot(x: float, y: float): float
+end func
+
++func Chase(x: &float, target: float, velo: float): bool
+end func
+
++func Floor(x: float): int
+end func
+
++func Ceil(x: float): int
+end func
