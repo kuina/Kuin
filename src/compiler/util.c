@@ -124,7 +124,11 @@ Char* GetDir(const Char* path, Bool dir, const Char* add_name)
 		while (ptr != path && *ptr != L'\\' && *ptr != L'/')
 			ptr--;
 		if (ptr == path)
-			return L"./";
+		{
+			result = (Char*)Alloc(sizeof(Char) * (2 + len_add_name + 1));
+			wcscpy(result, L"./");
+		}
+		else
 		{
 			size_t len2 = ptr - path + 1;
 			size_t i;
