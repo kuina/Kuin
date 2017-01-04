@@ -110,6 +110,7 @@ typedef enum EFuncAttr
 	FuncAttr_TakeChild = 0x40, // The function receives a value of the type of elements of 'me' in the third argument.
 	FuncAttr_RetChild = 0x80, // The function returns a value of the type of elements of 'me'.
 	FuncAttr_TakeKeyValue = 0x0100, // The function receives a value of the type of 'key' in the third argument and a value of the type of 'value' in the fourth.
+	FuncAttr_Underscore = 0x0200, // Append an underscore to the beginning of the function name.
 } EFuncAttr;
 
 typedef struct SAstFunc

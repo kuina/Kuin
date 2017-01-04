@@ -1513,7 +1513,11 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 				}
 			}
 			{
-				S64* addr = AddWritableData(NewStr(NULL, L"%s$%s", ast->DLLName, ((SAst*)ast)->Name), 8);
+				S64* addr;
+				if ((ast->FuncAttr & FuncAttr_Underscore) != 0)
+					addr = AddWritableData(NewStr(NULL, L"%s$_%s", ast->DLLName, ((SAst*)ast)->Name), 8);
+				else
+					addr = AddWritableData(NewStr(NULL, L"%s$%s", ast->DLLName, ((SAst*)ast)->Name), 8);
 				ListAdd(PackAsm->Asms, AsmCALL(ValRIP(8, RefValueAddr(addr, True))));
 			}
 		}

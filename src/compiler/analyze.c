@@ -878,7 +878,12 @@ static void RebuildFunc(SAstFunc* ast)
 		return;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	if (ast->DLLName != NULL)
-		AddDLLFunc(ast->DLLName, ((SAst*)ast)->Name);
+	{
+		if ((ast->FuncAttr & FuncAttr_Underscore) != 0)
+			AddDLLFunc(ast->DLLName, NewStr(NULL, L"_%s", ((SAst*)ast)->Name));
+		else
+			AddDLLFunc(ast->DLLName, ((SAst*)ast)->Name);
+	}
 	{
 		SListNode* ptr = ast->Args->Top;
 		while (ptr != NULL)
@@ -3075,7 +3080,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 			if (((SAst*)var_type)->TypeId == AstTypeId_TypeBit)
 				correct = True;
 		}
-		else if (wcscmp(member, L"sub") == 0 || wcscmp(member, L"reverse") == 0 || wcscmp(member, L"shuffle") == 0 || wcscmp(member, L"sortAsc") == 0 || wcscmp(member, L"sortDesc") == 0 || wcscmp(member, L"find") == 0 || wcscmp(member, L"findLast") == 0)
+		else if (wcscmp(member, L"sub") == 0 || wcscmp(member, L"reverse") == 0 || wcscmp(member, L"shuffle") == 0 || wcscmp(member, L"sort") == 0 || wcscmp(member, L"sortDesc") == 0 || wcscmp(member, L"find") == 0 || wcscmp(member, L"findLast") == 0)
 		{
 			if (((SAst*)var_type)->TypeId == AstTypeId_TypeArray)
 				correct = True;
@@ -3111,7 +3116,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 				member = L"getDict";
 			}
 		}
-		else if (wcscmp(member, L"head") == 0 || wcscmp(member, L"tail") == 0 || wcscmp(member, L"next") == 0 || wcscmp(member, L"prev") == 0 || wcscmp(member, L"end") == 0 || wcscmp(member, L"del") == 0 || wcscmp(member, L"toArray") == 0 || wcscmp(member, L"ins") == 0)
+		else if (wcscmp(member, L"head") == 0 || wcscmp(member, L"tail") == 0 || wcscmp(member, L"next") == 0 || wcscmp(member, L"prev") == 0 || wcscmp(member, L"end") == 0 || wcscmp(member, L"del") == 0 || wcscmp(member, L"ins") == 0 || wcscmp(member, L"toArray") == 0)
 		{
 			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
 				correct = True;

@@ -1,8 +1,42 @@
 func main()
-	block
-		do cui@print("abcdeabcde".find('d').toStr())
-		do cui@print("abcdeabcde".find('f').toStr())
-		do cui@print("abcdeabcde".findLast('d').toStr())
-		do cui@print("abcdeabcde".findLast('f').toStr())
-	end block
+	for(1, 3)
+		block
+			do cui@print("abcdeabcde".find('d').toStr())
+			do cui@print("abcdeabcde".find('f').toStr())
+			do cui@print("abcdeabcde".findLast('d').toStr())
+			do cui@print("abcdeabcde".findLast('f').toStr())
+			
+			do cui@print("abcde".sub(1, 3))
+			do cui@print("abcde".sub(1, -1))
+			do cui@print(["a", "b", "c"].sub(1, 1)[0])
+			do cui@print(["a", "b", "c"].sub(1, -1)[1])
+		end block
+		
+		block
+			var n: []char :: "This is a string value."
+			var m: [][]char :: ["AB", "CD", "EF"]
+			do n.reverse()
+			do m.reverse()
+			do cui@print(n)
+			do cui@print(m[0] ~ m[1] ~ m[2])
+		end block
+
+		block
+			var n: []char :: "This is a string value."
+			var m: [][]char :: ["AB", "CD", "EF"]
+			do n.sort()
+			do m.sort()
+			do cui@print(n)
+			do cui@print(m[0] ~ m[1] ~ m[2])
+		end block
+
+		block
+			var n: []char :: "This is a string value."
+			var m: [][]char :: ["AB", "CD", "EF"]
+			do n.sortDesc()
+			do m.sortDesc()
+			do cui@print(n)
+			do cui@print(m[0] ~ m[1] ~ m[2])
+		end block
+	end for
 end func

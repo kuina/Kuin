@@ -5,6 +5,7 @@
 
 #include "main.h"
 
+#include "lib.h"
 #include "rnd.h"
 
 typedef enum ETypeId
@@ -27,11 +28,8 @@ typedef enum ETypeId
 	TypeId_Class = 0x85,
 } ETypeId;
 
-S128 RndMask;
-static SRndState GlobalRnd;
-
 static Bool IsRef(U8 type);
-static int GetSize(U8 type);
+static size_t GetSize(U8 type);
 static Bool Same(double f1, double f2);
 static S64 Add(S64 a, S64 b);
 static S64 Mul(S64 a, S64 b);
@@ -56,6 +54,7 @@ static int CmpBit64(const void* a, const void* b);
 static int CmpStr(const void* a, const void* b);
 static int CmpClass(const void* a, const void* b);
 static void* CatBin(int num, void** bins);
+static void MergeSort(void* me_, const U8* type, Bool asc);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -65,52 +64,12 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT S64 rnd(S64 min, S64 max)
-{
-	return RndGet(&GlobalRnd, min, max);
-}
-
-EXPORT double rndFloat(double min, double max)
-{
-	return RndGetFloat(&GlobalRnd, min, max);
-}
-
-EXPORT U64 rndBit64(void)
-{
-	return RndGetBit64(&GlobalRnd);
-}
-
 EXPORT void _init(void* heap, S64* heap_cnt)
 {
 	Heap = heap;
 	HeapCnt = heap_cnt;
-
-	// Initialize the random number system.
-	RndMask = _mm_set_epi32(0x7ff7fb2f, 0xff777b7d, 0xef7f3f7d, 0xfdff37ff);
-#if defined(_DEBUG)
-	// Test the random number system.
-	{
-		const U64 answers[] =
-		{
-			0x33ff358570beb516, 0xa09f66b21c23687b, 0x34506b19caf13173, 0x47bbd348fd8e122f,
-			0xcb2fb52e99922f80, 0x7b633b3d7230b48d, 0xd7bb5c4f79c6886b, 0x27b2d2079e86b7da,
-			0xb801da316661da6a, 0xfb20bf53344a71c4, 0xdd26c89a30d3fefe, 0x4d291ef4ed2381d5,
-			0x03a063c847570621, 0x803d64a732ebe145, 0xf7d6f2d0bc4906be, 0xf44552c12646cd84,
-			0x0a4df6f031fb46b3, 0x894ebd381ff0c2a8, 0x34d2221d79c8b86e, 0xf68cf4fdd4f5a265,
-			0xa6dd0d5bdf172c87, 0xc3bd1fd6a7702d36, 0xb8e8c39722379c82, 0xa8e0c595ed87c7f6,
-			0x368d2b6111065b24, 0x57ae24e8fc53eefc, 0xe80e4d6647ace128, 0xa323547aa04421b2,
-			0x5cf311d7ea76c8c3, 0xa160420e0f3bf087, 0x31c91cf6323bcaf2, 0x341fd6794ac66886,
-		};
-		int i;
-		RndInit(&GlobalRnd, 917);
-		for (i = 0; i < sizeof(answers) / sizeof(answers[0]); i++)
-		{
-			U64 n = RndGetBit64(&GlobalRnd);
-			ASSERT(n == answers[i]);
-		}
-	}
-#endif
-	RndInit(&GlobalRnd, (U32)(time(NULL)) ^ (U32)timeGetTime() ^ 0x2971c37b);
+	
+	LibInit();
 }
 
 EXPORT void _fin(void)
@@ -230,10 +189,10 @@ EXPORT void* _copy(const void* me_, const U8* type)
 	{
 		case TypeId_Array:
 			{
-				int size = GetSize(type[1]);
+				size_t size = GetSize(type[1]);
 				S64 len = *(S64*)((U8*)me_ + 0x08);
 				Bool is_str = IsStr(type);
-				U8* result = (U8*)AllocMem(0x10 + (size_t)size * (size_t)(len + (is_str ? 1 : 0)));
+				U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
 				((S64*)result)[0] = DefaultRefCntOpe;
 				((S64*)result)[1] = len;
 				if (IsRef(type[1]))
@@ -252,12 +211,12 @@ EXPORT void* _copy(const void* me_, const U8* type)
 					}
 				}
 				else
-					memcpy(result + 0x10, (U8*)me_ + 0x10, (size_t)size * (size_t)(len + (is_str ? 1 : 0)));
+					memcpy(result + 0x10, (U8*)me_ + 0x10, size * (size_t)(len + (is_str ? 1 : 0)));
 				return result;
 			}
 		case TypeId_List:
 			{
-				int size = GetSize(type[1]);
+				size_t size = GetSize(type[1]);
 				Bool is_ref = IsRef(type[1]);
 				U8* result = (U8*)AllocMem(0x28);
 				((S64*)result)[0] = DefaultRefCntOpe;
@@ -269,7 +228,7 @@ EXPORT void* _copy(const void* me_, const U8* type)
 					void* src = *(void**)((U8*)me_ + 0x10);
 					while (src != NULL)
 					{
-						U8* node = (U8*)AllocMem(0x10 + (size_t)size);
+						U8* node = (U8*)AllocMem(0x10 + size);
 						if (is_ref)
 						{
 							if (*(void**)((U8*)src + 0x10) == NULL)
@@ -278,7 +237,7 @@ EXPORT void* _copy(const void* me_, const U8* type)
 								*(void**)(node + 0x10) = _copy(*(void**)((U8*)src + 0x10), type + 1);
 						}
 						else
-							memcpy(node + 0x10, (U8*)src + 0x10, (size_t)size);
+							memcpy(node + 0x10, (U8*)src + 0x10, size);
 						*(void**)(node + 0x08) = NULL;
 						if (*(void**)(result + 0x10) == NULL)
 						{
@@ -299,7 +258,7 @@ EXPORT void* _copy(const void* me_, const U8* type)
 			}
 		case TypeId_Stack:
 			{
-				int size = GetSize(type[1]);
+				size_t size = GetSize(type[1]);
 				Bool is_ref = IsRef(type[1]);
 				void* top = NULL;
 				void* bottom = NULL;
@@ -311,7 +270,7 @@ EXPORT void* _copy(const void* me_, const U8* type)
 					void* src = *(void**)((U8*)me_ + 0x10);
 					while (src != NULL)
 					{
-						U8* node = (U8*)AllocMem(0x08 + (size_t)size);
+						U8* node = (U8*)AllocMem(0x08 + size);
 						if (is_ref)
 						{
 							if (*(void**)((U8*)src + 0x08) == NULL)
@@ -320,7 +279,7 @@ EXPORT void* _copy(const void* me_, const U8* type)
 								*(void**)(node + 0x08) = _copy(*(void**)((U8*)src + 0x08), type + 1);
 						}
 						else
-							memcpy(node + 0x08, (U8*)src + 0x08, (size_t)size);
+							memcpy(node + 0x08, (U8*)src + 0x08, size);
 						*(void**)node = NULL;
 						if (top == NULL)
 						{
@@ -337,7 +296,7 @@ EXPORT void* _copy(const void* me_, const U8* type)
 			}
 		case TypeId_Queue:
 			{
-				int size = GetSize(type[1]);
+				size_t size = GetSize(type[1]);
 				Bool is_ref = IsRef(type[1]);
 				U8* result = (U8*)AllocMem(0x20);
 				((S64*)result)[0] = DefaultRefCntOpe;
@@ -348,7 +307,7 @@ EXPORT void* _copy(const void* me_, const U8* type)
 					void* src = *(void**)((U8*)me_ + 0x10);
 					while (src != NULL)
 					{
-						U8* node = (U8*)AllocMem(0x08 + (size_t)size);
+						U8* node = (U8*)AllocMem(0x08 + size);
 						if (is_ref)
 						{
 							if (*(void**)((U8*)src + 0x08) == NULL)
@@ -357,7 +316,7 @@ EXPORT void* _copy(const void* me_, const U8* type)
 								*(void**)(node + 0x08) = _copy(*(void**)((U8*)src + 0x08), type + 1);
 						}
 						else
-							memcpy(node + 0x08, (U8*)src + 0x08, (size_t)size);
+							memcpy(node + 0x08, (U8*)src + 0x08, size);
 						*(void**)node = NULL;
 						if (*(void**)(result + 0x18) == NULL)
 							*(void**)(result + 0x10) = node;
@@ -492,7 +451,7 @@ EXPORT void* _toBin(const void* me_, const U8* type)
 			{
 				S64 len = *(S64*)((U8*)me_ + 0x08);
 				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len);
-				int size = GetSize(type[1]);
+				size_t size = GetSize(type[1]);
 				U8* ptr = (U8*)me_ + 0x10;
 				S64 i;
 				for (i = 0; i < len; i++)
@@ -506,13 +465,13 @@ EXPORT void* _toBin(const void* me_, const U8* type)
 			{
 				S64 len = *(S64*)((U8*)me_ + 0x08);
 				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len);
-				int size = GetSize(type[1]);
+				size_t size = GetSize(type[1]);
 				void* ptr = *(void**)((U8*)me_ + 0x20);
 				S64 i;
 				for (i = 0; i < len; i++)
 				{
 					void* value = NULL;
-					memcpy(&value, (U8*)ptr + 0x10, (size_t)size);
+					memcpy(&value, (U8*)ptr + 0x10, size);
 					bins[i] = _toBin(value, type + 1);
 					ptr = *(void**)((U8*)ptr + 0x08);
 				}
@@ -523,13 +482,13 @@ EXPORT void* _toBin(const void* me_, const U8* type)
 			{
 				S64 len = *(S64*)((U8*)me_ + 0x08);
 				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len);
-				int size = GetSize(type[1]);
+				size_t size = GetSize(type[1]);
 				void* ptr = *(void**)((U8*)me_ + 0x10);
 				S64 i;
 				for (i = 0; i < len; i++)
 				{
 					void* value = NULL;
-					memcpy(&value, (U8*)ptr + 0x08, (size_t)size);
+					memcpy(&value, (U8*)ptr + 0x08, size);
 					bins[i] = _toBin(value, type + 1);
 					ptr = *(void**)ptr;
 				}
@@ -597,8 +556,8 @@ EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx)
 				S64 len = *(S64*)(bin + idx);
 				idx += 8;
 				{
-					int size = GetSize(type[1]);
-					void* result = AllocMem(0x10 + (size_t)len * (size_t)size);
+					size_t size = GetSize(type[1]);
+					void* result = AllocMem(0x10 + (size_t)len * size);
 					((S64*)result)[0] = DefaultRefCntFunc;
 					((S64*)result)[1] = len;
 					{
@@ -608,7 +567,7 @@ EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx)
 						{
 							void* value = NULL;
 							idx = _fromBin(&value, type + 1, bin, idx);
-							memcpy(ptr, value, (size_t)size);
+							memcpy(ptr, value, size);
 							ptr += size;
 						}
 						*me_ = result;
@@ -621,7 +580,7 @@ EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx)
 				S64 len = *(S64*)(bin + idx);
 				idx += 8;
 				{
-					int size = GetSize(type[1]);
+					size_t size = GetSize(type[1]);
 					void* result = AllocMem(0x28);
 					((S64*)result)[0] = DefaultRefCntFunc;
 					((S64*)result)[1] = len;
@@ -635,7 +594,7 @@ EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx)
 							U8* node = (U8*)AllocMem(0x10 + size);
 							void* value = NULL;
 							idx = _fromBin(&value, type + 1, bin, idx);
-							memcpy(node + 0x10, value, (size_t)size);
+							memcpy(node + 0x10, value, size);
 							*(void**)(node + 0x08) = NULL;
 							if (*(void**)((U8*)result + 0x10) == NULL)
 							{
@@ -659,7 +618,7 @@ EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx)
 				S64 len = *(S64*)(bin + idx);
 				idx += 8;
 				{
-					int size = GetSize(type[1]);
+					size_t size = GetSize(type[1]);
 					void* result = AllocMem(0x18);
 					((S64*)result)[0] = DefaultRefCntFunc;
 					((S64*)result)[1] = len;
@@ -671,7 +630,7 @@ EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx)
 							U8* node = (U8*)AllocMem(0x08 + size);
 							void* value = NULL;
 							idx = _fromBin(&value, type + 1, bin, idx);
-							memcpy(node + 0x10, value, (size_t)size);
+							memcpy(node + 0x10, value, size);
 							*(void**)node = *(void**)((U8*)result + 0x10);
 							*(void**)((U8*)result + 0x10) = node;
 						}
@@ -684,7 +643,7 @@ EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx)
 				S64 len = *(S64*)(bin + idx);
 				idx += 8;
 				{
-					int size = GetSize(type[1]);
+					size_t size = GetSize(type[1]);
 					void* result = AllocMem(0x20);
 					((S64*)result)[0] = DefaultRefCntFunc;
 					((S64*)result)[1] = len;
@@ -697,7 +656,7 @@ EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx)
 							U8* node = (U8*)AllocMem(0x08 + size);
 							void* value = NULL;
 							idx = _fromBin(&value, type + 1, bin, idx);
-							memcpy(node + 0x10, value, (size_t)size);
+							memcpy(node + 0x10, value, size);
 							*(void**)node = NULL;
 							if (*(void**)((U8*)result + 0x18) == NULL)
 								*(void**)((U8*)result + 0x10) = node;
@@ -782,6 +741,11 @@ EXPORT U8* _toStr(const void* me_, const U8* type)
 		memcpy(result + 0x10, str, sizeof(Char) * (size_t)(len + 1));
 		return result;
 	}
+}
+
+EXPORT Bool _same(double me_, double n)
+{
+	return Same(me_, n);
 }
 
 EXPORT S64 _or(const void* me_, const U8* type, const void* n)
@@ -893,12 +857,12 @@ EXPORT void* _sub(const void* me_, const U8* type, S64 start, S64 len)
 		THROW(0x1000, L"");
 	{
 		Bool is_str = IsStr(type);
-		int size = GetSize(type[1]);
-		U8* result = (U8*)AllocMem(0x10 + (size_t)(size * (len + (is_str ? 1 : 0))));
-		const U8* src = (U8*)me_ + 0x10 + size * start;
-		((S64*)result)[0] = DefaultRefCntFunc;
+		size_t size = GetSize(type[1]);
+		U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
+		const U8* src = (U8*)me_ + 0x10 + size * (size_t)start;
+		((S64*)result)[0] = DefaultRefCntFunc + 1; // Return values of '_ret_me' functions are not automatically incremented.
 		((S64*)result)[1] = len;
-		memcpy(result + 0x10, src, (size_t)(size * len));
+		memcpy(result + 0x10, src, size * (size_t)len);
 		if (IsRef(type[1]))
 		{
 			void** ptr = (void**)(result + 0x10);
@@ -911,52 +875,63 @@ EXPORT void* _sub(const void* me_, const U8* type, S64 start, S64 len)
 			}
 		}
 		if (is_str)
-			*(Char*)(result + 0x10 + (size * len)) = L'\0';
+			*(Char*)(result + 0x10 + size * (size_t)len) = L'\0';
 		return result;
 	}
 }
 
 EXPORT void _reverse(void* me_, const U8* type)
 {
-	int size = GetSize(*type);
+	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
-	// TODO:
+	U8* a = (U8*)me_ + 0x10;
+	U8* b = (U8*)me_ + 0x10 + (size_t)(len - 1) * size;
+	void* tmp;
+	S64 i;
+	for (i = 0; i < len / 2; i++)
+	{
+		memcpy(&tmp, a, size);
+		memcpy(a, b, size);
+		memcpy(b, &tmp, size);
+		a += size;
+		b -= size;
+	}
 }
 
 EXPORT void _shuffle(void* me_, const U8* type)
 {
-	int size = GetSize(*type);
+	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
-	// TODO:
+	U8* a = (U8*)me_ + 0x10;
+	U8* b;
+	void* tmp;
+	S64 i;
+	for (i = 0; i < len - 1; i++)
+	{
+		S64 r = _rnd(i, len - 1);
+		if (i == r)
+			continue;
+		b = (U8*)me_ + 0x10 + (size_t)r * size;
+		memcpy(&tmp, a, size);
+		memcpy(a, b, size);
+		memcpy(b, &tmp, size);
+		a += size;
+	}
 }
 
-EXPORT void _sortAsc(void* me_, const U8* type)
+EXPORT void _sort(void* me_, const U8* type)
 {
-	int size = GetSize(*type);
-	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
-	if (cmp == NULL)
-		Throw(0x1000, L"");
-	{
-		S64 len = *(S64*)((U8*)me_ + 0x08);
-		// TODO:
-	}
+	MergeSort(me_, type, True);
 }
 
 EXPORT void _sortDesc(void* me_, const U8* type)
 {
-	int size = GetSize(*type);
-	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
-	if (cmp == NULL)
-		Throw(0x1000, L"");
-	{
-		S64 len = *(S64*)((U8*)me_ + 0x08);
-		// TODO:
-	}
+	MergeSort(me_, type, False);
 }
 
 EXPORT S64 _find(const void* me_, const U8* type, const void* item)
 {
-	int size = GetSize(type[1]);
+	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
 		Throw(0x1000, L"");
@@ -978,13 +953,13 @@ EXPORT S64 _find(const void* me_, const U8* type, const void* item)
 
 EXPORT S64 _findLast(const void* me_, const U8* type, const void* item)
 {
-	int size = GetSize(type[1]);
+	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
 		Throw(0x1000, L"");
 	{
 		S64 len = *(S64*)((U8*)me_ + 0x08);
-		U8* ptr = (U8*)me_ + 0x10 + (size_t)size * (size_t)(len - 1);
+		U8* ptr = (U8*)me_ + 0x10 + size * (size_t)(len - 1);
 		S64 i;
 		for (i = len - 1; i >= 0; i--)
 		{
@@ -1132,8 +1107,7 @@ EXPORT void* _trimRight(const U8* me_)
 
 EXPORT void _addList(void* me_, const U8* type, const void* item)
 {
-	int item_size = GetSize(type[1]);
-	U8* node = (U8*)AllocMem(0x10 + item_size);
+	U8* node = (U8*)AllocMem(0x10 + GetSize(type[1]));
 	Copy(node + 0x10, type[1], &item);
 	*(void**)(node + 0x08) = NULL;
 	if (*(void**)((U8*)me_ + 0x10) == NULL)
@@ -1264,8 +1238,7 @@ EXPORT void _ins(void* me_, const U8* type, const void* item)
 		THROW(0x1000, L"");
 	{
 		void* ptr = *(void**)((U8*)me_ + 0x20);
-		int item_size = GetSize(type[1]);
-		U8* node = (U8*)AllocMem(0x10 + item_size);
+		U8* node = (U8*)AllocMem(0x10 + GetSize(type[1]));
 		Copy(node + 0x10, type[1], &item);
 		if (*(void**)ptr == NULL)
 			*(void**)((U8*)me_ + 0x10) = node;
@@ -1278,6 +1251,33 @@ EXPORT void _ins(void* me_, const U8* type, const void* item)
 	}
 }
 
+EXPORT void* _toArray(void* me_, const U8* type)
+{
+	size_t size = GetSize(type[1]);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	Bool is_str = IsStr(type);
+	Bool is_ref = IsRef(type[1]);
+	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
+	((S64*)result)[0] = DefaultRefCntFunc;
+	((S64*)result)[1] = len;
+	if (len != 0)
+	{
+		void* src = *(void**)((U8*)me_ + 0x10);
+		U8* dst = result + 0x10;
+		while (src != NULL)
+		{
+			memcpy(dst, (U8*)src + 0x10, size);
+			if (is_ref && *(void**)dst != NULL)
+				(*(S64*)*(void**)dst)++;
+			src = *(void**)((U8*)src + 0x08);
+			dst += size;
+		}
+	}
+	if (is_str)
+		((Char*)result)[len] = L'\0';
+	return result;
+}
+
 EXPORT void* _peek(void* me_, const U8* type)
 {
 	void* node = *(void**)((U8*)me_ + 0x10);
@@ -1288,8 +1288,7 @@ EXPORT void* _peek(void* me_, const U8* type)
 
 EXPORT void _push(void* me_, const U8* type, const void* item)
 {
-	int item_size = GetSize(type[1]);
-	U8* node = (U8*)AllocMem(0x08 + item_size);
+	U8* node = (U8*)AllocMem(0x08 + GetSize(type[1]));
 	Copy(node + 0x08, type[1], &item);
 	*(void**)node = *(void**)((U8*)me_ + 0x10);
 	*(void**)((U8*)me_ + 0x10) = node;
@@ -1316,8 +1315,7 @@ EXPORT void* _pop(void* me_, const U8* type)
 
 EXPORT void _enq(void* me_, const U8* type, const void* item)
 {
-	int item_size = GetSize(type[1]);
-	U8* node = (U8*)AllocMem(0x08 + item_size);
+	U8* node = (U8*)AllocMem(0x08 + GetSize(type[1]));
 	Copy(node + 0x08, type[1], &item);
 	*(void**)node = NULL;
 	if (*(void**)((U8*)me_ + 0x18) == NULL)
@@ -1353,7 +1351,7 @@ static Bool IsRef(U8 type)
 	return type == TypeId_Array || type == TypeId_List || type == TypeId_Stack || type == TypeId_Queue || type == TypeId_Dict || type == TypeId_Class;
 }
 
-static int GetSize(U8 type)
+static size_t GetSize(U8 type)
 {
 	switch (type)
 	{
@@ -1767,4 +1765,73 @@ static void* CatBin(int num, void** bins)
 		}
 		return result;
 	}
+}
+
+static void MergeSort(void* me_, const U8* type, Bool asc)
+{
+	size_t size = GetSize(type[1]);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	U8* a = (U8*)me_ + 0x10;
+	U8* b = (U8*)AllocMem((size_t)len * size);
+	U8* a2 = a;
+	U8* b2 = b;
+	S64 n = 1;
+	S64 i, j;
+	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
+	if (cmp == NULL)
+		Throw(0x1000, L"");
+	while (n < len)
+	{
+		for (i = 0; i < len; i += n * 2)
+		{
+			S64 p = i;
+			S64 q = i + n;
+			for (j = i; j < i + n * 2; j++)
+			{
+				if (p >= i + n || p >= len)
+				{
+					if (q >= len)
+						break;
+					memcpy(b2 + j * size, a2 + q * size, size);
+					q++;
+				}
+				else if (q >= i + n * 2 || q >= len)
+				{
+					memcpy(b2 + j * size, a2 + p * size, size);
+					p++;
+				}
+				else
+				{
+					int cmp_result;
+					void* value_p = NULL;
+					void* value_q = NULL;
+					memcpy(&value_p, a2 + p * size, size);
+					memcpy(&value_q, a2 + q * size, size);
+					if (asc)
+						cmp_result = cmp(value_p, value_q);
+					else
+						cmp_result = -cmp(value_p, value_q);
+					if (cmp_result <= 0)
+					{
+						memcpy(b2 + j * size, &value_p, size);
+						p++;
+					}
+					else
+					{
+						memcpy(b2 + j * size, &value_q, size);
+						q++;
+					}
+				}
+			}
+		}
+		{
+			U8* tmp = a2;
+			a2 = b2;
+			b2 = tmp;
+		}
+		n *= 2;
+	}
+	if (a != a2)
+		memcpy(a, b, (size_t)len * size);
+	FreeMem(b);
 }

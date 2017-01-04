@@ -8,9 +8,14 @@ typedef struct SRnd
 	SRndState RndState;
 } SRnd;
 
-extern S128 RndMask;
+static S128 RndMask;
 
 static void RndDo(S128* r, S128 a, S128 b, S128 c, const S128* d);
+
+void InitRndMask(void)
+{
+	RndMask = _mm_set_epi32(0x7ff7fb2f, 0xff777b7d, 0xef7f3f7d, 0xfdff37ff);
+}
 
 void RndInit(SRndState* rnd_, U32 seed)
 {
@@ -75,10 +80,15 @@ S64 RndGet(SRndState* rnd_, S64 min, S64 max)
 		U64 n = (U64)(max - min + 1);
 		U64 m = 0 - ((0 - n) % n);
 		U64 r;
-		do
-		{
+		if (m == 0)
 			r = RndGetBit64(rnd_);
-		} while (m <= r);
+		else
+		{
+			do
+			{
+				r = RndGetBit64(rnd_);
+			} while (m <= r);
+		}
 		return (S64)(r % n) + min;
 	}
 }

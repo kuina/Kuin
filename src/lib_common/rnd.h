@@ -13,6 +13,7 @@ typedef struct SRndState
 	int Idx;
 } SRndState;
 
+void InitRndMask(void);
 void RndInit(SRndState* rnd_, U32 seed);
 S64 RndGet(SRndState* rnd_, S64 min, S64 max);
 double RndGetFloat(SRndState* rnd_, double min, double max);

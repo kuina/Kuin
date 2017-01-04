@@ -1,0 +1,45 @@
+Begin: ../../test/output/output0010.exe
+Excpt: 80000003
+> 3
+> -1
+> 8
+> -1
+> bcd
+> bcde
+> b
+> c
+> .eulav gnirts a si sihT
+> EFCDAB
+>     .Taaeghiiilnrssstuv
+> ABCDEF
+> vutsssrnliiihgeaaT.    
+> EFCDAB
+> 3
+> -1
+> 8
+> -1
+> bcd
+> bcde
+> b
+> c
+> .eulav gnirts a si sihT
+> EFCDAB
+>     .Taaeghiiilnrssstuv
+> ABCDEF
+> vutsssrnliiihgeaaT.    
+> EFCDAB
+> 3
+> -1
+> 8
+> -1
+> bcd
+> bcde
+> b
+> c
+> .eulav gnirts a si sihT
+> EFCDAB
+>     .Taaeghiiilnrssstuv
+> ABCDEF
+> vutsssrnliiihgeaaT.    
+> EFCDAB
+end: ../../test/output/output0010.exe

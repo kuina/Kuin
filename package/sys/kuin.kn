@@ -25,15 +25,6 @@ end class
 	+var pos: int
 end class
 
-+func [d0000.knd] rnd(min: int, max: int): int
-end func
-
-+func [d0000.knd] rndFloat(min: float, max: float): float
-end func
-
-+func [d0000.knd] rndBit64(): bit64
-end func
-
 func [d0000.knd, _init] _init()
 end func
 
@@ -88,7 +79,7 @@ end func
 func [d0000.knd, _any_type] _shuffle(me_: []bit8, type: int)
 end func
 
-func [d0000.knd, _any_type] _sortAsc(me_: []bit8, type: int)
+func [d0000.knd, _any_type] _sort(me_: []bit8, type: int)
 end func
 
 func [d0000.knd, _any_type] _sortDesc(me_: []bit8, type: int)

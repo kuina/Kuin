@@ -4,7 +4,7 @@
 
 #define INPUT_SIZE (1024)
 
-EXPORT void print(const U8* str)
+EXPORT void _print(const U8* str)
 {
 	const Char* str2;
 	if (str == NULL)
@@ -17,7 +17,7 @@ EXPORT void print(const U8* str)
 #endif
 }
 
-EXPORT void* input(void)
+EXPORT void* _input(void)
 {
 	Char buf[INPUT_SIZE];
 	if (fgetws(buf, INPUT_SIZE, stdin) == NULL)

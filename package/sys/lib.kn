@@ -1,51 +1,50 @@
 const Pi: float :: 3.14159265358979323846
 const E: float :: 2.71828182845904523536
 
-+func Cos(x: float): float
++func [d0000.knd, _] rnd(min: int, max: int): int
 end func
 
-+func Sin(x: float): float
++func [d0000.knd, _] rndFloat(min: float, max: float): float
 end func
 
-+func Tan(x: float): float
++func [d0000.knd, _] rndBit64(): bit64
 end func
 
-+func ACos(x: float): float
++func [d0000.knd, _] cos(x: float): float
 end func
 
-+func ASin(x: float): float
++func [d0000.knd, _] sin(x: float): float
 end func
 
-+func ATan(x: float): float
++func [d0000.knd, _] tan(x: float): float
 end func
 
-+func Sqrt(x: float): float
++func [d0000.knd, _] sqrt(x: float): float
 end func
 
-+func Exp(x: float): float
++func [d0000.knd, _] exp(x: float): float
 end func
 
-+func Ln(x: float): float
++func [d0000.knd, _] ln(x: float): float
 end func
 
-+func Log(x: float, base: float): float
-	return @Ln(x) / @Ln(base)
++func [d0000.knd, _] log(x: float, base: float): float
 end func
 
-+func Rot(x: &float, y: &float, cx: float, cy: float, angle: float)
++func [d0000.knd, _] rot(x: &float, y: &float, centerX: float, centerY: float, angle: float)
 end func
 
-+func InvRot(x: float, y: float): float
++func [d0000.knd, _] invRot(x: float, y: float): float
 end func
 
-+func Hypot(x: float, y: float): float
++func [d0000.knd, _] dist(x: float, y: float): float
 end func
 
-+func Chase(x: &float, target: float, velo: float): bool
++func [d0000.knd, _] chase(x: &float, target: float, vel: float): bool
 end func
 
-+func Floor(x: float): int
++func [d0000.knd, _] floor(x: float): int
 end func
 
-+func Ceil(x: float): int
++func [d0000.knd, _] ceil(x: float): int
 end func

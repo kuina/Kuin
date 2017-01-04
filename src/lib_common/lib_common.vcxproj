@@ -132,11 +132,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\common.c" />
+    <ClCompile Include="lib.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="rnd.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common.h" />
+    <ClInclude Include="lib.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="rnd.h" />
   </ItemGroup>
