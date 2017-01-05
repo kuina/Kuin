@@ -74,6 +74,11 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 	LocalErr = False;
 	{
 		SAstFunc* main_func = SearchMain();
+		if (main_func == NULL)
+		{
+			Err(L"EA0058", NULL);
+			return NULL;
+		}
 		DictForEach(Asts, ResolveIdentifier, NULL);
 		if (!ErrOccurred())
 			result = Rebuild(main_func);
