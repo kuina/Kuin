@@ -702,6 +702,7 @@ static Char EscChar(Char c)
 		case L'"': return L'"';
 		case L'\'': return L'\'';
 		case L'\\': return L'\\';
+		case L'0': return L'\0';
 		case L'n': return L'\n';
 		case L't': return L'\t';
 		case L'w': return L'\u3000';
