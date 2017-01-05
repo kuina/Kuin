@@ -1,0 +1,21 @@
+Begin: ../../test/output/output0011.exe
+Excpt: 80000003
+> abcdef
+> ABCDEF
+> abcde
+> abcd  e
+> a  bcde
+> A, 5, 3.5, Z
+> abcdef
+> ABCDEF
+> abcde
+> abcd  e
+> a  bcde
+> A, 5, 3.5, Z
+> abcdef
+> ABCDEF
+> abcde
+> abcd  e
+> a  bcde
+> A, 5, 3.5, Z
+end: ../../test/output/output0011.exe

@@ -359,12 +359,14 @@ static Bool CmpType(const SAstType* type1, const SAstType* type2)
 			return False;
 		while (ptr1 != NULL && ptr2 != NULL)
 		{
-			if (!CmpType(((SAstArg*)ptr1->Data)->Type, ((SAstArg*)ptr2->Data)->Type))
+			SAstTypeFuncArg* arg1 = (SAstTypeFuncArg*)ptr1->Data;
+			SAstTypeFuncArg* arg2 = (SAstTypeFuncArg*)ptr2->Data;
+			if (arg1->RefVar != arg2->RefVar || !CmpType(arg1->Arg, arg2->Arg))
 				return False;
 			ptr1 = ptr1->Next;
 			ptr2 = ptr2->Next;
 		}
-		if (ptr1 == NULL || ptr2 == NULL)
+		if (!(ptr1 == NULL && ptr2 == NULL))
 			return False;
 		if (func1->Ret == NULL && func2->Ret == NULL)
 			return True;
