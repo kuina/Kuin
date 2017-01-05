@@ -49,7 +49,7 @@ EXPORT double _ln(double x)
 	return log(x);
 }
 
-EXPORT double _log(double x, double base)
+EXPORT double _log(double base, double x)
 {
 	return log(x) / log(base);
 }
@@ -66,9 +66,9 @@ EXPORT void _rot(double* x, double* y, double centerX, double centerY, double an
 	*y = y3 + centerY;
 }
 
-EXPORT double _invRot(double x, double y)
+EXPORT double _invRot(double x, double y, double centerX, double centerY)
 {
-	double rad = atan2(y, x);
+	double rad = atan2(y - centerY, x - centerX);
 	return rad < 0.0 ? rad + 2.0 * M_PI : rad;
 }
 
@@ -110,6 +110,24 @@ EXPORT double _floor(double x)
 EXPORT double _ceil(double x)
 {
 	return ceil(x);
+}
+
+EXPORT double _round(double x, S64 precision)
+{
+	// Round half away from zero.
+	if (precision == 0)
+	{
+		if (x >= 0.0)
+			return floor(x + 0.5);
+		return -floor(-x + 0.5);
+	}
+	else
+	{
+		double p = pow(10.0, (double)precision);
+		if (x >= 0.0)
+			return floor(x * p + 0.5) / p;
+		return -floor(-x * p + 0.5) / p;
+	}
 }
 
 void LibInit(void)

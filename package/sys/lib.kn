@@ -1,5 +1,5 @@
-const Pi: float :: 3.14159265358979323846
-const E: float :: 2.71828182845904523536
++const pi: float :: 3.14159265358979323846
++const e: float :: 2.71828182845904523536
 
 +func [d0000.knd, _] rnd(min: int, max: int): int
 end func
@@ -28,13 +28,13 @@ end func
 +func [d0000.knd, _] ln(x: float): float
 end func
 
-+func [d0000.knd, _] log(x: float, base: float): float
++func [d0000.knd, _] log(base: float, x: float): float
 end func
 
 +func [d0000.knd, _] rot(x: &float, y: &float, centerX: float, centerY: float, angle: float)
 end func
 
-+func [d0000.knd, _] invRot(x: float, y: float): float
++func [d0000.knd, _] invRot(x: float, y: float, centerX: float, centerY: float): float
 end func
 
 +func [d0000.knd, _] dist(x: float, y: float): float
@@ -43,8 +43,11 @@ end func
 +func [d0000.knd, _] chase(x: &float, target: float, vel: float): bool
 end func
 
-+func [d0000.knd, _] floor(x: float): int
++func [d0000.knd, _] floor(x: float): float
 end func
 
-+func [d0000.knd, _] ceil(x: float): int
++func [d0000.knd, _] ceil(x: float): float
+end func
+
++func [d0000.knd, _] round(x: float, precision: int): float
 end func

@@ -38,5 +38,53 @@ func main()
 			do cui@print(n)
 			do cui@print(m[0] ~ m[1] ~ m[2])
 		end block
+		
+		block
+			do cui@print(lib@cos(lib@pi / 6.0).toStr())
+			do cui@print(lib@sin(lib@pi / 6.0).toStr())
+			do cui@print(lib@tan(lib@pi / 6.0).toStr())
+			do cui@print(lib@sqrt(2.0).toStr())
+			do cui@print(lib@exp(2.0).toStr())
+			do cui@print(lib@ln(lib@e).toStr())
+			do cui@print(lib@log(2.0, 8.0).toStr())
+		end block
+		
+		block
+			var x: float :: 10.0
+			var y: float :: 1.0
+			do lib@rot(&x, &y, 5.0, 1.0, lib@pi / 2.0)
+			do cui@print(x.toStr() ~ ", " ~ y.toStr())
+			do cui@print(lib@invRot(x, y, 5.0, 1.0).toStr())
+			do cui@print(lib@dist(3.0, 4.0).toStr())
+		end block
+		
+		block
+			var x: float:: 5.0
+			while(!lib@chase(&x, 10.0, 2.0))
+				do cui@print(x.toStr())
+			end while
+			do cui@print(x.toStr())
+		end block
+
+		block
+			var x: float:: 15.0
+			while(!lib@chase(&x, 10.0, 2.0))
+				do cui@print(x.toStr())
+			end while
+			do cui@print(x.toStr())
+		end block
+		
+		block
+			do cui@print(lib@floor(2.5).toStr())
+			do cui@print(lib@floor(-2.5).toStr())
+			do cui@print(lib@ceil(2.5).toStr())
+			do cui@print(lib@ceil(-2.5).toStr())
+			do cui@print(lib@round(5555.5555, 0).toStr())
+			do cui@print(lib@round(-5555.5555, 0).toStr())
+			do cui@print(lib@round(5555.5555, 2).toStr())
+			do cui@print(lib@round(-5555.5555, 2).toStr())
+			do cui@print(lib@round(5555.5555, -2).toStr())
+			do cui@print(lib@round(-5555.5555, -2).toStr())
+		end block
 	end for
 end func

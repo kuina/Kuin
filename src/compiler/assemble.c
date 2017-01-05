@@ -1470,7 +1470,22 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 					if (idx < 4)
 					{
 						// Arguments passed in registers.
-						if (IsFloat(arg->Type))
+						if (arg->RefVar)
+						{
+							EReg reg = Reg_CX;
+							switch (idx)
+							{
+								case 0: reg = Reg_CX; break;
+								case 1: reg = Reg_DX; break;
+								case 2: reg = Reg_R8; break;
+								case 3: reg = Reg_R9; break;
+								default:
+									ASSERT(False);
+									break;
+							}
+							ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, reg), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(arg->Addr, False))));
+						}
+						else if (IsFloat(arg->Type))
 						{
 							EReg reg = Reg_XMM0;
 							switch (idx)

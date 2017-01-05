@@ -774,7 +774,12 @@ static SAstRoot* ParseRoot(void)
 			}
 			if (child == (SAst*)DummyPtr)
 				break;
-			child->Public = child_public;
+			if (((SAst*)child)->TypeId == AstTypeId_Var)
+				((SAst*)((SAstVar*)child)->Var)->Public = child_public;
+			else if (((SAst*)child)->TypeId == AstTypeId_Const)
+				((SAst*)((SAstConst*)child)->Var)->Public = child_public;
+			else
+				child->Public = child_public;
 			ListAdd(ast->Items, child);
 		}
 	}
