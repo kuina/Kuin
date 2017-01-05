@@ -68,7 +68,7 @@ EXPORT void _init(void* heap, S64* heap_cnt)
 {
 	Heap = heap;
 	HeapCnt = heap_cnt;
-	
+
 	LibInit();
 }
 

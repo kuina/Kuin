@@ -5,13 +5,13 @@ func main()
 			do cui@print("abcdeabcde".find('f').toStr())
 			do cui@print("abcdeabcde".findLast('d').toStr())
 			do cui@print("abcdeabcde".findLast('f').toStr())
-			
+
 			do cui@print("abcde".sub(1, 3))
 			do cui@print("abcde".sub(1, -1))
 			do cui@print(["a", "b", "c"].sub(1, 1)[0])
 			do cui@print(["a", "b", "c"].sub(1, -1)[1])
 		end block
-		
+
 		block
 			var n: []char :: "This is a string value."
 			var m: [][]char :: ["AB", "CD", "EF"]
