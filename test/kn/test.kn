@@ -1,2 +1,4 @@
 func main()
+	var a: int :: 23
+	do cui@print((7 ^ 7).toStr())
 end func

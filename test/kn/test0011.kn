@@ -22,5 +22,45 @@ func main()
 			var c: char
 			do cui@print(x(a, &a, b, &b, &c) ~ ", " ~ a.toStr() ~ ", " ~ b.toStr() ~ ", " ~ c.toStr())
 		end block
+
+		block
+			var n: float :: 0.0
+			for(1, 10)
+				do n :+ 0.1
+			end for
+			do cui@print((n = 1.0).toStr() ~ ", " ~ n.same(1.0).toStr())
+		end block
+
+		block
+			do cui@print('c'.offset(1).toStr())
+			do cui@print('c'.offset(-1).toStr())
+		end block
+
+		block
+			class C()
+				+var n: int
+
+				*func cmp(t: kuin@Class): int
+					ret me.n - (t $ C).n
+				end func
+			end class
+
+			var a: C :: #C
+			do a.n :: 3
+			var b: C :: #C
+			do b.n :: 5
+			var c: C :: #C
+			do c.n :: 3
+			do cui@print((a < b).toStr() ~ ", " ~ (a > b).toStr() ~ ", " ~ (a = b).toStr() ~ ", " ~ (a <> b).toStr())
+			do cui@print((a < c).toStr() ~ ", " ~ (a > c).toStr() ~ ", " ~ (a = c).toStr() ~ ", " ~ (a <> c).toStr())
+
+			var d: []C :: [#C, #C, #C, #C]
+			do d[0].n :: 7
+			do d[1].n :: 3
+			do d[2].n :: 5
+			do d[3].n :: 4
+			do d.sort()
+			do cui@print(d[0].n.toStr() ~ ", " ~ d[1].n.toStr() ~ ", " ~ d[2].n.toStr() ~ ", " ~ d[3].n.toStr())
+		end block
 	end for
 end func

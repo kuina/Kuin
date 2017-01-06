@@ -804,24 +804,35 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 				const Char* func_attr = ReadFuncAttr();
 				if (wcscmp(func_attr, L"callback") == 0 && (ast->FuncAttr & FuncAttr_Callback) == 0)
 					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Callback);
-				else if (wcscmp(func_attr, L"_any_type") == 0 && (ast->FuncAttr & FuncAttr_AnyType) == 0)
-					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_AnyType);
-				else if (wcscmp(func_attr, L"_overwrite") == 0 && (ast->FuncAttr & FuncAttr_Overwrite) == 0)
-					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Overwrite);
-				else if (wcscmp(func_attr, L"_init") == 0 && (ast->FuncAttr & FuncAttr_Init) == 0)
-					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Init);
-				else if (wcscmp(func_attr, L"_take_me") == 0 && (ast->FuncAttr & FuncAttr_TakeMe) == 0)
-					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeMe);
-				else if (wcscmp(func_attr, L"_ret_me") == 0 && (ast->FuncAttr & FuncAttr_RetMe) == 0)
-					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetMe);
-				else if (wcscmp(func_attr, L"_take_child") == 0 && (ast->FuncAttr & FuncAttr_TakeChild) == 0)
-					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeChild);
-				else if (wcscmp(func_attr, L"_ret_child") == 0 && (ast->FuncAttr & FuncAttr_RetChild) == 0)
-					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetChild);
-				else if (wcscmp(func_attr, L"_take_key_value") == 0 && (ast->FuncAttr & FuncAttr_TakeKeyValue) == 0)
-					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeKeyValue);
-				else if (wcscmp(func_attr, L"_") == 0 && (ast->FuncAttr & FuncAttr_Underscore) == 0)
-					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Underscore);
+				else if (func_attr[0] == L'_')
+				{
+					if (wcscmp(func_attr, L"_") == 0 && (ast->FuncAttr & FuncAttr_Underscore) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Underscore);
+					else if (wcscmp(func_attr, L"_any_type") == 0 && (ast->FuncAttr & FuncAttr_AnyType) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_AnyType);
+					else if (wcscmp(func_attr, L"_overwrite") == 0 && (ast->FuncAttr & FuncAttr_Overwrite) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Overwrite);
+					else if (wcscmp(func_attr, L"_init") == 0 && (ast->FuncAttr & FuncAttr_Init) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Init);
+					else if (wcscmp(func_attr, L"_take_me") == 0 && (ast->FuncAttr & FuncAttr_TakeMe) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeMe);
+					else if (wcscmp(func_attr, L"_ret_me") == 0 && (ast->FuncAttr & FuncAttr_RetMe) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetMe);
+					else if (wcscmp(func_attr, L"_take_child") == 0 && (ast->FuncAttr & FuncAttr_TakeChild) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeChild);
+					else if (wcscmp(func_attr, L"_ret_child") == 0 && (ast->FuncAttr & FuncAttr_RetChild) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetChild);
+					else if (wcscmp(func_attr, L"_take_key_value") == 0 && (ast->FuncAttr & FuncAttr_TakeKeyValue) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeKeyValue);
+					else if (wcscmp(func_attr, L"_ret_array") == 0 && (ast->FuncAttr & FuncAttr_RetArray) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArray);
+					else if (wcscmp(func_attr, L"_ret_array_of_list_child") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfListChild) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfListChild);
+					else if (ast->DLLName == NULL)
+						ast->DLLName = func_attr;
+					else
+						Err(L"EP0026", NewPos(SrcName, row, col), func_attr);
+				}
 				else if (ast->DLLName == NULL)
 					ast->DLLName = func_attr;
 				else
@@ -2849,7 +2860,11 @@ static SAstExpr* ParseExprPlus(void)
 					if (c == L']')
 						break;
 					if (c != L',')
+					{
 						NextCharErr(L',', c);
+						LocalErr = True;
+						return (SAstExpr*)DummyPtr;
+					}
 				}
 				ast2->ItemType = ParseType();
 				if (LocalErr)
@@ -2950,7 +2965,11 @@ static SAstExpr* ParseExprCall(void)
 								if (c == L')')
 									break;
 								if (c != L',')
+								{
 									NextCharErr(L',', c);
+									LocalErr = True;
+									return (SAstExpr*)DummyPtr;
+								}
 							}
 						}
 						ast = (SAstExpr*)ast2;
@@ -3137,7 +3156,11 @@ static SAstExpr* ParseExprValue(void)
 						if (c == L']')
 							break;
 						if (c != L',')
+						{
 							NextCharErr(L',', c);
+							LocalErr = True;
+							return (SAstExpr*)DummyPtr;
+						}
 					}
 				}
 				ast = (SAstExpr*)ast2;

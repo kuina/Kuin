@@ -102,15 +102,17 @@ typedef enum EFuncAttr
 {
 	FuncAttr_None = 0x00,
 	FuncAttr_Callback = 0x01, // Conform to the x64 calling convention.
-	FuncAttr_AnyType = 0x02, // Ignore type checking of 'me' and the add the type of it to the second argument.
-	FuncAttr_Overwrite = 0x04, // Release 'me' and pass it by reference.
-	FuncAttr_Init = 0x08, // Pass necessary information for initialization.
-	FuncAttr_TakeMe = 0x10, // The function receives a value of the same type as 'me' in the third argument.
-	FuncAttr_RetMe = 0x20, // The function returns a value of the same type as 'me'.
-	FuncAttr_TakeChild = 0x40, // The function receives a value of the type of elements of 'me' in the third argument.
-	FuncAttr_RetChild = 0x80, // The function returns a value of the type of elements of 'me'.
-	FuncAttr_TakeKeyValue = 0x0100, // The function receives a value of the type of 'key' in the third argument and a value of the type of 'value' in the fourth.
-	FuncAttr_Underscore = 0x0200, // Append an underscore to the beginning of the function name.
+	FuncAttr_Underscore = 0x02, // Append an underscore to the beginning of the function name.
+	FuncAttr_AnyType = 0x04, // Ignore type checking of 'me' and the add the type of it to the second argument.
+	FuncAttr_Overwrite = 0x08, // Release 'me' and pass it by reference.
+	FuncAttr_Init = 0x10, // Pass necessary information for initialization.
+	FuncAttr_TakeMe = 0x20, // The function receives a value of the same type as 'me' in the third argument.
+	FuncAttr_RetMe = 0x40, // The function returns a value of the same type as 'me'.
+	FuncAttr_TakeChild = 0x80, // The function receives a value of the type of elements of 'me' in the third argument.
+	FuncAttr_RetChild = 0x0100, // The function returns a value of the type of elements of 'me'.
+	FuncAttr_TakeKeyValue = 0x0200, // The function receives a value of the type of 'key' in the third argument and a value of the type of 'value' in the fourth.
+	FuncAttr_RetArray = 0x0400, // The function returns an array of the type of 'me'.
+	FuncAttr_RetArrayOfListChild = 0x0800, // The function returns an array of the type of list elements of 'me'.
 } EFuncAttr;
 
 typedef struct SAstFunc

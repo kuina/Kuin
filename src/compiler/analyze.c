@@ -552,6 +552,7 @@ static SAstExprDot* MakeMeDot(SAstClass* class_, SAstArg* arg, const Char* name)
 	{
 		SAstExpr* me = (SAstExpr*)Alloc(sizeof(SAstExpr));
 		InitAstExpr(me, AstTypeId_ExprRef, ((SAst*)class_)->Pos);
+		((SAst*)me)->RefName = L"me";
 		((SAst*)me)->RefItem = (SAst*)arg;
 		{
 			SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
@@ -1233,6 +1234,7 @@ static void RebuildClass(SAstClass* ast)
 					{
 						result = (SAstExpr*)Alloc(sizeof(SAstExpr));
 						InitAstExpr(result, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+						((SAst*)result)->RefName = L"me";
 						((SAst*)result)->RefItem = (SAst*)var->Def->Var;
 						{
 							SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
@@ -3056,7 +3058,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 				if (found)
 				{
 					// 'me' and automatically generated arguments can be accessed even though they are private.
-					if (!item->Public && ((SAst*)ast->Var)->RefName != NULL && wcscmp(((SAst*)ast->Var)->RefName, L"me") != 0)
+					if (!item->Public && (((SAst*)ast->Var)->RefName == NULL || wcscmp(((SAst*)ast->Var)->RefName, L"me") != 0))
 					{
 						Err(L"EA0051", ((SAst*)ast)->Pos, ast->Member);
 						LocalErr = True;
@@ -3080,6 +3082,16 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 		else if (wcscmp(member, L"toStr") == 0)
 		{
 			if (IsInt(var_type) || IsFloat(var_type) || IsChar(var_type) || IsBool(var_type) || ((SAst*)var_type)->TypeId == AstTypeId_TypeBit)
+				correct = True;
+		}
+		else if (wcscmp(member, L"same") == 0)
+		{
+			if (IsFloat(var_type))
+				correct = True;
+		}
+		else if (wcscmp(member, L"offset") == 0)
+		{
+			if (IsChar(var_type))
 				correct = True;
 		}
 		else if (wcscmp(member, L"or") == 0 || wcscmp(member, L"and") == 0 || wcscmp(member, L"xor") == 0 || wcscmp(member, L"not") == 0 || wcscmp(member, L"shl") == 0 || wcscmp(member, L"shr") == 0 || wcscmp(member, L"sar") == 0)
@@ -3243,6 +3255,29 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 					{
 						ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
 						((SAstTypeFunc*)expr->Type)->Ret = ((SAstTypeDict*)var_type)->ItemTypeValue;
+					}
+				}
+				if ((func->FuncAttr & FuncAttr_RetArray) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT(IsInt(func->Ret));
+					{
+						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+						type->ItemType = var_type;
+						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
+					}
+				}
+				if ((func->FuncAttr & FuncAttr_RetArrayOfListChild) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT(IsInt(func->Ret));
+					ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List);
+					{
+						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+						type->ItemType = ((SAstTypeGen*)var_type)->ItemType;
+						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
 					}
 				}
 			}

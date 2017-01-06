@@ -49,6 +49,12 @@ end func
 func [d0000.knd, _any_type] _toStr(me_: []bit8, type: int): []char
 end func
 
+func [d0000.knd] _same(me_: float, n: float): bool
+end func
+
+func [d0000.knd] _offset(me_: char, n: int): char
+end func
+
 func [d0000.knd, _any_type, _take_me, _ret_me] _or(me_: []bit8, type: int, n: []bit8): int
 end func
 
@@ -89,6 +95,9 @@ func [d0000.knd, _any_type, _take_child] _find(me_: []bit8, type: int, item: []b
 end func
 
 func [d0000.knd, _any_type, _take_child] _findLast(me_: []bit8, type: int, item: []bit8): int
+end func
+
+func [d0000.knd, _any_type, _take_child, _ret_array] _split(me_: []bit8, type: int, item: []bit8): int
 end func
 
 func [d0000.knd] _toInt(me_: []char): int
@@ -143,6 +152,9 @@ func [d0000.knd, _any_type] _del(me_: []bit8, type: int)
 end func
 
 func [d0000.knd, _any_type, _take_child] _ins(me_: []bit8, type: int, item: []bit8)
+end func
+
+func [d0000.knd, _any_type, _take_child, _ret_array_of_list_child] _toArray(me_: []bit8, type: int): int
 end func
 
 func [d0000.knd, _any_type, _ret_child] _peek(me_: []bit8, type: int): int

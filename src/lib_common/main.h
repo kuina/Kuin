@@ -18,6 +18,7 @@ EXPORT void* _toBin(const void* me_, const U8* type);
 EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx);
 EXPORT U8* _toStr(const void* me_, const U8* type);
 EXPORT Bool _same(double me_, double n);
+EXPORT Char _offset(Char me_, int n);
 EXPORT S64 _or(const void* me_, const U8* type, const void* n);
 EXPORT S64 _and(const void* me_, const U8* type, const void* n);
 EXPORT S64 _xor(const void* me_, const U8* type, const void* n);
@@ -32,6 +33,7 @@ EXPORT void _sort(void* me_, const U8* type);
 EXPORT void _sortDesc(void* me_, const U8* type);
 EXPORT S64 _find(const void* me_, const U8* type, const void* item);
 EXPORT S64 _findLast(const void* me_, const U8* type, const void* item);
+EXPORT S64 _split(const void* me_, const U8* type, const void* item);
 EXPORT S64 _toInt(const U8* me_);
 EXPORT double _toFloat(const U8* me_);
 EXPORT void* _lower(const U8* me_);
@@ -56,3 +58,7 @@ EXPORT void _push(void* me_, const U8* type, const void* item);
 EXPORT void* _pop(void* me_, const U8* type);
 EXPORT void _enq(void* me_, const U8* type, const void* item);
 EXPORT void* _deq(void* me_, const U8* type);
+
+// Assembly functions.
+int CmpClassAsm(const void* a, const void* b);
+void DtorClassAsm(void* a);

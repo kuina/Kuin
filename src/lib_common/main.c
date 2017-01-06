@@ -52,7 +52,6 @@ static int CmpBit16(const void* a, const void* b);
 static int CmpBit32(const void* a, const void* b);
 static int CmpBit64(const void* a, const void* b);
 static int CmpStr(const void* a, const void* b);
-static int CmpClass(const void* a, const void* b);
 static void* CatBin(int num, void** bins);
 static void MergeSort(void* me_, const U8* type, Bool asc);
 
@@ -177,7 +176,8 @@ EXPORT void _freeSet(void* ptr, const U8* type)
 			break;
 		default:
 			ASSERT(*type == TypeId_Class);
-			// TODO:
+			DtorClassAsm(ptr);
+			FreeMem(ptr);
 			break;
 	}
 }
@@ -748,6 +748,11 @@ EXPORT Bool _same(double me_, double n)
 	return Same(me_, n);
 }
 
+EXPORT Char _offset(Char me_, int n)
+{
+	return (Char)((int)me_ + n);
+}
+
 EXPORT S64 _or(const void* me_, const U8* type, const void* n)
 {
 	switch (*type)
@@ -971,6 +976,11 @@ EXPORT S64 _findLast(const void* me_, const U8* type, const void* item)
 		}
 		return -1;
 	}
+}
+
+EXPORT S64 _split(const void* me_, const U8* type, const void* item)
+{
+	// TODO:
 }
 
 EXPORT S64 _toInt(const U8* me_)
@@ -1380,10 +1390,10 @@ static Bool Same(double f1, double f2)
 {
 	U64 i1 = *(U64*)&f1;
 	U64 i2 = *(U64*)&f2;
-	U64 diff;
+	S64 diff;
 	if ((i1 >> 63) != (i2 >> 63))
 		return f1 == f2;
-	diff = i1 - i2;
+	diff = (S64)(i1 - i2);
 	return -24 <= diff && diff <= 24;
 }
 
@@ -1391,7 +1401,7 @@ static S64 Add(S64 a, S64 b)
 {
 	S64 result = a + b;
 #if defined(DBG)
-	if (Same((double)result, (double)a + (double)b))
+	if (!Same((double)result, (double)a + (double)b))
 		THROW(0x1000, L"");
 #endif
 	return result;
@@ -1401,7 +1411,7 @@ static S64 Mul(S64 a, S64 b)
 {
 	S64 result = a * b;
 #if defined(DBG)
-	if (Same((double)result, (double)a * (double)b))
+	if (!Same((double)result, (double)a * (double)b))
 		THROW(0x1000, L"");
 #endif
 	return result;
@@ -1674,7 +1684,7 @@ static int(*GetCmpFunc(const U8* type))(const void* a, const void* b)
 				return NULL;
 			return CmpStr;
 		case TypeId_Enum: return CmpInt;
-		case TypeId_Class: return CmpClass;
+		case TypeId_Class: return CmpClassAsm;
 		default:
 			return NULL;
 	}
@@ -1734,11 +1744,6 @@ static int CmpStr(const void* a, const void* b)
 	const Char* a2 = (const Char*)((U8*)a + 0x10);
 	const Char* b2 = (const Char*)((U8*)b + 0x10);
 	return wcscmp(a2, b2);
-}
-
-static int CmpClass(const void* a, const void* b)
-{
-	// TODO:
 }
 
 static void* CatBin(int num, void** bins)
