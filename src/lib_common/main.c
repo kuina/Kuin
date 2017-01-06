@@ -30,7 +30,6 @@ typedef enum ETypeId
 
 static Bool IsRef(U8 type);
 static size_t GetSize(U8 type);
-static Bool Same(double f1, double f2);
 static S64 Add(S64 a, S64 b);
 static S64 Mul(S64 a, S64 b);
 static void GetDictTypes(const U8* type, const U8** child1, const U8** child2);
@@ -73,12 +72,21 @@ EXPORT void _init(void* heap, S64* heap_cnt)
 
 EXPORT void _fin(void)
 {
-	// TODO:
 }
 
-EXPORT void _err(const U8* excpt)
+EXPORT void _err(const void* excpt)
 {
-	// TODO:
+#if defined(DBG)
+	Char str[1024];
+	S64 code = *(S64*)((U8*)excpt + 0x40);
+	const Char* msg = *(const Char**)((U8*)excpt + 0x48);
+	if (msg == NULL)
+		msg = L"No message.";
+	else
+		msg = (const Char*)((const U8*)msg + 0x10);
+	swprintf(str, 1024, L"An exception of '0x%08X' occurred.\r\n\r\n> %s", code, msg);
+	MessageBox(0, str, NULL, 0);
+#endif
 }
 
 EXPORT void _freeSet(void* ptr, const U8* type)
@@ -345,8 +353,7 @@ EXPORT void* _copy(const void* me_, const U8* type)
 			}
 		default:
 			ASSERT(*type == TypeId_Class);
-			// TODO:
-			break;
+			return CopyClassAsm(me_);
 	}
 }
 
@@ -745,7 +752,13 @@ EXPORT U8* _toStr(const void* me_, const U8* type)
 
 EXPORT Bool _same(double me_, double n)
 {
-	return Same(me_, n);
+	U64 i1 = *(U64*)&me_;
+	U64 i2 = *(U64*)&n;
+	S64 diff;
+	if ((i1 >> 63) != (i2 >> 63))
+		return me_ == n;
+	diff = (S64)(i1 - i2);
+	return -24 <= diff && diff <= 24;
 }
 
 EXPORT Char _offset(Char me_, int n)
@@ -1386,35 +1399,26 @@ static size_t GetSize(U8 type)
 	return 0;
 }
 
-static Bool Same(double f1, double f2)
-{
-	U64 i1 = *(U64*)&f1;
-	U64 i2 = *(U64*)&f2;
-	S64 diff;
-	if ((i1 >> 63) != (i2 >> 63))
-		return f1 == f2;
-	diff = (S64)(i1 - i2);
-	return -24 <= diff && diff <= 24;
-}
-
 static S64 Add(S64 a, S64 b)
 {
-	S64 result = a + b;
 #if defined(DBG)
-	if (!Same((double)result, (double)a + (double)b))
+	if (AddAsm(&a, b))
 		THROW(0x1000, L"");
+	return a;
+#else
+	return a + b;
 #endif
-	return result;
 }
 
 static S64 Mul(S64 a, S64 b)
 {
-	S64 result = a * b;
 #if defined(DBG)
-	if (!Same((double)result, (double)a * (double)b))
+	if (MulAsm(&a, b))
 		THROW(0x1000, L"");
+	return a;
+#else
+	return a * b;
 #endif
-	return result;
 }
 
 static void GetDictTypes(const U8* type, const U8** child1, const U8** child2)

@@ -62,5 +62,18 @@ func main()
 			do d.sort()
 			do cui@print(d[0].n.toStr() ~ ", " ~ d[1].n.toStr() ~ ", " ~ d[2].n.toStr() ~ ", " ~ d[3].n.toStr())
 		end block
+
+		block
+			class C()
+				+var i: int
+				+var s: []char
+			end class
+
+			var a: C :: #C
+			do a.i :: 5
+			do a.s :: "abc"
+			var b: C :: ##a
+			do cui@print(b.i.toStr() ~ ", " ~ (a.s = b.s).toStr() ~ ", " ~ (a.s =& b.s).toStr())
+		end block
 	end for
 end func

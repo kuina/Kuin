@@ -5,7 +5,7 @@
 // 'kuin'
 EXPORT void _init(void* heap, S64* heap_cnt);
 EXPORT void _fin(void);
-EXPORT void _err(const U8* excpt);
+EXPORT void _err(const void* excpt);
 EXPORT void _freeSet(void* ptr, const U8* type);
 EXPORT void* _copy(const void* me_, const U8* type);
 EXPORT S64 _powInt(S64 n, S64 m);
@@ -62,3 +62,6 @@ EXPORT void* _deq(void* me_, const U8* type);
 // Assembly functions.
 int CmpClassAsm(const void* a, const void* b);
 void DtorClassAsm(void* a);
+void* CopyClassAsm(void* a);
+Bool AddAsm(S64* a, S64 b);
+Bool MulAsm(S64* a, S64 b);
