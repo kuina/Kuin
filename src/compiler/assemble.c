@@ -3521,7 +3521,7 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 					if ((((SAstTypeFunc*)ast->Func->Type)->FuncAttr & FuncAttr_Overwrite) != 0 && ptr == ast->Args->Top && IsRef(arg->Arg->Type))
 					{
 						// Since '_overwrite' functions overwrite 'me', release it in advance.
-						ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[1]), ValMemS(size, ValReg(8, RegI[1]), NULL, 0x00)));
+						ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[1]), ValMemS(8, ValReg(8, RegI[1]), NULL, 0x00)));
 						GcDec(1, -1, arg->Arg->Type);
 					}
 				}

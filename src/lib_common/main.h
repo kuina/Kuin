@@ -60,8 +60,10 @@ EXPORT void _enq(void* me_, const U8* type, const void* item);
 EXPORT void* _deq(void* me_, const U8* type);
 
 // Assembly functions.
-int CmpClassAsm(const void* a, const void* b);
-void DtorClassAsm(void* a);
-void* CopyClassAsm(void* a);
+void* ToBinClassAsm(const void* me_);
+S64 FromBinClassAsm(void* me_, const U8* bin, S64 idx);
+int CmpClassAsm(const void* me_, const void* target);
+void DtorClassAsm(void* me_);
+void* CopyClassAsm(const void* me_);
 Bool AddAsm(S64* a, S64 b);
 Bool MulAsm(S64* a, S64 b);

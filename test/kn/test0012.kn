@@ -1,0 +1,196 @@
+func dump(ns: []bit8)
+	var s: []char :: ""
+	foreach n(ns)
+		do s :~ " " ~ n.toStr()
+	end foreach
+	do cui@print(s)
+end func
+
+func main()
+	for(1, 1)
+		block
+			var n: int :: 123456789012
+			var m: int
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m.toStr())
+		end block
+
+		block
+			var n: float :: lib@pi
+			var m: float
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m.toStr())
+		end block
+
+		block
+			var n: char :: 'X'
+			var m: char
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m.toStr())
+		end block
+
+		block
+			var n: bool :: true
+			var m: bool
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m.toStr())
+		end block
+
+
+		block
+			var n: bit8 :: 16#12b8
+			var m: bit8
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m.toStr())
+		end block
+
+		block
+			var n: bit16 :: 16#1234b16
+			var m: bit16
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m.toStr())
+		end block
+
+		block
+			var n: bit32 :: 16#12345678b32
+			var m: bit32
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m.toStr())
+		end block
+
+		block
+			var n: bit64 :: 16#F012345678ABCDEFb64
+			var m: bit64
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m.toStr())
+		end block
+
+		block
+			var n: []int :: [1, 2, 3]
+			var m: []int
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m[0].toStr() ~ ", " ~ m[1].toStr() ~ ", " ~ m[2].toStr())
+		end block
+
+		block
+			var n: []char :: "abcdef"
+			var m: []char
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m)
+		end block
+
+		block
+			var n: [][]char :: ["ab", "cd", "ef"]
+			var m: [][]char
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m[0] ~ ", " ~ m[1] ~ ", " ~ m[2])
+		end block
+
+		block
+			var n: list<char> :: #list<char>
+			var m: list<char>
+			do n.add('a')
+			do n.add('b')
+			do n.add('c')
+			var bin : []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do m.head()
+			while(!m.end())
+				do cui@print(m.get().toStr())
+				do m.next()
+			end while
+		end block
+
+		block
+			var n: stack<char> :: #stack<char>
+			var m: stack<char>
+			do n.push('a')
+			do n.push('b')
+			do n.push('c')
+			var bin : []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			while(^m <> 0)
+				do cui@print(m.pop().toStr())
+			end while
+		end block
+
+		block
+			var n: queue<char> :: #queue<char>
+			var m: queue<char>
+			do n.enq('a')
+			do n.enq('b')
+			do n.enq('c')
+			var bin : []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			while(^m <> 0)
+				do cui@print(m.deq().toStr())
+			end while
+		end block
+
+		block
+			var n: dict<[]char, int> :: #dict<[]char, int>
+			var m: dict<[]char, int>
+			do n.add("a", 1)
+			do n.add("c", 3)
+			do n.add("b", 2)
+			var bin : []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m.get("a").toStr() ~ ", " ~ m.get("b").toStr() ~ ", " ~ m.get("c").toStr())
+		end block
+
+		block
+			enum E
+				X :: 1234
+			end enum
+
+			var n: E :: E#X
+			var m: E
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print((m $ int).toStr())
+		end block
+
+		block
+			class C()
+				+var a: int
+				+var b: []char
+			end class
+
+			var n: C :: #C
+			var m: C :: #C
+			do n.a :: 5
+			do n.b :: "abc"
+			var bin: []bit8 :: n.toBin()
+			do @dump(bin)
+			do cui@print(m.fromBin(bin, 0).toStr())
+			do cui@print(m.a.toStr() ~ ", " ~ m.b)
+		end block
+	end for
+end func
