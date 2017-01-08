@@ -97,9 +97,6 @@ end func
 func [d0000.knd, _any_type, _take_child] _findLast(me_: []bit8, type: int, item: []bit8): int
 end func
 
-func [d0000.knd, _any_type, _take_child, _ret_array] _split(me_: []bit8, type: int, item: []bit8): int
-end func
-
 func [d0000.knd] _toInt(me_: []char): int
 end func
 
@@ -121,13 +118,28 @@ end func
 func [d0000.knd] _trimRight(me_: []char): []char
 end func
 
+func [d0000.knd] _split(me_: []char, delimiter: []char): [][]char
+end func
+
 func [d0000.knd, _any_type, _take_child] _addList(me_: []bit8, type: int, item: []bit8)
+end func
+
+func [d0000.knd, _any_type, _take_child] _addStack(me_: []bit8, type: int, item: []bit8)
+end func
+
+func [d0000.knd, _any_type, _take_child] _addQueue(me_: []bit8, type: int, item: []bit8)
 end func
 
 func [d0000.knd, _any_type, _take_key_value] _addDict(me_: []bit8, type: int, itemType: int, key: []bit8, item: []bit8)
 end func
 
 func [d0000.knd, _any_type, _ret_child] _getList(me_: []bit8, type: int): int
+end func
+
+func [d0000.knd, _any_type, _ret_child] _getStack(me_: []bit8, type: int): int
+end func
+
+func [d0000.knd, _any_type, _ret_child] _getQueue(me_: []bit8, type: int): int
 end func
 
 func [d0000.knd, _any_type, _take_child, _ret_child] _getDict(me_: []bit8, type: int, key: []bit8): int
@@ -154,20 +166,8 @@ end func
 func [d0000.knd, _any_type, _take_child] _ins(me_: []bit8, type: int, item: []bit8)
 end func
 
-func [d0000.knd, _any_type, _take_child, _ret_array_of_list_child] _toArray(me_: []bit8, type: int): int
+func [d0000.knd, _any_type, _ret_array_of_list_child] _toArray(me_: []bit8, type: int): int
 end func
 
 func [d0000.knd, _any_type, _ret_child] _peek(me_: []bit8, type: int): int
-end func
-
-func [d0000.knd, _any_type, _take_child] _push(me_: []bit8, type: int, item: []bit8)
-end func
-
-func [d0000.knd, _any_type, _ret_child] _pop(me_: []bit8, type: int): int
-end func
-
-func [d0000.knd, _any_type, _take_child] _enq(me_: []bit8, type: int, item: []bit8)
-end func
-
-func [d0000.knd, _any_type, _ret_child] _deq(me_: []bit8, type: int): int
 end func

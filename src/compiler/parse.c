@@ -67,6 +67,7 @@ static const Char* SrcName;
 static int Row;
 static int Col;
 static Char FileBuf;
+static Char FileBufTmp; // For single line comments and line breaking.
 static Bool IsLast;
 static SStack* Scope;
 static U32 UniqueCnt;
@@ -74,6 +75,7 @@ static Bool LocalErr;
 
 static Bool IsReserved(const Char* word);
 static const void* ParseSrc(const Char* src_name, const void* ast, void* param);
+static Char ReadBuf(void);
 static Char Read(void);
 static void ReadComment(void);
 static Char ReadChar(void);
@@ -273,6 +275,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 		Row = 1;
 		Col = 0;
 		FileBuf = L'\0';
+		FileBufTmp = L'\0';
 		IsLast = False;
 		Scope = NULL;
 		UniqueCnt = 0;
@@ -283,50 +286,65 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 	}
 }
 
-static Char Read(void)
+static Char ReadBuf(void)
 {
-	for (; ; )
+	Char result;
+	if (FileBuf == L'\0')
 	{
-		Char c;
-		if (FileBuf == L'\0')
+		if (FileBufTmp == L'\0')
 		{
-			wint_t c2 = fgetwc(FilePtr);
-			c = c2 == WEOF ? L'\0' : (Char)c2;
-			Col++;
-			if (c == L'\u3000')
-			{
-				Err(L"EP0008", NewPos(SrcName, Row, Col));
-				continue;
-			}
+			wint_t c = fgetwc(FilePtr);
+			result = c == WEOF ? L'\0' : (Char)c;
 			if (c == L'\n')
 			{
 				Row++;
 				Col = 0;
 			}
+			else if (c == L'\0')
+			{
+				if (!IsLast)
+				{
+					IsLast = True;
+					c = L'\n';
+					Row++;
+					Col = 0;
+				}
+			}
+			else
+				Col++;
 		}
 		else
 		{
-			c = FileBuf;
-			FileBuf = L'\0';
+			result = FileBufTmp;
+			FileBufTmp = L'\0';
 		}
-		if (c == L'\0')
+	}
+	else
+	{
+		result = FileBuf;
+		FileBuf = L'\0';
+	}
+	return result;
+}
+
+static Char Read(void)
+{
+	for (; ; )
+	{
+		Char c = ReadBuf();
+		switch (c)
 		{
-			if (IsLast)
-				return L'\0';
-			IsLast = True;
-			Row++;
-			Col = 0;
-			return L'\n';
+			case L'\u3000':
+				Err(L"EP0008", NewPos(SrcName, Row, Col));
+				continue;
+			case L'{':
+				ReadComment();
+				continue;
+			case L'\r':
+				continue;
+			case L'\t':
+				return L' ';
 		}
-		if (c == L'{')
-		{
-			ReadComment();
-			continue;
-		}
-		if (c == L'\r')
-			continue;
-		if (c == L'\t')
-			return L' ';
 		return c;
 	}
 }
@@ -396,6 +414,32 @@ static Char ReadChar(void)
 	for (; ; )
 	{
 		Char c = Read();
+		if (c == L'\n')
+		{
+			c = ReadChar();
+			switch (c)
+			{
+				case L'\n':
+					return L'\n';
+				case L';':
+					do
+					{
+						c = ReadBuf();
+						if (c == L'\u3000')
+						{
+							Err(L"EP0008", NewPos(SrcName, Row, Col));
+							continue;
+						}
+						if (c == L'\0')
+							return L'\0';
+					} while (c != L'\n');
+					return L'\n';
+				case L'|':
+					return ReadChar();
+			}
+			FileBufTmp = c;
+			return L'\n';
+		}
 		if (c != L' ')
 			return c;
 	}
@@ -405,45 +449,20 @@ static Char ReadStrict(void)
 {
 	for (; ; )
 	{
-		Char c;
-		if (FileBuf == L'\0')
+		Char c = ReadBuf();
+		switch (c)
 		{
-			wint_t c2 = fgetwc(FilePtr);
-			c = c2 == WEOF ? L'\0' : (Char)c2;
-			Col++;
-			if (c == L'\u3000')
-			{
+			case L'\u3000':
 				Err(L"EP0008", NewPos(SrcName, Row, Col));
 				continue;
-			}
-			if (c == L'\t')
-			{
+			case L'\t':
 				Err(L"EP0010", NewPos(SrcName, Row, Col));
 				continue;
-			}
-			if (c == L'\n')
-			{
-				Row++;
-				Col = 0;
-			}
-		}
-		else
-		{
-			c = FileBuf;
-			FileBuf = L'\0';
-		}
-		if (c == L'\0')
-		{
-			if (IsLast)
-				return L'\0';
-			c = L'\n';
-		}
-		if (c == L'\r')
-			continue;
-		if (c == L'\n')
-		{
-			Err(L"EP0011", NewPos(SrcName, Row, Col));
-			break;
+			case L'\r':
+				continue;
+			case L'\n':
+				Err(L"EP0011", NewPos(SrcName, Row, Col));
+				break;
 		}
 		return c;
 	}
@@ -464,42 +483,44 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 		Bool sharp = False;
 		do
 		{
-			if (c == L'@')
+			switch (c)
 			{
-				if (sharp || at)
-				{
-					Err(L"EP0001", NewPos(SrcName, Row, Col));
-					return L"";
-				}
-				if (pos != 0)
-				{
-					const Char* src_name = SubStr(buf, 0, pos);
+				case L'@':
+					if (sharp || at)
 					{
-						const Char* ptr = src_name;
-						while (*ptr != L'\0')
-						{
-							if (L'A' <= *ptr && *ptr <= L'Z')
-							{
-								Err(L"EP0002", NewPos(SrcName, Row, Col), src_name);
-								return L"";
-							}
-							ptr++;
-						}
+						Err(L"EP0001", NewPos(SrcName, Row, Col));
+						return L"";
 					}
-					if (DictSearch(Srces2, src_name) == NULL)
-						Srces2 = DictAdd(Srces2, src_name, NULL);
-				}
-				at = True;
-			}
-			else if (c == L'#')
-				sharp = True;
-			else if (c == L'\\')
-			{
-				if (sharp || at)
-				{
-					Err(L"EP0055", NewPos(SrcName, Row, Col));
-					return L"";
-				}
+					if (pos != 0)
+					{
+						const Char* src_name = SubStr(buf, 0, pos);
+						{
+							const Char* ptr = src_name;
+							while (*ptr != L'\0')
+							{
+								if (L'A' <= *ptr && *ptr <= L'Z')
+								{
+									Err(L"EP0002", NewPos(SrcName, Row, Col), src_name);
+									return L"";
+								}
+								ptr++;
+							}
+						}
+						if (DictSearch(Srces2, src_name) == NULL)
+							Srces2 = DictAdd(Srces2, src_name, NULL);
+					}
+					at = True;
+					break;
+				case L'#':
+					sharp = True;
+					break;
+				case L'\\':
+					if (sharp || at)
+					{
+						Err(L"EP0055", NewPos(SrcName, Row, Col));
+						return L"";
+					}
+					break;
 			}
 			if (pos == 128)
 			{
@@ -824,8 +845,6 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetChild);
 					else if (wcscmp(func_attr, L"_take_key_value") == 0 && (ast->FuncAttr & FuncAttr_TakeKeyValue) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeKeyValue);
-					else if (wcscmp(func_attr, L"_ret_array") == 0 && (ast->FuncAttr & FuncAttr_RetArray) == 0)
-						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArray);
 					else if (wcscmp(func_attr, L"_ret_array_of_list_child") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfListChild) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfListChild);
 					else if (ast->DLLName == NULL)

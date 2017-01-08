@@ -1,6 +1,20 @@
 func main()
 	for(1, 3)
 		block
+			; Line comment.
+			{
+				{
+					Nest comment.
+				}
+			}
+			do cui@print
+			|
+			|(
+			|  "Line breaking."
+			|)
+		end block
+
+		block
 			var a: []int :: #[3]int
 			do a[0] :: 1
 			do a[1] :: 2
@@ -16,6 +30,44 @@ func main()
 		block
 			var x: float :: 314159.0e-5
 			do cui@print(x.toStr())
+		end block
+
+		block
+			alias t: int
+			alias u: []char
+			var a: t
+			var b: u
+			do a :: 5
+			do b :: "abc"
+			do cui@print(a.toStr())
+			do cui@print(b)
+		end block
+
+		block
+			var n: list<int> :: #list<int>
+			do n.add(3)
+			do n.add(4)
+			do n.add(5)
+			var m: []int :: n.toArray()
+			do cui@print((^m).toStr() ~ ", " ~ m[0].toStr() ~ ", " ~ m[1].toStr() ~ ", " ~ m[2].toStr())
+		end block
+
+		block
+			var n: list<[]char> :: #list<[]char>
+			do n.add("ab")
+			do n.add("cd")
+			do n.add("ef")
+			var m: [][]char :: n.toArray()
+			do cui@print((^m).toStr() ~ ", " ~ m[0] ~ ", " ~ m[1] ~ ", " ~ m[2])
+		end block
+
+		block
+			var s: []char :: "abxxcdexxfxxxxg"
+			var ts: [][]char :: s.split("xx")
+			do cui@print((^ts).toStr())
+			foreach t(ts)
+				do cui@print(t)
+			end foreach
 		end block
 	end for
 end func

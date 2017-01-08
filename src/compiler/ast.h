@@ -111,8 +111,7 @@ typedef enum EFuncAttr
 	FuncAttr_TakeChild = 0x80, // The function receives a value of the type of elements of 'me' in the third argument.
 	FuncAttr_RetChild = 0x0100, // The function returns a value of the type of elements of 'me'.
 	FuncAttr_TakeKeyValue = 0x0200, // The function receives a value of the type of 'key' in the third argument and a value of the type of 'value' in the fourth.
-	FuncAttr_RetArray = 0x0400, // The function returns an array of the type of 'me'.
-	FuncAttr_RetArrayOfListChild = 0x0800, // The function returns an array of the type of list elements of 'me'.
+	FuncAttr_RetArrayOfListChild = 0x0400, // The function returns an array of the type of list elements of 'me'.
 } EFuncAttr;
 
 typedef struct SAstFunc

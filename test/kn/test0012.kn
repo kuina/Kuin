@@ -127,28 +127,28 @@ func main()
 		block
 			var n: stack<char> :: #stack<char>
 			var m: stack<char>
-			do n.push('a')
-			do n.push('b')
-			do n.push('c')
+			do n.add('a')
+			do n.add('b')
+			do n.add('c')
 			var bin : []bit8 :: n.toBin()
 			do @dump(bin)
 			do cui@print(m.fromBin(bin, 0).toStr())
 			while(^m <> 0)
-				do cui@print(m.pop().toStr())
+				do cui@print(m.get().toStr())
 			end while
 		end block
 
 		block
 			var n: queue<char> :: #queue<char>
 			var m: queue<char>
-			do n.enq('a')
-			do n.enq('b')
-			do n.enq('c')
+			do n.add('a')
+			do n.add('b')
+			do n.add('c')
 			var bin : []bit8 :: n.toBin()
 			do @dump(bin)
 			do cui@print(m.fromBin(bin, 0).toStr())
 			while(^m <> 0)
-				do cui@print(m.deq().toStr())
+				do cui@print(m.get().toStr())
 			end while
 		end block
 

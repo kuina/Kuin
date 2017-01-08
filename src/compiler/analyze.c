@@ -5,6 +5,48 @@
 #include "mem.h"
 #include "util.h"
 
+static const Char* BuildInFuncs[] =
+{
+	L"add\0          \x07",
+	L"and\0          \x04",
+	L"del\0          \x09",
+	L"end\0          \x09",
+	L"find\0         \x05",
+	L"findLast\0     \x05",
+	L"fromBin\0      \x00",
+	L"get\0          \x08",
+	L"head\0         \x09",
+	L"ins\0          \x09",
+	L"lower\0        \x06",
+	L"next\0         \x09",
+	L"not\0          \x04",
+	L"offset\0       \x03",
+	L"or\0           \x04",
+	L"peek\0         \x0a",
+	L"prev\0         \x09",
+	L"reverse\0      \x05",
+	L"same\0         \x02",
+	L"sar\0          \x04",
+	L"shl\0          \x04",
+	L"shr\0          \x04",
+	L"shuffle\0      \x05",
+	L"sort\0         \x05",
+	L"sortDesc\0     \x05",
+	L"split\0        \x06",
+	L"sub\0          \x05",
+	L"tail\0         \x09",
+	L"toArray\0      \x09",
+	L"toBin\0        \x00",
+	L"toFloat\0      \x06",
+	L"toInt\0        \x06",
+	L"toStr\0        \x01",
+	L"trim\0         \x06",
+	L"trimLeft\0     \x06",
+	L"trimRight\0    \x06",
+	L"upper\0        \x06",
+	L"xor\0          \x04",
+};
+
 static SDict* Asts;
 static const SOption* Option;
 static SDictI* EnumItems;
@@ -23,6 +65,7 @@ static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name);
 static SAst* SearchStdItem(const Char* src, const Char* identifier, Bool make_expr_ref);
 static SAstExprDot* MakeMeDot(SAstClass* class_, SAstArg* arg, const Char* name);
 static void AddDllFunc(const Char* dll_name, const Char* func_name);
+static int GetBuildInFuncType(const Char* name);
 static SAstFunc* Rebuild(const SAstFunc* main_func);
 static const void* RebuildEnumCallback(U64 key, const void* value, void* param);
 static const void* RebuildRootCallback(const Char* key, const void* value, void* param);
@@ -67,6 +110,16 @@ static SAstExpr* RebuildExprRef(SAstExpr* ast);
 SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 {
 	SAstFunc* result = NULL;
+
+#if defined(_DEBUG)
+	{
+		int len = (int)(sizeof(BuildInFuncs) / sizeof(Char*));
+		int i;
+		for (i = 0; i < len - 1; i++)
+			ASSERT(wcscmp(BuildInFuncs[i], BuildInFuncs[i + 1]) < 0);
+	}
+#endif
+
 	Asts = asts;
 	Option = option;
 	EnumItems = NULL;
@@ -392,6 +445,7 @@ static Bool CmpType(const SAstType* type1, const SAstType* type2)
 		return ((SAstTypePrim*)type1)->Kind == ((SAstTypePrim*)type2)->Kind;
 	if (type_id1 == AstTypeId_TypeUser && type_id2 == AstTypeId_TypeUser)
 	{
+		ASSERT(((SAst*)type1)->RefItem->TypeId != AstTypeId_Alias && ((SAst*)type2)->RefItem->TypeId != AstTypeId_Alias);
 		if (((SAst*)type1)->RefItem->TypeId == AstTypeId_Class && ((SAst*)type2)->RefItem->TypeId == AstTypeId_Class)
 		{
 			// Check whether they are parent-child relationship.
@@ -571,6 +625,14 @@ static void AddDllFunc(const Char* dll_name, const Char* func_name)
 	SDict* dll = (SDict*)DictSearch(Dlls, dll_name);
 	dll = DictAdd(dll, NewStr(NULL, L"%s$%s", dll_name, func_name), func_name);
 	Dlls = DictAdd(Dlls, dll_name, dll);
+}
+
+static int GetBuildInFuncType(const Char* name)
+{
+	int idx = BinSearch(BuildInFuncs, (int)(sizeof(BuildInFuncs) / sizeof(Char*)), name);
+	if (idx == -1)
+		return -1;
+	return (int)BuildInFuncs[idx][14];
 }
 
 static SAstFunc* Rebuild(const SAstFunc* main_func)
@@ -792,7 +854,7 @@ static const void* RebuildRootCallback(const Char* key, const void* value, void*
 
 static void RebuildRoot(SAstRoot* ast)
 {
-	// TODO: Is this 'RebuildRoot' function really necessary? Is it just initializing and finalizing global variables?
+	// Initialize and finalize global variables of each source file.
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
@@ -925,7 +987,7 @@ static void RebuildAlias(SAstAlias* ast)
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
-	// TODO:
+	ast->Type = RebuildType(ast->Type);
 }
 
 static void RebuildClass(SAstClass* ast)
@@ -2038,7 +2100,11 @@ static SAstType* RebuildType(SAstType* ast)
 					else if (ref_item->TypeId == AstTypeId_Enum)
 						RebuildEnum((SAstEnum*)ref_item);
 					else if (ref_item->TypeId == AstTypeId_Alias)
+					{
 						RebuildAlias((SAstAlias*)ref_item);
+						((SAst*)ast)->AnalyzedCache = ((SAstAlias*)ref_item)->Type;
+						ast = ((SAstAlias*)ref_item)->Type;
+					}
 					else
 					{
 						Err(L"EA0037", ((SAst*)ast)->Pos);
@@ -3084,83 +3150,77 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 		SAstType* var_type = ast->Var->Type;
 		const Char* member = ast->Member;
 		Bool correct = False;
-		if (wcscmp(member, L"toBin") == 0 || wcscmp(member, L"fromBin") == 0)
-			correct = True;
-		else if (wcscmp(member, L"toStr") == 0)
+		switch (GetBuildInFuncType(member))
 		{
-			if (IsInt(var_type) || IsFloat(var_type) || IsChar(var_type) || IsBool(var_type) || ((SAst*)var_type)->TypeId == AstTypeId_TypeBit)
+			case 0x0000:
 				correct = True;
-		}
-		else if (wcscmp(member, L"same") == 0)
-		{
-			if (IsFloat(var_type))
-				correct = True;
-		}
-		else if (wcscmp(member, L"offset") == 0)
-		{
-			if (IsChar(var_type))
-				correct = True;
-		}
-		else if (wcscmp(member, L"or") == 0 || wcscmp(member, L"and") == 0 || wcscmp(member, L"xor") == 0 || wcscmp(member, L"not") == 0 || wcscmp(member, L"shl") == 0 || wcscmp(member, L"shr") == 0 || wcscmp(member, L"sar") == 0)
-		{
-			if (((SAst*)var_type)->TypeId == AstTypeId_TypeBit)
-				correct = True;
-		}
-		else if (wcscmp(member, L"sub") == 0 || wcscmp(member, L"reverse") == 0 || wcscmp(member, L"shuffle") == 0 || wcscmp(member, L"sort") == 0 || wcscmp(member, L"sortDesc") == 0 || wcscmp(member, L"find") == 0 || wcscmp(member, L"findLast") == 0)
-		{
-			if (((SAst*)var_type)->TypeId == AstTypeId_TypeArray)
-				correct = True;
-		}
-		else if (wcscmp(member, L"toInt") == 0 || wcscmp(member, L"toFloat") == 0 || wcscmp(member, L"lower") == 0 || wcscmp(member, L"upper") == 0 || wcscmp(member, L"trim") == 0 || wcscmp(member, L"trimLeft") == 0 || wcscmp(member, L"trimRight") == 0)
-		{
-			if (IsStr(var_type))
-				correct = True;
-		}
-		else if (wcscmp(member, L"add") == 0)
-		{
-			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
-			{
-				correct = True;
-				member = L"addList";
-			}
-			else if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
-			{
-				correct = True;
-				member = L"addDict";
-			}
-		}
-		else if (wcscmp(member, L"get") == 0)
-		{
-			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
-			{
-				correct = True;
-				member = L"getList";
-			}
-			else if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
-			{
-				correct = True;
-				member = L"getDict";
-			}
-		}
-		else if (wcscmp(member, L"head") == 0 || wcscmp(member, L"tail") == 0 || wcscmp(member, L"next") == 0 || wcscmp(member, L"prev") == 0 || wcscmp(member, L"end") == 0 || wcscmp(member, L"del") == 0 || wcscmp(member, L"ins") == 0 || wcscmp(member, L"toArray") == 0)
-		{
-			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
-				correct = True;
-		}
-		else if (wcscmp(member, L"peek") == 0)
-		{
-			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && (((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Stack || ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Queue))
-				correct = True;
-		}
-		else if (wcscmp(member, L"push") == 0|| wcscmp(member, L"pop") == 0)
-		{
-			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Stack)
-				correct = True;
-		}
-		else if (wcscmp(member, L"enq") == 0|| wcscmp(member, L"deq") == 0)
-		{
-			if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Queue)
-				correct = True;
+				break;
+			case 0x0001:
+				if (IsInt(var_type) || IsFloat(var_type) || IsChar(var_type) || IsBool(var_type) || ((SAst*)var_type)->TypeId == AstTypeId_TypeBit)
+					correct = True;
+				break;
+			case 0x0002:
+				if (IsFloat(var_type))
+					correct = True;
+				break;
+			case 0x0003:
+				if (IsChar(var_type))
+					correct = True;
+				break;
+			case 0x0004:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeBit)
+					correct = True;
+				break;
+			case 0x0005:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeArray)
+					correct = True;
+				break;
+			case 0x0006:
+				if (IsStr(var_type))
+					correct = True;
+				break;
+			case 0x0007:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen)
+				{
+					correct = True;
+					switch (((SAstTypeGen*)var_type)->Kind)
+					{
+						case AstTypeGenKind_List: member = L"addList"; break;
+						case AstTypeGenKind_Stack: member = L"addStack"; break;
+						case AstTypeGenKind_Queue: member = L"addQueue"; break;
+					}
+				}
+				else if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
+				{
+					correct = True;
+					member = L"addDict";
+				}
+				break;
+			case 0x0008:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen)
+				{
+					correct = True;
+					switch (((SAstTypeGen*)var_type)->Kind)
+					{
+						case AstTypeGenKind_List: member = L"getList"; break;
+						case AstTypeGenKind_Stack: member = L"getStack"; break;
+						case AstTypeGenKind_Queue: member = L"getQueue"; break;
+					}
+				}
+				else if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
+				{
+					correct = True;
+					member = L"getDict";
+				}
+				break;
+			case 0x0009:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
+					correct = True;
+				break;
+			case 0x000a:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && (((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Stack || ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Queue))
+					correct = True;
+				break;
 		}
 		if (correct)
 		{
@@ -3262,17 +3322,6 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 					{
 						ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
 						((SAstTypeFunc*)expr->Type)->Ret = ((SAstTypeDict*)var_type)->ItemTypeValue;
-					}
-				}
-				if ((func->FuncAttr & FuncAttr_RetArray) != 0)
-				{
-					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
-					ASSERT(IsInt(func->Ret));
-					{
-						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
-						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
-						type->ItemType = var_type;
-						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
 					}
 				}
 				if ((func->FuncAttr & FuncAttr_RetArrayOfListChild) != 0)

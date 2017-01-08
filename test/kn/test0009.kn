@@ -23,23 +23,23 @@ func main()
 		block
 			var n: stack<stack<int>> :: #stack<stack<int>>
 			var n2: stack<int> :: #stack<int>
-			do n2.push(3)
-			do n2.push(5)
-			do n.push(n2)
+			do n2.add(3)
+			do n2.add(5)
+			do n.add(n2)
 			var m: stack<stack<int>> :: ##n
-			do cui@print(n.peek().pop().toStr() ~ ", " ~ m.peek().pop().toStr())
-			do cui@print(n.pop().pop().toStr() ~ ", " ~ m.pop().pop().toStr())
+			do cui@print(n.peek().get().toStr() ~ ", " ~ m.peek().get().toStr())
+			do cui@print(n.get().get().toStr() ~ ", " ~ m.get().get().toStr())
 		end block
 
 		block
 			var n: queue<queue<int>> :: #queue<queue<int>>
 			var n2: queue<int> :: #queue<int>
-			do n2.enq(3)
-			do n2.enq(5)
-			do n.enq(n2)
+			do n2.add(3)
+			do n2.add(5)
+			do n.add(n2)
 			var m: queue<queue<int>> :: ##n
-			do cui@print(n.peek().deq().toStr() ~ ", " ~ m.peek().deq().toStr())
-			do cui@print(n.deq().deq().toStr() ~ ", " ~ m.deq().deq().toStr())
+			do cui@print(n.peek().get().toStr() ~ ", " ~ m.peek().get().toStr())
+			do cui@print(n.get().get().toStr() ~ ", " ~ m.get().get().toStr())
 		end block
 
 		block
