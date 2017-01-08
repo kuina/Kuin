@@ -89,7 +89,7 @@ typedef enum ETypeId
 
 static SPackAsm* PackAsm;
 static const SOption* Option;
-static SDict* DLLs;
+static SDict* Dlls;
 static SList* Funcs;
 static SStack* LocalVars;
 static SStack* RefFuncArgNums;
@@ -161,7 +161,7 @@ void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, 
 {
 	PackAsm = pack_asm;
 	Option = option;
-	DLLs = dlls;
+	Dlls = dlls;
 
 	PackAsm->Asms = ListNew();
 	PackAsm->ReadonlyData = ListNew();
@@ -1420,10 +1420,10 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 #endif
 			}
 
-			// Initialize the DLLs.
+			// Initialize the Dlls.
 			{
 				SAsmLabel* lbl1 = AsmLabel();
-				DictForEach(DLLs, InitDLLs, scope_entry->End);
+				DictForEach(Dlls, InitDLLs, scope_entry->End);
 #if defined(_DEBUG)
 				// DbgBreak();
 #endif
@@ -1443,7 +1443,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 		}
 		if (ast->DLLName != NULL)
 		{
-			// Call functions in DLLs.
+			// Call functions in Dlls.
 			if ((ast->FuncAttr & FuncAttr_Init) != 0)
 			{
 				// Pass necessary information to '_init' functions.
@@ -1685,9 +1685,9 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 			ListAdd(PackAsm->Asms, scope_entry->End);
 			// Finalize the program.
 			{
-				// Finalize the DLLs.
+				// Finalize the Dlls.
 				SAsmLabel* lbl1 = AsmLabel();
-				DictForEach(DLLs, FinDLLs, NULL);
+				DictForEach(Dlls, FinDLLs, NULL);
 				ListAdd(PackAsm->Asms, lbl1);
 			}
 			{
@@ -3279,7 +3279,38 @@ static void AssembleExprNew(SAstExprNew* ast, int reg_i, int reg_f)
 
 static void AssembleExprNewArray(SAstExprNewArray* ast, int reg_i, int reg_f)
 {
-	// TODO:
+	STmpVars* tmp = PushRegs(reg_i - 1, reg_f - 1);
+	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
+	ASSERT(((SAstExpr*)ast)->VarKind != AstExprVarKind_Unknown);
+	{
+		int len = ast->Idces->Len;
+		SAstArg** idx_nums = (SAstArg**)Alloc(sizeof(SAstArg*) * (size_t)len);
+		int i;
+		// Make consecutive stack variables to store the numbers of elements of the arrays.
+		for (i = 0; i < len; i++)
+			idx_nums[i] = MakeTmpVar(8, NULL);
+		{
+			SListNode* ptr = ast->Idces->Top;
+			i = 0;
+			while (ptr != NULL)
+			{
+				SAstExpr* expr = (SAstExpr*)ptr->Data;
+				AssembleExpr(expr, 0, 0);
+				ToValue(expr, 0, 0);
+				ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(idx_nums[i]), False)), ValReg(8, RegI[0])));
+				ptr = ptr->Next;
+				i++;
+			}
+		}
+		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_CX), ValImmU(8, (U64)len)));
+		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_DX), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(idx_nums[0]), False))));
+	}
+	SetTypeId(Reg_R8, ast->ItemType);
+	CallKuinLib(L"_newArray");
+	SetGcInstance(0, -1, ((SAstExpr*)ast)->Type);
+	ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValReg(8, Reg_AX)));
+	PopRegs(tmp);
+	ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValReg(8, Reg_SI)));
 }
 
 static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f)

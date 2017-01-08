@@ -12,8 +12,9 @@ EXPORT S64 _powInt(S64 n, S64 m);
 EXPORT double _powFloat(double n, double m);
 EXPORT double _mod(double n, double m);
 EXPORT S64 _cmpStr(const U8* a, const U8* b);
+EXPORT void* _newArray(S64 len, S64* nums, const U8* type);
 
-// 'inner'
+// Built-in methods.
 EXPORT void* _toBin(const void* me_, const U8* type);
 EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx);
 EXPORT U8* _toStr(const void* me_, const U8* type);

@@ -8,7 +8,7 @@
 static SDict* Asts;
 static const SOption* Option;
 static SDictI* EnumItems;
-static SDict* DLLs;
+static SDict* Dlls;
 static Bool LocalErr;
 
 static SAstFunc* SearchMain(void);
@@ -22,7 +22,7 @@ static U64 BitCast(int size, U64 n);
 static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name);
 static SAst* SearchStdItem(const Char* src, const Char* identifier, Bool make_expr_ref);
 static SAstExprDot* MakeMeDot(SAstClass* class_, SAstArg* arg, const Char* name);
-static void AddDLLFunc(const Char* dll_name, const Char* func_name);
+static void AddDllFunc(const Char* dll_name, const Char* func_name);
 static SAstFunc* Rebuild(const SAstFunc* main_func);
 static const void* RebuildEnumCallback(U64 key, const void* value, void* param);
 static const void* RebuildRootCallback(const Char* key, const void* value, void* param);
@@ -70,7 +70,7 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 	Asts = asts;
 	Option = option;
 	EnumItems = NULL;
-	DLLs = NULL;
+	Dlls = NULL;
 	LocalErr = False;
 	{
 		SAstFunc* main_func = SearchMain();
@@ -90,14 +90,15 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 	{
 		// DLL functions loaded when the program starts.
 		const Char* dll_name = L"d0000.knd";
-		AddDLLFunc(dll_name, L"_freeSet");
-		AddDLLFunc(dll_name, L"_copy");
-		AddDLLFunc(dll_name, L"_powInt");
-		AddDLLFunc(dll_name, L"_powFloat");
-		AddDLLFunc(dll_name, L"_mod");
-		AddDLLFunc(dll_name, L"_cmpStr");
+		AddDllFunc(dll_name, L"_freeSet");
+		AddDllFunc(dll_name, L"_copy");
+		AddDllFunc(dll_name, L"_powInt");
+		AddDllFunc(dll_name, L"_powFloat");
+		AddDllFunc(dll_name, L"_mod");
+		AddDllFunc(dll_name, L"_cmpStr");
+		AddDllFunc(dll_name, L"_newArray");
 	}
-	*dlls = DLLs;
+	*dlls = Dlls;
 	return result;
 }
 
@@ -565,11 +566,11 @@ static SAstExprDot* MakeMeDot(SAstClass* class_, SAstArg* arg, const Char* name)
 	return dot;
 }
 
-static void AddDLLFunc(const Char* dll_name, const Char* func_name)
+static void AddDllFunc(const Char* dll_name, const Char* func_name)
 {
-	SDict* dll = (SDict*)DictSearch(DLLs, dll_name);
+	SDict* dll = (SDict*)DictSearch(Dlls, dll_name);
 	dll = DictAdd(dll, NewStr(NULL, L"%s$%s", dll_name, func_name), func_name);
-	DLLs = DictAdd(DLLs, dll_name, dll);
+	Dlls = DictAdd(Dlls, dll_name, dll);
 }
 
 static SAstFunc* Rebuild(const SAstFunc* main_func)
@@ -888,9 +889,9 @@ static void RebuildFunc(SAstFunc* ast)
 	if (ast->DLLName != NULL)
 	{
 		if ((ast->FuncAttr & FuncAttr_Underscore) != 0)
-			AddDLLFunc(ast->DLLName, NewStr(NULL, L"_%s", ((SAst*)ast)->Name));
+			AddDllFunc(ast->DLLName, NewStr(NULL, L"_%s", ((SAst*)ast)->Name));
 		else
-			AddDLLFunc(ast->DLLName, ((SAst*)ast)->Name);
+			AddDllFunc(ast->DLLName, ((SAst*)ast)->Name);
 	}
 	{
 		SListNode* ptr = ast->Args->Top;
@@ -2722,10 +2723,16 @@ static SAstExpr* RebuildExprNewArray(SAstExprNewArray* ast)
 	if (LocalErr)
 		return (SAstExpr*)DummyPtr;
 	{
-		SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
-		InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
-		type->ItemType = ast->ItemType;
-		((SAstExpr*)ast)->Type = (SAstType*)type;
+		SAstType* type = ast->ItemType;
+		int i;
+		for (i = 0; i < ast->Idces->Len; i++)
+		{
+			SAstTypeArray* type2 = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+			InitAst((SAst*)type2, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+			type2->ItemType = type;
+			type = type2;
+		}
+		((SAstExpr*)ast)->Type = type;
 	}
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
 	return (SAstExpr*)ast;

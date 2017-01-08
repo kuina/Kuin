@@ -8,7 +8,7 @@ static void CopyDll(const Char* name, const SOption* option);
 void Deploy(U64 app_code, const SOption* option)
 {
 #if defined(_DEBUG)
-	// When doing tests, the program uses debugging DLLs so do not copy these.
+	// When doing tests, the program uses debugging Dlls so do not copy these.
 	UNUSED(app_code);
 	UNUSED(option);
 #else

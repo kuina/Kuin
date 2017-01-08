@@ -3274,7 +3274,7 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 				}
 				if (len == 1024)
 				{
-					buf[1023] = L'\0';
+					buf[1024] = L'\0';
 					Err(L"EP0018", NewPos(SrcName, row, col), buf);
 					LocalErr = True;
 					ReadUntilRet();
@@ -3288,7 +3288,7 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 			{
 				if (len == 1024)
 				{
-					buf[1023] = L'\0';
+					buf[1024] = L'\0';
 					Err(L"EP0018", NewPos(SrcName, row, col), buf);
 					LocalErr = True;
 					ReadUntilRet();
@@ -3316,10 +3316,58 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 			c = Read();
 			if (c == L'e')
 			{
-				// TODO: Exponential expression.
+				if (len == 1024)
+				{
+					buf[1024] = L'\0';
+					Err(L"EP0018", NewPos(SrcName, row, col), buf);
+					LocalErr = True;
+					ReadUntilRet();
+					return (SAstExpr*)DummyPtr;
+				}
+				buf[len] = c;
+				len++;
+				c = Read();
+				if (c != L'+' && c != L'-')
+				{
+					Err(L"EP0056", NewPos(SrcName, row, col));
+					LocalErr = True;
+					ReadUntilRet();
+					return (SAstExpr*)DummyPtr;
+				}
+				if (len == 1024)
+				{
+					buf[1024] = L'\0';
+					Err(L"EP0018", NewPos(SrcName, row, col), buf);
+					LocalErr = True;
+					ReadUntilRet();
+					return (SAstExpr*)DummyPtr;
+				}
+				buf[len] = c;
+				len++;
+				c = Read();
+				if (!(L'0' <= c && c <= L'9'))
+				{
+					Err(L"EP0056", NewPos(SrcName, row, col));
+					LocalErr = True;
+					ReadUntilRet();
+					return (SAstExpr*)DummyPtr;
+				}
+				do
+				{
+					if (len == 1024)
+					{
+						buf[1024] = L'\0';
+						Err(L"EP0018", NewPos(SrcName, row, col), buf);
+						LocalErr = True;
+						ReadUntilRet();
+						return (SAstExpr*)DummyPtr;
+					}
+					buf[len] = c;
+					len++;
+					c = Read();
+				} while (L'0' <= c && c <= L'9');
 			}
-			else
-				FileBuf = c;
+			FileBuf = c;
 			{
 				Char* end_ptr;
 				double value;

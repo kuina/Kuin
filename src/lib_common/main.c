@@ -405,6 +405,30 @@ EXPORT S64 _cmpStr(const U8* a, const U8* b)
 	return (S64)wcscmp((Char*)(a + 0x10), (Char*)(b + 0x10));
 }
 
+EXPORT void* _newArray(S64 len, S64* nums, const U8* type)
+{
+	size_t size = len == 1 ? GetSize(*type) : 8;
+	Bool is_str = len == 1 && *type == TypeId_Char;
+	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(*nums + (is_str ? 1 : 0)));
+	((S64*)result)[0] = DefaultRefCntOpe;
+	((S64*)result)[1] = *nums;
+	ASSERT(len >= 1);
+	if (len != 1)
+	{
+		S64 i;
+		U8* ptr = result + 0x10;
+		ASSERT(len >= 1);
+		for (i = 0; i < *nums; i++)
+		{
+			*(void**)ptr = _newArray(len - 1, nums + 1, type);
+			ptr = ptr + 8;
+		}
+	}
+	else
+		memset(result + 0x10, 0, size * (size_t)(*nums + (is_str ? 1 : 0)));
+	return result;
+}
+
 EXPORT void* _toBin(const void* me_, const U8* type)
 {
 	switch (*type)
