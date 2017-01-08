@@ -339,7 +339,7 @@ static Char Read(void)
 				continue;
 			case L'{':
 				ReadComment();
-				continue;
+				return L' ';
 			case L'\r':
 				continue;
 			case L'\t':
