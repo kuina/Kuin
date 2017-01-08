@@ -7,7 +7,7 @@ func dump(ns: []bit8)
 end func
 
 func main()
-	for(1, 1)
+	for(1, 3)
 		block
 			var n: int :: 123456789012
 			var m: int

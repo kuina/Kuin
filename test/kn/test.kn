@@ -1,7 +1,2 @@
 func main()
-	var n: [][]char :: ["ab"]
-	var m: [][]char
-	var bin: []bit8 :: n.toBin()
-	do m.fromBin(bin, 0)
-	do m.fromBin(bin, 0)
 end func

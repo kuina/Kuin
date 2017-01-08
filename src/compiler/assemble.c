@@ -3475,6 +3475,12 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 					ToRef(arg->Arg, RegI[0], RegI[0]);
 					tmp_args[idx] = MakeTmpVar(8, NULL);
 					ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_args[idx]), False)), ValReg(8, RegI[0])));
+					if ((((SAstTypeFunc*)ast->Func->Type)->FuncAttr & FuncAttr_Overwrite) != 0 && ptr == ast->Args->Top && IsRef(arg->Arg->Type))
+					{
+						// Since '_overwrite' functions overwrite 'me', release it in advance.
+						ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x00)));
+						GcDec(0, -1, arg->Arg->Type);
+					}
 				}
 				else
 				{
@@ -3518,12 +3524,6 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 					ListAdd(PackAsm->Asms, AsmMOV(ValMemS(size, ValReg(8, Reg_SP), NULL, (S64)idx * 8), ValReg(size, RegI[1])));
 					if (IsRef(arg->Arg->Type) && !arg->RefVar)
 						GcInc(1); // TODO: Check whether there is no need to increment the reference counter in the case of 'RefVar' and 'IsRef'.
-					if ((((SAstTypeFunc*)ast->Func->Type)->FuncAttr & FuncAttr_Overwrite) != 0 && ptr == ast->Args->Top && IsRef(arg->Arg->Type))
-					{
-						// Since '_overwrite' functions overwrite 'me', release it in advance.
-						ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[1]), ValMemS(8, ValReg(8, RegI[1]), NULL, 0x00)));
-						GcDec(1, -1, arg->Arg->Type);
-					}
 				}
 				ptr = ptr->Next;
 				idx++;
