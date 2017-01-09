@@ -406,6 +406,20 @@ static void ReadComment(void)
 					esc = True;
 			}
 		}
+		else if (c == L';')
+		{
+			for (; ; )
+			{
+				c = Read();
+				if (c == L'\0')
+				{
+					Err(L"EP0009", NewPos(SrcName, row, col));
+					return;
+				}
+				if (c == L'\n')
+					break;
+			}
+		}
 	} while (c != L'}');
 }
 
