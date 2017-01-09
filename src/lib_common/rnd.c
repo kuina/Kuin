@@ -74,7 +74,7 @@ S64 RndGet(SRndState* rnd_, S64 min, S64 max)
 {
 #if defined(_DEBUG)
 	if (min > max)
-		Throw(0x1000, L"Assertion failed in Rnd@get: min <= max");
+		THROW(0x1000, L"Assertion failed in Rnd@get: min <= max");
 #endif
 	{
 		U64 n = (U64)(max - min + 1);
@@ -97,7 +97,7 @@ double RndGetFloat(SRndState* rnd_, double min, double max)
 {
 #if defined(_DEBUG)
 	if (min >= max)
-		Throw(0x1000, L"Assertion failed in Rnd@getFloat: min < max");
+		THROW(0x1000, L"Assertion failed in Rnd@getFloat: min < max");
 #endif
 	return (double)(RndGetBit64(rnd_)) / 18446744073709551616.0 * (max - min) + min;
 }

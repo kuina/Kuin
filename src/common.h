@@ -55,12 +55,12 @@ typedef struct SClass
 {
 	U64 RefCnt;
 	void* ClassTable;
-	void(*Ctor)(void);
-	void(*Dtor)(void);
-	int(*Cmp)(struct SClass* t);
-	struct SClass*(*Copy)(void);
-	U8*(*ToBin)(void);
-	S64(*FromBin)(U8* bin, S64 idx);
+	void(*Ctor)(struct SClass* me_);
+	void(*Dtor)(struct SClass* me_);
+	int(*Cmp)(struct SClass* me_, struct SClass* t);
+	struct SClass*(*Copy)(struct SClass* me_);
+	U8*(*ToBin)(struct SClass* me_);
+	S64(*FromBin)(struct SClass* me_, U8* bin, S64 idx);
 } SClass;
 
 static const S64 DefaultRefCntFunc = 0; // Just before exiting the function, this is incremented for 'GcInstance'.
@@ -73,10 +73,10 @@ extern S64* HeapCnt;
 
 void* AllocMem(size_t size);
 void FreeMem(void* ptr);
-void Throw(U32 code, const Char* msg);
+void ThrowImpl(U32 code, const Char* msg);
 
 #if defined(DBG)
-#define THROW(code, msg) Throw((code), (msg))
+#define THROW(code, msg) ThrowImpl((code), (msg))
 #else
-#define THROW(code, msg) Throw((code), NULL)
+#define THROW(code, msg) ThrowImpl((code), NULL)
 #endif

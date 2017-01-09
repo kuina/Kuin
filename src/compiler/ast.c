@@ -265,7 +265,8 @@ static void DumpAstRoot(const SAstRoot* ast)
 static void DumpAstFunc(const SAstFunc* ast)
 {
 	PrintTab(); fwprintf(FilePtr, L"<Func");
-	fwprintf(FilePtr, L" DLLName=\"%s\"", ast->DLLName == NULL ? L"(Null)" : ast->DLLName);
+	fwprintf(FilePtr, L" DllName=\"%s\"", ast->DllName == NULL ? L"(Null)" : ast->DllName);
+	fwprintf(FilePtr, L" DllFuncName=\"%s\"", ast->DllFuncName == NULL ? L"(Null)" : ast->DllFuncName);
 	fwprintf(FilePtr, L" FuncAttr=\"0x%016I64X\"", (U64)ast->FuncAttr);
 	fwprintf(FilePtr, L">\n");
 	Tab++;

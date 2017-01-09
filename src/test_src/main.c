@@ -9,7 +9,7 @@
 #include <io.h>
 #include <conio.h>
 
-#define TEST_NUM (14)
+#define TEST_NUM (15)
 
 #pragma comment(lib, "compiler.lib")
 

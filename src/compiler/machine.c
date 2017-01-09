@@ -615,7 +615,7 @@ static void WriteReadonlyData(void)
 			while (ptr != NULL)
 			{
 				SDLLImport* dll = (SDLLImport*)ptr->Data;
-				fwrite(dll->DLLName, 1, (size_t)dll->DLLNameSize, FilePtr);
+				fwrite(dll->DllName, 1, (size_t)dll->DLLNameSize, FilePtr);
 				fputc(0x00, FilePtr); // The terminating character.
 				if (ftell(FilePtr) % 2 != 0)
 					fputc(0x00, FilePtr);

@@ -44,7 +44,7 @@ typedef struct SDLLImportFunc
 typedef struct SDLLImport
 {
 	int DLLNameSize;
-	const U8* DLLName;
+	const U8* DllName;
 	S64 Addr;
 	SList* Funcs;
 } SDLLImport;

@@ -34,6 +34,51 @@ EXPORT double _tan(double x)
 	return tan(x);
 }
 
+EXPORT double _acos(double x)
+{
+	return acos(x);
+}
+
+EXPORT double _asin(double x)
+{
+	return asin(x);
+}
+
+EXPORT double _atan(double x)
+{
+	return atan(x);
+}
+
+EXPORT double _cosh(double x)
+{
+	return cosh(x);
+}
+
+EXPORT double _sinh(double x)
+{
+	return sinh(x);
+}
+
+EXPORT double _tanh(double x)
+{
+	return tanh(x);
+}
+
+EXPORT double _acosh(double x)
+{
+	return acosh(x);
+}
+
+EXPORT double _asinh(double x)
+{
+	return asinh(x);
+}
+
+EXPORT double _atanh(double x)
+{
+	return atanh(x);
+}
+
 EXPORT double _sqrt(double x)
 {
 	return sqrt(x);

@@ -727,6 +727,30 @@ static Char EscChar(Char c)
 		case L'n': return L'\n';
 		case L't': return L'\t';
 		case L'w': return L'\u3000';
+		case L'u':
+			{
+				Char buf[5];
+				int i;
+				for (i = 0; i < 4; i++)
+				{
+					c = ReadStrict();
+					if (!(L'0' <= c && c <= L'9' || L'A' <= c && c <= L'F'))
+					{
+						Err(L"EP0057", NewPos(SrcName, Row, Col));
+						return 'u';
+					}
+					buf[i] = c;
+				}
+				buf[4] = L'\0';
+				{
+					Char* end_ptr;
+					U32 value;
+					errno = 0;
+					value = wcstoul(buf, &end_ptr, 16);
+					ASSERT(*end_ptr == L'\0' && errno != ERANGE);
+					return (Char)value;
+				}
+			}
 		default:
 			Err(L"EP0007", NewPos(SrcName, Row, Col), c);
 			return c;
@@ -812,7 +836,8 @@ static SAstRoot* ParseRoot(void)
 static SAstFunc* ParseFunc(const Char* parent_class)
 {
 	SAstFunc* ast = (SAstFunc*)Alloc(sizeof(SAstFunc));
-	ast->DLLName = NULL;
+	ast->DllName = NULL;
+	ast->DllFuncName = NULL;
 	ast->FuncAttr = FuncAttr_None;
 	{
 		Char c = ReadChar();
@@ -827,9 +852,7 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Callback);
 				else if (func_attr[0] == L'_')
 				{
-					if (wcscmp(func_attr, L"_") == 0 && (ast->FuncAttr & FuncAttr_Underscore) == 0)
-						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Underscore);
-					else if (wcscmp(func_attr, L"_any_type") == 0 && (ast->FuncAttr & FuncAttr_AnyType) == 0)
+					if (wcscmp(func_attr, L"_any_type") == 0 && (ast->FuncAttr & FuncAttr_AnyType) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_AnyType);
 					else if (wcscmp(func_attr, L"_overwrite") == 0 && (ast->FuncAttr & FuncAttr_Overwrite) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Overwrite);
@@ -847,13 +870,19 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeKeyValue);
 					else if (wcscmp(func_attr, L"_ret_array_of_list_child") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfListChild) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfListChild);
-					else if (ast->DLLName == NULL)
-						ast->DLLName = func_attr;
+					else if (wcscmp(func_attr, L"_make_instance") == 0 && (ast->FuncAttr & FuncAttr_MakeInstance) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_MakeInstance);
+					else if (ast->DllName == NULL)
+						ast->DllName = func_attr;
+					else if (ast->DllFuncName == NULL)
+						ast->DllFuncName = func_attr;
 					else
 						Err(L"EP0026", NewPos(SrcName, row, col), func_attr);
 				}
-				else if (ast->DLLName == NULL)
-					ast->DLLName = func_attr;
+				else if (ast->DllName == NULL)
+					ast->DllName = func_attr;
+				else if (ast->DllFuncName == NULL)
+					ast->DllFuncName = func_attr;
 				else
 					Err(L"EP0026", NewPos(SrcName, row, col), func_attr);
 				c = ReadChar();

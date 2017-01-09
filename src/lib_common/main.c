@@ -73,6 +73,17 @@ EXPORT void _init(void* heap, S64* heap_cnt)
 	Heap = heap;
 	HeapCnt = heap_cnt;
 
+	// Set the current directory.
+	{
+		Char path[1024];
+		Char* ptr;
+		GetModuleFileName(NULL, path, 1024);
+		ptr = wcsrchr(path, L'\\');
+		if (ptr != NULL)
+			*(ptr + 1) = L'\0';
+		SetCurrentDirectory(path);
+	}
+
 	LibInit();
 }
 
@@ -1023,7 +1034,7 @@ EXPORT S64 _find(const void* me_, const U8* type, const void* item)
 	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
-		Throw(0x1000, L"");
+		THROW(0x1000, L"");
 	{
 		S64 len = *(S64*)((U8*)me_ + 0x08);
 		U8* ptr = (U8*)me_ + 0x10;
@@ -1045,7 +1056,7 @@ EXPORT S64 _findLast(const void* me_, const U8* type, const void* item)
 	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
-		Throw(0x1000, L"");
+		THROW(0x1000, L"");
 	{
 		S64 len = *(S64*)((U8*)me_ + 0x08);
 		U8* ptr = (U8*)me_ + 0x10 + size * (size_t)(len - 1);
@@ -1917,7 +1928,7 @@ static void MergeSort(void* me_, const U8* type, Bool asc)
 	S64 i, j;
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
-		Throw(0x1000, L"");
+		THROW(0x1000, L"");
 	while (n < len)
 	{
 		for (i = 0; i < len; i += n * 2)

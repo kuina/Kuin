@@ -1,0 +1,21 @@
+func main()
+	for(1, 3)
+		block
+			do cui@print(lib@cosh(1.5).toStr())
+			do cui@print(lib@sinh(1.5).toStr())
+			do cui@print(lib@tanh(1.5).toStr())
+			do cui@print(lib@acos(lib@cos(0.5)).same(0.5).toStr())
+			do cui@print(lib@asin(lib@sin(0.5)).same(0.5).toStr())
+			do cui@print(lib@atan(lib@tan(0.5)).same(0.5).toStr())
+			do cui@print(lib@acosh(lib@cosh(0.5)).same(0.5).toStr())
+			do cui@print(lib@asinh(lib@sinh(0.5)).same(0.5).toStr())
+			do cui@print(lib@atanh(lib@tanh(0.5)).same(0.5).toStr())
+		end block
+
+		block
+			var f: file@Reader :: file@loadReader("test_file.txt")
+			do cui@print(f.fileSize().toStr())
+			do f.fin()
+		end block
+	end for
+end func

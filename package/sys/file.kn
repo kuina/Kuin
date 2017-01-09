@@ -1,0 +1,12 @@
++class Reader()
+	+func [d0000.knd, _streamFin] fin()
+	end func
+
+	+func [d0000.knd, _streamFileSize] fileSize(): int
+	end func
+
+	var handle: int
+end class
+
++func [d0000.knd, _loadReader, _make_instance] loadReader(me_: @Reader, path: []char): @Reader
+end func

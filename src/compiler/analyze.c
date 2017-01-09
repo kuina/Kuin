@@ -162,7 +162,7 @@ static SAstFunc* SearchMain(void)
 	if (func != NULL && (func->TypeId & AstTypeId_Func) == AstTypeId_Func)
 	{
 		SAstFunc* func2 = (SAstFunc*)func;
-		if (func2->Args->Len != 0 || func2->Ret != NULL || func2->FuncAttr != FuncAttr_None || func2->DLLName != NULL)
+		if (func2->Args->Len != 0 || func2->Ret != NULL || func2->FuncAttr != FuncAttr_None || func2->DllName != NULL)
 			Err(L"EA0001", ((SAst*)func2)->Pos);
 		return func2;
 	}
@@ -517,7 +517,8 @@ static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name)
 	InitAst((SAst*)func, AstTypeId_Func, ((SAst*)class_)->Pos);
 	((SAst*)func)->Name = name;
 	func->Addr = NewAddr();
-	func->DLLName = NULL;
+	func->DllName = NULL;
+	func->DllFuncName = NULL;
 	func->FuncAttr = FuncAttr_None;
 	func->Args = ListNew();
 	func->Ret = NULL;
@@ -643,7 +644,8 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 	InitAst((SAst*)func, AstTypeId_Func, pos);
 	((SAst*)func)->Name = L"$";
 	func->Addr = NewAddr();
-	func->DLLName = NULL;
+	func->DllName = NULL;
+	func->DllFuncName = NULL;
 	func->FuncAttr = FuncAttr_None;
 	func->Args = ListNew();
 	func->Ret = NULL;
@@ -948,12 +950,12 @@ static void RebuildFunc(SAstFunc* ast)
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
-	if (ast->DLLName != NULL)
+	if (ast->DllName != NULL)
 	{
-		if ((ast->FuncAttr & FuncAttr_Underscore) != 0)
-			AddDllFunc(ast->DLLName, NewStr(NULL, L"_%s", ((SAst*)ast)->Name));
+		if (ast->DllFuncName != NULL)
+			AddDllFunc(ast->DllName, ast->DllFuncName);
 		else
-			AddDllFunc(ast->DLLName, ((SAst*)ast)->Name);
+			AddDllFunc(ast->DllName, ((SAst*)ast)->Name);
 	}
 	{
 		SListNode* ptr = ast->Args->Top;
@@ -2102,7 +2104,7 @@ static SAstType* RebuildType(SAstType* ast)
 					else if (ref_item->TypeId == AstTypeId_Alias)
 					{
 						RebuildAlias((SAstAlias*)ref_item);
-						((SAst*)ast)->AnalyzedCache = ((SAstAlias*)ref_item)->Type;
+						((SAst*)ast)->AnalyzedCache = (SAst*)((SAstAlias*)ref_item)->Type;
 						ast = ((SAstAlias*)ref_item)->Type;
 					}
 					else
@@ -2796,7 +2798,7 @@ static SAstExpr* RebuildExprNewArray(SAstExprNewArray* ast)
 			SAstTypeArray* type2 = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
 			InitAst((SAst*)type2, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
 			type2->ItemType = type;
-			type = type2;
+			type = (SAstType*)type2;
 		}
 		((SAstExpr*)ast)->Type = type;
 	}
@@ -2953,11 +2955,10 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 	if (LocalErr)
 		return (SAstExpr*)DummyPtr;
 	{
-		SAstTypeFunc* type;
+		SAstTypeFunc* type = (SAstTypeFunc*)ast->Func->Type;
 		if (((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot)
 		{
 			ASSERT(((SAst*)ast->Func->Type)->TypeId == AstTypeId_TypeFunc);
-			type = (SAstTypeFunc*)ast->Func->Type;
 			{
 				SAstExprCallArg* me = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
 				me->Arg = ((SAstExprDot*)ast->Func)->Var;
@@ -3009,11 +3010,27 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 		}
 		else
 		{
-			if (((SAst*)ast->Func->Type)->TypeId != AstTypeId_TypeFunc)
+			if (((SAst*)type)->TypeId != AstTypeId_TypeFunc)
 			{
 				Err(L"EA0046", ((SAst*)ast)->Pos);
 				LocalErr = True;
 				return (SAstExpr*)DummyPtr;
+			}
+			if ((type->FuncAttr & FuncAttr_MakeInstance) != 0)
+			{
+				// Make an instance and add it to the second argument when '_make_instance' is specified.
+				ASSERT(type->Ret != NULL);
+				SAstExprCallArg* value_type = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+				{
+					SAstExprNew* expr = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
+					InitAstExpr((SAstExpr*)expr, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
+					expr->ItemType = type->Ret;
+					value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
+					if (LocalErr)
+						return (SAstExpr*)DummyPtr;
+				}
+				value_type->RefVar = False;
+				ListIns(ast->Args, ast->Args->Top, value_type);
 			}
 			type = (SAstTypeFunc*)ast->Func->Type;
 		}

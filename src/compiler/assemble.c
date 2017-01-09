@@ -201,7 +201,8 @@ void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, 
 		((SAst*)func)->TypeId = AstTypeId_FuncRaw;
 		((SAst*)func)->AnalyzedCache = (SAst*)func;
 		((SAstFunc*)func)->Addr = NewAddr();
-		((SAstFunc*)func)->DLLName = NULL;
+		((SAstFunc*)func)->DllName = NULL;
+		((SAstFunc*)func)->DllFuncName = NULL;
 		((SAstFunc*)func)->FuncAttr = FuncAttr_None;
 		((SAstFunc*)func)->Args = ListNew();
 		((SAstFunc*)func)->Ret = NULL;
@@ -595,7 +596,7 @@ static S64* AddDLLImport(int dll_name_size, const U8* dll_name, int func_name_si
 		while (ptr != NULL)
 		{
 			SDLLImport* dll = (SDLLImport*)ptr->Data;
-			if (CmpData(dll_name_size, dll_name, dll->DLLNameSize, dll->DLLName))
+			if (CmpData(dll_name_size, dll_name, dll->DLLNameSize, dll->DllName))
 			{
 				SListNode* ptr2 = dll->Funcs->Top;
 				while (ptr2 != NULL)
@@ -620,7 +621,7 @@ static S64* AddDLLImport(int dll_name_size, const U8* dll_name, int func_name_si
 	{
 		SDLLImport* dll = (SDLLImport*)Alloc(sizeof(SDLLImport));
 		dll->DLLNameSize = dll_name_size;
-		dll->DLLName = dll_name;
+		dll->DllName = dll_name;
 		dll->Addr = -1;
 		dll->Funcs = ListNew();
 		{
@@ -1441,7 +1442,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 			}
 			ListAdd((SList*)StackPeek(RefFuncArgNums), (void*)(S64)((SAstFuncRaw*)ast)->ArgNum);
 		}
-		if (ast->DLLName != NULL)
+		if (ast->DllName != NULL)
 		{
 			// Call functions in Dlls.
 			if ((ast->FuncAttr & FuncAttr_Init) != 0)
@@ -1529,10 +1530,10 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 			}
 			{
 				S64* addr;
-				if ((ast->FuncAttr & FuncAttr_Underscore) != 0)
-					addr = AddWritableData(NewStr(NULL, L"%s$_%s", ast->DLLName, ((SAst*)ast)->Name), 8);
+				if (ast->DllFuncName != NULL)
+					addr = AddWritableData(NewStr(NULL, L"%s$%s", ast->DllName, ast->DllFuncName), 8);
 				else
-					addr = AddWritableData(NewStr(NULL, L"%s$%s", ast->DLLName, ((SAst*)ast)->Name), 8);
+					addr = AddWritableData(NewStr(NULL, L"%s$%s", ast->DllName, ((SAst*)ast)->Name), 8);
 				ListAdd(PackAsm->Asms, AsmCALL(ValRIP(8, RefValueAddr(addr, True))));
 			}
 		}
@@ -1661,7 +1662,8 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 					((SAst*)func)->TypeId = AstTypeId_FuncRaw;
 					((SAst*)func)->AnalyzedCache = (SAst*)func;
 					((SAstFunc*)func)->Addr = NewAddr();
-					((SAstFunc*)func)->DLLName = NULL;
+					((SAstFunc*)func)->DllName = NULL;
+					((SAstFunc*)func)->DllFuncName = NULL;
 					((SAstFunc*)func)->FuncAttr = FuncAttr_None;
 					((SAstFunc*)func)->Args = ListNew();
 					((SAstFunc*)func)->Ret = NULL;
@@ -1721,7 +1723,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 			{
 				// Calculate the size of the arguments.
 				int max_arg_num = 4; // According to the specification, at least four arguments must be reserved.
-				if (ast->DLLName != NULL)
+				if (ast->DllName != NULL)
 				{
 					// Arguments for DLL calls.
 					if (max_arg_num < ast->Args->Len)
@@ -2409,7 +2411,8 @@ static void AssembleTry(SAstStatTry* ast)
 			((SAst*)func)->TypeId = AstTypeId_FuncRaw;
 			((SAst*)func)->AnalyzedCache = (SAst*)func;
 			((SAstFunc*)func)->Addr = NewAddr();
-			((SAstFunc*)func)->DLLName = NULL;
+			((SAstFunc*)func)->DllName = NULL;
+			((SAstFunc*)func)->DllFuncName = NULL;
 			((SAstFunc*)func)->FuncAttr = FuncAttr_None;
 			((SAstFunc*)func)->Args = ListNew();
 			((SAstFunc*)func)->Ret = NULL;
@@ -2521,7 +2524,8 @@ static void AssembleTry(SAstStatTry* ast)
 			((SAst*)func)->TypeId = AstTypeId_FuncRaw;
 			((SAst*)func)->AnalyzedCache = (SAst*)func;
 			((SAstFunc*)func)->Addr = NewAddr();
-			((SAstFunc*)func)->DLLName = NULL;
+			((SAstFunc*)func)->DllName = NULL;
+			((SAstFunc*)func)->DllFuncName = NULL;
 			((SAstFunc*)func)->FuncAttr = FuncAttr_None;
 			((SAstFunc*)func)->Args = ListNew();
 			((SAstFunc*)func)->Ret = NULL;

@@ -4,8 +4,11 @@ end func
 func [d0002.knd] _fin()
 end func
 
-+func [d0002.knd, _] print(str: []char)
++func [d0002.knd, _print] print(str: []char)
 end func
 
-+func [d0002.knd, _] input(): []char
++func [d0002.knd, _input] input(): []char
+end func
+
++func [d0002.knd, _cmdLine] cmdLine(): [][]char
 end func

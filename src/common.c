@@ -21,7 +21,7 @@ void FreeMem(void* ptr)
 #endif
 }
 
-void Throw(U32 code, const Char* msg)
+void ThrowImpl(U32 code, const Char* msg)
 {
 	void* arg0 = NULL;
 	if (msg != NULL)
