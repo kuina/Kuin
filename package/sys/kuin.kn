@@ -157,7 +157,7 @@ end func
 func [d0000.knd, _any_type] _prev(me_: []bit8, type: int)
 end func
 
-func [d0000.knd, _any_type] _end(me_: []bit8, type: int): bool
+func [d0000.knd, _any_type] _term(me_: []bit8, type: int): bool
 end func
 
 func [d0000.knd, _any_type] _del(me_: []bit8, type: int)

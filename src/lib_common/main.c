@@ -1144,24 +1144,24 @@ EXPORT void* _upper(const U8* me_)
 EXPORT void* _trim(const U8* me_)
 {
 	S64 len = *(S64*)(me_ + 0x08);
-	const Char* begin = (Char*)(me_ + 0x10);
-	const Char* end = begin + len - 1;
-	while (len > 0 && IsSpace(*begin))
+	const Char* first = (Char*)(me_ + 0x10);
+	const Char* last = first + len - 1;
+	while (len > 0 && IsSpace(*first))
 	{
-		begin++;
+		first++;
 		len--;
 	}
-	while (len > 0 && IsSpace(*end))
+	while (len > 0 && IsSpace(*last))
 	{
-		end--;
+		last--;
 		len--;
 	}
 	{
 		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (size_t)(len + 1));
 		((S64*)result)[0] = DefaultRefCntFunc;
 		((S64*)result)[1] = len;
-		ASSERT(len == end - begin + 1);
-		memcpy(result + 0x10, begin, sizeof(Char) * (size_t)len);
+		ASSERT(len == last - first + 1);
+		memcpy(result + 0x10, first, sizeof(Char) * (size_t)len);
 		*(Char*)(result + 0x10 + sizeof(Char) * (size_t)len) = L'\0';
 		return result;
 	}
@@ -1170,17 +1170,17 @@ EXPORT void* _trim(const U8* me_)
 EXPORT void* _trimLeft(const U8* me_)
 {
 	S64 len = *(S64*)(me_ + 0x08);
-	const Char* begin = (Char*)(me_ + 0x10);
-	while (len > 0 && IsSpace(*begin))
+	const Char* first = (Char*)(me_ + 0x10);
+	while (len > 0 && IsSpace(*first))
 	{
-		begin++;
+		first++;
 		len--;
 	}
 	{
 		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (size_t)(len + 1));
 		((S64*)result)[0] = DefaultRefCntFunc;
 		((S64*)result)[1] = len;
-		memcpy(result + 0x10, begin, sizeof(Char) * (size_t)len);
+		memcpy(result + 0x10, first, sizeof(Char) * (size_t)len);
 		*(Char*)(result + 0x10 + sizeof(Char) * (size_t)len) = L'\0';
 		return result;
 	}
@@ -1189,10 +1189,10 @@ EXPORT void* _trimLeft(const U8* me_)
 EXPORT void* _trimRight(const U8* me_)
 {
 	S64 len = *(S64*)(me_ + 0x08);
-	const Char* end = (Char*)(me_ + 0x10) + len - 1;
-	while (len > 0 && IsSpace(*end))
+	const Char* last = (Char*)(me_ + 0x10) + len - 1;
+	while (len > 0 && IsSpace(*last))
 	{
-		end--;
+		last--;
 		len--;
 	}
 	{
@@ -1421,7 +1421,7 @@ EXPORT void _prev(void* me_, const U8* type)
 	*(void**)((U8*)me_ + 0x20) = *(void**)ptr;
 }
 
-EXPORT Bool _end(void* me_, const U8* type)
+EXPORT Bool _term(void* me_, const U8* type)
 {
 	UNUSED(type);
 	return *(void**)((U8*)me_ + 0x20) == 0;

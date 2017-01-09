@@ -1,12 +1,53 @@
++enum Origin
+	head
+	current
+	tail
+end enum
+
 +class Reader()
 	+func [d0000.knd, _streamFin] fin()
+	end func
+
+	+func [d0000.knd, _streamGetPos] getPos(): int
+	end func
+
+	+func [d0000.knd, _streamSetPos] setPos(origin: @Origin, pos: int)
+	end func
+
+	+func [d0000.knd, _streamRead] read(size: int): []bit8
 	end func
 
 	+func [d0000.knd, _streamFileSize] fileSize(): int
 	end func
 
+	+func [d0000.knd, _streamTerm] term(): bool
+	end func
+
+	var handle: int
+end class
+
++class Writer()
+	+func [d0000.knd, _streamFin] fin()
+	end func
+
+	+func [d0000.knd, _streamGetPos] getPos(): int
+	end func
+
+	+func [d0000.knd, _streamSetPos] setPos(origin: @Origin, pos: int)
+	end func
+
+	+func [d0000.knd, _streamWrite] write(data: []bit8)
+	end func
+
+	var reserved1: int
+
+	var reserved2: int
+
 	var handle: int
 end class
 
 +func [d0000.knd, _makeReader, _make_instance] makeReader(me_: @Reader, path: []char): @Reader
+end func
+
++func [d0000.knd, _makeWriter, _make_instance] makeWriter(me_: @Writer, path: []char, append: bool): @Writer
 end func

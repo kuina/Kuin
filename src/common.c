@@ -3,6 +3,11 @@
 void* Heap;
 S64* HeapCnt;
 
+static int DefaultCmp(const SClass* me_, const SClass* t);
+static SClass* DefaultCopy(const SClass* me_);
+static U8* DefaultToBin(const SClass* me_);
+static S64 DefaultFromBin(SClass* me_, U8* bin, S64 idx);
+
 void* AllocMem(size_t size)
 {
 	void* result = HeapAlloc(Heap, HEAP_GENERATE_EXCEPTIONS, (SIZE_T)size);
@@ -37,4 +42,46 @@ void ThrowImpl(U32 code, const Char* msg)
 		args[0] = (ULONG_PTR)arg0;
 		RaiseException((DWORD)code, 0, 1, args);
 	}
+}
+
+void InitClass(SClass* class_, void(*ctor)(SClass* me_), void(*dtor)(SClass* me_))
+{
+	if (ctor != NULL)
+		class_->Ctor = ctor;
+	if (dtor != NULL)
+		class_->Dtor = dtor;
+	class_->Cmp = DefaultCmp;
+	class_->Copy = DefaultCopy;
+	class_->ToBin = DefaultToBin;
+	class_->FromBin = DefaultFromBin;
+}
+
+static int DefaultCmp(const SClass* me_, const SClass* t)
+{
+	UNUSED(me_);
+	UNUSED(t);
+	THROW(0x1000, L"");
+	return 0;
+}
+
+static SClass* DefaultCopy(const SClass* me_)
+{
+	UNUSED(me_);
+	THROW(0x1000, L"");
+	return NULL;
+}
+
+static U8* DefaultToBin(const SClass* me_)
+{
+	UNUSED(me_);
+	THROW(0x1000, L"");
+	return NULL;
+}
+
+static S64 DefaultFromBin(SClass* me_, U8* bin, S64 idx)
+{
+	UNUSED(me_);
+	UNUSED(bin);
+	THROW(0x1000, L"");
+	return idx;
 }

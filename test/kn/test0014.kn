@@ -13,8 +13,25 @@ func main()
 		end block
 
 		block
-			var f: file@Reader :: file@makeReader("test_file.txt")
+			var f: file@Writer :: file@makeWriter("test_file.bin", false)
+			var b: []bit8 :: [16#01b8, 16#02b8, 16#03b8, 16#04b8, 16#05b8, 16#06b8, 16#07b8]
+			do f.write(b)
+			do f.fin()
+		end block
+
+		block
+			var f: file@Reader :: file@makeReader("test_file.bin")
+			var b: []bit8 :: f.read(4)
+			do cui@print(b[0].toStr() ~ ", " ~ b[1].toStr() ~ ", " ~ b[2].toStr() ~ ", " ~ b[3].toStr())
 			do cui@print(f.fileSize().toStr())
+			while(!f.term())
+				do b :: f.read(1)
+				do cui@print(b[0].toStr())
+			end while
+			do cui@print(f.getPos().toStr())
+			do f.setPos(file@Origin#head, 0)
+			do b :: f.read(1)
+			do cui@print(b[0].toStr())
 			do f.fin()
 		end block
 	end for

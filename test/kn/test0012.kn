@@ -118,7 +118,7 @@ func main()
 			do @dump(bin)
 			do cui@print(m.fromBin(bin, 0).toStr())
 			do m.head()
-			while(!m.end())
+			while(!m.term())
 				do cui@print(m.get().toStr())
 				do m.next()
 			end while

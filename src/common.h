@@ -57,9 +57,9 @@ typedef struct SClass
 	void* ClassTable;
 	void(*Ctor)(struct SClass* me_);
 	void(*Dtor)(struct SClass* me_);
-	int(*Cmp)(struct SClass* me_, struct SClass* t);
-	struct SClass*(*Copy)(struct SClass* me_);
-	U8*(*ToBin)(struct SClass* me_);
+	int(*Cmp)(const struct SClass* me_, const struct SClass* t);
+	struct SClass*(*Copy)(const struct SClass* me_);
+	U8*(*ToBin)(const struct SClass* me_);
 	S64(*FromBin)(struct SClass* me_, U8* bin, S64 idx);
 } SClass;
 
@@ -74,6 +74,7 @@ extern S64* HeapCnt;
 void* AllocMem(size_t size);
 void FreeMem(void* ptr);
 void ThrowImpl(U32 code, const Char* msg);
+void InitClass(SClass* class_, void(*ctor)(SClass* me_), void(*dtor)(SClass* me_));
 
 #if defined(DBG)
 #define THROW(code, msg) ThrowImpl((code), (msg))

@@ -54,7 +54,7 @@ EXPORT void _head(void* me_, const U8* type);
 EXPORT void _tail(void* me_, const U8* type);
 EXPORT void _next(void* me_, const U8* type);
 EXPORT void _prev(void* me_, const U8* type);
-EXPORT Bool _end(void* me_, const U8* type);
+EXPORT Bool _term(void* me_, const U8* type);
 EXPORT void _del(void* me_, const U8* type);
 EXPORT void _ins(void* me_, const U8* type, const void* item);
 EXPORT void* _toArray(void* me_, const U8* type);
