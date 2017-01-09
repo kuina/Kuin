@@ -434,7 +434,7 @@ static Char ReadChar(void)
 							return L'\0';
 					} while (c != L'\n');
 					FileBuf = c;
-					return L'\n';
+					continue;
 				case L'|':
 					return ReadChar();
 			}
@@ -782,26 +782,16 @@ static SAstRoot* ParseRoot(void)
 	InitAst((SAst*)ast, AstTypeId_Root, NewPos(SrcName, 1, 1), NULL, False, True);
 	ast->Items = ListNew();
 	Scope = StackPush(Scope, ast);
+	{
+		// For the case where there is a single line comment at the beginning of source codes.
+		FileBuf = L'\n';
+		FileBuf = ReadChar();
+	}
 	for (; ; )
 	{
 		Char c = ReadChar();
 		if (c == L'\0')
 			break;
-		if (c == L';')
-		{
-			do
-			{
-				c = ReadBuf();
-				if (c == L'\u3000')
-				{
-					Err(L"EP0008", NewPos(SrcName, Row, Col));
-					continue;
-				}
-				if (c == L'\0')
-					return L'\0';
-			} while (c != L'\n');
-			continue;
-		}
 		if (c == L'\n')
 			continue;
 		{

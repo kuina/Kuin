@@ -1,10 +1,10 @@
-; Line comment 1.
-; Line comment 2.
+; Single line comment #1.
+; Single line comment #2.
 func main()
 	for(1, 3)
 		block
-			; Line comment 3.
-			; Line comment 4.
+			; Single line comment #3.
+			; Single line comment #4.
 			{
 				{
 					Nest comment.
@@ -17,11 +17,11 @@ func main()
 			|)
 
 			;{
-			do cui@print("Single line comment(;) vs. multi-line comment({}). pattern-1")
+			do cui@print("Comment test #1.")
 			;}
 
 			{
-			do cui@print("Single line comment(;) vs. multi-line comment({}). pattern-2")
+			do cui@print("Comment test #2.")
 			;}
 		end block
 
