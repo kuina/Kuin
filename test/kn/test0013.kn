@@ -26,6 +26,13 @@ func main()
 			'}'
 			do cui@print("Comment test #2.")
 			}
+
+			{
+			;{
+			"{"
+			'{'
+			do cui@print("Comment test #3.")
+			}
 		end block
 
 		block

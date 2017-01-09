@@ -410,7 +410,9 @@ static void ReadComment(void)
 		{
 			for (; ; )
 			{
-				c = Read();
+				c = ReadBuf();
+				if (c == L'\u3000')
+					Err(L"EP0008", NewPos(SrcName, Row, Col));
 				if (c == L'\0')
 				{
 					Err(L"EP0009", NewPos(SrcName, row, col));
