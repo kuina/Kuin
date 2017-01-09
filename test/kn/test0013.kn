@@ -1,7 +1,10 @@
+; Line comment 1.
+; Line comment 2.
 func main()
 	for(1, 3)
 		block
-			; Line comment.
+			; Line comment 3.
+			; Line comment 4.
 			{
 				{
 					Nest comment.
@@ -12,6 +15,14 @@ func main()
 			|(
 			|  "Line breaking."
 			|)
+
+			;{
+			do cui@print("Single line comment(;) vs. multi-line comment({}). pattern-1")
+			;}
+
+			{
+			do cui@print("Single line comment(;) vs. multi-line comment({}). pattern-2")
+			;}
 		end block
 
 		block

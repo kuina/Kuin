@@ -433,6 +433,7 @@ static Char ReadChar(void)
 						if (c == L'\0')
 							return L'\0';
 					} while (c != L'\n');
+					FileBuf = c;
 					return L'\n';
 				case L'|':
 					return ReadChar();
@@ -762,6 +763,21 @@ static SAstRoot* ParseRoot(void)
 		Char c = ReadChar();
 		if (c == L'\0')
 			break;
+		if (c == L';')
+		{
+			do
+			{
+				c = ReadBuf();
+				if (c == L'\u3000')
+				{
+					Err(L"EP0008", NewPos(SrcName, Row, Col));
+					continue;
+				}
+				if (c == L'\0')
+					return L'\0';
+			} while (c != L'\n');
+			continue;
+		}
 		if (c == L'\n')
 			continue;
 		{
