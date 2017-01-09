@@ -66,17 +66,20 @@ EXPORT double _tanh(double x)
 
 EXPORT double _acosh(double x)
 {
-	return acosh(x);
+	// TODO: return acosh(x);
+	return 0.0;
 }
 
 EXPORT double _asinh(double x)
 {
-	return asinh(x);
+	// TODO: return asinh(x);
+	return 0.0;
 }
 
 EXPORT double _atanh(double x)
 {
-	return atanh(x);
+	// TODO: return atanh(x);
+	return 0.0;
 }
 
 EXPORT double _sqrt(double x)

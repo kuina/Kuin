@@ -6,9 +6,6 @@ Excpt: 80000003
 > true
 > true
 > true
-> true
-> true
-> true
 > 0x01, 0x02, 0x03, 0x04
 > 7
 > 0x05
@@ -22,9 +19,6 @@ Excpt: 80000003
 > true
 > true
 > true
-> true
-> true
-> true
 > 0x01, 0x02, 0x03, 0x04
 > 7
 > 0x05
@@ -35,9 +29,6 @@ Excpt: 80000003
 > 2.35241
 > 2.12928
 > 0.905148
-> true
-> true
-> true
 > true
 > true
 > true

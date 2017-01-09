@@ -7,9 +7,11 @@ func main()
 			do cui@print(lib@acos(lib@cos(0.5)).same(0.5).toStr())
 			do cui@print(lib@asin(lib@sin(0.5)).same(0.5).toStr())
 			do cui@print(lib@atan(lib@tan(0.5)).same(0.5).toStr())
+			{
 			do cui@print(lib@acosh(lib@cosh(0.5)).same(0.5).toStr())
 			do cui@print(lib@asinh(lib@sinh(0.5)).same(0.5).toStr())
 			do cui@print(lib@atanh(lib@tanh(0.5)).same(0.5).toStr())
+			}
 		end block
 
 		block

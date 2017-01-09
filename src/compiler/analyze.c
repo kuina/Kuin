@@ -3019,8 +3019,8 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 			if ((type->FuncAttr & FuncAttr_MakeInstance) != 0)
 			{
 				// Make an instance and add it to the second argument when '_make_instance' is specified.
-				ASSERT(type->Ret != NULL);
 				SAstExprCallArg* value_type = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+				ASSERT(type->Ret != NULL);
 				{
 					SAstExprNew* expr = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
 					InitAstExpr((SAstExpr*)expr, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
