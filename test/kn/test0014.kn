@@ -13,7 +13,7 @@ func main()
 		end block
 
 		block
-			var f: file@Reader :: file@loadReader("test_file.txt")
+			var f: file@Reader :: file@makeReader("test_file.txt")
 			do cui@print(f.fileSize().toStr())
 			do f.fin()
 		end block

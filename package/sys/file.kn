@@ -8,5 +8,5 @@
 	var handle: int
 end class
 
-+func [d0000.knd, _loadReader, _make_instance] loadReader(me_: @Reader, path: []char): @Reader
++func [d0000.knd, _makeReader, _make_instance] makeReader(me_: @Reader, path: []char): @Reader
 end func

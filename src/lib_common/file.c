@@ -34,7 +34,7 @@ EXPORT S64 _streamFileSize(SClass* me_)
 	}
 }
 
-EXPORT SClass* _loadReader(SClass* me_, const U8* path)
+EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 {
 	SStream* me2 = (SStream*)me_;
 	FILE* file_ptr = _wfopen((Char*)(path + 0x10), L"rb");
