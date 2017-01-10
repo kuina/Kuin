@@ -127,6 +127,12 @@ int wmain(void)
 		if (!Build(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Alloc, Log))
 			goto Failure;
 	}
+	else if (type == -2)
+	{
+		UsedMem = 0;
+		if (!Build(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Alloc, Log))
+			goto Failure;
+	}
 	else
 		goto Failure;
 	wprintf(L"\nSuccess.\n");

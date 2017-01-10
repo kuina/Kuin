@@ -68,10 +68,13 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT void _init(void* heap, S64* heap_cnt)
+EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
 {
 	Heap = heap;
 	HeapCnt = heap_cnt;
+	AppCode = app_code;
+	AppName = (const Char*)(app_name + 0x10);
+	Instance = (HINSTANCE)GetModuleHandle(NULL);
 
 	// Set the current directory.
 	{
@@ -84,11 +87,22 @@ EXPORT void _init(void* heap, S64* heap_cnt)
 		SetCurrentDirectory(path);
 	}
 
+	// Initialize the COM library and the timer.
+	if (FAILED(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED))) // 'STA'
+	{
+		// Maybe the COM library is already initialized in some way.
+		ASSERT(False);
+	}
+	timeBeginPeriod(1);
+
 	LibInit();
 }
 
 EXPORT void _fin(void)
 {
+	// Finalize the COM library and the timer.
+	CoUninitialize();
+	timeEndPeriod(1);
 }
 
 EXPORT void _err(const void* excpt)

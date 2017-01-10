@@ -1,2 +1,4 @@
 func main()
+	while(wnd@act())
+	end while
 end func

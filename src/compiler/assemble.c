@@ -1460,6 +1460,14 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 #else
 				ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
 #endif
+				{
+					// TODO: app_code
+					ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R8), ValReg(4, Reg_R8)));
+				}
+				{
+					// TODO: app_name
+					ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R9), ValReg(4, Reg_R9)));
+				}
 			}
 			else
 			{

@@ -1,0 +1,8 @@
+func [d0001.knd, _init] _init()
+end func
+
+func [d0001.knd] _fin()
+end func
+
++func [d0001.knd, _act] act(): bool
+end func

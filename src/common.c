@@ -2,6 +2,9 @@
 
 void* Heap;
 S64* HeapCnt;
+S64 AppCode;
+const Char* AppName;
+HINSTANCE Instance;
 
 static int DefaultCmp(const SClass* me_, const SClass* t);
 static SClass* DefaultCopy(const SClass* me_);

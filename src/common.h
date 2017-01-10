@@ -70,6 +70,9 @@ static void* DummyPtr = (void*)1i64; // An invalid pointer used to point to non-
 
 extern void* Heap;
 extern S64* HeapCnt;
+extern S64 AppCode;
+extern const Char* AppName;
+extern HINSTANCE Instance;
 
 void* AllocMem(size_t size);
 void FreeMem(void* ptr);

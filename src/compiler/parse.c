@@ -169,7 +169,7 @@ SDict* Parse(const SOption* option)
 	switch (Option->Env)
 	{
 		case Env_Wnd:
-			// TODO:
+			Srces = DictAdd(Srces, L"wnd", NULL);
 			break;
 		case Env_Cui:
 			Srces = DictAdd(Srces, L"cui", NULL);
