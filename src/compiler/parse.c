@@ -524,7 +524,22 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 							}
 						}
 						if (DictSearch(Srces2, src_name) == NULL)
+						{
+							Bool correct = True;
+							if (Option->Env != Env_Wnd)
+							{
+								if (wcscmp(src_name, L"wnd") == 0)
+									correct = False;
+							}
+							if (Option->Env != Env_Cui)
+							{
+								if (wcscmp(src_name, L"cui") == 0)
+									correct = False;
+							}
+							if (!correct)
+								Err(L"EP0058", NewPos(SrcName, Row, Col), src_name);
 							Srces2 = DictAdd(Srces2, src_name, NULL);
+						}
 					}
 					at = True;
 					break;

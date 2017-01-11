@@ -6,3 +6,12 @@ end func
 
 +func [d0001.knd, _act] act(): bool
 end func
+
++class Wnd()
+	var handle: int
+
+	var wndBuf: int
+end class
+
++func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, title: []char, mode: int, width: int, height: int): @Wnd
+end func

@@ -1,4 +1,5 @@
 func main()
+	do wnd@makeWnd("Test", 0, 1024, 768)
 	while(wnd@act())
 	end while
 end func

@@ -122,7 +122,7 @@ EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 		return NULL;
 	me2->Class.Dtor = StreamDtor;
 	me2->Handle = file_ptr;
-	return (SClass*)me2;
+	return me_;
 }
 
 EXPORT SClass* _makeWriter(SClass* me_, const U8* path, Bool append)
@@ -133,7 +133,7 @@ EXPORT SClass* _makeWriter(SClass* me_, const U8* path, Bool append)
 		return NULL;
 	InitClass(&me2->Class, NULL, StreamDtor);
 	me2->Handle = file_ptr;
-	return (SClass*)me2;
+	return me_;
 }
 
 static void StreamDtor(SClass* me_)

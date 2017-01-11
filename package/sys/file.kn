@@ -46,8 +46,8 @@ end class
 	var handle: int
 end class
 
-+func [d0000.knd, _makeReader, _make_instance] makeReader(me_: @Reader, path: []char): @Reader
++func [d0000.knd, _makeReader, _make_instance] makeReader(me2: @Reader, path: []char): @Reader
 end func
 
-+func [d0000.knd, _makeWriter, _make_instance] makeWriter(me_: @Writer, path: []char, append: bool): @Writer
++func [d0000.knd, _makeWriter, _make_instance] makeWriter(me2: @Writer, path: []char, append: bool): @Writer
 end func

@@ -27,6 +27,7 @@
 
 #define UNUSED(var) (void)(var)
 #define EXPORT _declspec(dllexport)
+#define EXPORT_CPP extern "C" _declspec(dllexport)
 
 #if defined(_DEBUG)
 	#define ASSERT(cond) _ASSERTE((cond))

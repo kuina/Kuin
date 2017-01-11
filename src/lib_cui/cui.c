@@ -1,7 +1,5 @@
 #include "cui.h"
 
-#include "main.h"
-
 #define INPUT_SIZE (1024)
 
 EXPORT void _print(const U8* str)

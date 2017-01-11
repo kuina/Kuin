@@ -1494,7 +1494,6 @@ EXPORT void* _toArray(void* me_, const U8* type)
 	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
 	Bool is_str = IsStr(type);
-	Bool is_ref = IsRef(type[1]);
 	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
 	((S64*)result)[0] = 1;
 	((S64*)result)[1] = len;

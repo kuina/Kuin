@@ -1,7 +1,5 @@
 #include "rnd.h"
 
-#include "main.h"
-
 typedef struct SRnd
 {
 	SClass Class;

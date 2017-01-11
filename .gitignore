@@ -1,0 +1,17 @@
+*.opensdf
+*.sdf
+*.suo
+*.exe
+*_tmp
+*.knd
+*.tlog
+*.obj
+*.log
+*.pdb
+*.lib
+*.lastbuildstate
+*.idb
+*.exp
+*.dll
+*.ilk
+/test/output/
