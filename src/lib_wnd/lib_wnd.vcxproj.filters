@@ -8,6 +8,9 @@
     <ClCompile Include="input.cpp" />
     <ClCompile Include="tri_ps.c" />
     <ClCompile Include="tri_vs.c" />
+    <ClCompile Include="circle_ps.c" />
+    <ClCompile Include="rect_vs.c" />
+    <ClCompile Include="circle_vs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />

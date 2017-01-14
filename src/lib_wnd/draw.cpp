@@ -14,6 +14,9 @@ struct SWndBuf
 	IDXGISwapChain* SwapChain;
 	ID3D10RenderTargetView* RenderTargetView;
 	ID3D10DepthStencilView* DepthView;
+	FLOAT ClearColor[4];
+	int Width;
+	int Height;
 };
 
 struct SShaderBuf
@@ -32,11 +35,13 @@ struct SVertexBuf
 	ID3D10Buffer* Idx;
 };
 
-static const FLOAT ClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 const U8* GetTriVsBin(size_t* size);
 const U8* GetTriPsBin(size_t* size);
+const U8* GetRectVsBin(size_t* size);
+const U8* GetCircleVsBin(size_t* size);
+const U8* GetCirclePsBin(size_t* size);
 
 static ID3D10Device* Device = NULL;
 static ID3D10RasterizerState* RasterizerState = NULL;
@@ -47,42 +52,18 @@ static SWndBuf* CurWndBuf;
 static void* TriVertex = NULL;
 static void* TriVs = NULL;
 static void* TriPs = NULL;
+static void* RectVertex = NULL;
+static void* RectVs = NULL;
+static void* CircleVertex = NULL;
+static void* CircleVs = NULL;
+static void* CirclePs = NULL;
 
 EXPORT_CPP void _render()
 {
 	CurWndBuf->SwapChain->Present(0, 0);
-	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, ClearColor);
+	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, CurWndBuf->ClearColor);
 	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 	Device->RSSetState(RasterizerState);
-}
-
-EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, double r, double g, double b, double a)
-{
-	if (a <= 0.04)
-		return;
-	{
-		float const_buf_vs[8] =
-		{
-			(float)x1,
-			(float)y1,
-			(float)x2,
-			(float)y2,
-			(float)x3,
-			(float)y3,
-		};
-		float const_buf_ps[4] =
-		{
-			(float)r,
-			(float)g,
-			(float)b,
-			(float)a,
-		};
-		Draw::ConstBuf(TriVs, const_buf_vs);
-		Device->GSSetShader(NULL);
-		Draw::ConstBuf(TriPs, const_buf_ps);
-		Draw::VertexBuf(TriVertex);
-	}
-	Device->DrawIndexed(3, 0, 0);
 }
 
 EXPORT_CPP void _resetViewport()
@@ -91,8 +72,8 @@ EXPORT_CPP void _resetViewport()
 	{
 		0,
 		0,
-		1024, // TODO:
-		768, // TODO:
+		static_cast<UINT>(CurWndBuf->Width),
+		static_cast<UINT>(CurWndBuf->Height),
 		0.0f,
 		1.0f,
 	};
@@ -105,7 +86,7 @@ EXPORT_CPP void _depth(Bool test, Bool write)
 	/*
 	// TODO:
 	if (ZBuf == zbuf)
-		return;
+	return;
 	*/
 	Device->OMSetDepthStencilState(DepthState[depth], 0);
 	// TODO: ZBuf = zbuf;
@@ -118,10 +99,124 @@ EXPORT_CPP void _blend(S64 blend)
 	/*
 	// TODO:
 	if (Blend == blend2)
-		return;
+	return;
 	*/
 	Device->OMSetBlendState(BlendState[blend2], BlendFactor, 0xffffffff);
 	// TODO: Blend = blend2;
+}
+
+EXPORT_CPP void _clearColor(double r, double g, double b)
+{
+	CurWndBuf->ClearColor[0] = static_cast<FLOAT>(r);
+	CurWndBuf->ClearColor[1] = static_cast<FLOAT>(g);
+	CurWndBuf->ClearColor[2] = static_cast<FLOAT>(b);
+}
+
+EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, double r, double g, double b, double a)
+{
+	if (a <= 0.04)
+		return;
+	if ((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1) < 0.0)
+	{
+		double tmp;
+		tmp = x2;
+		x2 = x3;
+		x3 = tmp;
+		tmp = y2;
+		y2 = y3;
+		y3 = tmp;
+	}
+	{
+		float const_buf_vs[8] =
+		{
+			static_cast<float>(x1) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+			-(static_cast<float>(y1) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
+			static_cast<float>(x2) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+			-(static_cast<float>(y2) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
+			static_cast<float>(x3) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+			-(static_cast<float>(y3) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
+		};
+		float const_buf_ps[4] =
+		{
+			static_cast<float>(r),
+			static_cast<float>(g),
+			static_cast<float>(b),
+			static_cast<float>(a),
+		};
+		Draw::ConstBuf(TriVs, const_buf_vs);
+		Device->GSSetShader(NULL);
+		Draw::ConstBuf(TriPs, const_buf_ps);
+		Draw::VertexBuf(TriVertex);
+	}
+	Device->DrawIndexed(3, 0, 0);
+}
+
+EXPORT_CPP void _rect(double x, double y, double w, double h, double r, double g, double b, double a)
+{
+	if (a <= 0.04)
+		return;
+	if (w < 0.0)
+	{
+		x += w;
+		w = -w;
+	}
+	if (h < 0.0)
+	{
+		y += h;
+		h = -h;
+	}
+	{
+		float const_buf_vs[4] =
+		{
+			static_cast<float>(x) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
+			static_cast<float>(w) / static_cast<float>(CurWndBuf->Width) * 2.0f,
+			-(static_cast<float>(h) / static_cast<float>(CurWndBuf->Height) * 2.0f),
+		};
+		float const_buf_ps[4] =
+		{
+			static_cast<float>(r),
+			static_cast<float>(g),
+			static_cast<float>(b),
+			static_cast<float>(a),
+		};
+		Draw::ConstBuf(RectVs, const_buf_vs);
+		Device->GSSetShader(NULL);
+		Draw::ConstBuf(TriPs, const_buf_ps);
+		Draw::VertexBuf(RectVertex);
+	}
+	Device->DrawIndexed(6, 0, 0);
+}
+
+EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, double r, double g, double b, double a)
+{
+	if (a <= 0.04)
+		return;
+	if (radiusX < 0.0)
+		radiusX = -radiusX;
+	if (radiusY < 0.0)
+		radiusY = -radiusY;
+	{
+		float const_buf_vs[4] =
+		{
+			static_cast<float>(x) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
+			static_cast<float>(radiusX) / static_cast<float>(CurWndBuf->Width) * 2.0f,
+			-(static_cast<float>(radiusY) / static_cast<float>(CurWndBuf->Height) * 2.0f),
+		};
+		float const_buf_ps[4] =
+		{
+			static_cast<float>(r),
+			static_cast<float>(g),
+			static_cast<float>(b),
+			static_cast<float>(a),
+		};
+		Draw::ConstBuf(CircleVs, const_buf_vs);
+		Device->GSSetShader(NULL);
+		Draw::ConstBuf(CirclePs, const_buf_ps);
+		Draw::VertexBuf(CircleVertex);
+	}
+	Device->DrawIndexed(6, 0, 0);
 }
 
 /*
@@ -299,7 +394,7 @@ void Init()
 		D3D10_RASTERIZER_DESC desc;
 		memset(&desc, 0, sizeof(desc));
 		desc.FillMode = D3D10_FILL_SOLID;
-		desc.CullMode = D3D10_CULL_NONE; // TODO: D3D10_CULL_BACK;
+		desc.CullMode = D3D10_CULL_BACK;
 		desc.FrontCounterClockwise = FALSE;
 		desc.DepthBias = 0;
 		desc.DepthBiasClamp = 0.0f;
@@ -479,6 +574,89 @@ void Init()
 		}
 	}
 
+	// Initialize 'Rect'.
+	{
+		{
+			float vertices[] =
+			{
+				0.0, 0.0,
+				1.0, 0.0,
+				0.0, 1.0,
+				1.0, 1.0,
+			};
+
+			U16 idces[] =
+			{
+				0, 1, 2,
+				3, 2, 1,
+			};
+
+			RectVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+		}
+
+		{
+			ELayoutType layout_types[1] =
+			{
+				LayoutType_Float2,
+			};
+
+			const Char* layout_semantics[1] =
+			{
+				L"K_WEIGHT",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetRectVsBin(&size);
+				RectVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4, 1, layout_types, layout_semantics);
+			}
+		}
+	}
+
+	// Initialize 'Circle'.
+	{
+		{
+			float vertices[] =
+			{
+				-1.0f, -1.0f,
+				1.0f, -1.0f,
+				-1.0f, 1.0f,
+				1.0f, 1.0f,
+			};
+
+			U16 idces[] =
+			{
+				0, 1, 2,
+				3, 2, 1,
+			};
+
+			CircleVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+		}
+
+		{
+			ELayoutType layout_types[1] =
+			{
+				LayoutType_Float2,
+			};
+
+			const Char* layout_semantics[1] =
+			{
+				L"K_WEIGHT",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetCircleVsBin(&size);
+				CircleVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4, 1, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetCirclePsBin(&size);
+				CirclePs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
+			}
+		}
+	}
+
 	/*
 	// Initialize 'Obj'.
 	{
@@ -543,7 +721,6 @@ void Init()
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Device->RSSetState(RasterizerState);
 	Device->PSSetSamplers(0, 1, &Sampler);
-	_resetViewport();
 	_depth(False, False);
 	_blend(0);
 }
@@ -575,6 +752,16 @@ void Fin()
 		CMem::Free(ObjAnimVS);
 	}
 	*/
+	if (CirclePs != NULL)
+		FinShaderBuf(CirclePs);
+	if (CircleVs != NULL)
+		FinShaderBuf(CircleVs);
+	if (CircleVertex != NULL)
+		FinVertexBuf(CircleVertex);
+	if (RectVs != NULL)
+		FinShaderBuf(RectVs);
+	if (RectVertex != NULL)
+		FinVertexBuf(RectVertex);
 	if (TriPs != NULL)
 		FinShaderBuf(TriPs);
 	if (TriVs != NULL)
@@ -603,6 +790,9 @@ void* MakeWndBuf(int width, int height, HWND wnd)
 {
 	SWndBuf* wnd_buf = static_cast<SWndBuf*>(AllocMem(sizeof(SWndBuf)));
 	memset(wnd_buf, 0, sizeof(SWndBuf));
+	wnd_buf->ClearColor[4] = 1.0f;
+	wnd_buf->Width = width;
+	wnd_buf->Height = height;
 
 	// Create a swap chain.
 	{
@@ -689,6 +879,7 @@ void* MakeWndBuf(int width, int height, HWND wnd)
 
 	CurWndBuf = wnd_buf;
 	Device->OMSetRenderTargets(1, &CurWndBuf->RenderTargetView, CurWndBuf->DepthView); // TODO:
+	_resetViewport(); // TODO:
 	return wnd_buf;
 }
 
@@ -760,38 +951,40 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 			}
 			{
 				DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+				size_t size2;
 				switch (layout_types[i])
 				{
 					case LayoutType_Int1:
 						format = DXGI_FORMAT_R8_SINT;
-						offset += sizeof(int);
+						size2 = sizeof(int);
 						break;
 					case LayoutType_Int2:
 						format = DXGI_FORMAT_R8G8_SINT;
-						offset += sizeof(int) * 2;
+						size2 = sizeof(int) * 2;
 						break;
 					case LayoutType_Int4:
 						format = DXGI_FORMAT_R8G8B8A8_SINT;
-						offset += sizeof(int) * 4;
+						size2 = sizeof(int) * 4;
 						break;
 					case LayoutType_Float1:
 						format = DXGI_FORMAT_R32_FLOAT;
-						offset += sizeof(float);
+						size2 = sizeof(float);
 						break;
 					case LayoutType_Float2:
 						format = DXGI_FORMAT_R32G32_FLOAT;
-						offset += sizeof(float) * 2;
+						size2 = sizeof(float) * 2;
 						break;
 					case LayoutType_Float3:
 						format = DXGI_FORMAT_R32G32B32_FLOAT;
-						offset += sizeof(float) * 3;
+						size2 = sizeof(float) * 3;
 						break;
 					case LayoutType_Float4:
 						format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-						offset += sizeof(float) * 4;
+						size2 = sizeof(float) * 4;
 						break;
 					default:
 						ASSERT(False);
+						size2 = 0;
 						break;
 				}
 				descs[i].Format = format;
@@ -799,6 +992,7 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 				descs[i].AlignedByteOffset = static_cast<UINT>(offset);
 				descs[i].InputSlotClass = D3D10_INPUT_PER_VERTEX_DATA;
 				descs[i].InstanceDataStepRate = 0;
+				offset += size2;
 			}
 		}
 		if (FAILED(Device->CreateInputLayout(descs, static_cast<UINT>(layout_num), bin, size, &shader_buf->Layout)))

@@ -81,6 +81,8 @@ EXPORT_CPP Bool _act()
 
 	// TODO:
 
+	Sleep(1);
+
 	return True;
 }
 
