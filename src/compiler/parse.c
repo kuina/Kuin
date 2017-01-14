@@ -295,17 +295,17 @@ static Char ReadBuf(void)
 		{
 			wint_t c = fgetwc(FilePtr);
 			result = c == WEOF ? L'\0' : (Char)c;
-			if (c == L'\n')
+			if (result == L'\n')
 			{
 				Row++;
 				Col = 0;
 			}
-			else if (c == L'\0')
+			else if (result == L'\0')
 			{
 				if (!IsLast)
 				{
 					IsLast = True;
-					c = L'\n';
+					result = L'\n';
 					Row++;
 					Col = 0;
 				}
