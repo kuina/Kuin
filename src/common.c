@@ -59,6 +59,33 @@ void InitClass(SClass* class_, void(*ctor)(SClass* me_), void(*dtor)(SClass* me_
 	class_->FromBin = DefaultFromBin;
 }
 
+void* LoadFileAll(const Char* path, size_t* size)
+{
+	if (path[0] == L':')
+	{
+		path++;
+		// TODO:
+	}
+	else
+	{
+		FILE* file_ptr = _wfopen(path, L"rb");
+		if (file_ptr == NULL)
+			return NULL;
+		_fseeki64(file_ptr, 0, SEEK_END);
+		{
+			S64 size2 = _ftelli64(file_ptr);
+			*size = (size_t)size2;
+		}
+		_fseeki64(file_ptr, 0, SEEK_SET);
+		{
+			void* result = AllocMem(*size);
+			fread(result, 1, *size, file_ptr);
+			fclose(file_ptr);
+			return result;
+		}
+	}
+}
+
 static int DefaultCmp(const SClass* me_, const SClass* t)
 {
 	UNUSED(me_);

@@ -1,5 +1,7 @@
 func main()
-	do wnd@makeWnd("Test", 0, 1024, 768)
+	do wnd@makeWnd(0, 1024, 768)
 	while(wnd@act())
+		do wnd@tri(0.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 0.0, 0.0, 1.0)
+		do wnd@render()
 	end while
 end func

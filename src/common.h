@@ -79,6 +79,7 @@ void* AllocMem(size_t size);
 void FreeMem(void* ptr);
 void ThrowImpl(U32 code, const Char* msg);
 void InitClass(SClass* class_, void(*ctor)(SClass* me_), void(*dtor)(SClass* me_));
+void* LoadFileAll(const Char* path, size_t* size);
 
 #if defined(DBG)
 #define THROW(code, msg) ThrowImpl((code), (msg))

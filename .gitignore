@@ -14,4 +14,6 @@
 *.exp
 *.dll
 *.ilk
+*.vs
+*.ps
 /test/output/

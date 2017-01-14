@@ -12,6 +12,7 @@ static const Char* WndClassName = L"KuinWndClass";
 typedef struct SWnd
 {
 	SClass Class;
+	void* Render;
 	HWND Handle;
 	void* WndBuf;
 } Wnd;
@@ -53,14 +54,14 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 		RegisterClassEx(&wnd_class);
 	}
 
-	InitDraw();
+	Draw::Init();
 
 	// TODO:
 }
 
 EXPORT_CPP void _fin()
 {
-	FinDraw();
+	Draw::Fin();
 
 	// TODO:
 }
@@ -83,15 +84,14 @@ EXPORT_CPP Bool _act()
 	return True;
 }
 
-EXPORT_CPP SClass* _makeWnd(SClass* me_, const U8* title, S64 mode, S64 width, S64 height)
+EXPORT_CPP SClass* _makeWnd(SClass* me_, S64 style, S64 width, S64 height)
 {
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
-	const Char* title2 = title == NULL ? AppName : reinterpret_cast<const Char*>(title + 0x10);
-	me2->Handle = CreateWindowEx(0, WndClassName, title2, WS_OVERLAPPEDWINDOW ^ WS_MAXIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
+	me2->Handle = CreateWindowEx(0, WndClassName, AppName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
 	ASSERT(me2->Handle != NULL);
 	InitClass(me_, NULL, WndDtor);
 	ShowWindow(me2->Handle, SW_SHOWNORMAL);
-	me2->WndBuf = MakeWndBuf(static_cast<int>(width), static_cast<int>(height), me2->Handle);
+	me2->WndBuf = Draw::MakeWndBuf(static_cast<int>(width), static_cast<int>(height), me2->Handle);
 	return me_;
 }
 
@@ -113,5 +113,5 @@ static LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_par
 static void WndDtor(SClass* me_)
 {
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
-	FinWndBuf(me2->WndBuf);
+	Draw::FinWndBuf(me2->WndBuf);
 }

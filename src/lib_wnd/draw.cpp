@@ -16,12 +16,115 @@ struct SWndBuf
 	ID3D10DepthStencilView* DepthView;
 };
 
+struct SShaderBuf
+{
+	Draw::EShaderKind Kind;
+	void* Shader;
+	size_t ConstBufSize;
+	ID3D10Buffer* ConstBuf;
+	ID3D10InputLayout* Layout;
+};
+
+struct SVertexBuf
+{
+	ID3D10Buffer* Vertex;
+	size_t VertexLineSize;
+	ID3D10Buffer* Idx;
+};
+
+static const FLOAT ClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+const U8* GetTriVsBin(size_t* size);
+const U8* GetTriPsBin(size_t* size);
+
 static ID3D10Device* Device = NULL;
 static ID3D10RasterizerState* RasterizerState = NULL;
 static ID3D10DepthStencilState* DepthState[DepthNum] = { NULL };
 static ID3D10BlendState* BlendState[BlendNum] = { NULL };
 static ID3D10SamplerState* Sampler = NULL;
+static SWndBuf* CurWndBuf;
+static void* TriVertex = NULL;
+static void* TriVs = NULL;
+static void* TriPs = NULL;
 
+EXPORT_CPP void _render()
+{
+	CurWndBuf->SwapChain->Present(0, 0);
+	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, ClearColor);
+	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
+	Device->RSSetState(RasterizerState);
+}
+
+EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, double r, double g, double b, double a)
+{
+	if (a <= 0.04)
+		return;
+	{
+		float const_buf_vs[8] =
+		{
+			(float)x1,
+			(float)y1,
+			(float)x2,
+			(float)y2,
+			(float)x3,
+			(float)y3,
+		};
+		float const_buf_ps[4] =
+		{
+			(float)r,
+			(float)g,
+			(float)b,
+			(float)a,
+		};
+		Draw::ConstBuf(TriVs, const_buf_vs);
+		Device->GSSetShader(NULL);
+		Draw::ConstBuf(TriPs, const_buf_ps);
+		Draw::VertexBuf(TriVertex);
+	}
+	Device->DrawIndexed(3, 0, 0);
+}
+
+EXPORT_CPP void _resetViewport()
+{
+	D3D10_VIEWPORT viewport =
+	{
+		0,
+		0,
+		1024, // TODO:
+		768, // TODO:
+		0.0f,
+		1.0f,
+	};
+	Device->RSSetViewports(1, &viewport);
+}
+
+EXPORT_CPP void _depth(Bool test, Bool write)
+{
+	int depth = (static_cast<int>(test) << 1) | static_cast<int>(write);
+	/*
+	// TODO:
+	if (ZBuf == zbuf)
+		return;
+	*/
+	Device->OMSetDepthStencilState(DepthState[depth], 0);
+	// TODO: ZBuf = zbuf;
+}
+
+EXPORT_CPP void _blend(S64 blend)
+{
+	ASSERT(0 <= blend && blend < BlendNum);
+	int blend2 = static_cast<int>(blend);
+	/*
+	// TODO:
+	if (Blend == blend2)
+		return;
+	*/
+	Device->OMSetBlendState(BlendState[blend2], BlendFactor, 0xffffffff);
+	// TODO: Blend = blend2;
+}
+
+/*
 EXPORT_CPP void _flip()
 {
 	// TODO:
@@ -181,8 +284,12 @@ EXPORT_CPP void _dirLight(double atX, double atY, double atZ, double r, double g
 {
 	// TODO:
 }
+*/
 
-void InitDraw()
+namespace Draw
+{
+
+void Init()
 {
 	if (FAILED(D3D10CreateDevice(NULL, D3D10_DRIVER_TYPE_HARDWARE, NULL, 0, D3D10_SDK_VERSION, &Device)))
 		THROW(0x1000, L"");
@@ -192,7 +299,7 @@ void InitDraw()
 		D3D10_RASTERIZER_DESC desc;
 		memset(&desc, 0, sizeof(desc));
 		desc.FillMode = D3D10_FILL_SOLID;
-		desc.CullMode = D3D10_CULL_BACK;
+		desc.CullMode = D3D10_CULL_NONE; // TODO: D3D10_CULL_BACK;
 		desc.FrontCounterClockwise = FALSE;
 		desc.DepthBias = 0;
 		desc.DepthBiasClamp = 0.0f;
@@ -330,57 +437,49 @@ void InitDraw()
 			THROW(0x1000, L"");
 	}
 
-	/*
-	// TODO:
-	// Set the camera and the projection.
-	ObjAnimVSConst.World.Identity();
-	ObjAnimVSConst.NWorld.Identity();
-	SetCamera(0.0, 0.0, -10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-	SetProj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.01, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
-	ObjAnimVSConst.DirPos[0] = -1.0f;
-	ObjAnimVSConst.DirPos[1] = 1.0f;
-	ObjAnimVSConst.DirPos[2] = -1.0f;
-	ObjAnimPSConst.DirCol[0] = 1.0f;
-	ObjAnimPSConst.DirCol[1] = 1.0f;
-	ObjAnimPSConst.DirCol[2] = 1.0f;
-	ObjAnimPSConst.DirCol[3] = 0.0f;
-	ObjAnimPSConst.Mode[0] = -1;
-
-	// Initialize 'Rect'.
+	// Initialize 'Tri'.
 	{
-
-		RectVertexIdx = static_cast<CVertexIdx*>(CMem::Alloc(sizeof(CVertexIdx)));
 		{
-			float vertex[] =
+			float vertices[] =
 			{
-				0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-				0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-				1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-				1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+				1.0f, 0.0f, 0.0f,
+				0.0f, 1.0f, 0.0f,
+				0.0f, 0.0f, 1.0f,
 			};
 
-			u16 idx[] =
+			U16 idces[] =
 			{
 				0, 1, 2,
-				2, 3, 0,
 			};
 
-			RectVertexIdx->CVertexIdx::CVertexIdx(sizeof(vertex), vertex, sizeof(float) * 5, sizeof(idx), idx);
+			TriVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 3, sizeof(idces), idces);
 		}
 
-		RectVS = static_cast<CShader*>(CMem::Alloc(sizeof(CShader)));
 		{
-			CShader::SLayout layouts[2] =
+			ELayoutType layout_types[1] =
 			{
-				{ L"POSITION", CShader::SLayout::Type_Float3 },
-				{ L"TEXCOORD", CShader::SLayout::Type_Float2 },
+				LayoutType_Float3,
 			};
-			RectVS->CShader::CShader(CShader::Kind_VS, L"kuin/rect.vs", sizeof(float) * 4 * 2, sizeof(layouts) / sizeof(layouts[0]), layouts);
+
+			const Char* layout_semantics[1] =
+			{
+				L"K_WEIGHT",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetTriVsBin(&size);
+				TriVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 8, 1, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetTriPsBin(&size);
+				TriPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
+			}
 		}
-		RectPS = static_cast<CShader*>(CMem::Alloc(sizeof(CShader)));
-		RectPS->CShader::CShader(CShader::Kind_PS, L"kuin/rect.ps", sizeof(float) * 4);
 	}
 
+	/*
 	// Initialize 'Obj'.
 	{
 		ObjAnimVS = static_cast<CShader*>(CMem::Alloc(sizeof(CShader)));
@@ -420,27 +519,39 @@ void InitDraw()
 		ObjDbgPS->CShader::CShader(CShader::Kind_PS, L"dbg/obj_dbg.ps", sizeof(SObjAnimPSConst));
 	}
 #endif
+	*/
 
-	ResetViewport();
+	/*
+	// TODO:
+	// Set the camera and the projection.
+	ObjAnimVSConst.World.Identity();
+	ObjAnimVSConst.NWorld.Identity();
+	SetCamera(0.0, 0.0, -10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	SetProj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.01, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
+	ObjAnimVSConst.DirPos[0] = -1.0f;
+	ObjAnimVSConst.DirPos[1] = 1.0f;
+	ObjAnimVSConst.DirPos[2] = -1.0f;
+	ObjAnimPSConst.DirCol[0] = 1.0f;
+	ObjAnimPSConst.DirCol[1] = 1.0f;
+	ObjAnimPSConst.DirCol[2] = 1.0f;
+	ObjAnimPSConst.DirCol[3] = 0.0f;
+	ObjAnimPSConst.Mode[0] = -1;
+
 	DeviceContext->ClearRenderTargetView(RenderTargetView, ClearColor);
 	DeviceContext->ClearDepthStencilView(DepthStencilView, D3D10_CLEAR_DEPTH, 1.0f, 0);
-	DeviceContext->RSSetState(RasterizerState);
-	DeviceContext->PSSetSamplers(0, 1, &Sampler);
-	DeviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	SetZBuf(false, false);
-	SetBlend(Blend_None);
 	*/
+	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	Device->RSSetState(RasterizerState);
+	Device->PSSetSamplers(0, 1, &Sampler);
+	_resetViewport();
+	_depth(False, False);
+	_blend(0);
 }
 
-void FinDraw()
+void Fin()
 {
 	/*
 	// TODO:
-	if (RectVertexIdx != NULL)
-	{
-		RectVertexIdx->~CVertexIdx();
-		CMem::Free(RectVertexIdx);
-	}
 #if defined(DBG)
 	if (ObjDbgPS != NULL)
 	{
@@ -463,48 +574,29 @@ void FinDraw()
 		ObjAnimVS->~CShader();
 		CMem::Free(ObjAnimVS);
 	}
-	if (RectPS != NULL)
-	{
-		RectPS->~CShader();
-		CMem::Free(RectPS);
-	}
-	if (RectVS != NULL)
-	{
-		RectVS->~CShader();
-		CMem::Free(RectVS);
-	}
 	*/
+	if (TriPs != NULL)
+		FinShaderBuf(TriPs);
+	if (TriVs != NULL)
+		FinShaderBuf(TriVs);
+	if (TriVertex != NULL)
+		FinVertexBuf(TriVertex);
 	if (Sampler != NULL)
-	{
 		Sampler->Release();
-		Sampler = NULL;
-	}
 	for (int i = 0; i < BlendNum; i++)
 	{
 		if (BlendState[i] != NULL)
-		{
 			BlendState[i]->Release();
-			BlendState[i] = NULL;
-		}
 	}
 	for (int i = 0; i < DepthNum; i++)
 	{
 		if (DepthState[i] != NULL)
-		{
 			DepthState[i]->Release();
-			DepthState[i] = NULL;
-		}
 	}
 	if (RasterizerState != NULL)
-	{
 		RasterizerState->Release();
-		RasterizerState = NULL;
-	}
 	if (Device != NULL)
-	{
 		Device->Release();
-		Device = NULL;
-	}
 }
 
 void* MakeWndBuf(int width, int height, HWND wnd)
@@ -594,6 +686,9 @@ void* MakeWndBuf(int width, int height, HWND wnd)
 		if (!success)
 			THROW(0x1000, L"");
 	}
+
+	CurWndBuf = wnd_buf;
+	Device->OMSetRenderTargets(1, &CurWndBuf->RenderTargetView, CurWndBuf->DepthView); // TODO:
 	return wnd_buf;
 }
 
@@ -608,3 +703,233 @@ void FinWndBuf(void* wnd_buf)
 		wnd_buf2->SwapChain->Release();
 	FreeMem(wnd_buf);
 }
+
+void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const_buf_size, int layout_num, const ELayoutType* layout_types, const Char** layout_semantics)
+{
+	SShaderBuf* shader_buf = static_cast<SShaderBuf*>(AllocMem(sizeof(SShaderBuf)));
+	ASSERT(const_buf_size % 16 == 0);
+	switch (kind)
+	{
+		case ShaderKind_Vs:
+			if (FAILED(Device->CreateVertexShader(bin, size, reinterpret_cast<ID3D10VertexShader**>(&shader_buf->Shader))))
+				ASSERT(False);
+			break;
+		case ShaderKind_Gs:
+			if (FAILED(Device->CreateGeometryShader(bin, size, reinterpret_cast<ID3D10GeometryShader**>(&shader_buf->Shader))))
+				ASSERT(False);
+			break;
+		case ShaderKind_Ps:
+			if (FAILED(Device->CreatePixelShader(bin, size, reinterpret_cast<ID3D10PixelShader**>(&shader_buf->Shader))))
+				ASSERT(False);
+			break;
+		default:
+			ASSERT(False);
+			break;
+	}
+	shader_buf->Kind = kind;
+	shader_buf->ConstBufSize = const_buf_size;
+
+	{
+		D3D10_BUFFER_DESC desc;
+		desc.ByteWidth = static_cast<UINT>(const_buf_size);
+		desc.Usage = D3D10_USAGE_DYNAMIC;
+		desc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
+		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+		desc.MiscFlags = 0;
+		if (FAILED(Device->CreateBuffer(&desc, NULL, &shader_buf->ConstBuf)))
+			ASSERT(False);
+	}
+
+	if (layout_num == 0)
+		shader_buf->Layout = NULL;
+	else
+	{
+		D3D10_INPUT_ELEMENT_DESC* descs = static_cast<D3D10_INPUT_ELEMENT_DESC*>(AllocMem(sizeof(D3D10_INPUT_ELEMENT_DESC) * static_cast<size_t>(layout_num)));
+		char(*semantics)[33] = static_cast<char(*)[33]>(AllocMem(sizeof(char[33]) * static_cast<size_t>(layout_num)));
+		size_t offset = 0;
+		for (int i = 0; i < layout_num; i++)
+		{
+			{
+				size_t len = wcslen(layout_semantics[i]);
+				ASSERT(len <= 32);
+				for (int j = 0; j < len; j++)
+					semantics[i][j] = static_cast<char>(layout_semantics[i][j]);
+				semantics[i][len] = '\0';
+				descs[i].SemanticName = semantics[i];
+				descs[i].SemanticIndex = 0;
+			}
+			{
+				DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+				switch (layout_types[i])
+				{
+					case LayoutType_Int1:
+						format = DXGI_FORMAT_R8_SINT;
+						offset += sizeof(int);
+						break;
+					case LayoutType_Int2:
+						format = DXGI_FORMAT_R8G8_SINT;
+						offset += sizeof(int) * 2;
+						break;
+					case LayoutType_Int4:
+						format = DXGI_FORMAT_R8G8B8A8_SINT;
+						offset += sizeof(int) * 4;
+						break;
+					case LayoutType_Float1:
+						format = DXGI_FORMAT_R32_FLOAT;
+						offset += sizeof(float);
+						break;
+					case LayoutType_Float2:
+						format = DXGI_FORMAT_R32G32_FLOAT;
+						offset += sizeof(float) * 2;
+						break;
+					case LayoutType_Float3:
+						format = DXGI_FORMAT_R32G32B32_FLOAT;
+						offset += sizeof(float) * 3;
+						break;
+					case LayoutType_Float4:
+						format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+						offset += sizeof(float) * 4;
+						break;
+					default:
+						ASSERT(False);
+						break;
+				}
+				descs[i].Format = format;
+				descs[i].InputSlot = 0;
+				descs[i].AlignedByteOffset = static_cast<UINT>(offset);
+				descs[i].InputSlotClass = D3D10_INPUT_PER_VERTEX_DATA;
+				descs[i].InstanceDataStepRate = 0;
+			}
+		}
+		if (FAILED(Device->CreateInputLayout(descs, static_cast<UINT>(layout_num), bin, size, &shader_buf->Layout)))
+			ASSERT(False);
+		FreeMem(semantics);
+		FreeMem(descs);
+	}
+
+	return shader_buf;
+}
+
+void FinShaderBuf(void* shader_buf)
+{
+	SShaderBuf* shader_buf2 = static_cast<SShaderBuf*>(shader_buf);
+	if (shader_buf2->Layout != NULL)
+		shader_buf2->Layout->Release();
+	if (shader_buf2->ConstBuf != NULL)
+		shader_buf2->ConstBuf->Release();
+	if (shader_buf2->Shader != NULL)
+	{
+		switch (shader_buf2->Kind)
+		{
+			case ShaderKind_Vs:
+				static_cast<ID3D10VertexShader*>(shader_buf2->Shader)->Release();
+				break;
+			case ShaderKind_Gs:
+				static_cast<ID3D10GeometryShader*>(shader_buf2->Shader)->Release();
+				break;
+			case ShaderKind_Ps:
+				static_cast<ID3D10PixelShader*>(shader_buf2->Shader)->Release();
+				break;
+			default:
+				ASSERT(False);
+				break;
+		}
+	}
+	FreeMem(shader_buf);
+}
+
+void ConstBuf(void* shader_buf, const void* data)
+{
+	SShaderBuf* shader_buf2 = static_cast<SShaderBuf*>(shader_buf);
+	void* buf;
+	if (shader_buf2->ConstBuf->Map(D3D10_MAP_WRITE_DISCARD, 0, &buf))
+		ASSERT(False);
+	memcpy(buf, data, shader_buf2->ConstBufSize);
+	shader_buf2->ConstBuf->Unmap();
+
+	switch (shader_buf2->Kind)
+	{
+		case ShaderKind_Vs:
+			Device->VSSetConstantBuffers(0, 1, &shader_buf2->ConstBuf);
+			Device->VSSetShader(static_cast<ID3D10VertexShader*>(shader_buf2->Shader));
+			break;
+		case ShaderKind_Gs:
+			Device->GSSetConstantBuffers(0, 1, &shader_buf2->ConstBuf);
+			Device->GSSetShader(static_cast<ID3D10GeometryShader*>(shader_buf2->Shader));
+			break;
+		case ShaderKind_Ps:
+			Device->PSSetConstantBuffers(0, 1, &shader_buf2->ConstBuf);
+			Device->PSSetShader(static_cast<ID3D10PixelShader*>(shader_buf2->Shader));
+			break;
+		default:
+			ASSERT(False);
+			break;
+	}
+
+	if (shader_buf2->Layout != NULL)
+		Device->IASetInputLayout(shader_buf2->Layout);
+}
+
+void VertexBuf(void* vertex_buf)
+{
+	SVertexBuf* vertex_buf2 = static_cast<SVertexBuf*>(vertex_buf);
+	const UINT stride = static_cast<UINT>(vertex_buf2->VertexLineSize);
+	const UINT offset = 0;
+	Device->IASetVertexBuffers(0, 1, &vertex_buf2->Vertex, &stride, &offset);
+	Device->IASetIndexBuffer(vertex_buf2->Idx, DXGI_FORMAT_R16_UINT, 0);
+}
+
+void* MakeVertexBuf(size_t vertex_size, const void* vertices, size_t vertex_line_size, size_t idx_size, const U16* idces)
+{
+	SVertexBuf* vertex_buf = static_cast<SVertexBuf*>(AllocMem(sizeof(SVertexBuf)));
+
+	{
+		D3D10_BUFFER_DESC desc;
+		desc.ByteWidth = static_cast<UINT>(vertex_size);
+		desc.Usage = D3D10_USAGE_IMMUTABLE;
+		desc.BindFlags = D3D10_BIND_VERTEX_BUFFER;
+		desc.CPUAccessFlags = 0;
+		desc.MiscFlags = 0;
+
+		D3D10_SUBRESOURCE_DATA sub;
+		sub.pSysMem = vertices;
+		sub.SysMemPitch = 0;
+		sub.SysMemSlicePitch = 0;
+
+		if (FAILED(Device->CreateBuffer(&desc, &sub, &vertex_buf->Vertex)))
+			ASSERT(False);
+	}
+
+	vertex_buf->VertexLineSize = vertex_line_size;
+
+	{
+		D3D10_BUFFER_DESC desc;
+		desc.ByteWidth = static_cast<UINT>(idx_size);
+		desc.Usage = D3D10_USAGE_IMMUTABLE;
+		desc.BindFlags = D3D10_BIND_INDEX_BUFFER;
+		desc.CPUAccessFlags = 0;
+		desc.MiscFlags = 0;
+
+		D3D10_SUBRESOURCE_DATA sub;
+		sub.pSysMem = idces;
+		sub.SysMemPitch = 0;
+		sub.SysMemSlicePitch = 0;
+
+		if (FAILED(Device->CreateBuffer(&desc, &sub, &vertex_buf->Idx)))
+			ASSERT(False);
+	}
+
+	return vertex_buf;
+}
+
+void FinVertexBuf(void* vertex_buf)
+{
+	SVertexBuf* vertex_buf2 = static_cast<SVertexBuf*>(vertex_buf);
+	if (vertex_buf2->Idx != NULL)
+		vertex_buf2->Idx->Release();
+	if (vertex_buf2->Vertex != NULL)
+		vertex_buf2->Vertex->Release();
+	FreeMem(vertex_buf);
+}
+
+} // namespace Draw

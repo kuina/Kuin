@@ -136,6 +136,8 @@
     <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="snd.cpp" />
+    <ClCompile Include="tri_ps.c" />
+    <ClCompile Include="tri_vs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common.h" />
