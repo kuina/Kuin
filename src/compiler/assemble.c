@@ -3655,7 +3655,7 @@ static void AssembleExprDot(SAstExprDot* ast, int reg_i, int reg_f)
 		AssembleExpr(ast->Var, reg_i, reg_f);
 		ToValue(ast->Var, reg_i, reg_f);
 		if (ast->ClassItem->Def->TypeId == AstTypeId_Var)
-			ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValImmU(8, 0x10 + ast->ClassItem->Addr)));
+			ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValImmS(8, 0x10 + ast->ClassItem->Addr)));
 		else
 		{
 			ASSERT(ast->ClassItem->Def->TypeId == AstTypeId_Func);
