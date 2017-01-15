@@ -1,3 +1,16 @@
++class Tex()
+	+func [d0001.knd, _texDraw] draw(dstX: float, dstY: float, srcX: float, srcY: float, srcW: float, srcH: float)
+	end func
+
+	+func [d0001.knd, _texDrawScale] drawScale(dstX: float, dstY: float, dstW: float, dstH: float, srcX: float, srcY: float, srcW: float, srcH: float)
+	end func
+
+	var raw: int
+	var aligned: int
+	var tex: int
+	var view: int
+end class
+
 +func [d0001.knd, _render] render()
 end func
 
@@ -11,4 +24,7 @@ end func
 end func
 
 +func [d0001.knd, _circle] circle(x: float, y: float, radiusX: float, radiusY: float, r: float, g: float, b: float, a: float)
+end func
+
++func [d0001.knd, _makeTex, _make_instance] makeTex(me2: @Tex, path: []char): @Tex
 end func

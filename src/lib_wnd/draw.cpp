@@ -6,8 +6,13 @@
 
 #include <d3d10.h>
 
+#include "png_decoder.h"
+#include "jpg_decoder.h"
+#include "bc_decoder.h"
+
 const int DepthNum = 4;
 const int BlendNum = 5;
+const int SamplerNum = 2;
 
 struct SWndBuf
 {
@@ -35,6 +40,19 @@ struct SVertexBuf
 	ID3D10Buffer* Idx;
 };
 
+struct STex
+{
+	SClass Class;
+	void* draw;
+	void* drawScale;
+	int RawWidth;
+	int RawHeight;
+	int AlignedWidth;
+	int AlignedHeight;
+	ID3D10Texture2D* Tex;
+	ID3D10ShaderResourceView* View;
+};
+
 static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 const U8* GetTriVsBin(size_t* size);
@@ -42,12 +60,14 @@ const U8* GetTriPsBin(size_t* size);
 const U8* GetRectVsBin(size_t* size);
 const U8* GetCircleVsBin(size_t* size);
 const U8* GetCirclePsBin(size_t* size);
+const U8* GetTexVsBin(size_t* size);
+const U8* GetTexPsBin(size_t* size);
 
 static ID3D10Device* Device = NULL;
 static ID3D10RasterizerState* RasterizerState = NULL;
 static ID3D10DepthStencilState* DepthState[DepthNum] = { NULL };
 static ID3D10BlendState* BlendState[BlendNum] = { NULL };
-static ID3D10SamplerState* Sampler = NULL;
+static ID3D10SamplerState* Sampler[SamplerNum] = { NULL };
 static SWndBuf* CurWndBuf;
 static void* TriVertex = NULL;
 static void* TriVs = NULL;
@@ -57,6 +77,10 @@ static void* RectVs = NULL;
 static void* CircleVertex = NULL;
 static void* CircleVs = NULL;
 static void* CirclePs = NULL;
+static void* TexVs = NULL;
+static void* TexPs = NULL;
+
+static void TexDtor(SClass* me_);
 
 EXPORT_CPP void _render()
 {
@@ -103,6 +127,18 @@ EXPORT_CPP void _blend(S64 blend)
 	*/
 	Device->OMSetBlendState(BlendState[blend2], BlendFactor, 0xffffffff);
 	// TODO: Blend = blend2;
+}
+
+EXPORT_CPP void _sampler(S64 sampler)
+{
+	ASSERT(0 <= sampler && sampler < SamplerNum);
+	/*
+	// TODO:
+	if (Sampler == sampler2)
+	return;
+	*/
+	Device->PSSetSamplers(0, 1, &Sampler[sampler]);
+	// TODO: Sampler = sampler2;
 }
 
 EXPORT_CPP void _clearColor(double r, double g, double b)
@@ -219,167 +255,150 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, doub
 	Device->DrawIndexed(6, 0, 0);
 }
 
-/*
-EXPORT_CPP void _flip()
-{
-	// TODO:
-}
-
-EXPORT_CPP void _clear()
-{
-	// TODO:
-}
-
-EXPORT_CPP void _viewport(double left, double top, double width, double height)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _resetViewport()
-{
-	// TODO:
-}
-
-EXPORT_CPP void _zBuf(S64 zBuf)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _blend(S64 blend)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _rect(double left, double top, double width, double height, double r, double g, double b, double a)
-{
-	// TODO:
-}
-
 EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 {
-	// TODO:
-	return NULL;
+	S64 path_len = *reinterpret_cast<const S64*>(path + 0x08);
+	const Char* path2 = reinterpret_cast<const Char*>(path + 0x10);
+	STex* me2 = reinterpret_cast<STex*>(me_);
+	void* bin = NULL;
+	void* img = NULL;
+	Bool img_ref = False; // Set to true when 'img' should not be released.
+	DXGI_FORMAT format;
+	int width;
+	int height;
+	InitClass(&me2->Class, NULL, TexDtor);
+	{
+		size_t size;
+		bin = LoadFileAll(path2, &size, True);
+		ASSERT(path_len >= 4);
+		if (StrCmpIgnoreCase(path2 + path_len - 4, L".png"))
+		{
+			img = DecodePng(size, bin, &width, &height);
+			format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		}
+		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".jpg"))
+		{
+			img = DecodeJpg(size, bin, &width, &height);
+			format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		}
+		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".dds"))
+		{
+			img = DecodeBc(size, bin, &width, &height);
+			img_ref = True;
+			format = DXGI_FORMAT_BC3_UNORM_SRGB;
+		}
+		else
+		{
+			ASSERT(False);
+			format = DXGI_FORMAT_UNKNOWN;
+			width = 0;
+			height = 0;
+		}
+	}
+	me2->RawWidth = width;
+	me2->RawHeight = height;
+	me2->AlignedWidth = 1;
+	while (me2->AlignedWidth < me2->RawWidth)
+		me2->AlignedWidth *= 2;
+	me2->AlignedHeight = 1;
+	while (me2->AlignedHeight < me2->RawHeight)
+		me2->AlignedHeight *= 2;
+	{
+		Bool success = False;
+		for (; ; )
+		{
+			{
+				D3D10_TEXTURE2D_DESC desc;
+				D3D10_SUBRESOURCE_DATA sub;
+				desc.Width = static_cast<UINT>(me2->AlignedWidth);
+				desc.Height = static_cast<UINT>(me2->AlignedHeight);
+				desc.MipLevels = 1;
+				desc.ArraySize = 1;
+				desc.Format = format;
+				desc.SampleDesc.Count = 1;
+				desc.SampleDesc.Quality = 0;
+				desc.Usage = D3D10_USAGE_IMMUTABLE;
+				desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+				desc.CPUAccessFlags = 0;
+				desc.MiscFlags = 0;
+				sub.pSysMem = img;
+				sub.SysMemPitch = static_cast<UINT>(me2->AlignedWidth * 4);
+				sub.SysMemSlicePitch = 0;
+				if (FAILED(Device->CreateTexture2D(&desc, &sub, &me2->Tex)))
+					break;
+			}
+			{
+				D3D10_SHADER_RESOURCE_VIEW_DESC desc;
+				memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+				desc.Format = format;
+				desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+				desc.Texture2D.MostDetailedMip = 0;
+				desc.Texture2D.MipLevels = 1;
+				if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
+					break;
+			}
+			success = True;
+			break;
+		}
+		if (img != NULL && !img_ref)
+			FreeMem(img);
+		if (bin != NULL)
+			FreeMem(bin);
+		if (!success)
+			THROW(0x1000, L"");
+	}
+	return me_;
 }
 
-EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double dstW, double dstH, double srcX, double srcY, double srcW, double srcH)
+EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH)
 {
-	// TODO:
+	_texDrawScale(me_, dstX, dstY, srcW, srcH, srcX, srcY, srcW, srcH);
 }
 
-EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, double dstH, double srcX, double srcY, double srcW, double srcH, double centerX, double centerY, double angle)
+EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW, double dstH, double srcX, double srcY, double srcW, double srcH)
 {
-	// TODO:
+	STex* me2 = reinterpret_cast<STex*>(me_);
+	if (dstW < 0.0)
+	{
+		dstX += dstW;
+		dstW = -dstW;
+		srcX += srcW;
+		srcW = -srcW;
+	}
+	if (dstH < 0.0)
+	{
+		dstY += dstH;
+		dstH = -dstH;
+		srcY += srcH;
+		srcH = -srcH;
+	}
+	{
+		float const_buf_vs[8] =
+		{
+			static_cast<float>(dstX) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
+			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->Width) * 2.0f,
+			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->Height) * 2.0f),
+			static_cast<float>(srcX) / static_cast<float>(me2->AlignedWidth),
+			-(static_cast<float>(srcY) / static_cast<float>(me2->AlignedHeight)),
+			static_cast<float>(srcW) / static_cast<float>(me2->AlignedWidth),
+			-(static_cast<float>(srcH) / static_cast<float>(me2->AlignedHeight)),
+		};
+		float const_buf_ps[4] =
+		{
+			static_cast<float>(1.0),
+			static_cast<float>(1.0),
+			static_cast<float>(1.0),
+			static_cast<float>(1.0),
+		};
+		Draw::ConstBuf(TexVs, const_buf_vs);
+		Device->GSSetShader(NULL);
+		Draw::ConstBuf(TexPs, const_buf_ps);
+		Draw::VertexBuf(RectVertex);
+		Device->PSSetShaderResources(0, 1, &me2->View);
+	}
+	Device->DrawIndexed(6, 0, 0);
 }
-
-EXPORT_CPP double _texWidth(SClass* me_)
-{
-	// TODO:
-	return 0.0;
-}
-
-EXPORT_CPP double _texHeight(SClass* me_)
-{
-	// TODO:
-	return 0.0;
-}
-
-EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* path)
-{
-	// TODO:
-	return NULL;
-}
-
-EXPORT_CPP void _fontDraw(SClass* me_, const U8* str, double x, double y, double r, double g, double b, double a)
-{
-	// TODO:
-}
-
-EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
-{
-	// TODO:
-	return NULL;
-}
-
-EXPORT_CPP void _objDraw(SClass* me_, SClass* tex, SClass* normTex, S64 group, double anim)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objReset(SClass* me_)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objScale(SClass* me_, double x, double y, double z)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objRotX(SClass* me_, double angle)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objRotY(SClass* me_, double angle)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objRotZ(SClass* me_, double angle)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objTrans(SClass* me_, double x, double y, double z)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objSrt(SClass* me_, double scaleX, double scaleY, double scaleZ, double rotX, double rotY, double rotZ, double transX, double transY, double transZ)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, double atY, double atZ, double upX, double upY, double upZ)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objLookFix(SClass* me_, double x, double y, double z, double atX, double atY, double atZ, double upX, double upY, double upZ)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objLookCamera(SClass* me_, double x, double y, double z, double upX, double upY, double upZ)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _objLookCameraFix(SClass* me_, double x, double y, double z, double upX, double upY, double upZ)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, double atY, double atZ, double upX, double upY, double upZ)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _proj(double fovy, double minZ, double maxZ)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _ambLight(double topR, double topG, double topB, double bottomR, double bottomG, double bottomB)
-{
-	// TODO:
-}
-
-EXPORT_CPP void _dirLight(double atX, double atY, double atZ, double r, double g, double b)
-{
-	// TODO:
-}
-*/
 
 namespace Draw
 {
@@ -512,15 +531,24 @@ void Init()
 	}
 
 	// Create a sampler.
+	for (int i = 0; i < SamplerNum; i++)
 	{
 		D3D10_SAMPLER_DESC desc;
 		memset(&desc, 0, sizeof(desc));
-		desc.Filter = D3D10_FILTER_ANISOTROPIC;
+		switch (i)
+		{
+			case 0:
+				desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
+				break;
+			case 1:
+				desc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
+				break;
+		}
 		desc.AddressU = D3D10_TEXTURE_ADDRESS_MIRROR;
 		desc.AddressV = D3D10_TEXTURE_ADDRESS_MIRROR;
 		desc.AddressW = D3D10_TEXTURE_ADDRESS_MIRROR;
 		desc.MipLODBias = 0.0f;
-		desc.MaxAnisotropy = 2;
+		desc.MaxAnisotropy = 0;
 		desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
 		desc.BorderColor[0] = 0.0f;
 		desc.BorderColor[1] = 0.0f;
@@ -528,7 +556,7 @@ void Init()
 		desc.BorderColor[3] = 0.0f;
 		desc.MinLOD = 0.0f;
 		desc.MaxLOD = D3D10_FLOAT32_MAX;
-		if (FAILED(Device->CreateSamplerState(&desc, &Sampler)))
+		if (FAILED(Device->CreateSamplerState(&desc, &Sampler[i])))
 			THROW(0x1000, L"");
 	}
 
@@ -657,6 +685,32 @@ void Init()
 		}
 	}
 
+	// Initialize 'Tex'.
+	{
+		{
+			ELayoutType layout_types[1] =
+			{
+				LayoutType_Float2,
+			};
+
+			const Char* layout_semantics[1] =
+			{
+				L"K_WEIGHT",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetTexVsBin(&size);
+				TexVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 8, 1, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetTexPsBin(&size);
+				TexPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
+			}
+		}
+	}
+
 	/*
 	// Initialize 'Obj'.
 	{
@@ -720,9 +774,9 @@ void Init()
 	*/
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Device->RSSetState(RasterizerState);
-	Device->PSSetSamplers(0, 1, &Sampler);
 	_depth(False, False);
-	_blend(0);
+	_blend(1);
+	_sampler(1);
 }
 
 void Fin()
@@ -752,6 +806,10 @@ void Fin()
 		CMem::Free(ObjAnimVS);
 	}
 	*/
+	if (TexPs != NULL)
+		FinShaderBuf(TexPs);
+	if (TexVs != NULL)
+		FinShaderBuf(TexVs);
 	if (CirclePs != NULL)
 		FinShaderBuf(CirclePs);
 	if (CircleVs != NULL)
@@ -768,8 +826,11 @@ void Fin()
 		FinShaderBuf(TriVs);
 	if (TriVertex != NULL)
 		FinVertexBuf(TriVertex);
-	if (Sampler != NULL)
-		Sampler->Release();
+	for (int i = 0; i < SamplerNum; i++)
+	{
+		if (Sampler[i] != NULL)
+			Sampler[i]->Release();
+	}
 	for (int i = 0; i < BlendNum; i++)
 	{
 		if (BlendState[i] != NULL)
@@ -1127,3 +1188,12 @@ void FinVertexBuf(void* vertex_buf)
 }
 
 } // namespace Draw
+
+static void TexDtor(SClass* me_)
+{
+	STex* me2 = reinterpret_cast<STex*>(me_);
+	if (me2->View != NULL)
+		me2->View->Release();
+	if (me2->Tex != NULL)
+		me2->Tex->Release();
+}

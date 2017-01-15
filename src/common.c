@@ -59,7 +59,7 @@ void InitClass(SClass* class_, void(*ctor)(SClass* me_), void(*dtor)(SClass* me_
 	class_->FromBin = DefaultFromBin;
 }
 
-void* LoadFileAll(const Char* path, size_t* size)
+void* LoadFileAll(const Char* path, size_t* size, Bool occurExcpt)
 {
 	if (path[0] == L':')
 	{
@@ -70,7 +70,11 @@ void* LoadFileAll(const Char* path, size_t* size)
 	{
 		FILE* file_ptr = _wfopen(path, L"rb");
 		if (file_ptr == NULL)
+		{
+			if (occurExcpt)
+				THROW(0x1000, L"");
 			return NULL;
+		}
 		_fseeki64(file_ptr, 0, SEEK_END);
 		{
 			S64 size2 = _ftelli64(file_ptr);
@@ -84,6 +88,45 @@ void* LoadFileAll(const Char* path, size_t* size)
 			return result;
 		}
 	}
+}
+
+Bool StrCmpIgnoreCase(const Char* a, const Char* b)
+{
+	while (*a != L'\0')
+	{
+		Char a2 = L'A' <= *a && *a <= L'Z' ? (*a - L'A' + L'a') : *a;
+		Char b2 = L'A' <= *b && *b <= L'Z' ? (*b - L'A' + L'a') : *b;
+		if (a2 != b2)
+			return False;
+		a++;
+		b++;
+	}
+	return *b == L'\0';
+}
+
+U8 SwapEndianU8(U8 n)
+{
+	return n;
+}
+
+U16 SwapEndianU16(U16 n)
+{
+	return ((n & 0x00ff) << 8) | ((n & 0xFF00) >> 8);
+}
+
+U32 SwapEndianU32(U32 n)
+{
+	n = ((n & 0x00ff00ff) << 8) | ((n & 0xff00ff00) >> 8);
+	n = ((n & 0x0000ffff) << 16) | ((n & 0xffff0000) >> 16);
+	return n;
+}
+
+U64 SwapEndianU64(U64 n)
+{
+	n = ((n & 0x00ff00ff00ff00ff) << 8) | ((n & 0xff00ff00ff00ff00) >> 8);
+	n = ((n & 0x0000ffff0000ffff) << 16) | ((n & 0xffff0000ffff0000) >> 16);
+	n = ((n & 0x00000000ffffffff) << 32) | ((n & 0xffffffff00000000) >> 32);
+	return n;
 }
 
 static int DefaultCmp(const SClass* me_, const SClass* t)

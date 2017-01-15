@@ -79,7 +79,12 @@ void* AllocMem(size_t size);
 void FreeMem(void* ptr);
 void ThrowImpl(U32 code, const Char* msg);
 void InitClass(SClass* class_, void(*ctor)(SClass* me_), void(*dtor)(SClass* me_));
-void* LoadFileAll(const Char* path, size_t* size);
+void* LoadFileAll(const Char* path, size_t* size, Bool occurExcpt);
+Bool StrCmpIgnoreCase(const Char* a, const Char* b);
+U8 SwapEndianU8(U8 n);
+U16 SwapEndianU16(U16 n);
+U32 SwapEndianU32(U32 n);
+U64 SwapEndianU64(U64 n);
 
 #if defined(DBG)
 #define THROW(code, msg) ThrowImpl((code), (msg))

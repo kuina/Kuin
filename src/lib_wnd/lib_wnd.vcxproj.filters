@@ -11,6 +11,11 @@
     <ClCompile Include="circle_ps.c" />
     <ClCompile Include="rect_vs.c" />
     <ClCompile Include="circle_vs.c" />
+    <ClCompile Include="png_decoder.cpp" />
+    <ClCompile Include="jpg_decoder.cpp" />
+    <ClCompile Include="bc_decoder.cpp" />
+    <ClCompile Include="tex_ps.c" />
+    <ClCompile Include="tex_vs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />
@@ -18,5 +23,8 @@
     <ClInclude Include="draw.h" />
     <ClInclude Include="snd.h" />
     <ClInclude Include="input.h" />
+    <ClInclude Include="png_decoder.h" />
+    <ClInclude Include="jpg_decoder.h" />
+    <ClInclude Include="bc_decoder.h" />
   </ItemGroup>
 </Project>

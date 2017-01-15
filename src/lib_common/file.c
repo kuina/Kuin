@@ -3,7 +3,7 @@
 typedef struct SStream
 {
 	SClass Class;
-	void(*Fin)(SClass* me_);
+	void* Fin;
 	void* GetPos;
 	void* SetPos;
 	void* ReadWrite;
@@ -120,7 +120,7 @@ EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 	FILE* file_ptr = _wfopen((Char*)(path + 0x10), L"rb");
 	if (file_ptr == NULL)
 		return NULL;
-	me2->Class.Dtor = StreamDtor;
+	InitClass(&me2->Class, NULL, StreamDtor);
 	me2->Handle = file_ptr;
 	return me_;
 }
