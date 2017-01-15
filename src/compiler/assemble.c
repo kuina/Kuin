@@ -2827,6 +2827,7 @@ static void AssembleExpr2(SAstExpr2* ast, int reg_i, int reg_f)
 		if (use_reg == 0)
 		{
 			AssembleExpr(ast->Children[1], reg_i + 1, reg_f); // This value is stored in 'reg_f'.
+			ToValue(ast->Children[1], reg_i + 1, reg_f);
 			ASSERT(ast->Kind != AstExpr2Kind_Swap);
 		}
 		else if (use_reg == 1)
