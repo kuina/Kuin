@@ -4,7 +4,8 @@
 // (C)Kuina-chan
 //
 
-// This source code requires the FBX Software Development Kit for compilation.
+// This source code requires the FBX SDK 2016 for compilation.
+// This program can read 'FBX 200900 binary' files outputted with the default option.
 
 #pragma warning(disable: 4127)
 #pragma warning(disable: 4996)
@@ -146,7 +147,31 @@ static void WriteFloat(double n)
 static void WriteNode(FbxNode* root)
 {
 	int child_num = root->GetChildCount();
-	WriteInt(child_num);
+	{
+		int cnt = 0;
+		for (int child = 0; child < child_num; child++)
+		{
+			FbxNode* node = root->GetChild(child);
+			FbxNodeAttribute* attr = node->GetNodeAttribute();
+			if (attr == NULL)
+				Err("Wrong element.");
+			switch (attr->GetAttributeType())
+			{
+				case FbxNodeAttribute::eMesh:
+					cnt++;
+					break;
+				case FbxNodeAttribute::eSkeleton:
+				case FbxNodeAttribute::eCamera:
+				case FbxNodeAttribute::eLight:
+					// Do not count.
+					break;
+				default:
+					Err("Unknown type.");
+					break;
+			}
+		}
+		WriteInt(cnt);
+	}
 	for (int child = 0; child < child_num; child++)
 	{
 		FbxNode* node = root->GetChild(child);
@@ -462,13 +487,13 @@ static void WriteNode(FbxNode* root)
 					Err("Wrong format.");
 				break;
 			case FbxNodeAttribute::eSkeleton:
-				WriteInt(-1);
+				// Do nothing.
 				break;
 			case FbxNodeAttribute::eCamera:
-				WriteInt(1); // Write a camera.
+				// TODO: Write a camera.
 				break;
 			case FbxNodeAttribute::eLight:
-				WriteInt(2); // Write a light.
+				// TODO: Write a light.
 				break;
 			default:
 				Err("Unknown type.");

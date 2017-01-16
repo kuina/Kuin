@@ -1,9 +1,8 @@
 func main()
 	do wnd@makeWnd(0, 1024, 768)
 	do draw@clearColor(1.0, 0.0, 1.0)
-	var tex0: draw@Tex :: draw@makeTex("data/p_j.jpg")
+	var obj0: draw@Obj :: draw@makeObj("data/sphere.knobj")
 	while(wnd@act())
-		do tex0.draw((0 $ float) * 64.0, (0 $ float) * 64.0, 0.0, 0.0, 128.0, 128.0)
 		do draw@render()
 	end while
 end func

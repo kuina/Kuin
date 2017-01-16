@@ -1,16 +1,3 @@
-+class Tex()
-	+func [d0001.knd, _texDraw] draw(dstX: float, dstY: float, srcX: float, srcY: float, srcW: float, srcH: float)
-	end func
-
-	+func [d0001.knd, _texDrawScale] drawScale(dstX: float, dstY: float, dstW: float, dstH: float, srcX: float, srcY: float, srcW: float, srcH: float)
-	end func
-
-	var raw: int
-	var aligned: int
-	var tex: int
-	var view: int
-end class
-
 +func [d0001.knd, _render] render()
 end func
 
@@ -31,7 +18,7 @@ end func
 	mul
 end enum
 
-+func [d0001.knd, _blend] blend(kind: Blend)
++func [d0001.knd, _blend] blend(kind: @Blend)
 end func
 
 +enum Sampler
@@ -39,7 +26,7 @@ end func
 	linear
 end enum
 
-+func [d0001.knd, _sampler] sampler(kind: Sampler)
++func [d0001.knd, _sampler] sampler(kind: @Sampler)
 end func
 
 +func [d0001.knd, _clearColor] clearColor(r: float, g: float, b: float)
@@ -54,5 +41,27 @@ end func
 +func [d0001.knd, _circle] circle(x: float, y: float, radiusX: float, radiusY: float, r: float, g: float, b: float, a: float)
 end func
 
++class Tex()
+	+func [d0001.knd, _texDraw] draw(dstX: float, dstY: float, srcX: float, srcY: float, srcW: float, srcH: float)
+	end func
+
+	+func [d0001.knd, _texDrawScale] drawScale(dstX: float, dstY: float, dstW: float, dstH: float, srcX: float, srcY: float, srcW: float, srcH: float)
+	end func
+
+	var raw: int
+	var aligned: int
+	var tex: int
+	var view: int
+end class
+
 +func [d0001.knd, _makeTex, _make_instance] makeTex(me2: @Tex, path: []char): @Tex
+end func
+
++class Obj()
+	var elementNum: int
+	var elementKinds: int
+	var elements: int
+end class
+
++func [d0001.knd, _makeObj, _make_instance] makeObj(me2: @Obj, path: []char): @Obj
 end func
