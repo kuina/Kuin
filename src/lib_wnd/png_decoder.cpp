@@ -1,5 +1,7 @@
 #include "png_decoder.h"
 
+// TODO: Replace 'ASSERT' to 'THROW'.
+
 #define IdatMax (32)
 
 struct SPngData
@@ -126,13 +128,13 @@ static void Decode(SPngData* png_data, U8* rgba)
 			case 0: // Grayscale.
 				two_line = png_data->Width;
 				break;
-			case 2: // Truecolor.
+			case 2: // Color.
 				two_line = png_data->Width * 3;
 				break;
 			case 4: // Grayscale with alpha.
 				two_line = png_data->Width * 2;
 				break;
-			case 6: // Truecolor with alpha.
+			case 6: // Color with alpha.
 				two_line = png_data->Width * 4;
 				break;
 			default: // Unsupported format.
@@ -435,7 +437,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 					png_data->InpixelCnt = 0;
 				}
 				break;
-			case 2: // Truecolor.
+			case 2: // Color.
 				if (png_data->InpixelCnt == 3)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 3, png_data->Filter);
@@ -463,7 +465,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 					png_data->InpixelCnt = 0;
 				}
 				break;
-			case 6: // Truecolor with alpha.
+			case 6: // Color with alpha.
 				if (png_data->InpixelCnt == 4)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 4, png_data->Filter);
@@ -562,7 +564,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 					png_data->InpixelCnt = 0;
 				}
 				break;
-			case 2: // Truecolor.
+			case 2: // Color.
 				if (png_data->InpixelCnt == 3)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 3, png_data->Filter);
@@ -590,7 +592,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 					png_data->InpixelCnt = 0;
 				}
 				break;
-			case 6: // Truecolor with alpha.
+			case 6: // Color with alpha.
 				if (png_data->InpixelCnt == 4)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 4, png_data->Filter);
@@ -801,7 +803,7 @@ static void Step(SPngData* png_data, int* cur_data, U32* byte_ptr, int n)
 	*byte_ptr += n;
 	if (*byte_ptr >= png_data->DataSize[*cur_data])
 	{
-		*byte_ptr -= png_data->DataSize[*cur_data];
+		*byte_ptr -= static_cast<U32>(png_data->DataSize[*cur_data]);
 		(*cur_data)++;
 	}
 }

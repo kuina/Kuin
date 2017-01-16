@@ -14,6 +14,34 @@ end class
 +func [d0001.knd, _render] render()
 end func
 
++func [d0001.knd, _viewport] viewport(x: float, y: float, w: float, h: float)
+end func
+
++func [d0001.knd, _resetViewport] resetViewport()
+end func
+
++func [d0001.knd, _depth] depth(test: bool, write: bool)
+end func
+
++enum Blend
+	none
+	alpha
+	add
+	sub
+	mul
+end enum
+
++func [d0001.knd, _blend] blend(kind: Blend)
+end func
+
++enum Sampler
+	point
+	linear
+end enum
+
++func [d0001.knd, _sampler] sampler(kind: Sampler)
+end func
+
 +func [d0001.knd, _clearColor] clearColor(r: float, g: float, b: float)
 end func
 

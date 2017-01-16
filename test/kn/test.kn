@@ -1,10 +1,9 @@
 func main()
 	do wnd@makeWnd(0, 1024, 768)
 	do draw@clearColor(1.0, 0.0, 1.0)
+	var tex0: draw@Tex :: draw@makeTex("data/p_j.jpg")
 	while(wnd@act())
-		do draw@tri(0.0, 0.0, 768.0, 768.0, 0.0, 768.0, 1.0, 0.0, 0.0, 1.0)
-		do draw@rect(100.0, 100.0, 768.0 - 200.0, 768.0 - 200.0, 0.0, 0.0, 1.0, 1.0)
-		do draw@circle(512.0, 384.0, 200.0, 100.0, 0.0, 1.0, 0.0, 1.0)
+		do tex0.draw((0 $ float) * 64.0, (0 $ float) * 64.0, 0.0, 0.0, 128.0, 128.0)
 		do draw@render()
 	end while
 end func

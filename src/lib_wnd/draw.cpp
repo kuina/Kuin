@@ -53,6 +53,25 @@ struct STex
 	ID3D10ShaderResourceView* View;
 };
 
+struct SObj
+{
+	SClass Class;
+
+	struct SPolygon
+	{
+		void* VertexBuf;
+		int VertexNum;
+		int JointNum;
+		int Begin;
+		int End;
+		float(*Joints)[4 * 4];
+	};
+
+	int ElementNum;
+	int* ElementKinds;
+	void** Elements;
+};
+
 static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 const U8* GetTriVsBin(size_t* size);
@@ -81,6 +100,7 @@ static void* TexVs = NULL;
 static void* TexPs = NULL;
 
 static void TexDtor(SClass* me_);
+static void ObjDtor(SClass* me_);
 
 EXPORT_CPP void _render()
 {
@@ -88,6 +108,20 @@ EXPORT_CPP void _render()
 	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, CurWndBuf->ClearColor);
 	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 	Device->RSSetState(RasterizerState);
+}
+
+EXPORT_CPP void _viewport(double x, double y, double w, double h)
+{
+	D3D10_VIEWPORT viewport =
+	{
+		static_cast<UINT>(x),
+		static_cast<UINT>(y),
+		static_cast<UINT>(w),
+		static_cast<UINT>(h),
+		0.0f,
+		1.0f,
+	};
+	Device->RSSetViewports(1, &viewport);
 }
 
 EXPORT_CPP void _resetViewport()
@@ -106,39 +140,39 @@ EXPORT_CPP void _resetViewport()
 
 EXPORT_CPP void _depth(Bool test, Bool write)
 {
-	int depth = (static_cast<int>(test) << 1) | static_cast<int>(write);
+	int kind = (static_cast<int>(test) << 1) | static_cast<int>(write);
 	/*
 	// TODO:
 	if (ZBuf == zbuf)
 	return;
 	*/
-	Device->OMSetDepthStencilState(DepthState[depth], 0);
+	Device->OMSetDepthStencilState(DepthState[kind], 0);
 	// TODO: ZBuf = zbuf;
 }
 
-EXPORT_CPP void _blend(S64 blend)
+EXPORT_CPP void _blend(S64 kind)
 {
-	ASSERT(0 <= blend && blend < BlendNum);
-	int blend2 = static_cast<int>(blend);
+	ASSERT(0 <= kind && kind < BlendNum);
+	int kind2 = static_cast<int>(kind);
 	/*
 	// TODO:
-	if (Blend == blend2)
+	if (Blend == kind2)
 	return;
 	*/
-	Device->OMSetBlendState(BlendState[blend2], BlendFactor, 0xffffffff);
-	// TODO: Blend = blend2;
+	Device->OMSetBlendState(BlendState[kind2], BlendFactor, 0xffffffff);
+	// TODO: Blend = kind2;
 }
 
-EXPORT_CPP void _sampler(S64 sampler)
+EXPORT_CPP void _sampler(S64 kind)
 {
-	ASSERT(0 <= sampler && sampler < SamplerNum);
+	ASSERT(0 <= kind && kind < SamplerNum);
 	/*
 	// TODO:
-	if (Sampler == sampler2)
+	if (Sampler == kind2)
 	return;
 	*/
-	Device->PSSetSamplers(0, 1, &Sampler[sampler]);
-	// TODO: Sampler = sampler2;
+	Device->PSSetSamplers(0, 1, &Sampler[kind]);
+	// TODO: Sampler = kind2;
 }
 
 EXPORT_CPP void _clearColor(double r, double g, double b)
@@ -400,6 +434,164 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 	Device->DrawIndexed(6, 0, 0);
 }
 
+EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
+{
+	SObj* me2 = (SObj*)me_;
+	InitClass(&me2->Class, NULL, ObjDtor);
+	me2->ElementKinds = NULL;
+	me2->Elements = NULL;
+	{
+		Bool correct = True;
+		U8* buf = NULL;
+		U16* idces = NULL;
+		U8* vertices = NULL;
+		for (; ; )
+		{
+			size_t size;
+			buf = static_cast<U8*>(LoadFileAll(reinterpret_cast<const Char*>(path + 0x10), &size, True));
+			size_t ptr = 0;
+			if (ptr + sizeof(int) > size)
+			{
+				correct = False;
+				break;
+			}
+			me2->ElementNum = *reinterpret_cast<const int*>(buf + ptr);
+			ptr += sizeof(int);
+			if (me2->ElementNum < 0)
+			{
+				correct = False;
+				break;
+			}
+			me2->ElementKinds = static_cast<int*>(AllocMem(sizeof(int) * static_cast<size_t>(me2->ElementNum)));
+			me2->Elements = static_cast<void**>(AllocMem(sizeof(void*) * static_cast<size_t>(me2->ElementNum)));
+			for (int i = 0; i < me2->ElementNum; i++)
+			{
+				if (ptr + sizeof(int) > size)
+				{
+					correct = False;
+					break;
+				}
+				me2->ElementKinds[i] = *reinterpret_cast<const int*>(buf + ptr);
+				ptr += sizeof(int);
+				switch (me2->ElementKinds[i])
+				{
+					case 0: // Polygon.
+						{
+							SObj::SPolygon* element = static_cast<SObj::SPolygon*>(AllocMem(sizeof(SObj::SPolygon)));
+							element->VertexBuf = NULL;
+							element->Joints = NULL;
+							me2->Elements[i] = element;
+							if (ptr + sizeof(int) > size)
+							{
+								correct = False;
+								break;
+							}
+							element->VertexNum = *reinterpret_cast<const int*>(buf + ptr);
+							ptr += sizeof(int);
+							idces = static_cast<U16*>(AllocMem(sizeof(U16) * static_cast<size_t>(element->VertexNum)));
+							if (ptr + sizeof(U16) * static_cast<size_t>(element->VertexNum) > size)
+							{
+								correct = False;
+								break;
+							}
+							for (int j = 0; j < element->VertexNum; j++)
+							{
+								idces[j] = *reinterpret_cast<const U16*>(buf + ptr);
+								ptr += sizeof(U16);
+							}
+							if (ptr + sizeof(int) > size)
+							{
+								correct = False;
+								break;
+							}
+							int idx_num = *reinterpret_cast<const int*>(buf + ptr);
+							ptr += sizeof(int);
+							vertices = static_cast<U8*>(AllocMem((sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num)));
+							U8* ptr2 = vertices;
+							if (ptr + (sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num) > size)
+							{
+								correct = False;
+								break;
+							}
+							for (int j = 0; j < idx_num; j++)
+							{
+								for (int k = 0; k < 18; k++)
+								{
+									*reinterpret_cast<float*>(ptr2) = *reinterpret_cast<const float*>(buf + ptr);
+									ptr += sizeof(float);
+									ptr2 += sizeof(float);
+								}
+								for (int k = 0; k < 4; k++)
+								{
+									*reinterpret_cast<int*>(ptr2) = *reinterpret_cast<const int*>(buf + ptr);
+									ptr += sizeof(int);
+									ptr2 += sizeof(int);
+								}
+							}
+							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num), vertices, sizeof(float) * 18 + sizeof(int) * 4, sizeof(U16) * static_cast<size_t>(element->VertexNum), idces);
+							if (ptr + sizeof(int) * 3 > size)
+							{
+								correct = False;
+								break;
+							}
+							element->JointNum = *reinterpret_cast<int*>(buf + ptr);
+							ptr += sizeof(int);
+							element->Begin = *reinterpret_cast<int*>(buf + ptr);
+							ptr += sizeof(int);
+							element->End = *reinterpret_cast<int*>(buf + ptr);
+							ptr += sizeof(int);
+							element->Joints = static_cast<float(*)[4 * 4]>(AllocMem(sizeof(float[4 * 4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1))));
+							if (ptr + sizeof(float[4 * 4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1)) > size)
+							{
+								correct = False;
+								break;
+							}
+							for (int j = 0; j < element->JointNum; j++)
+							{
+								for (int k = 0; k < element->End - element->Begin + 1; k++)
+								{
+									for (int l = 0; l < 4; l++)
+									{
+										for (int m = 0; m < 4; m++)
+										{
+											element->Joints[j * (element->End - element->Begin + 1) + k][l * 4 + m] = *reinterpret_cast<float*>(buf + ptr);
+											ptr += sizeof(float);
+										}
+									}
+								}
+							}
+						}
+						break;
+					default:
+						ASSERT(False);
+						break;
+				}
+				if (!correct)
+					break;
+			}
+			break;
+		}
+		if (vertices != NULL)
+			FreeMem(vertices);
+		if (idces != NULL)
+			FreeMem(idces);
+		if (buf != NULL)
+			FreeMem(buf);
+		if (!correct)
+		{
+			ObjDtor(me_);
+			THROW(0x1000, L"");
+		}
+	}
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, double r, double g, double b, double a)
+{
+	// TODO:
+	return NULL;
+}
+
 namespace Draw
 {
 
@@ -537,9 +729,11 @@ void Init()
 		memset(&desc, 0, sizeof(desc));
 		switch (i)
 		{
+			// Nearest neighbor.
 			case 0:
 				desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
 				break;
+			// Bilinear.
 			case 1:
 				desc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
 				break;
@@ -1196,4 +1390,32 @@ static void TexDtor(SClass* me_)
 		me2->View->Release();
 	if (me2->Tex != NULL)
 		me2->Tex->Release();
+}
+
+static void ObjDtor(SClass* me_)
+{
+	SObj* me2 = reinterpret_cast<SObj*>(me_);
+	for (int i = 0; i < me2->ElementNum; i++)
+	{
+		switch (me2->ElementKinds[i])
+		{
+			case 0: // Polygon.
+				{
+					SObj::SPolygon* element = static_cast<SObj::SPolygon*>(me2->Elements[i]);
+					if (element->Joints != NULL)
+						FreeMem(element->Joints);
+					if (element->VertexBuf != NULL)
+						Draw::FinVertexBuf(element->VertexBuf);
+					FreeMem(element);
+				}
+				break;
+			default:
+				ASSERT(False);
+				break;
+		}
+	}
+	if (me2->Elements != NULL)
+		FreeMem(me2->Elements);
+	if (me2->ElementKinds != NULL)
+		FreeMem(me2->ElementKinds);
 }

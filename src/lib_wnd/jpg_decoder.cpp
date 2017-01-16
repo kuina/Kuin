@@ -1,5 +1,7 @@
 #include "jpg_decoder.h"
 
+// TODO: Replace 'ASSERT' to 'THROW'.
+
 #define CLIP(x) ((x) < 0 ? 0 : ((x) > 0xff ? 0xff : static_cast<U8>(x)))
 
 struct SComponent
@@ -157,6 +159,8 @@ void* DecodeJpg(size_t size, const void* data, int* width, int* height)
 					*prgb = CLIP((y - 88 * cb - 183 * cr + 128) >> 8);
 					prgb++;
 					*prgb = CLIP((y + 454 * cb + 128) >> 8);
+					prgb++;
+					*prgb = 255;
 					prgb++;
 				}
 				py += jpg_data.Component[0].Stride;
@@ -403,7 +407,7 @@ static void DecodeSof(SJpgData* jpg_data)
 		c->Pixels = static_cast<U8*>(AllocMem(c->Stride * (jpg_data->MBHeight * jpg_data->MBSizeY * c->Ssy / ssymax)));
 		c++;
 	}
-	jpg_data->Rgb = static_cast<U8*>(AllocMem(jpg_data->Width * jpg_data->Height * jpg_data->NComp));
+	jpg_data->Rgb = static_cast<U8*>(AllocMem(jpg_data->Width * jpg_data->Height * 4));
 	Skip(jpg_data, jpg_data->Len);
 }
 
