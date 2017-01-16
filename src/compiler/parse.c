@@ -1039,6 +1039,7 @@ static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class)
 	{
 		LocalErr = False;
 		ReadUntilRet();
+		return (SAstVar*)DummyPtr;
 	}
 	else
 		AssertNextChar(L'\n', True);
@@ -1054,6 +1055,7 @@ static SAstConst* ParseConst(void)
 	{
 		LocalErr = False;
 		ReadUntilRet();
+		return (SAstConst*)DummyPtr;
 	}
 	else
 		AssertNextChar(L'\n', True);
