@@ -1,8 +1,21 @@
 func main()
 	do wnd@makeWnd(0, 1024, 768)
-	do draw@clearColor(1.0, 0.0, 1.0)
-	var obj0: draw@Obj :: draw@makeObj("data/sphere.knobj")
+	do draw@clearColor(0.1, 0.1, 0.2)
+	var diffuse: draw@Tex :: draw@makeTexEven(0.5, 0.5, 1.0, 1.0)
+	var specular: draw@Tex :: draw@makeTexEven(1.0, 1.0, 0.8, 2.0)
+	var obj: draw@Obj :: draw@makeObj("data/test3.knobj")
+	do draw@depth(true, true)
+	var a: float :: 0.0
 	while(wnd@act())
+		{do draw@camera(0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)}
+		do draw@camera(10.0 * lib@cos(a), 0.0, 10.0 * lib@sin(a), 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+		do a :+ 0.001
+		for i(0, 2)
+			for j(0, 6)
+				do obj.pos(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, ((j - 3) $ float) * 1.0, ((i - 1) $ float) * 1.0, 0.0)
+				do obj.draw(diffuse, specular, 0, 0.0)
+			end for
+		end for
 		do draw@render()
 	end while
 end func

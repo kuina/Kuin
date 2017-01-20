@@ -13,10 +13,18 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 EXPORT_CPP void _rect(double x, double y, double w, double h, double r, double g, double b, double a);
 EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, double r, double g, double b, double a);
 EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path);
+EXPORT_CPP SClass* _makeTexEven(SClass* me_, double r, double g, double b, double a);
 EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH);
 EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW, double dstH, double srcX, double srcY, double srcW, double srcH);
+EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, double atY, double atZ, double upX, double upY, double upZ);
+EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ, double farZ);
 EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path);
 EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, double r, double g, double b, double a);
+EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, S64 element, double frame);
+EXPORT_CPP void _objMtx(SClass* me_, const U8* mtx, const U8* normMtx);
+EXPORT_CPP void _objPos(SClass* me_, double scaleX, double scaleY, double scaleZ, double rotX, double rotY, double rotZ, double transX, double transY, double transZ);
+EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, double atY, double atZ, double upX, double upY, double upZ, Bool fixUp);
+EXPORT_CPP void _objLookCamera(SClass* me_, double x, double y, double z, double upX, double upY, double upZ, Bool fixUp);
 
 /*
 EXPORT_CPP void _viewport(double left, double top, double width, double height);
@@ -71,6 +79,12 @@ namespace Draw
 	void FinShaderBuf(void* shader_buf);
 	void ConstBuf(void* shader_buf, const void* data);
 	void VertexBuf(void* vertex_buf);
-	void* MakeVertexBuf(size_t vertex_size, const void* vertices, size_t vertex_line_size, size_t idx_size, const U16* idces);
+	void* MakeVertexBuf(size_t vertex_size, const void* vertices, size_t vertex_line_size, size_t idx_size, const U32* idces);
 	void FinVertexBuf(void* vertex_buf);
+	void Identity(double mtx[4][4]);
+	void IdentityFloat(float mtx[4][4]);
+	double Normalize(double vec[3]);
+	double Dot(const double a[3], const double b[3]);
+	void Cross(double out[3], const double a[3], const double b[3]);
+	void SetProjViewMtx(float out[4][4], const double proj[4][4], const double view[4][4]);
 }

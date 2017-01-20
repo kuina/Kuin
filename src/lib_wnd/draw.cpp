@@ -13,6 +13,7 @@
 const int DepthNum = 4;
 const int BlendNum = 5;
 const int SamplerNum = 2;
+const int JointMax = 64;
 
 struct SWndBuf
 {
@@ -56,6 +57,11 @@ struct STex
 struct SObj
 {
 	SClass Class;
+	void* draw;
+	void* mtx;
+	void* pos;
+	void* look;
+	void* lookCamera;
 
 	struct SPolygon
 	{
@@ -64,12 +70,41 @@ struct SObj
 		int JointNum;
 		int Begin;
 		int End;
-		float(*Joints)[4 * 4];
+		float(*Joints)[4][4];
 	};
 
 	int ElementNum;
 	int* ElementKinds;
 	void** Elements;
+	float Mtx[4][4];
+	float NormMtx[4][4];
+};
+
+struct SObjVsConstBuf
+{
+	float World[4][4];
+	float NormWorld[4][4];
+	float ProjView[4][4];
+	float Eye[4];
+	float Dir[4];
+};
+
+struct SObjJointVsConstBuf
+{
+	float World[4][4];
+	float NormWorld[4][4];
+	float ProjView[4][4];
+	float Eye[4];
+	float Dir[4];
+	float Joint[JointMax][4][4];
+};
+
+struct SObjPsConstBuf
+{
+	float DirColor[4];
+#if defined(DBG)
+	int Mode[4];
+#endif
 };
 
 static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -81,6 +116,9 @@ const U8* GetCircleVsBin(size_t* size);
 const U8* GetCirclePsBin(size_t* size);
 const U8* GetTexVsBin(size_t* size);
 const U8* GetTexPsBin(size_t* size);
+const U8* GetObjVsBin(size_t* size);
+const U8* GetObjJointVsBin(size_t* size);
+const U8* GetObjPsBin(size_t* size);
 
 static ID3D10Device* Device = NULL;
 static ID3D10RasterizerState* RasterizerState = NULL;
@@ -98,6 +136,13 @@ static void* CircleVs = NULL;
 static void* CirclePs = NULL;
 static void* TexVs = NULL;
 static void* TexPs = NULL;
+static void* ObjVs = NULL;
+static void* ObjJointVs = NULL;
+static void* ObjPs = NULL;
+static double ViewMtx[4][4];
+static double ProjMtx[4][4];
+static SObjJointVsConstBuf ObjVsConstBuf;
+static SObjPsConstBuf ObjPsConstBuf;
 
 static void TexDtor(SClass* me_);
 static void ObjDtor(SClass* me_);
@@ -384,6 +429,43 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 	return me_;
 }
 
+EXPORT_CPP SClass* _makeTexEven(SClass* me_, double r, double g, double b, double a)
+{
+	STex* me2 = reinterpret_cast<STex*>(me_);
+	float img[4] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a) };
+	{
+		D3D10_TEXTURE2D_DESC desc;
+		D3D10_SUBRESOURCE_DATA sub;
+		desc.Width = 1;
+		desc.Height = 1;
+		desc.MipLevels = 1;
+		desc.ArraySize = 1;
+		desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Usage = D3D10_USAGE_IMMUTABLE;
+		desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+		desc.CPUAccessFlags = 0;
+		desc.MiscFlags = 0;
+		sub.pSysMem = img;
+		sub.SysMemPitch = static_cast<UINT>(sizeof(img));
+		sub.SysMemSlicePitch = 0;
+		if (FAILED(Device->CreateTexture2D(&desc, &sub, &me2->Tex)))
+			THROW(0x1000, L"");
+	}
+	{
+		D3D10_SHADER_RESOURCE_VIEW_DESC desc;
+		memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+		desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+		desc.Texture2D.MostDetailedMip = 0;
+		desc.Texture2D.MipLevels = 1;
+		if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
+			THROW(0x1000, L"");
+	}
+	return me_;
+}
+
 EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH)
 {
 	_texDrawScale(me_, dstX, dstY, srcW, srcH, srcX, srcY, srcW, srcH);
@@ -434,16 +516,94 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 	Device->DrawIndexed(6, 0, 0);
 }
 
+EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, double atY, double atZ, double upX, double upY, double upZ)
+{
+	double look[3], up[3], right[3], eye[3], pxyz[3], eye_len;
+
+	look[0] = atX - eyeX;
+	look[1] = atY - eyeY;
+	look[2] = atZ - eyeZ;
+	eye_len = Draw::Normalize(look);
+	ASSERT(eye_len != 0.0);
+
+	up[0] = upX;
+	up[1] = upY;
+	up[2] = upZ;
+	Draw::Cross(right, up, look);
+	if (Draw::Normalize(right) == 0.0)
+	{
+		ASSERT(false);
+	}
+
+	Draw::Cross(up, look, right);
+
+	eye[0] = eyeX;
+	eye[1] = eyeY;
+	eye[2] = eyeZ;
+	pxyz[0] = Draw::Dot(eye, right);
+	pxyz[1] = Draw::Dot(eye, up);
+	pxyz[2] = Draw::Dot(eye, look);
+
+	ViewMtx[0][0] = right[0];
+	ViewMtx[0][1] = up[0];
+	ViewMtx[0][2] = look[0];
+	ViewMtx[0][3] = 0.0;
+	ViewMtx[1][0] = right[1];
+	ViewMtx[1][1] = up[1];
+	ViewMtx[1][2] = look[1];
+	ViewMtx[1][3] = 0.0;
+	ViewMtx[2][0] = right[2];
+	ViewMtx[2][1] = up[2];
+	ViewMtx[2][2] = look[2];
+	ViewMtx[2][3] = 0.0;
+	ViewMtx[3][0] = -pxyz[0];
+	ViewMtx[3][1] = -pxyz[1];
+	ViewMtx[3][2] = -pxyz[2];
+	ViewMtx[3][3] = 1.0;
+
+	ObjVsConstBuf.Eye[0] = static_cast<float>(eyeX);
+	ObjVsConstBuf.Eye[1] = static_cast<float>(eyeY);
+	ObjVsConstBuf.Eye[2] = static_cast<float>(eyeZ);
+	ObjVsConstBuf.Eye[3] = static_cast<float>(eye_len);
+
+	Draw::SetProjViewMtx(ObjVsConstBuf.ProjView, ProjMtx, ViewMtx);
+}
+
+EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ, double farZ)
+{
+	double tan_theta = tan(fovy / 2.0);
+	ProjMtx[0][0] = -1.0 / ((aspectX / aspectY) * tan_theta);
+	ProjMtx[0][1] = 0.0;
+	ProjMtx[0][2] = 0.0;
+	ProjMtx[0][3] = 0.0;
+	ProjMtx[1][0] = 0.0;
+	ProjMtx[1][1] = 1.0 / tan_theta;
+	ProjMtx[1][2] = 0.0;
+	ProjMtx[1][3] = 0.0;
+	ProjMtx[2][0] = 0.0;
+	ProjMtx[2][1] = 0.0;
+	ProjMtx[2][2] = farZ / (farZ - nearZ);
+	ProjMtx[2][3] = 1.0;
+	ProjMtx[3][0] = 0.0;
+	ProjMtx[3][1] = 0.0;
+	ProjMtx[3][2] = -farZ * nearZ / (farZ - nearZ);
+	ProjMtx[3][3] = 0.0;
+
+	Draw::SetProjViewMtx(ObjVsConstBuf.ProjView, ProjMtx, ViewMtx);
+}
+
 EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 {
 	SObj* me2 = (SObj*)me_;
 	InitClass(&me2->Class, NULL, ObjDtor);
 	me2->ElementKinds = NULL;
 	me2->Elements = NULL;
+	Draw::IdentityFloat(me2->Mtx);
+	Draw::IdentityFloat(me2->NormMtx);
 	{
 		Bool correct = True;
 		U8* buf = NULL;
-		U16* idces = NULL;
+		U32* idces = NULL;
 		U8* vertices = NULL;
 		for (; ; )
 		{
@@ -488,16 +648,16 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 							}
 							element->VertexNum = *reinterpret_cast<const int*>(buf + ptr);
 							ptr += sizeof(int);
-							idces = static_cast<U16*>(AllocMem(sizeof(U16) * static_cast<size_t>(element->VertexNum)));
-							if (ptr + sizeof(U16) * static_cast<size_t>(element->VertexNum) > size)
+							idces = static_cast<U32*>(AllocMem(sizeof(U32) * static_cast<size_t>(element->VertexNum)));
+							if (ptr + sizeof(U32) * static_cast<size_t>(element->VertexNum) > size)
 							{
 								correct = False;
 								break;
 							}
 							for (int j = 0; j < element->VertexNum; j++)
 							{
-								idces[j] = *reinterpret_cast<const U16*>(buf + ptr);
-								ptr += sizeof(U16);
+								idces[j] = *reinterpret_cast<const U32*>(buf + ptr);
+								ptr += sizeof(U32);
 							}
 							if (ptr + sizeof(int) > size)
 							{
@@ -528,7 +688,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 									ptr2 += sizeof(int);
 								}
 							}
-							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num), vertices, sizeof(float) * 18 + sizeof(int) * 4, sizeof(U16) * static_cast<size_t>(element->VertexNum), idces);
+							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num), vertices, sizeof(float) * 18 + sizeof(int) * 4, sizeof(U32) * static_cast<size_t>(element->VertexNum), idces);
 							if (ptr + sizeof(int) * 3 > size)
 							{
 								correct = False;
@@ -540,7 +700,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 							ptr += sizeof(int);
 							element->End = *reinterpret_cast<int*>(buf + ptr);
 							ptr += sizeof(int);
-							element->Joints = static_cast<float(*)[4 * 4]>(AllocMem(sizeof(float[4 * 4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1))));
+							element->Joints = static_cast<float(*)[4][4]>(AllocMem(sizeof(float[4][4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1))));
 							if (ptr + sizeof(float[4 * 4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1)) > size)
 							{
 								correct = False;
@@ -554,7 +714,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 									{
 										for (int m = 0; m < 4; m++)
 										{
-											element->Joints[j * (element->End - element->Begin + 1) + k][l * 4 + m] = *reinterpret_cast<float*>(buf + ptr);
+											element->Joints[j * (element->End - element->Begin + 1) + k][l][m] = *reinterpret_cast<float*>(buf + ptr);
 											ptr += sizeof(float);
 										}
 									}
@@ -592,6 +752,203 @@ EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, double r,
 	return NULL;
 }
 
+EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, S64 element, double frame)
+{
+	SObj* me2 = (SObj*)me_;
+	ASSERT(0 <= element && element < static_cast<S64>(me2->ElementNum));
+	switch (me2->ElementKinds[element])
+	{
+		case 0: // Polygon.
+			{
+				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
+				ASSERT(static_cast<double>(element2->Begin) <= frame && frame < static_cast<double>(element2->End));
+				ASSERT(0 <= element2->JointNum && element2->JointNum <= JointMax);
+				Bool joint = element2->JointNum != 0;
+
+				memcpy(ObjVsConstBuf.World, me2->Mtx, sizeof(float[4][4]));
+				memcpy(ObjVsConstBuf.NormWorld, me2->NormMtx, sizeof(float[4][4]));
+#if defined(DBG)
+				ObjPsConstBuf.Mode[0] = 0;
+#endif
+				if (joint)
+				{
+					if (static_cast<double>(element2->Begin) <= frame && frame < static_cast<double>(element2->End))
+					{
+						for (int i = 0; i < element2->JointNum; i++)
+						{
+							int mtx_a = static_cast<int>(frame);
+							int mtx_b = mtx_a + 1;
+							float rate_b = static_cast<float>(frame - static_cast<double>(static_cast<int>(frame)));
+							float rate_a = 1.0f - rate_b;
+							for (int j = 0; j < 4; j++)
+							{
+								for (int k = 0; k < 4; k++)
+									ObjVsConstBuf.Joint[i][j][k] = rate_a * element2->Joints[mtx_a][j][k] + rate_b * element2->Joints[mtx_b][j][k];
+							}
+						}
+					}
+					Draw::ConstBuf(ObjJointVs, &ObjVsConstBuf);
+				}
+				else
+				{
+					Draw::ConstBuf(ObjVs, &ObjVsConstBuf);
+				}
+				Device->GSSetShader(NULL);
+				Draw::ConstBuf(ObjPs, &ObjPsConstBuf);
+				Draw::VertexBuf(element2->VertexBuf);
+				Device->PSSetShaderResources(0, 1, &reinterpret_cast<STex*>(diffuse)->View);
+				Device->PSSetShaderResources(1, 1, &reinterpret_cast<STex*>(specular)->View);
+				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
+			}
+			break;
+	}
+}
+
+EXPORT_CPP void _objMtx(SClass* me_, const U8* mtx, const U8* normMtx)
+{
+	SObj* me2 = (SObj*)me_;
+	if (*(S64*)(mtx + 0x08) != 16 || *(S64*)(normMtx + 0x08) != 16)
+		THROW(0x1000, L"");
+	{
+		const double* ptr = reinterpret_cast<const double*>(mtx + 0x10);
+		me2->Mtx[0][0] = static_cast<float>(ptr[0]);
+		me2->Mtx[0][1] = static_cast<float>(ptr[1]);
+		me2->Mtx[0][2] = static_cast<float>(ptr[2]);
+		me2->Mtx[0][3] = static_cast<float>(ptr[3]);
+		me2->Mtx[1][0] = static_cast<float>(ptr[4]);
+		me2->Mtx[1][1] = static_cast<float>(ptr[5]);
+		me2->Mtx[1][2] = static_cast<float>(ptr[6]);
+		me2->Mtx[1][3] = static_cast<float>(ptr[7]);
+		me2->Mtx[2][0] = static_cast<float>(ptr[8]);
+		me2->Mtx[2][1] = static_cast<float>(ptr[9]);
+		me2->Mtx[2][2] = static_cast<float>(ptr[10]);
+		me2->Mtx[2][3] = static_cast<float>(ptr[11]);
+		me2->Mtx[3][0] = static_cast<float>(ptr[12]);
+		me2->Mtx[3][1] = static_cast<float>(ptr[13]);
+		me2->Mtx[3][2] = static_cast<float>(ptr[14]);
+		me2->Mtx[3][3] = static_cast<float>(ptr[15]);
+	}
+	{
+		const double* ptr = reinterpret_cast<const double*>(normMtx + 0x10);
+		me2->NormMtx[0][0] = static_cast<float>(ptr[0]);
+		me2->NormMtx[0][1] = static_cast<float>(ptr[1]);
+		me2->NormMtx[0][2] = static_cast<float>(ptr[2]);
+		me2->NormMtx[0][3] = static_cast<float>(ptr[3]);
+		me2->NormMtx[1][0] = static_cast<float>(ptr[4]);
+		me2->NormMtx[1][1] = static_cast<float>(ptr[5]);
+		me2->NormMtx[1][2] = static_cast<float>(ptr[6]);
+		me2->NormMtx[1][3] = static_cast<float>(ptr[7]);
+		me2->NormMtx[2][0] = static_cast<float>(ptr[8]);
+		me2->NormMtx[2][1] = static_cast<float>(ptr[9]);
+		me2->NormMtx[2][2] = static_cast<float>(ptr[10]);
+		me2->NormMtx[2][3] = static_cast<float>(ptr[11]);
+		me2->NormMtx[3][0] = static_cast<float>(ptr[12]);
+		me2->NormMtx[3][1] = static_cast<float>(ptr[13]);
+		me2->NormMtx[3][2] = static_cast<float>(ptr[14]);
+		me2->NormMtx[3][3] = static_cast<float>(ptr[15]);
+	}
+}
+
+EXPORT_CPP void _objPos(SClass* me_, double scaleX, double scaleY, double scaleZ, double rotX, double rotY, double rotZ, double transX, double transY, double transZ)
+{
+	SObj* me2 = (SObj*)me_;
+	double cos_x = cos(rotX);
+	double sin_x = sin(rotX);
+	double cos_y = cos(rotY);
+	double sin_y = sin(rotY);
+	double cos_z = cos(rotZ);
+	double sin_z = sin(rotZ);
+	me2->Mtx[0][0] = static_cast<float>(scaleX * (cos_y * cos_z));
+	me2->Mtx[0][1] = static_cast<float>(scaleX * (cos_y * sin_z));
+	me2->Mtx[0][2] = static_cast<float>(scaleX * (-sin_y));
+	me2->Mtx[0][3] = 0.0f;
+	me2->Mtx[1][0] = static_cast<float>(scaleY * (sin_x * sin_y * cos_z - cos_x * sin_z));
+	me2->Mtx[1][1] = static_cast<float>(scaleY * (sin_x * sin_y * sin_z + cos_x * cos_z));
+	me2->Mtx[1][2] = static_cast<float>(scaleY * (sin_x * cos_y));
+	me2->Mtx[1][3] = 0.0f;
+	me2->Mtx[2][0] = static_cast<float>(scaleZ * (cos_x * sin_y * cos_z + sin_x * sin_z));
+	me2->Mtx[2][1] = static_cast<float>(scaleZ * (cos_x * sin_y * sin_z - sin_x * cos_z));
+	me2->Mtx[2][2] = static_cast<float>(scaleZ * (cos_x * cos_y));
+	me2->Mtx[2][3] = 0.0f;
+	me2->Mtx[3][0] = static_cast<float>(transX);
+	me2->Mtx[3][1] = static_cast<float>(transY);
+	me2->Mtx[3][2] = static_cast<float>(transZ);
+	me2->Mtx[3][3] = 1.0f;
+	scaleX = 1.0 / scaleX;
+	scaleY = 1.0 / scaleY;
+	scaleZ = 1.0 / scaleZ;
+	me2->NormMtx[0][0] = static_cast<float>(scaleX * (cos_y * cos_z));
+	me2->NormMtx[0][1] = static_cast<float>(scaleX * (cos_y * sin_z));
+	me2->NormMtx[0][2] = static_cast<float>(scaleX * (-sin_y));
+	me2->NormMtx[0][3] = 0.0f;
+	me2->NormMtx[1][0] = static_cast<float>(scaleY * (sin_x * sin_y * cos_z - cos_x * sin_z));
+	me2->NormMtx[1][1] = static_cast<float>(scaleY * (sin_x * sin_y * sin_z + cos_x * cos_z));
+	me2->NormMtx[1][2] = static_cast<float>(scaleY * (sin_x * cos_y));
+	me2->NormMtx[1][3] = 0.0f;
+	me2->NormMtx[2][0] = static_cast<float>(scaleZ * (cos_x * sin_y * cos_z + sin_x * sin_z));
+	me2->NormMtx[2][1] = static_cast<float>(scaleZ * (cos_x * sin_y * sin_z - sin_x * cos_z));
+	me2->NormMtx[2][2] = static_cast<float>(scaleZ * (cos_x * cos_y));
+	me2->NormMtx[2][3] = 0.0f;
+	me2->NormMtx[3][0] = 0.0f;
+	me2->NormMtx[3][1] = 0.0f;
+	me2->NormMtx[3][2] = 0.0f;
+	me2->NormMtx[3][3] = 1.0f;
+}
+
+EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, double atY, double atZ, double upX, double upY, double upZ, Bool fixUp)
+{
+	SObj* me2 = (SObj*)me_;
+	double at[3] = { atX - x, atY - y, atZ - z }, up[3] = { upX, upY, upZ }, right[3];
+	if (Draw::Normalize(at) == 0.0)
+		THROW(0x1000, L"");
+	if (Draw::Normalize(up) == 0.0)
+		THROW(0x1000, L"");
+	Draw::Cross(right, up, at);
+	if (Draw::Normalize(right) == 0.0)
+		THROW(0x1000, L"");
+	if (fixUp)
+		Draw::Cross(up, at, right);
+	else
+		Draw::Cross(at, right, up);
+	me2->Mtx[0][0] = static_cast<float>(right[0]);
+	me2->Mtx[0][1] = static_cast<float>(right[1]);
+	me2->Mtx[0][2] = static_cast<float>(right[2]);
+	me2->Mtx[0][3] = 0.0f;
+	me2->Mtx[1][0] = static_cast<float>(up[0]);
+	me2->Mtx[1][1] = static_cast<float>(up[1]);
+	me2->Mtx[1][2] = static_cast<float>(up[2]);
+	me2->Mtx[1][3] = 0.0f;
+	me2->Mtx[2][0] = static_cast<float>(at[0]);
+	me2->Mtx[2][1] = static_cast<float>(at[1]);
+	me2->Mtx[2][2] = static_cast<float>(at[2]);
+	me2->Mtx[2][3] = 0.0f;
+	me2->Mtx[3][0] = static_cast<float>(x);
+	me2->Mtx[3][1] = static_cast<float>(y);
+	me2->Mtx[3][2] = static_cast<float>(z);
+	me2->Mtx[3][3] = 1.0f;
+	me2->NormMtx[0][0] = static_cast<float>(right[0]);
+	me2->NormMtx[0][1] = static_cast<float>(right[1]);
+	me2->NormMtx[0][2] = static_cast<float>(right[2]);
+	me2->NormMtx[0][3] = 0.0f;
+	me2->NormMtx[1][0] = static_cast<float>(up[0]);
+	me2->NormMtx[1][1] = static_cast<float>(up[1]);
+	me2->NormMtx[1][2] = static_cast<float>(up[2]);
+	me2->NormMtx[1][3] = 0.0f;
+	me2->NormMtx[2][0] = static_cast<float>(at[0]);
+	me2->NormMtx[2][1] = static_cast<float>(at[1]);
+	me2->NormMtx[2][2] = static_cast<float>(at[2]);
+	me2->NormMtx[2][3] = 0.0f;
+	me2->NormMtx[3][0] = 0.0f;
+	me2->NormMtx[3][1] = 0.0f;
+	me2->NormMtx[3][2] = 0.0f;
+	me2->NormMtx[3][3] = 1.0f;
+}
+
+EXPORT_CPP void _objLookCamera(SClass* me_, double x, double y, double z, double upX, double upY, double upZ, Bool fixUp)
+{
+	_objLook(me_, x, y, z, static_cast<double>(ObjVsConstBuf.Eye[0]), static_cast<double>(ObjVsConstBuf.Eye[1]), static_cast<double>(ObjVsConstBuf.Eye[2]), upX, upY, upZ, fixUp);
+}
+
 namespace Draw
 {
 
@@ -605,7 +962,7 @@ void Init()
 		D3D10_RASTERIZER_DESC desc;
 		memset(&desc, 0, sizeof(desc));
 		desc.FillMode = D3D10_FILL_SOLID;
-		desc.CullMode = D3D10_CULL_BACK;
+		desc.CullMode = D3D10_CULL_NONE; // TODO: D3D10_CULL_BACK;
 		desc.FrontCounterClockwise = FALSE;
 		desc.DepthBias = 0;
 		desc.DepthBiasClamp = 0.0f;
@@ -625,16 +982,6 @@ void Init()
 		memset(&desc, 0, sizeof(desc));
 		desc.DepthFunc = D3D10_COMPARISON_LESS_EQUAL;
 		desc.StencilEnable = FALSE;
-		desc.StencilReadMask = D3D10_DEFAULT_STENCIL_READ_MASK;
-		desc.StencilWriteMask = D3D10_DEFAULT_STENCIL_WRITE_MASK;
-		desc.FrontFace.StencilFailOp = D3D10_STENCIL_OP_KEEP;
-		desc.FrontFace.StencilDepthFailOp = D3D10_STENCIL_OP_KEEP;
-		desc.FrontFace.StencilPassOp = D3D10_STENCIL_OP_KEEP;
-		desc.FrontFace.StencilFunc = D3D10_COMPARISON_ALWAYS;
-		desc.BackFace.StencilFailOp = D3D10_STENCIL_OP_KEEP;
-		desc.BackFace.StencilDepthFailOp = D3D10_STENCIL_OP_KEEP;
-		desc.BackFace.StencilPassOp = D3D10_STENCIL_OP_KEEP;
-		desc.BackFace.StencilFunc = D3D10_COMPARISON_ALWAYS;
 		switch (i)
 		{
 			// Disable test, disable writing.
@@ -744,10 +1091,6 @@ void Init()
 		desc.MipLODBias = 0.0f;
 		desc.MaxAnisotropy = 0;
 		desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
-		desc.BorderColor[0] = 0.0f;
-		desc.BorderColor[1] = 0.0f;
-		desc.BorderColor[2] = 0.0f;
-		desc.BorderColor[3] = 0.0f;
 		desc.MinLOD = 0.0f;
 		desc.MaxLOD = D3D10_FLOAT32_MAX;
 		if (FAILED(Device->CreateSamplerState(&desc, &Sampler[i])))
@@ -764,7 +1107,7 @@ void Init()
 				0.0f, 0.0f, 1.0f,
 			};
 
-			U16 idces[] =
+			U32 idces[] =
 			{
 				0, 1, 2,
 			};
@@ -807,7 +1150,7 @@ void Init()
 				1.0, 1.0,
 			};
 
-			U16 idces[] =
+			U32 idces[] =
 			{
 				0, 1, 2,
 				3, 2, 1,
@@ -846,7 +1189,7 @@ void Init()
 				1.0f, 1.0f,
 			};
 
-			U16 idces[] =
+			U32 idces[] =
 			{
 				0, 1, 2,
 				3, 2, 1,
@@ -905,67 +1248,81 @@ void Init()
 		}
 	}
 
-	/*
 	// Initialize 'Obj'.
 	{
-		ObjAnimVS = static_cast<CShader*>(CMem::Alloc(sizeof(CShader)));
 		{
-			CShader::SLayout layouts[7] =
+			ELayoutType layout_types[5] =
 			{
-				{ L"POSITION", CShader::SLayout::Type_Float3 },
-				{ L"NORMAL", CShader::SLayout::Type_Float3 },
-				{ L"TANGENT", CShader::SLayout::Type_Float3 },
-				{ L"BINORMAL", CShader::SLayout::Type_Float3 },
-				{ L"TEXCOORD", CShader::SLayout::Type_Float2 },
-				{ L"JOINT", CShader::SLayout::Type_Int4 },
-				{ L"WEIGHT", CShader::SLayout::Type_Float4 },
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float2,
 			};
-			ObjAnimVS->CShader::CShader(CShader::Kind_VS, L"kuin/obj_a.vs", sizeof(SObjAnimVSConst), sizeof(layouts) / sizeof(layouts[0]), layouts);
+
+			const Char* layout_semantics[5] =
+			{
+				L"POSITION",
+				L"NORMAL",
+				L"TANGENT",
+				L"BINORMAL",
+				L"TEXCOORD",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetObjVsBin(&size);
+				ObjVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 5, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetObjPsBin(&size);
+				ObjPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
+			}
 		}
-		ObjAnimPS = static_cast<CShader*>(CMem::Alloc(sizeof(CShader)));
-		ObjAnimPS->CShader::CShader(CShader::Kind_PS, L"kuin/obj_a.ps", sizeof(SObjAnimPSConst));
-	}
-#if defined(DBG)
-	{
-		ObjDbgVS = static_cast<CShader*>(CMem::Alloc(sizeof(CShader)));
 		{
-			CShader::SLayout layouts[7] =
+			ELayoutType layout_types[7] =
 			{
-				{ L"POSITION", CShader::SLayout::Type_Float3 },
-				{ L"NORMAL", CShader::SLayout::Type_Float3 },
-				{ L"TANGENT", CShader::SLayout::Type_Float3 },
-				{ L"BINORMAL", CShader::SLayout::Type_Float3 },
-				{ L"TEXCOORD", CShader::SLayout::Type_Float2 },
-				{ L"JOINT", CShader::SLayout::Type_Int4 },
-				{ L"WEIGHT", CShader::SLayout::Type_Float4 },
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float2,
+				LayoutType_Float4,
+				LayoutType_Int4,
 			};
-			ObjDbgVS->CShader::CShader(CShader::Kind_VS, L"dbg/obj_dbg.vs", sizeof(SObjAnimVSConst), sizeof(layouts) / sizeof(layouts[0]), layouts);
+
+			const Char* layout_semantics[7] =
+			{
+				L"POSITION",
+				L"NORMAL",
+				L"TANGENT",
+				L"BINORMAL",
+				L"TEXCOORD",
+				L"K_WEIGHT",
+				L"K_JOINT",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetObjJointVsBin(&size);
+				ObjJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjJointVsConstBuf), 7, layout_types, layout_semantics);
+			}
 		}
-		ObjDbgPS = static_cast<CShader*>(CMem::Alloc(sizeof(CShader)));
-		ObjDbgPS->CShader::CShader(CShader::Kind_PS, L"dbg/obj_dbg.ps", sizeof(SObjAnimPSConst));
 	}
-#endif
-	*/
 
-	/*
-	// TODO:
-	// Set the camera and the projection.
-	ObjAnimVSConst.World.Identity();
-	ObjAnimVSConst.NWorld.Identity();
-	SetCamera(0.0, 0.0, -10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-	SetProj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.01, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
-	ObjAnimVSConst.DirPos[0] = -1.0f;
-	ObjAnimVSConst.DirPos[1] = 1.0f;
-	ObjAnimVSConst.DirPos[2] = -1.0f;
-	ObjAnimPSConst.DirCol[0] = 1.0f;
-	ObjAnimPSConst.DirCol[1] = 1.0f;
-	ObjAnimPSConst.DirCol[2] = 1.0f;
-	ObjAnimPSConst.DirCol[3] = 0.0f;
-	ObjAnimPSConst.Mode[0] = -1;
+	memset(&ObjVsConstBuf, 0, sizeof(SObjVsConstBuf));
+	memset(&ObjPsConstBuf, 0, sizeof(SObjPsConstBuf));
+	_camera(0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	_proj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.01, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
+	ObjVsConstBuf.Dir[0] = 1.0f;
+	ObjVsConstBuf.Dir[1] = 1.0f;
+	ObjVsConstBuf.Dir[2] = 1.0f;
+	ObjPsConstBuf.DirColor[0] = 1.0f;
+	ObjPsConstBuf.DirColor[1] = 1.0f;
+	ObjPsConstBuf.DirColor[2] = 1.0f;
+	ObjPsConstBuf.DirColor[3] = 0.0f;
 
-	DeviceContext->ClearRenderTargetView(RenderTargetView, ClearColor);
-	DeviceContext->ClearDepthStencilView(DepthStencilView, D3D10_CLEAR_DEPTH, 1.0f, 0);
-	*/
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Device->RSSetState(RasterizerState);
 	_depth(False, False);
@@ -975,31 +1332,12 @@ void Init()
 
 void Fin()
 {
-	/*
-	// TODO:
-#if defined(DBG)
-	if (ObjDbgPS != NULL)
-	{
-		ObjDbgPS->~CShader();
-		CMem::Free(ObjDbgPS);
-	}
-	if (ObjDbgVS != NULL)
-	{
-		ObjDbgVS->~CShader();
-		CMem::Free(ObjDbgVS);
-	}
-#endif
-	if (ObjAnimPS != NULL)
-	{
-		ObjAnimPS->~CShader();
-		CMem::Free(ObjAnimPS);
-	}
-	if (ObjAnimVS != NULL)
-	{
-		ObjAnimVS->~CShader();
-		CMem::Free(ObjAnimVS);
-	}
-	*/
+	if (ObjPs != NULL)
+		FinShaderBuf(ObjPs);
+	if (ObjJointVs != NULL)
+		FinShaderBuf(ObjJointVs);
+	if (ObjVs != NULL)
+		FinShaderBuf(ObjVs);
 	if (TexPs != NULL)
 		FinShaderBuf(TexPs);
 	if (TexVs != NULL)
@@ -1325,10 +1663,10 @@ void VertexBuf(void* vertex_buf)
 	const UINT stride = static_cast<UINT>(vertex_buf2->VertexLineSize);
 	const UINT offset = 0;
 	Device->IASetVertexBuffers(0, 1, &vertex_buf2->Vertex, &stride, &offset);
-	Device->IASetIndexBuffer(vertex_buf2->Idx, DXGI_FORMAT_R16_UINT, 0);
+	Device->IASetIndexBuffer(vertex_buf2->Idx, DXGI_FORMAT_R32_UINT, 0);
 }
 
-void* MakeVertexBuf(size_t vertex_size, const void* vertices, size_t vertex_line_size, size_t idx_size, const U16* idces)
+void* MakeVertexBuf(size_t vertex_size, const void* vertices, size_t vertex_line_size, size_t idx_size, const U32* idces)
 {
 	SVertexBuf* vertex_buf = static_cast<SVertexBuf*>(AllocMem(sizeof(SVertexBuf)));
 
@@ -1379,6 +1717,90 @@ void FinVertexBuf(void* vertex_buf)
 	if (vertex_buf2->Vertex != NULL)
 		vertex_buf2->Vertex->Release();
 	FreeMem(vertex_buf);
+}
+
+void Identity(double mtx[4][4])
+{
+	mtx[0][0] = 1.0;
+	mtx[0][1] = 0.0;
+	mtx[0][2] = 0.0;
+	mtx[0][3] = 0.0;
+	mtx[1][0] = 0.0;
+	mtx[1][1] = 1.0;
+	mtx[1][2] = 0.0;
+	mtx[1][3] = 0.0;
+	mtx[2][0] = 0.0;
+	mtx[2][1] = 0.0;
+	mtx[2][2] = 1.0;
+	mtx[2][3] = 0.0;
+	mtx[3][0] = 0.0;
+	mtx[3][1] = 0.0;
+	mtx[3][2] = 0.0;
+	mtx[3][3] = 1.0;
+}
+
+void IdentityFloat(float mtx[4][4])
+{
+	mtx[0][0] = 1.0f;
+	mtx[0][1] = 0.0f;
+	mtx[0][2] = 0.0f;
+	mtx[0][3] = 0.0f;
+	mtx[1][0] = 0.0f;
+	mtx[1][1] = 1.0f;
+	mtx[1][2] = 0.0f;
+	mtx[1][3] = 0.0f;
+	mtx[2][0] = 0.0f;
+	mtx[2][1] = 0.0f;
+	mtx[2][2] = 1.0f;
+	mtx[2][3] = 0.0f;
+	mtx[3][0] = 0.0f;
+	mtx[3][1] = 0.0f;
+	mtx[3][2] = 0.0f;
+	mtx[3][3] = 1.0f;
+}
+
+double Normalize(double vec[3])
+{
+	double len = sqrt(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2]);
+	if (len != 0.0)
+	{
+		vec[0] /= len;
+		vec[1] /= len;
+		vec[2] /= len;
+	}
+	return len;
+}
+
+double Dot(const double a[3], const double b[3])
+{
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+void Cross(double out[3], const double a[3], const double b[3])
+{
+	out[0] = a[1] * b[2] - a[2] * b[1];
+	out[1] = a[2] * b[0] - a[0] * b[2];
+	out[2] = a[0] * b[1] - a[1] * b[0];
+}
+
+void SetProjViewMtx(float out[4][4], const double proj[4][4], const double view[4][4])
+{
+	out[0][0] = static_cast<float>(proj[0][0] * view[0][0] + proj[1][0] * view[0][1] + proj[2][0] * view[0][2] + proj[3][0] * view[0][3]);
+	out[0][1] = static_cast<float>(proj[0][1] * view[0][0] + proj[1][1] * view[0][1] + proj[2][1] * view[0][2] + proj[3][1] * view[0][3]);
+	out[0][2] = static_cast<float>(proj[0][2] * view[0][0] + proj[1][2] * view[0][1] + proj[2][2] * view[0][2] + proj[3][2] * view[0][3]);
+	out[0][3] = static_cast<float>(proj[0][3] * view[0][0] + proj[1][3] * view[0][1] + proj[2][3] * view[0][2] + proj[3][3] * view[0][3]);
+	out[1][0] = static_cast<float>(proj[0][0] * view[1][0] + proj[1][0] * view[1][1] + proj[2][0] * view[1][2] + proj[3][0] * view[1][3]);
+	out[1][1] = static_cast<float>(proj[0][1] * view[1][0] + proj[1][1] * view[1][1] + proj[2][1] * view[1][2] + proj[3][1] * view[1][3]);
+	out[1][2] = static_cast<float>(proj[0][2] * view[1][0] + proj[1][2] * view[1][1] + proj[2][2] * view[1][2] + proj[3][2] * view[1][3]);
+	out[1][3] = static_cast<float>(proj[0][3] * view[1][0] + proj[1][3] * view[1][1] + proj[2][3] * view[1][2] + proj[3][3] * view[1][3]);
+	out[2][0] = static_cast<float>(proj[0][0] * view[2][0] + proj[1][0] * view[2][1] + proj[2][0] * view[2][2] + proj[3][0] * view[2][3]);
+	out[2][1] = static_cast<float>(proj[0][1] * view[2][0] + proj[1][1] * view[2][1] + proj[2][1] * view[2][2] + proj[3][1] * view[2][3]);
+	out[2][2] = static_cast<float>(proj[0][2] * view[2][0] + proj[1][2] * view[2][1] + proj[2][2] * view[2][2] + proj[3][2] * view[2][3]);
+	out[2][3] = static_cast<float>(proj[0][3] * view[2][0] + proj[1][3] * view[2][1] + proj[2][3] * view[2][2] + proj[3][3] * view[2][3]);
+	out[3][0] = static_cast<float>(proj[0][0] * view[3][0] + proj[1][0] * view[3][1] + proj[2][0] * view[3][2] + proj[3][0] * view[3][3]);
+	out[3][1] = static_cast<float>(proj[0][1] * view[3][0] + proj[1][1] * view[3][1] + proj[2][1] * view[3][2] + proj[3][1] * view[3][3]);
+	out[3][2] = static_cast<float>(proj[0][2] * view[3][0] + proj[1][2] * view[3][1] + proj[2][2] * view[3][2] + proj[3][2] * view[3][3]);
+	out[3][3] = static_cast<float>(proj[0][3] * view[3][0] + proj[1][3] * view[3][1] + proj[2][3] * view[3][2] + proj[3][3] * view[3][3]);
 }
 
 } // namespace Draw

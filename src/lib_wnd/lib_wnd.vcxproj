@@ -139,6 +139,9 @@
     <ClCompile Include="input.cpp" />
     <ClCompile Include="jpg_decoder.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="obj_joint_vs.c" />
+    <ClCompile Include="obj_ps.c" />
+    <ClCompile Include="obj_vs.c" />
     <ClCompile Include="png_decoder.cpp" />
     <ClCompile Include="rect_vs.c" />
     <ClCompile Include="snd.cpp" />

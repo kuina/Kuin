@@ -15,7 +15,7 @@
 #include "main.h"
 #include "fbxsdk.h"
 
-static const Bool Mirror = True; // Invert the Z axis.
+static const Bool Mirror = False; // Invert the Z axis.
 
 struct SPoint
 {
@@ -25,8 +25,8 @@ struct SPoint
 	double TangentX, TangentY, TangentZ;
 	double BinormalX, BinormalY, BinormalZ;
 	double TexU, TexV;
-	int Joint[4];
 	double JointWeight[4];
+	int Joint[4];
 };
 
 static FbxManager* Manager = NULL;
@@ -37,6 +37,7 @@ static void Err(const char* msg);
 static void Normalize(double* vec);
 static void CalcTangent(double* tangents, double* binormals, const double* normals, const double* ps, const double* uvs);
 static SPoint MirrorPoint(const SPoint* p);
+static Bool Same(double a, double b);
 static Bool CmpPoints(const SPoint* a, const SPoint* b);
 static void WriteInt(int n);
 static void WriteFloat(double n);
@@ -91,9 +92,9 @@ static void CalcTangent(double* tangents, double* binormals, const double* norma
 
 		Normalize(&tangents[i * 3]);
 
-		binormals[i * 3 + 0] = normals[i * 3 + 1] * tangents[i * 3 + 2] - normals[i * 3 + 2] * tangents[i * 3 + 1];
-		binormals[i * 3 + 1] = normals[i * 3 + 2] * tangents[i * 3 + 0] - normals[i * 3 + 0] * tangents[i * 3 + 2];
-		binormals[i * 3 + 2] = normals[i * 3 + 0] * tangents[i * 3 + 1] - normals[i * 3 + 1] * tangents[i * 3 + 0];
+		binormals[i * 3 + 0] = tangents[i * 3 + 1] * normals[i * 3 + 2] - tangents[i * 3 + 2] * normals[i * 3 + 1];
+		binormals[i * 3 + 1] = tangents[i * 3 + 2] * normals[i * 3 + 0] - tangents[i * 3 + 0] * normals[i * 3 + 2];
+		binormals[i * 3 + 2] = tangents[i * 3 + 0] * normals[i * 3 + 1] - tangents[i * 3 + 1] * normals[i * 3 + 0];
 	}
 }
 
@@ -108,27 +109,40 @@ static SPoint MirrorPoint(const SPoint* p)
 	return result;
 }
 
+static Bool Same(double a, double b)
+{
+	U64 i1 = *(U64*)&a;
+	U64 i2 = *(U64*)&b;
+	S64 diff;
+	if ((i1 >> 63) != (i2 >> 63))
+		return a == b;
+	diff = (S64)(i1 - i2);
+	return -24 <= diff && diff <= 24;
+}
+
 static Bool CmpPoints(const SPoint* a, const SPoint* b)
 {
 	U32 flag = 1;
-	flag &= a->PosX == b->PosX;
-	flag &= a->PosY == b->PosY;
-	flag &= a->PosZ == b->PosZ;
-	flag &= a->NormalX == b->NormalX;
-	flag &= a->NormalY == b->NormalY;
-	flag &= a->NormalZ == b->NormalZ;
-	flag &= a->TangentX == b->TangentX;
-	flag &= a->TangentY == b->TangentY;
-	flag &= a->TangentZ == b->TangentZ;
-	flag &= a->BinormalX == b->BinormalX;
-	flag &= a->BinormalY == b->BinormalY;
-	flag &= a->BinormalZ == b->BinormalZ;
-	flag &= a->TexU == b->TexU;
-	flag &= a->TexV == b->TexV;
+	flag &= Same(a->PosX, b->PosX);
+	flag &= Same(a->PosY, b->PosY);
+	flag &= Same(a->PosZ, b->PosZ);
+	flag &= Same(a->NormalX, b->NormalX);
+	flag &= Same(a->NormalY, b->NormalY);
+	flag &= Same(a->NormalZ, b->NormalZ);
+	/*
+	flag &= Same(a->TangentX, b->TangentX);
+	flag &= Same(a->TangentY, b->TangentY);
+	flag &= Same(a->TangentZ, b->TangentZ);
+	flag &= Same(a->BinormalX, b->BinormalX);
+	flag &= Same(a->BinormalY, b->BinormalY);
+	flag &= Same(a->BinormalZ, b->BinormalZ);
+	flag &= Same(a->TexU, b->TexU);
+	flag &= Same(a->TexV, b->TexV);
+	*/
 	for (int i = 0; i < 4; i++)
 	{
-		flag &= a->Joint[i] == b->Joint[i];
-		flag &= a->JointWeight[i] == b->JointWeight[i];
+		flag &= Same(a->JointWeight[i], b->JointWeight[i]);
+		flag &= Same(a->Joint[i], b->Joint[i]);
 	}
 	return flag != 0;
 }
@@ -244,7 +258,7 @@ static void WriteNode(FbxNode* root)
 						points[i].PosZ = vertices[indices[i]][2];
 
 						if (normal == NULL)
-							Err("No normals are found.");
+							Err("No normals were found.");
 						else
 						{
 							int v_idx = normal_mapping == FbxGeometryElementNormal::eByPolygonVertex ? i : indices[i];
@@ -256,7 +270,7 @@ static void WriteNode(FbxNode* root)
 						}
 
 						if (uv == NULL)
-							Err("No UVs are found.");
+							Err("No UVs were found.");
 						{
 							int v_idx = uv_mapping == FbxGeometryElementNormal::eByPolygonVertex ? i : indices[i];
 							int idx = uv_ref == FbxGeometryElementNormal::eDirect ? v_idx : uv->GetIndexArray().GetAt(v_idx);
@@ -266,53 +280,64 @@ static void WriteNode(FbxNode* root)
 						}
 
 						if (joints == NULL)
-							Err("No joints are found.");
-						for (int j = 0; j < 4; j++)
 						{
-							// Get four bones in descending order of weights by selection sort.
-							int joint = -1;
-							double max = 0.0;
-							for (int k = 0; k < joint_num; k++)
+							if (joint_num != 0)
+								Err("No joints were found.");
+							for (int j = 0; j < 4; j++)
 							{
-								{
-									Bool skip = False;
-									for (int l = 0; l < j; l++)
-									{
-										if (points[i].Joint[l] == k)
-										{
-											skip = True;
-											break;
-										}
-									}
-									if (skip)
-										continue;
-								}
-								if (max < joints[indices[i] * joint_num + k])
-								{
-									joint = k;
-									max = joints[indices[i] * joint_num + k];
-								}
-							}
-							if (max == 0.0)
-							{
-								points[i].Joint[j] = 0;
 								points[i].JointWeight[j] = 0.0;
-							}
-							else
-							{
-								points[i].Joint[j] = joint;
-								points[i].JointWeight[j] = joints[indices[i] * joint_num + joint];
+								points[i].Joint[j] = 0;
 							}
 						}
-						// Normalize weights.
+						else
 						{
-							double sum = 0.0;
 							for (int j = 0; j < 4; j++)
-								sum += points[i].JointWeight[j];
-							if (sum == 0.0)
-								Err("The sum of weights must not be zero.");
-							for (int j = 0; j < 4; j++)
-								points[i].JointWeight[j] /= sum;
+							{
+								// Get four bones in descending order of weights by selection sort.
+								int joint = -1;
+								double max = 0.0;
+								for (int k = 0; k < joint_num; k++)
+								{
+									{
+										Bool skip = False;
+										for (int l = 0; l < j; l++)
+										{
+											if (points[i].Joint[l] == k)
+											{
+												skip = True;
+												break;
+											}
+										}
+										if (skip)
+											continue;
+									}
+									if (max < joints[indices[i] * joint_num + k])
+									{
+										joint = k;
+										max = joints[indices[i] * joint_num + k];
+									}
+								}
+								if (max == 0.0)
+								{
+									points[i].JointWeight[j] = 0.0;
+									points[i].Joint[j] = 0;
+								}
+								else
+								{
+									points[i].JointWeight[j] = joints[indices[i] * joint_num + joint];
+									points[i].Joint[j] = joint;
+								}
+							}
+							// Normalize weights.
+							{
+								double sum = 0.0;
+								for (int j = 0; j < 4; j++)
+									sum += points[i].JointWeight[j];
+								if (sum == 0.0)
+									Err("The sum of weights must not be zero.");
+								for (int j = 0; j < 4; j++)
+									points[i].JointWeight[j] /= sum;
+							}
 						}
 					}
 
@@ -421,8 +446,8 @@ static void WriteNode(FbxNode* root)
 
 							for (int j = 0; j < 4; j++)
 							{
-								WriteInt(points[i].Joint[j]);
 								WriteFloat(points[i].JointWeight[j]);
+								WriteInt(points[i].Joint[j]);
 							}
 
 						}
@@ -430,7 +455,12 @@ static void WriteNode(FbxNode* root)
 
 					// Write the joints.
 					WriteInt(joint_num);
-					if (joints != NULL)
+					if (joints == NULL)
+					{
+						WriteInt(0);
+						WriteInt(1);
+					}
+					else
 					{
 						FbxSkin* skin = static_cast<FbxSkin*>(mesh->GetDeformer(0, FbxDeformer::eSkin));
 						FbxTime::EMode time_mode = Scene->GetGlobalSettings().GetTimeMode();

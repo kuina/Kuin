@@ -16,6 +16,9 @@
     <ClCompile Include="bc_decoder.cpp" />
     <ClCompile Include="tex_ps.c" />
     <ClCompile Include="tex_vs.c" />
+    <ClCompile Include="obj_ps.c" />
+    <ClCompile Include="obj_vs.c" />
+    <ClCompile Include="obj_joint_vs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />
