@@ -63,6 +63,7 @@ typedef enum EAstTypeId
 	AstTypeId_TypePrim = AstTypeId_Type | 0x02,
 	AstTypeId_TypeUser = AstTypeId_TypeNullable | 0x05,
 	AstTypeId_TypeNull = AstTypeId_Type | 0x03,
+	AstTypeId_TypeEnumElement = AstTypeId_Type | 0x04,
 	AstTypeId_Expr = 0x0800,
 	AstTypeId_Expr1 = AstTypeId_Expr | 0x01,
 	AstTypeId_Expr2 = AstTypeId_Expr | 0x02,
@@ -439,6 +440,11 @@ typedef struct SAstTypeNull
 {
 	SAstType AstType;
 } SAstTypeNull;
+
+typedef struct SAstTypeEnumElement
+{
+	SAstType AstType;
+} SAstTypeEnumElement;
 
 typedef enum EAstExprVarKind
 {

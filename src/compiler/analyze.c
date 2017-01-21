@@ -49,7 +49,6 @@ static const Char* BuildInFuncs[] =
 
 static SDict* Asts;
 static const SOption* Option;
-static SDictI* EnumItems;
 static SDict* Dlls;
 static Bool LocalErr;
 
@@ -66,6 +65,7 @@ static SAst* SearchStdItem(const Char* src, const Char* identifier, Bool make_ex
 static SAstExprDot* MakeMeDot(SAstClass* class_, SAstArg* arg, const Char* name);
 static void AddDllFunc(const Char* dll_name, const Char* func_name);
 static int GetBuildInFuncType(const Char* name);
+static S64 GetEnumElementValue(SAstExprValue* ast, SAstEnum* enum_);
 static SAstFunc* Rebuild(const SAstFunc* main_func);
 static const void* RebuildEnumCallback(U64 key, const void* value, void* param);
 static const void* RebuildRootCallback(const Char* key, const void* value, void* param);
@@ -76,6 +76,7 @@ static void RebuildConst(SAstConst* ast);
 static void RebuildAlias(SAstAlias* ast);
 static void RebuildClass(SAstClass* ast);
 static void RebuildEnum(SAstEnum* ast);
+static void RebuildEnumElement(SAstExpr* enum_element, SAstType* type);
 static void RebuildArg(SAstArg* ast);
 static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type);
 static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type);
@@ -122,7 +123,6 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 
 	Asts = asts;
 	Option = option;
-	EnumItems = NULL;
 	Dlls = NULL;
 	LocalErr = False;
 	{
@@ -199,34 +199,11 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 			{
 				Bool other_file = False;
 				const Char* ptr_at = wcschr(ast->RefName, L'@');
-				Char name[129];
 				const Char* ptr_name; // The identifier right after '@'.
-				Char path[129];
-				const Char* ptr_path; // The path after '#'.
-				{
-					const Char* s = ptr_at == NULL ? ast->RefName : ptr_at + 1;
-					const Char* ptr_sharp = wcschr(s, L'#');
-					if (ptr_sharp == NULL)
-					{
-						ptr_name = s;
-						ptr_path = L"";
-					}
-					else
-					{
-						int len;
-						len = (int)(ptr_sharp - s);
-						memcpy(name, s, sizeof(Char) * (size_t)len);
-						name[len] = L'\0';
-						ptr_name = name;
-						len = (int)wcslen(ptr_sharp + 1);
-						memcpy(path, ptr_sharp + 1, sizeof(Char) * (size_t)len);
-						path[len] = L'\0';
-						ptr_path = path;
-					}
-				}
+				const Char* s = ptr_at == NULL ? ast->RefName : ptr_at + 1;
+				ptr_name = s;
 				{
 					const SAst* found_ast = NULL;
-					Bool found = False;
 					if (ptr_at != NULL)
 					{
 						// Search the root of the source.
@@ -280,72 +257,11 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 					}
 					if (found_ast != NULL)
 					{
-						// Search the found scope for '#' items.
 						if (other_file && !found_ast->Public)
 							Err(L"EA0003", ast->Pos, ast->RefName);
-						else
-						{
-							while (*ptr_path != L'\0')
-							{
-								// Search while the path contains '#'.
-								const Char* ptr_sharp = wcschr(ptr_path, L'#');
-								if (ptr_sharp == NULL)
-								{
-									ptr_name = ptr_path;
-									ptr_path = L"";
-								}
-								else
-								{
-									int len;
-									len = (int)(ptr_sharp - ptr_path);
-									memcpy(name, ptr_path, sizeof(Char) * (size_t)len);
-									name[len] = L'\0';
-									ptr_name = name;
-									len = (int)wcslen(ptr_sharp + 1);
-									{
-										// The memory areas can overlap each other, so copy via another buffer.
-										Char buf[129];
-										memcpy(buf, ptr_sharp + 1, sizeof(Char) * (size_t)len);
-										memcpy(path, buf, sizeof(Char) * (size_t)len);
-									}
-									path[len] = L'\0';
-									ptr_path = path;
-								}
-								{
-									const SAst* ast2 = (const SAst*)DictSearch(found_ast->ScopeChildren, ptr_name);
-									if (ast2 == NULL)
-									{
-										found_ast = NULL;
-										break;
-									}
-									if (found_ast->TypeId == AstTypeId_Class)
-									{
-										if (ast2->TypeId == AstTypeId_Func || ast2->TypeId == AstTypeId_Var)
-										{
-											// TODO: Should it not be possible for properties and methods to be referenced by '#'?
-											found_ast = NULL;
-											break;
-										}
-									}
-									else if (found_ast->TypeId == AstTypeId_Enum)
-										EnumItems = DictIAdd(EnumItems, (U64)found_ast, DummyPtr);
-									else
-									{
-										// TODO: Should it be only 'class' members and 'enum' elements to be referenced by '#'?
-										found_ast = NULL;
-										break;
-									}
-									found_ast = ast2;
-								}
-							}
-							if (found_ast != NULL)
-							{
-								ast->RefItem = (SAst*)found_ast;
-								found = True;
-							}
-						}
+						ast->RefItem = (SAst*)found_ast;
 					}
-					if (!found)
+					else
 						Err(L"EA0000", ast->Pos, ast->RefName);
 				}
 			}
@@ -398,7 +314,7 @@ static Bool CmpType(const SAstType* type1, const SAstType* type2)
 	EAstTypeId type_id2 = ((SAst*)type2)->TypeId;
 	ASSERT(type1 != NULL && type2 != NULL);
 	{
-		// Comparing 'null' and 'nullable' is true.
+		// Comparing 'null' and 'nullable' should be true.
 		Bool nullable1 = type_id1 == AstTypeId_TypeUser && ((SAst*)type1)->RefItem->TypeId == AstTypeId_Enum ? False : ((type_id1 & AstTypeId_TypeNullable) == AstTypeId_TypeNullable);
 		Bool nullable2 = type_id2 == AstTypeId_TypeUser && ((SAst*)type2)->RefItem->TypeId == AstTypeId_Enum ? False : ((type_id2 & AstTypeId_TypeNullable) == AstTypeId_TypeNullable);
 		if (nullable1 && type_id2 == AstTypeId_TypeNull || type_id1 == AstTypeId_TypeNull && nullable2 || type_id1 == AstTypeId_TypeNull && type_id2 == AstTypeId_TypeNull)
@@ -480,6 +396,8 @@ static Bool CmpType(const SAstType* type1, const SAstType* type2)
 		}
 		return ((SAst*)type1)->RefItem == ((SAst*)type2)->RefItem;
 	}
+	if ((type_id1 == AstTypeId_TypeUser && ((SAst*)type1)->RefItem->TypeId == AstTypeId_Enum || type_id1 == AstTypeId_TypeEnumElement) && (type_id2 == AstTypeId_TypeUser && ((SAst*)type2)->RefItem->TypeId == AstTypeId_Enum || type_id2 == AstTypeId_TypeEnumElement))
+		return True;
 	return False;
 }
 
@@ -634,6 +552,28 @@ static int GetBuildInFuncType(const Char* name)
 	if (idx == -1)
 		return -1;
 	return (int)BuildInFuncs[idx][14];
+}
+
+static S64 GetEnumElementValue(SAstExprValue* ast, SAstEnum* enum_)
+{
+	ASSERT(((SAst*)((SAstExpr*)ast)->Type)->TypeId == AstTypeId_TypeEnumElement);
+	RebuildEnum(enum_);
+	{
+		SListNode* ptr = enum_->Items->Top;
+		const Char* name = *(const Char**)ast->Value;
+		while (ptr != NULL)
+		{
+			SAstExpr* item = (SAstExpr*)ptr->Data;
+			if (wcscmp(name, ((SAst*)item)->Name) == 0)
+			{
+				ASSERT(((SAst*)item)->TypeId == AstTypeId_ExprValue);
+				return *(S64*)((SAstExprValue*)item)->Value;
+			}
+			ptr = ptr->Next;
+		}
+		Err(L"EA0059", ((SAst*)ast)->Pos, name);
+	}
+	return 0;
 }
 
 static SAstFunc* Rebuild(const SAstFunc* main_func)
@@ -832,7 +772,6 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 		LocalErr = False;
 		return (SAstFunc*)DummyPtr;
 	}
-	DictIForEach(EnumItems, RebuildEnumCallback, NULL);
 	RebuildFunc(func);
 	ListAdd(((const SAstRoot*)DictSearch(Asts, NewStr(NULL, L"\\%s", Option->SrcName)))->Items, func);
 	DictForEach(Asts, RebuildRootCallback, NULL);
@@ -1629,6 +1568,14 @@ static void RebuildEnum(SAstEnum* ast)
 	}
 }
 
+static void RebuildEnumElement(SAstExpr* enum_element, SAstType* type)
+{
+	ASSERT(((SAst*)enum_element)->TypeId == AstTypeId_ExprValue);
+	ASSERT(IsEnum(type));
+	*(S64*)((SAstExprValue*)enum_element)->Value = GetEnumElementValue((SAstExprValue*)enum_element, (SAstEnum*)((SAst*)type)->RefItem);
+	enum_element->Type = type;
+}
+
 static void RebuildArg(SAstArg* ast)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
@@ -1656,6 +1603,8 @@ static void RebuildArg(SAstArg* ast)
 			Err(L"EA0015", ((SAst*)ast)->Pos, ((SAst*)ast)->Name);
 		if (!CmpType(ast->Expr->Type, ast->Type))
 			Err(L"EA0056", ((SAst*)ast)->Pos);
+		if (((SAst*)ast->Expr->Type)->TypeId == AstTypeId_TypeEnumElement)
+			RebuildEnumElement(ast->Expr, ast->Type);
 	}
 }
 
@@ -2011,6 +1960,8 @@ static SAstStat* RebuildRet(SAstStatRet* ast, SAstType* ret_type)
 		}
 		if (ret_type == NULL || !CmpType(ast->Value->Type, ret_type))
 			Err(L"EA0031", ((SAst*)ast)->Pos);
+		if (((SAst*)ast->Value->Type)->TypeId == AstTypeId_TypeEnumElement)
+			RebuildEnumElement(ast->Value, ret_type);
 	}
 	return (SAstStat*)ast;
 }
@@ -2360,6 +2311,8 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 						}
 					}
 				}
+				if (((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeEnumElement)
+					RebuildEnumElement(ast->Children[1], ast->Children[0]->Type);
 				((SAstExpr*)ast)->Type = NULL;
 				correct = True;
 				break;
@@ -2856,6 +2809,11 @@ static SAstExpr* RebuildExprAs(SAstExprAs* ast)
 					if (((SAst*)t2)->TypeId == AstTypeId_TypeBit || IsInt(t2) || IsEnum(t2))
 						((SAstExpr*)ast)->Type = t2;
 				}
+				else if (((SAst*)t1)->TypeId == AstTypeId_TypeEnumElement)
+				{
+					if (IsEnum(t2))
+						((SAstExpr*)ast)->Type = t2;
+				}
 				if (((SAstExpr*)ast)->Type != NULL)
 				{
 					if (((SAst*)ast->Child)->TypeId == AstTypeId_ExprValue)
@@ -2896,6 +2854,11 @@ static SAstExpr* RebuildExprAs(SAstExprAs* ast)
 								ASSERT(IsBool(t2));
 								*(U64*)expr->Value = n != 0 ? 1 : 0;
 							}
+						}
+						else if (((SAst*)t1)->TypeId == AstTypeId_TypeEnumElement)
+						{
+							ASSERT(((SAst*)t2)->RefItem->TypeId == AstTypeId_Enum);
+							*(S64*)expr->Value = GetEnumElementValue((SAstExprValue*)ast->Child, (SAstEnum*)((SAst*)t2)->RefItem);
 						}
 						else
 						{
@@ -3057,6 +3020,8 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 					LocalErr = True;
 					return (SAstExpr*)DummyPtr;
 				}
+				if (((SAst*)arg_expr->Arg->Type)->TypeId == AstTypeId_TypeEnumElement)
+					RebuildEnumElement(arg_expr->Arg, arg_type->Arg);
 				ptr_expr = ptr_expr->Next;
 				ptr_type = ptr_type->Next;
 			}

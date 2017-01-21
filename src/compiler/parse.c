@@ -497,13 +497,12 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 		Char buf[128];
 		int pos = 0;
 		Bool at = False;
-		Bool sharp = False;
 		do
 		{
 			switch (c)
 			{
 				case L'@':
-					if (sharp || at)
+					if (at)
 					{
 						Err(L"EP0001", NewPos(SrcName, Row, Col));
 						return L"";
@@ -543,11 +542,8 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 					}
 					at = True;
 					break;
-				case L'#':
-					sharp = True;
-					break;
 				case L'\\':
-					if (sharp || at)
+					if (at)
 					{
 						Err(L"EP0055", NewPos(SrcName, Row, Col));
 						return L"";
@@ -563,7 +559,7 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 			buf[pos] = c;
 			pos++;
 			c = Read();
-		} while (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || L'0' <= c && c <= L'9' || ref && (c == L'@' || c == L'#' || c == L'\\'));
+		} while (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || L'0' <= c && c <= L'9' || ref && (c == L'@' || c == L'\\'));
 		FileBuf = c;
 		return SubStr(buf, 0, pos);
 	}
@@ -3251,6 +3247,18 @@ static SAstExpr* ParseExprValue(void)
 					}
 				}
 				ast = (SAstExpr*)ast2;
+			}
+			break;
+		case L'%':
+			{
+				const Char* s = ReadIdentifier(False, False);
+				SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+				InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, pos);
+				SAstTypeEnumElement* type = (SAstTypeEnumElement*)Alloc(sizeof(SAstTypeEnumElement));
+				InitAst((SAst*)type, AstTypeId_TypeEnumElement, pos, NULL, False, False);
+				((SAstExpr*)expr)->Type = (SAstType*)type;
+				*(const Char**)expr->Value = s;
+				ast = (SAstExpr*)expr;
 			}
 			break;
 		default:

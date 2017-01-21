@@ -53,6 +53,7 @@ static void DumpAstTypeDict(const SAstTypeDict* ast);
 static void DumpAstTypePrim(const SAstTypePrim* ast);
 static void DumpAstTypeUser(const SAstTypeUser* ast);
 static void DumpAstTypeNull(const SAstTypeNull* ast);
+static void DumpAstTypeEnumElement(const SAstTypeEnumElement* ast);
 static void DumpAstExpr(const SAstExpr* ast);
 static void DumpAstExpr1(const SAstExpr1* ast);
 static void DumpAstExpr2(const SAstExpr2* ast);
@@ -216,6 +217,7 @@ static void DumpRecursion(const SAst* ast)
 		case AstTypeId_TypePrim: DumpAstTypePrim((const SAstTypePrim*)ast); break;
 		case AstTypeId_TypeUser: DumpAstTypeUser((const SAstTypeUser*)ast); break;
 		case AstTypeId_TypeNull: DumpAstTypeNull((const SAstTypeNull*)ast); break;
+		case AstTypeId_TypeEnumElement: DumpAstTypeEnumElement((const SAstTypeEnumElement*)ast); break;
 		case AstTypeId_Expr: ASSERT(False); break;
 		case AstTypeId_Expr1: DumpAstExpr1((const SAstExpr1*)ast); break;
 		case AstTypeId_Expr2: DumpAstExpr2((const SAstExpr2*)ast); break;
@@ -969,6 +971,17 @@ static void DumpAstTypeNull(const SAstTypeNull* ast)
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</TypeNull>\n");
+}
+
+static void DumpAstTypeEnumElement(const SAstTypeEnumElement* ast)
+{
+	PrintTab(); fwprintf(FilePtr, L"<TypeEnumElement>\n");
+	Tab++;
+	{
+		DumpAstType((const SAstType*)ast);
+	}
+	Tab--;
+	PrintTab(); fwprintf(FilePtr, L"</TypeEnumElement>\n");
 }
 
 static void DumpAstExpr(const SAstExpr* ast)
