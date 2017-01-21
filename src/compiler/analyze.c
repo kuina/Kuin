@@ -2449,8 +2449,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 					if (((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue && ((SAst*)ast->Children[1])->TypeId == AstTypeId_ExprValue)
 					{
 						Bool b = False;
-						// TODO: Is it not possible to compare the values of 'enum'?
-						if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeBit || IsChar(ast->Children[0]->Type) || IsInt(ast->Children[0]->Type) || IsFloat(ast->Children[0]->Type))
+						if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeBit || IsInt(ast->Children[0]->Type) || IsFloat(ast->Children[0]->Type) || IsChar(ast->Children[0]->Type) || IsBool(ast->Children[0]->Type) || IsEnum(ast->Children[0]->Type))
 						{
 							U64 n1 = *(U64*)((SAstExprValue*)ast->Children[0])->Value;
 							U64 n2 = *(U64*)((SAstExprValue*)ast->Children[1])->Value;
@@ -2465,16 +2464,18 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 						}
 						else
 						{
-							int cmp = wcscmp(*(const Char**)((SAstExprValue*)ast->Children[0])->Value, *(const Char**)((SAstExprValue*)ast->Children[1])->Value);
-							switch (ast->Kind)
-							{
-								case AstExpr2Kind_Eq: b = cmp == 0; break;
-								case AstExpr2Kind_NEq: b = cmp != 0; break;
-								default:
-									ASSERT(False);
-									break;
-							}
 							ASSERT(IsStr(ast->Children[0]->Type));
+							{
+								int cmp = wcscmp(*(const Char**)((SAstExprValue*)ast->Children[0])->Value, *(const Char**)((SAstExprValue*)ast->Children[1])->Value);
+								switch (ast->Kind)
+								{
+									case AstExpr2Kind_Eq: b = cmp == 0; break;
+									case AstExpr2Kind_NEq: b = cmp != 0; break;
+									default:
+										ASSERT(False);
+										break;
+								}
+							}
 						}
 						{
 							SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));

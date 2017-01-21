@@ -86,7 +86,6 @@ struct SObjVsConstBuf
 	float NormWorld[4][4];
 	float ProjView[4][4];
 	float Eye[4];
-	float Dir[4];
 };
 
 struct SObjJointVsConstBuf
@@ -95,12 +94,12 @@ struct SObjJointVsConstBuf
 	float NormWorld[4][4];
 	float ProjView[4][4];
 	float Eye[4];
-	float Dir[4];
 	float Joint[JointMax][4][4];
 };
 
 struct SObjPsConstBuf
 {
+	float Dir[4];
 	float DirColor[4];
 #if defined(DBG)
 	int Mode[4];
@@ -666,16 +665,16 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 							}
 							int idx_num = *reinterpret_cast<const int*>(buf + ptr);
 							ptr += sizeof(int);
-							vertices = static_cast<U8*>(AllocMem((sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num)));
+							vertices = static_cast<U8*>(AllocMem((sizeof(float) * 12 + sizeof(int) * 4) * static_cast<size_t>(idx_num)));
 							U8* ptr2 = vertices;
-							if (ptr + (sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num) > size)
+							if (ptr + (sizeof(float) * 12 + sizeof(int) * 4) * static_cast<size_t>(idx_num) > size)
 							{
 								correct = False;
 								break;
 							}
 							for (int j = 0; j < idx_num; j++)
 							{
-								for (int k = 0; k < 18; k++)
+								for (int k = 0; k < 12; k++)
 								{
 									*reinterpret_cast<float*>(ptr2) = *reinterpret_cast<const float*>(buf + ptr);
 									ptr += sizeof(float);
@@ -688,7 +687,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 									ptr2 += sizeof(int);
 								}
 							}
-							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num), vertices, sizeof(float) * 18 + sizeof(int) * 4, sizeof(U32) * static_cast<size_t>(element->VertexNum), idces);
+							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * 12 + sizeof(int) * 4) * static_cast<size_t>(idx_num), vertices, sizeof(float) * 12 + sizeof(int) * 4, sizeof(U32) * static_cast<size_t>(element->VertexNum), idces);
 							if (ptr + sizeof(int) * 3 > size)
 							{
 								correct = False;
@@ -962,7 +961,7 @@ void Init()
 		D3D10_RASTERIZER_DESC desc;
 		memset(&desc, 0, sizeof(desc));
 		desc.FillMode = D3D10_FILL_SOLID;
-		desc.CullMode = D3D10_CULL_NONE; // TODO: D3D10_CULL_BACK;
+		desc.CullMode = D3D10_CULL_FRONT; //D3D10_CULL_NONE; // TODO: D3D10_CULL_BACK;
 		desc.FrontCounterClockwise = FALSE;
 		desc.DepthBias = 0;
 		desc.DepthBiasClamp = 0.0f;
@@ -1315,17 +1314,25 @@ void Init()
 	memset(&ObjPsConstBuf, 0, sizeof(SObjPsConstBuf));
 	_camera(0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 	_proj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.01, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
-	ObjVsConstBuf.Dir[0] = 1.0f;
-	ObjVsConstBuf.Dir[1] = 1.0f;
-	ObjVsConstBuf.Dir[2] = 1.0f;
-	ObjPsConstBuf.DirColor[0] = 1.0f;
-	ObjPsConstBuf.DirColor[1] = 1.0f;
-	ObjPsConstBuf.DirColor[2] = 1.0f;
+	_camera(100.0, 150.0, 250.0, 20.0, 30.0, 0.0, 0.0, 1.0, 0.0);
+	_proj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.01, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
+	{
+		double dir[3] = { 2.0, 5.0, 1.0 };
+		Draw::Normalize(dir);
+		ObjPsConstBuf.Dir[0] = static_cast<float>(dir[0]);
+		ObjPsConstBuf.Dir[1] = static_cast<float>(dir[1]);
+		ObjPsConstBuf.Dir[2] = static_cast<float>(dir[2]);
+		ObjPsConstBuf.Dir[3] = 0.0f;
+	}
+	ObjPsConstBuf.DirColor[0] = 1.5f;
+	ObjPsConstBuf.DirColor[1] = 1.5f;
+	ObjPsConstBuf.DirColor[2] = 1.5f;
 	ObjPsConstBuf.DirColor[3] = 0.0f;
 
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Device->RSSetState(RasterizerState);
 	_depth(False, False);
+	_depth(True, True);
 	_blend(1);
 	_sampler(1);
 }
