@@ -22,8 +22,6 @@ struct SPoint
 	Bool Unique;
 	double PosX, PosY, PosZ;
 	double NormalX, NormalY, NormalZ;
-	double TangentX, TangentY, TangentZ;
-	double BinormalX, BinormalY, BinormalZ;
 	double TexU, TexV;
 	double JointWeight[4];
 	int Joint[4];
@@ -34,8 +32,6 @@ static FbxScene* Scene = NULL;
 static FILE* FilePtr = NULL;
 
 static void Err(const char* msg);
-static void Normalize(double* vec);
-static void CalcTangent(double* tangents, double* binormals, const double* normals, const double* ps, const double* uvs);
 static SPoint MirrorPoint(const SPoint* p);
 static Bool Same(double a, double b);
 static Bool CmpPoints(const SPoint* a, const SPoint* b);
@@ -49,62 +45,11 @@ static void Err(const char* msg)
 	exit(1);
 }
 
-static void Normalize(double* vec)
-{
-	double len = sqrt(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2]);
-	if (len == 0.0)
-		Err("Normalization failed.");
-	vec[0] /= len;
-	vec[1] /= len;
-	vec[2] /= len;
-}
-
-static void CalcTangent(double* tangents, double* binormals, const double* normals, const double* ps, const double* uvs)
-{
-	for (int i = 0; i < 3; i++)
-	{
-		double edge0[3] = { ps[3 * 1 + i] - ps[3 * 0 + i], uvs[2 * 1 + 0] - uvs[2 * 0 + 0], uvs[2 * 1 + 1] - uvs[2 * 0 + 1] };
-		double edge1[3] = { ps[3 * 2 + i] - ps[3 * 0 + i], uvs[2 * 2 + 0] - uvs[2 * 0 + 0], uvs[2 * 2 + 1] - uvs[2 * 0 + 1] };
-
-		// 'edge0' x 'edge1'.
-		double cross[3];
-		cross[0] = edge0[1] * edge1[2] - edge0[2] * edge1[1];
-		cross[1] = edge0[2] * edge1[0] - edge0[0] * edge1[2];
-		cross[2] = edge0[0] * edge1[1] - edge0[1] * edge1[0];
-
-		Normalize(cross);
-		if (cross[0] == 0.0)
-			cross[0] = 1.0;
-		double tan_factor = -cross[1] / cross[0];
-
-		tangents[0 + i] = tan_factor;
-		tangents[3 + i] = tan_factor;
-		tangents[6 + i] = tan_factor;
-	}
-
-	for (int i = 0; i < 3; i++)
-	{
-		// Orthonormalize to normal.
-		double dot = tangents[i * 3 + 0] * normals[i * 3 + 0] + tangents[i * 3 + 1] * normals[i * 3 + 1] + tangents[i * 3 + 2] * normals[i * 3 + 2];
-		tangents[i * 3 + 0] -= normals[i * 3 + 0] * dot;
-		tangents[i * 3 + 1] -= normals[i * 3 + 1] * dot;
-		tangents[i * 3 + 2] -= normals[i * 3 + 2] * dot;
-
-		Normalize(&tangents[i * 3]);
-
-		binormals[i * 3 + 0] = tangents[i * 3 + 1] * normals[i * 3 + 2] - tangents[i * 3 + 2] * normals[i * 3 + 1];
-		binormals[i * 3 + 1] = tangents[i * 3 + 2] * normals[i * 3 + 0] - tangents[i * 3 + 0] * normals[i * 3 + 2];
-		binormals[i * 3 + 2] = tangents[i * 3 + 0] * normals[i * 3 + 1] - tangents[i * 3 + 1] * normals[i * 3 + 0];
-	}
-}
-
 static SPoint MirrorPoint(const SPoint* p)
 {
 	SPoint result = *p;
 	result.PosZ = -result.PosZ;
 	result.NormalZ = -result.NormalZ;
-	result.BinormalZ = -result.BinormalZ;
-	result.TangentZ = -result.TangentZ;
 	result.TexV = result.TexV * 2.0 - 1.0;
 	return result;
 }
@@ -129,16 +74,8 @@ static Bool CmpPoints(const SPoint* a, const SPoint* b)
 	flag &= Same(a->NormalX, b->NormalX);
 	flag &= Same(a->NormalY, b->NormalY);
 	flag &= Same(a->NormalZ, b->NormalZ);
-	/*
-	flag &= Same(a->TangentX, b->TangentX);
-	flag &= Same(a->TangentY, b->TangentY);
-	flag &= Same(a->TangentZ, b->TangentZ);
-	flag &= Same(a->BinormalX, b->BinormalX);
-	flag &= Same(a->BinormalY, b->BinormalY);
-	flag &= Same(a->BinormalZ, b->BinormalZ);
 	flag &= Same(a->TexU, b->TexU);
 	flag &= Same(a->TexV, b->TexV);
-	*/
 	for (int i = 0; i < 4; i++)
 	{
 		flag &= Same(a->JointWeight[i], b->JointWeight[i]);
@@ -341,49 +278,6 @@ static void WriteNode(FbxNode* root)
 						}
 					}
 
-					// Calculate the tangent and the binormal.
-					for (int i = 0; i < vertex_num / 3; i++)
-					{
-						double tangents[9], binormals[9];
-						double normals[9] =
-						{
-							points[i * 3 + 0].NormalX, points[i * 3 + 0].NormalY, points[i * 3 + 0].NormalZ,
-							points[i * 3 + 1].NormalX, points[i * 3 + 1].NormalY, points[i * 3 + 1].NormalZ,
-							points[i * 3 + 2].NormalX, points[i * 3 + 2].NormalY, points[i * 3 + 2].NormalZ,
-						};
-						double ps[9] =
-						{
-							points[i * 3 + 0].PosX, points[i * 3 + 0].PosY, points[i * 3 + 0].PosZ,
-							points[i * 3 + 1].PosX, points[i * 3 + 1].PosY, points[i * 3 + 1].PosZ,
-							points[i * 3 + 2].PosX, points[i * 3 + 2].PosY, points[i * 3 + 2].PosZ,
-						};
-						double uvs[6] =
-						{
-							points[i * 3 + 0].TexU, points[i * 3 + 0].TexV,
-							points[i * 3 + 1].TexU, points[i * 3 + 1].TexV,
-							points[i * 3 + 2].TexU, points[i * 3 + 2].TexV,
-						};
-						CalcTangent(tangents, binormals, normals, ps, uvs);
-						points[i * 3 + 0].TangentX = tangents[0];
-						points[i * 3 + 0].TangentY = tangents[1];
-						points[i * 3 + 0].TangentZ = tangents[2];
-						points[i * 3 + 1].TangentX = tangents[3];
-						points[i * 3 + 1].TangentY = tangents[4];
-						points[i * 3 + 1].TangentZ = tangents[5];
-						points[i * 3 + 2].TangentX = tangents[6];
-						points[i * 3 + 2].TangentY = tangents[7];
-						points[i * 3 + 2].TangentZ = tangents[8];
-						points[i * 3 + 0].BinormalX = binormals[0];
-						points[i * 3 + 0].BinormalY = binormals[1];
-						points[i * 3 + 0].BinormalZ = binormals[2];
-						points[i * 3 + 1].BinormalX = binormals[3];
-						points[i * 3 + 1].BinormalY = binormals[4];
-						points[i * 3 + 1].BinormalZ = binormals[5];
-						points[i * 3 + 2].BinormalX = binormals[6];
-						points[i * 3 + 2].BinormalY = binormals[7];
-						points[i * 3 + 2].BinormalZ = binormals[8];
-					}
-
 					// Invert the Z axis.
 					if (Mirror)
 					{
@@ -432,14 +326,6 @@ static void WriteNode(FbxNode* root)
 							WriteFloat(points[i].NormalX);
 							WriteFloat(points[i].NormalY);
 							WriteFloat(points[i].NormalZ);
-
-							WriteFloat(points[i].TangentX);
-							WriteFloat(points[i].TangentY);
-							WriteFloat(points[i].TangentZ);
-
-							WriteFloat(points[i].BinormalX);
-							WriteFloat(points[i].BinormalY);
-							WriteFloat(points[i].BinormalZ);
 
 							WriteFloat(points[i].TexU);
 							WriteFloat(points[i].TexV);
