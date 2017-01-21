@@ -2497,7 +2497,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 					{
 						Bool b = False;
 						// TODO: Is it not possible to compare the values of 'enum'?
-						if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeBit || IsChar(ast->Children[0]->Type) || IsInt(ast->Children[0]->Type) || IsFloat(ast->Children[0]->Type))
+						if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeBit || IsChar(ast->Children[0]->Type) || IsInt(ast->Children[0]->Type) || IsFloat(ast->Children[0]->Type) || IsBool(ast->Children[0]->Type))
 						{
 							U64 n1 = *(U64*)((SAstExprValue*)ast->Children[0])->Value;
 							U64 n2 = *(U64*)((SAstExprValue*)ast->Children[1])->Value;
@@ -2512,6 +2512,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 						}
 						else
 						{
+							ASSERT(IsStr(ast->Children[0]->Type));
 							int cmp = wcscmp(*(const Char**)((SAstExprValue*)ast->Children[0])->Value, *(const Char**)((SAstExprValue*)ast->Children[1])->Value);
 							switch (ast->Kind)
 							{
@@ -2521,7 +2522,6 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 									ASSERT(False);
 									break;
 							}
-							ASSERT(IsStr(ast->Children[0]->Type));
 						}
 						{
 							SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
