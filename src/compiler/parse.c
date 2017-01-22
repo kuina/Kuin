@@ -1659,6 +1659,8 @@ static SAstStat* ParseStatSwitch(int row, int col)
 			for (; ; )
 			{
 				stat = ParseStat((SAst*)ast);
+				if (stat == (SAstStat*)DummyPtr)
+					return (SAstStat*)DummyPtr;
 				type_id = ((SAst*)stat)->TypeId;
 				if (type_id == AstTypeId_StatEnd)
 					break;
