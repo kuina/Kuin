@@ -3719,17 +3719,20 @@ static void AssembleExprValue(SAstExprValue* ast, int reg_i, int reg_f)
 
 static void AssembleExprValueArray(SAstExprValueArray* ast, int reg_i, int reg_f)
 {
+	// Note that constant string values are handled by 'AssembleExprValue'.
 	SAstType* type = ((SAstExpr*)ast)->Type;
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
 	ASSERT(((SAstExpr*)ast)->VarKind != AstExprVarKind_Unknown);
 	ASSERT(((SAst*)type)->TypeId == AstTypeId_TypeArray);
-	ASSERT(!IsChar(((SAstTypeArray*)type)->ItemType)); // String values are handled by 'AssembleExprValue'.
 	{
 		STmpVars* tmp = PushRegs(reg_i - 1, reg_f - 1);
 		int child_size = GetSize(((SAstTypeArray*)type)->ItemType);
-		AllocHeap(ValImmU(8, (U64)(0x10 + child_size * ast->Values->Len)));
+		Bool is_str = IsChar(((SAstTypeArray*)type)->ItemType);
+		AllocHeap(ValImmU(8, (U64)(0x10 + child_size * (ast->Values->Len + (is_str ? 1 : 0)))));
 		ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x00), ValImmU(8, 0x01)));
 		ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x08), ValImmU(8, (U64)ast->Values->Len)));
+		if (is_str)
+			ListAdd(PackAsm->Asms, AsmMOV(ValMemS(child_size, ValReg(8, Reg_AX), NULL, (S64)(0x10 + child_size * ast->Values->Len)), ValImmU(child_size, 0x00)));
 		{
 			int addr = 0x10;
 			Bool is_float = IsFloat(((SAstTypeArray*)type)->ItemType);
