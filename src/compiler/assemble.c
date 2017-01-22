@@ -3226,6 +3226,7 @@ static void AssembleExpr3(SAstExpr3* ast, int reg_i, int reg_f)
 	ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[reg_i]), ValImmU(1, 0x00)));
 	ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 	AssembleExpr(ast->Children[1], reg_i, reg_f);
+	ToValue(ast->Children[1], reg_i, reg_f);
 	ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 	ListAdd(PackAsm->Asms, lbl1);
 	AssembleExpr(ast->Children[2], reg_i, reg_f);

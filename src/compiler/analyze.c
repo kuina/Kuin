@@ -405,7 +405,7 @@ static Bool IsComparable(const SAstType* type, Bool less_or_greater)
 {
 	// Note: 'null' itself is an incomparable type.
 	// The following types can be compared.
-	if (((SAst*)type)->TypeId == AstTypeId_TypeBit || IsInt(type) || IsFloat(type) || IsChar(type) || IsEnum(type) || IsClass(type) || IsStr(type))
+	if (((SAst*)type)->TypeId == AstTypeId_TypeBit || IsInt(type) || IsFloat(type) || IsChar(type) || IsEnum(type) || IsClass(type) || IsStr(type) || ((SAst*)type)->TypeId == AstTypeId_TypeEnumElement)
 		return True;
 	// 'bool' can be just determined whether the values match.
 	if (!less_or_greater && IsBool(type))
@@ -1535,7 +1535,9 @@ static void RebuildEnum(SAstEnum* ast)
 			while (ptr != NULL)
 			{
 				SAstExpr* item = (SAstExpr*)ptr->Data;
+				const Char* item_name = ((SAst*)item)->Name;
 				item = RebuildExpr(item, item->Type == NULL);
+				((SAst*)item)->Name = item_name;
 				if (LocalErr)
 				{
 					LocalErr = False;
@@ -2352,6 +2354,19 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 					SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
 					InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
 					type->Kind = AstTypePrimKind_Bool;
+					if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeEnumElement)
+					{
+						if (((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeEnumElement)
+						{
+							ASSERT(((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue);
+							Err(L"EA0060", ((SAst*)ast)->Pos, *(const Char**)((SAstExprValue*)ast->Children[0])->Value);
+							LocalErr = True;
+							return (SAstExpr*)DummyPtr;
+						}
+						RebuildEnumElement(ast->Children[0], ast->Children[1]->Type);
+					}
+					else if (((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeEnumElement)
+						RebuildEnumElement(ast->Children[1], ast->Children[0]->Type);
 					if (((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue && ((SAst*)ast->Children[1])->TypeId == AstTypeId_ExprValue)
 					{
 						Bool b = False;
@@ -2446,6 +2461,19 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 					SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
 					InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
 					type->Kind = AstTypePrimKind_Bool;
+					if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeEnumElement)
+					{
+						if (((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeEnumElement)
+						{
+							ASSERT(((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue);
+							Err(L"EA0060", ((SAst*)ast)->Pos, *(const Char**)((SAstExprValue*)ast->Children[0])->Value);
+							LocalErr = True;
+							return (SAstExpr*)DummyPtr;
+						}
+						RebuildEnumElement(ast->Children[0], ast->Children[1]->Type);
+					}
+					else if (((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeEnumElement)
+						RebuildEnumElement(ast->Children[1], ast->Children[0]->Type);
 					if (((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue && ((SAst*)ast->Children[1])->TypeId == AstTypeId_ExprValue)
 					{
 						Bool b = False;
@@ -2696,6 +2724,19 @@ static SAstExpr* RebuildExpr3(SAstExpr3* ast)
 		((SAst*)ast)->AnalyzedCache = (SAst*)(*((S64*)((SAstExprValue*)ast->Children[0])->Value) != 0 ? ast->Children[1] : ast->Children[2]);
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	}
+	if (((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeEnumElement)
+	{
+		if (((SAst*)ast->Children[2]->Type)->TypeId == AstTypeId_TypeEnumElement)
+		{
+			ASSERT(((SAst*)ast->Children[1])->TypeId == AstTypeId_ExprValue);
+			Err(L"EA0060", ((SAst*)ast)->Pos, *(const Char**)((SAstExprValue*)ast->Children[1])->Value);
+			LocalErr = True;
+			return (SAstExpr*)DummyPtr;
+		}
+		RebuildEnumElement(ast->Children[1], ast->Children[2]->Type);
+	}
+	else if (((SAst*)ast->Children[2]->Type)->TypeId == AstTypeId_TypeEnumElement)
+		RebuildEnumElement(ast->Children[2], ast->Children[1]->Type);
 	((SAstExpr*)ast)->Type = ast->Children[1]->Type;
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
 	return (SAstExpr*)ast;
@@ -3133,6 +3174,13 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 		SAstType* var_type = ast->Var->Type;
 		const Char* member = ast->Member;
 		Bool correct = False;
+		if (((SAst*)var_type)->TypeId == AstTypeId_TypeEnumElement)
+		{
+			ASSERT(((SAst*)ast->Var)->TypeId == AstTypeId_ExprValue);
+			Err(L"EA0060", ((SAst*)ast)->Pos, *(const Char**)((SAstExprValue*)ast->Var)->Value);
+			LocalErr = True;
+			return (SAstExpr*)DummyPtr;
+		}
 		switch (GetBuildInFuncType(member))
 		{
 			case 0x0000:
@@ -3349,33 +3397,59 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 	{
 		SListNode* ptr = ast->Values->Top;
 		Bool null_set = False;
+		Bool enum_set = False;
 		while (ptr != NULL)
 		{
 			ptr->Data = RebuildExpr((SAstExpr*)ptr->Data, False);
+			SAstType* data_type = ((SAstExpr*)ptr->Data)->Type;
 			if (LocalErr)
 				return (SAstExpr*)DummyPtr;
 			if (((SAstExpr*)ast)->Type == NULL)
 			{
-				if (((SAst*)((SAstExpr*)ptr->Data)->Type)->TypeId == AstTypeId_TypeNull)
-					null_set = True;
-				else
+				if (((SAst*)data_type)->TypeId == AstTypeId_TypeNull)
 				{
-					// Determine the type of the array initializer when a value other than 'null' is specified.
-					if (null_set && !IsRef(((SAstExpr*)ptr->Data)->Type))
+					if (enum_set)
+					{
+						Err(L"EA0054", ((SAst*)ast)->Pos);
+						LocalErr = True;
+						return (SAstExpr*)DummyPtr;
+					}
+					null_set = True;
+				}
+				else if (((SAst*)data_type)->TypeId == AstTypeId_TypeEnumElement)
+				{
+					if (null_set)
 					{
 						Err(L"EA0053", ((SAst*)ast)->Pos);
 						LocalErr = True;
 						return (SAstExpr*)DummyPtr;
 					}
+					enum_set = True;
+				}
+				else
+				{
+					// Determine the type of the array initializer when a value other than 'null' is specified.
+					if (null_set && !IsRef(data_type))
+					{
+						Err(L"EA0053", ((SAst*)ast)->Pos);
+						LocalErr = True;
+						return (SAstExpr*)DummyPtr;
+					}
+					if (enum_set && !IsEnum(data_type))
+					{
+						Err(L"EA0054", ((SAst*)ast)->Pos);
+						LocalErr = True;
+						return (SAstExpr*)DummyPtr;
+					}
 					{
 						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
-						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)((SAstExpr*)ptr->Data)->Type)->Pos);
-						type->ItemType = ((SAstExpr*)ptr->Data)->Type;
+						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)data_type)->Pos);
+						type->ItemType = data_type;
 						((SAstExpr*)ast)->Type = (SAstType*)type;
 					}
 				}
 			}
-			else if (!CmpType(((SAstTypeArray*)((SAstExpr*)ast)->Type)->ItemType, ((SAstExpr*)ptr->Data)->Type))
+			else if (!CmpType(((SAstTypeArray*)((SAstExpr*)ast)->Type)->ItemType, data_type))
 			{
 				// The types of the second and subsequent elements of the array initializer do not match the type of the first element.
 				Err(L"EA0054", ((SAst*)ast)->Pos);
@@ -3384,12 +3458,31 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 			}
 			ptr = ptr->Next;
 		}
+		if (((SAstExpr*)ast)->Type == NULL)
+		{
+			if (enum_set)
+			{
+				Err(L"EA0061", ((SAst*)ast)->Pos);
+				LocalErr = True;
+				return (SAstExpr*)DummyPtr;
+			}
+			else
+			{
+				Err(L"EA0055", ((SAst*)ast)->Pos);
+				LocalErr = True;
+				return (SAstExpr*)DummyPtr;
+			}
+		}
 	}
-	if (((SAstExpr*)ast)->Type == NULL)
+	if (IsEnum(((SAstTypeArray*)((SAstExpr*)ast)->Type)->ItemType))
 	{
-		Err(L"EA0055", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		SListNode* ptr = ast->Values->Top;
+		while (ptr != NULL)
+		{
+			if (((SAst*)((SAstExpr*)ptr->Data)->Type)->TypeId == AstTypeId_TypeEnumElement)
+				RebuildEnumElement((SAstExpr*)ptr->Data, ((SAstTypeArray*)((SAstExpr*)ast)->Type)->ItemType);
+			ptr = ptr->Next;
+		}
 	}
 	if (IsStr(((SAstExpr*)ast)->Type))
 	{

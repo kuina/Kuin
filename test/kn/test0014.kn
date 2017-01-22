@@ -31,7 +31,7 @@ func main()
 				do cui@print(b[0].toStr())
 			end while
 			do cui@print(f.getPos().toStr())
-			do f.setPos(file@Origin#head, 0)
+			do f.setPos(%head, 0)
 			do b :: f.read(1)
 			do cui@print(b[0].toStr())
 			do f.fin()

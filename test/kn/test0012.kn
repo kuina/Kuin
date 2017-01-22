@@ -166,10 +166,10 @@ func main()
 
 		block
 			enum E
-				X :: 1234
+				x :: 1234
 			end enum
 
-			var n: E :: E#X
+			var n: E :: %x
 			var m: E
 			var bin: []bit8 :: n.toBin()
 			do @dump(bin)

@@ -64,19 +64,19 @@ func main()
 			a :: -1
 		end enum
 		block
-			do cui@print((A#a $ int).toStr())
-			do cui@print((A#b $ int).toStr())
-			do cui@print((A#c $ int).toStr())
-			do cui@print((A#d $ int).toStr())
-			do cui@print((A#e $ int).toStr())
-			do cui@print((A#f $ int).toStr())
-			do cui@print((A#e $ bit8).toStr())
-			do cui@print((A#e $ bit16).toStr())
-			do cui@print((A#e $ bit32).toStr())
-			do cui@print((A#e $ bit64).toStr())
+			do cui@print((%a $ A $ int).toStr())
+			do cui@print((%b $ A $ int).toStr())
+			do cui@print((%c $ A $ int).toStr())
+			do cui@print((%d $ A $ int).toStr())
+			do cui@print((%e $ A $ int).toStr())
+			do cui@print((%f $ A $ int).toStr())
+			do cui@print((%e $ A $ bit8).toStr())
+			do cui@print((%e $ A $ bit16).toStr())
+			do cui@print((%e $ A $ bit32).toStr())
+			do cui@print((%e $ A $ bit64).toStr())
 			var n: A
-			do n :: B#a $ A
-			do cui@print((n $ int).toStr() ~ ", " ~ (n = A#f).toStr() ~ ", " ~ (n <> A#f).toStr() ~ ", " ~ (n < A#e).toStr() ~ ", " ~ (n > A#e).toStr())
+			do n :: %a $ B $ A
+			do cui@print((n $ int).toStr() ~ ", " ~ (n = %f).toStr() ~ ", " ~ (n <> %f).toStr() ~ ", " ~ (n < %e).toStr() ~ ", " ~ (n > %e).toStr())
 			do n :: 1234 $ A
 			do cui@print((n $ int).toStr())
 			do n :: 16#FFb8 $ A

@@ -158,8 +158,8 @@ EXPORT_CPP void _viewport(double x, double y, double w, double h)
 {
 	D3D10_VIEWPORT viewport =
 	{
-		static_cast<UINT>(x),
-		static_cast<UINT>(y),
+		static_cast<INT>(x),
+		static_cast<INT>(y),
 		static_cast<UINT>(w),
 		static_cast<UINT>(h),
 		0.0f,
