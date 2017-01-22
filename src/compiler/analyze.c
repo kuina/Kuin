@@ -3408,9 +3408,9 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 		{
 			ptr->Data = RebuildExpr((SAstExpr*)ptr->Data, False);
 			{
-				SAstType* data_type = ((SAstExpr*)ptr->Data)->Type;
 				if (LocalErr)
 					return (SAstExpr*)DummyPtr;
+				SAstType* data_type = ((SAstExpr*)ptr->Data)->Type;
 				if (((SAstExpr*)ast)->Type == NULL)
 				{
 					if (((SAst*)data_type)->TypeId == AstTypeId_TypeNull)
