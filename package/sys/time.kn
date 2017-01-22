@@ -1,0 +1,14 @@
++func [d0000.knd, _sys] sys(): int
+end func
+
++func [d0000.knd, _now] now(): int
+end func
+
++func [d0000.knd, _intToDate] intToDate(time: int, year: &int, month: &int, day: &int, hour: &int, minute: &int, second: &int): int
+end func
+
++func [d0000.knd, _dateToInt] dateToInt(year: int, month: int, day: int, hour: int, minute: int, second: int): int
+end func
+
++func [d0000.knd] sleep(ms: int)
+end func

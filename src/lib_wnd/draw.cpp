@@ -789,9 +789,7 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, S64 ele
 					Draw::ConstBuf(ObjJointVs, &ObjVsConstBuf);
 				}
 				else
-				{
 					Draw::ConstBuf(ObjVs, &ObjVsConstBuf);
-				}
 				Device->GSSetShader(NULL);
 				Draw::ConstBuf(ObjPs, &ObjPsConstBuf);
 				Draw::VertexBuf(element2->VertexBuf);

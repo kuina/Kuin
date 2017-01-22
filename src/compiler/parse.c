@@ -523,22 +523,7 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 							}
 						}
 						if (DictSearch(Srces2, src_name) == NULL)
-						{
-							Bool correct = True;
-							if (Option->Env != Env_Wnd)
-							{
-								if (wcscmp(src_name, L"wnd") == 0)
-									correct = False;
-							}
-							if (Option->Env != Env_Cui)
-							{
-								if (wcscmp(src_name, L"cui") == 0)
-									correct = False;
-							}
-							if (!correct)
-								Err(L"EP0058", NewPos(SrcName, Row, Col), src_name);
 							Srces2 = DictAdd(Srces2, src_name, NULL);
-						}
 					}
 					at = True;
 					break;
@@ -3096,7 +3081,6 @@ static SAstExpr* ParseExprCall(void)
 
 static SAstExpr* ParseExprValue(void)
 {
-	SAstExpr* ast = NULL;
 	int row = Row;
 	int col = Col;
 	Char c = ReadChar();
@@ -3111,9 +3095,52 @@ static SAstExpr* ParseExprValue(void)
 				for (; ; )
 				{
 					c = ReadStrict();
-					ASSERT(c != L'\0');
+					if (c == L'\0')
+						return NULL;
 					if (escape)
 					{
+						if (c == L'{')
+						{
+							SAstExpr2* cat = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+							InitAstExpr((SAstExpr*)cat, AstTypeId_Expr2, pos);
+							cat->Kind = AstExpr2Kind_Cat;
+							{
+								SAstExpr2* cat2 = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+								InitAstExpr((SAstExpr*)cat2, AstTypeId_Expr2, pos);
+								cat2->Kind = AstExpr2Kind_Cat;
+								buf[len] = L'\0';
+								{
+									Char* buf2 = (Char*)Alloc(sizeof(Char) * (size_t)(len + 1));
+									memcpy(buf2, buf, sizeof(Char) * (size_t)(len + 1));
+									cat2->Children[0] = (SAstExpr*)ObtainStrValue(pos, buf2);
+								}
+								{
+									SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
+									InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, pos);
+									call->Args = ListNew();
+									{
+										SAstExprDot* dot = (SAstExprDot*)Alloc(sizeof(SAstExprDot));
+										InitAstExpr((SAstExpr*)dot, AstTypeId_ExprDot, pos);
+										{
+											SAstExpr* ast = (SAstExpr*)Alloc(sizeof(SAstExpr));
+											InitAstExpr(ast, AstTypeId_ExprRef, pos);
+											((SAst*)ast)->RefName = ReadIdentifier(False, True);
+											AddScopeRefeds((SAst*)ast);
+											dot->Var = ast;
+											dot->Member = L"toStr";
+											dot->ClassItem = NULL;
+										}
+										call->Func = (SAstExpr*)dot;
+									}
+									cat2->Children[1] = (SAstExpr*)call;
+								}
+								AssertNextChar(L'}', False);
+								cat->Children[0] = (SAstExpr*)cat2;
+								FileBuf = L'"';
+								cat->Children[1] = ParseExprValue();
+							}
+							return (SAstExpr*)cat;
+						}
 						if (len == 1024)
 						{
 							buf[1024] = L'\0';
@@ -3149,7 +3176,7 @@ static SAstExpr* ParseExprValue(void)
 				{
 					Char* buf2 = (Char*)Alloc(sizeof(Char) * (size_t)(len + 1));
 					memcpy(buf2, buf, sizeof(Char) * (size_t)(len + 1));
-					ast = (SAstExpr*)ObtainStrValue(pos, buf2);
+					return (SAstExpr*)ObtainStrValue(pos, buf2);
 				}
 			}
 			break;
@@ -3202,13 +3229,13 @@ static SAstExpr* ParseExprValue(void)
 				}
 				{
 					U64 value = (U64)buf;
-					ast = (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Char, &value);
+					return (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Char, &value);
 				}
 			}
 			break;
 		case L'(':
 			{
-				ast = ParseExpr();
+				SAstExpr* ast = ParseExpr();
 				if (LocalErr)
 					return (SAstExpr*)DummyPtr;
 				if (ReadChar() != L')')
@@ -3218,13 +3245,14 @@ static SAstExpr* ParseExprValue(void)
 					ReadUntilRet();
 					return (SAstExpr*)DummyPtr;
 				}
+				return ast;
 			}
 			break;
 		case L'[':
 			{
-				SAstExprValueArray* ast2 = (SAstExprValueArray*)Alloc(sizeof(SAstExprValueArray));
-				InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprValueArray, pos);
-				ast2->Values = ListNew();
+				SAstExprValueArray* ast = (SAstExprValueArray*)Alloc(sizeof(SAstExprValueArray));
+				InitAstExpr((SAstExpr*)ast, AstTypeId_ExprValueArray, pos);
+				ast->Values = ListNew();
 				c = ReadChar();
 				if (c != L']')
 				{
@@ -3234,7 +3262,7 @@ static SAstExpr* ParseExprValue(void)
 						SAstExpr* expr = ParseExpr();
 						if (LocalErr)
 							return (SAstExpr*)DummyPtr;
-						ListAdd(ast2->Values, expr);
+						ListAdd(ast->Values, expr);
 						c = ReadChar();
 						if (c == L'\0')
 							break;
@@ -3248,7 +3276,7 @@ static SAstExpr* ParseExprValue(void)
 						}
 					}
 				}
-				ast = (SAstExpr*)ast2;
+				return (SAstExpr*)ast;
 			}
 			break;
 		case L'%':
@@ -3262,15 +3290,16 @@ static SAstExpr* ParseExprValue(void)
 					((SAstExpr*)expr)->Type = (SAstType*)type;
 				}
 				*(const Char**)expr->Value = s;
-				ast = (SAstExpr*)expr;
+				return (SAstExpr*)expr;
 			}
 			break;
 		default:
 			if (L'0' <= c && c <= L'9')
 			{
-				ast = ParseExprNumber(row, col, c);
+				SAstExpr* ast = ParseExprNumber(row, col, c);
 				if (LocalErr)
 					return (SAstExpr*)DummyPtr;
+				return ast;
 			}
 			else if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || c == L'@' || c == L'\\')
 			{
@@ -3280,48 +3309,43 @@ static SAstExpr* ParseExprValue(void)
 					if (wcscmp(s, L"false") == 0)
 					{
 						U64 value = 0;
-						ast = (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Bool, &value);
+						return (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Bool, &value);
 					}
-					else if (wcscmp(s, L"true") == 0)
+					if (wcscmp(s, L"true") == 0)
 					{
 						U64 value = 1;
-						ast = (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Bool, &value);
+						return (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Bool, &value);
 					}
-					else if (wcscmp(s, L"inf") == 0)
+					if (wcscmp(s, L"inf") == 0)
 					{
 						U64 value = 0x7ff0000000000000ULL;
-						ast = (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Float, &value);
+						return (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Float, &value);
 					}
-					else if (wcscmp(s, L"null") == 0)
+					if (wcscmp(s, L"null") == 0)
 					{
-						SAstExprValue* ast2 = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
-						InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprValue, pos);
+						SAstExprValue* ast = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+						InitAstExpr((SAstExpr*)ast, AstTypeId_ExprValue, pos);
 						{
 							SAstTypeNull* type = (SAstTypeNull*)Alloc(sizeof(SAstTypeNull));
 							InitAst((SAst*)type, AstTypeId_TypeNull, pos, NULL, False, False);
-							((SAstExpr*)ast2)->Type = (SAstType*)type;
+							((SAstExpr*)ast)->Type = (SAstType*)type;
 						}
-						*(U64*)ast2->Value = 0;
-						ast = (SAstExpr*)ast2;
+						*(U64*)ast->Value = 0;
+						return (SAstExpr*)ast;
 					}
-					else
 					{
-						SAstExpr* ast2 = (SAstExpr*)Alloc(sizeof(SAstExpr));
-						InitAstExpr(ast2, AstTypeId_ExprRef, pos);
-						((SAst*)ast2)->RefName = s;
-						AddScopeRefeds((SAst*)ast2);
-						ast = ast2;
+						SAstExpr* ast = (SAstExpr*)Alloc(sizeof(SAstExpr));
+						InitAstExpr(ast, AstTypeId_ExprRef, pos);
+						((SAst*)ast)->RefName = s;
+						AddScopeRefeds((SAst*)ast);
+						return ast;
 					}
 				}
 			}
-			else
-			{
-				FileBuf = c;
-				return NULL;
-			}
 			break;
 	}
-	return ast;
+	FileBuf = c;
+	return NULL;
 }
 
 static SAstExpr* ParseExprNumber(int row, int col, Char c)

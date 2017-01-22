@@ -1,0 +1,25 @@
+func main()
+	for(1, 3)
+		block
+			var time: int :: 1485120859
+
+			var year: int
+			var month: int
+			var day: int
+			var hour: int
+			var minute: int
+			var second: int
+			var dayOfWeek: int :: time@intToDate(time, &year, &month, &day, &hour, &minute, &second)
+			do cui@print(year.toStr() ~ ", " ~ month.toStr() ~ ", " ~ day.toStr() ~ ", " ~ hour.toStr() ~ ", " ~ minute.toStr() ~ ", " ~ second.toStr() ~ ", " ~ dayOfWeek.toStr())
+			var time2: int :: time@dateToInt(year, month, day, hour, minute, second)
+			do cui@print(time2.toStr() ~ ", " ~ (time = time2).toStr())
+		end block
+
+		block
+			var i: int :: 1234
+			var f: float :: 3.14159
+			var s: []char :: "abc"
+			do cui@print("i=\{i}, f=\{f}, s=\{s}.")
+		end block
+	end for
+end func

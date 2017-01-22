@@ -6,6 +6,7 @@
     <ClCompile Include="..\common.c" />
     <ClCompile Include="lib.c" />
     <ClCompile Include="file.c" />
+    <ClCompile Include="time.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />
@@ -13,6 +14,7 @@
     <ClInclude Include="..\common.h" />
     <ClInclude Include="lib.h" />
     <ClInclude Include="file.h" />
+    <ClInclude Include="time.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="low_level.asm" />

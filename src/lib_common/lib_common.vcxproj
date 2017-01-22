@@ -148,6 +148,7 @@
     <ClCompile Include="lib.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="rnd.c" />
+    <ClCompile Include="time.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common.h" />
@@ -155,6 +156,7 @@
     <ClInclude Include="lib.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="rnd.h" />
+    <ClInclude Include="time.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="low_level.asm">

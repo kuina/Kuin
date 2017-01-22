@@ -892,6 +892,19 @@ static void RebuildFunc(SAstFunc* ast)
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	if (ast->DllName != NULL)
 	{
+		Bool correct = True;
+		if (Option->Env != Env_Wnd)
+		{
+			if (wcscmp(ast->DllName, L"d0001.knd") == 0)
+				correct = False;
+		}
+		if (Option->Env != Env_Cui)
+		{
+			if (wcscmp(ast->DllName, L"d0002.knd") == 0)
+				correct = False;
+		}
+		if (!correct)
+			Err(L"EA0062", NULL, ((SAst*)ast)->Pos->SrcName);
 		if (ast->DllFuncName != NULL)
 			AddDllFunc(ast->DllName, ast->DllFuncName);
 		else
@@ -3181,7 +3194,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 				correct = True;
 				break;
 			case 0x0001:
-				if (IsInt(var_type) || IsFloat(var_type) || IsChar(var_type) || IsBool(var_type) || ((SAst*)var_type)->TypeId == AstTypeId_TypeBit)
+				if (IsInt(var_type) || IsFloat(var_type) || IsChar(var_type) || IsBool(var_type) || ((SAst*)var_type)->TypeId == AstTypeId_TypeBit || IsStr(var_type))
 					correct = True;
 				break;
 			case 0x0002:

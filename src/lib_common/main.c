@@ -832,6 +832,10 @@ EXPORT U8* _toStr(const void* me_, const U8* type)
 		case TypeId_Bit16: len = swprintf(str, 33, L"0x%04X", *(U16*)&me_); break;
 		case TypeId_Bit32: len = swprintf(str, 33, L"0x%08X", *(U32*)&me_); break;
 		case TypeId_Bit64: len = swprintf(str, 33, L"0x%016I64X", *(U64*)&me_); break;
+		case TypeId_Array:
+			ASSERT(type[1] == TypeId_Char);
+			return (U8*)me_;
+			break;
 		default:
 			ASSERT(False);
 			break;
