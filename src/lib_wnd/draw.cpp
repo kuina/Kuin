@@ -961,7 +961,7 @@ void Init()
 		D3D10_RASTERIZER_DESC desc;
 		memset(&desc, 0, sizeof(desc));
 		desc.FillMode = D3D10_FILL_SOLID;
-		desc.CullMode = D3D10_CULL_FRONT; //D3D10_CULL_NONE; // TODO: D3D10_CULL_BACK;
+		desc.CullMode = D3D10_CULL_FRONT; // Cull the front in order to exchange the right handed system and the left handed system.
 		desc.FrontCounterClockwise = FALSE;
 		desc.DepthBias = 0;
 		desc.DepthBiasClamp = 0.0f;
@@ -1102,8 +1102,8 @@ void Init()
 			float vertices[] =
 			{
 				1.0f, 0.0f, 0.0f,
-				0.0f, 1.0f, 0.0f,
 				0.0f, 0.0f, 1.0f,
+				0.0f, 1.0f, 0.0f,
 			};
 
 			U32 idces[] =
@@ -1144,8 +1144,8 @@ void Init()
 			float vertices[] =
 			{
 				0.0, 0.0,
-				1.0, 0.0,
 				0.0, 1.0,
+				1.0, 0.0,
 				1.0, 1.0,
 			};
 
@@ -1183,8 +1183,8 @@ void Init()
 			float vertices[] =
 			{
 				-1.0f, -1.0f,
-				1.0f, -1.0f,
 				-1.0f, 1.0f,
+				1.0f, -1.0f,
 				1.0f, 1.0f,
 			};
 

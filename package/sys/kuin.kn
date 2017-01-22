@@ -46,6 +46,12 @@ end func
 func [d0000.knd, _any_type, _overwrite] _fromBin(me_: &[]bit8, type: int, bin: []bit8, idx: int): int
 end func
 
+func [d0000.knd] _absInt(me_: int): int
+end func
+
+func [d0000.knd] _absFloat(me_: float): float
+end func
+
 func [d0000.knd, _any_type] _toStr(me_: []bit8, type: int): []char
 end func
 

@@ -18,6 +18,8 @@ EXPORT void* _newArray(S64 len, S64* nums, const U8* type);
 EXPORT void* _toBin(const void* me_, const U8* type);
 EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx);
 EXPORT U8* _toStr(const void* me_, const U8* type);
+EXPORT S64 _absInt(S64 me_);
+EXPORT double _absFloat(double me_);
 EXPORT Bool _same(double me_, double n);
 EXPORT Char _offset(Char me_, int n);
 EXPORT S64 _or(const void* me_, const U8* type, const void* n);

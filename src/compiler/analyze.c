@@ -7,6 +7,7 @@
 
 static const Char* BuildInFuncs[] =
 {
+	L"abs\0          \x0b",
 	L"add\0          \x07",
 	L"and\0          \x04",
 	L"del\0          \x09",
@@ -2209,18 +2210,11 @@ static SAstExpr* RebuildExpr1(SAstExpr1* ast)
 				((SAstExpr*)ast)->Type = ast->Child->Type;
 			break;
 		case AstExpr1Kind_Len:
-			if (IsInt(ast->Child->Type) || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeArray || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeDict)
+			if (((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeArray || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeDict)
 			{
 				SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
 				InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
 				type->Kind = AstTypePrimKind_Int;
-				((SAstExpr*)ast)->Type = (SAstType*)type;
-			}
-			else if (IsFloat(ast->Child->Type))
-			{
-				SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
-				InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
-				type->Kind = AstTypePrimKind_Float;
 				((SAstExpr*)ast)->Type = (SAstType*)type;
 			}
 			break;
@@ -3252,6 +3246,18 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 				if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && (((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Stack || ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_Queue))
 					correct = True;
 				break;
+			case 0x000b:
+				if (IsInt(var_type))
+				{
+					correct = True;
+					member = L"absInt";
+				}
+				else if (IsFloat(var_type))
+				{
+					correct = True;
+					member = L"absFloat";
+				}
+				break;
 		}
 		if (correct)
 		{
@@ -3401,60 +3407,62 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 		while (ptr != NULL)
 		{
 			ptr->Data = RebuildExpr((SAstExpr*)ptr->Data, False);
-			SAstType* data_type = ((SAstExpr*)ptr->Data)->Type;
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
-			if (((SAstExpr*)ast)->Type == NULL)
 			{
-				if (((SAst*)data_type)->TypeId == AstTypeId_TypeNull)
+				SAstType* data_type = ((SAstExpr*)ptr->Data)->Type;
+				if (LocalErr)
+					return (SAstExpr*)DummyPtr;
+				if (((SAstExpr*)ast)->Type == NULL)
 				{
-					if (enum_set)
+					if (((SAst*)data_type)->TypeId == AstTypeId_TypeNull)
 					{
-						Err(L"EA0054", ((SAst*)ast)->Pos);
-						LocalErr = True;
-						return (SAstExpr*)DummyPtr;
+						if (enum_set)
+						{
+							Err(L"EA0054", ((SAst*)ast)->Pos);
+							LocalErr = True;
+							return (SAstExpr*)DummyPtr;
+						}
+						null_set = True;
 					}
-					null_set = True;
+					else if (((SAst*)data_type)->TypeId == AstTypeId_TypeEnumElement)
+					{
+						if (null_set)
+						{
+							Err(L"EA0053", ((SAst*)ast)->Pos);
+							LocalErr = True;
+							return (SAstExpr*)DummyPtr;
+						}
+						enum_set = True;
+					}
+					else
+					{
+						// Determine the type of the array initializer when a value other than 'null' is specified.
+						if (null_set && !IsRef(data_type))
+						{
+							Err(L"EA0053", ((SAst*)ast)->Pos);
+							LocalErr = True;
+							return (SAstExpr*)DummyPtr;
+						}
+						if (enum_set && !IsEnum(data_type))
+						{
+							Err(L"EA0054", ((SAst*)ast)->Pos);
+							LocalErr = True;
+							return (SAstExpr*)DummyPtr;
+						}
+						{
+							SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+							InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)data_type)->Pos);
+							type->ItemType = data_type;
+							((SAstExpr*)ast)->Type = (SAstType*)type;
+						}
+					}
 				}
-				else if (((SAst*)data_type)->TypeId == AstTypeId_TypeEnumElement)
+				else if (!CmpType(((SAstTypeArray*)((SAstExpr*)ast)->Type)->ItemType, data_type))
 				{
-					if (null_set)
-					{
-						Err(L"EA0053", ((SAst*)ast)->Pos);
-						LocalErr = True;
-						return (SAstExpr*)DummyPtr;
-					}
-					enum_set = True;
+					// The types of the second and subsequent elements of the array initializer do not match the type of the first element.
+					Err(L"EA0054", ((SAst*)ast)->Pos);
+					LocalErr = True;
+					return (SAstExpr*)DummyPtr;
 				}
-				else
-				{
-					// Determine the type of the array initializer when a value other than 'null' is specified.
-					if (null_set && !IsRef(data_type))
-					{
-						Err(L"EA0053", ((SAst*)ast)->Pos);
-						LocalErr = True;
-						return (SAstExpr*)DummyPtr;
-					}
-					if (enum_set && !IsEnum(data_type))
-					{
-						Err(L"EA0054", ((SAst*)ast)->Pos);
-						LocalErr = True;
-						return (SAstExpr*)DummyPtr;
-					}
-					{
-						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
-						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)data_type)->Pos);
-						type->ItemType = data_type;
-						((SAstExpr*)ast)->Type = (SAstType*)type;
-					}
-				}
-			}
-			else if (!CmpType(((SAstTypeArray*)((SAstExpr*)ast)->Type)->ItemType, data_type))
-			{
-				// The types of the second and subsequent elements of the array initializer do not match the type of the first element.
-				Err(L"EA0054", ((SAst*)ast)->Pos);
-				LocalErr = True;
-				return (SAstExpr*)DummyPtr;
 			}
 			ptr = ptr->Next;
 		}

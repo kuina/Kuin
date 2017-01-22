@@ -846,6 +846,16 @@ EXPORT U8* _toStr(const void* me_, const U8* type)
 	}
 }
 
+EXPORT S64 _absInt(S64 me_)
+{
+	return me_ >= 0 ? me_ : -me_;
+}
+
+EXPORT double _absFloat(double me_)
+{
+	return me_ >= 0.0 ? me_ : -me_;
+}
+
 EXPORT Bool _same(double me_, double n)
 {
 	U64 i1 = *(U64*)&me_;

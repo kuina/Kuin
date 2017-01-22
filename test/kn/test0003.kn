@@ -2,10 +2,10 @@ func main()
 	for(0, 2)
 		block
 			do cui@print((^("abcdef")).toStr())
-			do cui@print((^(5)).toStr())
-			do cui@print((^(-5)).toStr())
-			do cui@print((^(5.0)).toStr())
-			do cui@print((^(-5.0)).toStr())
+			do cui@print((5).abs().toStr())
+			do cui@print((-5).abs().toStr())
+			do cui@print((5.0).abs().toStr())
+			do cui@print((-5.0).abs().toStr())
 		end block
 
 		block

@@ -3256,9 +3256,11 @@ static SAstExpr* ParseExprValue(void)
 				const Char* s = ReadIdentifier(False, False);
 				SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
 				InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, pos);
-				SAstTypeEnumElement* type = (SAstTypeEnumElement*)Alloc(sizeof(SAstTypeEnumElement));
-				InitAst((SAst*)type, AstTypeId_TypeEnumElement, pos, NULL, False, False);
-				((SAstExpr*)expr)->Type = (SAstType*)type;
+				{
+					SAstTypeEnumElement* type = (SAstTypeEnumElement*)Alloc(sizeof(SAstTypeEnumElement));
+					InitAst((SAst*)type, AstTypeId_TypeEnumElement, pos, NULL, False, False);
+					((SAstExpr*)expr)->Type = (SAstType*)type;
+				}
 				*(const Char**)expr->Value = s;
 				ast = (SAstExpr*)expr;
 			}
