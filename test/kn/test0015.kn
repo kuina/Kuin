@@ -1,3 +1,5 @@
+var x: int :: 5678
+
 func main()
 	for(1, 3)
 		block
@@ -19,7 +21,27 @@ func main()
 			var i: int :: 1234
 			var f: float :: 3.14159
 			var s: []char :: "abc"
-			do cui@print("i=\{i}, f=\{f}, s=\{s}.")
+			do cui@print("i=\{i}, f=\{f}, s=\{s}, @x=\{@x}.")
+		end block
+
+		block
+			do cui@print(["ab", "cd", "ef"].join("xx"))
+		end block
+
+		block
+			do cui@print(lib@intMax.toStr() ~ ", " ~ lib@intMin.toStr())
+		end block
+
+		block
+			do cui@print((16#12b8).endian().toStr())
+			do cui@print((16#1234b16).endian().toStr())
+			do cui@print((16#12345678b32).endian().toStr())
+			do cui@print((16#12345678ABCDEF01b64).endian().toStr())
+		end block
+
+		block
+			do cui@print("abcdefg".findBin('f').toStr())
+			do cui@print("abcdefg".findBin('h').toStr())
 		end block
 	end for
 end func

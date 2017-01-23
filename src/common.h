@@ -37,6 +37,10 @@
 	#define STATIC_ASSERT(cond)
 #endif
 
+#if _MSC_VER >= 1900
+	#define VS2015
+#endif
+
 typedef unsigned char Bool;
 typedef wchar_t Char;
 typedef unsigned char U8;

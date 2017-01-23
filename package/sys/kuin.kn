@@ -46,13 +46,13 @@ end func
 func [d0000.knd, _any_type, _overwrite] _fromBin(me_: &[]bit8, type: int, bin: []bit8, idx: int): int
 end func
 
+func [d0000.knd, _any_type] _toStr(me_: []bit8, type: int): []char
+end func
+
 func [d0000.knd] _absInt(me_: int): int
 end func
 
 func [d0000.knd] _absFloat(me_: float): float
-end func
-
-func [d0000.knd, _any_type] _toStr(me_: []bit8, type: int): []char
 end func
 
 func [d0000.knd] _same(me_: float, n: float): bool
@@ -82,6 +82,9 @@ end func
 func [d0000.knd, _any_type, _ret_me] _sar(me_: []bit8, type: int, n: int): int
 end func
 
+func [d0000.knd, _any_type, _ret_me] _endian(me_: []bit8, type: int): int
+end func
+
 func [d0000.knd, _any_type, _ret_me] _sub(me_: []bit8, type: int, start: int, len: int): int
 end func
 
@@ -101,6 +104,9 @@ func [d0000.knd, _any_type, _take_child] _find(me_: []bit8, type: int, item: []b
 end func
 
 func [d0000.knd, _any_type, _take_child] _findLast(me_: []bit8, type: int, item: []bit8): int
+end func
+
+func [d0000.knd, _any_type, _take_child] _findBin(me_: []bit8, type: int, item: []bit8): int
 end func
 
 func [d0000.knd] _toInt(me_: []char): int
@@ -125,6 +131,9 @@ func [d0000.knd] _trimRight(me_: []char): []char
 end func
 
 func [d0000.knd] _split(me_: []char, delimiter: []char): [][]char
+end func
+
+func [d0000.knd] _join(me_: [][]char, delimiter: []char): []char
 end func
 
 func [d0000.knd, _any_type, _take_child] _addList(me_: []bit8, type: int, item: []bit8)

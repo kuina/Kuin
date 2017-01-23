@@ -1,0 +1,40 @@
++func [d0001.knd, _setMainVolume] setMainVolume(value: float)
+end func
+
++func [d0001.knd, _getMainVolume] getMainVolume(): volume
+end func
+
++func [d0001.knd, _makeSnd, _make_instance] makeSnd(me2: @Snd, path: []char): @Snd
+end func
+
++class Snd()
+	+func [d0001.knd, _sndPlay] play(startPos: float)
+	end func
+
+	+func [d0001.knd, _sndPlayLoop] playLoop(startPos: float, loopPos: float)
+	end func
+
+	+func [d0001.knd, _sndStop] stop()
+	end func
+
+	+func [d0001.knd, _sndPlaying] playing(): bool
+	end func
+
+	+func [d0001.knd, _sndVolume] volume(value: float)
+	end func
+
+	+func [d0001.knd, _sndPan] pan(value: float)
+	end func
+
+	+func [d0001.knd, _sndFreq] freq(value: float)
+	end func
+
+	+func [d0001.knd, _sndSetPos] setPos(pos: float)
+	end func
+
+	+func [d0001.knd, _sndGetPos] getPos(): float
+	end func
+
+	+func [d0001.knd, _sndLen] len(): float
+	end func
+end class

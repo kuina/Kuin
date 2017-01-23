@@ -11,12 +11,15 @@ static const Char* BuildInFuncs[] =
 	L"add\0          \x07",
 	L"and\0          \x04",
 	L"del\0          \x09",
+	L"endian\0       \x04",
 	L"find\0         \x05",
+	L"findBin\0      \x05",
 	L"findLast\0     \x05",
 	L"fromBin\0      \x00",
 	L"get\0          \x08",
 	L"head\0         \x09",
 	L"ins\0          \x09",
+	L"join\0         \x0c",
 	L"lower\0        \x06",
 	L"next\0         \x09",
 	L"not\0          \x04",
@@ -2600,6 +2603,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 						InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
 						((SAstExpr*)expr)->Type = ast->Children[0]->Type;
 						// TODO: Deal with division by zero.
+						// TODO: Overflow check.
 						if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeBit)
 						{
 							U64 n1 = *(U64*)((SAstExprValue*)ast->Children[0])->Value;
@@ -3270,6 +3274,10 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 					correct = True;
 					member = L"absFloat";
 				}
+				break;
+			case 0x000c:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeArray && IsStr(((SAstTypeArray*)var_type)->ItemType))
+					correct = True;
 				break;
 		}
 		if (correct)

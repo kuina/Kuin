@@ -1,3 +1,9 @@
++func [d0000.knd, _makeReader, _make_instance] makeReader(me2: @Reader, path: []char): @Reader
+end func
+
++func [d0000.knd, _makeWriter, _make_instance] makeWriter(me2: @Writer, path: []char, append: bool): @Writer
+end func
+
 +enum Origin
 	head
 	current
@@ -8,10 +14,10 @@ end enum
 	+func [d0000.knd, _streamFin] fin()
 	end func
 
-	+func [d0000.knd, _streamGetPos] getPos(): int
+	+func [d0000.knd, _streamSetPos] setPos(origin: @Origin, pos: int)
 	end func
 
-	+func [d0000.knd, _streamSetPos] setPos(origin: @Origin, pos: int)
+	+func [d0000.knd, _streamGetPos] getPos(): int
 	end func
 
 	+func [d0000.knd, _streamRead] read(size: int): []bit8
@@ -45,9 +51,3 @@ end class
 
 	var handle: int
 end class
-
-+func [d0000.knd, _makeReader, _make_instance] makeReader(me2: @Reader, path: []char): @Reader
-end func
-
-+func [d0000.knd, _makeWriter, _make_instance] makeWriter(me2: @Writer, path: []char, append: bool): @Writer
-end func

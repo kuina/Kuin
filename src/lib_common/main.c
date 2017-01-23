@@ -976,6 +976,20 @@ EXPORT S64 _sar(const void* me_, const U8* type, S64 n)
 	}
 }
 
+EXPORT S64 _endian(const void* me_, const U8* type)
+{
+	switch (*type)
+	{
+		case TypeId_Bit8: return (S64)(U64)(SwapEndianU8(*(U8*)&me_));
+		case TypeId_Bit16: return (S64)(U64)(SwapEndianU16(*(U16*)&me_));
+		case TypeId_Bit32: return (S64)(U64)(SwapEndianU32(*(U32*)&me_));
+		case TypeId_Bit64: return (S64)(SwapEndianU64(*(U64*)&me_));
+		default:
+			ASSERT(False);
+			return 0;
+	}
+}
+
 EXPORT void* _sub(const void* me_, const U8* type, S64 start, S64 len)
 {
 	S64 len2 = *(S64*)((U8*)me_ + 0x08);
@@ -1099,6 +1113,35 @@ EXPORT S64 _findLast(const void* me_, const U8* type, const void* item)
 		}
 		return -1;
 	}
+}
+
+EXPORT S64 _findBin(const void* me_, const U8* type, const void* item)
+{
+	size_t size = GetSize(type[1]);
+	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
+	if (cmp == NULL)
+		THROW(0x1000, L"");
+	{
+		S64 len = *(S64*)((U8*)me_ + 0x08);
+		U8* ptr = (U8*)me_ + 0x10;
+		S64 min = 0;
+		S64 max = len - 1;
+		while (min <= max)
+		{
+			S64 mid = (min + max) / 2;
+			void* value = NULL;
+			S64 cmp2;
+			memcpy(&value, ptr + size * (size_t)mid, size);
+			cmp2 = cmp(item, value);
+			if (cmp2 < 0)
+				max = mid - 1;
+			else if (cmp2 > 0)
+				min = mid + 1;
+			else
+				return mid;
+		}
+	}
+	return -1;
 }
 
 EXPORT S64 _toInt(const U8* me_)
@@ -1293,6 +1336,43 @@ EXPORT void* _split(const U8* me_, const U8* delimiter)
 			ptr2 = ptr2->Next;
 			FreeMem(ptr4);
 		}
+	}
+	return result;
+}
+
+EXPORT void* _join(const U8* me_, const U8* delimiter)
+{
+	S64 delimiter_len = *(const S64*)(delimiter + 0x08);
+	S64 array_len = *(const S64*)(me_ + 0x08);
+	const void** array_ = (const void**)(me_ + 0x10);
+	S64 total_len = delimiter_len * (array_len - 1);
+	U8* result;
+	{
+		S64 i;
+		for (i = 0; i < array_len; i++)
+		{
+			S64 child_len = *(const S64*)((const U8*)array_[i] + 0x08);
+			total_len += child_len;
+		}
+	}
+	result = (U8*)AllocMem(0x10 + sizeof(Char) * (size_t)(total_len + 1));
+	((S64*)result)[0] = DefaultRefCntFunc;
+	((S64*)result)[1] = total_len;
+	{
+		U8* ptr = result + 0x10;
+		S64 i;
+		for (i = 0; i < array_len; i++)
+		{
+			S64 child_len = *(const S64*)((const U8*)array_[i] + 0x08);
+			memcpy(ptr, (const U8*)array_[i] + 0x10, sizeof(Char) * (size_t)child_len);
+			ptr += sizeof(Char) * (size_t)child_len;
+			if (i != array_len - 1)
+			{
+				memcpy(ptr, (const U8*)delimiter + 0x10, sizeof(Char) * (size_t)delimiter_len);
+				ptr += sizeof(Char) * (size_t)delimiter_len;
+			}
+		}
+		*(Char*)ptr = L'\0';
 	}
 	return result;
 }

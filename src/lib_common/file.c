@@ -25,16 +25,6 @@ EXPORT void _streamFin(SClass* me_)
 	me2->Handle = NULL;
 }
 
-EXPORT S64 _streamGetPos(SClass* me_)
-{
-	SStream* me2 = (SStream*)me_;
-#if defined(DBG)
-	if (me2->Handle == NULL)
-		THROW(0x1000, L"");
-#endif
-	return _ftelli64(me2->Handle);
-}
-
 EXPORT void _streamSetPos(SClass* me_, S64 origin, S64 pos)
 {
 	SStream* me2 = (SStream*)me_;
@@ -45,6 +35,16 @@ EXPORT void _streamSetPos(SClass* me_, S64 origin, S64 pos)
 #endif
 	if (_fseeki64(me2->Handle, pos, (int)origin))
 		THROW(0x1000, L"");
+}
+
+EXPORT S64 _streamGetPos(SClass* me_)
+{
+	SStream* me2 = (SStream*)me_;
+#if defined(DBG)
+	if (me2->Handle == NULL)
+		THROW(0x1000, L"");
+#endif
+	return _ftelli64(me2->Handle);
 }
 
 EXPORT void* _streamRead(SClass* me_, S64 size)

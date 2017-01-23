@@ -66,20 +66,32 @@ EXPORT double _tanh(double x)
 
 EXPORT double _acosh(double x)
 {
-	// TODO: return acosh(x);
+#if defined(VS2015)
+	return acosh(x);
+#else
+	ASSERT(True);
 	return 0.0;
+#endif
 }
 
 EXPORT double _asinh(double x)
 {
-	// TODO: return asinh(x);
+#if defined(VS2015)
+	return asinh(x);
+#else
+	ASSERT(True);
 	return 0.0;
+#endif
 }
 
 EXPORT double _atanh(double x)
 {
-	// TODO: return atanh(x);
+#if defined(VS2015)
+	return atanh(x);
+#else
+	ASSERT(True);
 	return 0.0;
+#endif
 }
 
 EXPORT double _sqrt(double x)

@@ -41,6 +41,12 @@ end func
 +func [d0001.knd, _circle] circle(x: float, y: float, radiusX: float, radiusY: float, r: float, g: float, b: float, a: float)
 end func
 
++func [d0001.knd, _makeTex, _make_instance] makeTex(me2: @Tex, path: []char): @Tex
+end func
+
++func [d0001.knd, _makeTexEven, _make_instance] makeTexEven(me2: @Tex, r: float, g: float, b: float, a: float): @Tex
+end func
+
 +class Tex()
 	+func [d0001.knd, _texDraw] draw(dstX: float, dstY: float, srcX: float, srcY: float, srcW: float, srcH: float)
 	end func
@@ -53,12 +59,6 @@ end func
 	var tex: int
 	var view: int
 end class
-
-+func [d0001.knd, _makeTex, _make_instance] makeTex(me2: @Tex, path: []char): @Tex
-end func
-
-+func [d0001.knd, _makeTexEven, _make_instance] makeTexEven(me2: @Tex, r: float, g: float, b: float, a: float): @Tex
-end func
 
 +func [d0001.knd, _camera] camera(eyeX: float, eyeY: float, eyeZ: float, atX: float, atY: float, atZ: float, upX: float, upY: float, upZ: float)
 end func
