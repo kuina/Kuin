@@ -7,6 +7,9 @@
     <ClCompile Include="lib.c" />
     <ClCompile Include="file.c" />
     <ClCompile Include="time.c" />
+    <ClCompile Include="hash.c" />
+    <ClCompile Include="cipher.c" />
+    <ClCompile Include="thread.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />
@@ -15,6 +18,9 @@
     <ClInclude Include="lib.h" />
     <ClInclude Include="file.h" />
     <ClInclude Include="time.h" />
+    <ClInclude Include="hash.h" />
+    <ClInclude Include="cipher.h" />
+    <ClInclude Include="thread.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="low_level.asm" />

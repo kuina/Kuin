@@ -43,5 +43,34 @@ func main()
 			do cui@print("abcdefg".findBin('f').toStr())
 			do cui@print("abcdefg".findBin('h').toStr())
 		end block
+
+		block
+			var hs: []bit8 :: lib@hash("abc".toBin())
+			do cui@print((^hs).toStr())
+			foreach h(hs)
+				do cui@print(h.toStr())
+			end foreach
+		end block
+
+		block
+			var key: []bit8 :: #[32]bit8
+			for i(0, 31)
+				do key[i] :: i $ bit8
+			end for
+			var before: []bit8 :: #[14]bit8
+			for i(0, 13)
+				do before[i] :: (i * 16#11) $ bit8
+			end for
+			var coded: []bit8 :: lib@encrypt(before, key)
+			do cui@print((^coded).toStr())
+			foreach c(coded)
+				do cui@print(c.toStr())
+			end foreach
+			var after: []bit8 :: lib@decrypt(coded, key)
+			do cui@print((^after).toStr())
+			foreach c(after)
+				do cui@print(c.toStr())
+			end foreach
+		end block
 	end for
 end func

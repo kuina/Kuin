@@ -80,3 +80,12 @@ end func
 
 +func [d0000.knd, _round] round(x: float, precision: int): float
 end func
+
++func [d0000.knd, _hash] hash(data: []bit8): []bit8
+end func
+
++func [d0000.knd, _encrypt] encrypt(data: []bit8, key: []bit8): []bit8
+end func
+
++func [d0000.knd, _decrypt] decrypt(data: []bit8, key: []bit8): []bit8
+end func

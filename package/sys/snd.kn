@@ -1,7 +1,7 @@
 +func [d0001.knd, _setMainVolume] setMainVolume(value: float)
 end func
 
-+func [d0001.knd, _getMainVolume] getMainVolume(): volume
++func [d0001.knd, _getMainVolume] getMainVolume(): float
 end func
 
 +func [d0001.knd, _makeSnd, _make_instance] makeSnd(me2: @Snd, path: []char): @Snd

@@ -30,6 +30,10 @@ end enum
 	end func
 
 	var handle: int
+
+	var delimiterNum: int
+
+	var delimiter: int
 end class
 
 +class Writer()
@@ -50,4 +54,8 @@ end class
 	var reserved2: int
 
 	var handle: int
+
+	var delimiterNum: int
+
+	var delimiter: int
 end class

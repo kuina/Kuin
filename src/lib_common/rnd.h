@@ -1,4 +1,4 @@
-// Random Generator with SFMT-607
+// Random Generator with SFMT-607.
 
 #pragma once
 

@@ -5,7 +5,7 @@ EXPORT_CPP void _setMainVolume(double value)
 	// TODO:
 }
 
-EXPORT_CPP double _getMainVolume(void)
+EXPORT_CPP double _getMainVolume()
 {
 	// TODO:
 	return 0.0;
@@ -27,12 +27,12 @@ EXPORT_CPP void _sndPlayLoop(SClass* me_, double startPos, double loopPos)
 	// TODO:
 }
 
-EXPORT_CPP void _sndStop(void)
+EXPORT_CPP void _sndStop()
 {
 	// TODO:
 }
 
-EXPORT_CPP Bool _sndPlaying(void)
+EXPORT_CPP Bool _sndPlaying()
 {
 	// TODO:
 	return False;
@@ -58,14 +58,29 @@ EXPORT_CPP void _sndSetPos(double pos)
 	// TODO:
 }
 
-EXPORT_CPP double _sndGetPos(void)
+EXPORT_CPP double _sndGetPos()
 {
 	// TODO:
 	return 0.0;
 }
 
-EXPORT_CPP double _sndLen(void)
+EXPORT_CPP double _sndLen()
 {
 	// TODO:
 	return 0.0;
 }
+
+namespace Snd
+{
+
+void Init()
+{
+	// TODO:
+}
+
+void Fin()
+{
+	// TODO:
+}
+
+} // namespace Snd
