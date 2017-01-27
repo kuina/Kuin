@@ -19,6 +19,7 @@
     <ClCompile Include="obj_ps.c" />
     <ClCompile Include="obj_vs.c" />
     <ClCompile Include="obj_joint_vs.c" />
+    <ClCompile Include="wav.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />
@@ -29,5 +30,6 @@
     <ClInclude Include="png_decoder.h" />
     <ClInclude Include="jpg_decoder.h" />
     <ClInclude Include="bc_decoder.h" />
+    <ClInclude Include="wav.h" />
   </ItemGroup>
 </Project>

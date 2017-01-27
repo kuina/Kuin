@@ -29,10 +29,7 @@ end func
 	+func [d0001.knd, _sndFreq] freq(value: float)
 	end func
 
-	+func [d0001.knd, _sndSetPos] setPos(pos: float)
-	end func
-
-	+func [d0001.knd, _sndGetPos] getPos(): float
+	+func [d0001.knd, _sndPos] pos(): float
 	end func
 
 	+func [d0001.knd, _sndLen] len(): float

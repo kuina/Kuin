@@ -1,17 +1,8 @@
 func main()
 	do wnd@makeWnd(0, 1024, 768)
-	do draw@clearColor(0.1, 0.1, 0.2)
-	var diffuse: draw@Tex :: draw@makeTexEven(0.8, 0.2, 0.1, 1.0)
-	var specular: draw@Tex :: draw@makeTexEven(0.7, 0.7, 0.7, 3.0)
-	var obj: draw@Obj :: draw@makeObj("data/corn.knobj")
-	do draw@depth(true, true)
-	var a: float :: 0.0
+	var snd: snd@Snd :: snd@makeSnd("data/tada.wav")
+	do snd.play(0.0)
 	while(wnd@act())
-		{do draw@camera(0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)}
-		do draw@camera(200.0 * lib@cos(a), 0.0, 200.0 * lib@sin(a), 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
-		do a :+ 0.002
-		do obj.pos(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-		do obj.draw(diffuse, specular, 0, 0.0)
 		do draw@render()
 	end while
 end func

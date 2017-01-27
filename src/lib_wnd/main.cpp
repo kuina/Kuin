@@ -6,6 +6,8 @@
 #include "main.h"
 
 #include "draw.h"
+#include "snd.h"
+#include "input.h"
 
 static const Char* WndClassName = L"KuinWndClass";
 
@@ -55,12 +57,14 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 	}
 
 	Draw::Init();
+	Snd::Init();
 
 	// TODO:
 }
 
 EXPORT_CPP void _fin()
 {
+	Snd::Fin();
 	Draw::Fin();
 
 	// TODO:

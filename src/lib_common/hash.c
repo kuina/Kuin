@@ -12,7 +12,6 @@ static const U32 K[64] =
 	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-static void Hash(void* buf, S64 size, const U8* data);
 static void HashBlock(U32* h, const U8* data);
 
 EXPORT void* _hash(const U8* data)
@@ -20,56 +19,58 @@ EXPORT void* _hash(const U8* data)
 	U8* result = (U8*)AllocMem(0x10 + 0x20);
 	((S64*)result)[0] = DefaultRefCntFunc;
 	((S64*)result)[1] = 0x20;
-	Hash(result + 0x10, *(S64*)(data + 0x08), data + 0x10);
-	return result;
-}
 
-static void Hash(void* buf, S64 size, const U8* data)
-{
-	U32* h = (U32*)buf;
-	S64 idx = 0;
-	S64 padding_size;
-	U8 d[64] = { 0 };
-
-	// Initial values.
-	h[0] = 0x6a09e667;
-	h[1] = 0xbb67ae85;
-	h[2] = 0x3c6ef372;
-	h[3] = 0xa54ff53a;
-	h[4] = 0x510e527f;
-	h[5] = 0x9b05688c;
-	h[6] = 0x1f83d9ab;
-	h[7] = 0x5be0cd19;
-
-	// Process every 64 bytes.
-	while (size - idx >= 64)
 	{
-		HashBlock(h, data + idx);
-		idx += 64;
-	}
+		S64 size = *(S64*)(data + 0x08);
+		const U8* data2 = data + 0x10;
+		U32* h = (U32*)(result + 0x10);
+		S64 idx = 0;
+		S64 padding_size;
+		U8 d[64] = { 0 };
 
-	// Stuff padding for fraction of 64 bytes.
-	padding_size = size - idx;
-	memcpy(d, data + idx, (size_t)padding_size);
-	d[padding_size] = 0x80;
 
-	// One block is added if the fraction is 56 bytes or more.
-	if (padding_size >= 56)
-	{
+		// Initial values.
+		h[0] = 0x6a09e667;
+		h[1] = 0xbb67ae85;
+		h[2] = 0x3c6ef372;
+		h[3] = 0xa54ff53a;
+		h[4] = 0x510e527f;
+		h[5] = 0x9b05688c;
+		h[6] = 0x1f83d9ab;
+		h[7] = 0x5be0cd19;
+
+		// Process every 64 bytes.
+		while (size - idx >= 64)
+		{
+			HashBlock(h, data2 + idx);
+			idx += 64;
+		}
+
+		// Stuff padding for fraction of 64 bytes.
+		padding_size = size - idx;
+		memcpy(d, data2 + idx, (size_t)padding_size);
+		d[padding_size] = 0x80;
+
+		// One block is added if the fraction is 56 bytes or more.
+		if (padding_size >= 56)
+		{
+			HashBlock(h, d);
+			memset(d, 0, 56);
+		}
+
+		// Add the size[bit] of the data in big endian to the end 8 bytes.
+		{
+			U64 size64 = (U64)size * 8;
+			int i;
+			for (i = 0; i < 8; i++)
+				d[56 + i] = (U8)(size64 >> ((7 - i) * 8));
+		}
+
+		// The last block.
 		HashBlock(h, d);
-		memset(d, 0, 56);
 	}
 
-	// Add the size[bit] of the data in big endian to the end 8 bytes.
-	{
-		U64 size64 = (U64)size * 8;
-		int i;
-		for (i = 0; i < 8; i++)
-			d[56 + i] = (U8)(size64 >> ((7 - i) * 8));
-	}
-
-	// The last block.
-	HashBlock(h, d);
+	return result;
 }
 
 static void HashBlock(U32* h, const U8* data)

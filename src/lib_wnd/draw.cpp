@@ -431,6 +431,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 EXPORT_CPP SClass* _makeTexEven(SClass* me_, double r, double g, double b, double a)
 {
 	STex* me2 = reinterpret_cast<STex*>(me_);
+	InitClass(&me2->Class, NULL, TexDtor);
 	float img[4] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a) };
 	{
 		D3D10_TEXTURE2D_DESC desc;

@@ -1426,7 +1426,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 				SAsmLabel* lbl1 = AsmLabel();
 				DictForEach(Dlls, InitDLLs, scope_entry->End);
 #if defined(_DEBUG)
-				// DbgBreak();
+				DbgBreak();
 #endif
 				ListAdd(PackAsm->Asms, lbl1);
 			}

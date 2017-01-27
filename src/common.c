@@ -1,5 +1,11 @@
 #include "common.h"
 
+typedef struct SFile
+{
+	Bool Pack;
+	void* Handle;
+} SFile;
+
 void* Heap;
 S64* HeapCnt;
 S64 AppCode;
@@ -88,6 +94,84 @@ void* LoadFileAll(const Char* path, size_t* size, Bool occurExcpt)
 			return result;
 		}
 	}
+}
+
+void* OpenFileStream(const Char* path)
+{
+	if (path[0] == L':')
+	{
+		path++;
+		{
+			SFile* result = (SFile*)AllocMem(sizeof(SFile));
+			result->Pack = True;
+			// TODO:
+			return result;
+		}
+	}
+	else
+	{
+		FILE* file_ptr = _wfopen(path, L"rb");
+		if (file_ptr == NULL)
+		{
+			THROW(0x1000, L"");
+			return NULL;
+		}
+		{
+			SFile* result = (SFile*)AllocMem(sizeof(SFile));
+			result->Pack = False;
+			result->Handle = file_ptr;
+			return result;
+		}
+	}
+}
+
+void CloseFileStream(void* handle)
+{
+	SFile* handle2 = (SFile*)handle;
+	ASSERT(handle2 != NULL);
+	if (handle2->Pack)
+	{
+		// TODO:
+	}
+	else
+		fclose((FILE*)handle2->Handle);
+	FreeMem(handle2);
+}
+
+size_t ReadFileStream(void* handle, size_t size, void* buf)
+{
+	SFile* handle2 = (SFile*)handle;
+	ASSERT(handle2 != NULL);
+	if (handle2->Pack)
+	{
+		// TODO:
+	}
+	else
+		return fread(buf, 1, size, (FILE*)handle2->Handle);
+}
+
+Bool SeekFileStream(void* handle, S64 offset, S64 origin)
+{
+	SFile* handle2 = (SFile*)handle;
+	ASSERT(handle2 != NULL);
+	if (handle2->Pack)
+	{
+		// TODO:
+	}
+	else
+		return fseek((FILE*)handle2->Handle, (long)offset, (int)origin) == 0;
+}
+
+S64 TellFileStream(void* handle)
+{
+	SFile* handle2 = (SFile*)handle;
+	ASSERT(handle2 != NULL);
+	if (handle2->Pack)
+	{
+		// TODO:
+	}
+	else
+		return (S64)ftell((FILE*)handle2->Handle);
 }
 
 Bool StrCmpIgnoreCase(const Char* a, const Char* b)

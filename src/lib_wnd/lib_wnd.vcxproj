@@ -149,6 +149,7 @@
     <ClCompile Include="tex_vs.c" />
     <ClCompile Include="tri_ps.c" />
     <ClCompile Include="tri_vs.c" />
+    <ClCompile Include="wav.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common.h" />
@@ -159,6 +160,7 @@
     <ClInclude Include="main.h" />
     <ClInclude Include="png_decoder.h" />
     <ClInclude Include="snd.h" />
+    <ClInclude Include="wav.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
