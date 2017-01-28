@@ -1,6 +1,6 @@
 func main()
 	do wnd@makeWnd(0, 1024, 768)
-	var snd: snd@Snd :: snd@makeSnd("data/tada.wav")
+	var snd: snd@Snd :: snd@makeSnd("data/tada.wav", true)
 	do snd.play(0.0)
 	while(wnd@act())
 		do draw@render()

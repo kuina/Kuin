@@ -4,7 +4,7 @@ end func
 +func [d0001.knd, _getMainVolume] getMainVolume(): float
 end func
 
-+func [d0001.knd, _makeSnd, _make_instance] makeSnd(me2: @Snd, path: []char): @Snd
++func [d0001.knd, _makeSnd, _make_instance] makeSnd(me2: @Snd, path: []char, streaming: bool): @Snd
 end func
 
 +class Snd()
@@ -34,4 +34,18 @@ end func
 
 	+func [d0001.knd, _sndLen] len(): float
 	end func
+	
+	var sndBuf: int
+	var event1: int
+	var event2: int
+	var sizePerSec: int
+	var loopPos: int
+	var endPos: float
+	var freq2: bit32
+	var streaming: bit32
+	var thread: int
+	var volume2: float
+	var handle: int
+	var funcClose: int
+	var funcRead: int
 end class
