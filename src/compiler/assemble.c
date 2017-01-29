@@ -759,11 +759,16 @@ static S64* RefClass(SAstClass* class_)
 				}
 				else if (item->Def->TypeId == AstTypeId_Var)
 				{
+					int size = GetSize(((SAstVar*)item->Def)->Var->Type);
+					if (class_->VarSize % size != 0)
+						class_->VarSize += size - class_->VarSize % size;
 					item->Addr = (S64)class_->VarSize;
-					class_->VarSize += GetSize(((SAstVar*)item->Def)->Var->Type);
+					class_->VarSize += size;
 				}
 				ptr = ptr->Next;
 			}
+			if (class_->VarSize % 8 != 0)
+				class_->VarSize += 8 - class_->VarSize % 8;
 		}
 		RefFuncRecursion(class_);
 		*class_->Addr = -2;
@@ -1737,8 +1742,11 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 				while (ptr != NULL)
 				{
 					SAstArg* arg = (SAstArg*)ptr->Data;
+					int size2 = GetSize(arg->Type);
+					if (size % size2 != 0)
+						size += size2 - size % size2;
 					*arg->Addr = size;
-					size += GetSize(arg->Type);
+					size += size2;
 					ptr = ptr->Next;
 				}
 			}
@@ -3389,10 +3397,9 @@ static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f)
 					ListAdd(PackAsm->Asms, lbl1);
 					ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, RegI[reg_i]), ValReg(8, Reg_DI)));
 					ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl3)->Addr, True))));
-					ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_DI), ValMemS(4, ValReg(8, RegI[reg_i]), NULL, 0x00)));
-					ListAdd(PackAsm->Asms, AsmCMP(ValReg(4, Reg_DI), ValImmU(4, 0x00)));
+					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
+					ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, Reg_DI), ValImmU(8, 0x00)));
 					ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
-					ListAdd(PackAsm->Asms, AsmMOVSX(ValReg(8, Reg_DI), ValReg(4, Reg_DI)));
 					ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValReg(8, Reg_DI)));
 					ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 					ListAdd(PackAsm->Asms, lbl2);
@@ -3419,10 +3426,9 @@ static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f)
 				ListAdd(PackAsm->Asms, lbl1);
 				ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, RegI[reg_i]), ValReg(8, Reg_SI)));
 				ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_DI), ValMemS(4, ValReg(8, RegI[reg_i]), NULL, 0x00)));
-				ListAdd(PackAsm->Asms, AsmCMP(ValReg(4, Reg_DI), ValImmU(4, 0x00)));
+				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
+				ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, Reg_DI), ValImmU(8, 0x00)));
 				ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl3)->Addr, True))));
-				ListAdd(PackAsm->Asms, AsmMOVSX(ValReg(8, Reg_DI), ValReg(4, Reg_DI)));
 				ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValReg(8, Reg_DI)));
 				ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 				ListAdd(PackAsm->Asms, lbl2);

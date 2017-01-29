@@ -408,6 +408,8 @@ static void WriteReadonlyData(void)
 				ptr = ptr->Next;
 			}
 		}
+		if (ReadonlyDataLen % 8 != 0)
+			ReadonlyDataLen += 8 - ReadonlyDataLen % 8;
 		{
 			SListNode* ptr = PackAsm->ClassTables->Top;
 			while (ptr != NULL)
@@ -490,6 +492,8 @@ static void WriteReadonlyData(void)
 				ptr = ptr->Next;
 			}
 		}
+		while (ftell(FilePtr) % 8 != 0)
+			fputc(0x00, FilePtr);
 		{
 			// Write all the class tables.
 			S64 class_pos = (S64)ftell(FilePtr) - base_addr;
