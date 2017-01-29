@@ -3,20 +3,22 @@
 typedef struct SStream
 {
 	SClass Class;
-	void* Fin;
-	void* GetPos;
-	void* SetPos;
-	void* ReadWrite;
-	void* FileSize;
-	void* Term;
 	FILE* Handle;
 	S64 DelimiterNum;
 	Char* Delimiter;
 } SStream;
 
-static void StreamDtor(SClass* me_);
 static Char ReadUtf8(SStream* me_, Bool replace_delimiter);
 static void WriteUtf8(SStream* me_, Char data);
+
+EXPORT void _streamDtor(SClass* me_)
+{
+	SStream* me2 = (SStream*)me_;
+	if (me2->Handle != NULL)
+		fclose(me2->Handle);
+	if (me2->Delimiter != NULL)
+		FreeMem(me2->Delimiter);
+}
 
 EXPORT void _streamFin(SClass* me_)
 {
@@ -223,7 +225,6 @@ EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 	FILE* file_ptr = _wfopen((Char*)(path + 0x10), L"rb");
 	if (file_ptr == NULL)
 		return NULL;
-	InitClass(&me2->Class, NULL, StreamDtor);
 	me2->Handle = file_ptr;
 	me2->DelimiterNum = 2;
 	me2->Delimiter = (Char*)AllocMem(sizeof(Char) * 2);
@@ -238,20 +239,10 @@ EXPORT SClass* _makeWriter(SClass* me_, const U8* path, Bool append)
 	FILE* file_ptr = _wfopen((Char*)(path + 0x10), append ? L"ab" : L"wb");
 	if (file_ptr == NULL)
 		return NULL;
-	InitClass(&me2->Class, NULL, StreamDtor);
 	me2->Handle = file_ptr;
 	me2->DelimiterNum = 0;
 	me2->Delimiter = NULL;
 	return me_;
-}
-
-static void StreamDtor(SClass* me_)
-{
-	SStream* me2 = (SStream*)me_;
-	if (me2->Handle != NULL)
-		fclose(me2->Handle);
-	if (me2->Delimiter != NULL)
-		FreeMem(me2->Delimiter);
 }
 
 static Char ReadUtf8(SStream* me_, Bool replace_delimiter)

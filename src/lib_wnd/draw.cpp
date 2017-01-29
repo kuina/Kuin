@@ -44,8 +44,6 @@ struct SVertexBuf
 struct STex
 {
 	SClass Class;
-	void* draw;
-	void* drawScale;
 	int RawWidth;
 	int RawHeight;
 	int AlignedWidth;
@@ -57,11 +55,6 @@ struct STex
 struct SObj
 {
 	SClass Class;
-	void* draw;
-	void* mtx;
-	void* pos;
-	void* look;
-	void* lookCamera;
 
 	struct SPolygon
 	{
@@ -142,9 +135,6 @@ static double ViewMtx[4][4];
 static double ProjMtx[4][4];
 static SObjJointVsConstBuf ObjVsConstBuf;
 static SObjPsConstBuf ObjPsConstBuf;
-
-static void TexDtor(SClass* me_);
-static void ObjDtor(SClass* me_);
 
 EXPORT_CPP void _render()
 {
@@ -344,7 +334,6 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 	DXGI_FORMAT format;
 	int width;
 	int height;
-	InitClass(&me2->Class, NULL, TexDtor);
 	{
 		size_t size;
 		bin = LoadFileAll(path2, &size, True);
@@ -431,7 +420,6 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 EXPORT_CPP SClass* _makeTexEven(SClass* me_, double r, double g, double b, double a)
 {
 	STex* me2 = reinterpret_cast<STex*>(me_);
-	InitClass(&me2->Class, NULL, TexDtor);
 	float img[4] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a) };
 	{
 		D3D10_TEXTURE2D_DESC desc;
@@ -464,6 +452,15 @@ EXPORT_CPP SClass* _makeTexEven(SClass* me_, double r, double g, double b, doubl
 			THROW(0x1000, L"");
 	}
 	return me_;
+}
+
+EXPORT_CPP void _texDtor(SClass* me_)
+{
+	STex* me2 = reinterpret_cast<STex*>(me_);
+	if (me2->View != NULL)
+		me2->View->Release();
+	if (me2->Tex != NULL)
+		me2->Tex->Release();
 }
 
 EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH)
@@ -595,7 +592,6 @@ EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ,
 EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 {
 	SObj* me2 = (SObj*)me_;
-	InitClass(&me2->Class, NULL, ObjDtor);
 	me2->ElementKinds = NULL;
 	me2->Elements = NULL;
 	Draw::IdentityFloat(me2->Mtx);
@@ -739,11 +735,39 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 			FreeMem(buf);
 		if (!correct)
 		{
-			ObjDtor(me_);
+			_objDtor(me_);
 			THROW(0x1000, L"");
 		}
 	}
 	return me_;
+}
+
+EXPORT_CPP void _objDtor(SClass* me_)
+{
+	SObj* me2 = reinterpret_cast<SObj*>(me_);
+	for (int i = 0; i < me2->ElementNum; i++)
+	{
+		switch (me2->ElementKinds[i])
+		{
+		case 0: // Polygon.
+		{
+			SObj::SPolygon* element = static_cast<SObj::SPolygon*>(me2->Elements[i]);
+			if (element->Joints != NULL)
+				FreeMem(element->Joints);
+			if (element->VertexBuf != NULL)
+				Draw::FinVertexBuf(element->VertexBuf);
+			FreeMem(element);
+		}
+		break;
+		default:
+			ASSERT(False);
+			break;
+		}
+	}
+	if (me2->Elements != NULL)
+		FreeMem(me2->Elements);
+	if (me2->ElementKinds != NULL)
+		FreeMem(me2->ElementKinds);
 }
 
 EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, double r, double g, double b, double a)
@@ -1810,40 +1834,3 @@ void SetProjViewMtx(float out[4][4], const double proj[4][4], const double view[
 }
 
 } // namespace Draw
-
-static void TexDtor(SClass* me_)
-{
-	STex* me2 = reinterpret_cast<STex*>(me_);
-	if (me2->View != NULL)
-		me2->View->Release();
-	if (me2->Tex != NULL)
-		me2->Tex->Release();
-}
-
-static void ObjDtor(SClass* me_)
-{
-	SObj* me2 = reinterpret_cast<SObj*>(me_);
-	for (int i = 0; i < me2->ElementNum; i++)
-	{
-		switch (me2->ElementKinds[i])
-		{
-			case 0: // Polygon.
-				{
-					SObj::SPolygon* element = static_cast<SObj::SPolygon*>(me2->Elements[i]);
-					if (element->Joints != NULL)
-						FreeMem(element->Joints);
-					if (element->VertexBuf != NULL)
-						Draw::FinVertexBuf(element->VertexBuf);
-					FreeMem(element);
-				}
-				break;
-			default:
-				ASSERT(False);
-				break;
-		}
-	}
-	if (me2->Elements != NULL)
-		FreeMem(me2->Elements);
-	if (me2->ElementKinds != NULL)
-		FreeMem(me2->ElementKinds);
-}

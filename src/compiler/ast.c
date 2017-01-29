@@ -337,7 +337,8 @@ static void DumpAstClass(const SAstClass* ast)
 {
 	PrintTab(); fwprintf(FilePtr, L"<Class");
 	ASSERT(ast->Addr != NULL && *ast->Addr == -1);
-	fwprintf(FilePtr, L" Size=\"%d\"", ast->Size);
+	fwprintf(FilePtr, L" VarSize=\"%d\"", ast->VarSize);
+	fwprintf(FilePtr, L" FuncSize=\"%d\"", ast->FuncSize);
 	fwprintf(FilePtr, L">\n");
 	Tab++;
 	{

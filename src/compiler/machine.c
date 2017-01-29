@@ -178,6 +178,7 @@ static S64 ImportLen;
 static void Write(U64 addr, size_t size, U64 data);
 static void WriteCode(void);
 static void WriteReadonlyData(void);
+static void WriteFuncAddrRecursion(SAstClass* class_, S64 file_origin, S64 addr_origin);
 static void WriteExcpt(void);
 static const void* CalcWritableData(const Char* key, const void* value, void* param);
 static void WriteRes(void);
@@ -411,7 +412,8 @@ static void WriteReadonlyData(void)
 			SListNode* ptr = PackAsm->ClassTables->Top;
 			while (ptr != NULL)
 			{
-				ReadonlyDataLen += 4;
+				SClassTable* table = (SClassTable*)ptr->Data;
+				ReadonlyDataLen += 0x08 + (S64)table->Class->FuncSize;
 				ptr = ptr->Next;
 			}
 		}
@@ -497,17 +499,25 @@ static void WriteReadonlyData(void)
 				{
 					SClassTable* table = (SClassTable*)ptr->Data;
 					*table->Addr = ReadonlyData.ImgPos + LookupLen + class_pos;
-					class_pos += 4;
+					class_pos += 0x08 + (S64)table->Class->FuncSize;
 					ptr = ptr->Next;
 				}
 			}
 			{
 				SListNode* ptr = PackAsm->ClassTables->Top;
+				int j;
+				U64 blank = 0;
 				while (ptr != NULL)
 				{
 					SClassTable* table = (SClassTable*)ptr->Data;
-					U32 addr = table->Parent == NULL ? 0 : (U32)(*table->Parent - *table->Addr);
-					fwrite(&addr, 1, 4, FilePtr);
+					U64 addr = table->Parent == NULL ? 0 : (U64)(*table->Parent - *table->Addr);
+					S64 origin;
+					fwrite(&addr, 1, 8, FilePtr);
+					origin = (S64)ftell(FilePtr);
+					for (j = 0; j < table->Class->FuncSize; j += 8)
+						fwrite(&blank, 0, 8, FilePtr);
+					WriteFuncAddrRecursion(table->Class, origin, *table->Addr + 0x08);
+					fseek(FilePtr, (long)(origin + table->Class->FuncSize), SEEK_SET);
 					ptr = ptr->Next;
 				}
 			}
@@ -736,6 +746,31 @@ static void WriteReadonlyData(void)
 						fwrite(((SAsm*)try_->End)->Addr, 1, 4, FilePtr);
 						ptr2 = ptr2->Prev;
 					}
+				}
+			}
+			ptr = ptr->Next;
+		}
+	}
+}
+
+static void WriteFuncAddrRecursion(SAstClass* class_, S64 file_origin, S64 addr_origin)
+{
+	if (((SAst*)class_)->RefItem != NULL)
+		WriteFuncAddrRecursion((SAstClass*)((SAst*)class_)->RefItem, file_origin, addr_origin);
+	{
+		SListNode* ptr = class_->Items->Top;
+		while (ptr != NULL)
+		{
+			SAstClassItem* item = (SAstClassItem*)ptr->Data;
+			if (item->Def->TypeId == AstTypeId_Func)
+			{
+				ASSERT(item->Addr >= 0);
+				{
+					S64 addr = *((SAstFunc*)item->Def)->Addr;
+					ASSERT(addr != -1 && addr != -2);
+					addr -= addr_origin + item->Addr;
+					fseek(FilePtr, (long)(file_origin + item->Addr), SEEK_SET);
+					fwrite(&addr, 1, 8, FilePtr);
 				}
 			}
 			ptr = ptr->Next;

@@ -47,7 +47,10 @@ end func
 +func [d0001.knd, _makeTexEven, _make_instance] makeTexEven(me2: @Tex, r: float, g: float, b: float, a: float): @Tex
 end func
 
-+class Tex()
++class Tex(kuin@ResClass)
+	*func [d0001.knd, _texDtor, _force] dtor()
+	end func
+
 	+func [d0001.knd, _texDraw] draw(dstX: float, dstY: float, srcX: float, srcY: float, srcW: float, srcH: float)
 	end func
 
@@ -66,7 +69,10 @@ end func
 +func [d0001.knd, _proj] proj(fovy: float, aspectX: float, aspectY: float, nearZ: float, farZ: float)
 end func
 
-+class Obj()
++class Obj(kuin@ResClass)
+	*func [d0001.knd, _objDtor, _force] dtor()
+	end func
+
 	+func [d0001.knd, _objDraw] draw(diffuse: @Tex, specular: @Tex, element: int, frame: float)
 	end func
 

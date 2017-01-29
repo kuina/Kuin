@@ -22,7 +22,20 @@ end class
 +class Excpt()
 	+var code: int
 	+var msg: []char
-	+var pos: int
+end class
+
++class ResClass()
+	*func [_force] copy(): @Class
+		throw 3009
+	end func
+
+	+*func [_force] toBin(): []bit8
+		throw 3009
+	end func
+
+	+*func [_force] fromBin(bin: []bit8, idx: int): int
+		throw 3009
+	end func
 end class
 
 func [d0000.knd, _init] _init()

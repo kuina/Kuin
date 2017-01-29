@@ -38,7 +38,6 @@ static SListSnd* ListSndTop = NULL;
 static SListSnd* ListSndBottom = NULL;
 static double MainVolume = 1.0;
 
-static void SndDtor(SClass* me_);
 static DWORD WINAPI CBStreamThread(LPVOID param);
 static Bool StreamCopy(SSnd* me_, S64 id);
 
@@ -61,7 +60,6 @@ EXPORT_CPP double _getMainVolume()
 EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	InitClass(&me2->Class, NULL, SndDtor);
 
 	WAVEFORMATEX pcmwf;
 	DSBUFFERDESC desc;
@@ -110,8 +108,7 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 		}
 		{
 			LPDIRECTSOUNDBUFFER pdsb;
-			HRESULT hr = Device->CreateSoundBuffer(&desc, &pdsb, NULL);
-			if (FAILED(hr))
+			if (FAILED(Device->CreateSoundBuffer(&desc, &pdsb, NULL)))
 				break;
 			if (FAILED(pdsb->QueryInterface(IID_IDirectSoundBuffer8, reinterpret_cast<LPVOID*>(&me2->SndBuf))))
 				break;
@@ -138,6 +135,7 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 			me2->FuncRead(me2->Handle, lpvptr, static_cast<S64>(dwbytes), -1);
 			me2->SndBuf->Unlock(lpvptr, dwbytes, NULL, 0);
 			me2->FuncClose(me2->Handle);
+			me2->Handle = NULL;
 			me2->Thread = NULL;
 		}
 		_sndVolume(me_, 1.0);
@@ -157,6 +155,40 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 	if (!success)
 		return NULL;
 	return me_;
+}
+
+EXPORT_CPP void _sndDtor(SClass* me_)
+{
+	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
+	if (me2->SndBuf != NULL)
+	{
+		me2->SndBuf->Stop();
+		if (me2->Streaming)
+			TerminateThread(me2->Thread, 0);
+		me2->SndBuf->Release();
+	}
+	if (me2->Handle != NULL)
+		me2->FuncClose(me2->Handle);
+	{
+		SListSnd* ptr = ListSndTop;
+		SListSnd* ptr2 = NULL;
+		while (ptr != NULL)
+		{
+			if (ptr->Snd == me2)
+			{
+				if (ptr2 == NULL)
+					ListSndTop = ptr->Next;
+				else
+					ptr2->Next = ptr->Next;
+				if (ListSndBottom == ptr)
+					ListSndBottom = ptr2;
+				FreeMem(ptr);
+				break;
+			}
+			ptr2 = ptr;
+			ptr = ptr->Next;
+		}
+	}
 }
 
 EXPORT_CPP void _sndPlay(SClass* me_, double startPos)
@@ -245,13 +277,7 @@ void Init()
 
 void Fin()
 {
-	SListSnd* ptr = ListSndTop;
-	while (ptr != NULL)
-	{
-		SListSnd* ptr2 = ptr;
-		ptr = ptr->Next;
-		FreeMem(ptr2);
-	}
+	ASSERT(ListSndTop == NULL);
 	if (Device != NULL)
 		Device->Release();
 	if (Wnd != NULL)
@@ -259,40 +285,6 @@ void Fin()
 }
 
 } // namespace Snd
-
-static void SndDtor(SClass* me_)
-{
-	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	if (me2->SndBuf != NULL)
-	{
-		me2->SndBuf->Stop();
-		if (me2->Streaming)
-			TerminateThread(me2->Thread, 0);
-		me2->SndBuf->Release();
-	}
-	if (me2->Handle != NULL)
-		me2->FuncClose(me2->Handle);
-	{
-		SListSnd* ptr = ListSndTop;
-		SListSnd* ptr2 = NULL;
-		while (ptr != NULL)
-		{
-			if (ptr->Snd == me2)
-			{
-				if (ptr2 == NULL)
-					ListSndTop = ptr->Next;
-				else
-					ptr2->Next = ptr->Next;
-				if (ListSndBottom == ptr)
-					ListSndBottom = ptr2;
-				FreeMem(ptr);
-				break;
-			}
-			ptr2 = ptr;
-			ptr = ptr->Next;
-		}
-	}
-}
 
 static DWORD WINAPI CBStreamThread(LPVOID param)
 {

@@ -10,7 +10,10 @@ end func
 	tail
 end enum
 
-+class Reader()
++class Reader(kuin@ResClass)
+	*func [d0000.knd, _streamDtor, _force] dtor()
+	end func
+
 	+func [d0000.knd, _streamFin] fin()
 	end func
 
@@ -36,22 +39,21 @@ end enum
 	var delimiter: int
 end class
 
-+class Writer()
-	+func [d0000.knd, _streamFin] fin()
++class Writer(kuin@ResClass)
+	*func [d0000.knd, _streamDtor, _force] dtor()
 	end func
 
-	+func [d0000.knd, _streamGetPos] getPos(): int
+	+func [d0000.knd, _streamFin] fin()
 	end func
 
 	+func [d0000.knd, _streamSetPos] setPos(origin: @Origin, pos: int)
 	end func
 
-	+func [d0000.knd, _streamWrite] write(data: []bit8)
+	+func [d0000.knd, _streamGetPos] getPos(): int
 	end func
 
-	var reserved1: int
-
-	var reserved2: int
+	+func [d0000.knd, _streamWrite] write(data: []bit8)
+	end func
 
 	var handle: int
 

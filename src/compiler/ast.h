@@ -113,6 +113,7 @@ typedef enum EFuncAttr
 	FuncAttr_TakeKeyValue = 0x0100, // The function receives a value of the type of 'key' in the third argument and a value of the type of 'value' in the fourth.
 	FuncAttr_RetArrayOfListChild = 0x0200, // The function returns an array of the type of list elements of 'me'.
 	FuncAttr_MakeInstance = 0x0400, // Make an instance before calling the function.
+	FuncAttr_Force = 0x0800, // Force to define a method that cannot be overridden.
 } EFuncAttr;
 
 typedef struct SAstFunc
@@ -167,7 +168,8 @@ typedef struct SAstClass
 {
 	SAst Ast;
 	S64* Addr;
-	int Size;
+	int VarSize;
+	int FuncSize;
 	SList* Items;
 } SAstClass;
 

@@ -29,7 +29,10 @@ ToBinClassAsm PROC
 	; begin
 	inc QWORD PTR 00h[rcx]
 	mov QWORD PTR 00h[rsp], rcx
-	call QWORD PTR 30h[rcx]
+	mov rcx, QWORD PTR 08h[rcx]
+	lea rcx, QWORD PTR 28h[rcx]
+	add rcx, QWORD PTR 00h[rcx]
+	call rcx
 	; end
 	mov rbx, QWORD PTR 20h[rsp]
 	mov rsi, QWORD PTR 28h[rsp]
@@ -79,7 +82,10 @@ FromBinClassAsm PROC
 	inc QWORD PTR 00h[rdx]
 	mov QWORD PTR 08h[rsp], rdx
 	mov QWORD PTR 10h[rsp], r8
-	call QWORD PTR 38h[rcx]
+	mov rcx, QWORD PTR 08h[rcx]
+	lea rcx, QWORD PTR 30h[rcx]
+	add rcx, QWORD PTR 00h[rcx]
+	call rcx
 	; end
 	mov rbx, QWORD PTR 20h[rsp]
 	mov rsi, QWORD PTR 28h[rsp]
@@ -128,7 +134,10 @@ CmpClassAsm PROC
 	mov QWORD PTR 00h[rsp], rcx
 	inc QWORD PTR 00h[rdx]
 	mov QWORD PTR 08h[rsp], rdx
-	call QWORD PTR 20h[rcx]
+	mov rcx, QWORD PTR 08h[rcx]
+	lea rcx, QWORD PTR 18h[rcx]
+	add rcx, QWORD PTR 00h[rcx]
+	call rcx
 	; end
 	mov rbx, QWORD PTR 20h[rsp]
 	mov rsi, QWORD PTR 28h[rsp]
@@ -175,7 +184,10 @@ DtorClassAsm PROC
 	; begin
 	mov QWORD PTR 00h[rcx], 02h
 	mov QWORD PTR 00h[rsp], rcx
-	call QWORD PTR 18h[rcx]
+	mov rcx, QWORD PTR 08h[rcx]
+	lea rcx, QWORD PTR 10h[rcx]
+	add rcx, QWORD PTR 00h[rcx]
+	call rcx
 	; end
 	mov rbx, QWORD PTR 20h[rsp]
 	mov rsi, QWORD PTR 28h[rsp]
@@ -222,7 +234,10 @@ CopyClassAsm PROC
 	; begin
 	inc QWORD PTR 00h[rcx]
 	mov QWORD PTR 00h[rsp], rcx
-	call QWORD PTR 28h[rcx]
+	mov rcx, QWORD PTR 08h[rcx]
+	lea rcx, QWORD PTR 20h[rcx]
+	add rcx, QWORD PTR 00h[rcx]
+	call rcx
 	; end
 	mov rbx, QWORD PTR 20h[rsp]
 	mov rsi, QWORD PTR 28h[rsp]

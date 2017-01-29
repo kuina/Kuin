@@ -1,5 +1,16 @@
 #include "common.h"
 
+typedef struct SClassTable
+{
+	void* Addr;
+	void(*Ctor)(struct SClass* me_);
+	void(*Dtor)(struct SClass* me_);
+	int(*Cmp)(const struct SClass* me_, const struct SClass* t);
+	struct SClass*(*Copy)(const struct SClass* me_);
+	U8*(*ToBin)(const struct SClass* me_);
+	S64(*FromBin)(struct SClass* me_, U8* bin, S64 idx);
+} SClassTable;
+
 typedef struct SFile
 {
 	Bool Pack;
@@ -11,11 +22,6 @@ S64* HeapCnt;
 S64 AppCode;
 const Char* AppName;
 HINSTANCE Instance;
-
-static int DefaultCmp(const SClass* me_, const SClass* t);
-static SClass* DefaultCopy(const SClass* me_);
-static U8* DefaultToBin(const SClass* me_);
-static S64 DefaultFromBin(SClass* me_, U8* bin, S64 idx);
 
 void* AllocMem(size_t size)
 {
@@ -53,24 +59,13 @@ void ThrowImpl(U32 code, const Char* msg)
 	}
 }
 
-void InitClass(SClass* class_, void(*ctor)(SClass* me_), void(*dtor)(SClass* me_))
-{
-	if (ctor != NULL)
-		class_->Ctor = ctor;
-	if (dtor != NULL)
-		class_->Dtor = dtor;
-	class_->Cmp = DefaultCmp;
-	class_->Copy = DefaultCopy;
-	class_->ToBin = DefaultToBin;
-	class_->FromBin = DefaultFromBin;
-}
-
 void* LoadFileAll(const Char* path, size_t* size, Bool occurExcpt)
 {
 	if (path[0] == L':')
 	{
 		path++;
 		// TODO:
+		return NULL;
 	}
 	else
 	{
@@ -145,6 +140,7 @@ size_t ReadFileStream(void* handle, size_t size, void* buf)
 	if (handle2->Pack)
 	{
 		// TODO:
+		return 0;
 	}
 	else
 		return fread(buf, 1, size, (FILE*)handle2->Handle);
@@ -157,6 +153,7 @@ Bool SeekFileStream(void* handle, S64 offset, S64 origin)
 	if (handle2->Pack)
 	{
 		// TODO:
+		return False;
 	}
 	else
 		return fseek((FILE*)handle2->Handle, (long)offset, (int)origin) == 0;
@@ -169,6 +166,7 @@ S64 TellFileStream(void* handle)
 	if (handle2->Pack)
 	{
 		// TODO:
+		return 0;
 	}
 	else
 		return (S64)ftell((FILE*)handle2->Handle);
@@ -211,34 +209,4 @@ U64 SwapEndianU64(U64 n)
 	n = ((n & 0x0000ffff0000ffff) << 16) | ((n & 0xffff0000ffff0000) >> 16);
 	n = ((n & 0x00000000ffffffff) << 32) | ((n & 0xffffffff00000000) >> 32);
 	return n;
-}
-
-static int DefaultCmp(const SClass* me_, const SClass* t)
-{
-	UNUSED(me_);
-	UNUSED(t);
-	THROW(0x1000, L"");
-	return 0;
-}
-
-static SClass* DefaultCopy(const SClass* me_)
-{
-	UNUSED(me_);
-	THROW(0x1000, L"");
-	return NULL;
-}
-
-static U8* DefaultToBin(const SClass* me_)
-{
-	UNUSED(me_);
-	THROW(0x1000, L"");
-	return NULL;
-}
-
-static S64 DefaultFromBin(SClass* me_, U8* bin, S64 idx)
-{
-	UNUSED(me_);
-	UNUSED(bin);
-	THROW(0x1000, L"");
-	return idx;
 }

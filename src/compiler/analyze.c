@@ -1061,7 +1061,7 @@ static void RebuildClass(SAstClass* ast)
 								{
 									SAstArg* arg1 = (SAstArg*)node1->Data;
 									SAstArg* arg2 = (SAstArg*)node2->Data;
-									if (!CmpType(arg1->Type, arg2->Type) || wcscmp(((SAst*)arg1)->Name, ((SAst*)arg2)->Name) != 0 || arg1->RefVar != arg2->RefVar)
+									if (!CmpType(arg1->Type, arg2->Type) || ((SAst*)arg1)->Name != NULL && ((SAst*)arg2)->Name != NULL && wcscmp(((SAst*)arg1)->Name, ((SAst*)arg2)->Name) != 0 || arg1->RefVar != arg2->RefVar)
 									{
 										Err(L"EA0009", item->Def->Pos, member_name);
 										return;
@@ -1077,7 +1077,7 @@ static void RebuildClass(SAstClass* ast)
 				if (wcscmp(member_name, L"dtor") == 0 || wcscmp(member_name, L"copy") == 0 || wcscmp(member_name, L"toBin") == 0 || wcscmp(member_name, L"fromBin") == 0)
 				{
 					ASSERT(item->Def->TypeId == AstTypeId_Func);
-					if (item->Override)
+					if (item->Override && (((SAstFunc*)item->Def)->FuncAttr & FuncAttr_Force) == 0)
 					{
 						Err(L"EA0010", item->Def->Pos, member_name);
 						return;
@@ -1108,16 +1108,10 @@ static void RebuildClass(SAstClass* ast)
 		}
 		{
 			// Get 'me' of special functions.
-			if (((SAst*)ast)->RefItem == NULL)
-			{
-				ASSERT(dtor != NULL);
-				ASSERT(copy != NULL);
-				ASSERT(to_bin != NULL);
-				ASSERT(from_bin != NULL);
-			}
-			else
-			{
+			if (dtor == NULL)
 				dtor = AddSpecialFunc(ast, L"dtor");
+			if (copy == NULL)
+			{
 				copy = AddSpecialFunc(ast, L"copy");
 				{
 					SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
@@ -1125,6 +1119,9 @@ static void RebuildClass(SAstClass* ast)
 					((SAst*)type)->RefItem = (SAst*)ast;
 					copy->Ret = (SAstType*)type;
 				}
+			}
+			if (to_bin == NULL)
+			{
 				to_bin = AddSpecialFunc(ast, L"toBin");
 				{
 					SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
@@ -1137,6 +1134,9 @@ static void RebuildClass(SAstClass* ast)
 					}
 					to_bin->Ret = (SAstType*)type;
 				}
+			}
+			if (from_bin == NULL)
+			{
 				from_bin = AddSpecialFunc(ast, L"fromBin");
 				{
 					// 'bin'.

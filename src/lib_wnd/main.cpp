@@ -14,13 +14,11 @@ static const Char* WndClassName = L"KuinWndClass";
 typedef struct SWnd
 {
 	SClass Class;
-	void* Render;
 	HWND Handle;
 	void* WndBuf;
 } Wnd;
 
 static LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
-static void WndDtor(SClass* me_);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -95,10 +93,15 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, S64 style, S64 width, S64 height)
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
 	me2->Handle = CreateWindowEx(0, WndClassName, AppName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
 	ASSERT(me2->Handle != NULL);
-	InitClass(me_, NULL, WndDtor);
 	ShowWindow(me2->Handle, SW_SHOWNORMAL);
 	me2->WndBuf = Draw::MakeWndBuf(static_cast<int>(width), static_cast<int>(height), me2->Handle);
 	return me_;
+}
+
+EXPORT_CPP void _wndDtor(SClass* me_)
+{
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	Draw::FinWndBuf(me2->WndBuf);
 }
 
 static LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
@@ -114,10 +117,4 @@ static LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_par
 		// TODO:
 	}
 	return DefWindowProc(wnd, msg, w_param, l_param);
-}
-
-static void WndDtor(SClass* me_)
-{
-	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
-	Draw::FinWndBuf(me2->WndBuf);
 }

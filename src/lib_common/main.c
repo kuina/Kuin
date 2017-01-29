@@ -109,8 +109,8 @@ EXPORT void _err(const void* excpt)
 {
 #if defined(DBG)
 	Char str[1024];
-	S64 code = *(S64*)((U8*)excpt + 0x40);
-	const Char* msg = *(const Char**)((U8*)excpt + 0x48);
+	S64 code = *(S64*)((U8*)excpt + 0x10);
+	const Char* msg = *(const Char**)((U8*)excpt + 0x18);
 	if (msg == NULL)
 		msg = L"No message.";
 	else

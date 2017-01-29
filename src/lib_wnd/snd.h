@@ -5,6 +5,7 @@
 EXPORT_CPP void _setMainVolume(double value);
 EXPORT_CPP double _getMainVolume();
 EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming);
+EXPORT_CPP void _sndDtor(SClass* me_);
 EXPORT_CPP void _sndPlay(SClass* me_, double startPos);
 EXPORT_CPP void _sndPlayLoop(SClass* me_, double startPos, double loopPos);
 EXPORT_CPP void _sndStop(SClass* me_);

@@ -121,7 +121,7 @@ static void CopyMem(EReg dst, U64 size, EReg src, EReg reg_tmp);
 static void ClearMem(EReg dst, U64 size, EReg reg_tmp);
 static int GetSize(const SAstType* type);
 static void DbgBreak(void);
-static void WriteFuncAddressRecursion(SAstClass* class_, EReg reg_class, EReg reg_tmp);
+static void RefFuncRecursion(SAstClass* class_);
 static const void* InitDLLs(const Char* key, const void* value, void* param);
 static const void* InitDLLFuncs(const Char* key, const void* value, void* param);
 static const void* FinDLLs(const Char* key, const void* value, void* param);
@@ -737,10 +737,11 @@ static S64* RefClass(SAstClass* class_)
 			SClassTable* class_table = (SClassTable*)Alloc(sizeof(SClassTable));
 			class_table->Addr = class_->Addr;
 			class_table->Parent = parent;
-			class_table->Name = NewStr(NULL, L"%s@%s", ((SAst*)class_)->Pos->SrcName, ((SAst*)class_)->Name); // TODO: Is this string value used somewhere?
+			class_table->Class = class_;
 			ListAdd(PackAsm->ClassTables, class_table);
 		}
-		class_->Size = ((SAst*)class_)->RefItem == NULL ? 0 : ((SAstClass*)((SAst*)class_)->RefItem)->Size;
+		class_->VarSize = ((SAst*)class_)->RefItem == NULL ? 0 : ((SAstClass*)((SAst*)class_)->RefItem)->VarSize;
+		class_->FuncSize = ((SAst*)class_)->RefItem == NULL ? 0 : ((SAstClass*)((SAst*)class_)->RefItem)->FuncSize;
 		{
 			SListNode* ptr = class_->Items->Top;
 			while (ptr != NULL)
@@ -749,26 +750,22 @@ static S64* RefClass(SAstClass* class_)
 				if ((item->Def->TypeId & AstTypeId_Func) == AstTypeId_Func)
 				{
 					if (item->Override)
-					{
-						SAstClassItem* item2 = item->ParentItem;
-						while (item2->ParentItem != NULL)
-							item2 = item2->ParentItem;
-						item->Addr = item2->Addr;
-					}
+						item->Addr = item->ParentItem->Addr;
 					else
 					{
-						item->Addr = (S64)class_->Size;
-						class_->Size += 8; // A function pointer.
+						item->Addr = (S64)class_->FuncSize;
+						class_->FuncSize += 0x08; // A function pointer.
 					}
 				}
 				else if (item->Def->TypeId == AstTypeId_Var)
 				{
-					item->Addr = (S64)class_->Size;
-					class_->Size += GetSize(((SAstVar*)item->Def)->Var->Type);
+					item->Addr = (S64)class_->VarSize;
+					class_->VarSize += GetSize(((SAstVar*)item->Def)->Var->Type);
 				}
 				ptr = ptr->Next;
 			}
 		}
+		RefFuncRecursion(class_);
 		*class_->Addr = -2;
 	}
 	ASSERT(*class_->Addr == -2);
@@ -931,7 +928,10 @@ static void GcDec(int reg_i, int reg_f, const SAstType* type)
 			ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00), ValImmU(8, 0x02))); // Set the reference counter to 2 so that the instance will not be released twice.
 			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_CX), ValReg(8, RegI[reg_i])));
 			ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_SP), NULL, 0x00), ValReg(8, RegI[reg_i])));
-			ListAdd(PackAsm->Asms, AsmCALL(ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x18))); // Call 'dtor'.
+			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08)));
+			ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x10)));
+			ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
+			ListAdd(PackAsm->Asms, AsmCALL(ValReg(8, RegI[reg_i]))); // Call 'dtor'.
 			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_reg_i), False))));
 			FreeHeap(ValReg(8, RegI[reg_i]));
 			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_si), False))));
@@ -1012,24 +1012,12 @@ static void ChkOverflow(void)
 
 static void RaiseExcpt(U64 code)
 {
-	{
-		// TODO: I plan to delete this.
-		SAsmLabel* lbl1 = AsmLabel();
-		S64* addr = AddWritableData(L"ExcptPos", 8);
-		ListAdd(PackAsm->Asms, AsmCMP(ValRIP(8, RefValueAddr(addr, True)), ValImmU(8, 0x00)));
-		ListAdd(PackAsm->Asms, AsmJNE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_CX), ValRIP(8, RefValue(0))));
-		ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr, True)), ValReg(8, Reg_CX)));
-		ListAdd(PackAsm->Asms, lbl1);
-	}
-	{
-		S64* addr = AddReadonlyData(sizeof(BlankData), BlankData, False);
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValImmU(4, code)));
-		ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_R8), ValImmU(4, 0x01)));
-		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_R9), ValRIP(8, RefValueAddr(addr, True))));
-		CallAPI(PackAsm->Asms, L"KERNEL32.dll", L"RaiseException");
-	}
+	S64* addr = AddReadonlyData(sizeof(BlankData), BlankData, False);
+	ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValImmU(4, code)));
+	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
+	ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_R8), ValImmU(4, 0x01)));
+	ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_R9), ValRIP(8, RefValueAddr(addr, True))));
+	CallAPI(PackAsm->Asms, L"KERNEL32.dll", L"RaiseException");
 }
 
 static void CopyMem(EReg dst, U64 size, EReg src, EReg reg_tmp)
@@ -1146,10 +1134,10 @@ static void DbgBreak(void)
 #endif
 }
 
-static void WriteFuncAddressRecursion(SAstClass* class_, EReg reg_class, EReg reg_tmp)
+static void RefFuncRecursion(SAstClass* class_)
 {
 	if (((SAst*)class_)->RefItem != NULL)
-		WriteFuncAddressRecursion((SAstClass*)((SAst*)class_)->RefItem, reg_class, reg_tmp);
+		RefFuncRecursion((SAstClass*)((SAst*)class_)->RefItem);
 	{
 		SListNode* ptr = class_->Items->Top;
 		while (ptr != NULL)
@@ -1158,8 +1146,7 @@ static void WriteFuncAddressRecursion(SAstClass* class_, EReg reg_class, EReg re
 			if (item->Def->TypeId == AstTypeId_Func)
 			{
 				ASSERT(item->Addr >= 0);
-				ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, reg_tmp), ValRIP(8, RefValueAddr(RefLocalFunc((SAstFunc*)item->Def), True))));
-				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, reg_class), NULL, 0x10 + item->Addr), ValReg(8, reg_tmp)));
+				RefLocalFunc((SAstFunc*)item->Def);
 			}
 			ptr = ptr->Next;
 		}
@@ -1579,13 +1566,6 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 					ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False)), ValReg(8, Reg_DI)));
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x20)));
 					ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_value), False)), ValReg(8, Reg_DI)));
-					{
-						S64* addr = AddWritableData(L"ExcptPos", 8);
-						ListAdd(PackAsm->Asms, AsmCMP(ValRIP(8, RefValueAddr(addr, True)), ValImmU(8, 0x00)));
-						ListAdd(PackAsm->Asms, AsmJNE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-						ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x10)));
-						ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr, True)), ValReg(8, Reg_DI)));
-					}
 					ListAdd(PackAsm->Asms, lbl1);
 				}
 				{
@@ -2309,35 +2289,18 @@ static void AssembleTry(SAstStatTry* ast)
 				ListAdd(PackAsm->Asms, lbl2);
 			}
 			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_value), False)), ValReg(8, Reg_DI)));
-			{
-				// TODO: I plan to delete this.
-				SAsmLabel* lbl2 = AsmLabel();
-				S64* addr = AddWritableData(L"ExcptPos", 8);
-				ListAdd(PackAsm->Asms, AsmCMP(ValRIP(8, RefValueAddr(addr, True)), ValImmU(8, 0x00)));
-				ListAdd(PackAsm->Asms, AsmJNE(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x10)));
-				ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr, True)), ValReg(8, Reg_DI)));
-				ListAdd(PackAsm->Asms, lbl2);
-			}
 			// Make an instance of the exception class.
 			{
 				SAstClass* class_ = (SAstClass*)((SAst*)((SAstStatBreakable*)ast)->BlockVar->Type)->RefItem;
 				S64* addr = RefClass(class_);
-				AllocHeap(ValImmU(8, 0x10 + (U64)class_->Size));
+				AllocHeap(ValImmU(8, 0x10 + (U64)class_->VarSize)); // TODO:
 				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x00), ValImmU(8, 0x02))); // TODO: Is this for 'GcInstance' and the block variable? Is it safe in loop processing?
 				ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_SI), ValRIP(8, RefValueAddr(addr, True))));
 				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x08), ValReg(8, Reg_SI)));
-				WriteFuncAddressRecursion(class_, Reg_AX, Reg_SI);
 				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False))));
-				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x40), ValReg(8, Reg_SI)));
+				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x10), ValReg(8, Reg_SI)));
 				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_value), False))));
-				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x48), ValReg(8, Reg_SI)));
-				{
-					S64* addr2 = AddWritableData(L"ExcptPos", 8);
-					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValRIP(8, RefValueAddr(addr2, True))));
-					ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr2, True)), ValImmU(8, 0x00)));
-				}
-				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x50), ValReg(8, Reg_SI)));
+				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x18), ValReg(8, Reg_SI)));
 				ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValReg(8, Reg_AX)));
 				SetGcInstance(0, -1, ((SAstStatBreakable*)ast)->BlockVar->Type);
 			}
@@ -2498,16 +2461,6 @@ static void AssembleTry(SAstStatTry* ast)
 			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False)), ValReg(8, Reg_DI)));
 			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x20)));
 			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_value), False)), ValReg(8, Reg_DI)));
-			{
-				// TODO: I plan to delete this.
-				SAsmLabel* lbl2 = AsmLabel();
-				S64* addr = AddWritableData(L"ExcptPos", 8);
-				ListAdd(PackAsm->Asms, AsmCMP(ValRIP(8, RefValueAddr(addr, True)), ValImmU(8, 0x00)));
-				ListAdd(PackAsm->Asms, AsmJNE(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x10)));
-				ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr, True)), ValReg(8, Reg_DI)));
-				ListAdd(PackAsm->Asms, lbl2);
-			}
 			// In the 'finally' clause, clear the block variable.
 			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValImmU(8, 0x00)));
 			ListAdd(PackAsm->Asms, lbl1);
@@ -2552,16 +2505,6 @@ static void AssembleTry(SAstStatTry* ast)
 static void AssembleThrow(SAstStatThrow* ast)
 {
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
-	{
-		// TODO: I plan to delete this.
-		SAsmLabel* lbl1 = AsmLabel();
-		S64* addr = AddWritableData(L"ExcptPos", 8);
-		ListAdd(PackAsm->Asms, AsmCMP(ValRIP(8, RefValueAddr(addr, True)), ValImmU(8, 0x00)));
-		ListAdd(PackAsm->Asms, AsmJNE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_CX), ValRIP(8, RefValue(0))));
-		ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr, True)), ValReg(8, Reg_CX)));
-		ListAdd(PackAsm->Asms, lbl1);
-	}
 	AssembleExpr(ast->Code, 0, 0);
 	ToValue(ast->Code, 0, 0);
 	{
@@ -2627,16 +2570,6 @@ static void AssembleAssert(SAstStatAssert* ast)
 	ToValue(ast->Cond, 0, 0);
 	ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[0]), ValImmU(1, 0x00)));
 	ListAdd(PackAsm->Asms, AsmJNE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-	{
-		// TODO: I plan to delete this.
-		SAsmLabel* lbl2 = AsmLabel();
-		S64* addr = AddWritableData(L"ExcptPos", 8);
-		ListAdd(PackAsm->Asms, AsmCMP(ValRIP(8, RefValueAddr(addr, True)), ValImmU(8, 0x00)));
-		ListAdd(PackAsm->Asms, AsmJNE(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
-		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_CX), ValRIP(8, RefValue(0))));
-		ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr, True)), ValReg(8, Reg_CX)));
-		ListAdd(PackAsm->Asms, lbl2);
-	}
 	{
 		// Throw an exception.
 		SAstArg* tmp = MakeTmpVar(8, NULL);
@@ -2974,7 +2907,10 @@ static void AssembleExpr2(SAstExpr2* ast, int reg_i, int reg_f)
 								ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DX), ValReg(8, Reg_SI)));
 								GcInc(2);
 								ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_SP), NULL, 0x08), ValReg(8, Reg_DX)));
-								ListAdd(PackAsm->Asms, AsmCALL(ValMemS(8, ValReg(8, Reg_CX), NULL, 0x20)));
+								ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMemS(8, ValReg(8, Reg_CX), NULL, 0x08)));
+								ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_SI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x18)));
+								ListAdd(PackAsm->Asms, AsmADD(ValReg(8, Reg_SI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x00)));
+								ListAdd(PackAsm->Asms, AsmCALL(ValReg(8, Reg_SI)));
 								ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValReg(8, Reg_AX)));
 								PopRegs(tmp);
 								ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, Reg_SI), ValImmU(8, 0x00)));
@@ -3243,19 +3179,21 @@ static void AssembleExprNew(SAstExprNew* ast, int reg_i, int reg_f)
 	{
 		SAstClass* class_ = (SAstClass*)((SAst*)ast->ItemType)->RefItem;
 		S64* addr = RefClass(class_);
-		AllocHeap(ValImmU(8, 0x10 + (U64)class_->Size));
+		AllocHeap(ValImmU(8, 0x10 + (U64)class_->VarSize));
 		ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x00), ValImmU(8, 0x02))); // Set the reference counter to 2 for 'GcInstance' and constructor call.
 		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_SI), ValRIP(8, RefValueAddr(addr, True))));
 		ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x08), ValReg(8, Reg_SI)));
 		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_CX), ValMemS(8, ValReg(8, Reg_AX), NULL, 0x10)));
-		ClearMem(Reg_CX, (U64)class_->Size, Reg_SI);
-		WriteFuncAddressRecursion(class_, Reg_AX, Reg_SI);
+		ClearMem(Reg_CX, (U64)class_->VarSize, Reg_SI);
 		SetGcInstance(0, -1, ast->ItemType);
 		{
 			SAstArg* tmp2 = MakeTmpVar(8, NULL);
 			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp2), False)), ValReg(8, Reg_AX)));
 			ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_SP), NULL, 0x00), ValReg(8, Reg_AX)));
-			ListAdd(PackAsm->Asms, AsmCALL(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x10)));
+			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_AX), NULL, 0x08)));
+			ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_AX), NULL, 0x08)));
+			ListAdd(PackAsm->Asms, AsmADD(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_AX), NULL, 0x00)));
+			ListAdd(PackAsm->Asms, AsmCALL(ValReg(8, Reg_AX))); // Call 'ctor'.
 			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp2), False))));
 		}
 	}
@@ -3661,7 +3599,9 @@ static void AssembleExprDot(SAstExprDot* ast, int reg_i, int reg_f)
 		else
 		{
 			ASSERT(ast->ClassItem->Def->TypeId == AstTypeId_Func);
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x10 + ast->ClassItem->Addr)));
+			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08)));
+			ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08 + ast->ClassItem->Addr)));
+			ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
 		}
 	}
 	else

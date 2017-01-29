@@ -5,6 +5,7 @@
 // 'file'
 EXPORT SClass* _makeReader(SClass* me_, const U8* path);
 EXPORT SClass* _makeWriter(SClass* me_, const U8* path, Bool append);
+EXPORT void _streamDtor(SClass* me_);
 EXPORT void _streamFin(SClass* me_);
 EXPORT void _streamSetPos(SClass* me_, S64 origin, S64 pos);
 EXPORT S64 _streamGetPos(SClass* me_);

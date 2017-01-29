@@ -7,7 +7,10 @@ end func
 +func [d0001.knd, _act] act(): bool
 end func
 
-+class Wnd()
++class Wnd(kuin@ResClass)
+	*func [d0001.knd, _wndDtor, _force] dtor()
+	end func
+
 	var handle: int
 
 	var wndBuf: int

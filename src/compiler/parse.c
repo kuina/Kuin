@@ -890,6 +890,8 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfListChild);
 					else if (wcscmp(func_attr, L"_make_instance") == 0 && (ast->FuncAttr & FuncAttr_MakeInstance) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_MakeInstance);
+					else if (wcscmp(func_attr, L"_force") == 0 && (ast->FuncAttr & FuncAttr_Force) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Force);
 					else if (ast->DllName == NULL)
 						ast->DllName = func_attr;
 					else if (ast->DllFuncName == NULL)
@@ -1064,7 +1066,8 @@ static SAstClass* ParseClass(void)
 	SAstClass* ast = (SAstClass*)Alloc(sizeof(SAstClass));
 	InitAst((SAst*)ast, AstTypeId_Class, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, True);
 	ast->Addr = NewAddr();
-	ast->Size = 0;
+	ast->VarSize = 0;
+	ast->FuncSize = 0;
 	ast->Items = ListNew();
 	AssertNextChar(L'(', True);
 	{

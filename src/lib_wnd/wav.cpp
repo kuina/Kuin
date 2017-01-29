@@ -102,6 +102,7 @@ static void Close(void* handle)
 {
 	SWav* handle2 = reinterpret_cast<SWav*>(handle);
 	CloseFileStream(handle2->FileStream);
+	FreeMem(handle2);
 }
 
 static Bool Read(void* handle, void* buf, S64 size, S64 looppos)
@@ -110,7 +111,7 @@ static Bool Read(void* handle, void* buf, S64 size, S64 looppos)
 	S64 size2 = static_cast<S64>(ReadFileStream(handle2->FileStream, size, buf));
 	if (size != size2)
 	{
-		memset(static_cast<U8*>(buf) + size2, 0x00, static_cast<size_t>(size2 - size));
+		memset(static_cast<U8*>(buf) + size2, 0x00, static_cast<size_t>(size - size2));
 		return True;
 	}
 	return False;

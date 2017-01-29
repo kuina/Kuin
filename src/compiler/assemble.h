@@ -66,7 +66,7 @@ typedef struct SClassTable
 {
 	S64* Addr;
 	S64* Parent;
-	const Char* Name;
+	SAstClass* Class;
 } SClassTable;
 
 typedef struct SExcptTableTry
