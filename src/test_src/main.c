@@ -175,7 +175,6 @@ static Bool Compare(const Char* path1, const Char* path2)
 {
 	FILE* file_ptr1;
 	FILE* file_ptr2;
-	int len;
 	file_ptr1 = _wfopen(path1, L"rb");
 	if (file_ptr1 == NULL)
 		return False;
@@ -185,20 +184,22 @@ static Bool Compare(const Char* path1, const Char* path2)
 		fclose(file_ptr1);
 		return False;
 	}
-	fseek(file_ptr1, 0, SEEK_END);
-	fseek(file_ptr2, 0, SEEK_END);
-	if (ftell(file_ptr1) != ftell(file_ptr2))
-		goto Failure;
-	len = (int)ftell(file_ptr1);
-	fseek(file_ptr1, 0, SEEK_SET);
-	fseek(file_ptr2, 0, SEEK_SET);
+	for (; ; )
 	{
-		int i;
-		for (i = 0; i < len; i++)
+		int c1;
+		int c2;
+		do
 		{
-			if (fgetc(file_ptr1) != fgetc(file_ptr2))
-				goto Failure;
-		}
+			c1 = fgetc(file_ptr1);
+		} while (c1 == '\r');
+		do
+		{
+			c2 = fgetc(file_ptr2);
+		} while (c2 == '\r');
+		if (c1 != c2)
+			goto Failure;
+		if (c1 == EOF)
+			break;
 	}
 	fclose(file_ptr2);
 	fclose(file_ptr1);
