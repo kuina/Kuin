@@ -804,8 +804,12 @@ static const void* CalcWritableData(const Char* key, const void* value, void* pa
 	{
 		U64* addr = (U64*)param;
 		SWritableData* data = (SWritableData*)value;
+		int size = data->Size;
+		ASSERT(size == 1 || size == 2 || size == 4 || size == 8);
+		if (*addr % (U64)size != 0)
+			*addr += (U64)size - *addr % (U64)size;
 		*data->Addr = WritableData.ImgPos + (S64)*addr;
-		*addr += (U64)data->Size;
+		*addr += (U64)size;
 	}
 	return value;
 }
