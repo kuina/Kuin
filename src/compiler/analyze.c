@@ -921,6 +921,8 @@ static void RebuildFunc(SAstFunc* ast)
 			ptr = ptr->Next;
 		}
 	}
+	if (ast->Ret != NULL)
+		ast->Ret = RebuildType(ast->Ret);
 	ast->Stats = RefreshStats(ast->Stats, ast->Ret);
 }
 
