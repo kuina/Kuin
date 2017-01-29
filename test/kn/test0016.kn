@@ -4,6 +4,7 @@ func main()
 			var n: float :: 2.0
 			do cui@print((-2 ^ 4).toStr())
 			do cui@print((-n ^ 4.0).toStr())
+			do cui@print(n $ int.toStr())
 		end block
 	end for
 end func

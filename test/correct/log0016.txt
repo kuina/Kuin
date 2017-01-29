@@ -2,8 +2,11 @@ Begin: ../../test/output/output0016.exe
 Excpt: 80000003
 > -16
 > -16
+> 2
 > -16
 > -16
+> 2
 > -16
 > -16
+> 2
 end: ../../test/output/output0016.exe

@@ -142,10 +142,10 @@ static SAstExpr* ParseExprCmp(void);
 static SAstExpr* ParseExprCat(void);
 static SAstExpr* ParseExprAdd(void);
 static SAstExpr* ParseExprMul(void);
-static SAstExpr* ParseExprAs(void);
 static SAstExpr* ParseExprPlus(void);
 static SAstExpr* ParseExprPow(void);
 static SAstExpr* ParseExprCall(void);
+static SAstExpr* ParseExprAs(void);
 static SAstExpr* ParseExprValue(void);
 static SAstExpr* ParseExprNumber(int row, int col, Char c);
 
@@ -2789,7 +2789,7 @@ static SAstExpr* ParseExprAdd(void)
 
 static SAstExpr* ParseExprMul(void)
 {
-	SAstExpr* ast = ParseExprAs();
+	SAstExpr* ast = ParseExprPlus();
 	if (LocalErr)
 		return (SAstExpr*)DummyPtr;
 	{
@@ -2807,7 +2807,7 @@ static SAstExpr* ParseExprMul(void)
 						InitAstExpr((SAstExpr*)ast2, AstTypeId_Expr2, NewPos(SrcName, row, col));
 						ast2->Kind = AstExpr2Kind_Mul;
 						ast2->Children[0] = ast;
-						ast2->Children[1] = ParseExprAs();
+						ast2->Children[1] = ParseExprPlus();
 						if (LocalErr)
 							return (SAstExpr*)DummyPtr;
 						ast = (SAstExpr*)ast2;
@@ -2819,7 +2819,7 @@ static SAstExpr* ParseExprMul(void)
 						InitAstExpr((SAstExpr*)ast2, AstTypeId_Expr2, NewPos(SrcName, row, col));
 						ast2->Kind = AstExpr2Kind_Div;
 						ast2->Children[0] = ast;
-						ast2->Children[1] = ParseExprAs();
+						ast2->Children[1] = ParseExprPlus();
 						if (LocalErr)
 							return (SAstExpr*)DummyPtr;
 						ast = (SAstExpr*)ast2;
@@ -2831,7 +2831,7 @@ static SAstExpr* ParseExprMul(void)
 						InitAstExpr((SAstExpr*)ast2, AstTypeId_Expr2, NewPos(SrcName, row, col));
 						ast2->Kind = AstExpr2Kind_Mod;
 						ast2->Children[0] = ast;
-						ast2->Children[1] = ParseExprAs();
+						ast2->Children[1] = ParseExprPlus();
 						if (LocalErr)
 							return (SAstExpr*)DummyPtr;
 						ast = (SAstExpr*)ast2;
@@ -2843,36 +2843,6 @@ static SAstExpr* ParseExprMul(void)
 					break;
 			}
 		} while (!end_flag);
-	}
-	return ast;
-}
-
-static SAstExpr* ParseExprAs(void)
-{
-	SAstExpr* ast = ParseExprPlus();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
-	for (; ; )
-	{
-		int row = Row;
-		int col = Col;
-		Char c = ReadChar();
-		if (c == L'$')
-		{
-			SAstExprAs* ast2 = (SAstExprAs*)Alloc(sizeof(SAstExprAs));
-			InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprAs, NewPos(SrcName, row, col));
-			ast2->Kind = AstExprAsKind_As;
-			ast2->Child = ast;
-			ast2->ChildType = ParseType();
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
-			ast = (SAstExpr*)ast2;
-		}
-		else
-		{
-			FileBuf = c;
-			break;
-		}
 	}
 	return ast;
 }
@@ -2996,7 +2966,7 @@ static SAstExpr* ParseExprPow(void)
 
 static SAstExpr* ParseExprCall(void)
 {
-	SAstExpr* ast = ParseExprValue();
+	SAstExpr* ast = ParseExprAs();
 	if (LocalErr)
 		return (SAstExpr*)DummyPtr;
 	{
@@ -3080,6 +3050,36 @@ static SAstExpr* ParseExprCall(void)
 					break;
 			}
 		} while (!end_flag);
+	}
+	return ast;
+}
+
+static SAstExpr* ParseExprAs(void)
+{
+	SAstExpr* ast = ParseExprValue();
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	for (; ; )
+	{
+		int row = Row;
+		int col = Col;
+		Char c = ReadChar();
+		if (c == L'$')
+		{
+			SAstExprAs* ast2 = (SAstExprAs*)Alloc(sizeof(SAstExprAs));
+			InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprAs, NewPos(SrcName, row, col));
+			ast2->Kind = AstExprAsKind_As;
+			ast2->Child = ast;
+			ast2->ChildType = ParseType();
+			if (LocalErr)
+				return (SAstExpr*)DummyPtr;
+			ast = (SAstExpr*)ast2;
+		}
+		else
+		{
+			FileBuf = c;
+			break;
+		}
 	}
 	return ast;
 }
