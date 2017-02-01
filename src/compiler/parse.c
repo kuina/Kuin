@@ -145,7 +145,6 @@ static SAstExpr* ParseExprMul(void);
 static SAstExpr* ParseExprPlus(void);
 static SAstExpr* ParseExprPow(void);
 static SAstExpr* ParseExprCall(void);
-static SAstExpr* ParseExprAs(void);
 static SAstExpr* ParseExprValue(void);
 static SAstExpr* ParseExprNumber(int row, int col, Char c);
 
@@ -2953,7 +2952,7 @@ static SAstExpr* ParseExprPow(void)
 			InitAstExpr((SAstExpr*)ast2, AstTypeId_Expr2, NewPos(SrcName, row, col));
 			ast2->Kind = AstExpr2Kind_Pow;
 			ast2->Children[0] = ast;
-			ast2->Children[1] = ParseExprPow();
+			ast2->Children[1] = ParseExprPlus();
 			if (LocalErr)
 				return (SAstExpr*)DummyPtr;
 			ast = (SAstExpr*)ast2;
@@ -2966,7 +2965,7 @@ static SAstExpr* ParseExprPow(void)
 
 static SAstExpr* ParseExprCall(void)
 {
-	SAstExpr* ast = ParseExprAs();
+	SAstExpr* ast = ParseExprValue();
 	if (LocalErr)
 		return (SAstExpr*)DummyPtr;
 	{
@@ -3044,42 +3043,24 @@ static SAstExpr* ParseExprCall(void)
 						ast = (SAstExpr*)ast2;
 					}
 					break;
+				case L'$':
+					{
+						SAstExprAs* ast2 = (SAstExprAs*)Alloc(sizeof(SAstExprAs));
+						InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprAs, NewPos(SrcName, row, col));
+						ast2->Kind = AstExprAsKind_As;
+						ast2->Child = ast;
+						ast2->ChildType = ParseType();
+						if (LocalErr)
+							return (SAstExpr*)DummyPtr;
+						ast = (SAstExpr*)ast2;
+					}
+					break;
 				default:
 					FileBuf = c;
 					end_flag = True;
 					break;
 			}
 		} while (!end_flag);
-	}
-	return ast;
-}
-
-static SAstExpr* ParseExprAs(void)
-{
-	SAstExpr* ast = ParseExprValue();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
-	for (; ; )
-	{
-		int row = Row;
-		int col = Col;
-		Char c = ReadChar();
-		if (c == L'$')
-		{
-			SAstExprAs* ast2 = (SAstExprAs*)Alloc(sizeof(SAstExprAs));
-			InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprAs, NewPos(SrcName, row, col));
-			ast2->Kind = AstExprAsKind_As;
-			ast2->Child = ast;
-			ast2->ChildType = ParseType();
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
-			ast = (SAstExpr*)ast2;
-		}
-		else
-		{
-			FileBuf = c;
-			break;
-		}
 	}
 	return ast;
 }
