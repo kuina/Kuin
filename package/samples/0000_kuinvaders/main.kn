@@ -1,0 +1,61 @@
+; Kuinvaders (くいんべーだー)
+; (C) Kuina-chan
+
+; main関数は実行直後に呼ばれ、main関数を抜けるとアプリは終了する。
+func main()
+	do wnd@makeWnd(0, 1600, 900) {ウインドウの生成表示}
+	; wnd@actはウインドウ操作を処理する関数で、定期的に呼ばないとウインドウが操作できなくなる。
+	; ウインドウが閉じられたらfalseを返すため、無限ループを抜けて終了するようにする。
+	while(wnd@act())
+		do @title() {タイトル画面の呼び出し}
+		do @game() {ゲーム画面の呼び出し}
+	end while
+end func
+
+; タイトル画面。
+func title()
+end func
+
+; ゲーム画面。
+func game()
+	var texBack: draw@Tex :: draw@makeTex("res/back.jpg") {背景画像}
+	var texGame: draw@Tex :: draw@makeTex("res/game.png") {ゲームで使う画像}
+	var stage: int :: 1 {現在のステージ}
+	; 弾クラス。
+	class Beam()
+		var X: float {座標X}
+		var Y: float {座標Y}
+		func Init(x: float, y: float)
+			do me.X :: x
+			do me.Y :: y
+		end func
+	end class
+	; ステージごとのループ。
+	while loopStage(wnd@act())
+		var playerX: float :: 800.0 {自機座標X}
+		var playerY: float :: 800.0 {自機座標Y}
+		var beams: list<Beam> :: #list<Beam> {自機の弾のリスト}
+		var enemies: []int :: #[6 * 8]int {敵を6行8列で作成。値は体力}
+		foreach enemy(enemies)
+			do enemy :: stage {敵の体力をステージに応じて代入}
+		end foreach
+		var enemyX: float :: 64.0 {敵群の座標X}
+		var enemyY: float :: 128.0 {敵群の座標Y}
+		var enemyVeloX: float :: 1.0 + 30.0 / (6.0 * 8.0) {敵群の速度X}
+		var enemyTargetY: float :: 0.0 {敵群のY方向の目的座標(下向きに移動するときに設定される)}
+		var enemyLeft: int :: 0 {生きている敵の左端。移動を折り返す判定に使用}
+		var enemyRight: int :: 7 {生きている敵の右端。移動を折り返す判定に使用}
+		var enemyBottom: int :: 5 {生きている敵の下端。ラインを超える判定に使用}
+		var gameover: int :: 0 {ゲームオーバーフラグ。0=ゲーム中、1=クリア、2=死亡}
+		; フレームごとのループ。
+		while(wnd@act())
+			; 背景描画。
+			do texBack.draw(0.0, 0.0, 0.0, 0.0, 1600.0, 900.0)
+			; 自機描画。Kuin@Cnt関数はフレームごとに1ずつ増える値を返す。
+			if(gameover <> 2)
+				do texGame.draw(playerX - 140.0 / 2.0, playerY - 220.0 / 2.0, (draw@cnt() / 5 % 3) $ float * 140.0, 0.0, 140.0, 220.0)
+			end if
+			do draw@render() {画面更新。これが再度呼ばれるまでの間を1フレームと言う}
+		end while
+	end while
+end func

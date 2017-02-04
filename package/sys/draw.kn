@@ -1,6 +1,9 @@
 +func [d0001.knd, _render] render()
 end func
 
++func [d0001.knd, _cnt] cnt(): int
+end func
+
 +func [d0001.knd, _viewport] viewport(x: float, y: float, w: float, h: float)
 end func
 

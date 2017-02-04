@@ -3,6 +3,7 @@
 #include "..\common.h"
 
 EXPORT_CPP void _render();
+EXPORT_CPP S64 _cnt();
 EXPORT_CPP void _viewport(double x, double y, double w, double h);
 EXPORT_CPP void _resetViewport();
 EXPORT_CPP void _depth(Bool test, Bool write);

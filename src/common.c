@@ -210,3 +210,8 @@ U64 SwapEndianU64(U64 n)
 	n = ((n & 0x00000000ffffffff) << 32) | ((n & 0xffffffff00000000) >> 32);
 	return n;
 }
+
+Bool IsPowerOf2(U64 n)
+{
+	return (n & (n - 1)) == 0;
+}

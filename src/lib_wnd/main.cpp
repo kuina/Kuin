@@ -18,6 +18,8 @@ typedef struct SWnd
 	void* WndBuf;
 } Wnd;
 
+static Bool ExitAct;
+
 static LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
@@ -35,6 +37,8 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 	AppCode = app_code;
 	AppName = app_name == NULL ? L"Untitled" : reinterpret_cast<const Char*>(app_name + 0x10);
 	Instance = static_cast<HINSTANCE>(GetModuleHandle(NULL));
+
+	ExitAct = False;
 
 	{
 		HICON icon = LoadIcon(Instance, reinterpret_cast<LPCWSTR>(static_cast<S64>(0x65))); // 0x65 is the resource ID of the application icon.
@@ -70,12 +74,18 @@ EXPORT_CPP void _fin()
 
 EXPORT_CPP Bool _act()
 {
+	if (ExitAct)
+		return False;
+
 	{
 		MSG msg;
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		{
 			if (msg.message == WM_QUIT)
+			{
+				ExitAct = True;
 				return False;
+			}
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}

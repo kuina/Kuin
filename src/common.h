@@ -87,7 +87,7 @@ U8 SwapEndianU8(U8 n);
 U16 SwapEndianU16(U16 n);
 U32 SwapEndianU32(U32 n);
 U64 SwapEndianU64(U64 n);
-
+Bool IsPowerOf2(U64 n);
 #if defined(DBG)
 #define THROW(code, msg) ThrowImpl((code), (msg))
 #else

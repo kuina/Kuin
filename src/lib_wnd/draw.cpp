@@ -44,10 +44,8 @@ struct SVertexBuf
 struct STex
 {
 	SClass Class;
-	int RawWidth;
-	int RawHeight;
-	int AlignedWidth;
-	int AlignedHeight;
+	int Width;
+	int Height;
 	ID3D10Texture2D* Tex;
 	ID3D10ShaderResourceView* View;
 };
@@ -112,6 +110,7 @@ const U8* GetObjVsBin(size_t* size);
 const U8* GetObjJointVsBin(size_t* size);
 const U8* GetObjPsBin(size_t* size);
 
+static S64 Cnt = 0;
 static ID3D10Device* Device = NULL;
 static ID3D10RasterizerState* RasterizerState = NULL;
 static ID3D10DepthStencilState* DepthState[DepthNum] = { NULL };
@@ -142,6 +141,13 @@ EXPORT_CPP void _render()
 	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, CurWndBuf->ClearColor);
 	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 	Device->RSSetState(RasterizerState);
+
+	Cnt++;
+}
+
+EXPORT_CPP S64 _cnt()
+{
+	return Cnt;
 }
 
 EXPORT_CPP void _viewport(double x, double y, double w, double h)
@@ -362,14 +368,10 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 			height = 0;
 		}
 	}
-	me2->RawWidth = width;
-	me2->RawHeight = height;
-	me2->AlignedWidth = 1;
-	while (me2->AlignedWidth < me2->RawWidth)
-		me2->AlignedWidth *= 2;
-	me2->AlignedHeight = 1;
-	while (me2->AlignedHeight < me2->RawHeight)
-		me2->AlignedHeight *= 2;
+	if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
+		THROW(0x1000, L"");
+	me2->Width = width;
+	me2->Height = height;
 	{
 		Bool success = False;
 		for (; ; )
@@ -377,8 +379,8 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 			{
 				D3D10_TEXTURE2D_DESC desc;
 				D3D10_SUBRESOURCE_DATA sub;
-				desc.Width = static_cast<UINT>(me2->AlignedWidth);
-				desc.Height = static_cast<UINT>(me2->AlignedHeight);
+				desc.Width = static_cast<UINT>(me2->Width);
+				desc.Height = static_cast<UINT>(me2->Height);
 				desc.MipLevels = 1;
 				desc.ArraySize = 1;
 				desc.Format = format;
@@ -389,7 +391,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 				desc.CPUAccessFlags = 0;
 				desc.MiscFlags = 0;
 				sub.pSysMem = img;
-				sub.SysMemPitch = static_cast<UINT>(me2->AlignedWidth * 4);
+				sub.SysMemPitch = static_cast<UINT>(me2->Width * 4);
 				sub.SysMemSlicePitch = 0;
 				if (FAILED(Device->CreateTexture2D(&desc, &sub, &me2->Tex)))
 					break;
@@ -492,10 +494,10 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
 			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->Width) * 2.0f,
 			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->Height) * 2.0f),
-			static_cast<float>(srcX) / static_cast<float>(me2->AlignedWidth),
-			-(static_cast<float>(srcY) / static_cast<float>(me2->AlignedHeight)),
-			static_cast<float>(srcW) / static_cast<float>(me2->AlignedWidth),
-			-(static_cast<float>(srcH) / static_cast<float>(me2->AlignedHeight)),
+			static_cast<float>(srcX) / static_cast<float>(me2->Width),
+			-(static_cast<float>(srcY) / static_cast<float>(me2->Height)),
+			static_cast<float>(srcW) / static_cast<float>(me2->Width),
+			-(static_cast<float>(srcH) / static_cast<float>(me2->Height)),
 		};
 		float const_buf_ps[4] =
 		{
@@ -978,6 +980,8 @@ void Init()
 {
 	if (FAILED(D3D10CreateDevice(NULL, D3D10_DRIVER_TYPE_HARDWARE, NULL, 0, D3D10_SDK_VERSION, &Device)))
 		THROW(0x1000, L"");
+
+	Cnt = 0;
 
 	// Create a rasterizer state.
 	{
