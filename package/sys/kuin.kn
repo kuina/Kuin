@@ -68,6 +68,24 @@ end func
 func [d0000.knd] _absFloat(me_: float): float
 end func
 
+func [d0000.knd] _clampInt(me_: int, min: int, max: int): int
+end func
+
+func [d0000.knd] _clampFloat(me_: float, min: float, max: float): float
+end func
+
+func [d0000.knd] _clampMinInt(me_: int, min: int): int
+end func
+
+func [d0000.knd] _clampMinFloat(me_: float, min: float): float
+end func
+
+func [d0000.knd] _clampMaxInt(me_: int, max: int): int
+end func
+
+func [d0000.knd] _clampMaxFloat(me_: float, max: float): float
+end func
+
 func [d0000.knd] _same(me_: float, n: float): bool
 end func
 

@@ -2,7 +2,7 @@
 
 #include "..\common.h"
 
-EXPORT_CPP void _render();
+EXPORT_CPP void _render(S64 fps);
 EXPORT_CPP S64 _cnt();
 EXPORT_CPP void _viewport(double x, double y, double w, double h);
 EXPORT_CPP void _resetViewport();

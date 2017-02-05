@@ -10,6 +10,9 @@ static const Char* BuildInFuncs[] =
 	L"abs\0          \x0b",
 	L"add\0          \x07",
 	L"and\0          \x04",
+	L"clamp\0        \x0b",
+	L"clampMax\0     \x0b",
+	L"clampMin\0     \x0b",
 	L"del\0          \x09",
 	L"endian\0       \x04",
 	L"find\0         \x05",
@@ -3269,12 +3272,30 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 				if (IsInt(var_type))
 				{
 					correct = True;
-					member = L"absInt";
+					if (wcscmp(member, L"abs") == 0)
+						member = L"absInt";
+					else if (wcscmp(member, L"clamp") == 0)
+						member = L"clampInt";
+					else if (wcscmp(member, L"clampMin") == 0)
+						member = L"clampMinInt";
+					else if (wcscmp(member, L"clampMax") == 0)
+						member = L"clampMaxInt";
+					else
+						ASSERT(False);
 				}
 				else if (IsFloat(var_type))
 				{
 					correct = True;
-					member = L"absFloat";
+					if (wcscmp(member, L"abs") == 0)
+						member = L"absFloat";
+					else if (wcscmp(member, L"clamp") == 0)
+						member = L"clampFloat";
+					else if (wcscmp(member, L"clampMin") == 0)
+						member = L"clampMinFloat";
+					else if (wcscmp(member, L"clampMax") == 0)
+						member = L"clampMaxFloat";
+					else
+						ASSERT(False);
 				}
 				break;
 			case 0x000c:

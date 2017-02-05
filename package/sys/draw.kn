@@ -1,4 +1,4 @@
-+func [d0001.knd, _render] render()
++func [d0001.knd, _render] render(fps: int)
 end func
 
 +func [d0001.knd, _cnt] cnt(): int

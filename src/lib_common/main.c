@@ -860,6 +860,46 @@ EXPORT double _absFloat(double me_)
 	return me_ >= 0.0 ? me_ : -me_;
 }
 
+EXPORT S64 _clampInt(S64 me_, S64 min, S64 max)
+{
+	ASSERT(min <= max);
+	if (me_ < min)
+		return min;
+	if (me_ > max)
+		return max;
+	return me_;
+}
+
+EXPORT double _clampFloat(double me_, double min, double max)
+{
+	ASSERT(min <= max);
+	if (me_ < min)
+		return min;
+	if (me_ > max)
+		return max;
+	return me_;
+}
+
+EXPORT S64 _clampMinInt(S64 me_, S64 min)
+{
+	return me_ < min ? min : me_;
+}
+
+EXPORT double _clampMinFloat(double me_, double min)
+{
+	return me_ < min ? min : me_;
+}
+
+EXPORT S64 _clampMaxInt(S64 me_, S64 max)
+{
+	return me_ > max ? max : me_;
+}
+
+EXPORT double _clampMaxFloat(double me_, double max)
+{
+	return me_ > max ? max : me_;
+}
+
 EXPORT Bool _same(double me_, double n)
 {
 	U64 i1 = *(U64*)&me_;

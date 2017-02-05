@@ -1,13 +1,26 @@
 +enum PadBtn
+	a
+	b
+	c
+	d
+	e
+	f
+	g
+	h
+	i
+	l
+	r
+	menu
+	left
+	right
+	up
+	down
 end enum
 
 +enum Key
 end enum
 
-+enum MouseBtn
-end enum
-
-+func [d0001.knd, _pad] pad(idx: int, btn: @PadBtn)
++func [d0001.knd, _pad] pad(idx: int, btn: @PadBtn): int
 end func
 
 +func [d0001.knd, _setCfg] setCfg(idx: int, btn: @PadBtn, newBtn: @PadBtn)
@@ -20,13 +33,4 @@ end func
 end func
 
 +func [d0001.knd, _setCfgKey] setCfgKey(idx: int, btn: @PadBtn, keys: []@Key)
-end func
-
-+func [d0001.knd, _mouse] mouse(btn: @MouseBtn): int
-end func
-
-+func [d0001.knd, _mouseX] mouseX(): float
-end func
-
-+func [d0001.knd, _mouseY] mouseY(): float
 end func

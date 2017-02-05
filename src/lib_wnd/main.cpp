@@ -60,12 +60,14 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 
 	Draw::Init();
 	Snd::Init();
+	Input::Init();
 
 	// TODO:
 }
 
 EXPORT_CPP void _fin()
 {
+	Input::Fin();
 	Snd::Fin();
 	Draw::Fin();
 
@@ -91,7 +93,7 @@ EXPORT_CPP Bool _act()
 		}
 	}
 
-	// TODO:
+	Input::Update();
 
 	Sleep(1);
 

@@ -110,7 +110,8 @@ const U8* GetObjVsBin(size_t* size);
 const U8* GetObjJointVsBin(size_t* size);
 const U8* GetObjPsBin(size_t* size);
 
-static S64 Cnt = 0;
+static S64 Cnt;
+static U32 PrevTime;
 static ID3D10Device* Device = NULL;
 static ID3D10RasterizerState* RasterizerState = NULL;
 static ID3D10DepthStencilState* DepthState[DepthNum] = { NULL };
@@ -135,7 +136,7 @@ static double ProjMtx[4][4];
 static SObjJointVsConstBuf ObjVsConstBuf;
 static SObjPsConstBuf ObjPsConstBuf;
 
-EXPORT_CPP void _render()
+EXPORT_CPP void _render(S64 fps)
 {
 	CurWndBuf->SwapChain->Present(0, 0);
 	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, CurWndBuf->ClearColor);
@@ -143,6 +144,43 @@ EXPORT_CPP void _render()
 	Device->RSSetState(RasterizerState);
 
 	Cnt++;
+
+	if (fps == 0)
+		return;
+	U32 now = static_cast<U32>(timeGetTime());
+	U32 diff = now - PrevTime;
+	int next_wait = 0;
+	int sleep_time = 0;
+	switch (fps)
+	{
+		case 30:
+			sleep_time = (Cnt % 3 == 0 ? 34 : 33);
+			break;
+		case 60:
+			sleep_time = (Cnt % 3 == 0 ? 16 : 17);
+			break;
+		default:
+			THROW(0x1000, L"");
+			break;
+	}
+	sleep_time -= static_cast<int>(diff);
+	if (sleep_time > 2)
+	{
+		U32 to_time = now + static_cast<U32>(sleep_time);
+		Sleep(static_cast<DWORD>(sleep_time - 1));
+		while (static_cast<U32>(timeGetTime()) < to_time)
+		{
+			// Do nothing.
+		}
+	}
+	else
+	{
+		Sleep(1);
+		next_wait = sleep_time;
+		if (next_wait <= -100)
+			next_wait = 0;
+	}
+	PrevTime = static_cast<U32>(static_cast<int>(timeGetTime()) - next_wait);
 }
 
 EXPORT_CPP S64 _cnt()
@@ -982,6 +1020,7 @@ void Init()
 		THROW(0x1000, L"");
 
 	Cnt = 0;
+	PrevTime = 0;
 
 	// Create a rasterizer state.
 	{
