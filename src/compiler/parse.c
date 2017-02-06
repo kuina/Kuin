@@ -2966,9 +2966,10 @@ static SAstExpr* ParseExprPow(void)
 static SAstExpr* ParseExprCall(void)
 {
 	SAstExpr* ast = ParseExprValue();
+	if (ast == NULL)
+		return ast;
 	if (LocalErr)
 		return (SAstExpr*)DummyPtr;
-	if (ast != NULL)
 	{
 		Bool end_flag = False;
 		do
