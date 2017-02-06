@@ -2968,6 +2968,7 @@ static SAstExpr* ParseExprCall(void)
 	SAstExpr* ast = ParseExprValue();
 	if (LocalErr)
 		return (SAstExpr*)DummyPtr;
+	if (ast != NULL)
 	{
 		Bool end_flag = False;
 		do
@@ -3046,6 +3047,7 @@ static SAstExpr* ParseExprCall(void)
 				case L'$':
 					{
 						SAstExprAs* ast2 = (SAstExprAs*)Alloc(sizeof(SAstExprAs));
+						ASSERT(ast != NULL);
 						InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprAs, NewPos(SrcName, row, col));
 						ast2->Kind = AstExprAsKind_As;
 						ast2->Child = ast;
