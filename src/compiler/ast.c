@@ -61,6 +61,8 @@ static void DumpAstExpr3(const SAstExpr3* ast);
 static void DumpAstExprNew(const SAstExprNew* ast);
 static void DumpAstExprNewArray(const SAstExprNewArray* ast);
 static void DumpAstExprAs(const SAstExprAs* ast);
+static void DumpAstExprToBin(const SAstExprToBin* ast);
+static void DumpAstExprFromBin(const SAstExprFromBin* ast);
 static void DumpAstExprCall(const SAstExprCall* ast);
 static void DumpAstExprArray(const SAstExprArray* ast);
 static void DumpAstExprDot(const SAstExprDot* ast);
@@ -225,6 +227,8 @@ static void DumpRecursion(const SAst* ast)
 		case AstTypeId_ExprNew: DumpAstExprNew((const SAstExprNew*)ast); break;
 		case AstTypeId_ExprNewArray: DumpAstExprNewArray((const SAstExprNewArray*)ast); break;
 		case AstTypeId_ExprAs: DumpAstExprAs((const SAstExprAs*)ast); break;
+		case AstTypeId_ExprToBin: DumpAstExprToBin((const SAstExprToBin*)ast); break;
+		case AstTypeId_ExprFromBin: DumpAstExprFromBin((const SAstExprFromBin*)ast); break;
 		case AstTypeId_ExprCall: DumpAstExprCall((const SAstExprCall*)ast); break;
 		case AstTypeId_ExprArray: DumpAstExprArray((const SAstExprArray*)ast); break;
 		case AstTypeId_ExprDot: DumpAstExprDot((const SAstExprDot*)ast); break;
@@ -1156,6 +1160,34 @@ static void DumpAstExprAs(const SAstExprAs* ast)
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</ExprAs>\n");
+}
+
+static void DumpAstExprToBin(const SAstExprToBin* ast)
+{
+	PrintTab(); fwprintf(FilePtr, L"<ExprToBin>\n");
+	Tab++;
+	{
+		DumpAstExpr((const SAstExpr*)ast);
+		PrintAst(L"ExprToBin_Child", (const SAst*)ast->Child);
+		PrintAst(L"ExprToBin_ChildType", (const SAst*)ast->ChildType);
+	}
+	Tab--;
+	PrintTab(); fwprintf(FilePtr, L"</ExprToBin>\n");
+}
+
+static void DumpAstExprFromBin(const SAstExprFromBin* ast)
+{
+	PrintTab(); fwprintf(FilePtr, L"<ExprFromBin");
+	fwprintf(FilePtr, L" Offset=\"0x%08X\"", ast->Offset);
+	fwprintf(FilePtr, L">\n");
+	Tab++;
+	{
+		DumpAstExpr((const SAstExpr*)ast);
+		PrintAst(L"ExprFromBin_Child", (const SAst*)ast->Child);
+		PrintAst(L"ExprFromBin_ChildType", (const SAst*)ast->ChildType);
+	}
+	Tab--;
+	PrintTab(); fwprintf(FilePtr, L"</ExprFromBin>\n");
 }
 
 static void DumpAstExprCall(const SAstExprCall* ast)

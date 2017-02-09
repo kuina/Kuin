@@ -871,8 +871,6 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 				{
 					if (wcscmp(func_attr, L"_any_type") == 0 && (ast->FuncAttr & FuncAttr_AnyType) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_AnyType);
-					else if (wcscmp(func_attr, L"_overwrite") == 0 && (ast->FuncAttr & FuncAttr_Overwrite) == 0)
-						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Overwrite);
 					else if (wcscmp(func_attr, L"_init") == 0 && (ast->FuncAttr & FuncAttr_Init) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Init);
 					else if (wcscmp(func_attr, L"_take_me") == 0 && (ast->FuncAttr & FuncAttr_TakeMe) == 0)
@@ -3047,15 +3045,46 @@ static SAstExpr* ParseExprCall(void)
 					break;
 				case L'$':
 					{
-						SAstExprAs* ast2 = (SAstExprAs*)Alloc(sizeof(SAstExprAs));
 						ASSERT(ast != NULL);
-						InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprAs, NewPos(SrcName, row, col));
-						ast2->Kind = AstExprAsKind_As;
-						ast2->Child = ast;
-						ast2->ChildType = ParseType();
-						if (LocalErr)
-							return (SAstExpr*)DummyPtr;
-						ast = (SAstExpr*)ast2;
+						c = Read();
+						if (c == L'>')
+						{
+							SAstExprToBin* ast2 = (SAstExprToBin*)Alloc(sizeof(SAstExprToBin));
+							InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprToBin, NewPos(SrcName, row, col));
+							ast2->Child = ast;
+							ast2->ChildType = ParseType();
+							if (LocalErr)
+								return (SAstExpr*)DummyPtr;
+							ast = (SAstExpr*)ast2;
+						}
+						else if (c == L'<')
+						{
+							SAstExprFromBin* ast2 = (SAstExprFromBin*)Alloc(sizeof(SAstExprFromBin));
+							InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprFromBin, NewPos(SrcName, row, col));
+							ast2->Child = ast;
+							ast2->ChildType = ParseType();
+							{
+								U64 value = 0;
+								ast2->Offset = (SAstExpr*)ObtainPrimValue(((SAst*)ast)->Pos, AstTypePrimKind_Int, &value);
+							}
+							if (LocalErr)
+								return (SAstExpr*)DummyPtr;
+							ast = (SAstExpr*)ast2;
+						}
+						else
+						{
+							FileBuf = c;
+							{
+								SAstExprAs* ast2 = (SAstExprAs*)Alloc(sizeof(SAstExprAs));
+								InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprAs, NewPos(SrcName, row, col));
+								ast2->Kind = AstExprAsKind_As;
+								ast2->Child = ast;
+								ast2->ChildType = ParseType();
+								if (LocalErr)
+									return (SAstExpr*)DummyPtr;
+								ast = (SAstExpr*)ast2;
+							}
+						}
 					}
 					break;
 				default:

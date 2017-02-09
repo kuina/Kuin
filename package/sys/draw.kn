@@ -51,7 +51,7 @@ end func
 end func
 
 +class Tex(kuin@ResClass)
-	*func [d0001.knd, _texDtor, _force] dtor()
+	*func [d0001.knd, _texDtor, _force] _dtor()
 	end func
 
 	+func [d0001.knd, _texDraw] draw(dstX: float, dstY: float, srcX: float, srcY: float, srcW: float, srcH: float)
@@ -73,7 +73,7 @@ end func
 end func
 
 +class Obj(kuin@ResClass)
-	*func [d0001.knd, _objDtor, _force] dtor()
+	*func [d0001.knd, _objDtor, _force] _dtor()
 	end func
 
 	+func [d0001.knd, _objDraw] draw(diffuse: @Tex, specular: @Tex, element: int, frame: float)

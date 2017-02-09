@@ -45,7 +45,7 @@ func main()
 		end block
 
 		block
-			var hs: []bit8 :: lib@hash("abc".toBin())
+			var hs: []bit8 :: lib@hash("abc" $> []bit8)
 			do cui@print((^hs).toStr())
 			foreach h(hs)
 				do cui@print(h.toStr())

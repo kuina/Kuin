@@ -2,20 +2,20 @@
 	func ctor()
 	end func
 
-	func dtor()
+	func _dtor()
 	end func
 
 	func cmp(t: @Class): int
 		throw 3009
 	end func
 
-	func copy(): @Class
+	func _copy(): @Class
 	end func
 
-	+func toBin(): []bit8
+	func _toBin(): []bit8
 	end func
 
-	+func fromBin(bin: []bit8, idx: int): int
+	func _fromBin(bin: []bit8, idx: &int): @Class
 	end func
 end class
 
@@ -25,15 +25,15 @@ end class
 end class
 
 +class ResClass()
-	*func [_force] copy(): @Class
+	*func [_force] _copy(): @Class
 		throw 3009
 	end func
 
-	+*func [_force] toBin(): []bit8
+	*func [_force] _toBin(): []bit8
 		throw 3009
 	end func
 
-	+*func [_force] fromBin(bin: []bit8, idx: int): int
+	*func [_force] _fromBin(bin: []bit8, idx: &int): @Class
 		throw 3009
 	end func
 end class
@@ -51,12 +51,6 @@ func _initVars()
 end func
 
 func _finVars()
-end func
-
-func [d0000.knd, _any_type] _toBin(me_: []bit8, type: int): []bit8
-end func
-
-func [d0000.knd, _any_type, _overwrite] _fromBin(me_: &[]bit8, type: int, bin: []bit8, idx: int): int
 end func
 
 func [d0000.knd, _any_type] _toStr(me_: []bit8, type: int): []char

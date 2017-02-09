@@ -127,6 +127,8 @@ static const void* InitDLLFuncs(const Char* key, const void* value, void* param)
 static const void* FinDLLs(const Char* key, const void* value, void* param);
 static void SetTypeId(EReg reg, const SAstType* type);
 static int SetTypeIdRecursion(U8* ptr, int idx, const SAstType* type);
+static void SetTypeIdForFromBin(EReg reg, const SAstType* type);
+static void SetTypeIdForFromBinRecursion(int* idx_type, U8* data_type, int* idx_class, S64** data_class, const SAstType* type);
 static void AssembleFunc(SAstFunc* ast, Bool entry);
 static void AssembleStats(SList* asts);
 static void AssembleIf(SAstStatIf* ast);
@@ -150,6 +152,8 @@ static void AssembleExpr3(SAstExpr3* ast, int reg_i, int reg_f);
 static void AssembleExprNew(SAstExprNew* ast, int reg_i, int reg_f);
 static void AssembleExprNewArray(SAstExprNewArray* ast, int reg_i, int reg_f);
 static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f);
+static void AssembleExprToBin(SAstExprToBin* ast, int reg_i, int reg_f);
+static void AssembleExprFromBin(SAstExprFromBin* ast, int reg_i, int reg_f);
 static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f);
 static void AssembleExprArray(SAstExprArray* ast, int reg_i, int reg_f);
 static void AssembleExprDot(SAstExprDot* ast, int reg_i, int reg_f);
@@ -936,7 +940,7 @@ static void GcDec(int reg_i, int reg_f, const SAstType* type)
 			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08)));
 			ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x10)));
 			ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
-			ListAdd(PackAsm->Asms, AsmCALL(ValReg(8, RegI[reg_i]))); // Call 'dtor'.
+			ListAdd(PackAsm->Asms, AsmCALL(ValReg(8, RegI[reg_i]))); // Call '_dtor'.
 			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_reg_i), False))));
 			FreeHeap(ValReg(8, RegI[reg_i]));
 			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_si), False))));
@@ -1240,7 +1244,7 @@ static const void* FinDLLs(const Char* key, const void* value, void* param)
 
 static void SetTypeId(EReg reg, const SAstType* type)
 {
-	U8 data[256];
+	U8 data[1024];
 	int idx = SetTypeIdRecursion(data, 0, type);
 	U8* data2 = (U8*)Alloc(idx);
 	int i;
@@ -1256,26 +1260,36 @@ static int SetTypeIdRecursion(U8* ptr, int idx, const SAstType* type)
 {
 	if (IsInt(type))
 	{
+		if (idx >= 1024)
+			goto Err;
 		ptr[idx] = TypeId_Int;
 		return idx + 1;
 	}
 	if (IsFloat(type))
 	{
+		if (idx >= 1024)
+			goto Err;
 		ptr[idx] = TypeId_Float;
 		return idx + 1;
 	}
 	if (IsChar(type))
 	{
+		if (idx >= 1024)
+			goto Err;
 		ptr[idx] = TypeId_Char;
 		return idx + 1;
 	}
 	if (IsBool(type))
 	{
+		if (idx >= 1024)
+			goto Err;
 		ptr[idx] = TypeId_Bool;
 		return idx + 1;
 	}
 	if (((SAst*)type)->TypeId == AstTypeId_TypeBit)
 	{
+		if (idx >= 1024)
+			goto Err;
 		switch (((SAstTypeBit*)type)->Size)
 		{
 			case 1: ptr[idx] = TypeId_Bit8; break;
@@ -1290,11 +1304,15 @@ static int SetTypeIdRecursion(U8* ptr, int idx, const SAstType* type)
 	}
 	if (((SAst*)type)->TypeId == AstTypeId_TypeArray)
 	{
+		if (idx >= 1024)
+			goto Err;
 		ptr[idx] = TypeId_Array;
 		return SetTypeIdRecursion(ptr, idx + 1, ((SAstTypeArray*)type)->ItemType);
 	}
 	if (((SAst*)type)->TypeId == AstTypeId_TypeGen)
 	{
+		if (idx >= 1024)
+			goto Err;
 		switch (((SAstTypeGen*)type)->Kind)
 		{
 			case AstTypeGenKind_List: ptr[idx] = TypeId_List; break;
@@ -1308,23 +1326,200 @@ static int SetTypeIdRecursion(U8* ptr, int idx, const SAstType* type)
 	}
 	if (((SAst*)type)->TypeId == AstTypeId_TypeDict)
 	{
+		if (idx >= 1024)
+			goto Err;
 		ptr[idx] = TypeId_Dict;
 		idx = SetTypeIdRecursion(ptr, idx + 1, ((SAstTypeDict*)type)->ItemTypeKey);
 		return SetTypeIdRecursion(ptr, idx, ((SAstTypeDict*)type)->ItemTypeValue);
 	}
 	if (((SAst*)type)->TypeId == AstTypeId_TypeFunc)
 	{
+		if (idx >= 1024)
+			goto Err;
 		ptr[idx] = TypeId_Func;
 		return idx + 1;
 	}
 	if (IsEnum(type))
 	{
+		if (idx >= 1024)
+			goto Err;
 		ptr[idx] = TypeId_Enum;
 		return idx + 1;
 	}
 	ASSERT(IsClass(type));
+	if (idx >= 1024)
+		goto Err;
 	ptr[idx] = TypeId_Class;
 	return idx + 1;
+Err:
+	// TODO: Err
+	return 0;
+}
+
+static void SetTypeIdForFromBin(EReg reg, const SAstType* type)
+{
+	SAstArg* tmp_type = MakeTmpVar(8, NULL);
+	SAstArg* tmp_class = MakeTmpVar(8, NULL);
+	U8 data_type[1024];
+	S64* data_class[128];
+	int idx_type = 0;
+	int idx_class = 0;
+	SAstArg* top_class = NULL;
+	int i;
+	SetTypeIdForFromBinRecursion(&idx_type, data_type, &idx_class, data_class, type);
+	{
+		U8* data_type2 = (U8*)Alloc(idx_type);
+		for (i = 0; i < idx_type; i++)
+			data_type2[i] = data_type[i];
+		{
+			S64* addr = AddReadonlyData(idx_type, data_type2, False);
+			ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, reg), ValRIP(8, RefValueAddr(addr, True))));
+			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_type), False)), ValReg(8, reg)));
+			RefLocalVar(tmp_class); // Place 'tmp_class' next to 'tmp_type'.
+		}
+	}
+	for (i = 0; i < idx_class; i++)
+	{
+		SAstArg* tmp = MakeTmpVar(8, NULL);
+		if (i == 0)
+			top_class = tmp;
+		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, reg), ValRIP(8, RefValueAddr(data_class[i], True))));
+		ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp), False)), ValReg(8, reg)));
+	}
+	if (top_class == NULL)
+		ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_class), False)), ValImmU(8, 0x00)));
+	else
+	{
+		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, reg), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(top_class), False))));
+		ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_class), False)), ValReg(8, reg)));
+	}
+	ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, reg), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_type), False))));
+}
+
+static void SetTypeIdForFromBinRecursion(int* idx_type, U8* data_type, int* idx_class, S64** data_class, const SAstType* type)
+{
+	if (IsInt(type))
+	{
+		if (*idx_type >= 1024)
+			goto Err;
+		data_type[*idx_type] = TypeId_Int;
+		(*idx_type)++;
+		return;
+	}
+	if (IsFloat(type))
+	{
+		if (*idx_type >= 1024)
+			goto Err;
+		data_type[*idx_type] = TypeId_Float;
+		(*idx_type)++;
+		return;
+	}
+	if (IsChar(type))
+	{
+		if (*idx_type >= 1024)
+			goto Err;
+		data_type[*idx_type] = TypeId_Char;
+		(*idx_type)++;
+		return;
+	}
+	if (IsBool(type))
+	{
+		if (*idx_type >= 1024)
+			goto Err;
+		data_type[*idx_type] = TypeId_Bool;
+		(*idx_type)++;
+		return;
+	}
+	if (((SAst*)type)->TypeId == AstTypeId_TypeBit)
+	{
+		if (*idx_type >= 1024)
+			goto Err;
+		switch (((SAstTypeBit*)type)->Size)
+		{
+			case 1: data_type[*idx_type] = TypeId_Bit8; break;
+			case 2: data_type[*idx_type] = TypeId_Bit16; break;
+			case 4: data_type[*idx_type] = TypeId_Bit32; break;
+			case 8: data_type[*idx_type] = TypeId_Bit64; break;
+			default:
+				ASSERT(False);
+				break;
+		}
+		(*idx_type)++;
+		return;
+	}
+	if (((SAst*)type)->TypeId == AstTypeId_TypeArray)
+	{
+		if (*idx_type >= 1024)
+			goto Err;
+		data_type[*idx_type] = TypeId_Array;
+		(*idx_type)++;
+		SetTypeIdForFromBinRecursion(idx_type, data_type, idx_class, data_class, ((SAstTypeArray*)type)->ItemType);
+		return;
+	}
+	if (((SAst*)type)->TypeId == AstTypeId_TypeGen)
+	{
+		if (*idx_type >= 1024)
+			goto Err;
+		switch (((SAstTypeGen*)type)->Kind)
+		{
+			case AstTypeGenKind_List: data_type[*idx_type] = TypeId_List; break;
+			case AstTypeGenKind_Stack: data_type[*idx_type] = TypeId_Stack; break;
+			case AstTypeGenKind_Queue: data_type[*idx_type] = TypeId_Queue; break;
+			default:
+				ASSERT(False);
+				break;
+		}
+		(*idx_type)++;
+		SetTypeIdForFromBinRecursion(idx_type, data_type, idx_class, data_class, ((SAstTypeGen*)type)->ItemType);
+		return;
+	}
+	if (((SAst*)type)->TypeId == AstTypeId_TypeDict)
+	{
+		if (*idx_type >= 1024)
+			goto Err;
+		data_type[*idx_type] = TypeId_Dict;
+		(*idx_type)++;
+		SetTypeIdForFromBinRecursion(idx_type, data_type, idx_class, data_class, ((SAstTypeDict*)type)->ItemTypeKey);
+		SetTypeIdForFromBinRecursion(idx_type, data_type, idx_class, data_class, ((SAstTypeDict*)type)->ItemTypeValue);
+		return;
+	}
+	if (((SAst*)type)->TypeId == AstTypeId_TypeFunc)
+	{
+		if (*idx_type >= 1024)
+			goto Err;
+		data_type[*idx_type] = TypeId_Func;
+		(*idx_type)++;
+		return;
+	}
+	if (IsEnum(type))
+	{
+		if (*idx_type >= 1024)
+			goto Err;
+		data_type[*idx_type] = TypeId_Enum;
+		(*idx_type)++;
+		return;
+	}
+	ASSERT(IsClass(type));
+	if (*idx_type >= 1024)
+		goto Err;
+	data_type[*idx_type] = TypeId_Class;
+	(*idx_type)++;
+	if (*idx_type >= 1024)
+		goto Err;
+	data_type[*idx_type] = (U8)*idx_class;
+	(*idx_type)++;
+	{
+		SAstClass* class_ = (SAstClass*)((SAst*)type)->RefItem;
+		S64* addr = RefClass(class_);
+		if (*idx_class >= 128)
+			goto Err;
+		data_class[*idx_class] = addr;
+		(*idx_class)++;
+	}
+	return;
+Err:
+	// TODO: Err
+	return;
 }
 
 static void AssembleFunc(SAstFunc* ast, Bool entry)
@@ -2605,6 +2800,8 @@ static void AssembleExpr(SAstExpr* ast, int reg_i, int reg_f)
 		case AstTypeId_ExprNew: AssembleExprNew((SAstExprNew*)ast, reg_i, reg_f); break;
 		case AstTypeId_ExprNewArray: AssembleExprNewArray((SAstExprNewArray*)ast, reg_i, reg_f); break;
 		case AstTypeId_ExprAs: AssembleExprAs((SAstExprAs*)ast, reg_i, reg_f); break;
+		case AstTypeId_ExprToBin: AssembleExprToBin((SAstExprToBin*)ast, reg_i, reg_f); break;
+		case AstTypeId_ExprFromBin: AssembleExprFromBin((SAstExprFromBin*)ast, reg_i, reg_f); break;
 		case AstTypeId_ExprCall: AssembleExprCall((SAstExprCall*)ast, reg_i, reg_f); break;
 		case AstTypeId_ExprArray: AssembleExprArray((SAstExprArray*)ast, reg_i, reg_f); break;
 		case AstTypeId_ExprDot: AssembleExprDot((SAstExprDot*)ast, reg_i, reg_f); break;
@@ -3445,6 +3642,76 @@ static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f)
 	}
 }
 
+static void AssembleExprToBin(SAstExprToBin* ast, int reg_i, int reg_f)
+{
+	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
+	ASSERT(((SAstExpr*)ast)->VarKind != AstExprVarKind_Unknown);
+	{
+		STmpVars* tmp = PushRegs(reg_i - 1, reg_f - 1);
+		AssembleExpr(ast->Child, 0, 0);
+		ToValue(ast->Child, 0, 0);
+		{
+			int size = GetSize(ast->Child->Type);
+			SAstArg* tmp_child = MakeTmpVar(size, NULL);
+			if (IsFloat(ast->Child->Type))
+				ListAdd(PackAsm->Asms, AsmMOVSD(ValMem(4, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_child), False)), ValReg(4, RegF[0])));
+			else
+				ListAdd(PackAsm->Asms, AsmMOV(ValMem(size, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_child), False)), ValReg(size, RegI[0])));
+			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_CX), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_child), False))));
+		}
+		SetTypeId(Reg_DX, ast->Child->Type);
+		CallKuinLib(L"_toBin");
+		SetGcInstance(0, -1, ast->ChildType);
+		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValReg(8, Reg_AX)));
+		PopRegs(tmp);
+		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValReg(8, Reg_SI)));
+	}
+}
+
+static void AssembleExprFromBin(SAstExprFromBin* ast, int reg_i, int reg_f)
+{
+	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
+	ASSERT(((SAstExpr*)ast)->VarKind != AstExprVarKind_Unknown);
+	{
+		STmpVars* tmp = PushRegs(reg_i - 1, reg_f - 1);
+		SAstArg* tmp_var = MakeTmpVar(8, NULL);
+		{
+			if (ast->Offset->VarKind == AstExprVarKind_Value)
+			{
+				SAstArg* tmp_offset = MakeTmpVar(8, NULL);
+				ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_offset), False)), ValImmU(8, 0x00)));
+				ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[0]), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_offset), False))));
+			}
+			else
+			{
+				AssembleExpr(ast->Offset, 0, 0);
+				ToRef(ast->Offset, RegI[0], RegI[0]);
+			}
+			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_var), False)), ValReg(8, RegI[0])));
+		}
+		AssembleExpr(ast->Child, 0, 0);
+		ToValue(ast->Child, 0, 0);
+		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_CX), ValReg(8, RegI[0])));
+		SetTypeIdForFromBin(Reg_DX, ast->ChildType);
+		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_R8), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_var), False))));
+		CallKuinLib(L"_fromBin");
+		ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_var), False)), ValReg(8, Reg_AX)));
+		{
+			SAstType* type = ast->ChildType;
+			int size = GetSize(type);
+			if (IsClass(type))
+				RefClass((SAstClass*)((SAst*)type)->RefItem);
+			if (IsRef(type))
+				SetGcInstance(0, -1, type);
+			PopRegs(tmp);
+			if (IsFloat(type))
+				ListAdd(PackAsm->Asms, AsmMOVSD(ValReg(4, RegF[reg_f]), ValMem(4, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_var), False))));
+			else
+				ListAdd(PackAsm->Asms, AsmMOV(ValReg(size, RegI[reg_i]), ValMem(size, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_var), False))));
+		}
+	}
+}
+
 static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 {
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
@@ -3464,12 +3731,6 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 					ToRef(arg->Arg, RegI[0], RegI[0]);
 					tmp_args[idx] = MakeTmpVar(8, NULL);
 					ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_args[idx]), False)), ValReg(8, RegI[0])));
-					if ((((SAstTypeFunc*)ast->Func->Type)->FuncAttr & FuncAttr_Overwrite) != 0 && ptr == ast->Args->Top && IsRef(arg->Arg->Type))
-					{
-						// Since '_overwrite' functions overwrite 'me', release it in advance.
-						ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x00)));
-						GcDec(0, -1, arg->Arg->Type);
-					}
 				}
 				else
 				{

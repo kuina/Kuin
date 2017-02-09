@@ -11,36 +11,36 @@ func main()
 		block
 			var n: int :: 123456789012
 			var m: int
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< int
 			do cui@print(m.toStr())
 		end block
 
 		block
 			var n: float :: lib@pi
 			var m: float
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< float
 			do cui@print(m.toStr())
 		end block
 
 		block
 			var n: char :: 'X'
 			var m: char
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< char
 			do cui@print(m.toStr())
 		end block
 
 		block
 			var n: bool :: true
 			var m: bool
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< bool
 			do cui@print(m.toStr())
 		end block
 
@@ -48,63 +48,63 @@ func main()
 		block
 			var n: bit8 :: 16#12b8
 			var m: bit8
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< bit8
 			do cui@print(m.toStr())
 		end block
 
 		block
 			var n: bit16 :: 16#1234b16
 			var m: bit16
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< bit16
 			do cui@print(m.toStr())
 		end block
 
 		block
 			var n: bit32 :: 16#12345678b32
 			var m: bit32
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< bit32
 			do cui@print(m.toStr())
 		end block
 
 		block
 			var n: bit64 :: 16#F012345678ABCDEFb64
 			var m: bit64
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< bit64
 			do cui@print(m.toStr())
 		end block
 
 		block
 			var n: []int :: [1, 2, 3]
 			var m: []int
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< []int
 			do cui@print(m[0].toStr() ~ ", " ~ m[1].toStr() ~ ", " ~ m[2].toStr())
 		end block
 
 		block
 			var n: []char :: "abcdef"
 			var m: []char
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< []char
 			do cui@print(m)
 		end block
 
 		block
 			var n: [][]char :: ["ab", "cd", "ef"]
 			var m: [][]char
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< [][]char
 			do cui@print(m[0] ~ ", " ~ m[1] ~ ", " ~ m[2])
 		end block
 
@@ -114,9 +114,9 @@ func main()
 			do n.add('a')
 			do n.add('b')
 			do n.add('c')
-			var bin : []bit8 :: n.toBin()
+			var bin : []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< list<char>
 			do m.head()
 			while(!m.term())
 				do cui@print(m.get().toStr())
@@ -130,9 +130,9 @@ func main()
 			do n.add('a')
 			do n.add('b')
 			do n.add('c')
-			var bin : []bit8 :: n.toBin()
+			var bin : []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< stack<char>
 			while(^m <> 0)
 				do cui@print(m.get().toStr())
 			end while
@@ -144,9 +144,9 @@ func main()
 			do n.add('a')
 			do n.add('b')
 			do n.add('c')
-			var bin : []bit8 :: n.toBin()
+			var bin : []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< queue<char>
 			while(^m <> 0)
 				do cui@print(m.get().toStr())
 			end while
@@ -158,9 +158,9 @@ func main()
 			do n.add("a", 1)
 			do n.add("c", 3)
 			do n.add("b", 2)
-			var bin : []bit8 :: n.toBin()
+			var bin : []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< dict<[]char, int>
 			do cui@print(m.get("a").toStr() ~ ", " ~ m.get("b").toStr() ~ ", " ~ m.get("c").toStr())
 		end block
 
@@ -171,9 +171,9 @@ func main()
 
 			var n: E :: %x
 			var m: E
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< E
 			do cui@print((m $ int).toStr())
 		end block
 
@@ -187,9 +187,9 @@ func main()
 			var m: C :: #C
 			do n.a :: 5
 			do n.b :: "abc"
-			var bin: []bit8 :: n.toBin()
+			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
-			do cui@print(m.fromBin(bin, 0).toStr())
+			do m :: bin $< C
 			do cui@print(m.a.toStr() ~ ", " ~ m.b)
 		end block
 	end for

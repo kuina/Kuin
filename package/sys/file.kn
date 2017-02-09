@@ -11,7 +11,7 @@ end func
 end enum
 
 +class Reader(kuin@ResClass)
-	*func [d0000.knd, _streamDtor, _force] dtor()
+	*func [d0000.knd, _streamDtor, _force] _dtor()
 	end func
 
 	+func [d0000.knd, _streamFin] fin()
@@ -40,7 +40,7 @@ end enum
 end class
 
 +class Writer(kuin@ResClass)
-	*func [d0000.knd, _streamDtor, _force] dtor()
+	*func [d0000.knd, _streamDtor, _force] _dtor()
 	end func
 
 	+func [d0000.knd, _streamFin] fin()

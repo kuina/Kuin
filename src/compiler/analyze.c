@@ -18,7 +18,6 @@ static const Char* BuildInFuncs[] =
 	L"find\0         \x05",
 	L"findBin\0      \x05",
 	L"findLast\0     \x05",
-	L"fromBin\0      \x00",
 	L"get\0          \x08",
 	L"head\0         \x09",
 	L"ins\0          \x09",
@@ -43,7 +42,6 @@ static const Char* BuildInFuncs[] =
 	L"tail\0         \x09",
 	L"term\0         \x09",
 	L"toArray\0      \x09",
-	L"toBin\0        \x00",
 	L"toFloat\0      \x06",
 	L"toInt\0        \x06",
 	L"toStr\0        \x01",
@@ -108,6 +106,8 @@ static SAstExpr* RebuildExpr3(SAstExpr3* ast);
 static SAstExpr* RebuildExprNew(SAstExprNew* ast);
 static SAstExpr* RebuildExprNewArray(SAstExprNewArray* ast);
 static SAstExpr* RebuildExprAs(SAstExprAs* ast);
+static SAstExpr* RebuildExprToBin(SAstExprToBin* ast);
+static SAstExpr* RebuildExprFromBin(SAstExprFromBin* ast);
 static SAstExpr* RebuildExprCall(SAstExprCall* ast);
 static SAstExpr* RebuildExprArray(SAstExprArray* ast);
 static SAstExpr* RebuildExprDot(SAstExprDot* ast);
@@ -151,6 +151,8 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 		// DLL functions loaded when the program starts.
 		const Char* dll_name = L"d0000.knd";
 		AddDllFunc(dll_name, L"_freeSet");
+		AddDllFunc(dll_name, L"_toBin");
+		AddDllFunc(dll_name, L"_fromBin");
 		AddDllFunc(dll_name, L"_copy");
 		AddDllFunc(dll_name, L"_powInt");
 		AddDllFunc(dll_name, L"_powFloat");
@@ -437,7 +439,7 @@ static U64 BitCast(int size, U64 n)
 
 static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name)
 {
-	// Make frameworks for 'dtor', 'copy', 'toBin', and 'fromBin'.
+	// Make frameworks for '_dtor', '_copy', '_toBin', and '_fromBin'.
 	SAstFunc* func = (SAstFunc*)Alloc(sizeof(SAstFunc));
 	InitAst((SAst*)func, AstTypeId_Func, ((SAst*)class_)->Pos);
 	((SAst*)func)->Name = name;
@@ -1079,7 +1081,7 @@ static void RebuildClass(SAstClass* ast)
 						item->ParentItem = parent_item;
 					}
 				}
-				if (wcscmp(member_name, L"dtor") == 0 || wcscmp(member_name, L"copy") == 0 || wcscmp(member_name, L"toBin") == 0 || wcscmp(member_name, L"fromBin") == 0)
+				if (wcscmp(member_name, L"_dtor") == 0 || wcscmp(member_name, L"_copy") == 0 || wcscmp(member_name, L"_toBin") == 0 || wcscmp(member_name, L"_fromBin") == 0)
 				{
 					ASSERT(item->Def->TypeId == AstTypeId_Func);
 					if (item->Override && (((SAstFunc*)item->Def)->FuncAttr & FuncAttr_Force) == 0)
@@ -1087,7 +1089,7 @@ static void RebuildClass(SAstClass* ast)
 						Err(L"EA0010", item->Def->Pos, member_name);
 						return;
 					}
-					switch (member_name[0])
+					switch (member_name[1])
 					{
 						case L'd': dtor = (SAstFunc*)item->Def; break;
 						case L'c': copy = (SAstFunc*)item->Def; break;
@@ -1114,10 +1116,10 @@ static void RebuildClass(SAstClass* ast)
 		{
 			// Get 'me' of special functions.
 			if (dtor == NULL)
-				dtor = AddSpecialFunc(ast, L"dtor");
+				dtor = AddSpecialFunc(ast, L"_dtor");
 			if (copy == NULL)
 			{
-				copy = AddSpecialFunc(ast, L"copy");
+				copy = AddSpecialFunc(ast, L"_copy");
 				{
 					SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
 					InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)ast)->Pos);
@@ -1127,7 +1129,7 @@ static void RebuildClass(SAstClass* ast)
 			}
 			if (to_bin == NULL)
 			{
-				to_bin = AddSpecialFunc(ast, L"toBin");
+				to_bin = AddSpecialFunc(ast, L"_toBin");
 				{
 					SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
 					InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
@@ -1142,7 +1144,7 @@ static void RebuildClass(SAstClass* ast)
 			}
 			if (from_bin == NULL)
 			{
-				from_bin = AddSpecialFunc(ast, L"fromBin");
+				from_bin = AddSpecialFunc(ast, L"_fromBin");
 				{
 					// 'bin'.
 					SAstArg* arg = (SAstArg*)Alloc(sizeof(SAstArg));
@@ -1170,7 +1172,7 @@ static void RebuildClass(SAstClass* ast)
 					InitAst((SAst*)arg, AstTypeId_Arg, ((SAst*)ast)->Pos);
 					arg->Addr = NewAddr();
 					arg->Kind = AstArgKind_LocalArg;
-					arg->RefVar = False;
+					arg->RefVar = True;
 					arg->Expr = NULL;
 					{
 						SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
@@ -1180,14 +1182,9 @@ static void RebuildClass(SAstClass* ast)
 					}
 					ListAdd(from_bin->Args, arg);
 				}
-				{
-					SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
-					InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
-					type->Kind = AstTypePrimKind_Int;
-					from_bin->Ret = (SAstType*)type;
-				}
+				from_bin->Ret = ((SAstArg*)from_bin->Args->Top->Data)->Type;
 			}
-			// The 'dtor' function.
+			// The '_dtor' function.
 			{
 				SAstClass* ptr = ast;
 				while (ptr != NULL)
@@ -1225,7 +1222,7 @@ static void RebuildClass(SAstClass* ast)
 					ptr = (SAstClass*)((SAst*)ptr)->RefItem;
 				}
 			}
-			// The 'copy' function.
+			// The '_copy' function.
 			{
 				SAstExpr* result;
 				{
@@ -1338,7 +1335,7 @@ static void RebuildClass(SAstClass* ast)
 					ListAdd(copy->Stats, ret);
 				}
 			}
-			// The 'toBin' function.
+			// The '_toBin' function.
 			{
 				SAstExpr* result;
 				{
@@ -1353,7 +1350,30 @@ static void RebuildClass(SAstClass* ast)
 							arg->Addr = NewAddr();
 							arg->Kind = AstArgKind_LocalVar;
 							arg->RefVar = False;
-							arg->Expr = NULL;
+							{
+								SAstExprNewArray* new_ = (SAstExprNewArray*)Alloc(sizeof(SAstExprNewArray));
+								InitAstExpr((SAstExpr*)new_, AstTypeId_ExprNewArray, ((SAst*)ast)->Pos);
+								new_->Idces = ListNew();
+								{
+									SAstExprValue* value = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
+									InitAstExpr((SAstExpr*)value, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
+									*(S64*)value->Value = 8;
+									{
+										SAstTypePrim* prim = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+										InitAst((SAst*)prim, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
+										prim->Kind = AstTypePrimKind_Int;
+										((SAstExpr*)value)->Type = (SAstType*)prim;
+									}
+									ListAdd(new_->Idces, value);
+								}
+								{
+									SAstTypeBit* type = (SAstTypeBit*)Alloc(sizeof(SAstTypeBit));
+									InitAst((SAst*)type, AstTypeId_TypeBit, ((SAst*)ast)->Pos);
+									type->Size = 1;
+									new_->ItemType = (SAstType*)type;
+								}
+								arg->Expr = (SAstExpr*)new_;
+							}
 							{
 								SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
 								InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
@@ -1383,7 +1403,6 @@ static void RebuildClass(SAstClass* ast)
 					}
 				}
 				{
-					Bool first = True;
 					SAstClass* ptr = ast;
 					while (ptr != NULL)
 					{
@@ -1404,27 +1423,24 @@ static void RebuildClass(SAstClass* ast)
 									{
 										SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
 										InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
-										if (first)
-										{
-											assign->Kind = AstExpr2Kind_Assign;
-											first = False;
-										}
-										else
-											assign->Kind = AstExpr2Kind_AssignCat;
+										assign->Kind = AstExpr2Kind_AssignCat;
 										assign->Children[0] = result;
 										{
-											SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
-											InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, ((SAst*)ast)->Pos);
-											call->Args = ListNew();
+											SAstExprToBin* expr = (SAstExprToBin*)Alloc(sizeof(SAstExprToBin));
+											InitAstExpr((SAstExpr*)expr, AstTypeId_ExprToBin, ((SAst*)ast)->Pos);
+											expr->Child = (SAstExpr*)MakeMeDot(ast, (SAstArg*)to_bin->Args->Top->Data, ((SAst*)member)->Name);
 											{
-												SAstExprDot* dot = (SAstExprDot*)Alloc(sizeof(SAstExprDot));
-												InitAstExpr((SAstExpr*)dot, AstTypeId_ExprDot, ((SAst*)ast)->Pos);
-												dot->Var = (SAstExpr*)MakeMeDot(ast, (SAstArg*)to_bin->Args->Top->Data, ((SAst*)member)->Name);
-												dot->Member = L"toBin";
-												dot->ClassItem = NULL;
-												call->Func = (SAstExpr*)dot;
+												SAstTypeArray* array_ = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+												InitAst((SAst*)array_, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+												{
+													SAstTypeBit* bit = (SAstTypeBit*)Alloc(sizeof(SAstTypeBit));
+													InitAst((SAst*)bit, AstTypeId_TypeBit, ((SAst*)ast)->Pos);
+													bit->Size = 1;
+													array_->ItemType = (SAstType*)bit;
+												}
+												expr->ChildType = (SAstType*)array_;
 											}
-											assign->Children[1] = (SAstExpr*)call;
+											assign->Children[1] = (SAstExpr*)expr;
 										}
 										do_->Expr = (SAstExpr*)assign;
 									}
@@ -1439,93 +1455,112 @@ static void RebuildClass(SAstClass* ast)
 				{
 					SAstStatRet* ret = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
 					InitAst((SAst*)ret, AstTypeId_StatRet, ((SAst*)ast)->Pos);
-					ret->Value = (SAstExpr*)result;
+					ret->Value = result;
 					ListAdd(to_bin->Stats, ret);
 				}
 			}
-			// The 'fromBin' function.
+			// The '_fromBin' function.
 			{
-				SAstClass* ptr = ast;
-				while (ptr != NULL)
+				SAstExpr* result;
 				{
-					SListNode* ptr2 = ptr->Items->Top;
-					while (ptr2 != NULL)
+					SAstStatVar* var = (SAstStatVar*)Alloc(sizeof(SAstStatVar));
+					InitAst((SAst*)var, AstTypeId_StatVar, ((SAst*)ast)->Pos);
 					{
-						SAstClassItem* item = (SAstClassItem*)ptr2->Data;
-						if (item->Def->TypeId == AstTypeId_Var)
+						SAstVar* var2 = (SAstVar*)Alloc(sizeof(SAstVar));
+						InitAst((SAst*)var2, AstTypeId_Var, ((SAst*)ast)->Pos);
 						{
-							SAstArg* member = ((SAstVar*)item->Def)->Var;
-							/*
-							// TODO: Should the all types be written?
-							if (type_id == AstTypeId_TypeArray || type_id == AstTypeId_TypeBit || type_id == AstTypeId_TypeGen || type_id == AstTypeId_TypeDict || type_id == AstTypeId_TypePrim || IsClass(member->Type) || IsEnum(member->Type))
-							*/
+							SAstArg* arg = (SAstArg*)Alloc(sizeof(SAstArg));
+							InitAst((SAst*)arg, AstTypeId_Arg, ((SAst*)ast)->Pos);
+							arg->Addr = NewAddr();
+							arg->Kind = AstArgKind_LocalVar;
+							arg->RefVar = False;
+							arg->Type = ((SAstArg*)from_bin->Args->Top->Data)->Type;
 							{
-								SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
-								InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
+								SAstExprNew* new_ = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
+								InitAstExpr((SAstExpr*)new_, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
+								new_->ItemType = arg->Type;
+								arg->Expr = (SAstExpr*)new_;
+							}
+							var2->Var = arg;
+						}
+						var->Def = var2;
+					}
+					ListAdd(from_bin->Stats, var);
+					{
+						result = (SAstExpr*)Alloc(sizeof(SAstExpr));
+						InitAstExpr(result, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+						((SAst*)result)->RefItem = (SAst*)var->Def->Var;
+						((SAst*)result)->RefName = L"me"; // In fact, the referenced member name is not 'me', but it needs to be set to 'me' to access private members.
+						{
+							SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
+							InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)ast)->Pos);
+							((SAst*)type)->RefItem = (SAst*)ast;
+							result->Type = (SAstType*)type;
+						}
+					}
+				}
+				{
+					SAstClass* ptr = ast;
+					while (ptr != NULL)
+					{
+						SListNode* ptr2 = ptr->Items->Top;
+						while (ptr2 != NULL)
+						{
+							SAstClassItem* item = (SAstClassItem*)ptr2->Data;
+							if (item->Def->TypeId == AstTypeId_Var)
+							{
+								SAstArg* member = ((SAstVar*)item->Def)->Var;
+								/*
+								// TODO: Should the all types be written?
+								if (type_id == AstTypeId_TypeArray || type_id == AstTypeId_TypeBit || type_id == AstTypeId_TypeGen || type_id == AstTypeId_TypeDict || type_id == AstTypeId_TypePrim || IsClass(member->Type) || IsEnum(member->Type))
+								*/
 								{
-									SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
-									InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
-									assign->Kind = AstExpr2Kind_Assign;
+									SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+									InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
 									{
-										SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
-										InitAstExpr(ref_, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
-										((SAst*)ref_)->RefItem = (SAst*)from_bin->Args->Top->Next->Next->Data;
-										assign->Children[0] = ref_;
-									}
-									{
-										SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
-										InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, ((SAst*)ast)->Pos);
-										call->Args = ListNew();
+										SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+										InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+										assign->Kind = AstExpr2Kind_Assign;
 										{
 											SAstExprDot* dot = (SAstExprDot*)Alloc(sizeof(SAstExprDot));
 											InitAstExpr((SAstExpr*)dot, AstTypeId_ExprDot, ((SAst*)ast)->Pos);
-											dot->Var = (SAstExpr*)MakeMeDot(ast, (SAstArg*)from_bin->Args->Top->Data, ((SAst*)member)->Name);
-											dot->Member = L"fromBin";
 											dot->ClassItem = NULL;
-											call->Func = (SAstExpr*)dot;
+											dot->Var = result;
+											dot->Member = ((SAst*)member)->Name;
+											assign->Children[0] = (SAstExpr*)dot;
 										}
 										{
-											SAstExprCallArg* bin = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
-											bin->RefVar = False;
+											SAstExprFromBin* expr = (SAstExprFromBin*)Alloc(sizeof(SAstExprFromBin));
+											InitAstExpr((SAstExpr*)expr, AstTypeId_ExprFromBin, ((SAst*)ast)->Pos);
 											{
 												SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
 												InitAstExpr(ref_, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
 												((SAst*)ref_)->RefItem = (SAst*)from_bin->Args->Top->Next->Data;
-												bin->Arg = ref_;
+												expr->Child = ref_;
 											}
-											ListAdd(call->Args, bin);
-										}
-										{
-											SAstExprCallArg* idx = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
-											idx->RefVar = False;
+											expr->ChildType = member->Type;
 											{
 												SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
 												InitAstExpr(ref_, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
 												((SAst*)ref_)->RefItem = (SAst*)from_bin->Args->Top->Next->Next->Data;
-												idx->Arg = ref_;
+												expr->Offset = ref_;
 											}
-											ListAdd(call->Args, idx);
+											assign->Children[1] = (SAstExpr*)expr;
 										}
-										assign->Children[1] = (SAstExpr*)call;
+										do_->Expr = (SAstExpr*)assign;
 									}
-									do_->Expr = (SAstExpr*)assign;
+									ListAdd(from_bin->Stats, do_);
 								}
-								ListAdd(from_bin->Stats, do_);
 							}
+							ptr2 = ptr2->Next;
 						}
-						ptr2 = ptr2->Next;
+						ptr = (SAstClass*)((SAst*)ptr)->RefItem;
 					}
-					ptr = (SAstClass*)((SAst*)ptr)->RefItem;
 				}
 				{
 					SAstStatRet* ret = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
 					InitAst((SAst*)ret, AstTypeId_StatRet, ((SAst*)ast)->Pos);
-					{
-						SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
-						InitAstExpr(ref_, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
-						((SAst*)ref_)->RefItem = (SAst*)from_bin->Args->Top->Next->Next->Data;
-						ret->Value = ref_;
-					}
+					ret->Value = result;
 					ListAdd(from_bin->Stats, ret);
 				}
 			}
@@ -2134,6 +2169,8 @@ static SAstExpr* RebuildExpr(SAstExpr* ast, Bool nullable)
 		case AstTypeId_ExprNew: ast = RebuildExprNew((SAstExprNew*)ast); break;
 		case AstTypeId_ExprNewArray: ast = RebuildExprNewArray((SAstExprNewArray*)ast); break;
 		case AstTypeId_ExprAs: ast = RebuildExprAs((SAstExprAs*)ast); break;
+		case AstTypeId_ExprToBin: ast = RebuildExprToBin((SAstExprToBin*)ast); break;
+		case AstTypeId_ExprFromBin: ast = RebuildExprFromBin((SAstExprFromBin*)ast); break;
 		case AstTypeId_ExprCall: ast = RebuildExprCall((SAstExprCall*)ast); break;
 		case AstTypeId_ExprArray: ast = RebuildExprArray((SAstExprArray*)ast); break;
 		case AstTypeId_ExprDot: ast = RebuildExprDot((SAstExprDot*)ast); break;
@@ -2967,6 +3004,45 @@ static SAstExpr* RebuildExprAs(SAstExprAs* ast)
 	return (SAstExpr*)ast;
 }
 
+static SAstExpr* RebuildExprToBin(SAstExprToBin* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Child = RebuildExpr(ast->Child, False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	if (((SAst*)ast->ChildType)->TypeId != AstTypeId_TypeArray || ((SAst*)((SAstTypeArray*)ast->ChildType)->ItemType)->TypeId != AstTypeId_TypeBit || ((SAstTypeBit*)((SAstTypeArray*)ast->ChildType)->ItemType)->Size != 1)
+	{
+		Err(L"EA0056", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	((SAstExpr*)ast)->Type = ast->ChildType;
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	return (SAstExpr*)ast;
+}
+
+static SAstExpr* RebuildExprFromBin(SAstExprFromBin* ast)
+{
+	if (((SAst*)ast)->AnalyzedCache != NULL)
+		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
+	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
+	ast->Child = RebuildExpr(ast->Child, False);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
+	if (((SAst*)ast->Child->Type)->TypeId != AstTypeId_TypeArray || ((SAst*)((SAstTypeArray*)ast->Child->Type)->ItemType)->TypeId != AstTypeId_TypeBit || ((SAstTypeBit*)((SAstTypeArray*)ast->Child->Type)->ItemType)->Size != 1)
+	{
+		Err(L"EA0056", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
+	((SAstExpr*)ast)->Type = ast->ChildType;
+	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
+	ast->Offset = RebuildExpr(ast->Offset, False);
+	return (SAstExpr*)ast;
+}
+
 static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
@@ -2983,7 +3059,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 			{
 				SAstExprCallArg* me = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
 				me->Arg = ((SAstExprDot*)ast->Func)->Var;
-				me->RefVar = (type->FuncAttr & FuncAttr_Overwrite) != 0;
+				me->RefVar = False;
 				ListIns(ast->Args, ast->Args->Top, me);
 			}
 			if ((type->FuncAttr & FuncAttr_AnyType) != 0)
@@ -3199,9 +3275,6 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 		}
 		switch (GetBuildInFuncType(member))
 		{
-			case 0x0000:
-				correct = True;
-				break;
 			case 0x0001:
 				if (IsInt(var_type) || IsFloat(var_type) || IsChar(var_type) || IsBool(var_type) || ((SAst*)var_type)->TypeId == AstTypeId_TypeBit || IsStr(var_type))
 					correct = True;

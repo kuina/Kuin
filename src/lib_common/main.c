@@ -47,7 +47,7 @@ static void Copy(void* dst, U8 type, const void* src);
 static void* AddDictRecursion(void* node, const void* key, const void* item, int cmp_func(const void* a, const void* b), U8* key_type, U8* item_type, Bool* addition);
 static void* CopyDictRecursion(void* node, U8* key_type, U8* item_type);
 static void ToBinDictRecursion(void*** buf, void* node, U8* key_type, U8* item_type);
-static void* FromBinDictRecursion(U8* key_type, U8* item_type, const U8* bin, S64* idx);
+static void* FromBinDictRecursion(const U8* key_type, const U8* item_type, const U8* bin, S64* idx, const void* type_class);
 static int(*GetCmpFunc(const U8* type))(const void* a, const void* b);
 static int CmpInt(const void* a, const void* b);
 static int CmpFloat(const void* a, const void* b);
@@ -391,6 +391,407 @@ EXPORT void* _copy(const void* me_, const U8* type)
 	}
 }
 
+EXPORT void* _toBin(const void* me_, const U8* type)
+{
+	switch (*type)
+	{
+		case TypeId_Array:
+		case TypeId_List:
+		case TypeId_Stack:
+		case TypeId_Queue:
+		case TypeId_Dict:
+		case TypeId_Class:
+			if (me_ == NULL)
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x08);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x08;
+				((S64*)result)[2] = -1;
+				return result;
+			}
+			break;
+	}
+	switch (*type)
+	{
+		case TypeId_Int:
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x08);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x08;
+				*(S64*)(result + 0x10) = *(S64*)&me_;
+				return result;
+			}
+		case TypeId_Float:
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x08);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x08;
+				*(double*)(result + 0x10) = *(double*)&me_;
+				return result;
+			}
+		case TypeId_Char:
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x02);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x02;
+				*(Char*)(result + 0x10) = *(Char*)&me_;
+				return result;
+			}
+		case TypeId_Bool:
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x01);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x01;
+				*(Bool*)(result + 0x10) = *(Bool*)&me_;
+				return result;
+			}
+		case TypeId_Bit8:
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x01);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x01;
+				*(U8*)(result + 0x10) = *(U8*)&me_;
+				return result;
+			}
+		case TypeId_Bit16:
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x02);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x02;
+				*(U16*)(result + 0x10) = *(U16*)&me_;
+				return result;
+			}
+		case TypeId_Bit32:
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x04);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x04;
+				*(U32*)(result + 0x10) = *(U32*)&me_;
+				return result;
+			}
+		case TypeId_Bit64:
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x08);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x08;
+				*(U64*)(result + 0x10) = *(U64*)&me_;
+				return result;
+			}
+		case TypeId_Array:
+			{
+				S64 len = *(S64*)((U8*)me_ + 0x08);
+				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len);
+				size_t size = GetSize(type[1]);
+				U8* ptr = (U8*)me_ + 0x10;
+				S64 i;
+				for (i = 0; i < len; i++)
+				{
+					void* value = NULL;
+					memcpy(&value, ptr, size);
+					bins[i] = _toBin(value, type + 1);
+					ptr += size;
+				}
+				return CatBin((int)len, bins);
+			}
+		case TypeId_List:
+			{
+				S64 len = *(S64*)((U8*)me_ + 0x08);
+				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len);
+				size_t size = GetSize(type[1]);
+				void* ptr = *(void**)((U8*)me_ + 0x10);
+				S64 i;
+				for (i = 0; i < len; i++)
+				{
+					void* value = NULL;
+					memcpy(&value, (U8*)ptr + 0x10, size);
+					bins[i] = _toBin(value, type + 1);
+					ptr = *(void**)((U8*)ptr + 0x08);
+				}
+				return CatBin((int)len, bins);
+			}
+		case TypeId_Stack:
+		case TypeId_Queue:
+			{
+				S64 len = *(S64*)((U8*)me_ + 0x08);
+				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len);
+				size_t size = GetSize(type[1]);
+				void* ptr = *(void**)((U8*)me_ + 0x10);
+				S64 i;
+				for (i = 0; i < len; i++)
+				{
+					void* value = NULL;
+					memcpy(&value, (U8*)ptr + 0x08, size);
+					bins[i] = _toBin(value, type + 1);
+					ptr = *(void**)ptr;
+				}
+				return CatBin((int)len, bins);
+			}
+		case TypeId_Dict:
+			{
+				U8* child1;
+				U8* child2;
+				GetDictTypes(type, &child1, &child2);
+				{
+					S64 len = *(S64*)((U8*)me_ + 0x08);
+					void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len * 3); // 'key' + 'value' + 'info' per node.
+					void** ptr = bins;
+					ToBinDictRecursion(&ptr, *(void**)((U8*)me_ + 0x10), child1, child2);
+					return CatBin((int)len * 3, bins);
+				}
+			}
+		case TypeId_Func:
+			THROW(0x1000, L"");
+			return NULL;
+		case TypeId_Enum:
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x08);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x08;
+				*(S64*)(result + 0x10) = *(S64*)&me_;
+				return result;
+			}
+		default:
+			ASSERT(*type == TypeId_Class);
+			return ToBinClassAsm(me_);
+	}
+}
+
+EXPORT void* _fromBin(const U8* me_, const void** type, S64* idx)
+{
+	const U8* type2 = (const U8*)type[0];
+	void* result = NULL;
+	switch (*type2)
+	{
+		case TypeId_Array:
+		case TypeId_List:
+		case TypeId_Stack:
+		case TypeId_Queue:
+		case TypeId_Dict:
+		case TypeId_Class:
+			if (*(S64*)(me_ + 0x10 + *idx) == -1)
+			{
+				*idx += 8;
+				return NULL;
+			}
+			break;
+	}
+	switch (*type2)
+	{
+		case TypeId_Int:
+			*(S64*)&result = *(S64*)(me_ + 0x10 + *idx);
+			*idx += 8;
+			break;
+		case TypeId_Float:
+			*(double*)&result = *(double*)(me_ + 0x10 + *idx);
+			*idx += 8;
+			break;
+		case TypeId_Char:
+			*(Char*)&result = *(Char*)(me_ + 0x10 + *idx);
+			*idx += 2;
+			break;
+		case TypeId_Bool:
+			*(Bool*)&result = *(Bool*)(me_ + 0x10 + *idx);
+			*idx += 1;
+			break;
+		case TypeId_Bit8:
+			*(U8*)&result = *(U8*)(me_ + 0x10 + *idx);
+			*idx += 1;
+			break;
+		case TypeId_Bit16:
+			*(U16*)&result = *(U16*)(me_ + 0x10 + *idx);
+			*idx += 2;
+			break;
+		case TypeId_Bit32:
+			*(U32*)&result = *(U32*)(me_ + 0x10 + *idx);
+			*idx += 4;
+			break;
+		case TypeId_Bit64:
+			*(U64*)&result = *(U64*)(me_ + 0x10 + *idx);
+			*idx += 8;
+			break;
+		case TypeId_Array:
+			{
+				S64 len = *(S64*)(me_ + 0x10 + *idx);
+				*idx += 8;
+				{
+					size_t size = GetSize(type2[1]);
+					Bool is_str = IsStr(type2);
+					result = AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
+					((S64*)result)[0] = DefaultRefCntOpe;
+					((S64*)result)[1] = len;
+					if (is_str)
+						*(Char*)((U8*)result + 0x10 + size * (size_t)len) = L'\0';
+					{
+						U8* ptr = (U8*)result + 0x10;
+						S64 i;
+						for (i = 0; i < len; i++)
+						{
+							const void* type3[2];
+							void* value;
+							type3[0] = type2 + 1;
+							type3[1] = type[1];
+							value = _fromBin(me_, type3, idx);;
+							memcpy(ptr, &value, size);
+							ptr += size;
+						}
+					}
+				}
+			}
+			break;
+		case TypeId_List:
+			{
+				S64 len = *(S64*)(me_ + 0x10 + *idx);
+				*idx += 8;
+				{
+					size_t size = GetSize(type2[1]);
+					result = AllocMem(0x28);
+					((S64*)result)[0] = DefaultRefCntOpe;
+					((S64*)result)[1] = len;
+					((S64*)result)[2] = 0;
+					((S64*)result)[3] = 0;
+					((S64*)result)[4] = 0;
+					{
+						S64 i;
+						for (i = 0; i < len; i++)
+						{
+							U8* node = (U8*)AllocMem(0x10 + size);
+							const void* type3[2];
+							void* value;
+							type3[0] = type2 + 1;
+							type3[1] = type[1];
+							value = _fromBin(me_, type3, idx);
+							memcpy(node + 0x10, &value, size);
+							*(void**)(node + 0x08) = NULL;
+							if (*(void**)((U8*)result + 0x10) == NULL)
+							{
+								*(void**)node = NULL;
+								*(void**)((U8*)result + 0x10) = node;
+								*(void**)((U8*)result + 0x18) = node;
+							}
+							else
+							{
+								*(void**)node = *(void**)((U8*)result + 0x18);
+								*(void**)((U8*)*(void**)((U8*)result + 0x18) + 0x08) = node;
+								*(void**)((U8*)result + 0x18) = node;
+							}
+						}
+					}
+				}
+			}
+			break;
+		case TypeId_Stack:
+			{
+				S64 len = *(S64*)(me_ + 0x10 + *idx);
+				*idx += 8;
+				{
+					size_t size = GetSize(type2[1]);
+					void* top = NULL;
+					void* bottom = NULL;
+					result = AllocMem(0x18);
+					((S64*)result)[0] = DefaultRefCntOpe;
+					((S64*)result)[1] = len;
+					((S64*)result)[2] = 0;
+					{
+						S64 i;
+						for (i = 0; i < len; i++)
+						{
+							U8* node = (U8*)AllocMem(0x08 + size);
+							const void* type3[2];
+							void* value;
+							type3[0] = type2 + 1;
+							type3[1] = type[1];
+							value = _fromBin(me_, type3, idx);
+							memcpy(node + 0x08, &value, size);
+							*(void**)node = NULL;
+							if (top == NULL)
+							{
+								top = node;
+								bottom = node;
+							}
+							else
+							{
+								*(void**)bottom = node;
+								bottom = node;
+							}
+						}
+						*(void**)((U8*)result + 0x10) = top;
+					}
+				}
+			}
+			break;
+		case TypeId_Queue:
+			{
+				S64 len = *(S64*)(me_ + 0x10 + *idx);
+				*idx += 8;
+				{
+					size_t size = GetSize(type2[1]);
+					result = AllocMem(0x20);
+					((S64*)result)[0] = DefaultRefCntOpe;
+					((S64*)result)[1] = len;
+					((S64*)result)[2] = 0;
+					((S64*)result)[3] = 0;
+					{
+						S64 i;
+						for (i = 0; i < len; i++)
+						{
+							U8* node = (U8*)AllocMem(0x08 + size);
+							const void* type3[2];
+							void* value;
+							type3[0] = type2 + 1;
+							type3[1] = type[1];
+							value = _fromBin(me_, type3, idx);
+							memcpy(node + 0x08, &value, size);
+							*(void**)node = NULL;
+							if (*(void**)((U8*)result + 0x18) == NULL)
+								*(void**)((U8*)result + 0x10) = node;
+							else
+								*(void**)*(void**)((U8*)result + 0x18) = node;
+							*(void**)((U8*)result + 0x18) = node;
+						}
+					}
+				}
+			}
+			break;
+		case TypeId_Dict:
+			{
+				U8* child1;
+				U8* child2;
+				GetDictTypes(type2, &child1, &child2);
+				{
+					S64 len = *(S64*)(me_ + 0x10 + *idx);
+					*idx += 8;
+					{
+						result = AllocMem(0x18);
+						((S64*)result)[0] = DefaultRefCntOpe;
+						((S64*)result)[1] = len;
+						((S64*)result)[2] = 0;
+						if (len != 0)
+							*(void**)((U8*)result + 0x10) = FromBinDictRecursion(child1, child2, me_, idx, type[1]);
+					}
+				}
+			}
+			break;
+		case TypeId_Func:
+			THROW(0x1000, NULL);
+			return NULL;
+		case TypeId_Enum:
+			*(S64*)&result = *(S64*)(me_ + 0x10 + *idx);
+			*idx += 8;
+			break;
+		default:
+			ASSERT(*type2 == TypeId_Class);
+			if (*(S64*)(me_ + 0x10 + *idx) != 0)
+				THROW(0x1000, NULL);
+			*idx += 8;
+			{
+				const void** type3 = (const void**)type[1];
+				result = FromBinClassAsm(type3[type2[1]], me_, idx);
+			}
+			break;
+	}
+	return result;
+}
+
 EXPORT S64 _powInt(S64 n, S64 m)
 {
 	switch (m)
@@ -458,349 +859,6 @@ EXPORT void* _newArray(S64 len, S64* nums, const U8* type)
 	else
 		memset(result + 0x10, 0, size * (size_t)(*nums + (is_str ? 1 : 0)));
 	return result;
-}
-
-EXPORT void* _toBin(const void* me_, const U8* type)
-{
-	switch (*type)
-	{
-		case TypeId_Int:
-			{
-				U8* result = (U8*)AllocMem(0x10 + 0x08);
-				((S64*)result)[0] = DefaultRefCntFunc;
-				((S64*)result)[1] = 0x08;
-				*(S64*)(result + 0x10) = *(S64*)&me_;
-				return result;
-			}
-		case TypeId_Float:
-			{
-				U8* result = (U8*)AllocMem(0x10 + 0x08);
-				((S64*)result)[0] = DefaultRefCntFunc;
-				((S64*)result)[1] = 0x08;
-				*(double*)(result + 0x10) = *(double*)&me_;
-				return result;
-			}
-		case TypeId_Char:
-			{
-				U8* result = (U8*)AllocMem(0x10 + 0x02);
-				((S64*)result)[0] = DefaultRefCntFunc;
-				((S64*)result)[1] = 0x02;
-				*(Char*)(result + 0x10) = *(Char*)&me_;
-				return result;
-			}
-		case TypeId_Bool:
-			{
-				U8* result = (U8*)AllocMem(0x10 + 0x01);
-				((S64*)result)[0] = DefaultRefCntFunc;
-				((S64*)result)[1] = 0x01;
-				*(Bool*)(result + 0x10) = *(Bool*)&me_;
-				return result;
-			}
-		case TypeId_Bit8:
-			{
-				U8* result = (U8*)AllocMem(0x10 + 0x01);
-				((S64*)result)[0] = DefaultRefCntFunc;
-				((S64*)result)[1] = 0x01;
-				*(U8*)(result + 0x10) = *(U8*)&me_;
-				return result;
-			}
-		case TypeId_Bit16:
-			{
-				U8* result = (U8*)AllocMem(0x10 + 0x02);
-				((S64*)result)[0] = DefaultRefCntFunc;
-				((S64*)result)[1] = 0x02;
-				*(U16*)(result + 0x10) = *(U16*)&me_;
-				return result;
-			}
-		case TypeId_Bit32:
-			{
-				U8* result = (U8*)AllocMem(0x10 + 0x04);
-				((S64*)result)[0] = DefaultRefCntFunc;
-				((S64*)result)[1] = 0x04;
-				*(U32*)(result + 0x10) = *(U32*)&me_;
-				return result;
-			}
-		case TypeId_Bit64:
-			{
-				U8* result = (U8*)AllocMem(0x10 + 0x08);
-				((S64*)result)[0] = DefaultRefCntFunc;
-				((S64*)result)[1] = 0x08;
-				*(U64*)(result + 0x10) = *(U64*)&me_;
-				return result;
-			}
-		case TypeId_Array:
-			{
-				S64 len = *(S64*)((U8*)me_ + 0x08);
-				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len);
-				size_t size = GetSize(type[1]);
-				U8* ptr = (U8*)me_ + 0x10;
-				S64 i;
-				for (i = 0; i < len; i++)
-				{
-					void* value = NULL;
-					memcpy(&value, ptr, size);
-					bins[i] = _toBin(value, type + 1);
-					ptr += size;
-				}
-				return CatBin((int)len, bins);
-			}
-		case TypeId_List:
-			{
-				S64 len = *(S64*)((U8*)me_ + 0x08);
-				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len);
-				size_t size = GetSize(type[1]);
-				void* ptr = *(void**)((U8*)me_ + 0x10);
-				S64 i;
-				for (i = 0; i < len; i++)
-				{
-					void* value = NULL;
-					memcpy(&value, (U8*)ptr + 0x10, size);
-					bins[i] = _toBin(value, type + 1);
-					ptr = *(void**)((U8*)ptr + 0x08);
-				}
-				return CatBin((int)len, bins);
-			}
-		case TypeId_Stack:
-		case TypeId_Queue:
-			{
-				S64 len = *(S64*)((U8*)me_ + 0x08);
-				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len);
-				size_t size = GetSize(type[1]);
-				void* ptr = *(void**)((U8*)me_ + 0x10);
-				S64 i;
-				for (i = 0; i < len; i++)
-				{
-					void* value = NULL;
-					memcpy(&value, (U8*)ptr + 0x08, size);
-					bins[i] = _toBin(value, type + 1);
-					ptr = *(void**)ptr;
-				}
-				return CatBin((int)len, bins);
-			}
-		case TypeId_Dict:
-			{
-				U8* child1;
-				U8* child2;
-				GetDictTypes(type, &child1, &child2);
-				{
-					S64 len = *(S64*)((U8*)me_ + 0x08);
-					void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len * 3); // 'key' + 'value' + 'info' per node.
-					void** ptr = bins;
-					ToBinDictRecursion(&ptr, *(void**)((U8*)me_ + 0x10), child1, child2);
-					return CatBin((int)len * 3, bins);
-				}
-			}
-			break;
-		case TypeId_Func:
-			THROW(0x1000, L"");
-			return NULL;
-		case TypeId_Enum:
-			{
-				U8* result = (U8*)AllocMem(0x10 + 0x08);
-				((S64*)result)[0] = DefaultRefCntFunc;
-				((S64*)result)[1] = 0x08;
-				*(S64*)(result + 0x10) = *(S64*)&me_;
-				return result;
-			}
-		default:
-			ASSERT(*type == TypeId_Class);
-			return ToBinClassAsm(me_);
-	}
-}
-
-EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx)
-{
-	switch (*type)
-	{
-		case TypeId_Int:
-			*(S64*)me_ = *(S64*)(bin + 0x10 + idx);
-			return idx + 8;
-		case TypeId_Float:
-			*(double*)me_ = *(double*)(bin + 0x10 + idx);
-			return idx + 8;
-		case TypeId_Char:
-			*(Char*)me_ = *(Char*)(bin + 0x10 + idx);
-			return idx + 2;
-		case TypeId_Bool:
-			*(Bool*)me_ = *(Bool*)(bin + 0x10 + idx);
-			return idx + 1;
-		case TypeId_Bit8:
-			*(U8*)me_ = *(U8*)(bin + 0x10 + idx);
-			return idx + 1;
-		case TypeId_Bit16:
-			*(U16*)me_ = *(U16*)(bin + 0x10 + idx);
-			return idx + 2;
-		case TypeId_Bit32:
-			*(U32*)me_ = *(U32*)(bin + 0x10 + idx);
-			return idx + 4;
-		case TypeId_Bit64:
-			*(U64*)me_ = *(U64*)(bin + 0x10 + idx);
-			return idx + 8;
-		case TypeId_Array:
-			{
-				S64 len = *(S64*)(bin + 0x10 + idx);
-				idx += 8;
-				{
-					size_t size = GetSize(type[1]);
-					Bool is_str = IsStr(type);
-					void* result = AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
-					((S64*)result)[0] = 1; // Return values of '_overwrite' functions are not automatically incremented.
-					((S64*)result)[1] = len;
-					if (is_str)
-						*(Char*)((U8*)result + 0x10 + size * (size_t)len) = L'\0';
-					{
-						U8* ptr = (U8*)result + 0x10;
-						S64 i;
-						for (i = 0; i < len; i++)
-						{
-							void* value = NULL;
-							idx = _fromBin(&value, type + 1, bin, idx);
-							memcpy(ptr, &value, size);
-							ptr += size;
-						}
-					}
-					*me_ = result;
-				}
-				return idx;
-			}
-		case TypeId_List:
-			{
-				S64 len = *(S64*)(bin + 0x10 + idx);
-				idx += 8;
-				{
-					size_t size = GetSize(type[1]);
-					void* result = AllocMem(0x28);
-					((S64*)result)[0] = 1; // Return values of '_overwrite' functions are not automatically incremented.
-					((S64*)result)[1] = len;
-					((S64*)result)[2] = 0;
-					((S64*)result)[3] = 0;
-					((S64*)result)[4] = 0;
-					{
-						S64 i;
-						for (i = 0; i < len; i++)
-						{
-							U8* node = (U8*)AllocMem(0x10 + size);
-							void* value = NULL;
-							idx = _fromBin(&value, type + 1, bin, idx);
-							memcpy(node + 0x10, &value, size);
-							*(void**)(node + 0x08) = NULL;
-							if (*(void**)((U8*)result + 0x10) == NULL)
-							{
-								*(void**)node = NULL;
-								*(void**)((U8*)result + 0x10) = node;
-								*(void**)((U8*)result + 0x18) = node;
-							}
-							else
-							{
-								*(void**)node = *(void**)((U8*)result + 0x18);
-								*(void**)((U8*)*(void**)((U8*)result + 0x18) + 0x08) = node;
-								*(void**)((U8*)result + 0x18) = node;
-							}
-						}
-					}
-					*me_ = result;
-				}
-				return idx;
-			}
-		case TypeId_Stack:
-			{
-				S64 len = *(S64*)(bin + 0x10 + idx);
-				idx += 8;
-				{
-					size_t size = GetSize(type[1]);
-					void* top = NULL;
-					void* bottom = NULL;
-					void* result = AllocMem(0x18);
-					((S64*)result)[0] = 1; // Return values of '_overwrite' functions are not automatically incremented.
-					((S64*)result)[1] = len;
-					((S64*)result)[2] = 0;
-					{
-						S64 i;
-						for (i = 0; i < len; i++)
-						{
-							U8* node = (U8*)AllocMem(0x08 + size);
-							void* value = NULL;
-							idx = _fromBin(&value, type + 1, bin, idx);
-							memcpy(node + 0x08, &value, size);
-							*(void**)node = NULL;
-							if (top == NULL)
-							{
-								top = node;
-								bottom = node;
-							}
-							else
-							{
-								*(void**)bottom = node;
-								bottom = node;
-							}
-						}
-						*(void**)((U8*)result + 0x10) = top;
-					}
-					*me_ = result;
-				}
-				return idx;
-			}
-		case TypeId_Queue:
-			{
-				S64 len = *(S64*)(bin + 0x10 + idx);
-				idx += 8;
-				{
-					size_t size = GetSize(type[1]);
-					void* result = AllocMem(0x20);
-					((S64*)result)[0] = 1; // Return values of '_overwrite' functions are not automatically incremented.
-					((S64*)result)[1] = len;
-					((S64*)result)[2] = 0;
-					((S64*)result)[3] = 0;
-					{
-						S64 i;
-						for (i = 0; i < len; i++)
-						{
-							U8* node = (U8*)AllocMem(0x08 + size);
-							void* value = NULL;
-							idx = _fromBin(&value, type + 1, bin, idx);
-							memcpy(node + 0x08, &value, size);
-							*(void**)node = NULL;
-							if (*(void**)((U8*)result + 0x18) == NULL)
-								*(void**)((U8*)result + 0x10) = node;
-							else
-								*(void**)*(void**)((U8*)result + 0x18) = node;
-							*(void**)((U8*)result + 0x18) = node;
-						}
-					}
-					*me_ = result;
-				}
-				return idx;
-			}
-		case TypeId_Dict:
-			{
-				U8* child1;
-				U8* child2;
-				GetDictTypes(type, &child1, &child2);
-				{
-					S64 len = *(S64*)(bin + 0x10 + idx);
-					idx += 8;
-					{
-						void* result = AllocMem(0x18);
-						((S64*)result)[0] = 1; // Return values of '_overwrite' functions are not automatically incremented.
-						((S64*)result)[1] = len;
-						((S64*)result)[2] = 0;
-						if (len != 0)
-							*(void**)((U8*)result + 0x10) = FromBinDictRecursion(child1, child2, bin, &idx);
-						*me_ = result;
-					}
-				}
-				return idx;
-			}
-		case TypeId_Func:
-			THROW(0x1000, NULL);
-			return idx;
-		case TypeId_Enum:
-			*(S64*)me_ = *(S64*)(bin + 0x10 + idx);
-			return idx + 8;
-		default:
-			ASSERT(*type == TypeId_Class);
-			return FromBinClassAsm(me_, bin, idx);
-	}
 }
 
 EXPORT U8* _toStr(const void* me_, const U8* type)
@@ -1907,7 +1965,7 @@ static void ToBinDictRecursion(void*** buf, void* node, U8* key_type, U8* item_t
 	}
 	{
 		U8* info = (U8*)AllocMem(0x11);
-		((S64*)info)[0] = DefaultRefCntFunc;
+		((S64*)info)[0] = DefaultRefCntOpe;
 		((S64*)info)[1] = 1;
 		{
 			U8 flag = 0;
@@ -1928,29 +1986,35 @@ static void ToBinDictRecursion(void*** buf, void* node, U8* key_type, U8* item_t
 		ToBinDictRecursion(buf, *(void**)((U8*)node + 0x08), key_type, item_type);
 }
 
-static void* FromBinDictRecursion(U8* key_type, U8* item_type, const U8* bin, S64* idx)
+static void* FromBinDictRecursion(const U8* key_type, const U8* item_type, const U8* bin, S64* idx, const void* type_class)
 {
 	U8* node = (U8*)AllocMem(0x20 + GetSize(*item_type));
 	{
-		void* key = NULL;
-		*idx = _fromBin(&key, key_type, bin, *idx);
+		const void* type[2];
+		void* key;
+		type[0] = key_type;
+		type[1] = type_class;
+		key = _fromBin(bin, type, idx);
 		*(void**)(node + 0x18) = NULL;
 		memcpy(node + 0x18, &key, GetSize(*key_type));
 	}
 	{
-		void* value = NULL;
-		*idx = _fromBin(&value, item_type, bin, *idx);
+		const void* type[2];
+		void* value;
+		type[0] = item_type;
+		type[1] = type_class;
+		value = _fromBin(bin, type, idx);
 		memcpy(node + 0x20, &value, GetSize(*item_type));
 	}
 	{
 		U8 info = *(bin + 0x10 + *idx);
 		(*idx)++;
 		if ((info & 0x01) != 0)
-			*(void**)node = FromBinDictRecursion(key_type, item_type, bin, idx);
+			*(void**)node = FromBinDictRecursion(key_type, item_type, bin, idx, type_class);
 		else
 			*(void**)node = NULL;
 		if ((info & 0x02) != 0)
-			*(void**)(node + 0x08) = FromBinDictRecursion(key_type, item_type, bin, idx);
+			*(void**)(node + 0x08) = FromBinDictRecursion(key_type, item_type, bin, idx, type_class);
 		else
 			*(void**)(node + 0x08) = NULL;
 		*(S64*)(node + 0x10) = (info & 0x04) != 0 ? 1 : 0;
@@ -2044,7 +2108,7 @@ static void* CatBin(int num, void** bins)
 		len += *(S64*)((U8*)bins[i] + 0x08);
 	{
 		U8* result = (U8*)AllocMem(0x18 + (size_t)len);
-		((S64*)result)[0] = DefaultRefCntFunc;
+		((S64*)result)[0] = DefaultRefCntOpe;
 		((S64*)result)[1] = 0x08 + len;
 		((S64*)result)[2] = (S64)num;
 		{
@@ -2054,7 +2118,7 @@ static void* CatBin(int num, void** bins)
 				size_t size = (size_t)*(S64*)((U8*)bins[i] + 0x08);
 				memcpy(ptr, (U8*)bins[i] + 0x10, size);
 				ptr += size;
-				ASSERT(*(S64*)bins[i] == DefaultRefCntFunc);
+				ASSERT(*(S64*)bins[i] == DefaultRefCntOpe);
 				FreeMem(bins[i]);
 			}
 		}

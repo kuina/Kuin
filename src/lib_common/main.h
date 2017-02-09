@@ -8,6 +8,8 @@ EXPORT void _fin(void);
 EXPORT void _err(const void* excpt);
 EXPORT void _freeSet(void* ptr, const U8* type);
 EXPORT void* _copy(const void* me_, const U8* type);
+EXPORT void* _toBin(const void* me_, const U8* type);
+EXPORT void* _fromBin(const U8* me_, const void** type, S64* idx);
 EXPORT S64 _powInt(S64 n, S64 m);
 EXPORT double _powFloat(double n, double m);
 EXPORT double _mod(double n, double m);
@@ -15,8 +17,6 @@ EXPORT S64 _cmpStr(const U8* a, const U8* b);
 EXPORT void* _newArray(S64 len, S64* nums, const U8* type);
 
 // Built-in methods.
-EXPORT void* _toBin(const void* me_, const U8* type);
-EXPORT S64 _fromBin(void** me_, const U8* type, const U8* bin, S64 idx);
 EXPORT U8* _toStr(const void* me_, const U8* type);
 EXPORT S64 _absInt(S64 me_);
 EXPORT double _absFloat(double me_);
@@ -73,7 +73,7 @@ EXPORT void* _peek(void* me_, const U8* type);
 
 // Assembly functions.
 void* ToBinClassAsm(const void* me_);
-S64 FromBinClassAsm(void* me_, const U8* bin, S64 idx);
+void* FromBinClassAsm(const void* me_, const U8* bin, S64* idx);
 int CmpClassAsm(const void* me_, const void* target);
 void DtorClassAsm(void* me_);
 void* CopyClassAsm(const void* me_);

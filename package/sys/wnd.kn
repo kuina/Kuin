@@ -8,7 +8,7 @@ end func
 end func
 
 +class Wnd(kuin@ResClass)
-	*func [d0001.knd, _wndDtor, _force] dtor()
+	*func [d0001.knd, _wndDtor, _force] _dtor()
 	end func
 
 	var handle: int

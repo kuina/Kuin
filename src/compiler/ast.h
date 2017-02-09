@@ -71,12 +71,14 @@ typedef enum EAstTypeId
 	AstTypeId_ExprNew = AstTypeId_Expr | 0x04,
 	AstTypeId_ExprNewArray = AstTypeId_Expr | 0x05,
 	AstTypeId_ExprAs = AstTypeId_Expr | 0x06,
-	AstTypeId_ExprCall = AstTypeId_Expr | 0x07,
-	AstTypeId_ExprArray = AstTypeId_Expr | 0x08,
-	AstTypeId_ExprDot = AstTypeId_Expr | 0x09,
-	AstTypeId_ExprValue = AstTypeId_Expr | 0x0a,
-	AstTypeId_ExprValueArray = AstTypeId_Expr | 0x0b,
-	AstTypeId_ExprRef = AstTypeId_Expr | 0x0c,
+	AstTypeId_ExprToBin = AstTypeId_Expr | 0x07,
+	AstTypeId_ExprFromBin = AstTypeId_Expr | 0x08,
+	AstTypeId_ExprCall = AstTypeId_Expr | 0x09,
+	AstTypeId_ExprArray = AstTypeId_Expr | 0x0a,
+	AstTypeId_ExprDot = AstTypeId_Expr | 0x0b,
+	AstTypeId_ExprValue = AstTypeId_Expr | 0x0c,
+	AstTypeId_ExprValueArray = AstTypeId_Expr | 0x0d,
+	AstTypeId_ExprRef = AstTypeId_Expr | 0x0e,
 } EAstTypeId;
 
 typedef struct SAst
@@ -104,16 +106,15 @@ typedef enum EFuncAttr
 	FuncAttr_None = 0x00,
 	FuncAttr_Callback = 0x01, // Conform to the x64 calling convention.
 	FuncAttr_AnyType = 0x02, // Ignore type checking of 'me' and the add the type of it to the second argument.
-	FuncAttr_Overwrite = 0x04, // Release 'me' and pass it by reference.
-	FuncAttr_Init = 0x08, // Pass necessary information for initialization.
-	FuncAttr_TakeMe = 0x10, // The function receives a value of the same type as 'me' in the third argument.
-	FuncAttr_RetMe = 0x20, // The function returns a value of the same type as 'me'.
-	FuncAttr_TakeChild = 0x40, // The function receives a value of the type of elements of 'me' in the third argument.
-	FuncAttr_RetChild = 0x80, // The function returns a value of the type of elements of 'me'.
-	FuncAttr_TakeKeyValue = 0x0100, // The function receives a value of the type of 'key' in the third argument and a value of the type of 'value' in the fourth.
-	FuncAttr_RetArrayOfListChild = 0x0200, // The function returns an array of the type of list elements of 'me'.
-	FuncAttr_MakeInstance = 0x0400, // Make an instance before calling the function.
-	FuncAttr_Force = 0x0800, // Force to define a method that cannot be overridden.
+	FuncAttr_Init = 0x04, // Pass necessary information for initialization.
+	FuncAttr_TakeMe = 0x08, // The function receives a value of the same type as 'me' in the third argument.
+	FuncAttr_RetMe = 0x10, // The function returns a value of the same type as 'me'.
+	FuncAttr_TakeChild = 0x20, // The function receives a value of the type of elements of 'me' in the third argument.
+	FuncAttr_RetChild = 0x40, // The function returns a value of the type of elements of 'me'.
+	FuncAttr_TakeKeyValue = 0x80, // The function receives a value of the type of 'key' in the third argument and a value of the type of 'value' in the fourth.
+	FuncAttr_RetArrayOfListChild = 0x0100, // The function returns an array of the type of list elements of 'me'.
+	FuncAttr_MakeInstance = 0x0200, // Make an instance before calling the function.
+	FuncAttr_Force = 0x0400, // Force to define a method that cannot be overridden.
 } EFuncAttr;
 
 typedef struct SAstFunc
@@ -550,6 +551,21 @@ typedef struct SAstExprAs
 	SAstExpr* Child;
 	SAstType* ChildType;
 } SAstExprAs;
+
+typedef struct SAstExprToBin
+{
+	SAstExpr AstExpr;
+	SAstExpr* Child;
+	SAstType* ChildType;
+} SAstExprToBin;
+
+typedef struct SAstExprFromBin
+{
+	SAstExpr AstExpr;
+	SAstExpr* Child;
+	SAstType* ChildType;
+	SAstExpr* Offset;
+} SAstExprFromBin;
 
 typedef struct SAstExprCallArg
 {

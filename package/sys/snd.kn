@@ -8,7 +8,7 @@ end func
 end func
 
 +class Snd(kuin@ResClass)
-	*func [d0001.knd, _sndDtor, _force] dtor()
+	*func [d0001.knd, _sndDtor, _force] _dtor()
 	end func
 
 	+func [d0001.knd, _sndPlay] play(startPos: float)
