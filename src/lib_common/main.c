@@ -393,23 +393,13 @@ EXPORT void* _copy(const void* me_, const U8* type)
 
 EXPORT void* _toBin(const void* me_, const U8* type)
 {
-	switch (*type)
+	if (IsRef(*type) && me_ == NULL)
 	{
-		case TypeId_Array:
-		case TypeId_List:
-		case TypeId_Stack:
-		case TypeId_Queue:
-		case TypeId_Dict:
-		case TypeId_Class:
-			if (me_ == NULL)
-			{
-				U8* result = (U8*)AllocMem(0x10 + 0x08);
-				((S64*)result)[0] = DefaultRefCntOpe;
-				((S64*)result)[1] = 0x08;
-				((S64*)result)[2] = -1;
-				return result;
-			}
-			break;
+		U8* result = (U8*)AllocMem(0x10 + 0x08);
+		((S64*)result)[0] = DefaultRefCntOpe;
+		((S64*)result)[1] = 0x08;
+		((S64*)result)[2] = -1;
+		return result;
 	}
 	switch (*type)
 	{
@@ -496,18 +486,29 @@ EXPORT void* _toBin(const void* me_, const U8* type)
 		case TypeId_List:
 			{
 				S64 len = *(S64*)((U8*)me_ + 0x08);
-				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len);
+				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)(len + 1));
 				size_t size = GetSize(type[1]);
 				void* ptr = *(void**)((U8*)me_ + 0x10);
+				void* ptr_current = *(void**)((U8*)me_ + 0x20);
+				S64 idx = -1;
 				S64 i;
 				for (i = 0; i < len; i++)
 				{
 					void* value = NULL;
 					memcpy(&value, (U8*)ptr + 0x10, size);
-					bins[i] = _toBin(value, type + 1);
+					bins[i + 1] = _toBin(value, type + 1);
+					if (ptr_current == ptr)
+						idx = i;
 					ptr = *(void**)((U8*)ptr + 0x08);
 				}
-				return CatBin((int)len, bins);
+				{
+					void* bin = AllocMem(0x10 + 0x08);
+					((S64*)bin)[0] = DefaultRefCntOpe;
+					((S64*)bin)[1] = 0x08;
+					((S64*)bin)[2] = idx;
+					bins[0] = bin;
+				}
+				return CatBin((int)len + 1, bins);
 			}
 		case TypeId_Stack:
 		case TypeId_Queue:
@@ -560,20 +561,10 @@ EXPORT void* _fromBin(const U8* me_, const void** type, S64* idx)
 {
 	const U8* type2 = (const U8*)type[0];
 	void* result = NULL;
-	switch (*type2)
+	if (IsRef(*type2) && *(S64*)(me_ + 0x10 + *idx) == -1)
 	{
-		case TypeId_Array:
-		case TypeId_List:
-		case TypeId_Stack:
-		case TypeId_Queue:
-		case TypeId_Dict:
-		case TypeId_Class:
-			if (*(S64*)(me_ + 0x10 + *idx) == -1)
-			{
-				*idx += 8;
-				return NULL;
-			}
-			break;
+		*idx += 8;
+		return NULL;
 	}
 	switch (*type2)
 	{
@@ -640,7 +631,10 @@ EXPORT void* _fromBin(const U8* me_, const void** type, S64* idx)
 			break;
 		case TypeId_List:
 			{
-				S64 len = *(S64*)(me_ + 0x10 + *idx);
+				S64 idx_current;
+				S64 len = *(S64*)(me_ + 0x10 + *idx) - 1;
+				*idx += 8;
+				idx_current = *(S64*)(me_ + 0x10 + *idx);
 				*idx += 8;
 				{
 					size_t size = GetSize(type2[1]);
@@ -657,6 +651,8 @@ EXPORT void* _fromBin(const U8* me_, const void** type, S64* idx)
 							U8* node = (U8*)AllocMem(0x10 + size);
 							const void* type3[2];
 							void* value;
+							if (idx_current == i)
+								((void**)result)[4] = node;
 							type3[0] = type2 + 1;
 							type3[1] = type[1];
 							value = _fromBin(me_, type3, idx);
