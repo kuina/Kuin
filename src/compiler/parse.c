@@ -3139,15 +3139,9 @@ static SAstExpr* ParseExprValue(void)
 									{
 										SAstExprDot* dot = (SAstExprDot*)Alloc(sizeof(SAstExprDot));
 										InitAstExpr((SAstExpr*)dot, AstTypeId_ExprDot, pos);
-										{
-											SAstExpr* ast = (SAstExpr*)Alloc(sizeof(SAstExpr));
-											InitAstExpr(ast, AstTypeId_ExprRef, pos);
-											((SAst*)ast)->RefName = ReadIdentifier(False, True);
-											AddScopeRefeds((SAst*)ast);
-											dot->Var = ast;
-											dot->Member = L"toStr";
-											dot->ClassItem = NULL;
-										}
+										dot->Var = ParseExpr();
+										dot->Member = L"toStr";
+										dot->ClassItem = NULL;
 										call->Func = (SAstExpr*)dot;
 									}
 									cat2->Children[1] = (SAstExpr*)call;

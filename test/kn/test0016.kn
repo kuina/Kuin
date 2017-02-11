@@ -6,5 +6,30 @@ func main()
 			do cui@print((-n ^ 4.0).toStr())
 			do cui@print(n $ int.toStr())
 		end block
+		
+		block
+			var n: int :: 5
+			do cui@print("\{"\{n+2}" ~ "a"}")
+		end block
+		
+		block
+			class C()
+				+var a: int
+				+var b: int
+			end class
+			
+			var l: list<C> :: #list<C>
+			do l.add(#C)
+			var c: C :: #C
+			do c.a :: 3
+			do c.b :: 5
+			do l.add(c)
+			do l.head()
+			do l.next()
+			var l2: list<C> :: ##l
+			do cui@print(l2.get().b.toStr())
+			var l3: list<C> :: l $> []bit8 $< list<C>
+			do cui@print(l3.get().b.toStr())
+		end block
 	end for
 end func
