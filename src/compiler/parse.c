@@ -374,6 +374,8 @@ static void ReadComment(void)
 				}
 				if (esc)
 				{
+					if (c == L'{')
+						ReadComment();
 					esc = False;
 					continue;
 				}
