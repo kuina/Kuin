@@ -2862,6 +2862,9 @@ static SAstExpr* RebuildExprAs(SAstExprAs* ast)
 	ast->Child = RebuildExpr(ast->Child, False);
 	if (LocalErr)
 		return (SAstExpr*)DummyPtr;
+	ast->ChildType = RebuildType(ast->ChildType);
+	if (LocalErr)
+		return (SAstExpr*)DummyPtr;
 	ASSERT(((SAstExpr*)ast)->Type == NULL);
 	switch (ast->Kind)
 	{
