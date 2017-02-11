@@ -3587,11 +3587,11 @@ static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f)
 					ASSERT(IsClass(t1));
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValReg(8, RegI[reg_i])));
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08)));
+					ListAdd(PackAsm->Asms, lbl1);
 					{
 						S64* addr = RefClass((SAstClass*)((SAst*)ast->ChildType)->RefItem);
 						ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_DI), ValRIP(8, RefValueAddr(addr, True))));
 					}
-					ListAdd(PackAsm->Asms, lbl1);
 					ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, RegI[reg_i]), ValReg(8, Reg_DI)));
 					ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl3)->Addr, True))));
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
