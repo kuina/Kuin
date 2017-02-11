@@ -265,9 +265,12 @@ EXPORT void* _copy(const void* me_, const U8* type)
 				((S64*)result)[4] = 0;
 				{
 					void* src = *(void**)((U8*)me_ + 0x10);
+					void* ptr_current = *(void**)((U8*)me_ + 0x20);
 					while (src != NULL)
 					{
 						U8* node = (U8*)AllocMem(0x10 + size);
+						if (ptr_current == src)
+							((void**)result)[4] = node;
 						if (is_ref)
 						{
 							if (*(void**)((U8*)src + 0x10) == NULL)
