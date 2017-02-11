@@ -544,8 +544,13 @@ EXPORT void* _toBin(const void* me_, const U8* type)
 				}
 			}
 		case TypeId_Func:
-			THROW(0x1000, L"");
-			return NULL;
+			{
+				U8* result = (U8*)AllocMem(0x10 + 0x08);
+				((S64*)result)[0] = DefaultRefCntOpe;
+				((S64*)result)[1] = 0x08;
+				*(S64*)(result + 0x10) = 0;
+				return result;
+			}
 		case TypeId_Enum:
 			{
 				U8* result = (U8*)AllocMem(0x10 + 0x08);
@@ -771,8 +776,8 @@ EXPORT void* _fromBin(const U8* me_, const void** type, S64* idx)
 			}
 			break;
 		case TypeId_Func:
-			THROW(0x1000, NULL);
-			return NULL;
+			result = NULL;
+			*idx += 8;
 		case TypeId_Enum:
 			*(S64*)&result = *(S64*)(me_ + 0x10 + *idx);
 			*idx += 8;
@@ -1746,7 +1751,7 @@ static S64 Add(S64 a, S64 b)
 {
 #if defined(DBG)
 	if (AddAsm(&a, b))
-		THROW(0x1000, L"");
+		THROW(0xc9170003, NULL);
 	return a;
 #else
 	return a + b;
@@ -1757,7 +1762,7 @@ static S64 Mul(S64 a, S64 b)
 {
 #if defined(DBG)
 	if (MulAsm(&a, b))
-		THROW(0x1000, L"");
+		THROW(0xc9170003, NULL);
 	return a;
 #else
 	return a * b;
