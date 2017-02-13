@@ -1246,6 +1246,41 @@ EXPORT S64 _findBin(const void* me_, const U8* type, const void* item)
 	return -1;
 }
 
+EXPORT void _fill(void* me_, const U8* type, const void* value)
+{
+	size_t size = GetSize(type[1]);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	U8* ptr = (U8*)me_ + 0x10;
+	S64 i;
+	if (IsRef(type[1]))
+	{
+		if (value != NULL)
+			*(S64*)value += len;
+		for (i = 0; i < len; i++)
+		{
+			{
+				void* ptr2 = *(void**)ptr;
+				if (ptr2 != NULL)
+				{
+					(*(S64*)ptr2)--;
+					if (*(S64*)ptr2 == 0)
+						_freeSet(ptr2, type + 1);
+				}
+			}
+			memcpy(ptr, &value, size);
+			ptr += size;
+		}
+	}
+	else
+	{
+		for (i = 0; i < len; i++)
+		{
+			memcpy(ptr, &value, size);
+			ptr += size;
+		}
+	}
+}
+
 EXPORT S64 _toInt(const U8* me_)
 {
 	S64 result;
@@ -1882,7 +1917,7 @@ static void* AddDictRecursion(void* node, const void* key, const void* item, int
 		if (cmp == 0)
 		{
 			if (IsRef(*item_type) && *(const void**)((U8*)node + 0x20) != NULL)
-				_freeSet((U8*)node + 0x20, item_type);
+				_freeSet((U8*)node + 0x20, item_type); // TODO: This may be decremented.
 			*(const void**)((U8*)node + 0x20) = item;
 			*addition = False;
 			return node;

@@ -3,6 +3,7 @@
 #include "..\common.h"
 
 // 'lib'
+EXPORT void* _cmdLine(void);
 EXPORT S64 _rnd(S64 min, S64 max);
 EXPORT double _rndFloat(double min, double max);
 EXPORT U64 _rndBit64(void);

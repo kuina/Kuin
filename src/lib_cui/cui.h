@@ -4,4 +4,3 @@
 
 EXPORT void _print(const U8* str);
 EXPORT void* _input(void);
-EXPORT void* _cmdLine(void);

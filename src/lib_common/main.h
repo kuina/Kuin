@@ -44,6 +44,7 @@ EXPORT void _sortDesc(void* me_, const U8* type);
 EXPORT S64 _find(const void* me_, const U8* type, const void* item);
 EXPORT S64 _findLast(const void* me_, const U8* type, const void* item);
 EXPORT S64 _findBin(const void* me_, const U8* type, const void* item);
+EXPORT void _fill(void* me_, const U8* type, const void* value);
 EXPORT S64 _toInt(const U8* me_);
 EXPORT double _toFloat(const U8* me_);
 EXPORT void* _lower(const U8* me_);

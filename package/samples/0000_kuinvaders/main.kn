@@ -1,5 +1,4 @@
-; Kuinvaders (くいんべーだー)
-; (C) Kuina-chan
+; Kuinvaders (くいんべーだー) (C)Kuina-chan
 
 ; main関数は実行直後に呼ばれ、main関数を抜けるとアプリは終了する。
 func main()
@@ -36,18 +35,16 @@ func game()
 		var playerX: float :: 800.0 {自機座標X}
 		var playerY: float :: 800.0 {自機座標Y}
 		var beams: list<Beam> :: #list<Beam> {自機の弾のリスト}
-		var enemies: []int :: #[6 * 7]int {敵を6行8列で作成。値は体力}
-		foreach enemy(enemies)
-			do enemy :: stage {敵の体力をステージに応じて代入}
-		end foreach
+		var enemies: []int :: #[5 * 6]int {敵を5行6列で作成。値は体力}
+		do enemies.fill(stage) {敵の体力にステージに応じた値を代入}
 		var enemyX: float :: 200.0 / 2.0 {敵群の座標X}
 		var enemyY: float :: 100.0 {敵群の座標Y}
-		var enemyVeloX: float :: 2.0 + 30.0 / (6.0 * 7.0) {敵群の速度X}
+		var enemyVeloX: float :: 2.0 + 30.0 / (5.0 * 6.0) {敵群の速度X}
 		var enemyTargetY: float :: 0.0 {敵群のY方向の目的座標(下向きに移動するときに使用)}
 		var enemyLeft: int :: 0 {生きている敵の左端。移動を折り返す判定に使用}
-		var enemyRight: int :: 6 {生きている敵の右端。移動を折り返す判定に使用}
-		var enemyBottom: int :: 5 {生きている敵の下端。ラインを超える判定に使用}
-		var enemyNum: int :: 6 * 7 {生きている敵の数}
+		var enemyRight: int :: 5 {生きている敵の右端。移動を折り返す判定に使用}
+		var enemyBottom: int :: 4 {生きている敵の下端。ラインを超える判定に使用}
+		var enemyNum: int :: 5 * 6 {生きている敵の数}
 		var enemyBeams: list<Beam> :: #list<Beam> {敵の弾のリスト}
 		var gameover: int :: 0 {ゲームオーバーフラグ。0=ゲーム中、1=ステージクリア、2=死亡}
 		; フレームごとのループ。
@@ -102,19 +99,19 @@ func game()
 					if(enemyX <= 200.0 / 2.0 - enemyLeft $ float * 100.0) {左端に到達}
 						do enemyX :: 200.0 / 2.0 - enemyLeft $ float * 100.0
 						do enemyVeloX :: 2.0 + 30.0 / enemyNum $ float {残り敵数に応じた速度で右向きに折り返す}
-						do enemyTargetY :: enemyY + 45.0 {下向きに移動する}
+						do enemyTargetY :: enemyY + 60.0 {下向きに移動する}
 					end if
 					if(enemyX >= 1600.0 - 200.0 / 2.0 - enemyRight $ float * 100.0)
 						do enemyX :: 1600.0 - 200.0 / 2.0 - enemyRight $ float * 100.0
 						do enemyVeloX :: -2.0 - 30.0 / enemyNum $ float {残り敵数に応じた速度で左向きに折り返す}
-						do enemyTargetY :: enemyY + 45.0 {下向きに移動する}
+						do enemyTargetY :: enemyY + 60.0 {下向きに移動する}
 					end if
 				end if
 			end if
 			; 敵処理および描画。
-			for i(0, 5)
-				for j(0, 6)
-					if(enemies[i * 7 + j] = 0)
+			for i(0, 4)
+				for j(0, 5)
+					if(enemies[i * 6 + j] = 0)
 						skip j {敵が消えた箇所はスキップ}
 					end if
 					if(lib@rnd(0, 60 * enemyNum / stage.clampMax(30)) = 0) {一定確率で弾を発射する}
@@ -136,11 +133,11 @@ func game()
 					skip loopBeams {要素を.del()したときは.next()をしなくても次の要素を指している}
 				end if
 				; 敵との衝突判定
-				for i(0, 5)
-					for j(0, 6)
-						if(enemies[i * 7 + j] > 0 & lib@dist(enemyX + j $ float * 100.0 - beam.x, enemyY + i $ float * 45.0 - beam.y) <= 120.0 / 2.0 + 90.0 / 2.0) {距離が半径の合計以下なら衝突}
-							do enemies[i * 7 + j] :- 1 {敵のライフを減少}
-							if(enemies[i * 7 + j] = 0)
+				for i(0, 4)
+					for j(0, 5)
+						if(enemies[i * 6 + j] > 0 & lib@dist(enemyX + j $ float * 100.0 - beam.x, enemyY + i $ float * 45.0 - beam.y) <= 120.0 / 2.0 + 90.0 / 2.0) {距離が半径の合計以下なら衝突}
+							do enemies[i * 6 + j] :- 1 {敵のライフを減少}
+							if(enemies[i * 6 + j] = 0)
 								do enemyNum :- 1 {敵のライフが0なら敵の合計数を減らす}
 							end if
 							do beams.del() {自機の弾も消滅させる}
@@ -155,24 +152,24 @@ func game()
 				do gameover :: 1
 			else {敵が生きているなら各種敵座標の更新}
 				while loopEnemyLeft(true)
-					for i(0, 5)
-						if(enemies[i * 7 + enemyLeft] > 0)
+					for i(0, 4)
+						if(enemies[i * 6 + enemyLeft] > 0)
 							break loopEnemyLeft {左端に敵が存在している}
 						end if
 					end for
 					do enemyLeft :+ 1 {敵の左端が全滅したなら、左端座標を更新}
 				end while
 				while loopEnemyRight(true)
-					for i(0, 5)
-						if(enemies[i * 7 + enemyRight] > 0)
+					for i(0, 4)
+						if(enemies[i * 6 + enemyRight] > 0)
 							break loopEnemyRight {右端に敵が存在している}
 						end if
 					end for
 					do enemyRight :- 1 {敵の右端が全滅したなら、右端座標を更新}
 				end while
 				while loopEnemyBottom(true)
-					for i(0, 6)
-						if(enemies[enemyBottom * 7 + i] > 0)
+					for i(0, 5)
+						if(enemies[enemyBottom * 6 + i] > 0)
 							break loopEnemyBottom {下端に敵が存在している}
 						end if
 					end for
@@ -183,7 +180,7 @@ func game()
 			do enemyBeams.head()
 			while loopEnemyBeams(!enemyBeams.term())
 				var beam: Beam :: enemyBeams.get()
-				do beam.y :+ 5.0
+				do beam.y :+ 10.0
 				if(gameover = 0 & lib@dist(beam.x - playerX, beam.y - playerY) <= 70.0 / 2.0 + 140.0 / 2.0)
 					do gameover :: 2 {敵の弾に当たったら即ゲームオーバー}
 				end if

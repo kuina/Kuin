@@ -15,6 +15,7 @@ static const Char* BuildInFuncs[] =
 	L"clampMin\0     \x0b",
 	L"del\0          \x09",
 	L"endian\0       \x04",
+	L"fill\0         \x05",
 	L"find\0         \x05",
 	L"findBin\0      \x05",
 	L"findLast\0     \x05",

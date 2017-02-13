@@ -9,6 +9,3 @@ end func
 
 +func [d0002.knd, _input] input(): []char
 end func
-
-+func [d0002.knd, _cmdLine] cmdLine(): [][]char
-end func

@@ -3,6 +3,9 @@
 +const intMax: int :: 9223372036854775807
 +const intMin: int :: -9223372036854775807 - 1
 
++func [d0000.knd, _cmdLine] cmdLine(): [][]char
+end func
+
 +func [d0000.knd, _rnd] rnd(min: int, max: int): int
 end func
 

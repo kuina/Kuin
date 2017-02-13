@@ -41,5 +41,23 @@ func main()
 			do cui@print((c1 =$ C1).toStr())
 			do cui@print((c1 =$ C2).toStr())
 		end block
+
+		block
+			var a: []char :: #[5]char
+			var x: char :: 'x'
+			do a.fill(x)
+			do cui@print(a)
+			do a.fill('y')
+			do cui@print(a)
+		end block
+
+		block
+			var a: [][]char :: #[5][]char
+			var x: []char :: "x"
+			do a.fill(x)
+			do cui@print(a[0])
+			do a.fill("y")
+			do cui@print(a[0])
+		end block
 	end for
 end func

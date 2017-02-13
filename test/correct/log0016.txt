@@ -8,6 +8,10 @@ Excpt: 80000003
 > 5
 > true
 > true
+> xxxxx
+> yyyyy
+> x
+> y
 > -16
 > -16
 > 2
@@ -16,6 +20,10 @@ Excpt: 80000003
 > 5
 > true
 > true
+> xxxxx
+> yyyyy
+> x
+> y
 > -16
 > -16
 > 2
@@ -24,4 +32,8 @@ Excpt: 80000003
 > 5
 > true
 > true
+> xxxxx
+> yyyyy
+> x
+> y
 end: ../../test/output/output0016.exe

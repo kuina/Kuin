@@ -4,6 +4,32 @@
 
 static SRndState GlobalRnd;
 
+EXPORT void* _cmdLine(void)
+{
+	int num;
+	Char** cmds = CommandLineToArgvW(GetCommandLine(), &num);
+	ASSERT(num >= 1);
+	{
+		int i;
+		void** ptr;
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char*) * (size_t)(num - 1));
+		((S64*)result)[0] = DefaultRefCntFunc;
+		((S64*)result)[1] = (S64)(num - 1);
+		ptr = (void**)(result + 0x10);
+		for (i = 1; i < num; i++)
+		{
+			size_t len = wcslen(cmds[i]);
+			U8* item = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+			((S64*)item)[0] = 1;
+			((S64*)item)[1] = (S64)len;
+			memcpy(item + 0x10, cmds[i], sizeof(Char) * (len + 1));
+			*ptr = item;
+			ptr++;
+		}
+		return result;
+	}
+}
+
 EXPORT S64 _rnd(S64 min, S64 max)
 {
 	return RndGet(&GlobalRnd, min, max);
