@@ -7,14 +7,30 @@ end func
 +func [d0001.knd, _act] act(): bool
 end func
 
++enum WndStyle
+	fixed
+	sizable
+end enum
+
 +class Wnd(kuin@ResClass)
 	*func [d0001.knd, _wndDtor, _force] _dtor()
 	end func
 
 	var handle: int
-
 	var wndBuf: int
 end class
 
-+func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, style: int, width: int, height: int): @Wnd
++class Ctrl(kuin@ResClass)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+
+	var kind: int
+	var parent: int
+	var buf: int
+end class
+
++func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, width: int, height: int, style: @WndStyle, drawBuf: bool): @Wnd
+end func
+
++func [d0001.knd, _makeTextEditor, _make_instance] makeTextEditor(me2: @Ctrl, parent: @Wnd, left: int, top: int, width: int, height: int): @Ctrl
 end func

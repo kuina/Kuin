@@ -63,18 +63,6 @@ end func
 +func [d0000.knd, _log] log(base: float, x: float): float
 end func
 
-+func [d0000.knd, _rot] rot(x: &float, y: &float, centerX: float, centerY: float, angle: float)
-end func
-
-+func [d0000.knd, _invRot] invRot(x: float, y: float, centerX: float, centerY: float): float
-end func
-
-+func [d0000.knd, _dist] dist(x: float, y: float): float
-end func
-
-+func [d0000.knd, _chase] chase(x: &float, target: float, vel: float): bool
-end func
-
 +func [d0000.knd, _floor] floor(x: float): float
 end func
 
@@ -82,6 +70,18 @@ end func
 end func
 
 +func [d0000.knd, _round] round(x: float, precision: int): float
+end func
+
++func [d0000.knd, _rot] rot(x: &float, y: &float, centerX: float, centerY: float, angle: float)
+end func
+
++func [d0000.knd, _invRot] invRot(x: float, y: float, centerX: float, centerY: float): float
+end func
+
++func [d0000.knd, _dist] dist(x: float, y: float, centerX: float, centerY: float): float
+end func
+
++func [d0000.knd, _chase] chase(x: &float, target: float, vel: float): bool
 end func
 
 +func [d0000.knd, _hash] hash(data: []bit8): []bit8

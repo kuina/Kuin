@@ -140,54 +140,6 @@ EXPORT double _log(double base, double x)
 	return log(x) / log(base);
 }
 
-EXPORT void _rot(double* x, double* y, double centerX, double centerY, double angle)
-{
-	double x2 = *x - centerX;
-	double y2 = *y - centerY;
-	double cos_theta = cos(angle);
-	double sin_theta = sin(angle);
-	double x3 = x2 * cos_theta - y2 * sin_theta;
-	double y3 = x2 * sin_theta + y2 * cos_theta;
-	*x = x3 + centerX;
-	*y = y3 + centerY;
-}
-
-EXPORT double _invRot(double x, double y, double centerX, double centerY)
-{
-	double rad = atan2(y - centerY, x - centerX);
-	return rad < 0.0 ? rad + 2.0 * M_PI : rad;
-}
-
-EXPORT double _dist(double x, double y)
-{
-	return hypot(x, y);
-}
-
-EXPORT Bool _chase(double* x, double target, double vel)
-{
-	if (*x == target)
-		return True;
-	if (*x < target)
-	{
-		*x += vel;
-		if (*x >= target)
-		{
-			*x = target;
-			return True;
-		}
-	}
-	else
-	{
-		*x -= vel;
-		if (*x <= target)
-		{
-			*x = target;
-			return True;
-		}
-	}
-	return False;
-}
-
 EXPORT double _floor(double x)
 {
 	return floor(x);
@@ -214,6 +166,54 @@ EXPORT double _round(double x, S64 precision)
 			return floor(x * p + 0.5) / p;
 		return -floor(-x * p + 0.5) / p;
 	}
+}
+
+EXPORT void _rot(double* x, double* y, double centerX, double centerY, double angle)
+{
+	double x2 = *x - centerX;
+	double y2 = *y - centerY;
+	double cos_theta = cos(angle);
+	double sin_theta = sin(angle);
+	double x3 = x2 * cos_theta - y2 * sin_theta;
+	double y3 = x2 * sin_theta + y2 * cos_theta;
+	*x = x3 + centerX;
+	*y = y3 + centerY;
+}
+
+EXPORT double _invRot(double x, double y, double centerX, double centerY)
+{
+	double rad = atan2(y - centerY, x - centerX);
+	return rad < 0.0 ? rad + 2.0 * M_PI : rad;
+}
+
+EXPORT double _dist(double x, double y, double centerX, double centerY)
+{
+	return hypot(x - centerX, y - centerY);
+}
+
+EXPORT Bool _chase(double* x, double target, double vel)
+{
+	if (*x == target)
+		return True;
+	if (*x < target)
+	{
+		*x += vel;
+		if (*x >= target)
+		{
+			*x = target;
+			return True;
+		}
+	}
+	else
+	{
+		*x -= vel;
+		if (*x <= target)
+		{
+			*x = target;
+			return True;
+		}
+	}
+	return False;
 }
 
 void LibInit(void)

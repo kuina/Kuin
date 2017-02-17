@@ -2,7 +2,7 @@
 
 ; main関数は実行直後に呼ばれ、main関数を抜けるとアプリは終了する。
 func main()
-	do wnd@makeWnd(0, 1600, 900) {ウインドウの生成表示}
+	do wnd@makeWnd(1600, 900, %fixed, true) {ウインドウの生成表示}
 	; wnd@actはウインドウ操作を処理する関数で、定期的に呼ばないとウインドウが操作できなくなる。
 	; wnd@actはウインドウが閉じられたらfalseを返すので、無限ループを抜けて終了するようにする。
 	while(wnd@act())
@@ -135,7 +135,7 @@ func game()
 				; 敵との衝突判定
 				for i(0, 4)
 					for j(0, 5)
-						if(enemies[i * 6 + j] > 0 & lib@dist(enemyX + j $ float * 100.0 - beam.x, enemyY + i $ float * 45.0 - beam.y) <= 120.0 / 2.0 + 90.0 / 2.0) {距離が半径の合計以下なら衝突}
+						if(enemies[i * 6 + j] > 0 & lib@dist(enemyX + j $ float * 100.0, enemyY + i $ float * 45.0, beam.x, beam.y) <= 120.0 / 2.0 + 90.0 / 2.0) {距離が半径の合計以下なら衝突}
 							do enemies[i * 6 + j] :- 1 {敵のライフを減少}
 							if(enemies[i * 6 + j] = 0)
 								do enemyNum :- 1 {敵のライフが0なら敵の合計数を減らす}
@@ -181,7 +181,7 @@ func game()
 			while loopEnemyBeams(!enemyBeams.term())
 				var beam: Beam :: enemyBeams.get()
 				do beam.y :+ 10.0
-				if(gameover = 0 & lib@dist(beam.x - playerX, beam.y - playerY) <= 70.0 / 2.0 + 140.0 / 2.0)
+				if(gameover = 0 & lib@dist(beam.x, beam.y, playerX, playerY) <= 70.0 / 2.0 + 140.0 / 2.0)
 					do gameover :: 2 {敵の弾に当たったら即ゲームオーバー}
 				end if
 				if(beam.y > 900.0 + 100.0 / 2.0)

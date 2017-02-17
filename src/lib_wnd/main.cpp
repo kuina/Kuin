@@ -100,20 +100,28 @@ EXPORT_CPP Bool _act()
 	return True;
 }
 
-EXPORT_CPP SClass* _makeWnd(SClass* me_, S64 style, S64 width, S64 height)
+EXPORT_CPP SClass* _makeWnd(SClass* me_, S64 width, S64 height, S64 style, Bool drawBuf)
 {
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
-	me2->Handle = CreateWindowEx(0, WndClassName, AppName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
+	me2->Handle = CreateWindowEx(0, WndClassName, AppName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width == -1 ? CW_USEDEFAULT : static_cast<int>(width), height == -1 ? CW_USEDEFAULT : static_cast<int>(height), NULL, NULL, Instance, NULL);
 	ASSERT(me2->Handle != NULL);
 	ShowWindow(me2->Handle, SW_SHOWNORMAL);
-	me2->WndBuf = Draw::MakeWndBuf(static_cast<int>(width), static_cast<int>(height), me2->Handle);
+	if (drawBuf)
+		me2->WndBuf = Draw::MakeWndBuf(static_cast<int>(width), static_cast<int>(height), me2->Handle);
 	return me_;
+}
+
+EXPORT_CPP SClass* _makeTextEditor(SClass* me_, SClass* parent, S64 left, S64 top, S64 width, S64 height)
+{
+	// TODO:
+	return NULL;
 }
 
 EXPORT_CPP void _wndDtor(SClass* me_)
 {
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
-	Draw::FinWndBuf(me2->WndBuf);
+	if (me2->WndBuf != NULL)
+		Draw::FinWndBuf(me2->WndBuf);
 }
 
 static LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
