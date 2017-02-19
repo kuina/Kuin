@@ -905,12 +905,14 @@ static void RebuildFunc(SAstFunc* ast)
 		if (Option->Env != Env_Wnd)
 		{
 			if (wcscmp(ast->DllName, L"d0001.knd") == 0)
-				correct = False;
+				correct = False; // lib_wnd
+			if (wcscmp(ast->DllName, L"d0003.knd") == 0)
+				correct = False; // lib_mfc
 		}
 		if (Option->Env != Env_Cui)
 		{
 			if (wcscmp(ast->DllName, L"d0002.knd") == 0)
-				correct = False;
+				correct = False; // lib_cui
 		}
 		if (!correct)
 			Err(L"EA0062", NULL, ((SAst*)ast)->Pos->SrcName);

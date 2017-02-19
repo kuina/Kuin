@@ -73,7 +73,7 @@ EXPORT Bool Build(const Char* path, const Char* sys_dir, const Char* output, con
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0004", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
-	Deploy(pack_asm.AppCode, &option);
+	Deploy(pack_asm.AppCode, &option, dlls);
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0005", NULL, (double)(timeGetTime() - begin_time) / 1000.0);

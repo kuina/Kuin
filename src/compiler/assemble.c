@@ -122,7 +122,7 @@ static void ClearMem(EReg dst, U64 size, EReg reg_tmp);
 static int GetSize(const SAstType* type);
 static void DbgBreak(void);
 static void RefFuncRecursion(SAstClass* class_);
-static const void* InitDLLs(const Char* key, const void* value, void* param);
+static const void* InitDlls(const Char* key, const void* value, void* param);
 static const void* InitDLLFuncs(const Char* key, const void* value, void* param);
 static const void* FinDLLs(const Char* key, const void* value, void* param);
 static void SetTypeId(EReg reg, const SAstType* type);
@@ -1162,7 +1162,7 @@ static void RefFuncRecursion(SAstClass* class_)
 	}
 }
 
-static const void* InitDLLs(const Char* key, const void* value, void* param)
+static const void* InitDlls(const Char* key, const void* value, void* param)
 {
 	SAsmLabel* lbl1 = AsmLabel();
 	SAsmLabel* lbl2 = AsmLabel();
@@ -1611,7 +1611,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 			// Initialize the Dlls.
 			{
 				SAsmLabel* lbl1 = AsmLabel();
-				DictForEach(Dlls, InitDLLs, scope_entry->End);
+				DictForEach(Dlls, InitDlls, scope_entry->End);
 #if defined(_DEBUG)
 				// DbgBreak();
 #endif

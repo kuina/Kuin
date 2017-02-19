@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "compiler", "src\compiler\compiler.vcxproj", "{386064E7-EF36-4A2C-BAA1-0085F547AE60}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_common", "src\lib_common\lib_common.vcxproj", "{5F99E3AF-2B33-47EF-8B70-AF6A3E3B8248}"
@@ -15,6 +17,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_wnd", "src\lib_wnd\lib_wnd.vcxproj", "{A5A772DE-2491-4CD0-9B4B-7E5FE900FED7}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kuincl", "src\kuincl\kuincl.vcxproj", "{AEC661A2-2A3A-4685-B567-48636A07213D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_mfc", "src\lib_mfc\lib_mfc.vcxproj", "{8BA71C63-A84B-4E71-843D-BBEBF3AFB0DF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -55,6 +59,12 @@ Global
 		{AEC661A2-2A3A-4685-B567-48636A07213D}.Release_dbg|x64.ActiveCfg = Release|x64
 		{AEC661A2-2A3A-4685-B567-48636A07213D}.Release_rls|x64.ActiveCfg = Release|x64
 		{AEC661A2-2A3A-4685-B567-48636A07213D}.Release_rls|x64.Build.0 = Release|x64
+		{8BA71C63-A84B-4E71-843D-BBEBF3AFB0DF}.Debug|x64.ActiveCfg = Debug|x64
+		{8BA71C63-A84B-4E71-843D-BBEBF3AFB0DF}.Debug|x64.Build.0 = Debug|x64
+		{8BA71C63-A84B-4E71-843D-BBEBF3AFB0DF}.Release_dbg|x64.ActiveCfg = Release_dbg|x64
+		{8BA71C63-A84B-4E71-843D-BBEBF3AFB0DF}.Release_dbg|x64.Build.0 = Release_dbg|x64
+		{8BA71C63-A84B-4E71-843D-BBEBF3AFB0DF}.Release_rls|x64.ActiveCfg = Release_rls|x64
+		{8BA71C63-A84B-4E71-843D-BBEBF3AFB0DF}.Release_rls|x64.Build.0 = Release_rls|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

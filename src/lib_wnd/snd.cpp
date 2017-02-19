@@ -38,6 +38,7 @@ static SListSnd* ListSndTop = NULL;
 static SListSnd* ListSndBottom = NULL;
 static double MainVolume = 1.0;
 
+static LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static DWORD WINAPI CBStreamThread(LPVOID param);
 static Bool StreamCopy(SSnd* me_, S64 id);
 
@@ -265,7 +266,23 @@ namespace Snd
 
 void Init()
 {
-	Wnd = CreateWindowEx(0, L"KuinWndClass", L"", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
+	{
+		WNDCLASSEX wnd_class;
+		wnd_class.cbSize = sizeof(WNDCLASSEX);
+		wnd_class.style = CS_HREDRAW | CS_VREDRAW;
+		wnd_class.lpfnWndProc = WndProc;
+		wnd_class.cbClsExtra = 0;
+		wnd_class.cbWndExtra = 0;
+		wnd_class.hInstance = Instance;
+		wnd_class.hIcon = NULL;
+		wnd_class.hCursor = LoadCursor(NULL, IDC_ARROW);
+		wnd_class.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+		wnd_class.lpszMenuName = NULL;
+		wnd_class.lpszClassName = L"SndWndClass";
+		wnd_class.hIconSm = NULL;
+		RegisterClassEx(&wnd_class);
+	}
+	Wnd = CreateWindowEx(0, L"SndWndClass", L"", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
 
 	if (FAILED(DirectSoundCreate8(NULL, &Device, NULL)))
 		THROW(0x1000, L"");
@@ -285,6 +302,20 @@ void Fin()
 }
 
 } // namespace Snd
+
+static LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
+{
+	switch (msg)
+	{
+	case WM_CLOSE:
+		SendMessage(wnd, WM_DESTROY, 0, 0);
+		return 0;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
+	}
+	return DefWindowProc(wnd, msg, w_param, l_param);
+}
 
 static DWORD WINAPI CBStreamThread(LPVOID param)
 {

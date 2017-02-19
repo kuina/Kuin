@@ -1,4 +1,8 @@
 func [d0001.knd, _init] _init()
+	do @_dummy()
+end func
+
+func [d0003.knd] _dummy()
 end func
 
 func [d0001.knd] _fin()
