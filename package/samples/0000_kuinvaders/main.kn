@@ -3,8 +3,7 @@
 ; main関数は実行直後に呼ばれ、main関数を抜けるとアプリは終了する。
 func main()
 	do wnd@makeWnd(1600, 900, %fixed, true) {ウインドウの生成表示}
-	; wnd@actはウインドウ操作を処理する関数で、定期的に呼ばないとウインドウが操作できなくなる。
-	; wnd@actはウインドウが閉じられたらfalseを返すので、無限ループを抜けて終了するようにする。
+	; wnd@actはウインドウ操作を処理する関数で、定期的に呼ばないとウインドウが操作できなくなる。またウインドウを閉じたらfalseを返すので、無限ループを抜けて終了するようにする。
 	while(wnd@act())
 		do @title() {タイトル画面の呼び出し}
 		do @game() {ゲーム画面の呼び出し}
@@ -25,8 +24,7 @@ func game()
 	var texBack: draw@Tex :: draw@makeTex("res/back.jpg") {背景画像}
 	var texGame: draw@Tex :: draw@makeTex("res/game.png") {ゲームで使う画像}
 	var stage: int :: 1 {現在のステージ}
-	; 弾クラス。
-	class Beam()
+	class Beam() {弾クラス}
 		+var x: float {座標X}
 		+var y: float {座標Y}
 	end class
@@ -84,7 +82,7 @@ func game()
 			if(gameover <> 2)
 				do texGame.draw(playerX - 140.0 / 2.0, playerY - 220.0 / 2.0, (draw@cnt() / 10 % 3) $ float * 140.0, 0.0, 140.0, 220.0)
 			end if
-			; 敵全体の移動
+			; 敵全体の移動。
 			if(gameover = 0)
 				if(enemyTargetY <> 0.0)
 					do enemyY :+ 8.0 {画面端で下向きに移動する}
