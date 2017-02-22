@@ -20,7 +20,7 @@ static HMODULE MfcHandle;
 static void(*MfcInit)();
 static void(*MfcFin)();
 static Bool(*MfcAct)();
-static void*(*MfcMakeWnd)();
+static void*(*MfcMakeWnd)(S64 width, S64 height);
 static HWND(*MfcGetHwnd)(void* ptr);
 
 static Bool ExitAct;
@@ -53,7 +53,7 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 	MfcAct = reinterpret_cast<Bool(*)()>(GetProcAddress(MfcHandle, "_act"));
 	if (MfcAct == NULL)
 		THROW(0x1000, L"");
-	MfcMakeWnd = reinterpret_cast<void*(*)()>(GetProcAddress(MfcHandle, "_makeWnd"));
+	MfcMakeWnd = reinterpret_cast<void*(*)(S64, S64)>(GetProcAddress(MfcHandle, "_makeWnd"));
 	if (MfcMakeWnd == NULL)
 		THROW(0x1000, L"");
 	MfcGetHwnd = reinterpret_cast<HWND(*)(void*)>(GetProcAddress(MfcHandle, "_getHwnd"));
@@ -104,7 +104,7 @@ EXPORT_CPP Bool _act()
 EXPORT_CPP SClass* _makeWnd(SClass* me_, S64 width, S64 height, S64 style, Bool drawBuf)
 {
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
-	me2->Mfc = MfcMakeWnd();
+	me2->Mfc = MfcMakeWnd(width, height);
 	if (drawBuf)
 		me2->WndBuf = Draw::MakeWndBuf(static_cast<int>(width), static_cast<int>(height), MfcGetHwnd(me2->Mfc));
 	return me_;

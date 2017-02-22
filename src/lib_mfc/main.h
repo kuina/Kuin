@@ -46,7 +46,7 @@ EXPORT_CPP void _init();
 EXPORT_CPP void _fin();
 EXPORT_CPP void _dummy();
 EXPORT_CPP Bool _act();
-EXPORT_CPP void* _makeWnd();
+EXPORT_CPP void* _makeWnd(S64 width, S64 height);
 EXPORT_CPP HWND _getHwnd(void* ptr);
 
 class CKuinBackground : public CFrameWnd

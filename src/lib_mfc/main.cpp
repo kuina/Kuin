@@ -67,9 +67,12 @@ EXPORT_CPP Bool _act()
 	return True;
 }
 
-EXPORT_CPP void* _makeWnd()
+EXPORT_CPP void* _makeWnd(S64 width, S64 height)
 {
 	CKuinWnd* result = new CKuinWnd();
+	RECT rect = CFrameWnd::rectDefault;
+	rect.right = static_cast<LONG>(width);
+	rect.bottom = static_cast<LONG>(height);
 	result->Create(NULL, L"", WS_OVERLAPPEDWINDOW);
 	HICON icon = LoadIcon(static_cast<HINSTANCE>(GetModuleHandle(NULL)), reinterpret_cast<LPCWSTR>(static_cast<S64>(0x65))); // 0x65 is the resource ID of the application icon.
 	result->SetIcon(icon, FALSE);
