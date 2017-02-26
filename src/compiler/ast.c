@@ -1177,14 +1177,13 @@ static void DumpAstExprToBin(const SAstExprToBin* ast)
 
 static void DumpAstExprFromBin(const SAstExprFromBin* ast)
 {
-	PrintTab(); fwprintf(FilePtr, L"<ExprFromBin");
-	fwprintf(FilePtr, L" Offset=\"0x%08X\"", ast->Offset);
-	fwprintf(FilePtr, L">\n");
+	PrintTab(); fwprintf(FilePtr, L"<ExprFromBin>\n");
 	Tab++;
 	{
 		DumpAstExpr((const SAstExpr*)ast);
 		PrintAst(L"ExprFromBin_Child", (const SAst*)ast->Child);
 		PrintAst(L"ExprFromBin_ChildType", (const SAst*)ast->ChildType);
+		PrintAst(L"ExprFromBin_Offset", (const SAst*)ast->Offset);
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</ExprFromBin>\n");

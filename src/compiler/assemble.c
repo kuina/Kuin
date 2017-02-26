@@ -156,7 +156,7 @@ static void AssembleExprToBin(SAstExprToBin* ast, int reg_i, int reg_f);
 static void AssembleExprFromBin(SAstExprFromBin* ast, int reg_i, int reg_f);
 static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f);
 static void AssembleExprArray(SAstExprArray* ast, int reg_i, int reg_f);
-static void AssembleExprDot(SAstExprDot* ast, int reg_i, int reg_f);
+static void AssembleExprDot(SAstExprDot* ast, int reg_i, int reg_f, Bool expand_me);
 static void AssembleExprValue(SAstExprValue* ast, int reg_i, int reg_f);
 static void AssembleExprValueArray(SAstExprValueArray* ast, int reg_i, int reg_f);
 static void AssembleExprRef(SAstExpr* ast, int reg_i, int reg_f);
@@ -2804,7 +2804,7 @@ static void AssembleExpr(SAstExpr* ast, int reg_i, int reg_f)
 		case AstTypeId_ExprFromBin: AssembleExprFromBin((SAstExprFromBin*)ast, reg_i, reg_f); break;
 		case AstTypeId_ExprCall: AssembleExprCall((SAstExprCall*)ast, reg_i, reg_f); break;
 		case AstTypeId_ExprArray: AssembleExprArray((SAstExprArray*)ast, reg_i, reg_f); break;
-		case AstTypeId_ExprDot: AssembleExprDot((SAstExprDot*)ast, reg_i, reg_f); break;
+		case AstTypeId_ExprDot: AssembleExprDot((SAstExprDot*)ast, reg_i, reg_f, True); break;
 		case AstTypeId_ExprValue: AssembleExprValue((SAstExprValue*)ast, reg_i, reg_f); break;
 		case AstTypeId_ExprValueArray: AssembleExprValueArray((SAstExprValueArray*)ast, reg_i, reg_f); break;
 		case AstTypeId_ExprRef: AssembleExprRef((SAstExpr*)ast, reg_i, reg_f); break;
@@ -3717,6 +3717,7 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
 	ASSERT(((SAstExpr*)ast)->VarKind != AstExprVarKind_Unknown);
 	{
+		Bool class_method_call = ((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot && IsClass(((SAstExprDot*)ast->Func)->Var->Type);
 		STmpVars* tmp = PushRegs(reg_i - 1, reg_f - 1);
 		SAstArg** tmp_args = (SAstArg**)Alloc(sizeof(SAstArg*) * (size_t)ast->Args->Len);
 		{
@@ -3725,35 +3726,57 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 			while (ptr != NULL)
 			{
 				SAstExprCallArg* arg = (SAstExprCallArg*)ptr->Data;
-				AssembleExpr(arg->Arg, 0, 0);
-				if (arg->RefVar)
+				if (class_method_call && idx == 0)
 				{
-					ToRef(arg->Arg, RegI[0], RegI[0]);
-					tmp_args[idx] = MakeTmpVar(8, NULL);
-					ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_args[idx]), False)), ValReg(8, RegI[0])));
+					ptr = ptr->Next;
+					idx++;
+					continue;
 				}
-				else
 				{
-					int size = GetSize(arg->Arg->Type);
-					ToValue(arg->Arg, 0, 0);
-					tmp_args[idx] = MakeTmpVar(size, NULL);
-					if (IsFloat(arg->Arg->Type))
-						ListAdd(PackAsm->Asms, AsmMOVSD(ValMem(4, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_args[idx]), False)), ValReg(4, RegF[0])));
+					AssembleExpr(arg->Arg, 0, 0);
+					if (arg->RefVar)
+					{
+						ToRef(arg->Arg, RegI[0], RegI[0]);
+						tmp_args[idx] = MakeTmpVar(8, NULL);
+						ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_args[idx]), False)), ValReg(8, RegI[0])));
+					}
 					else
-						ListAdd(PackAsm->Asms, AsmMOV(ValMem(size, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_args[idx]), False)), ValReg(size, RegI[0])));
+					{
+						int size = GetSize(arg->Arg->Type);
+						ToValue(arg->Arg, 0, 0);
+						tmp_args[idx] = MakeTmpVar(size, NULL);
+						if (IsFloat(arg->Arg->Type))
+							ListAdd(PackAsm->Asms, AsmMOVSD(ValMem(4, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_args[idx]), False)), ValReg(4, RegF[0])));
+						else
+							ListAdd(PackAsm->Asms, AsmMOV(ValMem(size, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_args[idx]), False)), ValReg(size, RegI[0])));
+					}
 				}
 				ptr = ptr->Next;
 				idx++;
 			}
 		}
-		AssembleExpr(ast->Func, 0, 0);
+		if (class_method_call)
+			AssembleExprDot((SAstExprDot*)ast->Func, 0, 0, False);
+		else
+			AssembleExpr(ast->Func, 0, 0);
 		ToValue(ast->Func, 0, 0);
 		{
 			int idx = 0;
 			SListNode* ptr = ast->Args->Top;
 			while (ptr != NULL)
 			{
-				if ((((SAstTypeFunc*)ast->Func->Type)->FuncAttr & FuncAttr_AnyType) != 0 && ptr == ast->Args->Top->Next)
+				if (class_method_call && idx == 0)
+				{
+					// In case of method call, 'me' is not expanded, and store 'me' in the second argument.
+					ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_SP), NULL, (S64)idx * 8), ValReg(8, RegI[0])));
+					ASSERT(IsRef(((SAstExprCallArg*)ptr->Data)->Arg->Type) && !((SAstExprCallArg*)ptr->Data)->RefVar);
+					GcInc(0);
+					// Expand 'me'.
+					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x08)));
+					ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x08 + ((SAstExprDot*)ast->Func)->ClassItem->Addr)));
+					ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x00)));
+				}
+				else if ((((SAstTypeFunc*)ast->Func->Type)->FuncAttr & FuncAttr_AnyType) != 0 && ptr == ast->Args->Top->Next)
 				{
 					// Set the second argument of '_any_type' functions to the type of 'me'.
 					SetTypeId(RegI[1], ((SAstExprCallArg*)ast->Args->Top->Data)->Arg->Type);
@@ -3851,7 +3874,7 @@ static void AssembleExprArray(SAstExprArray* ast, int reg_i, int reg_f)
 	}
 }
 
-static void AssembleExprDot(SAstExprDot* ast, int reg_i, int reg_f)
+static void AssembleExprDot(SAstExprDot* ast, int reg_i, int reg_f, Bool expand_me)
 {
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
 	ASSERT(((SAstExpr*)ast)->VarKind != AstExprVarKind_Unknown);
@@ -3866,9 +3889,13 @@ static void AssembleExprDot(SAstExprDot* ast, int reg_i, int reg_f)
 		else
 		{
 			ASSERT(ast->ClassItem->Def->TypeId == AstTypeId_Func);
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08)));
-			ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08 + ast->ClassItem->Addr)));
-			ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
+			if (expand_me)
+			{
+				// In case of method call, 'me' should not be expanded.
+				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x08)));
+				ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x08 + ast->ClassItem->Addr)));
+				ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x00)));
+			}
 		}
 	}
 	else
