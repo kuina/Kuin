@@ -46,21 +46,65 @@ EXPORT_CPP void _init();
 EXPORT_CPP void _fin();
 EXPORT_CPP void _dummy();
 EXPORT_CPP Bool _act();
-EXPORT_CPP void* _makeWnd(S64 width, S64 height);
+EXPORT_CPP void* _makeWnd(S64 kind, void* parent, S64 x, S64 y, S64 width, S64 height, S64 anchor_num, const S64* anchor, const Char* text);
+EXPORT_CPP void _destroyWnd(void* wnd);
+EXPORT_CPP void _showWnd(void* wnd);
 EXPORT_CPP HWND _getHwnd(void* ptr);
 
 class CKuinBackground : public CFrameWnd
 {
-public:
-	DECLARE_MESSAGE_MAP()
 };
 
-class CKuinWnd : public CFrameWnd
+class CKuinWnd : public CDialog
 {
 public:
 	virtual void OnDestroy();
 
 	DECLARE_MESSAGE_MAP()
+};
+
+class CKuinDraw : public CStatic
+{
+};
+
+class CKuinBtn : public CButton
+{
+};
+
+class CKuinChk : public CButton
+{
+};
+
+class CKuinRadio : public CButton
+{
+};
+
+class CKuinEdit : public CEdit
+{
+};
+
+class CKuinEditMulti : public CEdit
+{
+};
+
+class CKuinList : public CListBox
+{
+};
+
+class CKuinCombo : public CComboBox
+{
+};
+
+class CKuinComboList : public CComboBox
+{
+};
+
+class CKuinLabel : public CStatic
+{
+};
+
+class CKuinGroup : public CButton
+{
 };
 
 class Clib_mfcApp : public CWinApp

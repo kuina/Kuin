@@ -1452,7 +1452,7 @@ void Fin()
 		Device->Release();
 }
 
-void* MakeWndBuf(int width, int height, HWND wnd)
+void* MakeDrawBuf(int width, int height, HWND wnd)
 {
 	SWndBuf* wnd_buf = static_cast<SWndBuf*>(AllocMem(sizeof(SWndBuf)));
 	memset(wnd_buf, 0, sizeof(SWndBuf));
@@ -1549,7 +1549,7 @@ void* MakeWndBuf(int width, int height, HWND wnd)
 	return wnd_buf;
 }
 
-void FinWndBuf(void* wnd_buf)
+void FinDrawBuf(void* wnd_buf)
 {
 	SWndBuf* wnd_buf2 = static_cast<SWndBuf*>(wnd_buf);
 	if (wnd_buf2->DepthView != NULL)

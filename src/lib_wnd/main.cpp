@@ -9,18 +9,37 @@
 #include "snd.h"
 #include "input.h"
 
-typedef struct SWnd
+enum EWndKind
+{
+	WndKind_Wnd = 0x00,
+	WndKind_Draw = 0x80,
+	WndKind_Btn,
+	WndKind_Chk,
+	WndKind_Radio,
+	WndKind_Edit,
+	WndKind_EditMulti,
+	WndKind_List,
+	WndKind_Combo,
+	WndKind_ComboList,
+	WndKind_Label,
+	WndKind_Group,
+};
+
+struct SWnd
 {
 	SClass Class;
+	EWndKind Kind;
 	void* Mfc;
-	void* WndBuf;
-} Wnd;
+	void* DrawBuf;
+};
 
 static HMODULE MfcHandle;
 static void(*MfcInit)();
 static void(*MfcFin)();
 static Bool(*MfcAct)();
-static void*(*MfcMakeWnd)(S64 width, S64 height);
+static void*(*MfcMakeWnd)(S64 kind, void* parent, S64 x, S64 y, S64 width, S64 height, S64 anchor_num, const S64* anchor, const Char* text);
+static void(*MfcShowWnd)(void* wnd);
+static void(*MfcDestroyWnd)(void* wnd);
 static HWND(*MfcGetHwnd)(void* ptr);
 
 static Bool ExitAct;
@@ -53,8 +72,14 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 	MfcAct = reinterpret_cast<Bool(*)()>(GetProcAddress(MfcHandle, "_act"));
 	if (MfcAct == NULL)
 		THROW(0x1000, L"");
-	MfcMakeWnd = reinterpret_cast<void*(*)(S64, S64)>(GetProcAddress(MfcHandle, "_makeWnd"));
+	MfcMakeWnd = reinterpret_cast<void*(*)(S64, void*, S64, S64, S64, S64, S64, const S64*, const Char*)>(GetProcAddress(MfcHandle, "_makeWnd"));
 	if (MfcMakeWnd == NULL)
+		THROW(0x1000, L"");
+	MfcShowWnd = reinterpret_cast<void(*)(void*)>(GetProcAddress(MfcHandle, "_showWnd"));
+	if (MfcShowWnd == NULL)
+		THROW(0x1000, L"");
+	MfcDestroyWnd = reinterpret_cast<void(*)(void*)>(GetProcAddress(MfcHandle, "_destroyWnd"));
+	if (MfcDestroyWnd == NULL)
 		THROW(0x1000, L"");
 	MfcGetHwnd = reinterpret_cast<HWND(*)(void*)>(GetProcAddress(MfcHandle, "_getHwnd"));
 	if (MfcGetHwnd == NULL)
@@ -101,24 +126,164 @@ EXPORT_CPP Bool _act()
 	return True;
 }
 
-EXPORT_CPP SClass* _makeWnd(SClass* me_, S64 width, S64 height, S64 style, Bool drawBuf)
+EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text)
 {
+	ASSERT(0 <= style && style <= 6);
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
-	me2->Mfc = MfcMakeWnd(width, height);
-	if (drawBuf)
-		me2->WndBuf = Draw::MakeWndBuf(static_cast<int>(width), static_cast<int>(height), MfcGetHwnd(me2->Mfc));
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	me2->Kind = WndKind_Wnd;
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_Wnd) + style, parent2 == NULL ? NULL : parent2->Mfc, 0, 0, width, height, 0, NULL, text == NULL ? AppName : reinterpret_cast<const Char*>(text + 0x10));
+	me2->DrawBuf = NULL;
 	return me_;
-}
-
-EXPORT_CPP SClass* _makeTextEditor(SClass* me_, SClass* parent, S64 left, S64 top, S64 width, S64 height)
-{
-	// TODO:
-	return NULL;
 }
 
 EXPORT_CPP void _wndDtor(SClass* me_)
 {
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
-	if (me2->WndBuf != NULL)
-		Draw::FinWndBuf(me2->WndBuf);
+	if (me2->DrawBuf != NULL)
+		Draw::FinDrawBuf(me2->DrawBuf);
+	if (me2->Mfc != NULL)
+		MfcDestroyWnd(me2->Mfc);
+}
+
+EXPORT_CPP SClass* _wndShow(SClass* me_)
+{
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	ASSERT(me2->Kind == WndKind_Wnd);
+	MfcShowWnd(me2->Mfc);
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor)
+{
+	ASSERT(parent != NULL);
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	me2->Kind = WndKind_Draw;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_Draw), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, NULL);
+	me2->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), MfcGetHwnd(me2->Mfc));
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeBtn(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor, const U8* text)
+{
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->Kind = WndKind_Btn;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_Btn), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, reinterpret_cast<const Char*>(text + 0x10));
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeChk(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor, const U8* text)
+{
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->Kind = WndKind_Chk;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_Chk), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, reinterpret_cast<const Char*>(text + 0x10));
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeRadio(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor, const U8* text)
+{
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->Kind = WndKind_Radio;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_Radio), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, reinterpret_cast<const Char*>(text + 0x10));
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeEdit(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor)
+{
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->Kind = WndKind_Edit;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_Edit), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, NULL);
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor)
+{
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->Kind = WndKind_EditMulti;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_EditMulti), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, NULL);
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor)
+{
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->Kind = WndKind_List;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_List), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, NULL);
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeCombo(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor)
+{
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->Kind = WndKind_Combo;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_Combo), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, NULL);
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeComboList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor)
+{
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->Kind = WndKind_ComboList;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_ComboList), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, NULL);
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeLabel(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor, const U8* text)
+{
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->Kind = WndKind_Label;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_Label), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, reinterpret_cast<const Char*>(text + 0x10));
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeGroup(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, const U8* anchor, const U8* text)
+{
+	ASSERT(width >= 0 && height >= 0);
+	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->Kind = WndKind_Group;
+	S64 anchor_num = anchor == NULL ? 0 : *reinterpret_cast<const S64*>(anchor + 0x08);
+	const S64* anchor_ptr = anchor_num == 0 ? NULL : reinterpret_cast<const S64*>(anchor + 0x10);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_Group), parent2->Mfc, x, y, width, height, anchor_num, anchor_ptr, reinterpret_cast<const Char*>(text + 0x10));
+	return me_;
 }

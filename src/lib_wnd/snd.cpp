@@ -278,11 +278,11 @@ void Init()
 		wnd_class.hCursor = LoadCursor(NULL, IDC_ARROW);
 		wnd_class.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
 		wnd_class.lpszMenuName = NULL;
-		wnd_class.lpszClassName = L"SndWndClass";
+		wnd_class.lpszClassName = L"KuinSndClass";
 		wnd_class.hIconSm = NULL;
 		RegisterClassEx(&wnd_class);
 	}
-	Wnd = CreateWindowEx(0, L"SndWndClass", L"", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
+	Wnd = CreateWindowEx(0, L"KuinSndClass", L"", WS_OVERLAPPED, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
 
 	if (FAILED(DirectSoundCreate8(NULL, &Device, NULL)))
 		THROW(0x1000, L"");

@@ -1,8 +1,14 @@
+var a: wnd@Wnd
+var b: wnd@Wnd
+var c: wnd@Edit
+
 func main()
-	do wnd@makeWnd(0, 1024, 768)
-	var snd: snd@Snd :: snd@makeSnd("data/tada.wav", true)
-	do snd.play(0.0)
+	func f()
+		do @a :: wnd@makeWnd(null, %normal, 1024, 768, "a1")
+		do @b :: wnd@makeWnd(null, %normal, 1024, 768, "a2")
+		do @c :: wnd@makeEdit(@b, 0, 0, 100, 100, null)
+	end func
+	do f()
 	while(wnd@act())
-		do draw@render()
 	end while
 end func

@@ -12,29 +12,126 @@ end func
 end func
 
 +enum WndStyle
+	normal
+	aspect
 	fixed
-	sizable
+	mdi
+	mdiChild
+	dock
+	dockChild
 end enum
 
-+class Wnd(kuin@ResClass)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
-	end func
++enum Anchor
+	left
+	top
+	right
+	bottom
+end enum
 
-	var handle: int
-	var wndBuf: int
-end class
-
-+class Ctrl(kuin@ResClass)
++class WndBase(kuin@ResClass)
 	*func [d0001.knd, _wndDtor, _force] _dtor()
 	end func
 
 	var kind: int
-	var parent: int
-	var buf: int
+	var handle: int
+	var drawBuf: int
 end class
 
-+func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, width: int, height: int, style: @WndStyle, drawBuf: bool): @Wnd
++class Wnd(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _wndShow] show(): @Wnd
+	end func
+end class
+
++class Draw(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++class Btn(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++class Chk(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++class Radio(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++class Edit(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++class EditMulti(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++class List(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++class Combo(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++class ComboList(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++class Label(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++class Group(@WndBase)
+	*func [d0001.knd, _wndDtor, _force] _dtor()
+	end func
+end class
+
++func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @WndBase, parent: @Wnd, style: @WndStyle, width: int, height: int, text: []char): @Wnd
 end func
 
-+func [d0001.knd, _makeTextEditor, _make_instance] makeTextEditor(me2: @Ctrl, parent: @Wnd, left: int, top: int, width: int, height: int): @Ctrl
++func [d0001.knd, _makeDraw, _make_instance] makeDraw(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @Draw
+end func
+
++func [d0001.knd, _makeBtn, _make_instance] makeBtn(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor, text: []char): @Btn
+end func
+
++func [d0001.knd, _makeChk, _make_instance] makeChk(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor, text: []char): @Chk
+end func
+
++func [d0001.knd, _makeRadio, _make_instance] makeRadio(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor, text: []char): @Radio
+end func
+
++func [d0001.knd, _makeEdit, _make_instance] makeEdit(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @Edit
+end func
+
++func [d0001.knd, _makeEditMulti, _make_instance] makeEditMulti(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @EditMulti
+end func
+
++func [d0001.knd, _makeList, _make_instance] makeList(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @List
+end func
+
++func [d0001.knd, _makeCombo, _make_instance] makeCombo(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @Combo
+end func
+
++func [d0001.knd, _makeComboList, _make_instance] makeComboList(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @ComboList
+end func
+
++func [d0001.knd, _makeLabel, _make_instance] makeLabel(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor, text: []char): @Label
+end func
+
++func [d0001.knd, _makeGroup, _make_instance] makeGroup(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor, text: []char): @Group
 end func
