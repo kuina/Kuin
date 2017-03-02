@@ -7,6 +7,8 @@
 #define _ATL_CSTRING_EXPLICIT_CONSTRUCTORS
 #include <afxwin.h>
 #include <afxext.h>
+#include <afxframewndex.h>
+#include <afxDockablePane.h>
 #ifndef _AFX_NO_OLE_SUPPORT
 	#include <afxole.h>
 	#include <afxodlgs.h>
@@ -55,11 +57,60 @@ class CKuinBackground : public CFrameWnd
 {
 };
 
-class CKuinWnd : public CDialog
+class CKuinWndNormal : public CWnd
 {
 public:
 	virtual void OnDestroy();
 
+	DECLARE_MESSAGE_MAP()
+};
+
+class CKuinWndFixed : public CWnd
+{
+public:
+	virtual void OnDestroy();
+
+	DECLARE_MESSAGE_MAP()
+};
+
+class CKuinWndAspect : public CWnd
+{
+public:
+	virtual void OnDestroy();
+
+	DECLARE_MESSAGE_MAP()
+};
+
+class CKuinWndMdi : public CMDIFrameWnd
+{
+public:
+	virtual void OnDestroy();
+
+	DECLARE_MESSAGE_MAP()
+};
+
+class CKuinWndMdiChild : public CMDIChildWnd
+{
+public:
+	virtual void OnDestroy();
+
+	DECLARE_MESSAGE_MAP()
+};
+
+class CKuinWndDock : public CFrameWndEx
+{
+public:
+	virtual void OnDestroy();
+protected:
+	CStatusBar m_wndStatusBar;
+public:
+	DECLARE_MESSAGE_MAP()
+};
+
+class CKuinWndDockChild : public CDockablePane
+{
+public:
+	virtual void OnDestroy();
 	DECLARE_MESSAGE_MAP()
 };
 

@@ -6,7 +6,13 @@
 
 enum EWndKind
 {
-	WndKind_Wnd = 0x00,
+	WndKind_WndNormal = 0x00,
+	WndKind_WndFixed,
+	WndKind_WndAspect,
+	WndKind_WndMdi,
+	WndKind_WndMdiChild,
+	WndKind_WndDock,
+	WndKind_WndDockChild,
 	WndKind_Draw = 0x80,
 	WndKind_Btn,
 	WndKind_Chk,
@@ -23,14 +29,74 @@ enum EWndKind
 static Clib_mfcApp theApp;
 static int WndNum;
 
-BEGIN_MESSAGE_MAP(CKuinWnd, CDialog)
+BEGIN_MESSAGE_MAP(CKuinWndNormal, CWnd)
 	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
-void CKuinWnd::OnDestroy()
+void CKuinWndNormal::OnDestroy()
 {
 	WndNum--;
-	CDialog::OnDestroy();
+	CWnd::OnDestroy();
+}
+
+BEGIN_MESSAGE_MAP(CKuinWndFixed, CWnd)
+	ON_WM_DESTROY()
+END_MESSAGE_MAP()
+
+void CKuinWndFixed::OnDestroy()
+{
+	WndNum--;
+	CWnd::OnDestroy();
+}
+
+BEGIN_MESSAGE_MAP(CKuinWndAspect, CWnd)
+	ON_WM_DESTROY()
+END_MESSAGE_MAP()
+
+void CKuinWndAspect::OnDestroy()
+{
+	WndNum--;
+	CWnd::OnDestroy();
+}
+
+BEGIN_MESSAGE_MAP(CKuinWndMdi, CMDIFrameWnd)
+	ON_WM_DESTROY()
+END_MESSAGE_MAP()
+
+void CKuinWndMdi::OnDestroy()
+{
+	WndNum--;
+	CMDIFrameWnd::OnDestroy();
+}
+
+BEGIN_MESSAGE_MAP(CKuinWndMdiChild, CMDIChildWnd)
+	ON_WM_DESTROY()
+END_MESSAGE_MAP()
+
+void CKuinWndMdiChild::OnDestroy()
+{
+	WndNum--;
+	CMDIChildWnd::OnDestroy();
+}
+
+BEGIN_MESSAGE_MAP(CKuinWndDock, CFrameWndEx)
+	ON_WM_DESTROY()
+END_MESSAGE_MAP()
+
+void CKuinWndDock::OnDestroy()
+{
+	WndNum--;
+	CFrameWndEx::OnDestroy();
+}
+
+BEGIN_MESSAGE_MAP(CKuinWndDockChild, CDockablePane)
+	ON_WM_DESTROY()
+END_MESSAGE_MAP()
+
+void CKuinWndDockChild::OnDestroy()
+{
+	WndNum--;
+	CDockablePane::OnDestroy();
 }
 
 BOOL Clib_mfcApp::InitInstance()
@@ -63,6 +129,8 @@ EXPORT_CPP void _init()
 		wnd_class.lpszClassName = L"KuinWndClass";
 		AfxRegisterClass(&wnd_class);
 	}
+
+	CDockingManager::SetDockingMode(DT_IMMEDIATE);
 }
 
 EXPORT_CPP void _fin()
@@ -104,16 +172,79 @@ EXPORT_CPP void* _makeWnd(S64 kind, void* parent, S64 x, S64 y, S64 width, S64 h
 	const UINT default_id = 0xffff;
 	switch (static_cast<EWndKind>(kind))
 	{
-		case WndKind_Wnd:
+		case WndKind_WndNormal:
 			{
 				WndNum++;
-				CKuinWnd* result = new CKuinWnd();
+				CKuinWndNormal* result = new CKuinWndNormal();
 				HWND parent2 = parent == NULL ? theApp.m_pMainWnd->m_hWnd : static_cast<CWnd*>(parent)->m_hWnd;
 				result->CreateEx(0, L"KuinWndClass", text, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width == -1 ? CW_USEDEFAULT : static_cast<int>(width), height == -1 ? CW_USEDEFAULT : static_cast<int>(height), parent2, NULL);
 				result->ShowWindow(SW_SHOWNORMAL);
 				result->UpdateWindow();
 				return result;
 			}
+		case WndKind_WndFixed:
+			{
+				WndNum++;
+				CKuinWndFixed* result = new CKuinWndFixed();
+				HWND parent2 = parent == NULL ? theApp.m_pMainWnd->m_hWnd : static_cast<CWnd*>(parent)->m_hWnd;
+				result->CreateEx(0, L"KuinWndClass", text, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, width == -1 ? CW_USEDEFAULT : static_cast<int>(width), height == -1 ? CW_USEDEFAULT : static_cast<int>(height), parent2, NULL);
+				result->ShowWindow(SW_SHOWNORMAL);
+				result->UpdateWindow();
+				return result;
+			}
+		case WndKind_WndAspect:
+		{
+			WndNum++;
+			CKuinWndAspect* result = new CKuinWndAspect();
+			HWND parent2 = parent == NULL ? theApp.m_pMainWnd->m_hWnd : static_cast<CWnd*>(parent)->m_hWnd;
+			result->CreateEx(0, L"KuinWndClass", text, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width == -1 ? CW_USEDEFAULT : static_cast<int>(width), height == -1 ? CW_USEDEFAULT : static_cast<int>(height), parent2, NULL);
+			result->ShowWindow(SW_SHOWNORMAL);
+			result->UpdateWindow();
+			return result;
+		}
+		case WndKind_WndMdi:
+		{
+			WndNum++;
+			CKuinWndMdi* result = new CKuinWndMdi();
+			CWnd* parent2 = parent == NULL ? theApp.m_pMainWnd : static_cast<CWnd*>(parent);
+			result->Create(NULL, text, WS_OVERLAPPEDWINDOW, rect, parent2);
+			result->ShowWindow(SW_SHOWNORMAL);
+			result->UpdateWindow();
+			return result;
+		}
+		case WndKind_WndMdiChild:
+		{
+			WndNum++;
+			CKuinWndMdiChild* result = new CKuinWndMdiChild();
+			CMDIFrameWnd* parent2 = parent == NULL ? NULL : static_cast<CMDIFrameWnd*>(parent);
+			result->Create(NULL, text, WS_CHILD | WS_VISIBLE | WS_OVERLAPPEDWINDOW, rect, parent2);
+			result->ShowWindow(SW_SHOWNORMAL);
+			result->UpdateWindow();
+			return result;
+		}
+		case WndKind_WndDock:
+		{
+			WndNum++;
+			CKuinWndDock* result = new CKuinWndDock();
+			CWnd* parent2 = parent == NULL ? theApp.m_pMainWnd : static_cast<CWnd*>(parent);
+			result->Create(NULL, text, WS_OVERLAPPEDWINDOW, rect, parent2);
+			result->EnableAutoHidePanes(CBRS_ALIGN_ANY);
+			result->ShowWindow(SW_SHOWNORMAL);
+			result->UpdateWindow();
+			return result;
+		}
+		case WndKind_WndDockChild:
+		{
+			WndNum++;
+			CKuinWndDockChild* result = new CKuinWndDockChild();
+			CFrameWndEx* parent2 = parent == NULL ? NULL : static_cast<CFrameWndEx*>(parent);
+			result->Create(text, parent2, rect, TRUE, 1, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | CBRS_LEFT | CBRS_FLOAT_MULTI);
+			result->EnableDocking(CBRS_ALIGN_ANY);
+			parent2->DockPane(result);
+			result->ShowWindow(SW_SHOWNORMAL);
+			result->UpdateWindow();
+			return result;
+		}
 		case WndKind_Draw:
 			{
 				CKuinDraw* result = new CKuinDraw();

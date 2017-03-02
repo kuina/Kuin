@@ -4,9 +4,9 @@ var c: wnd@Edit
 
 func main()
 	func f()
-		do @a :: wnd@makeWnd(null, %normal, 1024, 768, "a1")
-		do @b :: wnd@makeWnd(null, %normal, 1024, 768, "a2")
-		do @c :: wnd@makeEdit(@b, 0, 0, 100, 100, null)
+		do @a :: wnd@makeWnd(null, %dock, 1024, 768, "a1")
+		do @b :: wnd@makeWnd(@a, %dockChild, 200, 200, "a2")
+		{do @c :: wnd@makeEdit(@b, 0, 0, 100, 100, null)}
 	end func
 	do f()
 	while(wnd@act())

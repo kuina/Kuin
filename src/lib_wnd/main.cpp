@@ -11,7 +11,13 @@
 
 enum EWndKind
 {
-	WndKind_Wnd = 0x00,
+	WndKind_WndNormal = 0x00,
+	WndKind_WndFixed,
+	WndKind_WndAspect,
+	WndKind_WndMdi,
+	WndKind_WndMdiChild,
+	WndKind_WndDock,
+	WndKind_WndDockChild,
 	WndKind_Draw = 0x80,
 	WndKind_Btn,
 	WndKind_Chk,
@@ -131,8 +137,8 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	ASSERT(0 <= style && style <= 6);
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
 	SWnd* parent2 = reinterpret_cast<SWnd*>(parent);
-	me2->Kind = WndKind_Wnd;
-	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_Wnd) + style, parent2 == NULL ? NULL : parent2->Mfc, 0, 0, width, height, 0, NULL, text == NULL ? AppName : reinterpret_cast<const Char*>(text + 0x10));
+	me2->Kind = static_cast<EWndKind>(static_cast<S64>(WndKind_WndNormal) + style);
+	me2->Mfc = MfcMakeWnd(static_cast<S64>(WndKind_WndNormal) + style, parent2 == NULL ? NULL : parent2->Mfc, 0, 0, width, height, 0, NULL, text == NULL ? AppName : reinterpret_cast<const Char*>(text + 0x10));
 	me2->DrawBuf = NULL;
 	return me_;
 }
@@ -149,7 +155,7 @@ EXPORT_CPP void _wndDtor(SClass* me_)
 EXPORT_CPP SClass* _wndShow(SClass* me_)
 {
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
-	ASSERT(me2->Kind == WndKind_Wnd);
+	ASSERT(static_cast<S64>(me2->Kind) < 0x80);
 	MfcShowWnd(me2->Mfc);
 	return me_;
 }
