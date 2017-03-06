@@ -16,4 +16,5 @@
 *.ilk
 *.vs
 *.ps
+*.opendb
 /test/output/

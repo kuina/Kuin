@@ -26,7 +26,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT Bool Build(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col))
+EXPORT Bool Build(FILE*(__cdecl*func_wfopen)(const Char*, const Char*), int(__cdecl*func_fclose)(FILE*), U16(__cdecl*func_fgetwc)(FILE*), size_t(_cdecl*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col))
 {
 	SOption option;
 	SDict* asts;
@@ -57,7 +57,7 @@ EXPORT Bool Build(const Char* path, const Char* sys_dir, const Char* output, con
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0000", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
-	asts = Parse(&option);
+	asts = Parse(func_wfopen, func_fclose, func_fgetwc, func_size, &option);
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0001", NULL, (double)(timeGetTime() - begin_time) / 1000.0);

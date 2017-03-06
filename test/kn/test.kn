@@ -1,14 +1,27 @@
-var a: wnd@Wnd
-var b: wnd@Wnd
-var c: wnd@Edit
+var wndMain: wnd@Wnd
+var tabSrc: wnd@Tab
+var editSrc: wnd@EditMulti
+var editLog: wnd@EditMulti
+var btnCompile: wnd@Btn
+var listFile: wnd@List
 
 func main()
-	func f()
-		do @a :: wnd@makeWnd(null, %dock, 1024, 768, "a1")
-		do @b :: wnd@makeWnd(@a, %dockChild, 200, 200, "a2")
-		{do @c :: wnd@makeEdit(@b, 0, 0, 100, 100, null)}
-	end func
-	do f()
+	do @makeWnd()
+	
 	while(wnd@act())
 	end while
+end func
+
+func makeWnd()
+	do @wndMain :: wnd@makeWnd(null, %normal, 1024, 768, "a1")
+	do @tabSrc :: wnd@makeTab(@wndMain, 0, 0, 1024 - 200, 768 - 100, %scale, %scale)
+	do @editSrc :: wnd@makeEditMulti(@tabSrc, 0, 50, 1024 - 200, 768 - 150, %scale, %scale)
+	do @editLog :: wnd@makeEditMulti(@wndMain, 0, 768 - 100, 1024, 100, %scale, %move)
+	do @btnCompile :: wnd@makeBtn(@wndMain, 1024 - 200, 0, 200, 50, %move, %fix, "コンパイル")
+	do @btnCompile.onPush :: @btnCompileOnPush
+	do @listFile :: wnd@makeList(@wndMain, 1024 - 200, 384, 200, 384 - 100, %move, %scale)
+end func
+
+func btnCompileOnPush()
+	do wnd@msgBox(@wndMain, "test", null, %error, %cancelAgainContinue)
 end func

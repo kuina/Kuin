@@ -269,20 +269,20 @@ void Init()
 	{
 		WNDCLASSEX wnd_class;
 		wnd_class.cbSize = sizeof(WNDCLASSEX);
-		wnd_class.style = CS_HREDRAW | CS_VREDRAW;
+		wnd_class.style = 0;
 		wnd_class.lpfnWndProc = WndProc;
 		wnd_class.cbClsExtra = 0;
 		wnd_class.cbWndExtra = 0;
 		wnd_class.hInstance = Instance;
 		wnd_class.hIcon = NULL;
-		wnd_class.hCursor = LoadCursor(NULL, IDC_ARROW);
-		wnd_class.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+		wnd_class.hCursor = NULL;
+		wnd_class.hbrBackground = NULL;
 		wnd_class.lpszMenuName = NULL;
 		wnd_class.lpszClassName = L"KuinSndClass";
 		wnd_class.hIconSm = NULL;
 		RegisterClassEx(&wnd_class);
 	}
-	Wnd = CreateWindowEx(0, L"KuinSndClass", L"", WS_OVERLAPPED, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
+	Wnd = CreateWindowEx(0, L"KuinSndClass", L"", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
 
 	if (FAILED(DirectSoundCreate8(NULL, &Device, NULL)))
 		THROW(0x1000, L"");

@@ -1,8 +1,4 @@
 func [d0001.knd, _init] _init()
-	do @_dummy()
-end func
-
-func [d0003.knd] _dummy()
 end func
 
 func [d0001.knd] _fin()
@@ -13,7 +9,7 @@ end func
 
 +enum WndStyle
 	normal
-	fixed
+	fix
 	aspect
 	mdi
 	mdiChild
@@ -22,116 +18,238 @@ end func
 end enum
 
 +enum Anchor
-	left
-	top
-	right
-	bottom
+	fix
+	move
+	scale
 end enum
 
 +class WndBase(kuin@ResClass)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
 	var kind: int
 	var handle: int
+	var defaultWndProc: int
 	var drawBuf: int
+	var ctrlFlag: int
+	var defaultRect: int
 end class
 
 +class Wnd(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
-	end func
-
-	+func [d0001.knd, _wndShow] show(): @Wnd
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
 +class Draw(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
 +class Btn(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+	
+	+var onPush: func<()>
 end class
 
 +class Chk(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
 +class Radio(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
 +class Edit(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
 +class EditMulti(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
 +class List(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
 +class Combo(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
 +class ComboList(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
 +class Label(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
 +class Group(@WndBase)
-	*func [d0001.knd, _wndDtor, _force] _dtor()
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
-+func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @WndBase, parent: @Wnd, style: @WndStyle, width: int, height: int, text: []char): @Wnd
++class Calendar(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class Progress(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class Rebar(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class Status(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class Toolbar(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class Trackbar(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class LabelLink(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class ListView(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class Pager(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class Tab(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class Tree(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++enum MsgBoxIcon
+	none
+	error :: 16#10
+	question :: 16#20
+	warn :: 16#30
+	info :: 16#40
+end enum
+
++enum MsgBoxBtn
+	ok
+	okCancel
+	abortRetryIgnore
+	yesNoCancel
+	yesNo
+	retryCancel
+	cancelAgainContinue
+end enum
+
++enum MsgBoxResult
+	ok :: 1
+	cancel
+	abort
+	retry
+	ignore
+	yes
+	no
+	again :: 10
+	continue
+end enum
+
++func [d0001.knd, _msgBox] msgBox(parent: @WndBase, text: []char, title: []char, icon: @MsgBoxIcon, btn: @MsgBoxBtn): @MsgBoxResult
 end func
 
-+func [d0001.knd, _makeDraw, _make_instance] makeDraw(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @Draw
++func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, parent: @WndBase, style: @WndStyle, width: int, height: int, text: []char): @Wnd
 end func
 
-+func [d0001.knd, _makeBtn, _make_instance] makeBtn(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor, text: []char): @Btn
++func [d0001.knd, _makeDraw, _make_instance] makeDraw(me2: @Draw, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Draw
 end func
 
-+func [d0001.knd, _makeChk, _make_instance] makeChk(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor, text: []char): @Chk
++func [d0001.knd, _makeBtn, _make_instance] makeBtn(me2: @Btn, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, text: []char): @Btn
 end func
 
-+func [d0001.knd, _makeRadio, _make_instance] makeRadio(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor, text: []char): @Radio
++func [d0001.knd, _makeChk, _make_instance] makeChk(me2: @Chk, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, text: []char): @Chk
 end func
 
-+func [d0001.knd, _makeEdit, _make_instance] makeEdit(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @Edit
++func [d0001.knd, _makeRadio, _make_instance] makeRadio(me2: @Radio, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, text: []char): @Radio
 end func
 
-+func [d0001.knd, _makeEditMulti, _make_instance] makeEditMulti(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @EditMulti
++func [d0001.knd, _makeEdit, _make_instance] makeEdit(me2: @Edit, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Edit
 end func
 
-+func [d0001.knd, _makeList, _make_instance] makeList(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @List
++func [d0001.knd, _makeEditMulti, _make_instance] makeEditMulti(me2: @EditMulti, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @EditMulti
 end func
 
-+func [d0001.knd, _makeCombo, _make_instance] makeCombo(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @Combo
++func [d0001.knd, _makeList, _make_instance] makeList(me2: @List, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @List
 end func
 
-+func [d0001.knd, _makeComboList, _make_instance] makeComboList(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor): @ComboList
++func [d0001.knd, _makeCombo, _make_instance] makeCombo(me2: @Combo, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Combo
 end func
 
-+func [d0001.knd, _makeLabel, _make_instance] makeLabel(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor, text: []char): @Label
++func [d0001.knd, _makeComboList, _make_instance] makeComboList(me2: @ComboList, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @ComboList
 end func
 
-+func [d0001.knd, _makeGroup, _make_instance] makeGroup(me2: @WndBase, parent: @Wnd, x: int, y: int, width: int, height: int, anchor: []@Anchor, text: []char): @Group
++func [d0001.knd, _makeLabel, _make_instance] makeLabel(me2: @Label, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, text: []char): @Label
+end func
+
++func [d0001.knd, _makeGroup, _make_instance] makeGroup(me2: @Group, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, text: []char): @Group
+end func
+
++func [d0001.knd, _makeCalendar, _make_instance] makeCalendar(me2: @Calendar, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Calendar
+end func
+
++func [d0001.knd, _makeProgress, _make_instance] makeProgress(me2: @Progress, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Progress
+end func
+
++func [d0001.knd, _makeRebar, _make_instance] makeRebar(me2: @Rebar, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Rebar
+end func
+
++func [d0001.knd, _makeStatus, _make_instance] makeStatus(me2: @Status, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Status
+end func
+
++func [d0001.knd, _makeToolbar, _make_instance] makeToolbar(me2: @Toolbar, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Toolbar
+end func
+
++func [d0001.knd, _makeTrackbar, _make_instance] makeTrackbar(me2: @Trackbar, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Trackbar
+end func
+
++func [d0001.knd, _makeLabelLink, _make_instance] makeLabelLink(me2: @LabelLink, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @LabelLink
+end func
+
++func [d0001.knd, _makeListView, _make_instance] makeListView(me2: @ListView, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @ListView
+end func
+
++func [d0001.knd, _makePager, _make_instance] makePager(me2: @Pager, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Pager
+end func
+
++func [d0001.knd, _makeTab, _make_instance] makeTab(me2: @Tab, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Tab
+end func
+
++func [d0001.knd, _makeTree, _make_instance] makeTree(me2: @Tree, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Tree
 end func

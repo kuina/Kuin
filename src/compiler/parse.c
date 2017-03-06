@@ -59,6 +59,10 @@ static const Char* Reserved[] =
 	L"while",
 };
 
+static FILE*(__cdecl*FuncWfopen)(const Char*, const Char*);
+static int(__cdecl*FuncFclose)(FILE*);
+static U16(__cdecl*FuncFgetwc)(FILE*);
+static size_t(_cdecl*FuncSize)(FILE*);
 static SDict* Srces;
 static SDict* Srces2;
 static const SOption* Option;
@@ -148,8 +152,12 @@ static SAstExpr* ParseExprCall(void);
 static SAstExpr* ParseExprValue(void);
 static SAstExpr* ParseExprNumber(int row, int col, Char c);
 
-SDict* Parse(const SOption* option)
+SDict* Parse(FILE*(__cdecl*func_wfopen)(const Char*, const Char*), int(__cdecl*func_fclose)(FILE*), U16(__cdecl*func_fgetwc)(FILE*), size_t(_cdecl*func_size)(FILE*), const SOption* option)
 {
+	FuncWfopen = func_wfopen;
+	FuncFclose = func_fclose;
+	FuncFgetwc = func_fgetwc;
+	FuncSize = func_size;
 	Bool end_flag = False;
 
 #ifdef _DEBUG
@@ -226,7 +234,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 		else
 		{
 			true_path = NewStr(NULL, L"%s%s.knc", Option->SysDir, src_name);
-			FilePtr = _wfopen(true_path, L"rb");
+			FilePtr = FuncWfopen(true_path, L"rb");
 			if (FilePtr != NULL)
 			{
 				SrcName = src_name;
@@ -238,23 +246,20 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 		}
 		for (; ; )
 		{
-			FilePtr = _wfopen(true_path, L"r, ccs=UTF-8");
+			FilePtr = FuncWfopen(true_path, L"r, ccs=UTF-8");
 			if (FilePtr == NULL)
 			{
 				Err(L"EK0006", NULL, true_path);
 				return DummyPtr;
 			}
 			{
-				int file_size;
 				const Char* reload = NULL;
-				fseek(FilePtr, 0, SEEK_END);
-				file_size = (int)ftell(FilePtr);
-				fseek(FilePtr, 0, SEEK_SET);
+				size_t file_size = FuncSize(FilePtr);
 				if (file_size == 0)
 					reload = NewStr(NULL, L"%spreset00.knd", Option->SysDir);
 				else if (file_size == 1)
 				{
-					switch (fgetwc(FilePtr))
+					switch (FuncFgetwc(FilePtr))
 					{
 						case L'q': reload = NewStr(NULL, L"%spreset01.knd", Option->SysDir); break;
 						case L'f': reload = NewStr(NULL, L"%spreset02.knd", Option->SysDir); break;
@@ -279,7 +284,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 		Scope = NULL;
 		UniqueCnt = 0;
 		ast2 = ParseRoot();
-		fclose(FilePtr);
+		FuncFclose(FilePtr);
 		Srces2 = DictAdd(Srces2, src_name, ast2);
 		return ast2;
 	}
@@ -292,7 +297,7 @@ static Char ReadBuf(void)
 	{
 		if (FileBufTmp == L'\0')
 		{
-			wint_t c = fgetwc(FilePtr);
+			wint_t c = FuncFgetwc(FilePtr);
 			result = c == WEOF ? L'\0' : (Char)c;
 			if (result == L'\n')
 			{
