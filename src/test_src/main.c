@@ -13,11 +13,10 @@
 
 #pragma comment(lib, "compiler.lib")
 
-Bool Build(FILE*(__cdecl*func_wfopen)(const Char*, const Char*), int(__cdecl*func_fclose)(FILE*), U16(__cdecl*func_fgetwc)(FILE*), size_t(_cdecl*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col));
+Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col));
 
 static size_t UsedMem;
 
-static size_t GetSize(FILE* file_ptr);
 static void* Alloc(size_t size);
 static void Log(const Char* code, const Char* msg, const Char* src, int row, int col);
 static Bool Compare(const Char* path1, const Char* path2);
@@ -46,7 +45,7 @@ int wmain(void)
 			swprintf(log_path, MAX_PATH, L"../../test/output/log%04d.txt", i);
 			wprintf(L"%s\n", output_path);
 			UsedMem = 0;
-			if (!Build(_wfopen, fclose, fgetwc, GetSize, test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Alloc, Log))
+			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Alloc, Log))
 				goto Failure;
 			wprintf(L"Mem: %I64u[byte]\n", UsedMem);
 			wprintf(L"Compile[S]");
@@ -125,13 +124,13 @@ int wmain(void)
 	else if (type == -1)
 	{
 		UsedMem = 0;
-		if (!Build(_wfopen, fclose, fgetwc, GetSize, L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Alloc, Log))
+		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Alloc, Log))
 			goto Failure;
 	}
 	else if (type == -2)
 	{
 		UsedMem = 0;
-		if (!Build(_wfopen, fclose, fgetwc, GetSize, L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Alloc, Log))
+		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Alloc, Log))
 			goto Failure;
 	}
 	else
@@ -143,15 +142,6 @@ Failure:
 	wprintf(L"\nFailure.\n");
 	_getch();
 	return 0;
-}
-
-static size_t GetSize(FILE* file_ptr)
-{
-	int file_size;
-	fseek(file_ptr, 0, SEEK_END);
-	file_size = (int)ftell(file_ptr);
-	fseek(file_ptr, 0, SEEK_SET);
-	return (size_t)file_size;
 }
 
 static void* Alloc(size_t size)

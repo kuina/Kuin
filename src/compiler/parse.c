@@ -59,10 +59,10 @@ static const Char* Reserved[] =
 	L"while",
 };
 
-static FILE*(__cdecl*FuncWfopen)(const Char*, const Char*);
-static int(__cdecl*FuncFclose)(FILE*);
-static U16(__cdecl*FuncFgetwc)(FILE*);
-static size_t(_cdecl*FuncSize)(FILE*);
+static FILE*(*FuncWfopen)(const Char*, const Char*);
+static int(*FuncFclose)(FILE*);
+static U16(*FuncFgetwc)(FILE*);
+static size_t(*FuncSize)(FILE*);
 static SDict* Srces;
 static SDict* Srces2;
 static const SOption* Option;
@@ -152,7 +152,7 @@ static SAstExpr* ParseExprCall(void);
 static SAstExpr* ParseExprValue(void);
 static SAstExpr* ParseExprNumber(int row, int col, Char c);
 
-SDict* Parse(FILE*(__cdecl*func_wfopen)(const Char*, const Char*), int(__cdecl*func_fclose)(FILE*), U16(__cdecl*func_fgetwc)(FILE*), size_t(_cdecl*func_size)(FILE*), const SOption* option)
+SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const SOption* option)
 {
 	FuncWfopen = func_wfopen;
 	FuncFclose = func_fclose;

@@ -48,7 +48,7 @@ end class
 +class Btn(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
-	
+
 	+var onPush: func<()>
 end class
 

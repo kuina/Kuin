@@ -147,7 +147,7 @@ int wmain(int argc, Char** argv)
 			return 1;
 		}
 		{
-			TypeOfBuild func_build = (TypeOfBuild)GetProcAddress(library, "Build");
+			TypeOfBuild func_build = (TypeOfBuild)GetProcAddress(library, "BuildFile");
 			TypeOfVersion func_version = (TypeOfVersion)GetProcAddress(library, "Version");
 			if (func_build == NULL || func_version == NULL)
 			{

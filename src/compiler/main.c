@@ -18,6 +18,9 @@
 #include "parse.h"
 #include "util.h"
 
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col));
+static size_t GetSize(FILE* file_ptr);
+
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
 	UNUSED(hinst);
@@ -26,7 +29,19 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT Bool Build(FILE*(__cdecl*func_wfopen)(const Char*, const Char*), int(__cdecl*func_fclose)(FILE*), U16(__cdecl*func_fgetwc)(FILE*), size_t(_cdecl*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col))
+EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col))
+{
+	return Build(_wfopen, fclose, fgetwc, GetSize, path, sys_dir, output, icon, rls, env, allocator, log_func);
+}
+
+EXPORT void Version(int* major, int* minor, int* micro)
+{
+	*major = 9;
+	*minor = 17;
+	*micro = 0;
+}
+
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col))
 {
 	SOption option;
 	SDict* asts;
@@ -88,9 +103,11 @@ ERR:
 	return False;
 }
 
-EXPORT void Version(int* major, int* minor, int* micro)
+static size_t GetSize(FILE* file_ptr)
 {
-	*major = 9;
-	*minor = 17;
-	*micro = 0;
+	int file_size;
+	fseek(file_ptr, 0, SEEK_END);
+	file_size = (int)ftell(file_ptr);
+	fseek(file_ptr, 0, SEEK_SET);
+	return (size_t)file_size;
 }

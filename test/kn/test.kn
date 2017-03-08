@@ -5,9 +5,18 @@ var editLog: wnd@EditMulti
 var btnCompile: wnd@Btn
 var listFile: wnd@List
 
+class Line()
+	+var src: []char
+	+var commentLevel: int
+end class
+
+var srcs: dict<[]char, list<@Line>>
+var mainSrc: []char
+var curSrc: list<@Line>
+
 func main()
 	do @makeWnd()
-	
+
 	while(wnd@act())
 	end while
 end func
@@ -17,9 +26,19 @@ func makeWnd()
 	do @tabSrc :: wnd@makeTab(@wndMain, 0, 0, 1024 - 200, 768 - 100, %scale, %scale)
 	do @editSrc :: wnd@makeEditMulti(@tabSrc, 0, 50, 1024 - 200, 768 - 150, %scale, %scale)
 	do @editLog :: wnd@makeEditMulti(@wndMain, 0, 768 - 100, 1024, 100, %scale, %move)
-	do @btnCompile :: wnd@makeBtn(@wndMain, 1024 - 200, 0, 200, 50, %move, %fix, "コンパイル")
+	do @btnCompile :: wnd@makeBtn(@wndMain, 1024 - 200, 0, 200, 50, %move, %fix, "Compile")
 	do @btnCompile.onPush :: @btnCompileOnPush
 	do @listFile :: wnd@makeList(@wndMain, 1024 - 200, 384, 200, 384 - 100, %move, %scale)
+
+	do @srcs :: #dict<[]char, list<@Line>>
+	do @curSrc :: #list<@Line>
+	do @srcs.add("$", @curSrc)
+
+	do @mainSrc :: "$"
+	var line: @Line :: #@Line
+	do line.src :: "f"
+	do line.commentLevel :: 0
+	do @curSrc.add(line)
 end func
 
 func btnCompileOnPush()
