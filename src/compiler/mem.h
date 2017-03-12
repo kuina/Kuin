@@ -2,5 +2,7 @@
 
 #include "..\common.h"
 
-void SetAllocator(void*(*allocator)(size_t size));
 void* Alloc(size_t size);
+void InitAllocator(void);
+void FinAllocator(void);
+void ResetAllocator(void);

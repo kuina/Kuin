@@ -68,6 +68,10 @@
       <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)test\test_exe\compiler.dll
 echo F | xcopy /y /r $(TargetDir)compiler.lib $(SolutionDir)src\test_src\compiler.lib</Command>
     </PostBuildEvent>
+    <CustomBuild>
+      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp /Zi /Zd %(Filename).asm</Command>
+      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -90,6 +94,10 @@ echo F | xcopy /y /r $(TargetDir)compiler.lib $(SolutionDir)src\test_src\compile
     <PostBuildEvent>
       <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\d0917.knd</Command>
     </PostBuildEvent>
+    <CustomBuild>
+      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp %(Filename).asm</Command>
+      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\common.c" />
@@ -128,6 +136,11 @@ echo F | xcopy /y /r $(TargetDir)compiler.lib $(SolutionDir)src\test_src\compile
     <ClInclude Include="pos.h" />
     <ClInclude Include="stack.h" />
     <ClInclude Include="util.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="low_level.asm">
+      <FileType>Document</FileType>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -95,6 +95,7 @@ struct SRadio
 struct SEdit
 {
 	SWndBase WndBase;
+	void(*on_change)();
 };
 
 struct SEditMulti
@@ -185,6 +186,8 @@ struct STree
 static int WndCnt;
 static Bool ExitAct;
 
+static const U8* NToRN(const Char* str);
+static const U8* RNToN(const Char* str);
 static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64 anchor_y, S64 x, S64 y, S64 width, S64 height);
 static SWndBase* ToWnd(HWND wnd);
 static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const Char* ctrl, DWORD style, S64 x, S64 y, S64 width, S64 height, const Char* text, WNDPROC wnd_proc, S64 anchor_x, S64 anchor_y);
@@ -344,15 +347,15 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	switch (me2->Kind)
 	{
 		case WndKind_WndNormal:
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndNormalClass", reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(0, L"KuinWndNormalClass", reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndFix:
 			ASSERT(width >= 0 && height >= 0);
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndFixClass", reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(0, L"KuinWndFixClass", reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndAspect:
 			ASSERT(width >= 0 && height >= 0);
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndAspectClass", reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(0, L"KuinWndAspectClass", reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 			// TODO:
 		default:
@@ -386,6 +389,24 @@ EXPORT_CPP void _wndBaseDtor(SClass* me_)
 	if (me2->DrawBuf != NULL)
 		Draw::FinDrawBuf(me2->DrawBuf);
 	SendMessage(me2->WndHandle, WM_DESTROY, 0, 0);
+}
+
+EXPORT_CPP void _wndSetText(SClass* me_, const U8* text)
+{
+	const U8* text2 = NToRN(reinterpret_cast<const Char*>(text + 0x10));
+	SetWindowText(reinterpret_cast<SWndBase*>(me_)->WndHandle, reinterpret_cast<const Char*>(text2 + 0x10));
+	FreeMem(const_cast<U8*>(text2));
+}
+
+EXPORT_CPP const U8* _wndGetText(SClass* me_)
+{
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	int len = GetWindowTextLength(wnd);
+	Char* buf = static_cast<Char*>(AllocMem(sizeof(Char) * static_cast<size_t>(len + 1)));
+	GetWindowText(wnd, buf, len + 1);
+	const U8* result = RNToN(buf);
+	FreeMem(buf);
+	return result;
 }
 
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
@@ -520,6 +541,89 @@ EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 {
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
 	return me_;
+}
+
+static const U8* NToRN(const Char* str)
+{
+	size_t len = 0;
+	{
+		const Char* ptr = str;
+		Char back = L'\0';
+		while (*ptr != L'\0')
+		{
+			len++;
+			if (back != L'\r' && *ptr == L'\n')
+				len++;
+			back = *ptr;
+			ptr++;
+		}
+	}
+	U8* buf = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * (len + 1)));
+	*reinterpret_cast<S64*>(buf + 0x00) = DefaultRefCntFunc;
+	*reinterpret_cast<S64*>(buf + 0x08) = static_cast<S64>(len);
+	{
+		Char* dst = reinterpret_cast<Char*>(buf + 0x10);
+		const Char* src = str;
+		Char back = L'\0';
+		while (*src != L'\0')
+		{
+			if (back != L'\r' && *src == L'\n')
+			{
+				*dst = L'\r';
+				dst++;
+				*dst = L'\n';
+			}
+			else
+				*dst = *src;
+			dst++;
+			back = *src;
+			src++;
+		}
+		ASSERT(reinterpret_cast<U8*>(dst) == buf + 0x10 + sizeof(Char) * len);
+		*dst = L'\0';
+	}
+	return buf;
+}
+
+static const U8* RNToN(const Char* str)
+{
+	size_t len = 0;
+	{
+		const Char* ptr = str;
+		Char back = L'\0';
+		while (*ptr != L'\0')
+		{
+			len++;
+			if (back == L'\r' && *ptr == L'\n')
+				len--;
+			back = *ptr;
+			ptr++;
+		}
+	}
+	U8* buf = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * (len + 1)));
+	*reinterpret_cast<S64*>(buf + 0x00) = DefaultRefCntFunc;
+	*reinterpret_cast<S64*>(buf + 0x08) = static_cast<S64>(len);
+	{
+		Char* dst = reinterpret_cast<Char*>(buf + 0x10);
+		const Char* src = str;
+		Char back = L'\0';
+		while (*src != L'\0')
+		{
+			if (back == L'\r' && *src == L'\n')
+			{
+				dst--;
+				*dst = L'\n';
+			}
+			else
+				*dst = *src;
+			dst++;
+			back = *src;
+			src++;
+		}
+		ASSERT(reinterpret_cast<U8*>(dst) == buf + 0x10 + sizeof(Char) * len);
+		*dst = L'\0';
+	}
+	return buf;
 }
 
 static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64 anchor_y, S64 x, S64 y, S64 width, S64 height)
@@ -661,7 +765,7 @@ static void CommandAndNotify(UINT msg, WPARAM w_param, LPARAM l_param)
 							break;
 						case BN_CLICKED:
 							if (btn->on_push != NULL)
-								btn->on_push();
+								Call0Asm(btn->on_push);
 							break;
 						case BN_DBLCLK:
 							// TODO:

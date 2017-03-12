@@ -85,6 +85,10 @@
     <PostBuildEvent>
       <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)test\output\data\d0001.knd</Command>
     </PostBuildEvent>
+    <CustomBuild>
+      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp /Zi /Zd %(Filename).asm</Command>
+      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_rls|x64'">
     <ClCompile>
@@ -107,6 +111,10 @@
     <PostBuildEvent>
       <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\rls\d0001.knd</Command>
     </PostBuildEvent>
+    <CustomBuild>
+      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp %(Filename).asm</Command>
+      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_dbg|x64'">
     <ClCompile>
@@ -129,6 +137,10 @@
     <PostBuildEvent>
       <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\dbg\d0001.knd</Command>
     </PostBuildEvent>
+    <CustomBuild>
+      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp %(Filename).asm</Command>
+      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\common.c" />
@@ -161,6 +173,11 @@
     <ClInclude Include="png_decoder.h" />
     <ClInclude Include="snd.h" />
     <ClInclude Include="wav.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="low_level.asm">
+      <FileType>Document</FileType>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

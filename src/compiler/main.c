@@ -18,8 +18,20 @@
 #include "parse.h"
 #include "util.h"
 
-static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col));
-static size_t GetSize(FILE* file_ptr);
+static const void*(*FuncGetSrc)(const U8*) = NULL;
+static const void(*FuncLog)(const void*, S64, S64) = NULL;
+static const void* Src = NULL;
+static const void* SrcLine = NULL;
+static const Char* SrcChar = NULL;
+
+static void DecSrc(void);
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col));
+static FILE* BuildMemWfopen(const Char* file_name, const Char* mode);
+static int BuildMemFclose(FILE* file_ptr);
+static U16 BuildMemFgetwc(FILE* file_ptr);
+static size_t BuildMemGetSize(FILE* file_ptr);
+static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int row, int col);
+static size_t BuildFileGetSize(FILE* file_ptr);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -29,9 +41,28 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col))
+EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* output, const U8* icon, Bool rls, const U8* env, void(*func_log)(const void* args, S64 row, S64 col))
 {
-	return Build(_wfopen, fclose, fgetwc, GetSize, path, sys_dir, output, icon, rls, env, allocator, log_func);
+	Bool result;
+	FuncGetSrc = func_get_src;
+	FuncLog = func_log;
+	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon == NULL ? NULL : (const Char*)(icon + 0x10), rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog);
+	FuncGetSrc = NULL;
+	FuncLog = NULL;
+	DecSrc();
+	Src = NULL;
+	SrcLine = NULL;
+	SrcChar = NULL;
+	return result;
+}
+
+EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col))
+{
+	Bool result;
+	InitAllocator();
+	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log);
+	FinAllocator();
+	return result;
 }
 
 EXPORT void Version(int* major, int* minor, int* micro)
@@ -41,7 +72,32 @@ EXPORT void Version(int* major, int* minor, int* micro)
 	*micro = 0;
 }
 
-static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col))
+EXPORT void InitMemAllocator(void)
+{
+	InitAllocator();
+}
+
+EXPORT void FinMemAllocator(void)
+{
+	FinAllocator();
+}
+
+EXPORT void ResetMemAllocator(void)
+{
+	ResetAllocator();
+}
+
+static void DecSrc(void)
+{
+	// Decrement 'Src', but do not release it here. It will be released in '.kn'.
+	if (Src != NULL)
+	{
+		(*(S64*)Src)--;
+		ASSERT(*(S64*)Src > 0);
+	}
+}
+
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col))
 {
 	SOption option;
 	SDict* asts;
@@ -49,8 +105,6 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	SDict* dlls;
 	SPackAsm pack_asm;
 	U32 begin_time;
-
-	SetAllocator(allocator);
 
 	// Set the system directory.
 	if (sys_dir == NULL)
@@ -62,7 +116,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	else
 		sys_dir = GetDir(sys_dir, True, NULL);
 
-	SetLogFunc(log_func, 0, sys_dir);
+	SetLogFunc(func_log, 0, sys_dir);
 	ResetErrOccurred();
 
 	timeBeginPeriod(1);
@@ -103,7 +157,105 @@ ERR:
 	return False;
 }
 
-static size_t GetSize(FILE* file_ptr)
+static FILE* BuildMemWfopen(const Char* file_name, const Char* mode)
+{
+	UNUSED(mode);
+	{
+		U8 file_name2[0x10 + sizeof(Char) * (MAX_PATH + 1)];
+		*(S64*)(file_name2 + 0x00) = 2;
+		*(S64*)(file_name2 + 0x08) = (S64)wcslen(file_name);
+		wcscpy((Char*)(file_name2 + 0x10), file_name);
+		DecSrc();
+		Src = Call1Asm(file_name2, (void*)(U64)FuncGetSrc);
+		if (Src == NULL)
+			return NULL;
+		SrcLine = *(void**)((U8*)Src + 0x10);
+		SrcChar = (Char*)((U8*)*(void**)((U8*)*(void**)((U8*)SrcLine + 0x10) + 0x10) + 0x10);
+		return (FILE*)DummyPtr;
+	}
+}
+
+static int BuildMemFclose(FILE* file_ptr)
+{
+	UNUSED(file_ptr);
+	DecSrc();
+	Src = NULL;
+	SrcLine = NULL;
+	SrcChar = NULL;
+	return 0;
+}
+
+static U16 BuildMemFgetwc(FILE* file_ptr)
+{
+	UNUSED(file_ptr);
+	if (SrcLine == NULL)
+		return L'\0';
+	{
+		Char c = *SrcChar;
+		if (c != L'\0')
+		{
+			SrcChar++;
+			return c;
+		}
+		SrcLine = *(void**)((U8*)SrcLine + 0x08);
+		if (SrcLine == NULL)
+			return L'\0';
+		SrcChar = (Char*)((U8*)*(void**)((U8*)*(void**)((U8*)SrcLine + 0x10) + 0x10) + 0x10);
+		return L'\n';
+	}
+}
+
+static size_t BuildMemGetSize(FILE* file_ptr)
+{
+	UNUSED(file_ptr);
+	{
+		size_t total = 0;
+		void* ptr = *(void**)((U8*)Src + 0x10);
+		while (ptr != NULL)
+		{
+			total += *(S64*)((U8*)*(void**)((U8*)*(void**)((U8*)ptr + 0x10) + 0x10) + 0x08);
+			if (total >= 2)
+				return 2; // A value of 2 or more is not distinguished.
+			ptr = *(void**)((U8*)ptr + 0x08);
+		}
+		return total;
+	}
+}
+
+static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int row, int col)
+{
+	U8 code2[0x10 + sizeof(Char) * (MAX_PATH + 1)];
+	size_t len_msg = wcslen(msg);
+	U8* msg2 = Alloc(0x10 + sizeof(Char) * (len_msg + 1));
+	U8 src2[0x10 + sizeof(Char) * (MAX_PATH + 1)];
+	U8 args[0x10 + 0x18];
+	{
+		*(S64*)(code2 + 0x00) = 1;
+		*(S64*)(code2 + 0x08) = (S64)wcslen(code);
+		wcscpy((Char*)(code2 + 0x10), code);
+	}
+	{
+		*(S64*)(msg2 + 0x00) = 1;
+		*(S64*)(msg2 + 0x08) = (S64)len_msg;
+		wcscpy((Char*)(msg2 + 0x10), msg);
+	}
+	if (src != NULL)
+	{
+		*(S64*)(src2 + 0x00) = 1;
+		*(S64*)(src2 + 0x08) = (S64)wcslen(src);
+		wcscpy((Char*)(src2 + 0x10), src);
+	}
+	{
+		*(S64*)(args + 0x00) = 2;
+		*(S64*)(args + 0x08) = 3;
+		*(void**)(args + 0x10) = code2;
+		*(void**)(args + 0x18) = msg2;
+		*(void**)(args + 0x20) = src == NULL ? NULL : src2;
+	}
+	Call3Asm(args, (void*)(S64)row, (void*)(S64)col, (void*)(U64)FuncLog);
+}
+
+static size_t BuildFileGetSize(FILE* file_ptr)
 {
 	int file_size;
 	fseek(file_ptr, 0, SEEK_END);

@@ -268,6 +268,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 				}
 				if (reload == NULL)
 					break;
+				FuncFclose(FilePtr);
 				true_path = reload;
 			}
 		}

@@ -10,7 +10,7 @@ struct SWav
 };
 
 static void Close(void* handle);
-static Bool Read(void* handle, void* buf, S64 size, S64 looppos);
+static Bool Read(void* handle, void* buf, S64 size, S64 loop_pos);
 
 void* LoadWav(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64))
 {
@@ -105,8 +105,9 @@ static void Close(void* handle)
 	FreeMem(handle2);
 }
 
-static Bool Read(void* handle, void* buf, S64 size, S64 looppos)
+static Bool Read(void* handle, void* buf, S64 size, S64 loop_pos)
 {
+	// TODO: loop_pos
 	SWav* handle2 = reinterpret_cast<SWav*>(handle);
 	S64 size2 = static_cast<S64>(ReadFileStream(handle2->FileStream, size, buf));
 	if (size != size2)

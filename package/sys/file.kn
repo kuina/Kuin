@@ -23,7 +23,28 @@ end enum
 	+func [d0000.knd, _streamGetPos] getPos(): int
 	end func
 
+	+func [d0000.knd, _streamDelimiter] delimiter(delimiters: []char)
+	end func
+
 	+func [d0000.knd, _streamRead] read(size: int): []bit8
+	end func
+
+	+func [d0000.knd, _streamReadLetter] readLetter(): char
+	end func
+
+	+func [d0000.knd, _streamReadInt] readInt(): int
+	end func
+
+	+func [d0000.knd, _streamReadFloat] readFloat(): float
+	end func
+
+	+func [d0000.knd, _streamReadChar] readChar(): char
+	end func
+
+	+func [d0000.knd, _streamReadStr] readStr(): []char
+	end func
+
+	+func [d0000.knd, _streamReadStr] readLine(): []char
 	end func
 
 	+func [d0000.knd, _streamFileSize] fileSize(): int
@@ -36,7 +57,7 @@ end enum
 
 	var delimiterNum: int
 
-	var delimiter: int
+	var delimiters: int
 end class
 
 +class Writer(kuin@ResClass)
@@ -52,7 +73,19 @@ end class
 	+func [d0000.knd, _streamGetPos] getPos(): int
 	end func
 
-	+func [d0000.knd, _streamWrite] write(data: []bit8)
+	+func [d0000.knd, _streamWrite] write(bin: []bit8)
+	end func
+
+	+func [d0000.knd, _streamWriteInt] writeInt(n: int)
+	end func
+
+	+func [d0000.knd, _streamWriteFloat] writeFloat(n: float)
+	end func
+
+	+func [d0000.knd, _streamWriteChar] writeChar(n: char)
+	end func
+
+	+func [d0000.knd, _streamWriteStr] writeStr(n: []char)
 	end func
 
 	var handle: int

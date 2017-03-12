@@ -13,11 +13,10 @@
 
 #pragma comment(lib, "compiler.lib")
 
-Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col));
+Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col));
 
 static size_t UsedMem;
 
-static void* Alloc(size_t size);
 static void Log(const Char* code, const Char* msg, const Char* src, int row, int col);
 static Bool Compare(const Char* path1, const Char* path2);
 
@@ -45,7 +44,7 @@ int wmain(void)
 			swprintf(log_path, MAX_PATH, L"../../test/output/log%04d.txt", i);
 			wprintf(L"%s\n", output_path);
 			UsedMem = 0;
-			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Alloc, Log))
+			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Log))
 				goto Failure;
 			wprintf(L"Mem: %I64u[byte]\n", UsedMem);
 			wprintf(L"Compile[S]");
@@ -124,13 +123,13 @@ int wmain(void)
 	else if (type == -1)
 	{
 		UsedMem = 0;
-		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Alloc, Log))
+		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Log))
 			goto Failure;
 	}
 	else if (type == -2)
 	{
 		UsedMem = 0;
-		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Alloc, Log))
+		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Log))
 			goto Failure;
 	}
 	else
@@ -142,14 +141,6 @@ Failure:
 	wprintf(L"\nFailure.\n");
 	_getch();
 	return 0;
-}
-
-static void* Alloc(size_t size)
-{
-	void* ptr = malloc(size);
-	memset(ptr, 0xcd, size);
-	UsedMem += size;
-	return ptr;
 }
 
 static void Log(const Char* code, const Char* msg, const Char* src, int row, int col)

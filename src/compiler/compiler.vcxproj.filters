@@ -38,4 +38,7 @@
     <ClInclude Include="util.h" />
     <ClInclude Include="..\common.h" />
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="low_level.asm" />
+  </ItemGroup>
 </Project>

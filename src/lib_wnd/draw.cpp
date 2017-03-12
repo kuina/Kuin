@@ -789,16 +789,16 @@ EXPORT_CPP void _objDtor(SClass* me_)
 	{
 		switch (me2->ElementKinds[i])
 		{
-		case 0: // Polygon.
-		{
-			SObj::SPolygon* element = static_cast<SObj::SPolygon*>(me2->Elements[i]);
-			if (element->Joints != NULL)
-				FreeMem(element->Joints);
-			if (element->VertexBuf != NULL)
-				Draw::FinVertexBuf(element->VertexBuf);
-			FreeMem(element);
-		}
-		break;
+			case 0: // Polygon.
+			{
+				SObj::SPolygon* element = static_cast<SObj::SPolygon*>(me2->Elements[i]);
+				if (element->Joints != NULL)
+					FreeMem(element->Joints);
+				if (element->VertexBuf != NULL)
+					Draw::FinVertexBuf(element->VertexBuf);
+				FreeMem(element);
+			}
+			break;
 		default:
 			ASSERT(False);
 			break;

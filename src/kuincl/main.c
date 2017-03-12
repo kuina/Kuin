@@ -8,23 +8,13 @@
 #include <fcntl.h>
 #include <io.h>
 
-#define MEM_SIZE (32 * 1024 * 1024)
-
-typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void*(*allocator)(size_t size), void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col));
+typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col));
 typedef void(*TypeOfVersion)(int* major, int* minor, int* micro);
-
-typedef struct SMemList
-{
-	void* Mem;
-	struct SMemList* Next;
-} SMemList;
+typedef void(*TypeOfInitMemAllocator)(void);
+typedef void(*TypeOfFinMemAllocator)(void);
 
 static Bool Quiet;
-static SMemList* TopMem;
-static SMemList* BottomMem;
-static void* CurMem;
 
-static void* Allocator(size_t size);
 static void Log(const Char* code, const Char* msg, const Char* src, int row, int col);
 
 int wmain(int argc, Char** argv)
@@ -149,6 +139,8 @@ int wmain(int argc, Char** argv)
 		{
 			TypeOfBuild func_build = (TypeOfBuild)GetProcAddress(library, "BuildFile");
 			TypeOfVersion func_version = (TypeOfVersion)GetProcAddress(library, "Version");
+			TypeOfInitMemAllocator func_init_mem_allocator = (TypeOfInitMemAllocator)GetProcAddress(library, "InitMemAllocator");
+			TypeOfFinMemAllocator func_fin_mem_allocator = (TypeOfFinMemAllocator)GetProcAddress(library, "FinMemAllocator");
 			if (func_build == NULL || func_version == NULL)
 			{
 				wprintf(L"The file 'sys/d0917.knd' was broken.\n");
@@ -167,16 +159,8 @@ int wmain(int argc, Char** argv)
 				wprintf(L"Usage: kuincl [-i input.kn] [-o output.kn] [-s 'sys' directory] [-c icon.ico] [-e environment] [-r] [-h] [-v] [-q]\n");
 				return 0;
 			}
-			{
-				void* mem = malloc(MEM_SIZE);
-				SMemList* node = (SMemList*)malloc(sizeof(SMemList));
-				node->Mem = mem;
-				node->Next = NULL;
-				TopMem = node;
-				BottomMem = node;
-				CurMem = mem;
-			}
-			if (func_build(input, sys_dir, output, icon, rls, env, Allocator, Log))
+			func_init_mem_allocator();
+			if (func_build(input, sys_dir, output, icon, rls, env, Log))
 			{
 				if (!Quiet)
 					wprintf(L"Success.\n");
@@ -186,39 +170,11 @@ int wmain(int argc, Char** argv)
 				wprintf(L"Failure.\n");
 				ret_code = 1;
 			}
-			{
-				SMemList* ptr = TopMem;
-				while (ptr != NULL)
-				{
-					SMemList* ptr2 = ptr;
-					free(ptr->Mem);
-					ptr = ptr->Next;
-					free(ptr2);
-				}
-			}
+			func_fin_mem_allocator();
 		}
 		FreeLibrary(library);
 	}
 	return ret_code;
-}
-
-static void* Allocator(size_t size)
-{
-	if ((U8*)CurMem + size >= (U8*)BottomMem->Mem + MEM_SIZE)
-	{
-		void* mem = malloc(MEM_SIZE);
-		SMemList* node = (SMemList*)malloc(sizeof(SMemList));
-		node->Mem = mem;
-		node->Next = NULL;
-		BottomMem->Next = node;
-		BottomMem = node;
-		CurMem = mem;
-	}
-	{
-		void* result = CurMem;
-		CurMem = ((U8*)CurMem) + size;
-		return result;
-	}
 }
 
 static void Log(const Char* code, const Char* msg, const Char* src, int row, int col)

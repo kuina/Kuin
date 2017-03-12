@@ -1,3 +1,15 @@
+func [compiler.dll, BuildMem] build(path: []char, funcGetSrc: func<([]char): list<@Line>>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>)
+end func
+
+func [compiler.dll, InitMemAllocator] initMemAllocator()
+end func
+
+func [compiler.dll, FinMemAllocator] finMemAllocator()
+end func
+
+func [compiler.dll, ResetMemAllocator] resetMemAllocator()
+end func
+
 var wndMain: wnd@Wnd
 var tabSrc: wnd@Tab
 var editSrc: wnd@EditMulti
@@ -7,18 +19,25 @@ var listFile: wnd@List
 
 class Line()
 	+var src: []char
+	+var lineAddr: int
 	+var commentLevel: int
+	+var lineContinue: bool
 end class
 
 var srcs: dict<[]char, list<@Line>>
 var mainSrc: []char
 var curSrc: list<@Line>
+var bufSrc: list<@Line>
 
 func main()
+	do @initMemAllocator()
+
 	do @makeWnd()
 
 	while(wnd@act())
 	end while
+
+	do @finMemAllocator()
 end func
 
 func makeWnd()
@@ -32,15 +51,57 @@ func makeWnd()
 
 	do @srcs :: #dict<[]char, list<@Line>>
 	do @curSrc :: #list<@Line>
-	do @srcs.add("$", @curSrc)
+	do @srcs.add("_default_.kn", @curSrc)
 
-	do @mainSrc :: "$"
+	do @mainSrc :: "_default_.kn"
 	var line: @Line :: #@Line
-	do line.src :: "f"
+	do line.src :: ""
+	do line.lineAddr :: 1
 	do line.commentLevel :: 0
+	do line.lineContinue :: false
 	do @curSrc.add(line)
 end func
 
 func btnCompileOnPush()
-	do wnd@msgBox(@wndMain, "test", null, %error, %cancelAgainContinue)
+	do @resetMemAllocator()
+	do @editLog.setText("")
+	do @build(@mainSrc, @getSrc, null, null, null, false, "cui", @log)
+end func
+
+func getSrc(path: []char): list<@Line>
+	var result: list<@Line> :: @srcs.get(path)
+	do @bufSrc :: result
+	if(result <>& null)
+		ret result
+	end if
+	ret @loadSrc(path)
+end func
+
+func loadSrc(path: []char): list<@Line>
+	var filePtr: file@Reader :: file@makeReader(path)
+	if(filePtr =& null)
+		ret null
+	end if
+	do filePtr.delimiter("")
+	var result: list<@Line> :: #list<@Line>
+	while(!filePtr.term())
+		var line: @Line :: #@Line
+		do line.src :: filePtr.readLine()
+		do line.lineAddr :: 1
+		do line.commentLevel :: 0
+		do line.lineContinue :: false
+		do result.add(line)
+	end while
+	do filePtr.fin()
+	do @srcs.add(##path, result)
+	do @bufSrc :: result
+	ret result
+end func
+
+func toStr(s: []char): []char
+	ret s =& null ?("(null)", s)
+end func
+
+func log(args: [][]char, row: int, col: int)
+	do @editLog.setText(@editLog.getText() ~ @toStr(args[0]) ~ ", " ~ @toStr(args[1]) ~ ", " ~ @toStr(args[2]) ~ ", " ~ row.toStr() ~ ", " ~ col.toStr() ~ "\n")
 end func

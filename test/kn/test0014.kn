@@ -36,5 +36,29 @@ func main()
 			do cui@print(b[0].toStr())
 			do f.fin()
 		end block
+
+		block
+			var f: file@Writer :: file@makeWriter("test_file2.txt", false)
+			do f.writeInt(1234567890)
+			do f.writeChar('\n')
+			do f.writeFloat(lib@pi)
+			do f.writeChar(',')
+			do f.writeStr("TEST")
+			do f.writeChar(' ')
+			do f.writeStr("abc")
+			do f.fin()
+		end block
+
+		block
+			var f: file@Reader :: file@makeReader("test_file2.txt")
+			do cui@print(f.readInt().toStr())
+			do cui@print(f.readFloat().toStr())
+			do cui@print(f.readChar().toStr())
+			do cui@print(f.readStr())
+			while(!f.term())
+				do cui@print(f.readLetter().toStr())
+			end while
+			do f.fin()
+		end block
 	end for
 end func

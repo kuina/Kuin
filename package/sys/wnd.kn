@@ -65,10 +65,22 @@ end class
 +class Edit(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+
+	+func [d0001.knd, _wndSetText] setText(text: []char)
+	end func
+
+	+func [d0001.knd, _wndGetText] getText(): []char
+	end func
 end class
 
 +class EditMulti(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _wndSetText] setText(text: []char)
+	end func
+
+	+func [d0001.knd, _wndGetText] getText(): []char
 	end func
 end class
 

@@ -32,4 +32,7 @@
     <ClInclude Include="bc_decoder.h" />
     <ClInclude Include="wav.h" />
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="low_level.asm" />
+  </ItemGroup>
 </Project>

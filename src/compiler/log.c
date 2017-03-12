@@ -19,9 +19,9 @@ static SErrMsg ErrMsgs[MSG_NUM];
 static const Char* LastErrSrc;
 static int LastErrRow;
 
-Bool SetLogFunc(void(*log_func)(const Char* code, const Char* msg, const Char* src, int row, int col), int lang, const Char* sys_dir)
+Bool SetLogFunc(void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), int lang, const Char* sys_dir)
 {
-	LogFunc = log_func;
+	LogFunc = func_log;
 	ErrFlag = False;
 	LastErrSrc = L"$";
 	LastErrRow = -1;
@@ -38,7 +38,7 @@ Bool SetLogFunc(void(*log_func)(const Char* code, const Char* msg, const Char* s
 			{
 				Char msg[1024];
 				swprintf(msg, 1024, lang == 0 ? L"\u30b7\u30b9\u30c6\u30e0\u30d5\u30a1\u30a4\u30eb\u300c%s\u300d\u304c\u958b\u3051\u307e\u305b\u3093\u3002" : L"A system file '%s' could not be opened.", path);
-				log_func(L"EK0000", msg, NULL, -1, -1);
+				func_log(L"EK0000", msg, NULL, -1, -1);
 				return False;
 			}
 		}

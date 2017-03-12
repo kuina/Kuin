@@ -5,8 +5,10 @@ typedef struct SStream
 	SClass Class;
 	FILE* Handle;
 	S64 DelimiterNum;
-	Char* Delimiter;
+	Char* Delimiters;
 } SStream;
+
+static const U8 Newline[2] = { 0x0d, 0x0a };
 
 static Char ReadUtf8(SStream* me_, Bool replace_delimiter);
 static void WriteUtf8(SStream* me_, Char data);
@@ -16,8 +18,8 @@ EXPORT void _streamDtor(SClass* me_)
 	SStream* me2 = (SStream*)me_;
 	if (me2->Handle != NULL)
 		fclose(me2->Handle);
-	if (me2->Delimiter != NULL)
-		FreeMem(me2->Delimiter);
+	if (me2->Delimiters != NULL)
+		FreeMem(me2->Delimiters);
 }
 
 EXPORT void _streamFin(SClass* me_)
@@ -29,10 +31,10 @@ EXPORT void _streamFin(SClass* me_)
 #endif
 	fclose(me2->Handle);
 	me2->Handle = NULL;
-	if (me2->Delimiter != NULL)
+	if (me2->Delimiters != NULL)
 	{
-		FreeMem(me2->Delimiter);
-		me2->Delimiter = NULL;
+		FreeMem(me2->Delimiters);
+		me2->Delimiters = NULL;
 	}
 }
 
@@ -56,6 +58,19 @@ EXPORT S64 _streamGetPos(SClass* me_)
 		THROW(0x1000, L"");
 #endif
 	return _ftelli64(me2->Handle);
+}
+
+EXPORT void _streamDelimiter(SClass* me_, const U8* delimiters)
+{
+	SStream* me2 = (SStream*)me_;
+	S64 len = *(S64*)(delimiters + 0x08);
+	S64 i;
+	const Char* ptr = (const Char*)(delimiters + 0x10);
+	FreeMem(me2->Delimiters);
+	me2->DelimiterNum = len;
+	me2->Delimiters = (Char*)AllocMem(sizeof(Char) * (size_t)len);
+	for (i = 0; i < len; i++)
+		me2->Delimiters[i] = ptr[i];
 }
 
 EXPORT void* _streamRead(SClass* me_, S64 size)
@@ -93,12 +108,16 @@ EXPORT S64 _streamReadInt(SClass* me_)
 	for (; ; )
 	{
 		Char c = ReadUtf8((SStream*)me_, True);
+		if (c == WEOF)
+		{
+			if (buf[0] == L'\0')
+				ASSERT(False);
+			break;
+		}
 		if (c == L'\0')
 		{
 			if (buf[0] == L'\0')
 				continue;
-			if (buf[0] == WEOF)
-				ASSERT(False);
 			break;
 		}
 		if (ptr == 32)
@@ -109,11 +128,13 @@ EXPORT S64 _streamReadInt(SClass* me_)
 	for (; ; )
 	{
 		Char c = ReadUtf8((SStream*)me_, True);
-		if (c == L'\0')
-			continue;
 		if (c == WEOF)
 			break;
-		_fseeki64(((SStream*)me_)->Handle, -1, SEEK_CUR);
+		if (c != L'\0')
+		{
+			_fseeki64(((SStream*)me_)->Handle, -1, SEEK_CUR);
+			break;
+		}
 	}
 	buf[ptr] = L'\0';
 	{
@@ -128,17 +149,147 @@ EXPORT S64 _streamReadInt(SClass* me_)
 
 EXPORT double _streamReadFloat(SClass* me_)
 {
-	// TODO:
+	Char buf[33];
+	int ptr = 0;
+	buf[0] = L'\0';
+	for (; ; )
+	{
+		Char c = ReadUtf8((SStream*)me_, True);
+		if (c == WEOF)
+		{
+			if (buf[0] == L'\0')
+				ASSERT(False);
+			break;
+		}
+		if (c == L'\0')
+		{
+			if (buf[0] == L'\0')
+				continue;
+			break;
+		}
+		if (ptr == 32)
+			ASSERT(False);
+		buf[ptr] = c;
+		ptr++;
+	}
+	for (; ; )
+	{
+		Char c = ReadUtf8((SStream*)me_, True);
+		if (c == WEOF)
+			break;
+		if (c != L'\0')
+		{
+			_fseeki64(((SStream*)me_)->Handle, -1, SEEK_CUR);
+			break;
+		}
+	}
+	buf[ptr] = L'\0';
+	{
+		double result;
+		errno = 0;
+		result = _wtof(buf);
+		if (errno != 0)
+			THROW(0x1000, L"");
+		return result;
+	}
 }
 
 EXPORT Char _streamReadChar(SClass* me_)
 {
-	// TODO:
+	Char c = L'\0';
+	for (; ; )
+	{
+		c = ReadUtf8((SStream*)me_, True);
+		if (c == WEOF)
+			ASSERT(False);
+		if (c != L'\0')
+			break;
+	}
+	for (; ; )
+	{
+		Char c2 = ReadUtf8((SStream*)me_, True);
+		if (c2 == WEOF)
+			break;
+		if (c2 != L'\0')
+		{
+			_fseeki64(((SStream*)me_)->Handle, -1, SEEK_CUR);
+			break;
+		}
+	}
+	return c;
 }
 
 EXPORT void* _streamReadStr(SClass* me_)
 {
-	// TODO:
+	Char buf[1025];
+	int ptr = 0;
+	buf[0] = L'\0';
+	for (; ; )
+	{
+		Char c = ReadUtf8((SStream*)me_, True);
+		if (c == WEOF)
+		{
+			if (buf[0] == L'\0')
+				ASSERT(False);
+			break;
+		}
+		if (c == L'\0')
+		{
+			if (buf[0] == L'\0')
+				continue;
+			break;
+		}
+		buf[ptr] = c;
+		ptr++;
+		if (ptr == 1024)
+			break;
+	}
+	for (; ; )
+	{
+		Char c = ReadUtf8((SStream*)me_, True);
+		if (c == WEOF)
+			break;
+		if (c != L'\0')
+		{
+			_fseeki64(((SStream*)me_)->Handle, -1, SEEK_CUR);
+			break;
+		}
+	}
+	buf[ptr] = L'\0';
+	{
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * ((size_t)ptr + 1));
+		*(S64*)(result + 0x00) = DefaultRefCntFunc;
+		*(S64*)(result + 0x08) = (S64)ptr;
+		wcscpy((Char*)(result + 0x10), buf);
+		return result;
+	}
+}
+
+EXPORT void* _streamReadLine(SClass* me_)
+{
+	Char buf[1025];
+	int ptr = 0;
+	buf[0] = L'\0';
+	for (; ; )
+	{
+		Char c = ReadUtf8((SStream*)me_, False);
+		if (c == L'\r')
+			continue;
+		if (c == WEOF || c == L'\n')
+			break;
+		buf[ptr] = c;
+		ptr++;
+		if (ptr == 1024)
+			break;
+	}
+	buf[ptr] = L'\0';
+	{
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * ((size_t)ptr + 1));
+		*(S64*)(result + 0x00) = DefaultRefCntFunc;
+		*(S64*)(result + 0x08) = (S64)ptr;
+		wcscpy((Char*)(result + 0x10), buf);
+		return result;
+	}
 }
 
 EXPORT void _streamWrite(SClass* me_, void* bin)
@@ -227,9 +378,9 @@ EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 		return NULL;
 	me2->Handle = file_ptr;
 	me2->DelimiterNum = 2;
-	me2->Delimiter = (Char*)AllocMem(sizeof(Char) * 2);
-	me2->Delimiter[0] = L' ';
-	me2->Delimiter[1] = L',';
+	me2->Delimiters = (Char*)AllocMem(sizeof(Char) * 2);
+	me2->Delimiters[0] = L' ';
+	me2->Delimiters[1] = L',';
 	return me_;
 }
 
@@ -241,7 +392,7 @@ EXPORT SClass* _makeWriter(SClass* me_, const U8* path, Bool append)
 		return NULL;
 	me2->Handle = file_ptr;
 	me2->DelimiterNum = 0;
-	me2->Delimiter = NULL;
+	me2->Delimiters = NULL;
 	return me_;
 }
 
@@ -311,7 +462,7 @@ static Char ReadUtf8(SStream* me_, Bool replace_delimiter)
 		S64 i;
 		for (i = 0; i < me_->DelimiterNum; i++)
 		{
-			if (u2 == me_->Delimiter[i])
+			if (u2 == me_->Delimiters[i])
 				return L'\0';
 		}
 	}
@@ -379,5 +530,8 @@ static void WriteUtf8(SStream* me_, Char data)
 			}
 		}
 	}
-	fwrite(&u, 1, size, me_->Handle);
+	if (size == 1 && u == 0x0a)
+		fwrite(&Newline, 1, sizeof(Newline), me_->Handle);
+	else
+		fwrite(&u, 1, size, me_->Handle);
 }

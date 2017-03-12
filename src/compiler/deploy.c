@@ -11,6 +11,7 @@ void Deploy(U64 app_code, const SOption* option, SDict* dlls)
 	// When doing tests, the program uses debugging Dlls so do not copy these.
 	UNUSED(app_code);
 	UNUSED(option);
+	UNUSED(dlls);
 #else
 	{
 		Char path[1024];
@@ -28,18 +29,21 @@ void Deploy(U64 app_code, const SOption* option, SDict* dlls)
 
 static void CopyDlls(const Char* key, const void* value, void* param)
 {
-	const SOption* option = param;
-	Char src[1024];
-	Char dst[1024];
-	wcscpy(src, option->SysDir);
-	if (option->Rls)
-		wcscat(src, L"rls/");
-	else
-		wcscat(src, L"dbg/");
-	wcscat(src, key);
-	wcscpy(dst, option->OutputDir);
-	wcscat(dst, L"data/");
-	wcscat(dst, key);
-	if (CopyFile(src, dst, FALSE) == 0)
-		Err(L"EK0013", NULL, src, dst);
+	UNUSED(value);
+	{
+		const SOption* option = param;
+		Char src[1024];
+		Char dst[1024];
+		wcscpy(src, option->SysDir);
+		if (option->Rls)
+			wcscat(src, L"rls/");
+		else
+			wcscat(src, L"dbg/");
+		wcscat(src, key);
+		wcscpy(dst, option->OutputDir);
+		wcscat(dst, L"data/");
+		wcscat(dst, key);
+		if (CopyFile(src, dst, FALSE) == 0)
+			Err(L"EK0013", NULL, src, dst);
+	}
 }
