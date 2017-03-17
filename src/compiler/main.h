@@ -8,9 +8,3 @@ EXPORT void Version(int* major, int* minor, int* micro);
 EXPORT void InitMemAllocator(void);
 EXPORT void FinMemAllocator(void);
 EXPORT void ResetMemAllocator(void);
-
-// Assembly functions.
-void* Call0Asm(void* func);
-void* Call1Asm(void* arg1, void* func);
-void* Call2Asm(void* arg1, void* arg2, void* func);
-void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);

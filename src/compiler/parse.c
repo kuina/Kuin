@@ -154,11 +154,11 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c);
 
 SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const SOption* option)
 {
+	Bool end_flag = False;
 	FuncWfopen = func_wfopen;
 	FuncFclose = func_fclose;
 	FuncFgetwc = func_fgetwc;
 	FuncSize = func_size;
-	Bool end_flag = False;
 
 #ifdef _DEBUG
 	{

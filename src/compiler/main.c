@@ -24,6 +24,12 @@ static const void* Src = NULL;
 static const void* SrcLine = NULL;
 static const Char* SrcChar = NULL;
 
+// Assembly functions.
+void* Call0Asm(void* func);
+void* Call1Asm(void* arg1, void* func);
+void* Call2Asm(void* arg1, void* arg2, void* func);
+void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);
+
 static void DecSrc(void);
 static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col));
 static FILE* BuildMemWfopen(const Char* file_name, const Char* mode);
@@ -226,7 +232,7 @@ static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int 
 {
 	U8 code2[0x10 + sizeof(Char) * (MAX_PATH + 1)];
 	size_t len_msg = wcslen(msg);
-	U8* msg2 = Alloc(0x10 + sizeof(Char) * (len_msg + 1));
+	U8* msg2 = (U8*)Alloc(0x10 + sizeof(Char) * (len_msg + 1));
 	U8 src2[0x10 + sizeof(Char) * (MAX_PATH + 1)];
 	U8 args[0x10 + 0x18];
 	{

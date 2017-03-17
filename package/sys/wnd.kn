@@ -164,6 +164,21 @@ end class
 	end func
 end class
 
++class Plain(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class ScrollX(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class ScrollY(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
 +enum MsgBoxIcon
 	none
 	error :: 16#10
@@ -264,4 +279,13 @@ end func
 end func
 
 +func [d0001.knd, _makeTree, _make_instance] makeTree(me2: @Tree, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Tree
+end func
+
++func [d0001.knd, _makePlain, _make_instance] makePlain(me2: @Plain, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Plain
+end func
+
++func [d0001.knd, _makeScrollX, _make_instance] makeScrollX(me2: @ScrollX, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @ScrollX
+end func
+
++func [d0001.knd, _makeScrollY, _make_instance] makeScrollY(me2: @ScrollY, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @ScrollY
 end func

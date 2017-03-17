@@ -42,6 +42,9 @@ enum EWndKind
 	WndKind_Pager,
 	WndKind_Tab,
 	WndKind_Tree,
+	WndKind_Plain,
+	WndKind_ScrollX,
+	WndKind_ScrollY,
 };
 
 enum ECtrlFlag
@@ -183,6 +186,11 @@ struct STree
 	SWndBase WndBase;
 };
 
+struct SPlain
+{
+	SWndBase WndBase;
+};
+
 static int WndCnt;
 static Bool ExitAct;
 
@@ -219,6 +227,9 @@ static LRESULT CALLBACK WndProcListView(HWND wnd, UINT msg, WPARAM w_param, LPAR
 static LRESULT CALLBACK WndProcPager(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcTab(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
+static LRESULT CALLBACK WndProcPlain(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
+static LRESULT CALLBACK WndProcScrollX(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
+static LRESULT CALLBACK WndProcScrollY(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -540,6 +551,24 @@ EXPORT_CPP SClass* _makeTab(SClass* me_, SClass* parent, S64 x, S64 y, S64 width
 EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
+	return me_;
+}
+
+EXPORT_CPP SClass* _makePlain(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
+{
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Plain, WC_STATIC, WS_VISIBLE | WS_CHILD | SS_NOTIFY, x, y, width, height, L"", WndProcPlain, anchorX, anchorY);
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeScrollX(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
+{
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ScrollX, WC_SCROLLBAR, WS_VISIBLE | WS_CHILD | SBS_HORZ, x, y, width, height, L"", WndProcScrollX, anchorX, anchorY);
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeScrollY(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
+{
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ScrollY, WC_SCROLLBAR, WS_VISIBLE | WS_CHILD | SBS_VERT, x, y, width, height, L"", WndProcScrollY, anchorX, anchorY);
 	return me_;
 }
 
@@ -1174,6 +1203,39 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 {
 	SWndBase* wnd2 = ToWnd(wnd);
 	ASSERT(wnd2->Kind == WndKind_Tree);
+	switch (msg)
+	{
+		// TODO:
+	}
+	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
+}
+
+static LRESULT CALLBACK WndProcPlain(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
+{
+	SWndBase* wnd2 = ToWnd(wnd);
+	ASSERT(wnd2->Kind == WndKind_Plain);
+	switch (msg)
+	{
+		// TODO:
+	}
+	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
+}
+
+static LRESULT CALLBACK WndProcScrollX(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
+{
+	SWndBase* wnd2 = ToWnd(wnd);
+	ASSERT(wnd2->Kind == WndKind_ScrollX);
+	switch (msg)
+	{
+		// TODO:
+	}
+	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
+}
+
+static LRESULT CALLBACK WndProcScrollY(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
+{
+	SWndBase* wnd2 = ToWnd(wnd);
+	ASSERT(wnd2->Kind == WndKind_ScrollY);
 	switch (msg)
 	{
 		// TODO:

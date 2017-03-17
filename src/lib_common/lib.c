@@ -95,6 +95,7 @@ EXPORT double _acosh(double x)
 #if defined(VS2015)
 	return acosh(x);
 #else
+	UNUSED(x);
 	ASSERT(True);
 	return 0.0;
 #endif
@@ -105,6 +106,7 @@ EXPORT double _asinh(double x)
 #if defined(VS2015)
 	return asinh(x);
 #else
+	UNUSED(x);
 	ASSERT(True);
 	return 0.0;
 #endif
@@ -115,6 +117,7 @@ EXPORT double _atanh(double x)
 #if defined(VS2015)
 	return atanh(x);
 #else
+	UNUSED(x);
 	ASSERT(True);
 	return 0.0;
 #endif
