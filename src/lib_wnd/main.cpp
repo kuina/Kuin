@@ -193,6 +193,7 @@ struct SPlain
 
 static int WndCnt;
 static Bool ExitAct;
+static HFONT FontCtrl;
 
 static const U8* NToRN(const Char* str);
 static const U8* RNToN(const Char* str);
@@ -300,6 +301,12 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 		RegisterClassEx(&wnd_class);
 	}
 
+	{
+		HDC dc = GetDC(NULL);
+		FontCtrl = CreateFont(-MulDiv(9, GetDeviceCaps(dc, LOGPIXELSY), 72), 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, L"MS UI Gothic");
+		ReleaseDC(NULL, dc);
+	}
+
 	Draw::Init();
 	Snd::Init();
 	Input::Init();
@@ -312,6 +319,8 @@ EXPORT_CPP void _fin()
 	Input::Fin();
 	Snd::Fin();
 	Draw::Fin();
+
+	DeleteObject(static_cast<HGDIOBJ>(FontCtrl));
 
 	// TODO:
 }
@@ -389,6 +398,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	me2->DefaultY = 0;
 	me2->DefaultWidth = static_cast<U16>(width);
 	me2->DefaultHeight = static_cast<U16>(height);
+	SendMessage(me2->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
 	ShowWindow(me2->WndHandle, SW_SHOWNORMAL);
 	WndCnt++;
 	return me_;
@@ -728,6 +738,7 @@ static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const C
 	SetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(wnd_proc));
 	wnd->DrawBuf = NULL;
 	ParseAnchor(wnd, parent, anchor_x, anchor_y, x, y, width, height);
+	SendMessage(wnd->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
 }
 
 static void Resize(SWndBase* wnd)

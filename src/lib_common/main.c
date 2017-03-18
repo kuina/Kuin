@@ -1640,10 +1640,53 @@ EXPORT void* _getDict(void* me_, const U8* type, const void* key)
 	return NULL;
 }
 
+EXPORT void* _getOffset(void* me_, const U8* type, S64 offset)
+{
+	void* ptr = *(void**)((U8*)me_ + 0x20);
+	S64 i;
+	if (offset >= 0)
+	{
+		for (i = 0; i < offset; i++)
+			ptr = *(void**)((U8*)ptr + 0x08);
+	}
+	else
+	{
+		for (i = 0; i > offset; i--)
+			ptr = *(void**)ptr;
+	}
+	{
+		void* result = NULL;
+		Copy(&result, type[1], (U8*)ptr + 0x10);
+		return result;
+	}
+}
+
 EXPORT void _head(void* me_, const U8* type)
 {
 	UNUSED(type);
 	*(void**)((U8*)me_ + 0x20) = *(void**)((U8*)me_ + 0x10);
+}
+
+EXPORT void _headOffset(void* me_, const U8* type, S64 offset)
+{
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	if (offset < len / 2)
+	{
+		void* ptr = *(void**)((U8*)me_ + 0x10);
+		S64 i;
+		for (i = 0; i < offset; i++)
+			ptr = *(void**)((U8*)ptr + 0x08);
+		*(void**)((U8*)me_ + 0x20) = ptr;
+	}
+	else
+	{
+		void* ptr = *(void**)((U8*)me_ + 0x18);
+		S64 i;
+		ASSERT(offset < len);
+		for (i = len - 1; i > offset; i--)
+			ptr = *(void**)ptr;
+		*(void**)((U8*)me_ + 0x20) = ptr;
+	}
 }
 
 EXPORT void _tail(void* me_, const U8* type)
@@ -1669,7 +1712,34 @@ EXPORT void _prev(void* me_, const U8* type)
 EXPORT Bool _term(void* me_, const U8* type)
 {
 	UNUSED(type);
-	return *(void**)((U8*)me_ + 0x20) == 0;
+	return *(void**)((U8*)me_ + 0x20) == NULL;
+}
+
+EXPORT Bool _termOffset(void* me_, const U8* type, S64 offset)
+{
+	void* ptr = *(void**)((U8*)me_ + 0x20);
+	S64 i;
+	if (ptr == NULL)
+		return True;
+	if (offset >= 0)
+	{
+		for (i = 0; i < offset; i++)
+		{
+			ptr = *(void**)((U8*)ptr + 0x08);
+			if (ptr == NULL)
+				return True;
+		}
+	}
+	else
+	{
+		for (i = 0; i > offset; i--)
+		{
+			ptr = *(void**)ptr;
+			if (ptr == NULL)
+				return True;
+		}
+	}
+	return False;
 }
 
 EXPORT void _del(void* me_, const U8* type)
@@ -1698,6 +1768,31 @@ EXPORT void _del(void* me_, const U8* type)
 				_freeSet(ptr2, type + 1);
 		}
 		FreeMem(ptr);
+	}
+}
+
+EXPORT void _delNext(void* me_, const U8* type)
+{
+	if (*(void**)((U8*)me_ + 0x20) == NULL)
+		THROW(0x1000, L"");
+	{
+		void* ptr = *(void**)((U8*)me_ + 0x20);
+		void* next = *(void**)((U8*)ptr + 0x08);
+		void* next_next = *(void**)((U8*)next + 0x08);
+		*(void**)((U8*)ptr + 0x08) = next_next;
+		if (next_next == NULL)
+			*(void**)((U8*)me_ + 0x18) = ptr;
+		else
+			*(void**)next_next = ptr;
+		(*(S64*)((U8*)me_ + 0x08))--;
+		if (IsRef(type[1]))
+		{
+			void* ptr2 = *(void**)((U8*)next + 0x10);
+			(*(S64*)ptr2)--;
+			if (*(S64*)ptr2 == 0)
+				_freeSet(ptr2, type + 1);
+		}
+		FreeMem(next);
 	}
 }
 

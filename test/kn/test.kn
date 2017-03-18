@@ -10,7 +10,7 @@ end func
 func [compiler.dll, ResetMemAllocator] resetMemAllocator()
 end func
 
-func [compiler.dll, EditorInit] editorInit(me2: wnd@WndBase, funcIns: func<([]int, []char)>, funcDel: func<([]int, int, bool)>, funcReplace: func<([]int, int, []char)>)
+func [compiler.dll, EditorInit] editorInit(me2: wnd@WndBase, funcIns: func<([]int, []char)>, funcCmd: func<([]int, int, int)>, funcReplace: func<([]int, int, []char)>)
 end func
 
 func [compiler.dll, EditorFin] editorFin()
@@ -63,7 +63,7 @@ func main()
 	do line2.lineContinue :: false
 	do @curSrc.add(line2)
 
-	do @editorInit(@plainSrc, @onIns, @onDel, @onReplace)
+	do @editorInit(@plainSrc, @onIns, @onCmd, @onReplace)
 	do @editorSetSrc(@curSrc)
 
 	while(wnd@act())
@@ -75,11 +75,13 @@ func main()
 end func
 
 func makeWnd()
+	var scrollWidth: int :: 17
+
 	do @wndMain :: wnd@makeWnd(null, %normal, 1024, 768, "Kuin Programming Language")
 	do @tabSrc :: wnd@makeTab(@wndMain, 0, 0, 1024 - 200, 768 - 100, %scale, %scale)
-	do @plainSrc :: wnd@makePlain(@tabSrc, 0, 50, 1024 - 200 - 20, 768 - 150 - 20, %scale, %scale)
-	do @scrollXSrc :: wnd@makeScrollX(@tabSrc, 0, 50 + 768 - 150 - 20, 1024 - 200 - 20, 20, %scale, %move)
-	do @scrollYSrc :: wnd@makeScrollY(@tabSrc, 0 + 1024 - 200 - 20, 50, 20, 768 - 150 - 20, %move, %scale)
+	do @plainSrc :: wnd@makePlain(@tabSrc, 0, 50, 1024 - 200 - scrollWidth, 768 - 150 - scrollWidth, %scale, %scale)
+	do @scrollXSrc :: wnd@makeScrollX(@tabSrc, 0, 50 + 768 - 150 - scrollWidth, 1024 - 200 - scrollWidth, scrollWidth, %scale, %move)
+	do @scrollYSrc :: wnd@makeScrollY(@tabSrc, 0 + 1024 - 200 - scrollWidth, 50, scrollWidth, 768 - 150 - scrollWidth, %move, %scale)
 	do @editLog :: wnd@makeEditMulti(@wndMain, 0, 768 - 100, 1024, 100, %scale, %move)
 	do @btnCompile :: wnd@makeBtn(@wndMain, 1024 - 200, 0, 200, 50, %move, %fix, "Compile")
 	do @btnCompile.onPush :: @btnCompileOnPush
@@ -131,31 +133,51 @@ func log(args: [][]char, row: int, col: int)
 end func
 
 func onIns(pos: []int, str: []char)
-	do @curSrc.head()
-	for(1, pos[1])
-		do @curSrc.next()
-	end for
+	do @curSrc.headOffset(pos[1])
 	var line: @Line :: @curSrc.get()
 	do line.src :: line.src.sub(0, pos[0]) ~ str ~ line.src.sub(pos[0], -1)
 end func
 
-func onDel(pos: []int, len: int, back: bool)
-	do @curSrc.head()
-	for(1, pos[1])
-		do @curSrc.next()
-	end for
+func onCmd(pos: []int, len: int, cmd: int)
+	do @curSrc.headOffset(pos[1])
 	var line: @Line :: @curSrc.get()
-	if(back)
+	switch(cmd)
+	case 0 {back space}
 		if(pos[0] = 0)
+			if(!@curSrc.termOffset(-1))
+				var line2: @Line :: @curSrc.getOffset(-1)
+				do line2.src :: line2.src ~ line.src
+				do @curSrc.del()
+			end if
 		else
 			do line.src :: line.src.sub(0, pos[0] - 1) ~ line.src.sub(pos[0], -1)
 		end if
-	else
-		if(pos[0] = ^line.src)
+	case 1 {delete}
+		for(1, len)
+			if(pos[0] = ^line.src)
+				if(!@curSrc.termOffset(1))
+					var line2: @Line :: @curSrc.getOffset(1)
+					do line.src :: line.src ~ line2.src
+					do @curSrc.delNext()
+				end if
+			else
+				do line.src :: line.src.sub(0, pos[0]) ~ line.src.sub(pos[0] + 1, -1)
+			end if
+		end for
+	case 2 {return}
+		var line2: @Line :: #@Line
+		do line2.src :: line.src.sub(pos[0], -1)
+		do line2.indent :: 0
+		do line2.commentLevel :: 0
+		do line2.lineContinue :: false
+		do line.src :: line.src.sub(0, pos[0])
+		if(@curSrc.termOffset(1))
+			do @curSrc.add(line2)
 		else
-			do line.src :: line.src.sub(0, pos[0]) ~ line.src.sub(pos[0] + 1, -1)
+			do @curSrc.next()
+			do @curSrc.ins(line2)
 		end if
-	end if
+	end switch
 end func
 
 func onReplace(pos: []int, len: int, str: []char)

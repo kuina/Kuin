@@ -817,7 +817,7 @@ static const void* CalcWritableData(const Char* key, const void* value, void* pa
 static void WriteRes(void)
 {
 	S64 base_addr = (S64)ftell(FilePtr);
-	long* data_entry_addrs = (long*)Alloc(sizeof(long) * PackAsm->ResIconNum + 1);
+	long* data_entry_addrs = (long*)Alloc(sizeof(long) * (PackAsm->ResIconNum + 1));
 	{
 		int idx = 0;
 		WriteResRecursion(PackAsm->ResEntries, data_entry_addrs, &idx, base_addr);

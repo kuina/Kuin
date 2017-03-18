@@ -188,7 +188,13 @@ end func
 func [d0000.knd, _any_type, _take_child, _ret_child] _getDict(me_: []bit8, type: int, key: []bit8): int
 end func
 
+func [d0000.knd, _any_type, _ret_child] _getOffset(me_: []bit8, type: int, offset: int): int
+end func
+
 func [d0000.knd, _any_type] _head(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _headOffset(me_: []bit8, type: int, offset: int)
 end func
 
 func [d0000.knd, _any_type] _tail(me_: []bit8, type: int)
@@ -203,7 +209,13 @@ end func
 func [d0000.knd, _any_type] _term(me_: []bit8, type: int): bool
 end func
 
+func [d0000.knd, _any_type] _termOffset(me_: []bit8, type: int, offset: int): bool
+end func
+
 func [d0000.knd, _any_type] _del(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _delNext(me_: []bit8, type: int)
 end func
 
 func [d0000.knd, _any_type, _take_child] _ins(me_: []bit8, type: int, item: []bit8)
