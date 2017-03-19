@@ -5,3 +5,4 @@
 EXPORT void EditorInit(SClass* me_, void* func_ins, void* func_cmd, void* func_replace);
 EXPORT void EditorFin(void);
 EXPORT void EditorSetSrc(const void* src);
+EXPORT void EditorSetCursor(S64* newX, S64* newY, S64 x, S64 y, Bool refresh);

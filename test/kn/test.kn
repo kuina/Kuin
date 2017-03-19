@@ -19,6 +19,9 @@ end func
 func [compiler.dll, EditorSetSrc] editorSetSrc(src: list<@Line>)
 end func
 
+func [compiler.dll, EditorSetCursor] editorSetCursor(newX: &int, newY: &int, x: int, y: int, refresh: bool)
+end func
+
 var wndMain: wnd@Wnd
 var tabSrc: wnd@Tab
 var plainSrc: wnd@Plain
@@ -39,6 +42,24 @@ var srcs: dict<[]char, list<@Line>>
 var mainSrc: []char
 var curSrc: list<@Line>
 var bufSrc: list<@Line>
+
+enum UndoKind
+	ins
+	bs
+	del
+	ret_
+end enum
+
+class Undo()
+	+var kind: @UndoKind
+	+var pos: []int
+	+var str: []char
+end class
+
+const undoBufSize: int :: 1024
+var undoBuf: []@Undo
+var redoBuf: []@Undo
+var undoPtr: int
 
 func main()
 	do @initMemAllocator()
@@ -62,6 +83,10 @@ func main()
 	do line2.commentLevel :: 0
 	do line2.lineContinue :: false
 	do @curSrc.add(line2)
+
+	do @undoBuf :: #[@undoBufSize]@Undo
+	do @redoBuf :: #[@undoBufSize]@Undo
+	do @undoPtr :: 0
 
 	do @editorInit(@plainSrc, @onIns, @onCmd, @onReplace)
 	do @editorSetSrc(@curSrc)
@@ -133,49 +158,206 @@ func log(args: [][]char, row: int, col: int)
 end func
 
 func onIns(pos: []int, str: []char)
-	do @curSrc.headOffset(pos[1])
-	var line: @Line :: @curSrc.get()
-	do line.src :: line.src.sub(0, pos[0]) ~ str ~ line.src.sub(pos[0], -1)
+	do @doCmd(%ins, pos, str, true)
 end func
 
 func onCmd(pos: []int, len: int, cmd: int)
+	if(cmd = 3) {undo}
+		block
+			var ptr: int :: @undoPtr = 0 ?(@undoBufSize - 1, @undoPtr - 1)
+			if(@undoBuf[ptr] <>& null)
+				do @doCmd(@undoBuf[ptr].kind, ##@undoBuf[ptr].pos, @undoBuf[ptr].str, false)
+				do @undoPtr :: ptr
+			end if
+		end block
+	elif(cmd = 4) {redo}
+		block
+			if(@redoBuf[@undoPtr] <>& null)
+				do @doCmd(@redoBuf[@undoPtr].kind, ##@redoBuf[@undoPtr].pos, @redoBuf[@undoPtr].str, false)
+				do @undoPtr :: @undoPtr = @undoBufSize - 1 ?(0, @undoPtr + 1)
+			end if
+		end block
+	else
+		var kind: @UndoKind
+		switch(cmd)
+		case 0
+			do kind :: %bs
+		case 1
+			do kind :: %del
+		case 2
+			do kind :: %ret_
+		end switch
+		do @doCmd(kind, pos, len.toStr(), true)
+	end if
+end func
+
+func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 	do @curSrc.headOffset(pos[1])
 	var line: @Line :: @curSrc.get()
-	switch(cmd)
-	case 0 {back space}
-		if(pos[0] = 0)
-			if(!@curSrc.termOffset(-1))
-				var line2: @Line :: @curSrc.getOffset(-1)
-				do line2.src :: line2.src ~ line.src
-				do @curSrc.del()
+	switch(kind)
+	case %ins
+		block
+			if(register)
+				var redo: @Undo :: #@Undo
+				do redo.kind :: %ins
+				do redo.pos :: ##pos
+				do redo.str :: ##str
+				do @redoBuf[@undoPtr] :: redo
 			end if
-		else
-			do line.src :: line.src.sub(0, pos[0] - 1) ~ line.src.sub(pos[0], -1)
-		end if
-	case 1 {delete}
-		for(1, len)
+			do line.src :: line.src.sub(0, pos[0]) ~ str ~ line.src.sub(pos[0], -1)
+			do @editorSetCursor(&pos[0], &pos[1], pos[0] + ^str, pos[1], false)
+			if(register)
+				var undo: @Undo :: #@Undo
+				do undo.kind :: %bs
+				do undo.pos :: ##pos
+				do undo.str :: (^str).toStr()
+				do @undoBuf[@undoPtr] :: undo
+				do @undoPtr :: (@undoPtr + 1) % @undoBufSize
+				do @undoBuf[@undoPtr] :: null
+				do @redoBuf[@undoPtr] :: null
+			end if
+		end block
+	case %bs
+		for(1, str.toInt())
+			var oldPos: []int :: ##pos
+			do @editorSetCursor(&pos[0], &pos[1], pos[0] - 1, pos[1], true)
+			if(oldPos[0] = 0)
+				if(!@curSrc.termOffset(-1))
+					if(register)
+						var redo: @Undo :: #@Undo
+						do redo.kind :: %bs
+						do redo.pos :: oldPos
+						do redo.str :: "1"
+						do @redoBuf[@undoPtr] :: redo
+						var undo: @Undo :: #@Undo
+						do undo.kind :: %ret_
+						do undo.pos :: ##pos
+						do undo.str :: "1"
+						do @undoBuf[@undoPtr] :: undo
+						do @undoPtr :: (@undoPtr + 1) % @undoBufSize
+						do @undoBuf[@undoPtr] :: null
+						do @redoBuf[@undoPtr] :: null
+					end if
+					var line2: @Line :: @curSrc.getOffset(-1)
+					do line2.src :: line2.src ~ line.src
+					do @curSrc.del()
+				end if
+			else
+				if(register)
+					var redo: @Undo :: #@Undo
+					do redo.kind :: %bs
+					do redo.pos :: oldPos
+					do redo.str :: "1"
+					do @redoBuf[@undoPtr] :: redo
+					var undo: @Undo :: #@Undo
+					do undo.kind :: %ins
+					do undo.pos :: ##pos
+					do undo.str :: line.src[oldPos[0] - 1].toStr()
+					do @undoBuf[@undoPtr] :: undo
+					do @undoPtr :: (@undoPtr + 1) % @undoBufSize
+					do @undoBuf[@undoPtr] :: null
+					do @redoBuf[@undoPtr] :: null
+				end if
+				do line.src :: line.src.sub(0, oldPos[0] - 1) ~ line.src.sub(oldPos[0], -1)
+			end if
+		end for
+	case %del
+		var delBuf: []char :: ""
+		for(1, str.toInt())
 			if(pos[0] = ^line.src)
 				if(!@curSrc.termOffset(1))
+					if(register)
+						if(^delBuf <> 0)
+							var redo: @Undo :: #@Undo
+							do redo.kind :: %del
+							do redo.pos :: ##pos
+							do redo.str :: (^delBuf).toStr()
+							do @redoBuf[@undoPtr] :: redo
+							var undo: @Undo :: #@Undo
+							do undo.kind :: %ins
+							do undo.pos :: ##pos
+							do undo.str :: delBuf
+							do @undoBuf[@undoPtr] :: undo
+							do @undoPtr :: (@undoPtr + 1) % @undoBufSize
+							do @undoBuf[@undoPtr] :: null
+							do @redoBuf[@undoPtr] :: null
+							do delBuf :: ""
+						end if
+						var redo: @Undo :: #@Undo
+						do redo.kind :: %del
+						do redo.pos :: ##pos
+						do redo.str :: "1"
+						do @redoBuf[@undoPtr] :: redo
+						var undo: @Undo :: #@Undo
+						do undo.kind :: %ret_
+						do undo.pos :: ##pos
+						do undo.str :: "1"
+						do @undoBuf[@undoPtr] :: undo
+						do @undoPtr :: (@undoPtr + 1) % @undoBufSize
+						do @undoBuf[@undoPtr] :: null
+						do @redoBuf[@undoPtr] :: null
+					end if
 					var line2: @Line :: @curSrc.getOffset(1)
 					do line.src :: line.src ~ line2.src
 					do @curSrc.delNext()
 				end if
 			else
+				if(register)
+					do delBuf :~ line.src[pos[0]].toStr()
+				end if
 				do line.src :: line.src.sub(0, pos[0]) ~ line.src.sub(pos[0] + 1, -1)
 			end if
 		end for
-	case 2 {return}
-		var line2: @Line :: #@Line
-		do line2.src :: line.src.sub(pos[0], -1)
-		do line2.indent :: 0
-		do line2.commentLevel :: 0
-		do line2.lineContinue :: false
-		do line.src :: line.src.sub(0, pos[0])
-		if(@curSrc.termOffset(1))
-			do @curSrc.add(line2)
-		else
-			do @curSrc.next()
-			do @curSrc.ins(line2)
+		if(^delBuf <> 0)
+			var redo: @Undo :: #@Undo
+			do redo.kind :: %del
+			do redo.pos :: ##pos
+			do redo.str :: (^delBuf).toStr()
+			do @redoBuf[@undoPtr] :: redo
+			var undo: @Undo :: #@Undo
+			do undo.kind :: %ins
+			do undo.pos :: ##pos
+			do undo.str :: delBuf
+			do @undoBuf[@undoPtr] :: undo
+			do @undoPtr :: (@undoPtr + 1) % @undoBufSize
+			do @undoBuf[@undoPtr] :: null
+			do @redoBuf[@undoPtr] :: null
+			do delBuf :: ""
+		end if
+		do @editorSetCursor(&pos[0], &pos[1], pos[0], pos[1], false)
+	case %ret_
+		var len: int :: str.toInt()
+		if(register)
+			var redo: @Undo :: #@Undo
+			do redo.kind :: %ret_
+			do redo.pos :: ##pos
+			do redo.str :: len.toStr()
+			do @redoBuf[@undoPtr] :: redo
+		end if
+		for(1, len)
+			var line2: @Line :: #@Line
+			do line2.src :: line.src.sub(pos[0], -1)
+			do line2.indent :: 0
+			do line2.commentLevel :: 0
+			do line2.lineContinue :: false
+			do line.src :: line.src.sub(0, pos[0])
+			if(@curSrc.termOffset(1))
+				do @curSrc.add(line2)
+			else
+				do @curSrc.next()
+				do @curSrc.ins(line2)
+			end if
+		end for
+		do @editorSetCursor(&pos[0], &pos[1], 0, pos[1] + len, false)
+		if(register)
+			var undo: @Undo :: #@Undo
+			do undo.kind :: %bs
+			do undo.pos :: ##pos
+			do undo.str :: len.toStr()
+			do @undoBuf[@undoPtr] :: undo
+			do @undoPtr :: (@undoPtr + 1) % @undoBufSize
+			do @undoBuf[@undoPtr] :: null
+			do @redoBuf[@undoPtr] :: null
 		end if
 	end switch
 end func

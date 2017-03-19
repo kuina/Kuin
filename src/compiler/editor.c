@@ -12,6 +12,8 @@ static int CellWidth, CellHeight;
 static int CharHeight;
 static int CursorX, CursorY;
 static int AreaX, AreaY;
+static Bool Drag;
+static int LineNumberWidth;
 static HFONT FontSrc;
 
 // Assembly functions.
@@ -22,8 +24,14 @@ void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);
 
 static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static void RecordArea(Bool shift);
-static int GetAreaLen(int* begin_x, int* begin_y);
+static int GetAreaLen(int* begin_x, int* begin_y, Bool crlf);
 static void DelStrInArea(void);
+static void CopyStrInArea(void);
+static Bool SelectArea(void);
+static void PasteStr(void);
+static void InsertChar(Char c);
+static void CallCmd(int cmd, int len);
+static int Log10(int n);
 static int SrcLen(void);
 static const void* YPtrGet(int y);
 static const void* YPtrNext(const void* y_ptr);
@@ -62,6 +70,8 @@ EXPORT void EditorInit(SClass* me_, void* func_ins, void* func_cmd, void* func_r
 	CursorY = 0;
 	AreaX = -1;
 	AreaY = -1;
+	Drag = False;
+	LineNumberWidth = 0;
 
 	FontSrc = CreateFont(-CharHeight, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, L"Consolas");
 }
@@ -76,7 +86,18 @@ EXPORT void EditorSetSrc(const void* src)
 	Src = src;
 	PageX = 0;
 	PageY = 0;
+	RefreshCursor(False);
 	InvalidateRect(WndHandle, NULL, TRUE);
+}
+
+EXPORT void EditorSetCursor(S64* newX, S64* newY, S64 x, S64 y, Bool refresh)
+{
+	CursorX = (int)x;
+	CursorY = (int)y;
+	if (refresh)
+		RefreshCursor(False);
+	*newX = (S64)CursorX;
+	*newY = (S64)CursorY;
 }
 
 static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
@@ -96,22 +117,39 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 		case WM_LBUTTONDOWN:
 			SetFocus(wnd);
 			{
-				int x = (int)LOWORD(l_param);
+				int x = (int)LOWORD(l_param) - LineNumberWidth;
 				int y = (int)HIWORD(l_param);
 				RECT rect;
 				GetClientRect(wnd, &rect);
 				RecordArea((GetKeyState(VK_SHIFT) & 0x8000) != 0);
 				CursorX = PageX + (x - (int)rect.left) / CellWidth;
 				CursorY = PageY + (y - (int)rect.top) / CellHeight;
+				Drag = True;
 				RefreshCursor(False);
+				if (!SelectArea())
+				{
+					AreaX = CursorX;
+					AreaY = CursorY;
+				}
 				InvalidateRect(WndHandle, NULL, TRUE);
 			}
 			return 0;
-		case WM_RBUTTONUP:
-			// TODO:
+		case WM_LBUTTONUP:
+			if (Drag)
+				Drag = False;
 			return 0;
 		case WM_MOUSEMOVE:
-			// TODO:
+			if (Drag)
+			{
+				int x = (int)LOWORD(l_param) - LineNumberWidth;
+				int y = (int)HIWORD(l_param);
+				RECT rect;
+				GetClientRect(wnd, &rect);
+				CursorX = PageX + (x - (int)rect.left) / CellWidth;
+				CursorY = PageY + (y - (int)rect.top) / CellHeight;
+				RefreshCursor(False);
+				InvalidateRect(WndHandle, NULL, TRUE);
+			}
 			return 0;
 		case WM_MOUSEWHEEL:
 			// TODO:
@@ -145,37 +183,54 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 						}
 						break;
 					case 'C':
-						if (!shift && ctrl && !alt && AreaX != -1)
-						{
-							// TODO:
-						}
+						if (!shift && ctrl && !alt && SelectArea())
+							CopyStrInArea();
 						break;
 					case 'V':
 						if (!shift && ctrl && !alt)
 						{
-							// TODO:
+							if (SelectArea())
+								DelStrInArea();
+							AreaX = -1;
+							PasteStr();
 						}
 						break;
 					case 'X':
-						if (!shift && ctrl && !alt && AreaX != -1)
+						if (!shift && ctrl && !alt && SelectArea())
 						{
-							// TODO:
+							CopyStrInArea();
+							DelStrInArea();
+							RefreshCursor(False);
+							InvalidateRect(WndHandle, NULL, TRUE);
 						}
+						break;
+					case 'Z':
+						if (ctrl && !alt)
+						{
+							if (SelectArea())
+								AreaX = -1;
+							if (shift)
+								CallCmd(4, 1);
+							else
+								CallCmd(3, 1);
+							RefreshCursor(False);
+							InvalidateRect(WndHandle, NULL, TRUE);
+						}
+						// TODO:
 						break;
 					case VK_BACK:
 						if (!shift && !ctrl && !alt)
 						{
-							if (AreaX == -1)
+							if (!SelectArea())
 							{
 								U8 pos[0x10 + 0x10];
 								*(S64*)(pos + 0x00) = 2;
 								*(S64*)(pos + 0x08) = 2;
 								*(S64*)(pos + 0x10) = (S64)CursorX;
 								*(S64*)(pos + 0x18) = (S64)CursorY;
-								CursorX--;
-								RefreshCursor(False);
 								Call3Asm(pos, (void*)(S64)1, (void*)(U64)0, FuncCmd);
 								ASSERT(*(S64*)pos == 1);
+								RefreshCursor(False);
 								InvalidateRect(WndHandle, NULL, TRUE);
 							}
 							else
@@ -187,20 +242,24 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 						}
 						break;
 					case VK_TAB:
-						// TODO:
+						if (!SelectArea())
+						{
+							InsertChar(L'\t');
+							RefreshCursor(False);
+							InvalidateRect(WndHandle, NULL, TRUE);
+						}
+						else
+						{
+							// TODO: Indent.
+						}
 						break;
 					case VK_RETURN:
 						if (!shift && !ctrl && !alt)
 						{
-							U8 pos[0x10 + 0x10];
-							*(S64*)(pos + 0x00) = 2;
-							*(S64*)(pos + 0x08) = 2;
-							*(S64*)(pos + 0x10) = (S64)CursorX;
-							*(S64*)(pos + 0x18) = (S64)CursorY;
-							Call3Asm(pos, (void*)(S64)1, (void*)(U64)2, FuncCmd);
-							ASSERT(*(S64*)pos == 1);
-							CursorX = 0;
-							CursorY++;
+							if (SelectArea())
+								DelStrInArea();
+							AreaX = -1;
+							CallCmd(2, 1);
 							RefreshCursor(False);
 							InvalidateRect(WndHandle, NULL, TRUE);
 						}
@@ -275,15 +334,9 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 					case VK_DELETE:
 						if (!shift && !ctrl && !alt)
 						{
-							if (AreaX == -1)
+							if (!SelectArea())
 							{
-								U8 pos[0x10 + 0x10];
-								*(S64*)(pos + 0x00) = 2;
-								*(S64*)(pos + 0x08) = 2;
-								*(S64*)(pos + 0x10) = (S64)CursorX;
-								*(S64*)(pos + 0x18) = (S64)CursorY;
-								Call3Asm(pos, (void*)(S64)1, (void*)(U64)1, FuncCmd);
-								ASSERT(*(S64*)pos == 1);
+								CallCmd(1, 1);
 								RefreshCursor(False);
 								InvalidateRect(WndHandle, NULL, TRUE);
 							}
@@ -304,23 +357,12 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 		case WM_CHAR:
 			if (Wide((Char)w_param) == 0)
 				return 0;
-			{
-				U8 pos[0x10 + 0x10];
-				U8 str[0x10 + sizeof(Char) * 2];
-				*(S64*)(pos + 0x00) = 2;
-				*(S64*)(pos + 0x08) = 2;
-				*(S64*)(pos + 0x10) = (S64)CursorX;
-				*(S64*)(pos + 0x18) = (S64)CursorY;
-				*(S64*)(str + 0x00) = 2;
-				*(S64*)(str + 0x08) = 1;
-				*(Char*)(str + 0x10) = (Char)w_param;
-				*(Char*)(str + 0x12) = L'\0';
-				Call2Asm(pos, str, FuncIns);
-				ASSERT(*(S64*)pos == 1 && *(S64*)str == 1);
-				CursorX++;
-				RefreshCursor(False);
-				InvalidateRect(WndHandle, NULL, TRUE);
-			}
+			if (SelectArea())
+				DelStrInArea();
+			AreaX = -1;
+			InsertChar((Char)w_param);
+			RefreshCursor(False);
+			InvalidateRect(WndHandle, NULL, TRUE);
 			return 0;
 		case WM_SIZE:
 			// TODO:
@@ -334,7 +376,7 @@ static void RecordArea(Bool shift)
 {
 	if (shift)
 	{
-		if (AreaX == -1)
+		if (!SelectArea())
 		{
 			AreaX = CursorX;
 			AreaY = CursorY;
@@ -344,14 +386,14 @@ static void RecordArea(Bool shift)
 		AreaX = -1;
 }
 
-static int GetAreaLen(int* begin_x, int* begin_y)
+static int GetAreaLen(int* begin_x, int* begin_y, Bool crlf)
 {
 	int x1 = AreaX, y1 = AreaY;
 	int x2 = CursorX, y2 = CursorY;
 	int result;
-	const void* ptr = YPtrGet(y1);
-	ASSERT(AreaX != -1);
+	const void* ptr;
 	int i;
+	ASSERT(SelectArea());
 	if (y1 > y2 || y1 == y2 && x1 > x2)
 	{
 		int tmp;
@@ -362,13 +404,14 @@ static int GetAreaLen(int* begin_x, int* begin_y)
 		y1 = y2;
 		y2 = tmp;
 	}
+	ptr = YPtrGet(y1);
 	if (y1 != y2)
 	{
-		result = YPtrItemLen(ptr) - x1 + 1;
+		result = YPtrItemLen(ptr) - x1 + (crlf ? 2 : 1);
 		for (i = y1 + 1; i <= y2 - 1; i++)
 		{
 			ptr = YPtrNext(ptr);
-			result += YPtrItemLen(ptr) + 1;
+			result += YPtrItemLen(ptr) + (crlf ? 2 : 1);
 		}
 		result += x2;
 	}
@@ -377,20 +420,171 @@ static int GetAreaLen(int* begin_x, int* begin_y)
 	*begin_x = x1;
 	*begin_y = y1;
 	return result;
-
 }
 
 static void DelStrInArea(void)
 {
-	int len = GetAreaLen(&CursorX, &CursorY);
+	ASSERT(SelectArea());
+	CallCmd(1, GetAreaLen(&CursorX, &CursorY, False));
+	AreaX = -1;
+}
+
+static void CopyStrInArea(void)
+{
+	ASSERT(SelectArea());
+	{
+		int x, y;
+		int len = GetAreaLen(&x, &y, True);
+		HGLOBAL handle = GlobalAlloc(GMEM_MOVEABLE | GMEM_SHARE |GHND , sizeof(Char) * (len + 1));
+		if (handle == NULL)
+			return;
+		{
+			Char* mem = (Char*)GlobalLock(handle);
+			Char* dst = mem;
+			const void* ptr = YPtrGet(y);
+			const Char* s = YPtrItemStr(ptr) + x;
+			int i;
+			for (i = 0; i < len; i++)
+			{
+				Char c = *s;
+				if (c == L'\0')
+				{
+					c = L'\r';
+					*dst = c;
+					dst++;
+					i++;
+					c = L'\n';
+					ptr = YPtrNext(ptr);
+					s = YPtrItemStr(ptr);
+				}
+				else
+					s++;
+				*dst = c;
+				dst++;
+			}
+			*dst = L'\0';
+			ASSERT(dst == mem + len);
+			GlobalUnlock(handle);
+		}
+		if (OpenClipboard(WndHandle) == 0)
+		{
+			GlobalFree(handle);
+			return;
+		}
+		EmptyClipboard();
+		SetClipboardData(CF_UNICODETEXT, (HANDLE)handle);
+		CloseClipboard();
+	}
+}
+
+static Bool SelectArea(void)
+{
+	return AreaX != -1 && (AreaX != CursorX || AreaY != CursorY);
+}
+
+static void PasteStr(void)
+{
+	HGLOBAL handle;
+	if (IsClipboardFormatAvailable(CF_UNICODETEXT) == 0)
+		return;
+	if (OpenClipboard(WndHandle) == 0)
+		return;
+	handle = GetClipboardData(CF_UNICODETEXT);
+	if (handle == NULL)
+	{
+		CloseClipboard();
+		return;
+	}
+	{
+		Char* begin = (Char*)GlobalLock(handle);
+		Char* end = begin;
+		if (begin == NULL)
+		{
+			CloseClipboard();
+			return;
+		}
+		for (; ; )
+		{
+			if (*end == L'\r' || *end == L'\n' || *end == L'\0' || end - begin == 512)
+			{
+				if (end != begin)
+				{
+					U8 pos[0x10 + 0x10];
+					size_t len = end - begin;
+					U8 str[0x10 + sizeof(Char) * (512 + 1)];
+					*(S64*)(pos + 0x00) = 2;
+					*(S64*)(pos + 0x08) = 2;
+					*(S64*)(pos + 0x10) = (S64)CursorX;
+					*(S64*)(pos + 0x18) = (S64)CursorY;
+					*(S64*)(str + 0x00) = 2;
+					*(S64*)(str + 0x08) = (S64)len;
+					memcpy(str + 0x10, begin, sizeof(Char) * len);
+					*(Char*)(str + 0x10 + sizeof(Char) * len) = L'\0';
+					Call2Asm(pos, str, FuncIns);
+					ASSERT(*(S64*)pos == 1 && *(S64*)str == 1);
+					if (end - begin == 512)
+						begin = end;
+					else
+						begin = end + 1;
+				}
+				if (*end == L'\r' || *end == L'\n')
+				{
+					CallCmd(2, 1);
+					if (*end == L'\r' && *(end + 1) == L'\n')
+					{
+						end++;
+						begin = end + 1;
+					}
+				}
+				else if (*end == L'\0')
+					break;
+			}
+			end++;
+		}
+	}
+	GlobalUnlock(handle);
+	CloseClipboard();
+	RefreshCursor(False);
+	InvalidateRect(WndHandle, NULL, TRUE);
+}
+
+static void InsertChar(Char c)
+{
+	U8 pos[0x10 + 0x10];
+	U8 str[0x10 + sizeof(Char) * 2];
+	*(S64*)(pos + 0x00) = 2;
+	*(S64*)(pos + 0x08) = 2;
+	*(S64*)(pos + 0x10) = (S64)CursorX;
+	*(S64*)(pos + 0x18) = (S64)CursorY;
+	*(S64*)(str + 0x00) = 2;
+	*(S64*)(str + 0x08) = 1;
+	*(Char*)(str + 0x10) = c;
+	*(Char*)(str + 0x12) = L'\0';
+	Call2Asm(pos, str, FuncIns);
+	ASSERT(*(S64*)pos == 1 && *(S64*)str == 1);
+}
+
+static void CallCmd(int cmd, int len)
+{
 	U8 pos[0x10 + 0x10];
 	*(S64*)(pos + 0x00) = 2;
 	*(S64*)(pos + 0x08) = 2;
 	*(S64*)(pos + 0x10) = (S64)CursorX;
 	*(S64*)(pos + 0x18) = (S64)CursorY;
-	AreaX = -1;
-	Call3Asm(pos, (void*)(S64)len, (void*)(U64)1, FuncCmd);
+	Call3Asm(pos, (void*)(S64)len, (void*)(U64)cmd, FuncCmd);
 	ASSERT(*(S64*)pos == 1);
+}
+
+static int Log10(int n)
+{
+	int result = 0;
+	int m = 1;
+	while (n >= m)
+	{
+		m *= 10;
+		result++;
+	}
+	return result;
 }
 
 static int SrcLen(void)
@@ -497,8 +691,10 @@ static void RefreshCursor(Bool right)
 			}
 		}
 	}
+	// TODO: Page.
 	// TODO: Wide char.
-	SetCaretPos((CursorX - PageX) * CellWidth, (CursorY - PageY) * CellHeight);
+	LineNumberWidth = CellWidth * Log10(SrcLen() + 1);
+	SetCaretPos((CursorX - PageX) * CellWidth + LineNumberWidth, (CursorY - PageY) * CellHeight);
 }
 
 static void Draw(HDC dc, const RECT* rect)
@@ -513,7 +709,7 @@ static void Draw(HDC dc, const RECT* rect)
 		int i, j;
 		int x1 = AreaX, y1 = AreaY;
 		int x2 = CursorX, y2 = CursorY;
-		if (AreaX != -1 && (y1 > y2 || y1 == y2 && x1 > x2))
+		if (SelectArea() && (y1 > y2 || y1 == y2 && x1 > x2))
 		{
 			int tmp;
 			tmp = x1;
@@ -531,16 +727,16 @@ static void Draw(HDC dc, const RECT* rect)
 			if (y >= (int)rect->top)
 			{
 				const Char* str = YPtrItemStr(y_ptr);
-				int x = -PageX * CellWidth;
+				int x = -PageX * CellWidth + LineNumberWidth;
 				for (j = 0; j < ScrWidth / CellWidth; j++)
 				{
 					ASSERT(*str != L'\r' && *str != L'\n');
 					if (*str == L'\0' || x + CellWidth >= (int)rect->right)
 						break;
-					if (x >= (int)rect->left)
+					if (x >= (int)rect->left + LineNumberWidth)
 					{
 						Bool in_area = False;
-						if (AreaX != -1)
+						if (SelectArea())
 						{
 							int x3 = PageX + j, y3 = PageY + i;
 							if (y3 < y1 || y2 < y3)
