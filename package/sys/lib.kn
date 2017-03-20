@@ -6,6 +6,9 @@
 +func [d0000.knd, _cmdLine] cmdLine(): [][]char
 end func
 
++func [_ret_code] retCode(code: int)
+end func
+
 +func [d0000.knd, _rnd] rnd(min: int, max: int): int
 end func
 
