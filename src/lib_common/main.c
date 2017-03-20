@@ -1667,28 +1667,6 @@ EXPORT void _head(void* me_, const U8* type)
 	*(void**)((U8*)me_ + 0x20) = *(void**)((U8*)me_ + 0x10);
 }
 
-EXPORT void _headOffset(void* me_, const U8* type, S64 offset)
-{
-	S64 len = *(S64*)((U8*)me_ + 0x08);
-	if (offset < len / 2)
-	{
-		void* ptr = *(void**)((U8*)me_ + 0x10);
-		S64 i;
-		for (i = 0; i < offset; i++)
-			ptr = *(void**)((U8*)ptr + 0x08);
-		*(void**)((U8*)me_ + 0x20) = ptr;
-	}
-	else
-	{
-		void* ptr = *(void**)((U8*)me_ + 0x18);
-		S64 i;
-		ASSERT(offset < len);
-		for (i = len - 1; i > offset; i--)
-			ptr = *(void**)ptr;
-		*(void**)((U8*)me_ + 0x20) = ptr;
-	}
-}
-
 EXPORT void _tail(void* me_, const U8* type)
 {
 	UNUSED(type);
@@ -1707,6 +1685,31 @@ EXPORT void _prev(void* me_, const U8* type)
 	void* ptr = *(void**)((U8*)me_ + 0x20);
 	UNUSED(type);
 	*(void**)((U8*)me_ + 0x20) = *(void**)ptr;
+}
+
+EXPORT void _moveOffset(void* me_, const U8* type, S64 offset)
+{
+	void* ptr = *(void**)((U8*)me_ + 0x20);
+	S64 i;
+	if (offset >= 0)
+	{
+		for (i = 0; i < offset; i++)
+		{
+			if (ptr == NULL)
+				break;
+			ptr = *(void**)((U8*)ptr + 0x08);
+		}
+	}
+	else
+	{
+		for (i = 0; i > offset; i--)
+		{
+			if (ptr == NULL)
+				break;
+			ptr = *(void**)ptr;
+		}
+	}
+	*(void**)((U8*)me_ + 0x20) = ptr;
 }
 
 EXPORT Bool _term(void* me_, const U8* type)

@@ -191,7 +191,8 @@ func onCmd(pos: []int, len: int, cmd: int)
 end func
 
 func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
-	do @curSrc.headOffset(pos[1])
+	do @curSrc.head()
+	do @curSrc.moveOffset(pos[1])
 	var line: @Line :: @curSrc.get()
 	switch(kind)
 	case %ins

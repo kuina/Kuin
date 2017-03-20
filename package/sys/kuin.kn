@@ -194,7 +194,7 @@ end func
 func [d0000.knd, _any_type] _head(me_: []bit8, type: int)
 end func
 
-func [d0000.knd, _any_type] _headOffset(me_: []bit8, type: int, offset: int)
+func [d0000.knd, _any_type] _moveOffset(me_: []bit8, type: int, offset: int)
 end func
 
 func [d0000.knd, _any_type] _tail(me_: []bit8, type: int)
