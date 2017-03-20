@@ -430,6 +430,12 @@ EXPORT_CPP const U8* _wndGetText(SClass* me_)
 	return result;
 }
 
+EXPORT_CPP void _wndReadonly(SClass* me_, Bool flag)
+{
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	SendMessage(wnd, EM_SETREADONLY, flag ? TRUE : FALSE, 0);
+}
+
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
@@ -714,11 +720,11 @@ static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64
 	if ((wnd->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorRight)) != 0)
 		wnd->DefaultWidth = static_cast<U16>(static_cast<U64>(parent_rect.right - parent_rect.left) - x - width);
 	else
-		wnd->DefaultWidth = static_cast<U16>(x + width);
+		wnd->DefaultWidth = static_cast<U16>(width);
 	if ((wnd->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorBottom)) != 0)
 		wnd->DefaultHeight = static_cast<U16>(static_cast<U64>(parent_rect.bottom - parent_rect.top) - y - height);
 	else
-		wnd->DefaultHeight = static_cast<U16>(y + height);
+		wnd->DefaultHeight = static_cast<U16>(height);
 }
 
 static SWndBase* ToWnd(HWND wnd)

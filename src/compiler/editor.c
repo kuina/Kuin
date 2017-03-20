@@ -1,5 +1,70 @@
 #include "editor.h"
 
+static const Char* Reserved[] =
+{
+	L"alias",
+	L"assert",
+	L"bit16",
+	L"bit32",
+	L"bit64",
+	L"bit8",
+	L"block",
+	L"bool",
+	L"break",
+	L"case",
+	L"catch",
+	L"char",
+	L"class",
+	L"const",
+	L"dbg",
+	L"default",
+	L"dict",
+	L"do",
+	L"elif",
+	L"else",
+	L"end",
+	L"enum",
+	L"false",
+	L"finally",
+	L"float",
+	L"for",
+	L"foreach",
+	L"func",
+	L"if",
+	L"ifdef",
+	L"inf",
+	L"int",
+	L"list",
+	L"me",
+	L"null",
+	L"queue",
+	L"ret",
+	L"rls",
+	L"skip",
+	L"stack",
+	L"switch",
+	L"throw",
+	L"to",
+	L"true",
+	L"try",
+	L"var",
+	L"while",
+};
+
+static const COLORREF ColorBack = RGB(255, 245, 245);
+static const COLORREF ColorLineNumber = RGB(255, 127, 127);
+static const COLORREF ColorAreaBack = RGB(127, 127, 127);
+static const COLORREF ColorAreaText = RGB(255, 255, 255);
+static const COLORREF ColorStr = RGB(0, 161, 40); // 'H' = 135.
+static const COLORREF ColorChar = RGB(161, 120, 0); // 'H' = 45.
+static const COLORREF ColorLineComment = RGB(80, 0, 161); // 'H' = 270.
+static const COLORREF ColorComment = RGB(80, 161, 0); // 'H' = 90.
+static const COLORREF ColorGlobal = RGB(161, 0, 120); // 'H' = 315.
+static const COLORREF ColorReserved = RGB(0, 40, 161); // 'H' = 225.
+static const COLORREF ColorIdentifier = RGB(161, 0, 0); // 'H' = 0.
+static const COLORREF ColorNumber = RGB(0, 161, 161); // 'H' = 180.
+static const COLORREF ColorOperator = RGB(120, 120, 120); // 'S' = 0.
+
 static HWND WndHandle;
 static WNDPROC DefaultWndProc;
 static void* FuncIns;
@@ -14,7 +79,10 @@ static int CursorX, CursorY;
 static int AreaX, AreaY;
 static Bool Drag;
 static int LineNumberWidth;
+static int HighlightLen;
+static COLORREF HighlightColor;
 static HFONT FontSrc;
+static HPEN PenLineNumber;
 
 // Assembly functions.
 void* Call0Asm(void* func);
@@ -43,6 +111,10 @@ static int Wide(Char c);
 static void RefreshScrSize(void);
 static void RefreshCursor(Bool right);
 static void Draw(HDC dc, const RECT* rect);
+static int BinSearch(const Char** hay_stack, int num, const Char* needle);
+static Bool IsReserved(const Char* word);
+static void ResetHighlight(void);
+static COLORREF InterpretHighlight(const Char* str);
 
 EXPORT void EditorInit(SClass* me_, void* func_ins, void* func_cmd, void* func_replace)
 {
@@ -72,12 +144,22 @@ EXPORT void EditorInit(SClass* me_, void* func_ins, void* func_cmd, void* func_r
 	AreaY = -1;
 	Drag = False;
 	LineNumberWidth = 0;
+	ResetHighlight();
 
-	FontSrc = CreateFont(-CharHeight, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, L"Consolas");
+	FontSrc = CreateFont(-CharHeight, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, L"Consolas");
+	PenLineNumber = CreatePen(PS_SOLID, 1, ColorLineNumber);
+
+	{
+		int len = (int)(sizeof(Reserved) / sizeof(Char*));
+		int i;
+		for (i = 0; i < len - 1; i++)
+			ASSERT(wcscmp(Reserved[i], Reserved[i + 1]) < 0);
+	}
 }
 
 EXPORT void EditorFin(void)
 {
+	DeleteObject((HGDIOBJ)PenLineNumber);
 	DeleteObject((HGDIOBJ)FontSrc);
 }
 
@@ -693,7 +775,7 @@ static void RefreshCursor(Bool right)
 	}
 	// TODO: Page.
 	// TODO: Wide char.
-	LineNumberWidth = CellWidth * Log10(SrcLen() + 1);
+	LineNumberWidth = CellWidth * (Log10(SrcLen()) + 1);
 	SetCaretPos((CursorX - PageX) * CellWidth + LineNumberWidth, (CursorY - PageY) * CellHeight);
 }
 
@@ -701,8 +783,32 @@ static void Draw(HDC dc, const RECT* rect)
 {
 	HGDIOBJ font_old = SelectObject(dc, (HGDIOBJ)FontSrc);
 	SetBkMode(dc, OPAQUE);
-	SetBkColor(dc, RGB(0xff, 0xe2, 0xdf));
+	SetBkColor(dc, ColorBack);
 	ExtTextOut(dc, rect->left, rect->top, ETO_CLIPPED | ETO_OPAQUE, rect, L"", 0, NULL);
+
+	{
+		HGDIOBJ pen_old = SelectObject(dc, (HGDIOBJ)PenLineNumber);
+		LONG x = (LONG)(LineNumberWidth - CellWidth / 2);
+		POINT points[2];
+		points[0].x = x;
+		points[0].y = rect->top;
+		points[1].x = x;
+		points[1].y = rect->bottom;
+		Polyline(dc, points, 2);
+		SelectObject(dc, pen_old);
+	}
+	{
+		int i;
+		int len = SrcLen();
+		Char str[33];
+		SetBkMode(dc, TRANSPARENT);
+		SetTextColor(dc, ColorLineNumber);
+		for (i = 0; i < len; i++)
+		{
+			int str_len = swprintf(str, 33, L"%d", i + 1);
+			ExtTextOut(dc, LineNumberWidth - (str_len + 1) * CellWidth + CellWidth / 2, i * CellHeight, ETO_CLIPPED, rect, str, (UINT)str_len, NULL);
+		}
+	}
 
 	{
 		const void* y_ptr = YPtrGet(PageY);
@@ -728,10 +834,12 @@ static void Draw(HDC dc, const RECT* rect)
 			{
 				const Char* str = YPtrItemStr(y_ptr);
 				int x = -PageX * CellWidth + LineNumberWidth;
+				ResetHighlight();
 				for (j = 0; j < ScrWidth / CellWidth; j++)
 				{
+					COLORREF color = InterpretHighlight(str);
 					ASSERT(*str != L'\r' && *str != L'\n');
-					if (*str == L'\0' || x + CellWidth >= (int)rect->right)
+					if (x + CellWidth >= (int)rect->right)
 						break;
 					if (x >= (int)rect->left + LineNumberWidth)
 					{
@@ -755,18 +863,38 @@ static void Draw(HDC dc, const RECT* rect)
 						}
 						if (in_area)
 						{
-							SetBkMode(dc, OPAQUE);
-							SetBkColor(dc, RGB(127, 127, 127));
-							SetTextColor(dc, RGB(255, 255, 255));
-							ExtTextOut(dc, x, i * CellHeight, ETO_CLIPPED, rect, str, 1, NULL);
+							if (*str == L'\0')
+							{
+								// TODO:
+								SetBkMode(dc, OPAQUE);
+								SetBkColor(dc, ColorAreaBack);
+								SetTextColor(dc, ColorAreaText);
+								ExtTextOut(dc, x, i * CellHeight, ETO_CLIPPED, rect, L" ", 1, NULL);
+							}
+							else
+							{
+								SetBkMode(dc, OPAQUE);
+								SetBkColor(dc, ColorAreaBack);
+								SetTextColor(dc, ColorAreaText);
+								ExtTextOut(dc, x, i * CellHeight, ETO_CLIPPED, rect, str, 1, NULL);
+							}
 						}
 						else
 						{
-							SetBkMode(dc, TRANSPARENT);
-							SetTextColor(dc, RGB(0, 0, 0));
-							ExtTextOut(dc, x, i * CellHeight, ETO_CLIPPED, rect, str, 1, NULL);
+							if (*str == L'\0')
+							{
+								// TODO:
+							}
+							else
+							{
+								SetBkMode(dc, TRANSPARENT);
+								SetTextColor(dc, color);
+								ExtTextOut(dc, x, i * CellHeight, ETO_CLIPPED, rect, str, 1, NULL);
+							}
 						}
 					}
+					if (*str == L'\0')
+						break;
 					{
 						Char c = *str;
 						int wide = Wide(c);
@@ -786,4 +914,205 @@ static void Draw(HDC dc, const RECT* rect)
 		}
 	}
 	SelectObject(dc, font_old);
+}
+
+static int BinSearch(const Char** hay_stack, int num, const Char* needle)
+{
+	int min = 0;
+	int max = num - 1;
+	while (min <= max)
+	{
+		int mid = (min + max) / 2;
+		int cmp = wcscmp(needle, hay_stack[mid]);
+		if (cmp < 0)
+			max = mid - 1;
+		else if (cmp > 0)
+			min = mid + 1;
+		else
+			return mid;
+	}
+	return -1;
+}
+
+static Bool IsReserved(const Char* word)
+{
+	return BinSearch(Reserved, (int)(sizeof(Reserved) / sizeof(Char*)), word) != -1;
+}
+
+static void ResetHighlight(void)
+{
+	HighlightLen = 0;
+	HighlightColor = 0;
+}
+
+static COLORREF InterpretHighlight(const Char* str)
+{
+	if (HighlightLen > 0)
+	{
+		HighlightLen--;
+		if (HighlightLen != 0)
+			return HighlightColor;
+	}
+	{
+		Char buf[1024];
+		Bool at = False;
+		const Char* src = str;
+		Char* dst = buf;
+		if (*src == L'"')
+		{
+			do
+			{
+				*dst = *src;
+				src++;
+				dst++;
+				if (dst - buf == 1023)
+					break;
+			} while (*src != L'"' && *src != L'\0');
+			if (dst - buf != 1023 && *src == L'"')
+			{
+				*dst = *src;
+				src++;
+				dst++;
+			}
+			*dst = L'\0';
+			HighlightLen = (int)(dst - buf);
+			HighlightColor = ColorStr;
+			return HighlightColor;
+		}
+		if (L'\'' == *src)
+		{
+			do
+			{
+				*dst = *src;
+				src++;
+				dst++;
+				if (dst - buf == 1023)
+					break;
+			} while (*src != L'\'' && *src != L'\0');
+			if (dst - buf != 1023 && *src == L'\'')
+			{
+				*dst = *src;
+				src++;
+				dst++;
+			}
+			*dst = L'\0';
+			HighlightLen = (int)(dst - buf);
+			HighlightColor = ColorChar;
+			return HighlightColor;
+		}
+		if (L';' == *src)
+		{
+			do
+			{
+				*dst = *src;
+				src++;
+				dst++;
+				if (dst - buf == 1023)
+					break;
+			} while (*src != L'\0');
+			*dst = L'\0';
+			HighlightLen = (int)(dst - buf);
+			HighlightColor = ColorLineComment;
+			return HighlightColor;
+		}
+		if (L'{' == *src)
+		{
+			int level = 0;
+			do
+			{
+				if (*src == L'{')
+					level++;
+				else if (*src == L'}')
+					level--;
+				*dst = *src;
+				src++;
+				dst++;
+				if (dst - buf == 1023)
+					break;
+			} while (level > 0 && *src != L'\0');
+			*dst = L'\0';
+			HighlightLen = (int)(dst - buf);
+			HighlightColor = ColorComment;
+			return HighlightColor;
+		}
+		if (L'a' <= *src && *src <= L'z' || L'A' <= *src && *src <= L'Z' || *src == L'_' || *src == L'@' || *src == L'\\')
+		{
+			do
+			{
+				if (*src == L'@')
+					at = True;
+				*dst = *src;
+				src++;
+				dst++;
+				if (dst - buf == 1023)
+					break;
+			} while (L'a' <= *src && *src <= L'z' || L'A' <= *src && *src <= L'Z' || *src == L'_' || L'0' <= *src && *src <= L'9' || *src == L'@' || *src == L'\\');
+			*dst = L'\0';
+
+			HighlightLen = (int)(dst - buf);
+			if (at)
+			{
+				HighlightColor = ColorGlobal;
+				return HighlightColor;
+			}
+			if (IsReserved(buf))
+			{
+				HighlightColor = ColorReserved;
+				return HighlightColor;
+			}
+			HighlightColor = ColorIdentifier;
+			return HighlightColor;
+		}
+		if (L'0' <= *src && *src <= L'9')
+		{
+			do
+			{
+				if (*src == L'@')
+					at = True;
+				*dst = *src;
+				src++;
+				dst++;
+				if (dst - buf == 1023)
+					break;
+			} while (L'0' <= *src && *src <= L'9' || L'A' <= *src && *src <= L'F' || *src == L'#' || *src == L'.');
+			if (dst - buf != 1023)
+			{
+				if (*src == L'e')
+				{
+					*dst = *src;
+					src++;
+					dst++;
+					if (dst - buf != 1023 && (*src == L'+' || *src == L'-'))
+					{
+						*dst = *src;
+						src++;
+						dst++;
+						while (dst - buf != 1023 && (L'0' <= *src && *src <= L'9'))
+						{
+							*dst = *src;
+							src++;
+							dst++;
+						}
+					}
+				}
+				else if (*src == L'b')
+				{
+					*dst = *src;
+					src++;
+					dst++;
+					while (dst - buf != 1023 && (L'0' <= *src && *src <= L'9'))
+					{
+						*dst = *src;
+						src++;
+						dst++;
+					}
+				}
+			}
+			*dst = L'\0';
+			HighlightLen = (int)(dst - buf);
+			HighlightColor = ColorNumber;
+			return HighlightColor;
+		}
+	}
+	return ColorOperator;
 }

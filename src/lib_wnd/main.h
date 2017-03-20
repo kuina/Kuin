@@ -10,6 +10,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 EXPORT_CPP void _wndBaseDtor(SClass* me_);
 EXPORT_CPP void _wndSetText(SClass* me_, const U8* text);
 EXPORT_CPP const U8* _wndGetText(SClass* me_);
+EXPORT_CPP void _wndReadonly(SClass* me_, Bool flag);
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeBtn(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text);
 EXPORT_CPP SClass* _makeChk(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text);

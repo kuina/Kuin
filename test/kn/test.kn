@@ -100,17 +100,16 @@ func main()
 end func
 
 func makeWnd()
-	var scrollWidth: int :: 17
-
 	do @wndMain :: wnd@makeWnd(null, %normal, 1024, 768, "Kuin Programming Language")
-	do @tabSrc :: wnd@makeTab(@wndMain, 0, 0, 1024 - 200, 768 - 100, %scale, %scale)
-	do @plainSrc :: wnd@makePlain(@tabSrc, 0, 50, 1024 - 200 - scrollWidth, 768 - 150 - scrollWidth, %scale, %scale)
-	do @scrollXSrc :: wnd@makeScrollX(@tabSrc, 0, 50 + 768 - 150 - scrollWidth, 1024 - 200 - scrollWidth, scrollWidth, %scale, %move)
-	do @scrollYSrc :: wnd@makeScrollY(@tabSrc, 0 + 1024 - 200 - scrollWidth, 50, scrollWidth, 768 - 150 - scrollWidth, %move, %scale)
-	do @editLog :: wnd@makeEditMulti(@wndMain, 0, 768 - 100, 1024, 100, %scale, %move)
-	do @btnCompile :: wnd@makeBtn(@wndMain, 1024 - 200, 0, 200, 50, %move, %fix, "Compile")
+	do @tabSrc :: wnd@makeTab(@wndMain, 12, 12, 809, 603, %scale, %scale)
+	do @plainSrc :: wnd@makePlain(@tabSrc, 6, 6, 780, 574, %scale, %scale)
+	do @scrollXSrc :: wnd@makeScrollX(@tabSrc, 6, 580, 780, 17, %scale, %move)
+	do @scrollYSrc :: wnd@makeScrollY(@tabSrc, 786, 6, 17, 574, %move, %scale)
+	do @editLog :: wnd@makeEditMulti(@wndMain, 12, 621, 1000, 135, %scale, %move)
+	do @editLog.readonly(true)
+	do @btnCompile :: wnd@makeBtn(@wndMain, 827, 12, 185, 23, %move, %fix, "Compile && Run")
 	do @btnCompile.onPush :: @btnCompileOnPush
-	do @listFile :: wnd@makeList(@wndMain, 1024 - 200, 384, 200, 384 - 100, %move, %scale)
+	do @listFile :: wnd@makeList(@wndMain, 827, 384, 185, 231, %move, %scale)
 end func
 
 func btnCompileOnPush()
