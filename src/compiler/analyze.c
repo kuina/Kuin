@@ -1650,6 +1650,7 @@ static void RebuildArg(SAstArg* ast)
 	ast->Type = RebuildType(ast->Type);
 	if (LocalErr)
 	{
+		ast->Type = NULL;
 		LocalErr = False;
 		ast->Expr = NULL;
 		return;
