@@ -110,12 +110,35 @@ EXPORT void _err(const void* excpt)
 #if defined(DBG)
 	Char str[1024];
 	S64 code = *(S64*)((U8*)excpt + 0x10);
+	const Char* text = L"Unknown exception.";
 	const Char* msg = *(const Char**)((U8*)excpt + 0x18);
 	if (msg == NULL)
 		msg = L"No message.";
 	else
 		msg = (const Char*)((const U8*)msg + 0x10);
-	swprintf(str, 1024, L"An exception of '0x%08X' occurred.\r\n\r\n> %s", (U32)code, msg);
+	if (0x00000000 <= code && code <= 0x0000ffff)
+		text = L"User defined exception.";
+	else if (0x09170000 <= code && code <= 0x0917ffff)
+		text = L"Kuin library exception.";
+	else
+	{
+		switch (code)
+		{
+			case 0xc0000005: text = L"Access violation."; break;
+			case 0xc0000017: text = L"No memory."; break;
+			case 0xc0000090: text = L"Float invalid operation."; break;
+			case 0xc0000094: text = L"Integer division by zero."; break;
+			case 0xc00000fd: text = L"Stack overflow."; break;
+			case 0xc000013a: text = L"Ctrl-C exit."; break;
+			case 0xc9170000: text = L"Assertion failed."; break;
+			case 0xc9170001: text = L"Class cast failed."; break;
+			case 0xc9170002: text = L"Array index out of range."; break;
+			case 0xc9170003: text = L"Integer overflow."; break;
+			case 0xc9170004: text = L"Invalid call of non inherited 'cmp' method."; break;
+			case 0xc9170005: text = L"Invalid operation on standard library class."; break;
+		}
+	}
+	swprintf(str, 1024, L"An exception of '0x%08X' occurred.\r\n%s\r\n\r\n> %s", (U32)code, text, msg);
 	MessageBox(0, str, NULL, 0);
 #endif
 }
@@ -801,8 +824,7 @@ EXPORT S64 _powInt(S64 n, S64 m)
 	switch (m)
 	{
 		case 0:
-			if (n == 0)
-				THROW(0x1000, L"");
+			THROWDBG(n == 0, 0xc9170003, NULL);
 			return 1;
 		case 1:
 			return n;
@@ -811,8 +833,7 @@ EXPORT S64 _powInt(S64 n, S64 m)
 		default:
 			{
 				S64 result = 1;
-				if (m < 0)
-					THROW(0x1000, L"");
+				THROWDBG(m < 0, 0xc9170003, NULL);
 				while (m != 0)
 				{
 					if ((m & 1) == 1)
@@ -843,26 +864,28 @@ EXPORT S64 _cmpStr(const U8* a, const U8* b)
 
 EXPORT void* _newArray(S64 len, S64* nums, const U8* type)
 {
-	size_t size = len == 1 ? GetSize(*type) : 8;
-	Bool is_str = len == 1 && *type == TypeId_Char;
-	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(*nums + (is_str ? 1 : 0)));
-	((S64*)result)[0] = DefaultRefCntOpe;
-	((S64*)result)[1] = *nums;
-	ASSERT(len >= 1);
-	if (len != 1)
+	THROWDBG(*nums < 0, 0xc9170002, NULL);
 	{
-		S64 i;
-		U8* ptr = result + 0x10;
+		size_t size = len == 1 ? GetSize(*type) : 8;
+		Bool is_str = len == 1 && *type == TypeId_Char;
+		U8* result = (U8*)AllocMem(0x10 + size * (size_t)(*nums + (is_str ? 1 : 0)));
+		((S64*)result)[0] = DefaultRefCntOpe;
+		((S64*)result)[1] = *nums;
 		ASSERT(len >= 1);
-		for (i = 0; i < *nums; i++)
+		if (len != 1)
 		{
-			*(void**)ptr = _newArray(len - 1, nums + 1, type);
-			ptr = ptr + 8;
+			S64 i;
+			U8* ptr = result + 0x10;
+			for (i = 0; i < *nums; i++)
+			{
+				*(void**)ptr = _newArray(len - 1, nums + 1, type);
+				ptr = ptr + 8;
+			}
 		}
+		else
+			memset(result + 0x10, 0, size * (size_t)(*nums + (is_str ? 1 : 0)));
+		return result;
 	}
-	else
-		memset(result + 0x10, 0, size * (size_t)(*nums + (is_str ? 1 : 0)));
-	return result;
 }
 
 EXPORT U8* _toStr(const void* me_, const U8* type)
@@ -924,7 +947,7 @@ EXPORT double _absFloat(double me_)
 
 EXPORT S64 _clampInt(S64 me_, S64 min, S64 max)
 {
-	ASSERT(min <= max);
+	THROWDBG(min > max, 0x09170000, L"int.clamp: 'min' must not be greater than 'max'.");
 	if (me_ < min)
 		return min;
 	if (me_ > max)
@@ -934,7 +957,7 @@ EXPORT S64 _clampInt(S64 me_, S64 min, S64 max)
 
 EXPORT double _clampFloat(double me_, double min, double max)
 {
-	ASSERT(min <= max);
+	THROWDBG(min > max, 0x09170000, L"float.clamp: 'min' must not be greater than 'max'.");
 	if (me_ < min)
 		return min;
 	if (me_ > max)

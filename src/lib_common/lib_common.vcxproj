@@ -150,7 +150,7 @@
     <ClCompile Include="lib.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="rnd.c" />
-    <ClCompile Include="thread.c" />
+    <ClCompile Include="task.c" />
     <ClCompile Include="time.c" />
   </ItemGroup>
   <ItemGroup>
@@ -161,7 +161,7 @@
     <ClInclude Include="lib.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="rnd.h" />
-    <ClInclude Include="thread.h" />
+    <ClInclude Include="task.h" />
     <ClInclude Include="time.h" />
   </ItemGroup>
   <ItemGroup>

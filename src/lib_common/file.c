@@ -13,6 +13,32 @@ static const U8 Newline[2] = { 0x0d, 0x0a };
 static Char ReadUtf8(SStream* me_, Bool replace_delimiter);
 static void WriteUtf8(SStream* me_, Char data);
 
+EXPORT SClass* _makeReader(SClass* me_, const U8* path)
+{
+	SStream* me2 = (SStream*)me_;
+	FILE* file_ptr = _wfopen((Char*)(path + 0x10), L"rb");
+	if (file_ptr == NULL)
+		return NULL;
+	me2->Handle = file_ptr;
+	me2->DelimiterNum = 2;
+	me2->Delimiters = (Char*)AllocMem(sizeof(Char) * 2);
+	me2->Delimiters[0] = L' ';
+	me2->Delimiters[1] = L',';
+	return me_;
+}
+
+EXPORT SClass* _makeWriter(SClass* me_, const U8* path, Bool append)
+{
+	SStream* me2 = (SStream*)me_;
+	FILE* file_ptr = _wfopen((Char*)(path + 0x10), append ? L"ab" : L"wb");
+	if (file_ptr == NULL)
+		return NULL;
+	me2->Handle = file_ptr;
+	me2->DelimiterNum = 0;
+	me2->Delimiters = NULL;
+	return me_;
+}
+
 EXPORT void _streamDtor(SClass* me_)
 {
 	SStream* me2 = (SStream*)me_;
@@ -370,30 +396,82 @@ EXPORT Bool _streamTerm(SClass* me_)
 	}
 }
 
-EXPORT SClass* _makeReader(SClass* me_, const U8* path)
+EXPORT Bool _makeDir(const U8* path, Bool clear)
 {
-	SStream* me2 = (SStream*)me_;
-	FILE* file_ptr = _wfopen((Char*)(path + 0x10), L"rb");
-	if (file_ptr == NULL)
-		return NULL;
-	me2->Handle = file_ptr;
-	me2->DelimiterNum = 2;
-	me2->Delimiters = (Char*)AllocMem(sizeof(Char) * 2);
-	me2->Delimiters[0] = L' ';
-	me2->Delimiters[1] = L',';
-	return me_;
+	// TODO:
+	return False;
 }
 
-EXPORT SClass* _makeWriter(SClass* me_, const U8* path, Bool append)
+EXPORT void _foreachDir(const U8* path, Bool recursive, void* func)
 {
-	SStream* me2 = (SStream*)me_;
-	FILE* file_ptr = _wfopen((Char*)(path + 0x10), append ? L"ab" : L"wb");
+	// TODO:
+}
+
+EXPORT Bool _exist(const U8* path)
+{
+	// TODO: '\\' or '/'.
+	return PathFileExists((const Char*)(path + 0x10));
+}
+
+EXPORT Bool _delFile(const U8* path)
+{
+	// TODO:
+	return False;
+}
+
+EXPORT Bool _copyFile(const U8* dst, const U8* src, Bool overwrite)
+{
+	// TODO:
+	return False;
+}
+
+EXPORT Bool _moveFile(const U8* dst, const U8* src, Bool overwrite)
+{
+	// TODO:
+	return False;
+}
+
+EXPORT const U8* _ext(const U8* path)
+{
+	// TODO:
+	return NULL;
+}
+
+EXPORT const U8* _fileName(const U8* path)
+{
+	// TODO:
+	return NULL;
+}
+
+EXPORT const U8* _fullPath(const U8* path)
+{
+	// TODO:
+	return NULL;
+}
+
+EXPORT const U8* _delExt(const U8* path)
+{
+	// TODO:
+	return NULL;
+}
+
+EXPORT const U8* _tmpFile(void)
+{
+	// TODO:
+	return NULL;
+}
+
+EXPORT S64 _fileSize(const U8* path)
+{
+	// TODO: Test.
+	S64 result;
+	FILE* file_ptr = _wfopen((const Char*)(path + 0x10), L"rb");
 	if (file_ptr == NULL)
-		return NULL;
-	me2->Handle = file_ptr;
-	me2->DelimiterNum = 0;
-	me2->Delimiters = NULL;
-	return me_;
+		THROW(0x1000, L"");
+	_fseeki64(file_ptr, 0, SEEK_END);
+	result = _ftelli64(file_ptr);
+	fclose(file_ptr);
+	return result;
 }
 
 static Char ReadUtf8(SStream* me_, Bool replace_delimiter)

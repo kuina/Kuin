@@ -76,7 +76,7 @@ extern HINSTANCE Instance;
 void* AllocMem(size_t size);
 void FreeMem(void* ptr);
 void ThrowImpl(U32 code, const Char* msg);
-void* LoadFileAll(const Char* path, size_t* size, Bool occurExcpt);
+void* LoadFileAll(const Char* path, size_t* size);
 void* OpenFileStream(const Char* path);
 void CloseFileStream(void* handle);
 size_t ReadFileStream(void* handle, size_t size, void* buf);
@@ -88,8 +88,11 @@ U16 SwapEndianU16(U16 n);
 U32 SwapEndianU32(U32 n);
 U64 SwapEndianU64(U64 n);
 Bool IsPowerOf2(U64 n);
+
 #if defined(DBG)
 #define THROW(code, msg) ThrowImpl((code), (msg))
+#define THROWDBG(condition, code, msg) if (condition) ThrowImpl((code), (msg))
 #else
 #define THROW(code, msg) ThrowImpl((code), NULL)
+#define THROWDBG(condition, code, msg)
 #endif

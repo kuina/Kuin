@@ -23,7 +23,10 @@ void* LoadWav(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_pe
 	{
 		result->FileStream = OpenFileStream(path);
 		if (result->FileStream == NULL)
+		{
+			THROW(0x1000, NULL);
 			break;
+		}
 
 		U8 str[4];
 		if (ReadFileStream(result->FileStream, 4, str) != 4)

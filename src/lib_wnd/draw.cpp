@@ -380,7 +380,12 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 	int height;
 	{
 		size_t size;
-		bin = LoadFileAll(path2, &size, True);
+		bin = LoadFileAll(path2, &size);
+		if (bin == NULL)
+		{
+			THROW(0x1000, L"");
+			return NULL;
+		}
 		ASSERT(path_len >= 4);
 		if (StrCmpIgnoreCase(path2 + path_len - 4, L".png"))
 		{
@@ -644,8 +649,13 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 		for (; ; )
 		{
 			size_t size;
-			buf = static_cast<U8*>(LoadFileAll(reinterpret_cast<const Char*>(path + 0x10), &size, True));
 			size_t ptr = 0;
+			buf = static_cast<U8*>(LoadFileAll(reinterpret_cast<const Char*>(path + 0x10), &size));
+			if (buf == NULL)
+			{
+				THROW(0x1000, L"");
+				return NULL;
+			}
 			if (ptr + sizeof(int) > size)
 			{
 				correct = False;

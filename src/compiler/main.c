@@ -19,7 +19,7 @@
 #include "util.h"
 
 static const void*(*FuncGetSrc)(const U8*) = NULL;
-static const void(*FuncLog)(const void*, S64, S64) = NULL;
+static void(*FuncLog)(const void*, S64, S64) = NULL;
 static const void* Src = NULL;
 static const void* SrcLine = NULL;
 static const Char* SrcChar = NULL;

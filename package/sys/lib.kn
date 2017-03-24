@@ -6,7 +6,12 @@
 +func [d0000.knd, _cmdLine] cmdLine(): [][]char
 end func
 
-+func [_ret_code] retCode(code: int)
++func [_exit_code] exitCode(code: int)
+	ifdef(dbg)
+		if(code < 0 | 16#FFFFFFFF < code)
+			throw 16#09170000, "lib@exitCode: 'code' must be in the range 0 to 16#FFFFFFFF."
+		end if
+	end ifdef
 end func
 
 +func [d0000.knd, _rnd] rnd(min: int, max: int): int
@@ -94,4 +99,19 @@ end func
 end func
 
 +func [d0000.knd, _decrypt] decrypt(data: []bit8, key: []bit8): []bit8
+end func
+
++func [d0000.knd, _sysTime] sysTime(): int
+end func
+
++func [d0000.knd, _now] now(): int
+end func
+
++func [d0000.knd, _intToDate] intToDate(time: int, year: &int, month: &int, day: &int, hour: &int, minute: &int, second: &int): int
+end func
+
++func [d0000.knd, _dateToInt] dateToInt(year: int, month: int, day: int, hour: int, minute: int, second: int): int
+end func
+
++func [d0000.knd] sleep(ms: int)
 end func

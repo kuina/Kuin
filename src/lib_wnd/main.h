@@ -6,6 +6,9 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 EXPORT_CPP void _fin();
 EXPORT_CPP Bool _act();
 EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon, S64 btn);
+EXPORT_CPP void* openFileDialog(const U8* filter, S64 defaultFilter, const U8* defaultDir, const U8* title);
+EXPORT_CPP void* openFileDialogMulti(const U8* filter, S64 defaultFilter, const U8* defaultDir, const U8* title);
+EXPORT_CPP void* saveFileDialog(const U8* filter, S64 defaultFilter, const U8* defaultDir, const U8* title);
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text);
 EXPORT_CPP void _wndBaseDtor(SClass* me_);
 EXPORT_CPP void _wndSetText(SClass* me_, const U8* text);

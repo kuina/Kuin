@@ -356,6 +356,24 @@ EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon
 	return MessageBox(parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle, reinterpret_cast<const Char*>(text + 0x10), title == NULL ? AppName : reinterpret_cast<const Char*>(title + 0x10), static_cast<UINT>(icon | btn));
 }
 
+EXPORT_CPP void* openFileDialog(const U8* filter, S64 defaultFilter, const U8* defaultDir, const U8* title)
+{
+	// TODO:
+	return NULL;
+}
+
+EXPORT_CPP void* openFileDialogMulti(const U8* filter, S64 defaultFilter, const U8* defaultDir, const U8* title)
+{
+	// TODO:
+	return NULL;
+}
+
+EXPORT_CPP void* saveFileDialog(const U8* filter, S64 defaultFilter, const U8* defaultDir, const U8* title)
+{
+	// TODO:
+	return NULL;
+}
+
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);

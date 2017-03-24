@@ -32,11 +32,13 @@ EXPORT void* _cmdLine(void)
 
 EXPORT S64 _rnd(S64 min, S64 max)
 {
+	THROWDBG(min > max, 0x09170000, L"lib@rnd: 'min' must not be greater than 'max'.");
 	return RndGet(&GlobalRnd, min, max);
 }
 
 EXPORT double _rndFloat(double min, double max)
 {
+	THROWDBG(min >= max, 0x09170000, L"lib@rndFloat: 'min' must be less than 'max'.");
 	return RndGetFloat(&GlobalRnd, min, max);
 }
 

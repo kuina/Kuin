@@ -115,7 +115,7 @@ typedef enum EFuncAttr
 	FuncAttr_RetArrayOfListChild = 0x0100, // The function returns an array of the type of list elements of 'me'.
 	FuncAttr_MakeInstance = 0x0200, // Make an instance before calling the function.
 	FuncAttr_Force = 0x0400, // Force to define a method that cannot be overridden.
-	FuncAttr_RetCode = 0x0800, // Set 'RetCode'.
+	FuncAttr_ExitCode = 0x0800, // Set 'ExitCode'.
 } EFuncAttr;
 
 typedef struct SAstFunc

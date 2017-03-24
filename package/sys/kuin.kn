@@ -26,15 +26,15 @@ end class
 
 +class ResClass()
 	*func [_force] _copy(): @Class
-		throw 3009
+		throw 16#C9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 3009
+		throw 16#C9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): @Class
-		throw 3009
+		throw 16#C9170005
 	end func
 end class
 

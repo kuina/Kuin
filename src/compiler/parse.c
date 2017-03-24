@@ -897,8 +897,8 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_MakeInstance);
 					else if (wcscmp(func_attr, L"_force") == 0 && (ast->FuncAttr & FuncAttr_Force) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Force);
-					else if (wcscmp(func_attr, L"_ret_code") == 0 && (ast->FuncAttr & FuncAttr_RetCode) == 0)
-						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetCode);
+					else if (wcscmp(func_attr, L"_exit_code") == 0 && (ast->FuncAttr & FuncAttr_ExitCode) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_ExitCode);
 					else if (ast->DllName == NULL)
 						ast->DllName = func_attr;
 					else if (ast->DllFuncName == NULL)

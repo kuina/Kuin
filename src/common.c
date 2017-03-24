@@ -59,7 +59,7 @@ void ThrowImpl(U32 code, const Char* msg)
 	}
 }
 
-void* LoadFileAll(const Char* path, size_t* size, Bool occurExcpt)
+void* LoadFileAll(const Char* path, size_t* size)
 {
 	if (path[0] == L':')
 	{
@@ -71,11 +71,7 @@ void* LoadFileAll(const Char* path, size_t* size, Bool occurExcpt)
 	{
 		FILE* file_ptr = _wfopen(path, L"rb");
 		if (file_ptr == NULL)
-		{
-			if (occurExcpt)
-				THROW(0x1000, L"");
 			return NULL;
-		}
 		_fseeki64(file_ptr, 0, SEEK_END);
 		{
 			S64 size2 = _ftelli64(file_ptr);
@@ -107,10 +103,7 @@ void* OpenFileStream(const Char* path)
 	{
 		FILE* file_ptr = _wfopen(path, L"rb");
 		if (file_ptr == NULL)
-		{
-			THROW(0x1000, L"");
 			return NULL;
-		}
 		{
 			SFile* result = (SFile*)AllocMem(sizeof(SFile));
 			result->Pack = False;

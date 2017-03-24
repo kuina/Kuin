@@ -1,6 +1,6 @@
 #include "time.h"
 
-EXPORT S64 _sys(void)
+EXPORT S64 _sysTime(void)
 {
 	return (S64)timeGetTime();
 }

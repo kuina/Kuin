@@ -11,9 +11,9 @@ func main()
 			var hour: int
 			var minute: int
 			var second: int
-			var dayOfWeek: int :: time@intToDate(time, &year, &month, &day, &hour, &minute, &second)
+			var dayOfWeek: int :: lib@intToDate(time, &year, &month, &day, &hour, &minute, &second)
 			do cui@print(year.toStr() ~ ", " ~ month.toStr() ~ ", " ~ day.toStr() ~ ", " ~ hour.toStr() ~ ", " ~ minute.toStr() ~ ", " ~ second.toStr() ~ ", " ~ dayOfWeek.toStr())
-			var time2: int :: time@dateToInt(year, month, day, hour, minute, second)
+			var time2: int :: lib@dateToInt(year, month, day, hour, minute, second)
 			do cui@print(time2.toStr() ~ ", " ~ (time = time2).toStr())
 		end block
 

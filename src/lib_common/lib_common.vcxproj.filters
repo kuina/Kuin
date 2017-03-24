@@ -9,7 +9,7 @@
     <ClCompile Include="time.c" />
     <ClCompile Include="hash.c" />
     <ClCompile Include="cipher.c" />
-    <ClCompile Include="thread.c" />
+    <ClCompile Include="task.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />
@@ -20,7 +20,7 @@
     <ClInclude Include="time.h" />
     <ClInclude Include="hash.h" />
     <ClInclude Include="cipher.h" />
-    <ClInclude Include="thread.h" />
+    <ClInclude Include="task.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="low_level.asm" />

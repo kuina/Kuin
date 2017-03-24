@@ -1601,7 +1601,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 					ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr, True)), ValReg(8, Reg_AX)));
 				}
 				{
-					S64* addr = AddWritableData(L"RetCode", 8);
+					S64* addr = AddWritableData(L"ExitCode", 8);
 					ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr, True)), ValImmU(8, 0x00)));
 				}
 #if defined(_DEBUG)
@@ -1633,11 +1633,11 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 			}
 			ListAdd((SList*)StackPeek(RefFuncArgNums), (void*)(S64)((SAstFuncRaw*)ast)->ArgNum);
 		}
-		if ((ast->FuncAttr & FuncAttr_RetCode) != 0)
+		if ((ast->FuncAttr & FuncAttr_ExitCode) != 0)
 		{
-			// Set 'RetCode'.
+			// Set 'ExitCode'.
 			{
-				S64* addr = AddWritableData(L"RetCode", 8);
+				S64* addr = AddWritableData(L"ExitCode", 8);
 				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_CX), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(((SAstArg*)ast->Args->Top->Data)->Addr, False))));
 				ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr, True)), ValReg(8, Reg_CX)));
 			}
@@ -1911,7 +1911,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 				}
 			}
 			{
-				S64* addr = AddWritableData(L"RetCode", 8);
+				S64* addr = AddWritableData(L"ExitCode", 8);
 				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_CX), ValRIP(8, RefValueAddr(addr, True))));
 				CallAPI(PackAsm->Asms, L"KERNEL32.dll", L"ExitProcess");
 				ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_AX), ValReg(4, Reg_AX)));
