@@ -38,6 +38,11 @@ end class
 +class Wnd(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+
+	+func [d0001.knd, _wndSetMenu] setMenu(menu: @Menu)
+	end func
+
+	+var onPushMenu: func<(int)>
 end class
 
 +class Draw(@WndBase)
@@ -175,12 +180,20 @@ end class
 	end func
 end class
 
-+class ScrollX(@WndBase)
++class ScrollBase(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _scrollSet] set(min: int, max: int, page: int, value: int)
+	end func
+end class
+
++class ScrollX(@ScrollBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
-+class ScrollY(@WndBase)
++class ScrollY(@ScrollBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
@@ -216,6 +229,12 @@ end enum
 end enum
 
 +func [d0001.knd, _msgBox] msgBox(parent: @WndBase, text: []char, title: []char, icon: @MsgBoxIcon, btn: @MsgBoxBtn): @MsgBoxResult
+end func
+
++func [d0001.knd, _openFileDialog] openFileDialog(parent: @WndBase, filter: [][]char, defaultFilter: int): []char
+end func
+
++func [d0001.knd, _saveFileDialog] saveFileDialog(parent: @WndBase, filter: [][]char, defaultFilter: int, defaultExt: []char): []char
 end func
 
 +func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, parent: @WndBase, style: @WndStyle, width: int, height: int, text: []char): @Wnd
@@ -294,4 +313,36 @@ end func
 end func
 
 +func [d0001.knd, _makeScrollY, _make_instance] makeScrollY(me2: @ScrollY, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @ScrollY
+end func
+
++class MenuBase(kuin@ResClass)
+	*func [d0001.knd, _menuDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _menuAdd] add(id: int, text: []char)
+	end func
+
+	+func [d0001.knd, _menuAddLine] addLine()
+	end func
+
+	+func [d0001.knd, _menuAddPopup] addPopup(text: []char, popup: @Popup)
+	end func
+
+	var handle: int
+end class
+
++class Menu(@MenuBase)
+	*func [d0001.knd, _menuDtor, _force] _dtor()
+	end func
+end class
+
++class Popup(@MenuBase)
+	*func [d0001.knd, _menuDtor, _force] _dtor()
+	end func
+end class
+
++func [d0001.knd, _makeMenu, _make_instance] makeMenu(me2: @Menu): @Menu
+end func
+
++func [d0001.knd, _makePopup, _make_instance] makePopup(me2: @Popup): @Popup
 end func

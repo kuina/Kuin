@@ -1,4 +1,4 @@
-func [compiler.dll, BuildMem] build(path: []char, funcGetSrc: func<([]char): list<@Line>>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>)
+func [compiler.dll, BuildMem] build(path: []char, funcGetSrc: func<([]char): list<@Line>>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>): bool
 end func
 
 func [compiler.dll, InitMemAllocator] initMemAllocator()
@@ -10,7 +10,7 @@ end func
 func [compiler.dll, ResetMemAllocator] resetMemAllocator()
 end func
 
-func [compiler.dll, EditorInit] editorInit(me2: wnd@WndBase, funcIns: func<([]int, []char)>, funcCmd: func<([]int, int, int)>, funcReplace: func<([]int, int, []char)>)
+func [compiler.dll, EditorInit] editorInit(me2: wnd@WndBase, funcIns: func<([]int, []char)>, funcCmd: func<([]int, int, int)>, funcReplace: func<([]int, int, []char)>, scrollX: wnd@ScrollX, scrollY: wnd@ScrollY)
 end func
 
 func [compiler.dll, EditorFin] editorFin()
@@ -29,7 +29,14 @@ var scrollXSrc: wnd@ScrollX
 var scrollYSrc: wnd@ScrollY
 var editLog: wnd@EditMulti
 var btnCompile: wnd@Btn
+var groupEnv: wnd@Group
+var radioEnvWnd: wnd@Radio
+var radioEnvCui: wnd@Radio
+var editFile: wnd@Edit
 var listFile: wnd@List
+var menuMain: wnd@Menu
+var popupMainFile: wnd@Popup
+var popupMainHelp: wnd@Popup
 
 class Line()
 	+var src: []char
@@ -60,36 +67,14 @@ const undoBufSize: int :: 1024
 var undoBuf: []@Undo
 var redoBuf: []@Undo
 var undoPtr: int
+var changed: bool
 
 func main()
 	do @initMemAllocator()
 
 	do @makeWnd()
-
-	do @srcs :: #dict<[]char, list<@Line>>
-	do @curSrc :: #list<@Line>
-	do @srcs.add("_default_.kn", @curSrc)
-
-	do @mainSrc :: "_default_.kn"
-	var line: @Line :: #@Line
-	do line.src :: "piyo"
-	do line.indent :: 0
-	do line.commentLevel :: 0
-	do line.lineContinue :: false
-	do @curSrc.add(line)
-	var line2: @Line :: #@Line
-	do line2.src :: "aaa"
-	do line2.indent :: 0
-	do line2.commentLevel :: 0
-	do line2.lineContinue :: false
-	do @curSrc.add(line2)
-
-	do @undoBuf :: #[@undoBufSize]@Undo
-	do @redoBuf :: #[@undoBufSize]@Undo
-	do @undoPtr :: 0
-
-	do @editorInit(@plainSrc, @onIns, @onCmd, @onReplace)
-	do @editorSetSrc(@curSrc)
+	do @editorInit(@plainSrc, @onIns, @onCmd, @onReplace, @scrollXSrc, @scrollYSrc)
+	do @new(null)
 
 	while(wnd@act())
 	end while
@@ -99,23 +84,145 @@ func main()
 	do @finMemAllocator()
 end func
 
+func new(src: list<@Line>)
+	do @srcs :: #dict<[]char, list<@Line>>
+
+	if(src =& null)
+		do @curSrc :: #list<@Line>
+	else
+		do @curSrc :: src
+	end if
+
+	var line: @Line :: #@Line
+	do line.src :: ""
+	do line.indent :: 0
+	do line.commentLevel :: 0
+	do line.lineContinue :: false
+	do @curSrc.add(line)
+
+	do @srcs.add("_default_.kn", @curSrc)
+	do @mainSrc :: "_default_.kn"
+
+	do @undoBuf :: #[@undoBufSize]@Undo
+	do @redoBuf :: #[@undoBufSize]@Undo
+	do @undoPtr :: 0
+	do @changed :: false
+
+	do @editorSetSrc(@curSrc)
+end func
+
 func makeWnd()
 	do @wndMain :: wnd@makeWnd(null, %normal, 1024, 768, "Kuin Programming Language")
+	do @wndMain.onPushMenu :: @wndMainOnPushMenu
 	do @tabSrc :: wnd@makeTab(@wndMain, 12, 12, 809, 603, %scale, %scale)
-	do @plainSrc :: wnd@makePlain(@tabSrc, 6, 6, 780, 574, %scale, %scale)
-	do @scrollXSrc :: wnd@makeScrollX(@tabSrc, 6, 580, 780, 17, %scale, %move)
-	do @scrollYSrc :: wnd@makeScrollY(@tabSrc, 786, 6, 17, 574, %move, %scale)
+	do @plainSrc :: wnd@makePlain(@tabSrc, 6, 6, 797{780}, 591{574}, %scale, %scale)
+	do @scrollXSrc :: wnd@makeScrollX(@plainSrc, 0{6}, 574{580}, 780, 17, %scale, %move)
+	do @scrollXSrc.set(0, 0, 1, 0)
+	do @scrollYSrc :: wnd@makeScrollY(@plainSrc, 780{786}, 0{6}, 17, 574, %move, %scale)
+	do @scrollYSrc.set(0, 0, 1, 0)
 	do @editLog :: wnd@makeEditMulti(@wndMain, 12, 621, 1000, 135, %scale, %move)
 	do @editLog.readonly(true)
 	do @btnCompile :: wnd@makeBtn(@wndMain, 827, 12, 185, 23, %move, %fix, "Compile && Run")
 	do @btnCompile.onPush :: @btnCompileOnPush
+	do @groupEnv :: wnd@makeGroup(@wndMain, 827, 41, 185, 62, %move, %fix, "Environment")
+	do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 173, 16, %fix, %fix, "Window")
+	do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 173, 16, %fix, %fix, "CUI")
+	do @editFile :: wnd@makeEdit(@wndMain, 827, 359, 185, 19, %move, %fix)
+	do @editFile.readonly(true)
+	do @editFile.setText("No Title")
 	do @listFile :: wnd@makeList(@wndMain, 827, 384, 185, 231, %move, %scale)
+	do @menuMain :: wnd@makeMenu()
+	do @popupMainFile :: wnd@makePopup()
+	do @popupMainFile.add(16#0001, "&New\tCtrl+N")
+	do @popupMainFile.add(16#0002, "&Load...\tCtrl+O")
+	do @popupMainFile.addLine()
+	do @popupMainFile.add(16#0003, "&Save All\tCtrl+S")
+	do @popupMainFile.add(16#0004, "Save &As...\tCtrl+Shift+S")
+	do @popupMainFile.addLine()
+	do @popupMainFile.add(16#0005, "E&xit\tCtrl+Q")
+	do @menuMain.addPopup("&File", @popupMainFile)
+	do @popupMainHelp :: wnd@makePopup()
+	do @popupMainHelp.add(16#0010, "&View Help\tF1")
+	do @popupMainHelp.addLine()
+	do @popupMainHelp.add(16#0011, "&About Kuin...")
+	do @menuMain.addPopup("&Help", @popupMainHelp)
+	do @wndMain.setMenu(@menuMain)
+end func
+
+func wndMainOnPushMenu(id: int)
+	switch(id)
+	case 16#0001
+		if (@chkChanged())
+			do @new(null)
+		end if
+	case 16#0002
+		if (@chkChanged())
+			var file: []char :: wnd@openFileDialog(@wndMain, ["Kuin source code (*.kn)", "*.kn"], 0)
+			if(file <>& null)
+				var src: list<@Line> :: #list<@Line>
+				var filePtr: file@Reader :: file@makeReader(file)
+				while(!filePtr.term())
+					var line: @Line :: #@Line
+					do line.src :: filePtr.readLine()
+					do line.indent :: 0
+					do line.commentLevel :: 0
+					do line.lineContinue :: false
+					do src.add(line)
+				end while
+				do @new(src)
+			end if
+		end if
+	case 16#0003
+		do @save()
+	case 16#0005
+		if (@chkChanged())
+			ret
+		end if
+	end switch
+end func
+
+func chkChanged(): bool
+	if(!@changed)
+		ret true
+	end if
+	var result: wnd@MsgBoxResult :: wnd@msgBox(null, "Do you want to save changes to" ~ (@mainSrc = "_default_.kn" ?("Untitled", @mainSrc)) ~ "?", null, %warn, %yesNoCancel)
+	if(result = %cancel)
+		ret false
+	elif(result = %no)
+		ret true
+	end if
+	ret @save()
+end func
+
+func save(): bool
+	if(!@changed)
+		ret true
+	end if
+	if(@mainSrc = "_default_.kn")
+		var file: []char :: wnd@saveFileDialog(@wndMain, ["Kuin source code (*.kn)", "*.kn"], 0, "kn")
+		if(file =& null)
+			ret false
+		end if
+		var filePtr: file@Writer :: file@makeWriter(file, false)
+		foreach line(@curSrc)
+			do filePtr.writeStr(line.src)
+			do filePtr.writeChar('\n')
+		end foreach
+	else
+	end if
+	do @changed :: false
+	ret true
 end func
 
 func btnCompileOnPush()
 	do @resetMemAllocator()
 	do @editLog.setText("")
-	do @build(@mainSrc, @getSrc, null, null, null, false, "cui", @log)
+	if(@build(@mainSrc, @getSrc, null, null, null, false, "cui", @log))
+		var process: task@Process :: task@makeProcess("C:\\Windows\\System32\\notepad.exe")
+		if(process <>& null)
+			do process.run()
+		end if
+	end if
 end func
 
 func getSrc(path: []char): list<@Line>
@@ -191,6 +298,7 @@ func onCmd(pos: []int, len: int, cmd: int)
 end func
 
 func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
+	do @changed :: true
 	do @curSrc.head()
 	do @curSrc.moveOffset(pos[1])
 	var line: @Line :: @curSrc.get()

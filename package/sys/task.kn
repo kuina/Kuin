@@ -1,0 +1,14 @@
++class Process(kuin@ResClass)
+	*func [d0000.knd, _processDtor, _force] _dtor()
+	end func
+
+	+func [d0000.knd, _processRun] run(): int
+	end func
+
+	var processHandle: int
+	var threadHandle: int
+end class
+
++func [d0000.knd, _makeProcess, _make_instance] makeProcess(me2: @Process, path: []char): @Process
+end func
+

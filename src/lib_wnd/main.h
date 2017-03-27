@@ -6,14 +6,15 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 EXPORT_CPP void _fin();
 EXPORT_CPP Bool _act();
 EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon, S64 btn);
-EXPORT_CPP void* openFileDialog(const U8* filter, S64 defaultFilter, const U8* defaultDir, const U8* title);
-EXPORT_CPP void* openFileDialogMulti(const U8* filter, S64 defaultFilter, const U8* defaultDir, const U8* title);
-EXPORT_CPP void* saveFileDialog(const U8* filter, S64 defaultFilter, const U8* defaultDir, const U8* title);
+EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFilter);
+EXPORT_CPP void* _openFileDialogMulti(SClass* parent, const U8* filter, S64 defaultFilter);
+EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFilter, const U8* defaultExt);
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text);
 EXPORT_CPP void _wndBaseDtor(SClass* me_);
 EXPORT_CPP void _wndSetText(SClass* me_, const U8* text);
 EXPORT_CPP const U8* _wndGetText(SClass* me_);
 EXPORT_CPP void _wndReadonly(SClass* me_, Bool flag);
+EXPORT_CPP void _wndSetMenu(SClass* me_, SClass* menu);
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeBtn(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text);
 EXPORT_CPP SClass* _makeChk(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text);
@@ -39,6 +40,13 @@ EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 EXPORT_CPP SClass* _makePlain(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeScrollX(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeScrollY(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
+EXPORT_CPP void _scrollSet(SClass* me_, S64 min, S64 max, S64 page, S64 value);
+EXPORT_CPP SClass* _makeMenu(SClass* me_);
+EXPORT_CPP void _menuDtor(SClass* me_);
+EXPORT_CPP void _menuAdd(SClass* me_, S64 id, const U8* text);
+EXPORT_CPP void _menuAddLine(SClass* me_);
+EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup);
+EXPORT_CPP SClass* _makePopup(SClass* me_);
 
 // Assembly functions.
 extern "C" void* Call0Asm(void* func);

@@ -44,7 +44,7 @@ end enum
 	+func [d0000.knd, _streamReadStr] readStr(): []char
 	end func
 
-	+func [d0000.knd, _streamReadStr] readLine(): []char
+	+func [d0000.knd, _streamReadLine] readLine(): []char
 	end func
 
 	+func [d0000.knd, _streamFileSize] fileSize(): int
