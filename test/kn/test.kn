@@ -10,7 +10,7 @@ end func
 func [compiler.dll, ResetMemAllocator] resetMemAllocator()
 end func
 
-func [compiler.dll, EditorInit] editorInit(me2: wnd@WndBase, funcIns: func<([]int, []char)>, funcCmd: func<([]int, int, int)>, funcReplace: func<([]int, int, []char)>, scrollX: wnd@ScrollX, scrollY: wnd@ScrollY)
+func [compiler.dll, EditorInit] editorInit(me2: wnd@WndBase, funcIns: func<([]int, []char)>, funcCmd: func<([]int, int, int)>, funcReplace: func<([]int, int, []char)>, funcUndoMark: func<()>, scrollX: wnd@ScrollX, scrollY: wnd@ScrollY)
 end func
 
 func [compiler.dll, EditorFin] editorFin()
@@ -72,8 +72,10 @@ var changed: bool
 func main()
 	do @initMemAllocator()
 
+	do wnd@onKeyPress(@onKeyPress)
+
 	do @makeWnd()
-	do @editorInit(@plainSrc, @onIns, @onCmd, @onReplace, @scrollXSrc, @scrollYSrc)
+	do @editorInit(@plainSrc, @onIns, @onCmd, @onReplace, @onUndoMark, @scrollXSrc, @scrollYSrc)
 	do @new(null)
 
 	while(wnd@act())
@@ -113,6 +115,8 @@ end func
 
 func makeWnd()
 	do @wndMain :: wnd@makeWnd(null, %normal, 1024, 768, "Kuin Programming Language")
+	do @wndMain.minMax(384, 640, -1, -1)
+	do @wndMain.onClose :: @wndMainOnClose
 	do @wndMain.onPushMenu :: @wndMainOnPushMenu
 	do @tabSrc :: wnd@makeTab(@wndMain, 12, 12, 809, 603, %scale, %scale)
 	do @plainSrc :: wnd@makePlain(@tabSrc, 6, 6, 797{780}, 591{574}, %scale, %scale)
@@ -126,6 +130,7 @@ func makeWnd()
 	do @btnCompile.onPush :: @btnCompileOnPush
 	do @groupEnv :: wnd@makeGroup(@wndMain, 827, 41, 185, 62, %move, %fix, "Environment")
 	do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 173, 16, %fix, %fix, "Window")
+	do @radioEnvWnd.setChk(true)
 	do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 173, 16, %fix, %fix, "CUI")
 	do @editFile :: wnd@makeEdit(@wndMain, 827, 359, 185, 19, %move, %fix)
 	do @editFile.readonly(true)
@@ -147,6 +152,36 @@ func makeWnd()
 	do @popupMainHelp.add(16#0011, "&About Kuin...")
 	do @menuMain.addPopup("&Help", @popupMainHelp)
 	do @wndMain.setMenu(@menuMain)
+end func
+
+func onKeyPress(key: int, shiftCtrlAlt: int): bool
+	if(shiftCtrlAlt = 2)
+		switch(key)
+		case 'N' $ int
+			do @wndMain.pushMenu(16#0001)
+			ret true
+		case 'O' $ int
+			do @wndMain.pushMenu(16#0002)
+			ret true
+		case 'S' $ int
+			do @wndMain.pushMenu(16#0003)
+			ret true
+		case 'Q' $ int
+			do @wndMain.pushMenu(16#0005)
+			ret true
+		end switch
+	elif(shiftCtrlAlt = 0)
+		switch(key)
+		case 16#70 {F1}
+			do @wndMain.pushMenu(16#0010)
+			ret true
+		end switch
+	end if
+	ret false
+end func
+
+func wndMainOnClose(): bool
+	ret @chkChanged()
 end func
 
 func wndMainOnPushMenu(id: int)
@@ -175,9 +210,11 @@ func wndMainOnPushMenu(id: int)
 	case 16#0003
 		do @save()
 	case 16#0005
-		if (@chkChanged())
-			ret
-		end if
+		do @wndMain.close()
+	case 16#0010
+		do wnd@msgBox(@wndMain, "Good luck.", null, %info, %ok)
+	case 16#0011
+		do wnd@msgBox(@wndMain, "Kuin Programming Language.", null, %info, %ok)
 	end switch
 end func
 
@@ -185,7 +222,7 @@ func chkChanged(): bool
 	if(!@changed)
 		ret true
 	end if
-	var result: wnd@MsgBoxResult :: wnd@msgBox(null, "Do you want to save changes to" ~ (@mainSrc = "_default_.kn" ?("Untitled", @mainSrc)) ~ "?", null, %warn, %yesNoCancel)
+	var result: wnd@MsgBoxResult :: wnd@msgBox(@wndMain, "Do you want to save changes to " ~ (@mainSrc = "_default_.kn" ?("Untitled", @mainSrc)) ~ "?", null, %warn, %yesNoCancel)
 	if(result = %cancel)
 		ret false
 	elif(result = %no)
@@ -217,8 +254,14 @@ end func
 func btnCompileOnPush()
 	do @resetMemAllocator()
 	do @editLog.setText("")
-	if(@build(@mainSrc, @getSrc, null, null, null, false, "cui", @log))
-		var process: task@Process :: task@makeProcess("C:\\Windows\\System32\\notepad.exe")
+	var env: []char
+	if(@radioEnvWnd.getChk())
+		do env :: "wnd"
+	elif(@radioEnvCui.getChk())
+		do env :: "cui"
+	end if
+	if(@build(@mainSrc, @getSrc, null, "C:\\temp\\out.exe", null, false, env, @log))
+		var process: task@Process :: task@makeProcess("C:\\temp\\out.exe")
 		if(process <>& null)
 			do process.run()
 		end if
@@ -267,20 +310,45 @@ func onIns(pos: []int, str: []char)
 	do @doCmd(%ins, pos, str, true)
 end func
 
+func undoPtrPrev(ptr: int): int
+	ret ptr = 0 ?(@undoBufSize - 1, ptr - 1)
+end func
+
+func undoPtrNext(ptr: int): int
+	ret ptr = @undoBufSize - 1 ?(0, ptr + 1)
+end func
+
+func onUndoMark()
+	do @undoPtr :: @undoPtrNext(@undoPtr)
+	do @undoBuf[@undoPtr] :: null
+	do @undoBuf[@undoPtrNext(@undoPtr)] :: null
+	do @redoBuf[@undoPtr] :: null
+	do @redoBuf[@undoPtrNext(@undoPtr)] :: null
+end func
+
 func onCmd(pos: []int, len: int, cmd: int)
 	if(cmd = 3) {undo}
 		block
-			var ptr: int :: @undoPtr = 0 ?(@undoBufSize - 1, @undoPtr - 1)
-			if(@undoBuf[ptr] <>& null)
-				do @doCmd(@undoBuf[ptr].kind, ##@undoBuf[ptr].pos, @undoBuf[ptr].str, false)
-				do @undoPtr :: ptr
+			if(@undoBuf[@undoPtrPrev(@undoPtr)] <>& null)
+				while loop(true)
+					do @undoPtr :: @undoPtrPrev(@undoPtr)
+					if(@undoBuf[@undoPtr] =& null)
+						break loop
+					end if
+					do @doCmd(@undoBuf[@undoPtr].kind, ##@undoBuf[@undoPtr].pos, @undoBuf[@undoPtr].str, false)
+				end while
 			end if
 		end block
 	elif(cmd = 4) {redo}
 		block
-			if(@redoBuf[@undoPtr] <>& null)
-				do @doCmd(@redoBuf[@undoPtr].kind, ##@redoBuf[@undoPtr].pos, @redoBuf[@undoPtr].str, false)
-				do @undoPtr :: @undoPtr = @undoBufSize - 1 ?(0, @undoPtr + 1)
+			if(@undoBuf[@undoPtrNext(@undoPtr)] <>& null)
+				while loop(true)
+					do @undoPtr :: @undoPtrNext(@undoPtr)
+					if(@undoBuf[@undoPtr] =& null)
+						break loop
+					end if
+					do @doCmd(@redoBuf[@undoPtr].kind, ##@redoBuf[@undoPtr].pos, @redoBuf[@undoPtr].str, false)
+				end while
 			end if
 		end block
 	else
@@ -306,6 +374,7 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 	case %ins
 		block
 			if(register)
+				do @undoPtr :: @undoPtrNext(@undoPtr)
 				var redo: @Undo :: #@Undo
 				do redo.kind :: %ins
 				do redo.pos :: ##pos
@@ -320,9 +389,6 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 				do undo.pos :: ##pos
 				do undo.str :: (^str).toStr()
 				do @undoBuf[@undoPtr] :: undo
-				do @undoPtr :: (@undoPtr + 1) % @undoBufSize
-				do @undoBuf[@undoPtr] :: null
-				do @redoBuf[@undoPtr] :: null
 			end if
 		end block
 	case %bs
@@ -332,6 +398,7 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 			if(oldPos[0] = 0)
 				if(!@curSrc.termOffset(-1))
 					if(register)
+						do @undoPtr :: @undoPtrNext(@undoPtr)
 						var redo: @Undo :: #@Undo
 						do redo.kind :: %bs
 						do redo.pos :: oldPos
@@ -342,9 +409,6 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 						do undo.pos :: ##pos
 						do undo.str :: "1"
 						do @undoBuf[@undoPtr] :: undo
-						do @undoPtr :: (@undoPtr + 1) % @undoBufSize
-						do @undoBuf[@undoPtr] :: null
-						do @redoBuf[@undoPtr] :: null
 					end if
 					var line2: @Line :: @curSrc.getOffset(-1)
 					do line2.src :: line2.src ~ line.src
@@ -352,6 +416,7 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 				end if
 			else
 				if(register)
+					do @undoPtr :: @undoPtrNext(@undoPtr)
 					var redo: @Undo :: #@Undo
 					do redo.kind :: %bs
 					do redo.pos :: oldPos
@@ -362,9 +427,6 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 					do undo.pos :: ##pos
 					do undo.str :: line.src[oldPos[0] - 1].toStr()
 					do @undoBuf[@undoPtr] :: undo
-					do @undoPtr :: (@undoPtr + 1) % @undoBufSize
-					do @undoBuf[@undoPtr] :: null
-					do @redoBuf[@undoPtr] :: null
 				end if
 				do line.src :: line.src.sub(0, oldPos[0] - 1) ~ line.src.sub(oldPos[0], -1)
 			end if
@@ -376,6 +438,7 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 				if(!@curSrc.termOffset(1))
 					if(register)
 						if(^delBuf <> 0)
+							do @undoPtr :: @undoPtrNext(@undoPtr)
 							var redo: @Undo :: #@Undo
 							do redo.kind :: %del
 							do redo.pos :: ##pos
@@ -386,11 +449,9 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 							do undo.pos :: ##pos
 							do undo.str :: delBuf
 							do @undoBuf[@undoPtr] :: undo
-							do @undoPtr :: (@undoPtr + 1) % @undoBufSize
-							do @undoBuf[@undoPtr] :: null
-							do @redoBuf[@undoPtr] :: null
 							do delBuf :: ""
 						end if
+						do @undoPtr :: @undoPtrNext(@undoPtr)
 						var redo: @Undo :: #@Undo
 						do redo.kind :: %del
 						do redo.pos :: ##pos
@@ -401,9 +462,6 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 						do undo.pos :: ##pos
 						do undo.str :: "1"
 						do @undoBuf[@undoPtr] :: undo
-						do @undoPtr :: (@undoPtr + 1) % @undoBufSize
-						do @undoBuf[@undoPtr] :: null
-						do @redoBuf[@undoPtr] :: null
 					end if
 					var line2: @Line :: @curSrc.getOffset(1)
 					do line.src :: line.src ~ line2.src
@@ -417,6 +475,7 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 			end if
 		end for
 		if(^delBuf <> 0)
+			do @undoPtr :: @undoPtrNext(@undoPtr)
 			var redo: @Undo :: #@Undo
 			do redo.kind :: %del
 			do redo.pos :: ##pos
@@ -427,15 +486,13 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 			do undo.pos :: ##pos
 			do undo.str :: delBuf
 			do @undoBuf[@undoPtr] :: undo
-			do @undoPtr :: (@undoPtr + 1) % @undoBufSize
-			do @undoBuf[@undoPtr] :: null
-			do @redoBuf[@undoPtr] :: null
 			do delBuf :: ""
 		end if
 		do @editorSetCursor(&pos[0], &pos[1], pos[0], pos[1], false)
 	case %ret_
 		var len: int :: str.toInt()
 		if(register)
+			do @undoPtr :: @undoPtrNext(@undoPtr)
 			var redo: @Undo :: #@Undo
 			do redo.kind :: %ret_
 			do redo.pos :: ##pos
@@ -463,9 +520,6 @@ func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
 			do undo.pos :: ##pos
 			do undo.str :: len.toStr()
 			do @undoBuf[@undoPtr] :: undo
-			do @undoPtr :: (@undoPtr + 1) % @undoBufSize
-			do @undoBuf[@undoPtr] :: null
-			do @redoBuf[@undoPtr] :: null
 		end if
 	end switch
 end func

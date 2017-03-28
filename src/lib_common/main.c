@@ -1714,6 +1714,7 @@ EXPORT void _moveOffset(void* me_, const U8* type, S64 offset)
 {
 	void* ptr = *(void**)((U8*)me_ + 0x20);
 	S64 i;
+	UNUSED(type);
 	if (offset >= 0)
 	{
 		for (i = 0; i < offset; i++)
@@ -1745,6 +1746,7 @@ EXPORT Bool _termOffset(void* me_, const U8* type, S64 offset)
 {
 	void* ptr = *(void**)((U8*)me_ + 0x20);
 	S64 i;
+	UNUSED(type);
 	if (ptr == NULL)
 		return True;
 	if (offset >= 0)

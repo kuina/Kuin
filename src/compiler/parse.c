@@ -793,6 +793,7 @@ static Bool IsCorrectSrcName(const Char* name)
 static SAst* ParseSysCache(void)
 {
 	// TODO:
+	return NULL;
 }
 
 static SAstRoot* ParseRoot(void)

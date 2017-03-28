@@ -61,7 +61,6 @@ struct SWndBase
 	EWndKind Kind;
 	HWND WndHandle;
 	WNDPROC DefaultWndProc;
-	void* DrawBuf;
 	U64 CtrlFlag;
 	U16 DefaultX;
 	U16 DefaultY;
@@ -72,18 +71,24 @@ struct SWndBase
 struct SWnd
 {
 	SWndBase WndBase;
-	void(*on_push_menu)(S64 id);
+	U16 MinWidth;
+	U16 MinHeight;
+	U16 MaxWidth;
+	U16 MaxHeight;
+	void* OnClose;
+	void* OnPushMenu;
 };
 
 struct SDraw
 {
 	SWndBase WndBase;
+	void* DrawBuf;
 };
 
 struct SBtn
 {
 	SWndBase WndBase;
-	void(*on_push)();
+	void* OnPush;
 };
 
 struct SChk
@@ -99,7 +104,6 @@ struct SRadio
 struct SEdit
 {
 	SWndBase WndBase;
-	void(*on_change)();
 };
 
 struct SEditMulti
@@ -203,6 +207,8 @@ struct SMenu
 	HMENU MenuHandle;
 };
 
+static HHOOK HookKeyboard;
+static void* OnKeyPress;
 static int WndCnt;
 static Bool ExitAct;
 static HFONT FontCtrl;
@@ -211,11 +217,11 @@ static const U8* NToRN(const Char* str);
 static const U8* RNToN(const Char* str);
 static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64 anchor_y, S64 x, S64 y, S64 width, S64 height);
 static SWndBase* ToWnd(HWND wnd);
-static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const Char* ctrl, DWORD style, S64 x, S64 y, S64 width, S64 height, const Char* text, WNDPROC wnd_proc, S64 anchor_x, S64 anchor_y);
-static void Resize(SWndBase* wnd);
+static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const Char* ctrl, DWORD style_ex, DWORD style, S64 x, S64 y, S64 width, S64 height, const Char* text, WNDPROC wnd_proc, S64 anchor_x, S64 anchor_y);
 static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param);
 static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static Char* ParseFilter(const U8* filter);
+static LRESULT CALLBACK KeyboardProc(int code, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -325,11 +331,15 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 	Snd::Init();
 	Input::Init();
 
-	// TODO:
+	OnKeyPress = NULL;
+	HookKeyboard = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
 }
 
 EXPORT_CPP void _fin()
 {
+	if (HookKeyboard != NULL)
+		UnhookWindowsHookEx(HookKeyboard);
+
 	Input::Fin();
 	Snd::Fin();
 	Draw::Fin();
@@ -363,6 +373,11 @@ EXPORT_CPP Bool _act()
 	Sleep(1);
 
 	return True;
+}
+
+EXPORT_CPP void _onKeyPress(void* onKeyPressFunc)
+{
+	OnKeyPress = onKeyPressFunc;
 }
 
 EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon, S64 btn)
@@ -462,6 +477,12 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 			break;
 	}
 	ASSERT(me2->WndHandle != NULL);
+	me2->DefaultWndProc = NULL;
+	me2->CtrlFlag = static_cast<U64>(CtrlFlag_AnchorLeft) | static_cast<U64>(CtrlFlag_AnchorTop);
+	me2->DefaultX = 0;
+	me2->DefaultY = 0;
+	me2->DefaultWidth = static_cast<U16>(width);
+	me2->DefaultHeight = static_cast<U16>(height);
 	{
 		RECT rect;
 		GetClientRect(me2->WndHandle, &rect);
@@ -470,13 +491,15 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 		SetWindowPos(me2->WndHandle, NULL, 0, 0, static_cast<int>(width), static_cast<int>(height), SWP_NOMOVE | SWP_NOZORDER);
 	}
 	SetWindowLongPtr(me2->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me2));
-	me2->DefaultWndProc = NULL;
-	me2->DrawBuf = NULL;
-	me2->CtrlFlag = static_cast<U64>(CtrlFlag_AnchorLeft) | static_cast<U64>(CtrlFlag_AnchorTop);
-	me2->DefaultX = 0;
-	me2->DefaultY = 0;
-	me2->DefaultWidth = static_cast<U16>(width);
-	me2->DefaultHeight = static_cast<U16>(height);
+	{
+		SWnd* me3 = reinterpret_cast<SWnd*>(me_);
+		me3->MinWidth = 128;
+		me3->MinHeight = 128;
+		me3->MaxWidth = static_cast<U16>(-1);
+		me3->MaxHeight = static_cast<U16>(-1);
+		me3->OnClose = NULL;
+		me3->OnPushMenu = NULL;
+	}
 	SendMessage(me2->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
 	ShowWindow(me2->WndHandle, SW_SHOWNORMAL);
 	WndCnt++;
@@ -486,9 +509,26 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 EXPORT_CPP void _wndBaseDtor(SClass* me_)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
-	if (me2->DrawBuf != NULL)
-		Draw::FinDrawBuf(me2->DrawBuf);
 	SendMessage(me2->WndHandle, WM_DESTROY, 0, 0);
+}
+
+EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
+{
+	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
+	me2->MinWidth = static_cast<U16>(minWidth);
+	me2->MinHeight = static_cast<U16>(minHeight);
+	me2->MaxWidth = static_cast<U16>(maxWidth);
+	me2->MaxHeight = static_cast<U16>(maxHeight);
+}
+
+EXPORT_CPP void _wndClose(SClass* me_)
+{
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, WM_CLOSE, 0, 0);
+}
+
+EXPORT_CPP void _wndExit(SClass* me_)
+{
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, WM_DESTROY, 0, 0);
 }
 
 EXPORT_CPP void _wndSetText(SClass* me_, const U8* text)
@@ -520,163 +560,192 @@ EXPORT_CPP void _wndSetMenu(SClass* me_, SClass* menu)
 	SetMenu(reinterpret_cast<SWndBase*>(me_)->WndHandle, menu == NULL ? NULL : reinterpret_cast<SMenu*>(menu)->MenuHandle);
 }
 
+EXPORT_CPP void _wndPushMenu(SClass* me_, S64 id)
+{
+	// TODO: Improve the 'onKeyPress' method and this for easy use.
+	PostMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, WM_COMMAND, static_cast<WPARAM>(LOWORD(id)), 0);
+}
+
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
-	SetCtrlParam(me2, reinterpret_cast<SWndBase*>(parent), WndKind_Draw, WC_STATIC, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcDraw, anchorX, anchorY);
-	me2->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), me2->WndHandle);
+	SDraw* me3 = reinterpret_cast<SDraw*>(me_);
+	SetCtrlParam(me2, reinterpret_cast<SWndBase*>(parent), WndKind_Draw, WC_STATIC, 0, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcDraw, anchorX, anchorY);
+	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), me2->WndHandle);
 	return me_;
+}
+
+EXPORT_CPP void _drawDtor(SClass* me_)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	SDraw* me3 = reinterpret_cast<SDraw*>(me_);
+	if (me3->DrawBuf != NULL)
+		Draw::FinDrawBuf(me3->DrawBuf);
+	SendMessage(me2->WndHandle, WM_DESTROY, 0, 0);
 }
 
 EXPORT_CPP SClass* _makeBtn(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Btn, WC_BUTTON, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_NOTIFY, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcBtn, anchorX, anchorY);
+	SBtn* me2 = reinterpret_cast<SBtn*>(me_);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Btn, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_NOTIFY, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcBtn, anchorX, anchorY);
+	me2->OnPush = NULL;
 	return me_;
+}
+
+EXPORT_CPP void _btnSetChk(SClass* me_, Bool chk)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	SendMessage(me2->WndHandle, BM_SETCHECK, static_cast<WPARAM>(chk ? BST_CHECKED : BST_UNCHECKED), 0);
+}
+
+EXPORT_CPP Bool _btnGetChk(SClass* me_)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	return SendMessage(me2->WndHandle, BM_GETCHECK, 0, 0) != BST_UNCHECKED;
 }
 
 EXPORT_CPP SClass* _makeChk(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Chk, WC_BUTTON, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcChk, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Chk, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcChk, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeRadio(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Radio, WC_BUTTON, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcRadio, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Radio, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcRadio, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeEdit(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Edit, WC_EDIT, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, x, y, width, height, L"", WndProcEdit, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Edit, WC_EDIT, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, x, y, width, height, L"", WndProcEdit, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_EditMulti, WC_EDIT, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN, x, y, width, height, L"", WndProcEditMulti, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_EditMulti, WC_EDIT, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN, x, y, width, height, L"", WndProcEditMulti, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_List, WC_LISTBOX, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_DISABLENOSCROLL, x, y, width, height, L"", WndProcList, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_List, WC_LISTBOX, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_DISABLENOSCROLL, x, y, width, height, L"", WndProcList, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeCombo(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Combo, WC_COMBOBOX, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | CBS_AUTOHSCROLL | CBS_DROPDOWN, x, y, width, height, L"", WndProcCombo, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Combo, WC_COMBOBOX, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | CBS_AUTOHSCROLL | CBS_DROPDOWN, x, y, width, height, L"", WndProcCombo, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeComboList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ComboList, WC_COMBOBOX, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | CBS_AUTOHSCROLL | CBS_DROPDOWNLIST, x, y, width, height, L"", WndProcComboList, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ComboList, WC_COMBOBOX, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | CBS_AUTOHSCROLL | CBS_DROPDOWNLIST, x, y, width, height, L"", WndProcComboList, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeLabel(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Label, WC_STATIC, WS_VISIBLE | WS_CHILD | SS_SIMPLE, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcLabel, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Label, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_SIMPLE, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcLabel, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeGroup(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Group, WC_BUTTON, WS_VISIBLE | WS_CHILD | BS_GROUPBOX, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcGroup, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Group, WC_BUTTON, WS_EX_TRANSPARENT, WS_VISIBLE | WS_CHILD | BS_GROUPBOX, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcGroup, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeCalendar(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Calendar, MONTHCAL_CLASS, WS_VISIBLE | WS_CHILD | WS_TABSTOP, x, y, width, height, L"", WndProcCalendar, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Calendar, MONTHCAL_CLASS, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP, x, y, width, height, L"", WndProcCalendar, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeProgress(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Progress, PROGRESS_CLASS, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcProgress, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Progress, PROGRESS_CLASS, 0, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcProgress, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeRebar(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Rebar, REBARCLASSNAME, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcRebar, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Rebar, REBARCLASSNAME, 0, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcRebar, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeStatus(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Status, STATUSCLASSNAME, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcStatus, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Status, STATUSCLASSNAME, 0, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcStatus, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeToolbar(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Toolbar, TOOLBARCLASSNAME, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcToolbar, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Toolbar, TOOLBARCLASSNAME, 0, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcToolbar, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeTrackbar(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Trackbar, TRACKBAR_CLASS, WS_VISIBLE | WS_CHILD | WS_TABSTOP, x, y, width, height, L"", WndProcTrackbar, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Trackbar, TRACKBAR_CLASS, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP, x, y, width, height, L"", WndProcTrackbar, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeLabelLink(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_LabelLink, WC_LINK, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcLabelLink, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_LabelLink, WC_LINK, 0, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcLabelLink, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, WS_VISIBLE | WS_CHILD | WS_TABSTOP, x, y, width, height, L"", WndProcListView, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP, x, y, width, height, L"", WndProcListView, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Pager, WC_PAGESCROLLER, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcPager, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Pager, WC_PAGESCROLLER, 0, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcPager, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeTab(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tab, WC_TABCONTROL, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, L"", WndProcTab, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tab, WC_TABCONTROL, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, L"", WndProcTab, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, 0, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makePlain(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Plain, WC_STATIC, WS_VISIBLE | WS_CHILD | SS_NOTIFY, x, y, width, height, L"", WndProcPlain, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Plain, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_NOTIFY, x, y, width, height, L"", WndProcPlain, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeScrollX(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ScrollX, WC_SCROLLBAR, WS_VISIBLE | WS_CHILD | SBS_HORZ, x, y, width, height, L"", WndProcScrollX, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ScrollX, WC_SCROLLBAR, 0, WS_VISIBLE | WS_CHILD | SBS_HORZ, x, y, width, height, L"", WndProcScrollX, anchorX, anchorY);
 	_scrollSet(me_, 0, 0, 1, 0);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeScrollY(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ScrollY, WC_SCROLLBAR, WS_VISIBLE | WS_CHILD | SBS_VERT, x, y, width, height, L"", WndProcScrollY, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ScrollY, WC_SCROLLBAR, 0, WS_VISIBLE | WS_CHILD | SBS_VERT, x, y, width, height, L"", WndProcScrollY, anchorX, anchorY);
 	_scrollSet(me_, 0, 0, 1, 0);
 	return me_;
 }
 
 EXPORT_CPP void _scrollSet(SClass* me_, S64 min, S64 max, S64 page, S64 value)
 {
-	SScroll* me2 = reinterpret_cast<SScroll*>(me_);
 	if (max < min)
 		max = min;
 	if (page < 1)
@@ -852,7 +921,15 @@ static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64
 			break;
 	}
 	RECT parent_rect;
-	GetClientRect(parent->WndHandle, &parent_rect);
+	if (parent->Kind < 0x80)
+	{
+		parent_rect.left = 0;
+		parent_rect.top = 0;
+		parent_rect.right = parent->DefaultWidth;
+		parent_rect.bottom = parent->DefaultHeight;
+	}
+	else
+		GetClientRect(parent->WndHandle, &parent_rect);
 	if ((wnd->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorLeft)) != 0)
 		wnd->DefaultX = static_cast<U16>(x);
 	else
@@ -869,6 +946,7 @@ static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64
 		wnd->DefaultHeight = static_cast<U16>(static_cast<U64>(parent_rect.bottom - parent_rect.top) - y - height);
 	else
 		wnd->DefaultHeight = static_cast<U16>(height);
+	ResizeCallback(wnd->WndHandle, 0);
 }
 
 static SWndBase* ToWnd(HWND wnd)
@@ -876,28 +954,18 @@ static SWndBase* ToWnd(HWND wnd)
 	return reinterpret_cast<SWndBase*>(GetWindowLongPtr(wnd, GWLP_USERDATA));
 }
 
-static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const Char* ctrl, DWORD style, S64 x, S64 y, S64 width, S64 height, const Char* text, WNDPROC wnd_proc, S64 anchor_x, S64 anchor_y)
+static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const Char* ctrl, DWORD style_ex, DWORD style, S64 x, S64 y, S64 width, S64 height, const Char* text, WNDPROC wnd_proc, S64 anchor_x, S64 anchor_y)
 {
 	ASSERT(parent != NULL);
 	ASSERT(width >= 0 && height >= 0);
 	wnd->Kind = kind;
-	wnd->WndHandle = CreateWindowEx(0, ctrl, text, style, static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height), parent->WndHandle, NULL, Instance, NULL);
+	wnd->WndHandle = CreateWindowEx(style_ex, ctrl, text, style, static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height), parent->WndHandle, NULL, Instance, NULL);
 	ASSERT(wnd->WndHandle != NULL);
 	SetWindowLongPtr(wnd->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(wnd));
 	wnd->DefaultWndProc = reinterpret_cast<WNDPROC>(GetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC));
 	SetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(wnd_proc));
-	wnd->DrawBuf = NULL;
 	ParseAnchor(wnd, parent, anchor_x, anchor_y, x, y, width, height);
 	SendMessage(wnd->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
-}
-
-static void Resize(SWndBase* wnd)
-{
-	RECT rect;
-	GetClientRect(wnd->WndHandle, &rect);
-	int width = static_cast<int>(rect.right - rect.left);
-	int height = static_cast<int>(rect.bottom - rect.top);
-	EnumChildWindows(wnd->WndHandle, ResizeCallback, NULL);
 }
 
 static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param)
@@ -922,17 +990,6 @@ static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param)
 		new_width = width - new_x - new_width;
 	if ((wnd2->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorBottom)) != 0)
 		new_height = height - new_y - new_height;
-	/*
-	TODO: min-max
-	if (new_x < static_cast<int>(wnd2->DefaultX))
-		new_x = static_cast<int>(wnd2->DefaultX);
-	if (new_y < static_cast<int>(wnd2->DefaultY))
-		new_y = static_cast<int>(wnd2->DefaultY);
-	if (new_width < static_cast<int>(wnd2->DefaultWidth))
-		new_width = static_cast<int>(wnd2->DefaultWidth);
-	if (new_height < static_cast<int>(wnd2->DefaultHeight))
-		new_height = static_cast<int>(wnd2->DefaultHeight);
-	*/
 	SetWindowPos(wnd, NULL, new_x, new_y, new_width, new_height, SWP_NOZORDER);
 	return TRUE;
 }
@@ -945,8 +1002,8 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 		{
 			// A menu item is clicked.
 			SWnd* wnd2 = reinterpret_cast<SWnd*>(ToWnd(wnd));
-			if (wnd2->on_push_menu != NULL)
-				Call1Asm(reinterpret_cast<void*>(static_cast<U64>(LOWORD(w_param))), wnd2->on_push_menu);
+			if (wnd2->OnPushMenu != NULL)
+				Call1Asm(reinterpret_cast<void*>(static_cast<U64>(LOWORD(w_param))), wnd2->OnPushMenu);
 			return;
 		}
 		HWND wnd_ctrl = reinterpret_cast<HWND>(l_param);
@@ -962,8 +1019,8 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 							// TODO:
 							break;
 						case BN_CLICKED:
-							if (btn->on_push != NULL)
-								Call0Asm(btn->on_push);
+							if (btn->OnPush != NULL)
+								Call0Asm(btn->OnPush);
 							break;
 						case BN_DBLCLK:
 							// TODO:
@@ -1088,25 +1145,68 @@ static Char* ParseFilter(const U8* filter)
 	return result;
 }
 
+static LRESULT CALLBACK KeyboardProc(int code, WPARAM w_param, LPARAM l_param)
+{
+	if (OnKeyPress != NULL && code == HC_ACTION)
+	{
+		S64 shiftCtrlAlt = 0;
+		shiftCtrlAlt |= (GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 1 : 0;
+		shiftCtrlAlt |= (GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 2 : 0;
+		shiftCtrlAlt |= (GetKeyState(VK_MENU) & 0x8000) != 0 ? 4 : 0;
+		const KBDLLHOOKSTRUCT* info = reinterpret_cast<const KBDLLHOOKSTRUCT*>(l_param);
+		switch (w_param)
+		{
+			case WM_SYSKEYDOWN:
+			case WM_KEYDOWN:
+				if (static_cast<Bool>(reinterpret_cast<U64>(Call2Asm(reinterpret_cast<void*>(static_cast<U64>(info->vkCode)), reinterpret_cast<void*>(shiftCtrlAlt), OnKeyPress))))
+					return TRUE;
+				break;
+			case WM_SYSKEYUP:
+			case WM_KEYUP:
+				// TODO:
+				break;
+			default:
+				ASSERT(False);
+				break;
+		}
+	}
+	return CallNextHookEx(HookKeyboard, code, w_param, l_param);
+}
+
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
+	SWnd* wnd3 = reinterpret_cast<SWnd*>(wnd2);
 	if (wnd2 == NULL)
 		return DefWindowProc(wnd, msg, w_param, l_param);
 	ASSERT(wnd2->Kind == WndKind_WndNormal);
 	switch (msg)
 	{
 		case WM_CLOSE:
+			if (wnd3->OnClose != NULL)
+			{
+				if (!static_cast<Bool>(reinterpret_cast<U64>(Call0Asm(wnd3->OnClose))))
+					return 0;
+			}
 			SendMessage(wnd, WM_DESTROY, 0, 0);
 			return 0;
 		case WM_DESTROY:
 			WndCnt--;
 			return 0;
 		case WM_SIZE:
+			EnumChildWindows(wnd, ResizeCallback, NULL);
+			return 0;
+		case WM_GETMINMAXINFO:
 			{
-				int width = LOWORD(l_param);
-				int height = HIWORD(l_param);
-				Resize(wnd2);
+				LPMINMAXINFO info = reinterpret_cast<LPMINMAXINFO>(l_param);
+				if (wnd3->MinWidth != -1)
+					info->ptMinTrackSize.x = static_cast<LONG>(wnd3->MinWidth);
+				if (wnd3->MinHeight != -1)
+					info->ptMinTrackSize.y = static_cast<LONG>(wnd3->MinHeight);
+				if (wnd3->MaxWidth != -1)
+					info->ptMaxTrackSize.x = static_cast<LONG>(wnd3->MaxWidth);
+				if (wnd3->MaxHeight != -1)
+					info->ptMaxTrackSize.y = static_cast<LONG>(wnd3->MaxHeight);
 			}
 			return 0;
 		case WM_COMMAND:
@@ -1120,12 +1220,18 @@ static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPA
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
+	SWnd* wnd3 = reinterpret_cast<SWnd*>(wnd2);
 	if (wnd2 == NULL)
 		return DefWindowProc(wnd, msg, w_param, l_param);
 	ASSERT(wnd2->Kind == WndKind_WndFix);
 	switch (msg)
 	{
 		case WM_CLOSE:
+			if (wnd3->OnClose != NULL)
+			{
+				if (!static_cast<Bool>(reinterpret_cast<U64>(Call0Asm(wnd3->OnClose))))
+					return 0;
+			}
 			SendMessage(wnd, WM_DESTROY, 0, 0);
 			return 0;
 		case WM_DESTROY:
@@ -1142,22 +1248,37 @@ static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
+	SWnd* wnd3 = reinterpret_cast<SWnd*>(wnd2);
 	if (wnd2 == NULL)
 		return DefWindowProc(wnd, msg, w_param, l_param);
 	ASSERT(wnd2->Kind == WndKind_WndAspect);
 	switch (msg)
 	{
 		case WM_CLOSE:
+			if (wnd3->OnClose != NULL)
+			{
+				if (!static_cast<Bool>(reinterpret_cast<U64>(Call0Asm(wnd3->OnClose))))
+					return 0;
+			}
 			SendMessage(wnd, WM_DESTROY, 0, 0);
 			return 0;
 		case WM_DESTROY:
 			WndCnt--;
 			return 0;
 		case WM_SIZE:
+			EnumChildWindows(wnd, ResizeCallback, NULL);
+			return 0;
+		case WM_GETMINMAXINFO:
 			{
-				int width = LOWORD(l_param);
-				int height = HIWORD(l_param);
-				Resize(wnd2);
+				LPMINMAXINFO info = reinterpret_cast<LPMINMAXINFO>(l_param);
+				if (wnd3->MinWidth != -1)
+					info->ptMinTrackSize.x = static_cast<LONG>(wnd3->MinWidth);
+				if (wnd3->MinHeight != -1)
+					info->ptMinTrackSize.y = static_cast<LONG>(wnd3->MinHeight);
+				if (wnd3->MaxWidth != -1)
+					info->ptMaxTrackSize.x = static_cast<LONG>(wnd3->MaxWidth);
+				if (wnd3->MaxHeight != -1)
+					info->ptMaxTrackSize.y = static_cast<LONG>(wnd3->MaxHeight);
 			}
 			return 0;
 		case WM_COMMAND:
@@ -1172,9 +1293,18 @@ static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPA
 static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
+	SDraw* wnd3 = reinterpret_cast<SDraw*>(wnd2);
 	ASSERT(wnd2->Kind == WndKind_Draw);
 	switch (msg)
 	{
+		case WM_SIZE:
+			/*
+			// TODO: Resize.
+			if (wnd3->DrawBuf != NULL)
+				Draw::FinDrawBuf(wnd3->DrawBuf);
+			wnd3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(LOWORD(l_param)), static_cast<int>(HIWORD(l_param)), wnd2->WndHandle);
+			*/
+			break;
 		// TODO:
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
@@ -1425,7 +1555,6 @@ static LRESULT CALLBACK WndProcPlain(HWND wnd, UINT msg, WPARAM w_param, LPARAM 
 static LRESULT CALLBACK WndProcScrollX(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
-	SScroll* me = reinterpret_cast<SScroll*>(wnd2);
 	ASSERT(wnd2->Kind == WndKind_ScrollX);
 	switch (msg)
 	{
@@ -1437,7 +1566,6 @@ static LRESULT CALLBACK WndProcScrollX(HWND wnd, UINT msg, WPARAM w_param, LPARA
 static LRESULT CALLBACK WndProcScrollY(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
-	SScroll* me = reinterpret_cast<SScroll*>(wnd2);
 	ASSERT(wnd2->Kind == WndKind_ScrollY);
 	switch (msg)
 	{

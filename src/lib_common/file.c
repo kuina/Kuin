@@ -410,7 +410,7 @@ EXPORT void _foreachDir(const U8* path, Bool recursive, void* func)
 EXPORT Bool _exist(const U8* path)
 {
 	// TODO: '\\' or '/'.
-	return PathFileExists((const Char*)(path + 0x10));
+	return PathFileExists((const Char*)(path + 0x10)) != 0;
 }
 
 EXPORT Bool _delFile(const U8* path)

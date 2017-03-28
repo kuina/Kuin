@@ -77,6 +77,7 @@ static WNDPROC DefaultWndProc;
 static void* FuncIns;
 static void* FuncCmd;
 static void* FuncReplace;
+static void* FuncUndoMark;
 static const void* Src;
 static int PageX, PageY;
 static int ScrWidth, ScrHeight;
@@ -91,6 +92,10 @@ static COLORREF HighlightColor;
 static HFONT FontSrc;
 static HPEN PenLineNumber;
 static HWND ScrollX, ScrollY;
+static HDC BitmapDc;
+static HBITMAP BitmapHandle;
+static HGDIOBJ BitmapHandleOld;
+static Bool DirtyPaint;
 
 // Assembly functions.
 void* Call0Asm(void* func);
@@ -110,6 +115,7 @@ static void InsertChar(Char c);
 static void CallCmd(int cmd, int len);
 static int Log10(int n);
 static int SrcLen(void);
+static void Redraw(void);
 static const void* YPtrGet(int y);
 static const void* YPtrNext(const void* y_ptr);
 static const void* YPtrPrev(const void* y_ptr);
@@ -119,13 +125,13 @@ static const Char* YPtrItemStr(const void* y_ptr);
 static int Wide(Char c, int x);
 static void RefreshScrSize(void);
 static void RefreshCursor(Bool right, Bool refreshScroll);
-static void Draw(HDC dc, const RECT* rect);
+static void Draw(void);
 static int BinSearch(const Char** hay_stack, int num, const Char* needle);
 static Bool IsReserved(const Char* word);
 static void ResetHighlight(void);
 static COLORREF InterpretHighlight(const Char* str);
 
-EXPORT void EditorInit(SClass* me_, void* func_ins, void* func_cmd, void* func_replace, SClass* scroll_x, SClass* scroll_y)
+EXPORT void EditorInit(SClass* me_, void* func_ins, void* func_cmd, void* func_replace, void* func_undo_mark, SClass* scroll_x, SClass* scroll_y)
 {
 	WndHandle = (HWND)*(void**)((U8*)me_ + sizeof(SClass) + sizeof(S64));
 	DefaultWndProc = (WNDPROC)(U64)*(void**)((U8*)me_ + sizeof(SClass) + sizeof(S64) + sizeof(void*));
@@ -135,9 +141,14 @@ EXPORT void EditorInit(SClass* me_, void* func_ins, void* func_cmd, void* func_r
 	FuncIns = func_ins;
 	FuncCmd = func_cmd;
 	FuncReplace = func_replace;
+	FuncUndoMark = func_undo_mark;
 	ScrollX = ((SWndBase*)scroll_x)->WndHandle;
 	ScrollY = ((SWndBase*)scroll_y)->WndHandle;
 
+	BitmapDc = NULL;
+	BitmapHandle = NULL;
+	BitmapHandleOld = NULL;
+	DirtyPaint = True;
 	RefreshScrSize();
 	{
 		HDC dc = GetDC(NULL);
@@ -160,6 +171,13 @@ EXPORT void EditorFin(void)
 {
 	DeleteObject((HGDIOBJ)PenLineNumber);
 	DeleteObject((HGDIOBJ)FontSrc);
+	if (BitmapDc != NULL)
+	{
+		SelectObject(BitmapDc, BitmapHandleOld);
+		DeleteObject((HGDIOBJ)BitmapHandle);
+		DeleteDC(BitmapDc);
+		BitmapDc = NULL;
+	}
 }
 
 EXPORT void EditorSetSrc(const void* src)
@@ -178,7 +196,7 @@ EXPORT void EditorSetSrc(const void* src)
 	ResetHighlight();
 
 	RefreshCursor(False, True);
-	InvalidateRect(WndHandle, NULL, False);
+	Redraw();
 }
 
 EXPORT void EditorSetCursor(S64* newX, S64* newY, S64 x, S64 y, Bool refresh)
@@ -199,10 +217,17 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 		case WM_PAINT:
 			if (Src != NULL)
 			{
-				PAINTSTRUCT ps;
-				HDC dc = BeginPaint(WndHandle, &ps);
-				Draw(dc, &ps.rcPaint);
-				EndPaint(WndHandle, &ps);
+				if (DirtyPaint)
+				{
+					Draw();
+					DirtyPaint = False;
+				}
+				{
+					PAINTSTRUCT ps;
+					HDC dc = BeginPaint(WndHandle, &ps);
+					BitBlt(dc, ps.rcPaint.left, ps.rcPaint.top, ps.rcPaint.right - ps.rcPaint.left, ps.rcPaint.bottom - ps.rcPaint.top, BitmapDc, ps.rcPaint.left, ps.rcPaint.top, SRCCOPY);
+					EndPaint(WndHandle, &ps);
+				}
 			}
 			return 0;
 		case WM_LBUTTONDOWN:
@@ -222,7 +247,7 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 					AreaX = CursorX;
 					AreaY = CursorY;
 				}
-				InvalidateRect(WndHandle, NULL, False);
+				Redraw();
 			}
 			return 0;
 		case WM_LBUTTONUP:
@@ -239,7 +264,7 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 				CursorY = PageY + (mouse_y - (int)rect.top) / CellHeight;
 				CursorX = MouseXToCharX(mouse_x);
 				RefreshCursor(False, True);
-				InvalidateRect(WndHandle, NULL, False);
+				Redraw();
 			}
 			return 0;
 		case WM_MOUSEWHEEL:
@@ -253,50 +278,51 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 			ShowCaret(WndHandle);
 			return 0;
 		case WM_KILLFOCUS:
-			DestroyCaret();
+			HideCaret(WndHandle);
 			return 0;
 		case WM_KEYDOWN:
 			{
 				Bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
 				Bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-				Bool alt = (GetKeyState(VK_MENU) & 0x8000) != 0;
 				switch (w_param)
 				{
 					case 'A':
-						if (!shift && ctrl && !alt)
+						if (!shift && ctrl)
 						{
 							AreaX = 0;
 							AreaY = 0;
 							CursorX = INT_MAX;
 							CursorY = INT_MAX;
 							RefreshCursor(False, True);
-							InvalidateRect(WndHandle, NULL, False);
+							Redraw();
 						}
-						break;
+						return 0;
 					case 'C':
-						if (!shift && ctrl && !alt && SelectArea())
+						if (!shift && ctrl && SelectArea())
 							CopyStrInArea();
-						break;
+						return 0;
 					case 'V':
-						if (!shift && ctrl && !alt)
+						if (!shift && ctrl)
 						{
 							if (SelectArea())
 								DelStrInArea();
 							AreaX = -1;
 							PasteStr();
+							Call0Asm(FuncUndoMark);
 						}
-						break;
+						return 0;
 					case 'X':
-						if (!shift && ctrl && !alt && SelectArea())
+						if (!shift && ctrl && SelectArea())
 						{
 							CopyStrInArea();
 							DelStrInArea();
+							Call0Asm(FuncUndoMark);
 							RefreshCursor(False, True);
-							InvalidateRect(WndHandle, NULL, False);
+							Redraw();
 						}
-						break;
+						return 0;
 					case 'Z':
-						if (ctrl && !alt)
+						if (ctrl)
 						{
 							if (SelectArea())
 								AreaX = -1;
@@ -305,12 +331,12 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 							else
 								CallCmd(3, 1);
 							RefreshCursor(False, True);
-							InvalidateRect(WndHandle, NULL, False);
+							Redraw();
 						}
 						// TODO:
-						break;
+						return 0;
 					case VK_BACK:
-						if (!shift && !ctrl && !alt)
+						if (!shift && !ctrl)
 						{
 							if (!SelectArea())
 							{
@@ -320,131 +346,131 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 								*(S64*)(pos + 0x10) = (S64)CursorX;
 								*(S64*)(pos + 0x18) = (S64)CursorY;
 								Call3Asm(pos, (void*)(S64)1, (void*)(U64)0, FuncCmd);
+								Call0Asm(FuncUndoMark);
 								ASSERT(*(S64*)pos == 1);
 								RefreshCursor(False, True);
-								InvalidateRect(WndHandle, NULL, False);
+								Redraw();
 							}
 							else
 							{
 								DelStrInArea();
+								Call0Asm(FuncUndoMark);
 								RefreshCursor(False, True);
-								InvalidateRect(WndHandle, NULL, False);
+								Redraw();
 							}
 						}
-						break;
+						return 0;
 					case VK_TAB:
 						if (!SelectArea())
 						{
 							InsertChar(L'\t');
+							Call0Asm(FuncUndoMark);
 							RefreshCursor(False, True);
-							InvalidateRect(WndHandle, NULL, False);
+							Redraw();
 						}
 						else
 						{
 							// TODO: Indent.
 						}
-						break;
+						return 0;
 					case VK_RETURN:
-						if (!shift && !ctrl && !alt)
+						if (!shift && !ctrl)
 						{
 							if (SelectArea())
 								DelStrInArea();
 							AreaX = -1;
 							CallCmd(2, 1);
+							Call0Asm(FuncUndoMark);
 							RefreshCursor(False, True);
-							InvalidateRect(WndHandle, NULL, False);
+							Redraw();
 						}
-						break;
+						return 0;
 					case VK_PRIOR: // Page up.
 						// TODO:
-						break;
+						return 0;
 					case VK_NEXT: // Page down.
 						// TODO:
-						break;
+						return 0;
 					case VK_END:
-						if (!alt)
-						{
-							RecordArea(shift);
-							CursorX = INT_MAX;
-							if (ctrl)
-								CursorY = INT_MAX;
-							RefreshCursor(False, True);
-							InvalidateRect(WndHandle, NULL, False);
-						}
-						break;
+						RecordArea(shift);
+						CursorX = INT_MAX;
+						if (ctrl)
+							CursorY = INT_MAX;
+						RefreshCursor(False, True);
+						Redraw();
+						return 0;
 					case VK_HOME:
-						if (!alt)
-						{
-							RecordArea(shift);
-							CursorX = 0;
-							if (ctrl)
-								CursorY = 0;
-							RefreshCursor(False, True);
-							InvalidateRect(WndHandle, NULL, False);
-						}
-						break;
+						RecordArea(shift);
+						CursorX = 0;
+						if (ctrl)
+							CursorY = 0;
+						RefreshCursor(False, True);
+						Redraw();
+						return 0;
 					case VK_LEFT:
-						if (!ctrl && !alt)
+						if (!ctrl)
 						{
 							RecordArea(shift);
 							CursorX--;
 							RefreshCursor(False, True);
-							InvalidateRect(WndHandle, NULL, False);
+							Redraw();
 						}
-						break;
+						return 0;
 					case VK_UP:
-						if (!ctrl && !alt)
+						if (!ctrl)
 						{
 							RecordArea(shift);
 							CursorY--;
 							RefreshCursor(False, True);
-							InvalidateRect(WndHandle, NULL, False);
+							Redraw();
 						}
-						break;
+						return 0;
 					case VK_RIGHT:
-						if (!ctrl && !alt)
+						if (!ctrl)
 						{
 							RecordArea(shift);
 							CursorX++;
 							RefreshCursor(True, True);
-							InvalidateRect(WndHandle, NULL, False);
+							Redraw();
 						}
-						break;
+						return 0;
 					case VK_DOWN:
-						if (!ctrl && !alt)
+						if (!ctrl)
 						{
 							RecordArea(shift);
 							CursorY++;
 							RefreshCursor(False, True);
-							InvalidateRect(WndHandle, NULL, False);
+							Redraw();
 						}
-						break;
+						return 0;
 					case VK_INSERT:
 						// TODO:
-						break;
+						return 0;
 					case VK_DELETE:
-						if (!shift && !ctrl && !alt)
+						if (!shift && !ctrl)
 						{
 							if (!SelectArea())
 							{
 								CallCmd(1, 1);
+								Call0Asm(FuncUndoMark);
 								RefreshCursor(False, True);
-								InvalidateRect(WndHandle, NULL, False);
+								Redraw();
 							}
 							else
 							{
 								DelStrInArea();
+								Call0Asm(FuncUndoMark);
 								RefreshCursor(False, True);
-								InvalidateRect(WndHandle, NULL, False);
+								Redraw();
 							}
 						}
-						break;
+						return 0;
 					case VK_APPS:
 						// TODO:
-						break;
+						return 0;
 				}
 			}
-			return 0;
+			break;
 		case WM_CHAR:
 			if ((Char)w_param == L'\t' || Wide((Char)w_param, 0) == 0)
 				return 0;
@@ -452,13 +478,14 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 				DelStrInArea();
 			AreaX = -1;
 			InsertChar((Char)w_param);
+			Call0Asm(FuncUndoMark);
 			RefreshCursor(False, True);
-			InvalidateRect(WndHandle, NULL, False);
+			Redraw();
 			return 0;
 		case WM_SIZE:
 			RefreshScrSize();
 			RefreshCursor(False, True);
-			InvalidateRect(WndHandle, NULL, False);
+			Redraw();
 			return 0;
 		case WM_HSCROLL:
 		case WM_VSCROLL:
@@ -504,7 +531,7 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 					PageY = info.nPos;
 				SetScrollInfo(scroll, SB_CTL, &info, TRUE);
 				RefreshCursor(False, False);
-				InvalidateRect(WndHandle, NULL, False);
+				Redraw();
 			}
 			break;
 		// TODO:
@@ -709,7 +736,7 @@ static void PasteStr(void)
 	GlobalUnlock(handle);
 	CloseClipboard();
 	RefreshCursor(False, True);
-	InvalidateRect(WndHandle, NULL, False);
+	Redraw();
 }
 
 static void InsertChar(Char c)
@@ -754,6 +781,12 @@ static int Log10(int n)
 static int SrcLen(void)
 {
 	return (int)*(S64*)((U8*)Src + 0x08);
+}
+
+static void Redraw(void)
+{
+	DirtyPaint = True;
+	InvalidateRect(WndHandle, NULL, False);
 }
 
 static const void* YPtrGet(int y)
@@ -821,6 +854,19 @@ static void RefreshScrSize(void)
 	GetClientRect(WndHandle, &rect);
 	ScrWidth = (int)(rect.right - rect.left);
 	ScrHeight = (int)(rect.bottom - rect.top);
+	if (BitmapDc != NULL)
+	{
+		SelectObject(BitmapDc, BitmapHandleOld);
+		DeleteObject((HGDIOBJ)BitmapHandle);
+		DeleteDC(BitmapDc);
+	}
+	{
+		HDC dc = GetDC(WndHandle);
+		BitmapDc = CreateCompatibleDC(dc);
+		BitmapHandle = CreateCompatibleBitmap(dc, ScrWidth, ScrHeight);
+		BitmapHandleOld = SelectObject(BitmapDc, (HGDIOBJ)BitmapHandle);
+		ReleaseDC(WndHandle, dc);
+	}
 }
 
 static void RefreshCursor(Bool right, Bool refreshScroll)
@@ -858,20 +904,70 @@ static void RefreshCursor(Bool right, Bool refreshScroll)
 
 	if (refreshScroll)
 	{
-		SCROLLINFO info;
-		info.cbSize = sizeof(SCROLLINFO);
-		info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
-		info.nMin = 0;
-		info.nMax = src_len - 1;
-		info.nPage = ScrHeight / CellHeight;
-		info.nPos = PageY;
-		info.nTrackPos = 0;
-		SetScrollInfo(ScrollY, SB_CTL, &info, TRUE);
-
+		int max_x = 0;
+		int padding_x = (LineNumberWidth + 17) / CellWidth + 1;
+		int padding_y = 17 / CellHeight + 1;
 		if (PageY > CursorY)
 			PageY = CursorY;
-		if (PageY < CursorY - ScrHeight / CellHeight + 1)
-			PageY = CursorY - ScrHeight / CellHeight + 1;
+		if (PageY < CursorY - ScrHeight / CellHeight + padding_y)
+			PageY = CursorY - ScrHeight / CellHeight + padding_y;
+		{
+			SCROLLINFO info;
+			info.cbSize = sizeof(SCROLLINFO);
+			info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
+			info.nMin = 0;
+			info.nMax = src_len - 1 + padding_y;
+			info.nPage = ScrHeight / CellHeight;
+			info.nPos = PageY;
+			info.nTrackPos = 0;
+			SetScrollInfo(ScrollY, SB_CTL, &info, TRUE);
+		}
+		{
+			const void* y_ptr = YPtrGet(PageY);
+			int i;
+			int len;
+			const Char* str;
+			for (i = 0; i < ScrHeight / CellHeight + 1; i++)
+			{
+				if (y_ptr == NULL)
+					break;
+				len = 0;
+				str = YPtrItemStr(y_ptr);
+				while (*str != L'\0')
+				{
+					len += Wide(*str, len);
+					str++;
+				}
+				if (max_x < len)
+					max_x = len;
+				y_ptr = YPtrNext(y_ptr);
+			}
+		}
+		{
+			int x = 0;
+			int cursor_x = 0;
+			const Char* str = YPtrItemStr(YPtrGet(CursorY));
+			while (str[x] != L'\0' && x < CursorX)
+			{
+				cursor_x += Wide(str[x], cursor_x);
+				x++;
+			}
+			if (PageX > cursor_x)
+				PageX = cursor_x;
+			if (PageX < cursor_x - ScrWidth / CellWidth + padding_x)
+				PageX = cursor_x - ScrWidth / CellWidth + padding_x;
+		}
+		{
+			SCROLLINFO info;
+			info.cbSize = sizeof(SCROLLINFO);
+			info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
+			info.nMin = 0;
+			info.nMax = max_x - 1 + padding_x;
+			info.nPage = ScrWidth / CellWidth;
+			info.nPos = PageX;
+			info.nTrackPos = 0;
+			SetScrollInfo(ScrollX, SB_CTL, &info, TRUE);
+		}
 	}
 
 	LineNumberWidth = CellWidth * (Log10(SrcLen()) + 1);
@@ -886,39 +982,51 @@ static void RefreshCursor(Bool right, Bool refreshScroll)
 			x += Wide(*ptr, x);
 			ptr++;
 		}
-		SetCaretPos(left + x * CellWidth, (CursorY - PageY) * CellHeight);
+		if (left + x * CellWidth + 2 <= 0 || ScrWidth - 17 <= left + x * CellWidth || (CursorY - PageY) * CellHeight + CellHeight <= 0 || ScrHeight - 17 <= (CursorY - PageY) * CellHeight)
+			SetCaretPos(-CellWidth * 2, -CellHeight * 2); // Hide caret.
+		else
+			SetCaretPos(left + x * CellWidth, (CursorY - PageY) * CellHeight);
 	}
 }
 
-static void Draw(HDC dc, const RECT* rect)
+static void Draw(void)
 {
-	HGDIOBJ font_old = SelectObject(dc, (HGDIOBJ)FontSrc);
-	SetBkMode(dc, OPAQUE);
-	SetBkColor(dc, ColorBack);
-	ExtTextOut(dc, rect->left, rect->top, ETO_CLIPPED | ETO_OPAQUE, rect, L"", 0, NULL);
+	HGDIOBJ font_old;
+	RECT rect;
+	rect.left = 0;
+	rect.top = 0;
+	rect.right = ScrWidth;
+	rect.bottom = ScrHeight;
 
 	{
-		HGDIOBJ pen_old = SelectObject(dc, (HGDIOBJ)PenLineNumber);
+		font_old = SelectObject(BitmapDc, (HGDIOBJ)FontSrc);
+		SetBkMode(BitmapDc, OPAQUE);
+		SetBkColor(BitmapDc, ColorBack);
+		ExtTextOut(BitmapDc, 0, 0, ETO_CLIPPED | ETO_OPAQUE, &rect, L"", 0, NULL);
+	}
+
+	{
+		HGDIOBJ pen_old = SelectObject(BitmapDc, (HGDIOBJ)PenLineNumber);
 		LONG x = (LONG)(LineNumberWidth - CellWidth / 2);
 		POINT points[2];
 		points[0].x = x;
-		points[0].y = rect->top;
+		points[0].y = 0;
 		points[1].x = x;
-		points[1].y = rect->bottom;
-		Polyline(dc, points, 2);
-		SelectObject(dc, pen_old);
+		points[1].y = (LONG)ScrHeight;
+		Polyline(BitmapDc, points, 2);
+		SelectObject(BitmapDc, pen_old);
 	}
 
 	{
 		int i;
 		int len = SrcLen();
 		Char str[33];
-		SetBkMode(dc, TRANSPARENT);
-		SetTextColor(dc, ColorLineNumber);
+		SetBkMode(BitmapDc, TRANSPARENT);
+		SetTextColor(BitmapDc, ColorLineNumber);
 		for (i = 0; i < len; i++)
 		{
 			int str_len = swprintf(str, 33, L"%d", PageY + i + 1);
-			ExtTextOut(dc, LineNumberWidth - (str_len + 1) * CellWidth + CellWidth / 2, i * CellHeight, ETO_CLIPPED, rect, str, (UINT)str_len, NULL);
+			ExtTextOut(BitmapDc, LineNumberWidth - (str_len + 1) * CellWidth + CellWidth / 2, i * CellHeight, ETO_CLIPPED, &rect, str, (UINT)str_len, NULL);
 		}
 	}
 
@@ -940,21 +1048,21 @@ static void Draw(HDC dc, const RECT* rect)
 		for (i = 0; i < ScrHeight / CellHeight; i++)
 		{
 			int y = i * CellHeight;
-			if (y >= (int)rect->bottom)
+			if (y >= ScrHeight)
 				break;
-			if (y >= (int)rect->top)
 			{
 				const Char* str = YPtrItemStr(y_ptr);
 				int left = -PageX * CellWidth + LineNumberWidth;
 				int x = 0;
 				ResetHighlight();
-				for (j = 0; j < ScrWidth / CellWidth; j++)
+				j = 0;
+				for (; ; )
 				{
 					COLORREF color = InterpretHighlight(str);
 					ASSERT(*str != L'\r' && *str != L'\n');
-					if (left + x * CellWidth + CellWidth >= (int)rect->right)
+					if (left + x * CellWidth + CellWidth >= ScrWidth)
 						break;
-					if (left + x * CellWidth >= (int)rect->left + LineNumberWidth)
+					if (left + x * CellWidth >= LineNumberWidth)
 					{
 						Bool in_area = False;
 						if (SelectArea())
@@ -979,17 +1087,17 @@ static void Draw(HDC dc, const RECT* rect)
 							if (*str == L'\0')
 							{
 								// TODO:
-								SetBkMode(dc, OPAQUE);
-								SetBkColor(dc, ColorAreaBack);
-								SetTextColor(dc, ColorAreaText);
-								ExtTextOut(dc, left + x * CellWidth, i * CellHeight, ETO_CLIPPED, rect, L" ", 1, NULL);
+								SetBkMode(BitmapDc, OPAQUE);
+								SetBkColor(BitmapDc, ColorAreaBack);
+								SetTextColor(BitmapDc, ColorAreaText);
+								ExtTextOut(BitmapDc, left + x * CellWidth, i * CellHeight, ETO_CLIPPED, &rect, L" ", 1, NULL);
 							}
 							else
 							{
-								SetBkMode(dc, OPAQUE);
-								SetBkColor(dc, ColorAreaBack);
-								SetTextColor(dc, ColorAreaText);
-								ExtTextOut(dc, left + x * CellWidth, i * CellHeight, ETO_CLIPPED, rect, str, 1, NULL);
+								SetBkMode(BitmapDc, OPAQUE);
+								SetBkColor(BitmapDc, ColorAreaBack);
+								SetTextColor(BitmapDc, ColorAreaText);
+								ExtTextOut(BitmapDc, left + x * CellWidth, i * CellHeight, ETO_CLIPPED, &rect, str, 1, NULL);
 							}
 						}
 						else
@@ -1000,9 +1108,9 @@ static void Draw(HDC dc, const RECT* rect)
 							}
 							else
 							{
-								SetBkMode(dc, TRANSPARENT);
-								SetTextColor(dc, color);
-								ExtTextOut(dc, left + x * CellWidth, i * CellHeight, ETO_CLIPPED, rect, str, 1, NULL);
+								SetBkMode(BitmapDc, TRANSPARENT);
+								SetTextColor(BitmapDc, color);
+								ExtTextOut(BitmapDc, left + x * CellWidth, i * CellHeight, ETO_CLIPPED, &rect, str, 1, NULL);
 							}
 						}
 					}
@@ -1019,6 +1127,7 @@ static void Draw(HDC dc, const RECT* rect)
 						x += wide;
 					}
 					str++;
+					j++;
 				}
 			}
 			y_ptr = YPtrNext(y_ptr);
@@ -1026,7 +1135,7 @@ static void Draw(HDC dc, const RECT* rect)
 				break;
 		}
 	}
-	SelectObject(dc, font_old);
+	SelectObject(BitmapDc, font_old);
 }
 
 static int BinSearch(const Char** hay_stack, int num, const Char* needle)

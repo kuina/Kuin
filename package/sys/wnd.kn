@@ -30,7 +30,6 @@ end enum
 	var kind: int
 	var handle: int
 	var defaultWndProc: int
-	var drawBuf: int
 	var ctrlFlag: int
 	var defaultRect: int
 end class
@@ -39,15 +38,31 @@ end class
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
+	+func [d0001.knd, _wndClose] close()
+	end func
+
+	+func [d0001.knd, _wndExit] exit()
+	end func
+
+	+func [d0001.knd, _wndMinMax] minMax(minWidth: int, minHeight: int, maxWidth: int, maxHeight: int)
+	end func
+
 	+func [d0001.knd, _wndSetMenu] setMenu(menu: @Menu)
 	end func
 
+	+func [d0001.knd, _wndPushMenu] pushMenu(id: int)
+	end func
+
+	+var minMaxRect: int
+	+var onClose: func<(): bool>
 	+var onPushMenu: func<(int)>
 end class
 
 +class Draw(@WndBase)
-	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	*func [d0001.knd, _drawDtor, _force] _dtor()
 	end func
+
+	var drawBuf: int
 end class
 
 +class Btn(@WndBase)
@@ -60,10 +75,22 @@ end class
 +class Chk(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+
+	+func [d0001.knd, _btnSetChk] setChk(value: bool)
+	end func
+
+	+func [d0001.knd, _btnGetChk] getChk(): bool
+	end func
 end class
 
 +class Radio(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _btnSetChk] setChk(value: bool)
+	end func
+
+	+func [d0001.knd, _btnGetChk] getChk(): bool
 	end func
 end class
 
@@ -227,6 +254,9 @@ end enum
 	again :: 10
 	continue
 end enum
+
++func [d0001.knd, _onKeyPress] onKeyPress(onKeyPressFunc: func<(int, int): bool>)
+end func
 
 +func [d0001.knd, _msgBox] msgBox(parent: @WndBase, text: []char, title: []char, icon: @MsgBoxIcon, btn: @MsgBoxBtn): @MsgBoxResult
 end func
