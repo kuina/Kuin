@@ -1,6 +1,9 @@
 func [compiler.dll, BuildMem] build(path: []char, funcGetSrc: func<([]char): list<@Line>>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>): bool
 end func
 
+func [compiler.dll, Version] version(major: &int, minor: &int, micro: &int)
+end func
+
 func [compiler.dll, InitMemAllocator] initMemAllocator()
 end func
 
@@ -32,6 +35,7 @@ var btnCompile: wnd@Btn
 var groupEnv: wnd@Group
 var radioEnvWnd: wnd@Radio
 var radioEnvCui: wnd@Radio
+var btnRls: wnd@Btn
 var editFile: wnd@Edit
 var listFile: wnd@List
 var menuMain: wnd@Menu
@@ -132,6 +136,8 @@ func makeWnd()
 	do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 173, 16, %fix, %fix, "Window")
 	do @radioEnvWnd.setChk(true)
 	do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 173, 16, %fix, %fix, "CUI")
+	do @btnRls :: wnd@makeBtn(@wndMain, 827, 109, 185, 23, %move, %fix, "Release Build")
+	do @btnRls.onPush :: @btnRlsOnPush
 	do @editFile :: wnd@makeEdit(@wndMain, 827, 359, 185, 19, %move, %fix)
 	do @editFile.readonly(true)
 	do @editFile.setText("No Title")
@@ -155,6 +161,9 @@ func makeWnd()
 end func
 
 func onKeyPress(key: int, shiftCtrlAlt: int): bool
+	if (!@wndMain.active())
+		ret false
+	end if
 	if(shiftCtrlAlt = 2)
 		switch(key)
 		case 'N' $ int
@@ -212,9 +221,15 @@ func wndMainOnPushMenu(id: int)
 	case 16#0005
 		do @wndMain.close()
 	case 16#0010
-		do wnd@msgBox(@wndMain, "Good luck.", null, %info, %ok)
+		do wnd@msgBox(@wndMain, "Good luck!", "Kuin Programming Language", %info, %ok)
 	case 16#0011
-		do wnd@msgBox(@wndMain, "Kuin Programming Language.", null, %info, %ok)
+		block
+			var major: int
+			var minor: int
+			var micro: int
+			do @version(&major, &minor, &micro)
+			do wnd@msgBox(@wndMain, "Kuin Programming Language\nVersion \{major}.\{minor}.\{micro}\n(C)Kuina-chan", "Kuin Programming Language", %info, %ok)
+		end block
 	end switch
 end func
 
@@ -222,7 +237,7 @@ func chkChanged(): bool
 	if(!@changed)
 		ret true
 	end if
-	var result: wnd@MsgBoxResult :: wnd@msgBox(@wndMain, "Do you want to save changes to " ~ (@mainSrc = "_default_.kn" ?("Untitled", @mainSrc)) ~ "?", null, %warn, %yesNoCancel)
+	var result: wnd@MsgBoxResult :: wnd@msgBox(@wndMain, "Do you want to save changes to " ~ (@mainSrc = "_default_.kn" ?("Untitled", @mainSrc)) ~ "?", "Kuin Programming Language", %warn, %yesNoCancel)
 	if(result = %cancel)
 		ret false
 	elif(result = %no)
@@ -252,6 +267,14 @@ func save(): bool
 end func
 
 func btnCompileOnPush()
+	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/tmp/"
+	var out: []char :: tmp ~ "out.exe"
+	try
+		do file@makeDir(tmp)
+	catch
+		do wnd@msgBox(@wndMain, "Could not delete: " ~ tmp, "Kuin Programming Language", %error, %ok)
+		ret
+	end try
 	do @resetMemAllocator()
 	do @editLog.setText("")
 	var env: []char
@@ -260,12 +283,16 @@ func btnCompileOnPush()
 	elif(@radioEnvCui.getChk())
 		do env :: "cui"
 	end if
-	if(@build(@mainSrc, @getSrc, null, "C:\\temp\\out.exe", null, false, env, @log))
-		var process: task@Process :: task@makeProcess("C:\\temp\\out.exe")
+	if(@build(@mainSrc, @getSrc, null, out, null, false, env, @log))
+		var process: task@Process :: task@makeProcess(out)
 		if(process <>& null)
-			do process.run()
+			do process.run(false)
 		end if
 	end if
+end func
+
+func btnRlsOnPush()
+	do wnd@msgBox(@wndMain, "This function is under construction...", "Kuin Programming Language", %error, %ok)
 end func
 
 func getSrc(path: []char): list<@Line>

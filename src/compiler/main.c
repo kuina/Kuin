@@ -71,7 +71,7 @@ EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output,
 	return result;
 }
 
-EXPORT void Version(int* major, int* minor, int* micro)
+EXPORT void Version(S64* major, S64* minor, S64* micro)
 {
 	*major = 9;
 	*minor = 17;

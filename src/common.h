@@ -9,6 +9,7 @@
 
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "shlwapi.lib")
+#pragma comment(lib, "imm32.lib")
 
 #define STRICT
 #define _WIN32_DCOM
@@ -24,6 +25,7 @@
 #include <time.h>
 #include <emmintrin.h> // 'SSE2'
 #include <Shlwapi.h> // 'PathFileExists'
+#include <Shlobj.h> // 'SHGetSpecialFolderPath'
 
 #define UNUSED(var) (void)(var)
 #define EXPORT _declspec(dllexport)

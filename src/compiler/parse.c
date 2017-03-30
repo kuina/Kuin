@@ -254,16 +254,22 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 			}
 			{
 				const Char* reload = NULL;
+				const Char* env = L"unknown";
 				size_t file_size = FuncSize(FilePtr);
+				switch (Option->Env)
+				{
+					case Env_Wnd: env = L"wnd"; break;
+					case Env_Cui: env = L"cui"; break;
+				}
 				if (file_size == 0)
-					reload = NewStr(NULL, L"%spreset00.knd", Option->SysDir);
+					reload = NewStr(NULL, L"%spreset00_%s.knp", Option->SysDir, env);
 				else if (file_size == 1)
 				{
 					switch (FuncFgetwc(FilePtr))
 					{
-						case L'q': reload = NewStr(NULL, L"%spreset01.knd", Option->SysDir); break;
-						case L'f': reload = NewStr(NULL, L"%spreset02.knd", Option->SysDir); break;
-						case L'9': reload = NewStr(NULL, L"%spreset03.knd", Option->SysDir); break;
+						case L'q': reload = NewStr(NULL, L"%spreset01_%s.knp", Option->SysDir, env); break;
+						case L'f': reload = NewStr(NULL, L"%spreset02_%s.knp", Option->SysDir, env); break;
+						case L'9': reload = NewStr(NULL, L"%spreset03_%s.knp", Option->SysDir, env); break;
 					}
 				}
 				if (reload == NULL)

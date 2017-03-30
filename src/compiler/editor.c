@@ -276,6 +276,14 @@ static LRESULT CALLBACK WndProcEditor(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 		case WM_SETFOCUS:
 			CreateCaret(WndHandle, NULL, 2, CharHeight);
 			ShowCaret(WndHandle);
+			{
+				LOGFONT log_font;
+				HIMC imc = ImmGetContext(WndHandle);
+				GetObject(FontSrc, sizeof(LOGFONT), &log_font);
+				if (imc)
+					ImmSetCompositionFont(imc, &log_font);
+				ImmReleaseContext(WndHandle, imc);
+			}
 			return 0;
 		case WM_KILLFOCUS:
 			HideCaret(WndHandle);
@@ -982,10 +990,28 @@ static void RefreshCursor(Bool right, Bool refreshScroll)
 			x += Wide(*ptr, x);
 			ptr++;
 		}
-		if (left + x * CellWidth + 2 <= 0 || ScrWidth - 17 <= left + x * CellWidth || (CursorY - PageY) * CellHeight + CellHeight <= 0 || ScrHeight - 17 <= (CursorY - PageY) * CellHeight)
-			SetCaretPos(-CellWidth * 2, -CellHeight * 2); // Hide caret.
-		else
-			SetCaretPos(left + x * CellWidth, (CursorY - PageY) * CellHeight);
+		{
+			HIMC imc = ImmGetContext(WndHandle);
+			COMPOSITIONFORM form;
+			form.dwStyle = CFS_POINT;
+			if (left + x * CellWidth + 2 <= 0 || ScrWidth - 17 <= left + x * CellWidth || (CursorY - PageY) * CellHeight + CellHeight <= 0 || ScrHeight - 17 <= (CursorY - PageY) * CellHeight)
+			{
+				SetCaretPos(-CellWidth * 2, -CellHeight * 2); // Hide caret.
+				form.ptCurrentPos.x = 0;
+				form.ptCurrentPos.y = 0;
+			}
+			else
+			{
+				POINT point;
+				SetCaretPos(left + x * CellWidth, (CursorY - PageY) * CellHeight);
+				GetCaretPos(&point);
+				form.ptCurrentPos.x = (LONG)point.x;
+				form.ptCurrentPos.y = (LONG)point.y;
+			}
+			if (imc)
+				ImmSetCompositionWindow(imc, &form);
+			ImmReleaseContext(WndHandle, imc);
+		}
 	}
 }
 

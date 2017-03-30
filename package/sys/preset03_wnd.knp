@@ -1,0 +1,19 @@
+func main()
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1024, 768, "")
+	var editLog: wnd@EditMulti :: wnd@makeEditMulti(wndMain, 12, 12, 1000, 744, %scale, %scale)
+	do editLog.readonly(true)
+	do editLog.setText("")
+	for i(99, 2, -1)
+		do editLog.setText(editLog.getText() ~ (i.toStr() ~ " bottles of beer on the wall, " ~ i.toStr() ~ " bottles of beer.\n"))
+		do editLog.setText(editLog.getText() ~ ("Take one down, pass it around, " ~ (i - 1).toStr() ~ " bottles of beer on the wall.\n"))
+	end for
+	do editLog.setText(editLog.getText() ~ "2 bottles of beer on the wall, 2 bottles of beer.\n")
+	do editLog.setText(editLog.getText() ~ "Take one down, pass it around, 1 bottle of beer on the wall.\n")
+	do editLog.setText(editLog.getText() ~ "1 bottle of beer on the wall, 1 bottle of beer.\n")
+	do editLog.setText(editLog.getText() ~ "Take one down, pass it around, no more bottles of beer on the wall.\n")
+	do editLog.setText(editLog.getText() ~ "No more bottles of beer on the wall, no more bottles of beer.\n")
+	do editLog.setText(editLog.getText() ~ "Go to the store and buy some more, 99 bottles of beer on the wall.\n")
+
+	while(wnd@act())
+	end while
+end func

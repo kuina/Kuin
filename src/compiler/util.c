@@ -103,6 +103,7 @@ Char* GetDir(const Char* path, Bool dir, const Char* add_name)
 	{
 		result = (Char*)Alloc(sizeof(Char) * (2 + len_add_name + 1));
 		wcscpy(result, L"./");
+		return result;
 	}
 	if (dir)
 	{

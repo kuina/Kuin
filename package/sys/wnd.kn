@@ -53,6 +53,9 @@ end class
 	+func [d0001.knd, _wndPushMenu] pushMenu(id: int)
 	end func
 
+	+func [d0001.knd, _wndActive] active(): bool
+	end func
+
 	+var minMaxRect: int
 	+var onClose: func<(): bool>
 	+var onPushMenu: func<(int)>

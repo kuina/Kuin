@@ -43,7 +43,7 @@ static void CopyDlls(const Char* key, const void* value, void* param)
 {
 	UNUSED(value);
 	{
-		const SOption* option = param;
+		const SOption* option = (SOption*)param;
 		Char src[MAX_PATH];
 		Char dst[MAX_PATH];
 		wcscpy(src, option->SysDir);

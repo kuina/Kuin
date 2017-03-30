@@ -20,6 +20,7 @@ EXPORT_CPP const U8* _wndGetText(SClass* me_);
 EXPORT_CPP void _wndReadonly(SClass* me_, Bool flag);
 EXPORT_CPP void _wndSetMenu(SClass* me_, SClass* menu);
 EXPORT_CPP void _wndPushMenu(SClass* me_, S64 id);
+EXPORT_CPP Bool _wndActive(SClass* me_);
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP void _drawDtor(SClass* me_);
 EXPORT_CPP SClass* _makeBtn(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text);

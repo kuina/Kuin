@@ -31,19 +31,27 @@ EXPORT void _processDtor(SClass* me_)
 		CloseHandle(me2->ProcessHandle);
 }
 
-EXPORT S64 _processRun(SClass* me_)
+EXPORT S64 _processRun(SClass* me_, Bool waitUntilExit)
 {
 	SProcess* me2 = (SProcess*)me_;
-	DWORD exit_code;
+	DWORD exit_code = 0;
 	if (ResumeThread(me2->ThreadHandle) == (DWORD)-1)
 		THROW(0x1000, L"");
-	if (WaitForSingleObject(me2->ProcessHandle, INFINITE) == WAIT_FAILED)
-		THROW(0x1000, L"");
-	if (!GetExitCodeProcess(me2->ProcessHandle, &exit_code))
-		THROW(0x1000, L"");
+	if (waitUntilExit)
+	{
+		if (WaitForSingleObject(me2->ProcessHandle, INFINITE) == WAIT_FAILED)
+			THROW(0x1000, L"");
+		if (!GetExitCodeProcess(me2->ProcessHandle, &exit_code))
+			THROW(0x1000, L"");
+	}
 	CloseHandle(me2->ThreadHandle);
 	CloseHandle(me2->ProcessHandle);
 	me2->ThreadHandle = NULL;
 	me2->ProcessHandle = NULL;
 	return (S64)(S32)exit_code;
+}
+
+EXPORT void _processRunAsync(SClass* me_, void* func)
+{
+	// TODO:
 }

@@ -566,6 +566,11 @@ EXPORT_CPP void _wndPushMenu(SClass* me_, S64 id)
 	PostMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, WM_COMMAND, static_cast<WPARAM>(LOWORD(id)), 0);
 }
 
+EXPORT_CPP Bool _wndActive(SClass* me_)
+{
+	return GetActiveWindow() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
+}
+
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
@@ -975,7 +980,7 @@ static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param)
 	if (wnd2->CtrlFlag == (static_cast<U64>(CtrlFlag_AnchorLeft) | static_cast<U64>(CtrlFlag_AnchorTop)))
 		return TRUE;
 	RECT parent_rect;
-	GetClientRect(GetParent(wnd), &parent_rect);
+	GetClientRect(GetAncestor(wnd, GA_PARENT), &parent_rect);
 	int width = static_cast<int>(parent_rect.right - parent_rect.left);
 	int height = static_cast<int>(parent_rect.bottom - parent_rect.top);
 	int new_x = static_cast<int>(wnd2->DefaultX);

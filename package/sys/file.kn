@@ -1,9 +1,3 @@
-+func [d0000.knd, _makeReader, _make_instance] makeReader(me2: @Reader, path: []char): @Reader
-end func
-
-+func [d0000.knd, _makeWriter, _make_instance] makeWriter(me2: @Writer, path: []char, append: bool): @Writer
-end func
-
 +enum Origin
 	head
 	current
@@ -94,3 +88,42 @@ end class
 
 	var delimiter: int
 end class
+
++func [d0000.knd, _makeReader, _make_instance] makeReader(me2: @Reader, path: []char): @Reader
+end func
+
++func [d0000.knd, _makeWriter, _make_instance] makeWriter(me2: @Writer, path: []char, append: bool): @Writer
+end func
+
+enum SysDir
+	desktop :: 16#00
+	appData :: 16#1A
+end enum
+
++func [d0000.knd, _makeDir] makeDir(path: []char)
+end func
+
++func [d0000.knd, _exist] exist(path: []char): bool
+end func
+
++func [d0000.knd, _delDir] delDir(path: []char)
+end func
+
++func [d0000.knd, _delFile] delFile(path: []char)
+end func
+
++func [d0000.knd, _copyFile] copyFile(dst: []char, src: []char)
+end func
+
++func [d0000.knd, _moveFile] moveFile(dst: []char, src: []char)
+end func
+
++func [d0000.knd, _dir] dir(path: []char): []char
+end func
+
++func [d0000.knd, _sysDir] sysDir(kind: @SysDir): []char
+end func
+
++func [d0000.knd, _fileSize] fileSize(path: []char): int
+end func
+

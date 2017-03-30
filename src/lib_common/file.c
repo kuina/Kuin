@@ -12,6 +12,10 @@ static const U8 Newline[2] = { 0x0d, 0x0a };
 
 static Char ReadUtf8(SStream* me_, Bool replace_delimiter);
 static void WriteUtf8(SStream* me_, Char data);
+static void NormPath(Char* path, Bool dir);
+static void NormPathBackSlash(Char* path, Bool dir);
+static Bool ForeachDirRecursion(const Char* path, Bool recursive, void* func);
+static Bool DelDirRecursion(const Char* path);
 
 EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 {
@@ -396,74 +400,134 @@ EXPORT Bool _streamTerm(SClass* me_)
 	}
 }
 
-EXPORT Bool _makeDir(const U8* path, Bool clear)
+EXPORT void _makeDir(const U8* path)
 {
-	// TODO:
-	return False;
+	if (*(S64*)(path + 0x08) > MAX_PATH)
+		THROW(0x1000, L"");
+	if (!DelDirRecursion((const Char*)(path + 0x10)))
+		THROW(0x1000, L"");
+	{
+		Char path2[MAX_PATH + 2];
+		wcscpy(path2, (const Char*)(path + 0x10));
+		NormPathBackSlash(path2, True);
+		SHCreateDirectory(NULL, path2);
+	}
 }
 
 EXPORT void _foreachDir(const U8* path, Bool recursive, void* func)
 {
-	// TODO:
+	if (!ForeachDirRecursion((const Char*)(path + 0x10), recursive, func))
+		THROW(0x1000, L"");
 }
 
 EXPORT Bool _exist(const U8* path)
 {
-	// TODO: '\\' or '/'.
 	return PathFileExists((const Char*)(path + 0x10)) != 0;
 }
 
-EXPORT Bool _delFile(const U8* path)
+EXPORT void _delDir(const U8* path)
 {
-	// TODO:
-	return False;
+	if (!DelDirRecursion((const Char*)(path + 0x10)))
+		THROW(0x1000, L"");
 }
 
-EXPORT Bool _copyFile(const U8* dst, const U8* src, Bool overwrite)
+EXPORT void _delFile(const U8* path)
 {
-	// TODO:
-	return False;
+	if (!DeleteFile((const Char*)(path + 0x10)))
+		THROW(0x1000, L"");
 }
 
-EXPORT Bool _moveFile(const U8* dst, const U8* src, Bool overwrite)
+EXPORT void _copyFile(const U8* dst, const U8* src)
 {
-	// TODO:
-	return False;
+	if (!CopyFile((const Char*)(src + 0x10), (const Char*)(dst + 0x10), FALSE))
+		THROW(0x1000, L"");
 }
 
-EXPORT const U8* _ext(const U8* path)
+EXPORT void _moveFile(const U8* dst, const U8* src)
+{
+	if (!MoveFileEx((const Char*)(src + 0x10), (const Char*)(dst + 0x10), MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH | MOVEFILE_REPLACE_EXISTING))
+		THROW(0x1000, L"");
+}
+
+EXPORT void* _dir(const U8* path)
+{
+	const Char* path2 = (const Char*)(path + 0x10);
+	size_t len = wcslen(path2);
+	U8* result;
+	const Char* ptr = path2 + len;
+	while (ptr != path2 && *ptr != L'\\' && *ptr != L'/')
+		ptr--;
+	if (ptr == path2)
+	{
+		result = (U8*)AllocMem(0x10 + sizeof(Char) * 3);
+		*(S64*)(result + 0x00) = DefaultRefCntFunc;
+		*(S64*)(result + 0x08) = 2;
+		wcscpy((Char*)(result + 0x10), L"./");
+	}
+	else
+	{
+		size_t len2 = ptr - path2 + 1;
+		size_t i;
+		Char* str;
+		result = (U8*)AllocMem(0x10 + sizeof(Char) * (len2 + 1));
+		*(S64*)(result + 0x00) = DefaultRefCntFunc;
+		*(S64*)(result + 0x08) = len2;
+		str = (Char*)(result + 0x10);
+		for (i = 0; i < len2; i++)
+			str[i] = path2[i] == L'\\' ? L'/' : path2[i];
+		str[i] = L'\0';
+	}
+	return result;
+}
+
+EXPORT void* _ext(const U8* path)
 {
 	// TODO:
 	return NULL;
 }
 
-EXPORT const U8* _fileName(const U8* path)
+EXPORT void* _fileName(const U8* path)
 {
 	// TODO:
 	return NULL;
 }
 
-EXPORT const U8* _fullPath(const U8* path)
+EXPORT void* _fullPath(const U8* path)
 {
 	// TODO:
 	return NULL;
 }
 
-EXPORT const U8* _delExt(const U8* path)
+EXPORT void* _delExt(const U8* path)
 {
 	// TODO:
 	return NULL;
 }
 
-EXPORT const U8* _tmpFile(void)
+EXPORT void* _tmpFile(void)
 {
 	// TODO:
 	return NULL;
+}
+
+EXPORT void* _sysDir(S64 kind)
+{
+	Char path[MAX_PATH + 2];
+	if (!SHGetSpecialFolderPath(NULL, path, (int)kind, TRUE))
+		return NULL;
+	NormPath(path, True);
+	{
+		size_t len = wcslen(path);
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+		*(S64*)(result + 0x00) = DefaultRefCntFunc;
+		*(S64*)(result + 0x08) = (S64)len;
+		wcscpy((Char*)(result + 0x10), path);
+		return result;
+	}
 }
 
 EXPORT S64 _fileSize(const U8* path)
 {
-	// TODO: Test.
 	S64 result;
 	FILE* file_ptr = _wfopen((const Char*)(path + 0x10), L"rb");
 	if (file_ptr == NULL)
@@ -612,4 +676,128 @@ static void WriteUtf8(SStream* me_, Char data)
 		fwrite(&Newline, 1, sizeof(Newline), me_->Handle);
 	else
 		fwrite(&u, 1, size, me_->Handle);
+}
+
+static void NormPath(Char* path, Bool dir)
+{
+	Char* ptr = path;
+	if (*ptr == L'\0')
+		return;
+	do
+	{
+		if (*ptr == L'\\')
+			*ptr = L'/';
+		ptr++;
+	} while (*ptr != L'\0');
+	if (dir && ptr[-1] != L'/')
+	{
+		ptr[0] = L'/';
+		ptr[1] = L'\0';
+	}
+}
+
+static void NormPathBackSlash(Char* path, Bool dir)
+{
+	Char* ptr = path;
+	if (*ptr == L'\0')
+		return;
+	do
+	{
+		if (*ptr == L'/')
+			*ptr = L'\\';
+		ptr++;
+	} while (*ptr != L'\0');
+	if (dir && ptr[-1] != L'\\')
+	{
+		ptr[0] = L'\\';
+		ptr[1] = L'\0';
+	}
+}
+
+static Bool ForeachDirRecursion(const Char* path, Bool recursive, void* func)
+{
+	Char path2[MAX_PATH + 1];
+	if (wcslen(path) > MAX_PATH)
+		return False;
+	if (!PathFileExists(path))
+		return False;
+	wcscpy(path2, path);
+	wcscat(path2, L"*");
+	{
+		WIN32_FIND_DATA find_data;
+		HANDLE handle = FindFirstFile(path2, &find_data);
+		if (handle == INVALID_HANDLE_VALUE)
+			return False;
+		do
+		{
+			if (wcscmp(find_data.cFileName, L".") == 0 || wcscmp(find_data.cFileName, L"..") == 0)
+				continue;
+			{
+				wcscpy(path2, path);
+				wcscat(path2, find_data.cFileName);
+				if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+				{
+					if (recursive)
+					{
+						if (!ForeachDirRecursion(path2, recursive, func))
+						{
+							FindClose(handle);
+							return False;
+						}
+					}
+				}
+				else
+				{
+					// TODO: call
+				}
+			}
+		} while (FindNextFile(handle, &find_data));
+		FindClose(handle);
+	}
+	return True;
+}
+
+static Bool DelDirRecursion(const Char* path)
+{
+	Char path2[MAX_PATH + 1];
+	if (wcslen(path) > MAX_PATH)
+		return False;
+	if (!PathFileExists(path))
+		return True;
+	wcscpy(path2, path);
+	wcscat(path2, L"*");
+	{
+		WIN32_FIND_DATA find_data;
+		HANDLE handle = FindFirstFile(path2, &find_data);
+		if (handle == INVALID_HANDLE_VALUE)
+			return False;
+		do
+		{
+			if (wcscmp(find_data.cFileName, L".") == 0 || wcscmp(find_data.cFileName, L"..") == 0)
+				continue;
+			{
+				wcscpy(path2, path);
+				wcscat(path2, find_data.cFileName);
+				if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+				{
+					wcscat(path2, L"/");
+					if (!DelDirRecursion(path2))
+					{
+						FindClose(handle);
+						return False;
+					}
+				}
+				else
+				{
+					if (DeleteFile(path2) == 0)
+					{
+						FindClose(handle);
+						return False;
+					}
+				}
+			}
+		} while (FindNextFile(handle, &find_data));
+		FindClose(handle);
+	}
+	return RemoveDirectory(path) != 0;
 }
