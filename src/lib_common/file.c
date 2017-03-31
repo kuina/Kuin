@@ -526,6 +526,35 @@ EXPORT void* _sysDir(S64 kind)
 	}
 }
 
+EXPORT void* _exeDir(void)
+{
+	Char path[MAX_PATH + 1];
+	if (!GetModuleFileName(NULL, path, MAX_PATH))
+		THROW(0x1000, L"");
+	{
+		size_t len = wcslen(path);
+		U8* result;
+		const Char* ptr = path + len;
+		while (ptr != path && *ptr != L'\\' && *ptr != L'/')
+			ptr--;
+		if (ptr == path)
+			THROW(0x1000, L"");
+		{
+			size_t len2 = ptr - path + 1;
+			size_t i;
+			Char* str;
+			result = (U8*)AllocMem(0x10 + sizeof(Char) * (len2 + 1));
+			*(S64*)(result + 0x00) = DefaultRefCntFunc;
+			*(S64*)(result + 0x08) = len2;
+			str = (Char*)(result + 0x10);
+			for (i = 0; i < len2; i++)
+				str[i] = path[i] == L'\\' ? L'/' : path[i];
+			str[i] = L'\0';
+		}
+		return result;
+	}
+}
+
 EXPORT S64 _fileSize(const U8* path)
 {
 	S64 result;

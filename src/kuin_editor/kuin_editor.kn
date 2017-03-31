@@ -1,0 +1,603 @@
+; Kuin Editor
+; (C)Kuina-chan
+
+func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): list<@Line>>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>): bool
+end func
+
+func [d0917.knd, Version] version(major: &int, minor: &int, micro: &int)
+end func
+
+func [d0917.knd, InitMemAllocator] initMemAllocator()
+end func
+
+func [d0917.knd, FinMemAllocator] finMemAllocator()
+end func
+
+func [d0917.knd, ResetMemAllocator] resetMemAllocator()
+end func
+
+func [d0917.knd, EditorInit] editorInit(me2: wnd@WndBase, funcIns: func<([]int, []char)>, funcCmd: func<([]int, int, int)>, funcReplace: func<([]int, int, []char)>, funcUndoMark: func<()>, scrollX: wnd@ScrollX, scrollY: wnd@ScrollY)
+end func
+
+func [d0917.knd, EditorFin] editorFin()
+end func
+
+func [d0917.knd, EditorSetSrc] editorSetSrc(src: list<@Line>)
+end func
+
+func [d0917.knd, EditorSetCursor] editorSetCursor(newX: &int, newY: &int, x: int, y: int, refresh: bool)
+end func
+
+var wndMain: wnd@Wnd
+var tabSrc: wnd@Tab
+var plainSrc: wnd@Plain
+var scrollXSrc: wnd@ScrollX
+var scrollYSrc: wnd@ScrollY
+var editLog: wnd@EditMulti
+var btnCompile: wnd@Btn
+var groupEnv: wnd@Group
+var radioEnvWnd: wnd@Radio
+var radioEnvCui: wnd@Radio
+var btnRls: wnd@Btn
+var editFile: wnd@Edit
+var listFile: wnd@List
+var menuMain: wnd@Menu
+var popupMainFile: wnd@Popup
+var popupMainBuild: wnd@Popup
+var popupMainHelp: wnd@Popup
+
+class Line()
+	+var src: []char
+	+var indent: int
+	+var commentLevel: int
+	+var lineContinue: bool
+end class
+
+var srcs: dict<[]char, list<@Line>>
+var mainSrc: []char
+var curSrc: list<@Line>
+var bufSrc: list<@Line>
+
+enum UndoKind
+	ins
+	bs
+	del
+	ret_
+end enum
+
+class Undo()
+	+var kind: @UndoKind
+	+var pos: []int
+	+var str: []char
+end class
+
+const undoBufSize: int :: 1024
+var undoBuf: []@Undo
+var redoBuf: []@Undo
+var undoPtr: int
+var changed: bool
+
+func main()
+	do @initMemAllocator()
+
+	do wnd@onKeyPress(@onKeyPress)
+
+	do @makeWnd()
+	do @editorInit(@plainSrc, @onIns, @onCmd, @onReplace, @onUndoMark, @scrollXSrc, @scrollYSrc)
+	do @new(null)
+
+	while(wnd@act())
+	end while
+
+	do @editorFin()
+
+	do @finMemAllocator()
+end func
+
+func new(src: list<@Line>)
+	do @srcs :: #dict<[]char, list<@Line>>
+
+	if(src =& null)
+		do @curSrc :: #list<@Line>
+	else
+		do @curSrc :: src
+	end if
+
+	var line: @Line :: #@Line
+	do line.src :: ""
+	do line.indent :: 0
+	do line.commentLevel :: 0
+	do line.lineContinue :: false
+	do @curSrc.add(line)
+
+	do @srcs.add("_default_.kn", @curSrc)
+	do @mainSrc :: "_default_.kn"
+	do @editFile.setText("No Title")
+
+	do @undoBuf :: #[@undoBufSize]@Undo
+	do @redoBuf :: #[@undoBufSize]@Undo
+	do @undoPtr :: 0
+	do @changed :: false
+
+	do @editorSetSrc(@curSrc)
+end func
+
+func makeWnd()
+	do @wndMain :: wnd@makeWnd(null, %normal, 1024, 768, "Kuin Programming Language")
+	do @wndMain.minMax(384, 640, -1, -1)
+	do @wndMain.onClose :: @wndMainOnClose
+	do @wndMain.onPushMenu :: @wndMainOnPushMenu
+	do @tabSrc :: wnd@makeTab(@wndMain, 12, 12, 809, 603, %scale, %scale)
+	do @plainSrc :: wnd@makePlain(@tabSrc, 6, 6, 797{780}, 591{574}, %scale, %scale)
+	do @scrollXSrc :: wnd@makeScrollX(@plainSrc, 0{6}, 574{580}, 780, 17, %scale, %move)
+	do @scrollXSrc.set(0, 0, 1, 0)
+	do @scrollYSrc :: wnd@makeScrollY(@plainSrc, 780{786}, 0{6}, 17, 574, %move, %scale)
+	do @scrollYSrc.set(0, 0, 1, 0)
+	do @editLog :: wnd@makeEditMulti(@wndMain, 12, 621, 1000, 135, %scale, %move)
+	do @editLog.readonly(true)
+	do @btnCompile :: wnd@makeBtn(@wndMain, 827, 12, 185, 23, %move, %fix, "Compile && Run")
+	do @btnCompile.onPush :: @btnCompileOnPush
+	do @groupEnv :: wnd@makeGroup(@wndMain, 827, 41, 185, 62, %move, %fix, "Environment")
+	do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 173, 16, %fix, %fix, "Window")
+	do @radioEnvWnd.setChk(true)
+	do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 173, 16, %fix, %fix, "CUI")
+	do @btnRls :: wnd@makeBtn(@wndMain, 827, 109, 185, 23, %move, %fix, "Release Build...")
+	do @btnRls.onPush :: @btnRlsOnPush
+	do @editFile :: wnd@makeEdit(@wndMain, 827, 359, 185, 19, %move, %fix)
+	do @editFile.readonly(true)
+	do @listFile :: wnd@makeList(@wndMain, 827, 384, 185, 231, %move, %scale)
+	do @menuMain :: wnd@makeMenu()
+	do @popupMainFile :: wnd@makePopup()
+	do @popupMainFile.add(16#0001, "&New\tCtrl+N")
+	do @popupMainFile.add(16#0002, "&Load...\tCtrl+O")
+	do @popupMainFile.addLine()
+	do @popupMainFile.add(16#0003, "&Save All\tCtrl+S")
+	do @popupMainFile.add(16#0004, "Save &As...\tCtrl+Shift+S")
+	do @popupMainFile.addLine()
+	do @popupMainFile.add(16#0005, "E&xit\tCtrl+Q")
+	do @menuMain.addPopup("&File", @popupMainFile)
+	do @popupMainBuild :: wnd@makePopup()
+	do @popupMainBuild.add(16#0020, "&Compile && Run\tF5")
+	do @popupMainBuild.addLine()
+	do @popupMainBuild.add(16#0021, "&Release Build...\tCtrl+Shift+B")
+	do @menuMain.addPopup("&Build", @popupMainBuild)
+	do @popupMainHelp :: wnd@makePopup()
+	do @popupMainHelp.add(16#0010, "&View Help\tF1")
+	do @popupMainHelp.addLine()
+	do @popupMainHelp.add(16#0011, "&About Kuin...")
+	do @menuMain.addPopup("&Help", @popupMainHelp)
+	do @wndMain.setMenu(@menuMain)
+end func
+
+func onKeyPress(key: int, shiftCtrlAlt: int): bool
+	if(shiftCtrlAlt = 2)
+		switch(key)
+		case 'N' $ int
+			do @wndMainOnPushMenu(16#0001)
+			ret true
+		case 'O' $ int
+			do @wndMainOnPushMenu(16#0002)
+			ret true
+		case 'S' $ int
+			do @wndMainOnPushMenu(16#0003)
+			ret true
+		case 'Q' $ int
+			do @wndMainOnPushMenu(16#0005)
+			ret true
+		end switch
+	elif(shiftCtrlAlt = 0)
+		switch(key)
+		case 16#70 {F1}
+			do @wndMainOnPushMenu(16#0010)
+			ret true
+		case 16#74 {F5}
+			do @wndMainOnPushMenu(16#0020)
+			ret true
+		end switch
+	elif(shiftCtrlAlt = 3)
+		switch(key)
+		case 'B' $ int
+			do @wndMainOnPushMenu(16#0021)
+			ret true
+		case 'S' $ int
+			do @wndMainOnPushMenu(16#0004)
+			ret true
+		end switch
+	end if
+	ret false
+end func
+
+func wndMainOnClose(): bool
+	ret @chkChanged()
+end func
+
+func wndMainOnPushMenu(id: int)
+	switch(id)
+	case 16#0001
+		if (@chkChanged())
+			do @new(null)
+		end if
+	case 16#0002
+		if (@chkChanged())
+			var file: []char :: wnd@openFileDialog(@wndMain, ["Kuin source code (*.kn)", "*.kn"], 0)
+			if(file <>& null)
+				var src: list<@Line> :: #list<@Line>
+				var filePtr: file@Reader :: file@makeReader(file)
+				while(!filePtr.term())
+					var line: @Line :: #@Line
+					do line.src :: filePtr.readLine()
+					do line.indent :: 0
+					do line.commentLevel :: 0
+					do line.lineContinue :: false
+					do src.add(line)
+				end while
+				do filePtr.fin()
+				do @new(src)
+				do @mainSrc :: file
+				do @editFile.setText(@mainSrc)
+			end if
+		end if
+	case 16#0003
+		do @save(false)
+	case 16#0004
+		do @save(true)
+	case 16#0005
+		do @wndMain.close()
+	case 16#0010
+		do wnd@msgBox(@wndMain, "Good luck!", "Kuin Programming Language", %info, %ok)
+	case 16#0011
+		block
+			var major: int
+			var minor: int
+			var micro: int
+			do @version(&major, &minor, &micro)
+			do wnd@msgBox(@wndMain, "Kuin Programming Language\nVersion \{major}.\{minor}.\{micro}\n(C)Kuina-chan", "Kuin Programming Language", %info, %ok)
+		end block
+	case 16#0020
+		do @btnCompileOnPush()
+	case 16#0021
+		do @btnRlsOnPush()
+	end switch
+end func
+
+func chkChanged(): bool
+	if(!@changed)
+		ret true
+	end if
+	var result: wnd@MsgBoxResult :: wnd@msgBox(@wndMain, "Do you want to save changes to " ~ (@mainSrc = "_default_.kn" ?("Untitled", @mainSrc)) ~ "?", "Kuin Programming Language", %warn, %yesNoCancel)
+	if(result = %cancel)
+		ret false
+	elif(result = %no)
+		ret true
+	end if
+	ret @save(false)
+end func
+
+func save(new: bool): bool
+	if(!@changed)
+		ret true
+	end if
+	var file: []char
+	if(new | @mainSrc = "_default_.kn")
+		do file :: wnd@saveFileDialog(@wndMain, ["Kuin source code (*.kn)", "*.kn"], 0, "kn")
+		if(file =& null)
+			ret false
+		end if
+		do @mainSrc :: file
+		do @editFile.setText(@mainSrc)
+	else
+		do file :: @mainSrc
+	end if
+	var filePtr: file@Writer :: file@makeWriter(file, false)
+	foreach line(@curSrc)
+		do filePtr.writeStr(line.src)
+		do filePtr.writeChar('\n')
+	end foreach
+	do filePtr.fin()
+	do @changed :: false
+	ret true
+end func
+
+func btnCompileOnPush()
+	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/tmp/"
+	var out: []char :: tmp ~ "out.exe"
+	try
+		do file@makeDir(tmp)
+	catch
+		do wnd@msgBox(@wndMain, "Could not delete: " ~ tmp, "Kuin Programming Language", %error, %ok)
+		ret
+	end try
+	do @resetMemAllocator()
+	do @editLog.setText("")
+	var env: []char
+	var cmd: []char
+	var cmdLine: []char
+	if(@radioEnvWnd.getChk())
+		do env :: "wnd"
+		do cmd :: out
+		do cmdLine :: null
+	elif(@radioEnvCui.getChk())
+		do env :: "cui"
+		do cmd :: file@sysDir(%system32) ~ "cmd.exe"
+		do cmdLine :: "/C \"\"" ~ file@exeDir().replace('/', '\\') ~ "sys\\launcher.bat\" \"" ~ out.replace('/', '\\') ~ "\"\""
+	end if
+	try
+		if(@build(@mainSrc, @getSrc, null, out, null, false, env, @log))
+			if (@mainSrc <> "_default_.kn")
+				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
+				do filePtr.writeStr(file@dir(@mainSrc))
+				do filePtr.writeChar('\n')
+				do filePtr.fin()
+			end if
+			var process: task@Process :: task@makeProcess(cmd, cmdLine)
+			if(process <>& null)
+				do process.run(false)
+			end if
+		end if
+	catch
+		do wnd@msgBox(@wndMain, "Unexpected error.", "Kuin Programming Language", %error, %ok)
+	end try
+end func
+
+func btnRlsOnPush()
+	do wnd@msgBox(@wndMain, "This function is under construction...", "Kuin Programming Language", %error, %ok)
+end func
+
+func getSrc(path: []char): list<@Line>
+	var result: list<@Line> :: @srcs.get(path)
+	do @bufSrc :: result
+	if(result <>& null)
+		ret result
+	end if
+	ret @loadSrc(path)
+end func
+
+func loadSrc(path: []char): list<@Line>
+	var filePtr: file@Reader :: file@makeReader(path)
+	if(filePtr =& null)
+		ret null
+	end if
+	do filePtr.delimiter("")
+	var result: list<@Line> :: #list<@Line>
+	while(!filePtr.term())
+		var line: @Line :: #@Line
+		do line.src :: filePtr.readLine()
+		do line.indent :: 0
+		do line.commentLevel :: 0
+		do line.lineContinue :: false
+		do result.add(line)
+	end while
+	do filePtr.fin()
+	do @srcs.add(##path, result)
+	do @bufSrc :: result
+	ret result
+end func
+
+func toStr(s: []char): []char
+	ret s =& null ?("(null)", s)
+end func
+
+func log(args: [][]char, row: int, col: int)
+	do @editLog.setText(@editLog.getText() ~ @toStr(args[0]) ~ ", " ~ @toStr(args[1]) ~ ", " ~ @toStr(args[2]) ~ ", " ~ row.toStr() ~ ", " ~ col.toStr() ~ "\n")
+end func
+
+func onIns(pos: []int, str: []char)
+	do @doCmd(%ins, pos, str, true)
+end func
+
+func undoPtrPrev(ptr: int): int
+	ret ptr = 0 ?(@undoBufSize - 1, ptr - 1)
+end func
+
+func undoPtrNext(ptr: int): int
+	ret ptr = @undoBufSize - 1 ?(0, ptr + 1)
+end func
+
+func onUndoMark()
+	do @undoPtr :: @undoPtrNext(@undoPtr)
+	do @undoBuf[@undoPtr] :: null
+	do @undoBuf[@undoPtrNext(@undoPtr)] :: null
+	do @redoBuf[@undoPtr] :: null
+	do @redoBuf[@undoPtrNext(@undoPtr)] :: null
+end func
+
+func onCmd(pos: []int, len: int, cmd: int)
+	if(cmd = 3) {undo}
+		block
+			if(@undoBuf[@undoPtrPrev(@undoPtr)] <>& null)
+				while loop(true)
+					do @undoPtr :: @undoPtrPrev(@undoPtr)
+					if(@undoBuf[@undoPtr] =& null)
+						break loop
+					end if
+					do @doCmd(@undoBuf[@undoPtr].kind, ##@undoBuf[@undoPtr].pos, @undoBuf[@undoPtr].str, false)
+				end while
+			end if
+		end block
+	elif(cmd = 4) {redo}
+		block
+			if(@undoBuf[@undoPtrNext(@undoPtr)] <>& null)
+				while loop(true)
+					do @undoPtr :: @undoPtrNext(@undoPtr)
+					if(@undoBuf[@undoPtr] =& null)
+						break loop
+					end if
+					do @doCmd(@redoBuf[@undoPtr].kind, ##@redoBuf[@undoPtr].pos, @redoBuf[@undoPtr].str, false)
+				end while
+			end if
+		end block
+	else
+		var kind: @UndoKind
+		switch(cmd)
+		case 0
+			do kind :: %bs
+		case 1
+			do kind :: %del
+		case 2
+			do kind :: %ret_
+		end switch
+		do @doCmd(kind, pos, len.toStr(), true)
+	end if
+end func
+
+func doCmd(kind: @UndoKind, pos: []int, str: []char, register: bool)
+	do @changed :: true
+	do @curSrc.head()
+	do @curSrc.moveOffset(pos[1])
+	var line: @Line :: @curSrc.get()
+	switch(kind)
+	case %ins
+		block
+			if(register)
+				do @undoPtr :: @undoPtrNext(@undoPtr)
+				var redo: @Undo :: #@Undo
+				do redo.kind :: %ins
+				do redo.pos :: ##pos
+				do redo.str :: ##str
+				do @redoBuf[@undoPtr] :: redo
+			end if
+			do line.src :: line.src.sub(0, pos[0]) ~ str ~ line.src.sub(pos[0], -1)
+			do @editorSetCursor(&pos[0], &pos[1], pos[0] + ^str, pos[1], false)
+			if(register)
+				var undo: @Undo :: #@Undo
+				do undo.kind :: %bs
+				do undo.pos :: ##pos
+				do undo.str :: (^str).toStr()
+				do @undoBuf[@undoPtr] :: undo
+			end if
+		end block
+	case %bs
+		for(1, str.toInt())
+			var oldPos: []int :: ##pos
+			do @editorSetCursor(&pos[0], &pos[1], pos[0] - 1, pos[1], true)
+			if(oldPos[0] = 0)
+				if(!@curSrc.termOffset(-1))
+					if(register)
+						do @undoPtr :: @undoPtrNext(@undoPtr)
+						var redo: @Undo :: #@Undo
+						do redo.kind :: %bs
+						do redo.pos :: oldPos
+						do redo.str :: "1"
+						do @redoBuf[@undoPtr] :: redo
+						var undo: @Undo :: #@Undo
+						do undo.kind :: %ret_
+						do undo.pos :: ##pos
+						do undo.str :: "1"
+						do @undoBuf[@undoPtr] :: undo
+					end if
+					var line2: @Line :: @curSrc.getOffset(-1)
+					do line2.src :: line2.src ~ line.src
+					do @curSrc.del()
+				end if
+			else
+				if(register)
+					do @undoPtr :: @undoPtrNext(@undoPtr)
+					var redo: @Undo :: #@Undo
+					do redo.kind :: %bs
+					do redo.pos :: oldPos
+					do redo.str :: "1"
+					do @redoBuf[@undoPtr] :: redo
+					var undo: @Undo :: #@Undo
+					do undo.kind :: %ins
+					do undo.pos :: ##pos
+					do undo.str :: line.src[oldPos[0] - 1].toStr()
+					do @undoBuf[@undoPtr] :: undo
+				end if
+				do line.src :: line.src.sub(0, oldPos[0] - 1) ~ line.src.sub(oldPos[0], -1)
+			end if
+		end for
+	case %del
+		var delBuf: []char :: ""
+		for(1, str.toInt())
+			if(pos[0] = ^line.src)
+				if(!@curSrc.termOffset(1))
+					if(register)
+						if(^delBuf <> 0)
+							do @undoPtr :: @undoPtrNext(@undoPtr)
+							var redo: @Undo :: #@Undo
+							do redo.kind :: %del
+							do redo.pos :: ##pos
+							do redo.str :: (^delBuf).toStr()
+							do @redoBuf[@undoPtr] :: redo
+							var undo: @Undo :: #@Undo
+							do undo.kind :: %ins
+							do undo.pos :: ##pos
+							do undo.str :: delBuf
+							do @undoBuf[@undoPtr] :: undo
+							do delBuf :: ""
+						end if
+						do @undoPtr :: @undoPtrNext(@undoPtr)
+						var redo: @Undo :: #@Undo
+						do redo.kind :: %del
+						do redo.pos :: ##pos
+						do redo.str :: "1"
+						do @redoBuf[@undoPtr] :: redo
+						var undo: @Undo :: #@Undo
+						do undo.kind :: %ret_
+						do undo.pos :: ##pos
+						do undo.str :: "1"
+						do @undoBuf[@undoPtr] :: undo
+					end if
+					var line2: @Line :: @curSrc.getOffset(1)
+					do line.src :: line.src ~ line2.src
+					do @curSrc.delNext()
+				end if
+			else
+				if(register)
+					do delBuf :~ line.src[pos[0]].toStr()
+				end if
+				do line.src :: line.src.sub(0, pos[0]) ~ line.src.sub(pos[0] + 1, -1)
+			end if
+		end for
+		if(^delBuf <> 0)
+			do @undoPtr :: @undoPtrNext(@undoPtr)
+			var redo: @Undo :: #@Undo
+			do redo.kind :: %del
+			do redo.pos :: ##pos
+			do redo.str :: (^delBuf).toStr()
+			do @redoBuf[@undoPtr] :: redo
+			var undo: @Undo :: #@Undo
+			do undo.kind :: %ins
+			do undo.pos :: ##pos
+			do undo.str :: delBuf
+			do @undoBuf[@undoPtr] :: undo
+			do delBuf :: ""
+		end if
+		do @editorSetCursor(&pos[0], &pos[1], pos[0], pos[1], false)
+	case %ret_
+		var len: int :: str.toInt()
+		if(register)
+			do @undoPtr :: @undoPtrNext(@undoPtr)
+			var redo: @Undo :: #@Undo
+			do redo.kind :: %ret_
+			do redo.pos :: ##pos
+			do redo.str :: len.toStr()
+			do @redoBuf[@undoPtr] :: redo
+		end if
+		for(1, len)
+			var line2: @Line :: #@Line
+			do line2.src :: line.src.sub(pos[0], -1)
+			do line2.indent :: 0
+			do line2.commentLevel :: 0
+			do line2.lineContinue :: false
+			do line.src :: line.src.sub(0, pos[0])
+			if(@curSrc.termOffset(1))
+				do @curSrc.add(line2)
+			else
+				do @curSrc.next()
+				do @curSrc.ins(line2)
+			end if
+		end for
+		do @editorSetCursor(&pos[0], &pos[1], 0, pos[1] + len, false)
+		if(register)
+			var undo: @Undo :: #@Undo
+			do undo.kind :: %bs
+			do undo.pos :: ##pos
+			do undo.str :: len.toStr()
+			do @undoBuf[@undoPtr] :: undo
+		end if
+	end switch
+end func
+
+func onReplace(pos: []int, len: int, str: []char)
+end func

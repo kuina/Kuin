@@ -50,9 +50,6 @@ end class
 	+func [d0001.knd, _wndSetMenu] setMenu(menu: @Menu)
 	end func
 
-	+func [d0001.knd, _wndPushMenu] pushMenu(id: int)
-	end func
-
 	+func [d0001.knd, _wndActive] active(): bool
 	end func
 

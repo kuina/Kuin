@@ -54,6 +54,7 @@ EXPORT void* _trimLeft(const U8* me_);
 EXPORT void* _trimRight(const U8* me_);
 EXPORT void* _split(const U8* me_, const U8* delimiter);
 EXPORT void* _join(const U8* me_, const U8* delimiter);
+EXPORT void* _replace(const U8* me_, Char old, Char new_);
 EXPORT void _addList(void* me_, const U8* type, const void* item);
 EXPORT void _addStack(void* me_, const U8* type, const void* item);
 EXPORT void _addQueue(void* me_, const U8* type, const void* item);

@@ -33,6 +33,7 @@ static const Char* BuildInFuncs[] =
 	L"or\0           \x04",
 	L"peek\0         \x0a",
 	L"prev\0         \x09",
+	L"replace\0      \x06",
 	L"reverse\0      \x05",
 	L"same\0         \x02",
 	L"sar\0          \x04",

@@ -207,7 +207,6 @@ struct SMenu
 	HMENU MenuHandle;
 };
 
-static HHOOK HookKeyboard;
 static void* OnKeyPress;
 static int WndCnt;
 static Bool ExitAct;
@@ -221,7 +220,6 @@ static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const C
 static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param);
 static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static Char* ParseFilter(const U8* filter);
-static LRESULT CALLBACK KeyboardProc(int code, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -250,7 +248,6 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 static LRESULT CALLBACK WndProcPlain(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcScrollX(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcScrollY(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
-static void ScrollSetValue(SScroll* scroll, S64 value);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -332,14 +329,10 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_nam
 	Input::Init();
 
 	OnKeyPress = NULL;
-	HookKeyboard = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
 }
 
 EXPORT_CPP void _fin()
 {
-	if (HookKeyboard != NULL)
-		UnhookWindowsHookEx(HookKeyboard);
-
 	Input::Fin();
 	Snd::Fin();
 	Draw::Fin();
@@ -358,10 +351,23 @@ EXPORT_CPP Bool _act()
 		MSG msg;
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		{
-			if (msg.message == WM_QUIT)
+			switch (msg.message)
 			{
-				ExitAct = True;
-				return False;
+				case WM_QUIT:
+					ExitAct = True;
+					return False;
+				case WM_KEYDOWN:
+				case WM_SYSKEYDOWN:
+					if (OnKeyPress != NULL)
+					{
+						S64 shiftCtrlAlt = 0;
+						shiftCtrlAlt |= (GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 1 : 0;
+						shiftCtrlAlt |= (GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 2 : 0;
+						shiftCtrlAlt |= (GetKeyState(VK_MENU) & 0x8000) != 0 ? 4 : 0;
+						if (static_cast<Bool>(reinterpret_cast<U64>(Call2Asm(reinterpret_cast<void*>(static_cast<U64>(msg.wParam)), reinterpret_cast<void*>(shiftCtrlAlt), OnKeyPress))))
+							continue;
+					}
+					break;
 			}
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
@@ -558,12 +564,6 @@ EXPORT_CPP void _wndReadonly(SClass* me_, Bool flag)
 EXPORT_CPP void _wndSetMenu(SClass* me_, SClass* menu)
 {
 	SetMenu(reinterpret_cast<SWndBase*>(me_)->WndHandle, menu == NULL ? NULL : reinterpret_cast<SMenu*>(menu)->MenuHandle);
-}
-
-EXPORT_CPP void _wndPushMenu(SClass* me_, S64 id)
-{
-	// TODO: Improve the 'onKeyPress' method and this for easy use.
-	PostMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, WM_COMMAND, static_cast<WPARAM>(LOWORD(id)), 0);
 }
 
 EXPORT_CPP Bool _wndActive(SClass* me_)
@@ -1148,34 +1148,6 @@ static Char* ParseFilter(const U8* filter)
 		*ptr2 = L'\0';
 	}
 	return result;
-}
-
-static LRESULT CALLBACK KeyboardProc(int code, WPARAM w_param, LPARAM l_param)
-{
-	if (OnKeyPress != NULL && code == HC_ACTION)
-	{
-		S64 shiftCtrlAlt = 0;
-		shiftCtrlAlt |= (GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 1 : 0;
-		shiftCtrlAlt |= (GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 2 : 0;
-		shiftCtrlAlt |= (GetKeyState(VK_MENU) & 0x8000) != 0 ? 4 : 0;
-		const KBDLLHOOKSTRUCT* info = reinterpret_cast<const KBDLLHOOKSTRUCT*>(l_param);
-		switch (w_param)
-		{
-			case WM_SYSKEYDOWN:
-			case WM_KEYDOWN:
-				if (static_cast<Bool>(reinterpret_cast<U64>(Call2Asm(reinterpret_cast<void*>(static_cast<U64>(info->vkCode)), reinterpret_cast<void*>(shiftCtrlAlt), OnKeyPress))))
-					return TRUE;
-				break;
-			case WM_SYSKEYUP:
-			case WM_KEYUP:
-				// TODO:
-				break;
-			default:
-				ASSERT(False);
-				break;
-		}
-	}
-	return CallNextHookEx(HookKeyboard, code, w_param, l_param);
 }
 
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)

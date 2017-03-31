@@ -9,6 +9,8 @@
 	var threadHandle: int
 end class
 
-+func [d0000.knd, _makeProcess, _make_instance] makeProcess(me2: @Process, path: []char): @Process
++func [d0000.knd, _makeProcess, _make_instance] makeProcess(me2: @Process, path: []char, cmdLine: []char): @Process
 end func
 
++func [d0000.knd, _taskOpen] open(path: []char)
+end func

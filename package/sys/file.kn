@@ -97,7 +97,11 @@ end func
 
 enum SysDir
 	desktop :: 16#00
+	fonts :: 16#14
 	appData :: 16#1A
+	windows :: 16#24
+	system32 :: 16#25
+	programFiles :: 16#26
 end enum
 
 +func [d0000.knd, _makeDir] makeDir(path: []char)
@@ -122,6 +126,9 @@ end func
 end func
 
 +func [d0000.knd, _sysDir] sysDir(kind: @SysDir): []char
+end func
+
++func [d0000.knd, _exeDir] exeDir(): []char
 end func
 
 +func [d0000.knd, _fileSize] fileSize(path: []char): int

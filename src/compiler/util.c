@@ -86,7 +86,7 @@ void ReadFileLine(Char* buf, int size, FILE* file_ptr)
 		Char* ptr = buf;
 		while (ptr[1] != L'\0')
 			ptr++;
-		while (ptr >= buf && *ptr == L'\n')
+		while (ptr >= buf && (*ptr == L'\n' || *ptr == L'\r'))
 		{
 			*ptr = L'\0';
 			ptr--;

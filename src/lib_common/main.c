@@ -78,14 +78,36 @@ EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
 
 	// Set the current directory.
 	{
-		Char path[1024];
+		Char path[MAX_PATH + 1];
 		Char* ptr;
-		GetModuleFileName(NULL, path, 1024);
+		GetModuleFileName(NULL, path, MAX_PATH);
 		ptr = wcsrchr(path, L'\\');
 		if (ptr != NULL)
 			*(ptr + 1) = L'\0';
 		SetCurrentDirectory(path);
 	}
+#if defined(DBG)
+	{
+		const Char* cur_dir_path = L"./_curdir_.txt";
+		if (PathFileExists(cur_dir_path))
+		{
+			Char path[MAX_PATH + 1];
+			FILE* file_ptr = _wfopen(cur_dir_path, L"r, ccs=UTF-8");
+			fgetws(path, MAX_PATH, file_ptr);
+			{
+				Char* ptr = path;
+				while (ptr[1] != L'\0')
+					ptr++;
+				while (ptr >= path && (*ptr == L'\n' || *ptr == L'\r'))
+				{
+					*ptr = L'\0';
+					ptr--;
+				}
+			}
+			SetCurrentDirectory(path);
+		}
+	}
+#endif
 
 	// Initialize the COM library and the timer.
 	if (FAILED(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED))) // 'STA'
@@ -1535,6 +1557,28 @@ EXPORT void* _join(const U8* me_, const U8* delimiter)
 		*(Char*)ptr = L'\0';
 	}
 	return result;
+}
+
+EXPORT void* _replace(const U8* me_, Char old, Char new_)
+{
+	S64 len = *(S64*)(me_ + 0x08);
+	{
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (size_t)(len + 1));
+		((S64*)result)[0] = DefaultRefCntFunc;
+		((S64*)result)[1] = len;
+		{
+			S64 i;
+			const Char* src = (const Char*)(me_ + 0x10);
+			Char* dst = (Char*)(result + 0x10);
+			for (i = 0; i < len + 1; i++)
+			{
+				*dst = *src == old ? new_ : *src;
+				src++;
+				dst++;
+			}
+		}
+		return result;
+	}
 }
 
 EXPORT void _addList(void* me_, const U8* type, const void* item)
