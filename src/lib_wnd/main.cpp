@@ -416,7 +416,9 @@ EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	U8* result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * static_cast<size_t>(len + 1)));
 	*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
 	*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len);
-	wcscpy(reinterpret_cast<Char*>(result + 0x10), path);
+	Char* dst = reinterpret_cast<Char*>(result + 0x10);
+	for (S64 i = 0; i <= len; i++)
+		dst[i] = path[i] == L'\\' ? L'/' : path[i];
 	return result;
 }
 
@@ -452,7 +454,9 @@ EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	U8* result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * static_cast<size_t>(len + 1)));
 	*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
 	*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len);
-	wcscpy(reinterpret_cast<Char*>(result + 0x10), path);
+	Char* dst = reinterpret_cast<Char*>(result + 0x10);
+	for (S64 i = 0; i <= len; i++)
+		dst[i] = path[i] == L'\\' ? L'/' : path[i];
 	return result;
 }
 

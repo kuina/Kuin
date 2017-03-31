@@ -16,6 +16,7 @@ static void NormPath(Char* path, Bool dir);
 static void NormPathBackSlash(Char* path, Bool dir);
 static Bool ForeachDirRecursion(const Char* path, Bool recursive, void* func);
 static Bool DelDirRecursion(const Char* path);
+static Bool CopyDirRecursion(const Char* dst, const Char* src);
 
 EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 {
@@ -437,10 +438,21 @@ EXPORT void _delFile(const U8* path)
 		THROW(0x1000, L"");
 }
 
+EXPORT void _copyDir(const U8* dst, const U8* src)
+{
+	if (!CopyDirRecursion((const Char*)(dst + 0x10), (const Char*)(src + 0x10)))
+		THROW(0x1000, L"");
+}
+
 EXPORT void _copyFile(const U8* dst, const U8* src)
 {
 	if (!CopyFile((const Char*)(src + 0x10), (const Char*)(dst + 0x10), FALSE))
 		THROW(0x1000, L"");
+}
+
+EXPORT void _moveDir(const U8* dst, const U8* src)
+{
+	// TODO:
 }
 
 EXPORT void _moveFile(const U8* dst, const U8* src)
@@ -768,6 +780,7 @@ static Bool ForeachDirRecursion(const Char* path, Bool recursive, void* func)
 				{
 					if (recursive)
 					{
+						wcscat(path2, L"/");
 						if (!ForeachDirRecursion(path2, recursive, func))
 						{
 							FindClose(handle);
@@ -829,4 +842,54 @@ static Bool DelDirRecursion(const Char* path)
 		FindClose(handle);
 	}
 	return RemoveDirectory(path) != 0;
+}
+
+static Bool CopyDirRecursion(const Char* dst, const Char* src)
+{
+	Char src2[MAX_PATH + 1];
+	Char dst2[MAX_PATH + 1];
+	if (wcslen(src) > MAX_PATH)
+		return False;
+	if (!PathFileExists(src))
+		return False;
+	CreateDirectory(dst, NULL);
+	wcscpy(src2, src);
+	wcscat(src2, L"*");
+	{
+		WIN32_FIND_DATA find_data;
+		HANDLE handle = FindFirstFile(src2, &find_data);
+		if (handle == INVALID_HANDLE_VALUE)
+			return False;
+		do
+		{
+			if (wcscmp(find_data.cFileName, L".") == 0 || wcscmp(find_data.cFileName, L"..") == 0)
+				continue;
+			{
+				wcscpy(src2, src);
+				wcscat(src2, find_data.cFileName);
+				wcscpy(dst2, dst);
+				wcscat(dst2, find_data.cFileName);
+				if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+				{
+					wcscat(src2, L"/");
+					wcscat(dst2, L"/");
+					if (!CopyDirRecursion(dst2, src2))
+					{
+						FindClose(handle);
+						return False;
+					}
+				}
+				else
+				{
+					if (!CopyFile(src2, dst2, FALSE))
+					{
+						FindClose(handle);
+						return False;
+					}
+				}
+			}
+		} while (FindNextFile(handle, &find_data));
+		FindClose(handle);
+	}
+	return True;
 }

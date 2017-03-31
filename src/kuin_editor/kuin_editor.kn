@@ -84,7 +84,7 @@ func main()
 
 	do @makeWnd()
 	do @editorInit(@plainSrc, @onIns, @onCmd, @onReplace, @onUndoMark, @scrollXSrc, @scrollYSrc)
-	do @new(null)
+	do @new(null, null)
 
 	while(wnd@act())
 	end while
@@ -94,7 +94,8 @@ func main()
 	do @finMemAllocator()
 end func
 
-func new(src: list<@Line>)
+func new(srcName: []char, src: list<@Line>)
+	do @editLog.setText("")
 	do @srcs :: #dict<[]char, list<@Line>>
 
 	if(src =& null)
@@ -103,16 +104,18 @@ func new(src: list<@Line>)
 		do @curSrc :: src
 	end if
 
-	var line: @Line :: #@Line
-	do line.src :: ""
-	do line.indent :: 0
-	do line.commentLevel :: 0
-	do line.lineContinue :: false
-	do @curSrc.add(line)
+	if (src =& null)
+		var line: @Line :: #@Line
+		do line.src :: ""
+		do line.indent :: 0
+		do line.commentLevel :: 0
+		do line.lineContinue :: false
+		do @curSrc.add(line)
+	end if
 
-	do @srcs.add("_default_.kn", @curSrc)
-	do @mainSrc :: "_default_.kn"
-	do @editFile.setText("No Title")
+	do @srcs.add(srcName =& null ?("_default_.kn", srcName), @curSrc)
+	do @mainSrc :: srcName =& null ?("_default_.kn", srcName)
+	do @editFile.setText(srcName =& null ?("No Title", srcName))
 
 	do @undoBuf :: #[@undoBufSize]@Undo
 	do @redoBuf :: #[@undoBufSize]@Undo
@@ -215,7 +218,7 @@ func wndMainOnPushMenu(id: int)
 	switch(id)
 	case 16#0001
 		if (@chkChanged())
-			do @new(null)
+			do @new(null, null)
 		end if
 	case 16#0002
 		if (@chkChanged())
@@ -232,9 +235,7 @@ func wndMainOnPushMenu(id: int)
 					do src.add(line)
 				end while
 				do filePtr.fin()
-				do @new(src)
-				do @mainSrc :: file
-				do @editFile.setText(@mainSrc)
+				do @new(file, src)
 			end if
 		end if
 	case 16#0003
@@ -340,7 +341,33 @@ func btnCompileOnPush()
 end func
 
 func btnRlsOnPush()
-	do wnd@msgBox(@wndMain, "This function is under construction...", "Kuin Programming Language", %error, %ok)
+	var file: []char :: wnd@saveFileDialog(@wndMain, ["Executable file (*.exe)", "*.exe"], 0, "exe")
+	if(file =& null)
+		ret
+	end if
+	do @resetMemAllocator()
+	do @editLog.setText("")
+	var env: []char
+	if(@radioEnvWnd.getChk())
+		do env :: "wnd"
+	elif(@radioEnvCui.getChk())
+		do env :: "cui"
+	end if
+	try
+		if(@build(@mainSrc, @getSrc, null, file, null, true, env, @log))
+			if (@mainSrc <> "_default_.kn")
+				var resSrc: []char :: file@dir(@mainSrc) ~ "res/"
+				if(file@exist(resSrc))
+					var resDst: []char :: file@dir(file) ~ "res/"
+					do file@delDir(resDst)
+					do file@copyDir(resDst, resSrc)
+				end if
+			end if
+			do wnd@msgBox(@wndMain, "The build succeeded.", "Kuin Programming Language", %info, %ok)
+		end if
+	catch
+		do wnd@msgBox(@wndMain, "Unexpected error.", "Kuin Programming Language", %error, %ok)
+	end try
 end func
 
 func getSrc(path: []char): list<@Line>

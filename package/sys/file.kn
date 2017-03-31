@@ -116,6 +116,9 @@ end func
 +func [d0000.knd, _delFile] delFile(path: []char)
 end func
 
++func [d0000.knd, _copyDir] copyDir(dst: []char, src: []char)
+end func
+
 +func [d0000.knd, _copyFile] copyFile(dst: []char, src: []char)
 end func
 

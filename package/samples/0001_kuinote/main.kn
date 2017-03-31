@@ -1,0 +1,53 @@
+; Kuinote (くいのーと) (C)Kuina-chan
+
+; ウインドウやコントロール
+var wndMain: wnd@Wnd
+var editText: wnd@EditMulti
+var menuMain: wnd@Menu
+var popupMainFile: wnd@Popup
+var popupMainHelp: wnd@Popup
+
+func main()
+	; ウインドウの作成
+	do @wndMain :: wnd@makeWnd(null, %normal, 1024, 768, "Kuinote")
+	do @wndMain.onClose :: @wndMainOnClose {ウインドウが閉じられたときのイベントを登録}
+	do @wndMain.onPushMenu :: @wndMainOnPushMenu {メニューが選択されたときのイベントを登録}
+	do @editText :: wnd@makeEditMulti(@wndMain, 12, 12, 1000, 744, %scale, %scale)
+	; メニューの作成
+	do @menuMain :: wnd@makeMenu()
+	do @popupMainFile :: wnd@makePopup()
+	do @menuMain.addPopup("&File", @popupMainFile)
+	do @popupMainFile.add(16#0001, "&New")
+	do @popupMainFile.addLine()
+	do @popupMainFile.add(16#0002, "E&xit")
+	do @popupMainHelp :: wnd@makePopup()
+	do @menuMain.addPopup("&Help", @popupMainHelp)
+	do @popupMainHelp.add(16#1001, "&About Kuinote...")
+	; メニューの登録
+	do @wndMain.setMenu(@menuMain)
+	; ユーザが操作を行うのを待機する
+	while(wnd@act())
+	end while
+end func
+
+; ウインドウが閉じられたときに呼ばれるイベント関数
+func wndMainOnClose(): bool
+	var result: wnd@MsgBoxResult :: wnd@msgBox(@wndMain, "終了しても良いですか？", "Kuinote", %warn, %yesNoCancel)
+	if(result = %yes)
+		ret true {trueを返すとウインドウは閉じる}
+	else
+		ret false {falseを返すとウインドウは閉じない}
+	end if
+end func
+
+; メニューが選択されたときに呼ばれるイベント関数
+func wndMainOnPushMenu(id: int)
+	switch(id)
+	case 16#0001 {New}
+		do @editText.setText("") {テキストを空にする}
+	case 16#0002 {Exit}
+		do @wndMain.close() {ウインドウを閉じる}
+	case 16#1001 {About Kuinote}
+		do wnd@msgBox(@wndMain, "Kuinote\nVersion 1.0.0\n(C)Kuina-chan", "Kuinote", %info, %ok)
+	end switch
+end func
