@@ -417,7 +417,7 @@ EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
 	*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len);
 	Char* dst = reinterpret_cast<Char*>(result + 0x10);
-	for (S64 i = 0; i <= len; i++)
+	for (size_t i = 0; i <= len; i++)
 		dst[i] = path[i] == L'\\' ? L'/' : path[i];
 	return result;
 }
@@ -455,7 +455,7 @@ EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
 	*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len);
 	Char* dst = reinterpret_cast<Char*>(result + 0x10);
-	for (S64 i = 0; i <= len; i++)
+	for (size_t i = 0; i <= len; i++)
 		dst[i] = path[i] == L'\\' ? L'/' : path[i];
 	return result;
 }
@@ -984,7 +984,24 @@ static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param)
 	if (wnd2->CtrlFlag == (static_cast<U64>(CtrlFlag_AnchorLeft) | static_cast<U64>(CtrlFlag_AnchorTop)))
 		return TRUE;
 	RECT parent_rect;
-	GetClientRect(GetAncestor(wnd, GA_PARENT), &parent_rect);
+	{
+		HWND parent = GetAncestor(wnd, GA_PARENT);
+		Bool first = False;
+		if (l_param == 0)
+		{
+			SWndBase* wnd3 = ToWnd(parent);
+			if (wnd3->Kind < 0x80)
+			{
+				parent_rect.left = wnd3->DefaultX;
+				parent_rect.top = wnd3->DefaultY;
+				parent_rect.right = wnd3->DefaultWidth;
+				parent_rect.bottom = wnd3->DefaultHeight;
+				first = True;
+			}
+		}
+		if (!first)
+			GetClientRect(parent, &parent_rect);
+	}
 	int width = static_cast<int>(parent_rect.right - parent_rect.left);
 	int height = static_cast<int>(parent_rect.bottom - parent_rect.top);
 	int new_x = static_cast<int>(wnd2->DefaultX);
@@ -1175,7 +1192,7 @@ static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPA
 			WndCnt--;
 			return 0;
 		case WM_SIZE:
-			EnumChildWindows(wnd, ResizeCallback, NULL);
+			EnumChildWindows(wnd, ResizeCallback, 1);
 			return 0;
 		case WM_GETMINMAXINFO:
 			{
@@ -1247,7 +1264,7 @@ static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPA
 			WndCnt--;
 			return 0;
 		case WM_SIZE:
-			EnumChildWindows(wnd, ResizeCallback, NULL);
+			EnumChildWindows(wnd, ResizeCallback, 1);
 			return 0;
 		case WM_GETMINMAXINFO:
 			{
