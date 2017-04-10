@@ -40,7 +40,7 @@ static S64 Add(S64 a, S64 b);
 static S64 Mul(S64 a, S64 b);
 static void GetDictTypes(const U8* type, const U8** child1, const U8** child2);
 static void GetDictTypesRecursion(const U8** type);
-static void FreeDict(void* ptr, const U8* child1, const U8* child2);
+static void FreeDictRecursion(void* ptr, const U8* child1, const U8* child2);
 static Bool IsStr(const U8* type);
 static Bool IsSpace(Char c);
 static void Copy(void* dst, U8 type, const void* src);
@@ -254,7 +254,11 @@ EXPORT void _freeSet(void* ptr, const U8* type)
 				U8* child1;
 				U8* child2;
 				GetDictTypes(type, &child1, &child2);
-				FreeDict(*(void**)((U8*)ptr + 0x10), child1, child2);
+				{
+					void* ptr2 = *(void**)((U8*)ptr + 0x10);
+					if (ptr2 != NULL)
+						FreeDictRecursion(ptr2, child1, child2);
+				}
 				FreeMem(ptr);
 			}
 			break;
@@ -2016,12 +2020,12 @@ static void GetDictTypesRecursion(const U8** type)
 	}
 }
 
-static void FreeDict(void* ptr, const U8* child1, const U8* child2)
+static void FreeDictRecursion(void* ptr, const U8* child1, const U8* child2)
 {
 	if (*(void**)ptr != NULL)
-		FreeDict(*(void**)ptr, child1, child2);
+		FreeDictRecursion(*(void**)ptr, child1, child2);
 	if (*(void**)((U8*)ptr + 0x08) != NULL)
-		FreeDict(*(void**)((U8*)ptr + 0x08), child1, child2);
+		FreeDictRecursion(*(void**)((U8*)ptr + 0x08), child1, child2);
 	if (IsRef(*child1))
 	{
 		void* ptr2 = *(void**)((U8*)ptr + 0x18);
