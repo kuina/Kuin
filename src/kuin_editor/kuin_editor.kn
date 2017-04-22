@@ -84,7 +84,12 @@ func main()
 
 	do @makeWnd()
 	do @editorInit(@plainSrc, @onIns, @onCmd, @onReplace, @onUndoMark, @scrollXSrc, @scrollYSrc)
-	do @new(null, null)
+
+	if(^lib@cmdLine() > 0)
+		do @openFile(lib@cmdLine()[0].replace('\\', '/'))
+	else
+		do @new(null, null)
+	end if
 
 	while(wnd@act())
 	end while
@@ -104,7 +109,7 @@ func new(srcName: []char, src: list<@Line>)
 		do @curSrc :: src
 	end if
 
-	if (src =& null)
+	if (src =& null | ^src = 0)
 		var line: @Line :: #@Line
 		do line.src :: ""
 		do line.indent :: 0
@@ -214,6 +219,25 @@ func wndMainOnClose(): bool
 	ret @chkChanged()
 end func
 
+func openFile(file: []char)
+	var src: list<@Line> :: #list<@Line>
+	var filePtr: file@Reader :: file@makeReader(file)
+	if(filePtr =& null)
+		do file :: null
+	else
+		while(!filePtr.term())
+			var line: @Line :: #@Line
+			do line.src :: filePtr.readLine()
+			do line.indent :: 0
+			do line.commentLevel :: 0
+			do line.lineContinue :: false
+			do src.add(line)
+		end while
+		do filePtr.fin()
+	end if
+	do @new(file, src)
+end func
+
 func wndMainOnPushMenu(id: int)
 	switch(id)
 	case 16#0001
@@ -224,18 +248,7 @@ func wndMainOnPushMenu(id: int)
 		if (@chkChanged())
 			var file: []char :: wnd@openFileDialog(@wndMain, ["Kuin source code (*.kn)", "*.kn"], 0)
 			if(file <>& null)
-				var src: list<@Line> :: #list<@Line>
-				var filePtr: file@Reader :: file@makeReader(file)
-				while(!filePtr.term())
-					var line: @Line :: #@Line
-					do line.src :: filePtr.readLine()
-					do line.indent :: 0
-					do line.commentLevel :: 0
-					do line.lineContinue :: false
-					do src.add(line)
-				end while
-				do filePtr.fin()
-				do @new(file, src)
+				do @openFile(file)
 			end if
 		end if
 	case 16#0003
