@@ -109,7 +109,7 @@ func new(srcName: []char, src: list<@Line>)
 		do @curSrc :: src
 	end if
 
-	if (src =& null | ^src = 0)
+	if(^@curSrc = 0)
 		var line: @Line :: #@Line
 		do line.src :: ""
 		do line.indent :: 0
@@ -288,7 +288,7 @@ func chkChanged(): bool
 end func
 
 func save(new: bool): bool
-	if(!@changed)
+	if(!new & !@changed)
 		ret true
 	end if
 	var file: []char
