@@ -18,6 +18,9 @@ EXPORT_CPP SClass* _makeTexEven(SClass* me_, double r, double g, double b, doubl
 EXPORT_CPP void _texDtor(SClass* me_);
 EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH);
 EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW, double dstH, double srcX, double srcY, double srcW, double srcH);
+EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic);
+EXPORT_CPP void _fontDtor(SClass* me_);
+EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text, double r, double g, double b, double a);
 EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, double atY, double atZ, double upX, double upY, double upZ);
 EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ, double farZ);
 EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path);

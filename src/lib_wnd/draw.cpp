@@ -14,6 +14,7 @@ const int DepthNum = 4;
 const int BlendNum = 5;
 const int SamplerNum = 2;
 const int JointMax = 64;
+const int FontBitmapSize = 128;
 
 struct SWndBuf
 {
@@ -48,6 +49,23 @@ struct STex
 	int Height;
 	ID3D10Texture2D* Tex;
 	ID3D10ShaderResourceView* View;
+};
+
+struct SFont
+{
+	SClass Class;
+	ID3D10Texture2D* Tex;
+	ID3D10ShaderResourceView* View;
+	int CellSize;
+	int CellSizeAlign;
+	int CellNum;
+	U32 Cnt;
+	HFONT Font;
+	Char* CharMap;
+	U32* CntMap;
+	U8* Pixel;
+	HBITMAP Bitmap;
+	HDC Dc;
 };
 
 struct SObj
@@ -101,6 +119,7 @@ static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 const U8* GetTriVsBin(size_t* size);
 const U8* GetTriPsBin(size_t* size);
+const U8* GetFontPsBin(size_t* size);
 const U8* GetRectVsBin(size_t* size);
 const U8* GetCircleVsBin(size_t* size);
 const U8* GetCirclePsBin(size_t* size);
@@ -128,6 +147,7 @@ static void* CircleVs = NULL;
 static void* CirclePs = NULL;
 static void* TexVs = NULL;
 static void* TexPs = NULL;
+static void* FontPs = NULL;
 static void* ObjVs = NULL;
 static void* ObjJointVs = NULL;
 static void* ObjPs = NULL;
@@ -556,6 +576,187 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 		Device->PSSetShaderResources(0, 1, &me2->View);
 	}
 	Device->DrawIndexed(6, 0, 0);
+}
+
+EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic)
+{
+	SFont* me2 = reinterpret_cast<SFont*>(me_);
+	int char_height;
+	{
+		HDC dc = GetDC(NULL);
+		char_height = MulDiv(static_cast<int>(size), GetDeviceCaps(dc, LOGPIXELSY), 72);
+		ReleaseDC(NULL, dc);
+	}
+	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, reinterpret_cast<const Char*>(fontName + 0x10));
+	me2->CellSize = static_cast<int>(size) * 2;
+	me2->CellSizeAlign = 128; // Texture length must not be less than 128.
+	while (me2->CellSizeAlign < me2->CellSize)
+		me2->CellSizeAlign *= 2;
+	{
+		D3D10_TEXTURE2D_DESC desc;
+		desc.Width = static_cast<UINT>(me2->CellSizeAlign);
+		desc.Height = static_cast<UINT>(me2->CellSizeAlign);
+		desc.MipLevels = 1;
+		desc.ArraySize = 1;
+		desc.Format = DXGI_FORMAT_R8_UNORM;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Usage = D3D10_USAGE_DYNAMIC;
+		desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+		desc.MiscFlags = 0;
+		if (FAILED(Device->CreateTexture2D(&desc, NULL, &me2->Tex)))
+			THROW(0x1000, L"");
+	}
+	{
+		D3D10_SHADER_RESOURCE_VIEW_DESC desc;
+		memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+		desc.Format = DXGI_FORMAT_R8_UNORM;
+		desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+		desc.Texture2D.MostDetailedMip = 0;
+		desc.Texture2D.MipLevels = 1;
+		if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
+			THROW(0x1000, L"");
+	}
+	me2->CellNum = FontBitmapSize / me2->CellSize;
+	size_t buf_size = static_cast<size_t>(me2->CellNum * me2->CellNum);
+	me2->CharMap = static_cast<Char*>(AllocMem(sizeof(Char) * buf_size));
+	me2->CntMap = static_cast<U32*>(AllocMem(sizeof(int) * buf_size));
+	for (size_t i = 0; i < buf_size; i++)
+	{
+		me2->CharMap[i] = L'\0';
+		me2->CntMap[i] = 0;
+	}
+	me2->Cnt = 0;
+	{
+		BITMAPINFO info = { 0 };
+		info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+		info.bmiHeader.biWidth = static_cast<LONG>(FontBitmapSize);
+		info.bmiHeader.biHeight = -static_cast<LONG>(FontBitmapSize);
+		info.bmiHeader.biPlanes = 1;
+		info.bmiHeader.biBitCount = 24;
+		info.bmiHeader.biCompression = BI_RGB;
+		HDC dc = GetDC(NULL);
+		me2->Bitmap = CreateDIBSection(dc, &info, DIB_RGB_COLORS, reinterpret_cast<void**>(&me2->Pixel), NULL, 0);
+		me2->Dc = CreateCompatibleDC(dc);
+		ReleaseDC(NULL, dc);
+	}
+	return me_;
+}
+
+EXPORT_CPP void _fontDtor(SClass* me_)
+{
+	SFont* me2 = reinterpret_cast<SFont*>(me_);
+	DeleteDC(me2->Dc);
+	DeleteObject(static_cast<HGDIOBJ>(me2->Bitmap));
+	FreeMem(me2->CntMap);
+	FreeMem(me2->CharMap);
+	if (me2->View != NULL)
+		me2->View->Release();
+	if (me2->Tex != NULL)
+		me2->Tex->Release();
+}
+
+EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text, double r, double g, double b, double a)
+{
+	SFont* me2 = reinterpret_cast<SFont*>(me_);
+	S64 len = *reinterpret_cast<const S64*>(text + 0x08);
+	const Char* ptr = reinterpret_cast<const Char*>(text + 0x10);
+
+	me2->Cnt++;
+	if (me2->Cnt == 0)
+	{
+		for (int i = 0; i < me2->CellNum * me2->CellNum; i++)
+			me2->CntMap[i] = 0;
+	}
+
+	for (S64 i = 0; i < len; i++)
+	{
+		int pos = -1;
+		for (int j = 0; j < me2->CellNum * me2->CellNum; j++)
+		{
+			if (me2->CharMap[j] == *ptr)
+			{
+				pos = j;
+				break;
+			}
+		}
+		if (pos == -1)
+		{
+			U32 min = 0xffffffff;
+			for (int j = 0; j < me2->CellNum * me2->CellNum; j++)
+			{
+				if (me2->CharMap[j] == L'\0')
+				{
+					pos = j;
+					break;
+				}
+				if (min > static_cast<S64>(me2->CntMap[j]))
+				{
+					min = static_cast<S64>(me2->CntMap[j]);
+					pos = j;
+				}
+			}
+			{
+				HGDIOBJ old_bitmap = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Bitmap));
+				HGDIOBJ old_font = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Font));
+				SetBkMode(me2->Dc, OPAQUE);
+				SetBkColor(me2->Dc, RGB(0, 0, 0));
+				SetTextColor(me2->Dc, RGB(255, 255, 255));
+				RECT rect;
+				rect.left = static_cast<LONG>((pos % me2->CellNum) * me2->CellSize);
+				rect.top = static_cast<LONG>((pos / me2->CellNum) * me2->CellSize);
+				rect.right = rect.left + static_cast<LONG>(me2->CellSize);
+				rect.bottom = rect.top + static_cast<LONG>(me2->CellSize);
+				ExtTextOut(me2->Dc, static_cast<int>(rect.left), static_cast<int>(rect.top), ETO_CLIPPED | ETO_OPAQUE, &rect, ptr, 1, NULL);
+				SelectObject(me2->Dc, old_font);
+				SelectObject(me2->Dc, old_bitmap);
+			}
+			me2->CharMap[pos] = *ptr;
+			me2->CntMap[pos] = me2->Cnt;
+		}
+		{
+			D3D10_MAPPED_TEXTURE2D map;
+			me2->Tex->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_WRITE_DISCARD, 0, &map);
+			U8* dst = static_cast<U8*>(map.pData);
+			for (int j = 0; j < me2->CellSize; j++)
+			{
+				int begin = ((pos / me2->CellNum) * me2->CellSize + j) * FontBitmapSize + (pos % me2->CellNum) * me2->CellSize;
+				for (int k = 0; k < me2->CellSize; k++)
+					dst[j * me2->CellSizeAlign + k] = me2->Pixel[(begin + k) * 3];
+			}
+			me2->Tex->Unmap(D3D10CalcSubresource(0, 0, 1));
+		}
+		{
+			{
+				float const_buf_vs[8] =
+				{
+					static_cast<float>(dstX + static_cast<double>(i) * static_cast<double>(me2->CellSize) * 0.5) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+					-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
+					static_cast<float>(me2->CellSize) / static_cast<float>(CurWndBuf->Width) * 2.0f,
+					-(static_cast<float>(me2->CellSize) / static_cast<float>(CurWndBuf->Height) * 2.0f),
+					0.0f,
+					0.0f,
+					static_cast<float>(me2->CellSize) / static_cast<float>(me2->CellSizeAlign),
+					-(static_cast<float>(me2->CellSize) / static_cast<float>(me2->CellSizeAlign)),
+				};
+				float const_buf_ps[4] =
+				{
+					static_cast<float>(1.0),
+					static_cast<float>(1.0),
+					static_cast<float>(1.0),
+					static_cast<float>(1.0),
+				};
+				Draw::ConstBuf(TexVs, const_buf_vs);
+				Device->GSSetShader(NULL);
+				Draw::ConstBuf(FontPs, const_buf_ps);
+				Draw::VertexBuf(RectVertex);
+				Device->PSSetShaderResources(0, 1, &me2->View);
+			}
+			Device->DrawIndexed(6, 0, 0);
+		}
+		ptr++;
+	}
 }
 
 EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, double atY, double atZ, double upX, double upY, double upZ)
@@ -1320,6 +1521,11 @@ void Init()
 				const U8* bin = GetTexPsBin(&size);
 				TexPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
 			}
+			{
+				size_t size;
+				const U8* bin = GetFontPsBin(&size);
+				FontPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
+			}
 		}
 	}
 
@@ -1421,6 +1627,8 @@ void Fin()
 		FinShaderBuf(ObjJointVs);
 	if (ObjVs != NULL)
 		FinShaderBuf(ObjVs);
+	if (FontPs != NULL)
+		FinShaderBuf(FontPs);
 	if (TexPs != NULL)
 		FinShaderBuf(TexPs);
 	if (TexVs != NULL)

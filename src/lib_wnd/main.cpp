@@ -983,7 +983,7 @@ static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param)
 	SWndBase* wnd2 = ToWnd(wnd);
 	if (wnd2->CtrlFlag == (static_cast<U64>(CtrlFlag_AnchorLeft) | static_cast<U64>(CtrlFlag_AnchorTop)))
 		return TRUE;
-	RECT parent_rect;
+	RECT parent_rect = { 0 };
 	{
 		HWND parent = GetAncestor(wnd, GA_PARENT);
 		Bool first = False;

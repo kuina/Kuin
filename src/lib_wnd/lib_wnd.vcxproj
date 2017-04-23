@@ -148,6 +148,7 @@
     <ClCompile Include="circle_ps.c" />
     <ClCompile Include="circle_vs.c" />
     <ClCompile Include="draw.cpp" />
+    <ClCompile Include="font_ps.c" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="jpg_decoder.cpp" />
     <ClCompile Include="main.cpp" />
