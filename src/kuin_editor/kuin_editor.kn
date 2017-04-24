@@ -288,9 +288,6 @@ func chkChanged(): bool
 end func
 
 func save(new: bool): bool
-	if(!new & !@changed)
-		ret true
-	end if
 	var file: []char
 	if(new | @mainSrc = "_default_.kn")
 		do file :: wnd@saveFileDialog(@wndMain, ["Kuin source code (*.kn)", "*.kn"], 0, "kn")
