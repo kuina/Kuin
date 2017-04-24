@@ -1807,7 +1807,7 @@ static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type)
 				}
 				if (!CmpType(ast->Cond->Type, exprs[0]->Type))
 					Err(L"EA0019", ((SAst*)exprs[0])->Pos);
-				if (((SAst*)exprs[0]->Type)->TypeId == AstTypeId_TypeEnumElement)
+				else if (((SAst*)exprs[0]->Type)->TypeId == AstTypeId_TypeEnumElement)
 					RebuildEnumElement(exprs[0], ast->Cond->Type);
 				if (exprs[1] != NULL)
 				{
@@ -1819,7 +1819,7 @@ static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type)
 					}
 					if (!CmpType(ast->Cond->Type, exprs[1]->Type))
 						Err(L"EA0019", ((SAst*)exprs[1])->Pos);
-					if (((SAst*)exprs[1]->Type)->TypeId == AstTypeId_TypeEnumElement)
+					else if (((SAst*)exprs[1]->Type)->TypeId == AstTypeId_TypeEnumElement)
 						RebuildEnumElement(exprs[1], ast->Cond->Type);
 				}
 				ptr2 = ptr2->Next;
