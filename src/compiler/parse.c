@@ -220,7 +220,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 		return ast;
 	}
 
-	if (src_name[0] == L'\\' && !IsCorrectSrcName(src_name + 1) || src_name[0] != L'\\' && !IsCorrectSrcName(src_name))
+	if (!IsCorrectSrcName(src_name))
 	{
 		Err(L"EK0005", NULL, src_name);
 		return DummyPtr;
@@ -785,15 +785,24 @@ static Char EscChar(Char c)
 
 static Bool IsCorrectSrcName(const Char* name)
 {
-	if (!(L'a' <= name[0] && name[0] <= L'z' || name[0] == L'_'))
-		return False;
-	while (*name != L'\0')
-	{
-		if (!(L'a' <= name[0] && name[0] <= L'z' || name[0] == L'_' || L'0' <= name[0] && name[0] <= L'9'))
-			return False;
+	if (*name == L'\\')
 		name++;
+	for (; ; name++)
+	{
+		if (!(L'a' <= name[0] && name[0] <= L'z' || name[0] == L'_'))
+			return False;
+		for (; ; )
+		{
+			name++;
+			if (L'a' <= name[0] && name[0] <= L'z' || name[0] == L'_' || L'0' <= name[0] && name[0] <= L'9')
+				continue;
+			if (*name == L'\\')
+				break;
+			if (*name == L'\0')
+				return True;
+			return False;
+		}
 	}
-	return True;
 }
 
 static SAst* ParseSysCache(void)
