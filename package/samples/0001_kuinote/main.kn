@@ -31,7 +31,7 @@ func main()
 end func
 
 ; ウインドウが閉じられたときに呼ばれるイベント関数
-func wndMainOnClose(): bool
+func wndMainOnClose(wnd: wnd@WndBase): bool
 	var result: wnd@MsgBoxResult :: wnd@msgBox(@wndMain, "終了しても良いですか？", "Kuinote", %warn, %yesNoCancel)
 	if(result = %yes)
 		ret true {trueを返すとウインドウは閉じる}
@@ -41,7 +41,7 @@ func wndMainOnClose(): bool
 end func
 
 ; メニューが選択されたときに呼ばれるイベント関数
-func wndMainOnPushMenu(id: int)
+func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	switch(id)
 	case 16#0001 {New}
 		do @editText.setText("") {テキストを空にする}

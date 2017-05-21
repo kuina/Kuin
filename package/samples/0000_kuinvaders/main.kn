@@ -3,7 +3,7 @@
 ; main関数は実行直後に呼ばれ、main関数を抜けるとアプリは終了する。
 func main()
 	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Kuinvaders") {ウインドウの生成}
-	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale) {ドローコントロールの生成}
+	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
 	; wnd@actはウインドウ操作を処理する関数で、定期的に呼ばないとウインドウが操作できなくなる。またウインドウを閉じたらfalseを返すので、無限ループを抜けて終了するようにする。
 	while(wnd@act())
 		do @title() {タイトル画面の呼び出し}

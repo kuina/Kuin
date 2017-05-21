@@ -3214,11 +3214,12 @@ static void AssembleExpr2(SAstExpr2* ast, int reg_i, int reg_f)
 						ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, Reg_AX), NULL, 0x10)));
 						ListAdd(PackAsm->Asms, lbl1);
 						ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, Reg_SI), ValImmU(8, 0x00)));
-						ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
+						ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 						ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[1]), ValMemS(8, ValReg(8, Reg_DI), NULL, 0x00)));
 						GcInc(1);
 						ListAdd(PackAsm->Asms, AsmDEC(ValReg(8, Reg_SI)));
 						ListAdd(PackAsm->Asms, AsmADD(ValReg(8, Reg_DI), ValImmU(8, size2)));
+						ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 						ListAdd(PackAsm->Asms, lbl2);
 					}
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValReg(8, Reg_AX)));

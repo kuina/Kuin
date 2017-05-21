@@ -27,6 +27,12 @@ end enum
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
+	+func [d0001.knd, _wndBaseGetSize] getSize(width: &int, height: &int)
+	end func
+
+	+func [d0001.knd, _wndBasePaint] paint()
+	end func
+
 	var kind: int
 	var handle: int
 	var defaultWndProc: int
@@ -54,22 +60,55 @@ end class
 	end func
 
 	+var minMaxRect: int
-	+var onClose: func<(): bool>
-	+var onPushMenu: func<(int)>
+	+var onClose: func<(@WndBase): bool>
+	+var onPushMenu: func<(@WndBase, int)>
 end class
+
++enum ShiftCtrl
+	none
+	shift
+	ctrl
+	shiftCtrl
+end enum
 
 +class Draw(@WndBase)
 	*func [d0001.knd, _drawDtor, _force] _dtor()
 	end func
 
+	+func [d0001.knd, _drawShowCaret] showCaret(height: int, font: draw@Font)
+	end func
+
+	+func [d0001.knd, _drawHideCaret] hideCaret()
+	end func
+
+	+func [d0001.knd, _drawMoveCaret] moveCaret(x: int, y: int)
+	end func
+
+	var equalMagnification: int
 	var drawBuf: int
+	+var onPaint: func<(@WndBase, int, int)>
+	+var onMouseDownL: func<(@WndBase, int, int)>
+	+var onMouseDownR: func<(@WndBase, int, int)>
+	+var onMouseDownM: func<(@WndBase, int, int)>
+	+var onMouseUpL: func<(@WndBase, int, int)>
+	+var onMouseUpR: func<(@WndBase, int, int)>
+	+var onMouseUpM: func<(@WndBase, int, int)>
+	+var onMouseMove: func<(@WndBase, int, int)>
+	+var onMouseWheelX: func<(@WndBase)>
+	+var onMouseWheelY: func<(@WndBase)>
+	+var onFocus: func<(@WndBase, bool)>
+	+var onKeyDown: func<(@WndBase, input@Key, @ShiftCtrl)>
+	+var onKeyUp: func<(@WndBase, input@Key, @ShiftCtrl)>
+	+var onKeyChar: func<(@WndBase, char)>
+	+var onScrollX: func<(@WndBase, int)>
+	+var onScrollY: func<(@WndBase, int)>
 end class
 
 +class Btn(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
-	+var onPush: func<()>
+	+var onPush: func<(@WndBase)>
 end class
 
 +class Chk(@WndBase)
@@ -202,7 +241,17 @@ end class
 	end func
 end class
 
-+class Plain(@WndBase)
++class SplitBase(@WndBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class SplitX(@SplitBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+end class
+
++class SplitY(@SplitBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
@@ -211,7 +260,7 @@ end class
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
-	+func [d0001.knd, _scrollSet] set(min: int, max: int, page: int, value: int)
+	+func [d0001.knd, _scrollSetState] setState(min: int, max: int, page: int, value: int)
 	end func
 end class
 
@@ -255,7 +304,7 @@ end enum
 	continue
 end enum
 
-+func [d0001.knd, _onKeyPress] onKeyPress(onKeyPressFunc: func<(int, int): bool>)
++func [d0001.knd, _onKeyPress] onKeyPress(onKeyPressFunc: func<(input@Key, @ShiftCtrl): bool>)
 end func
 
 +func [d0001.knd, _msgBox] msgBox(parent: @WndBase, text: []char, title: []char, icon: @MsgBoxIcon, btn: @MsgBoxBtn): @MsgBoxResult
@@ -267,10 +316,16 @@ end func
 +func [d0001.knd, _saveFileDialog] saveFileDialog(parent: @WndBase, filter: [][]char, defaultFilter: int, defaultExt: []char): []char
 end func
 
++func [d0001.knd, _setClipboardStr] setClipboardStr(str: []char)
+end func
+
++func [d0001.knd, _getClipboardStr] getClipboardStr(): []char
+end func
+
 +func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, parent: @WndBase, style: @WndStyle, width: int, height: int, text: []char): @Wnd
 end func
 
-+func [d0001.knd, _makeDraw, _make_instance] makeDraw(me2: @Draw, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Draw
++func [d0001.knd, _makeDraw, _make_instance] makeDraw(me2: @Draw, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, equalMagnification: bool): @Draw
 end func
 
 +func [d0001.knd, _makeBtn, _make_instance] makeBtn(me2: @Btn, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, text: []char): @Btn
@@ -336,7 +391,10 @@ end func
 +func [d0001.knd, _makeTree, _make_instance] makeTree(me2: @Tree, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Tree
 end func
 
-+func [d0001.knd, _makePlain, _make_instance] makePlain(me2: @Plain, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Plain
++func [d0001.knd, _makeSplitX, _make_instance] makeSplitX(me2: @SplitX, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @SplitX
+end func
+
++func [d0001.knd, _makeSplitY, _make_instance] makeSplitY(me2: @SplitY, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @SplitY
 end func
 
 +func [d0001.knd, _makeScrollX, _make_instance] makeScrollX(me2: @ScrollX, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @ScrollX

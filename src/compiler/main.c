@@ -175,8 +175,8 @@ static FILE* BuildMemWfopen(const Char* file_name, const Char* mode)
 		Src = Call1Asm(file_name2, (void*)(U64)FuncGetSrc);
 		if (Src == NULL)
 			return NULL;
-		SrcLine = *(void**)((U8*)Src + 0x10);
-		SrcChar = (Char*)((U8*)*(void**)((U8*)*(void**)((U8*)SrcLine + 0x10) + 0x10) + 0x10);
+		SrcLine = (U8*)Src + 0x10;
+		SrcChar = (Char*)((U8*)*(void**)SrcLine + 0x10);
 		return (FILE*)DummyPtr;
 	}
 }
@@ -193,8 +193,13 @@ static int BuildMemFclose(FILE* file_ptr)
 
 static U16 BuildMemFgetwc(FILE* file_ptr)
 {
+	const void* term;
+	{
+		S64 len = *(S64*)((U8*)Src + 0x08);
+		term = (U8*)Src + 0x10 + len * 0x08;
+	}
 	UNUSED(file_ptr);
-	if (SrcLine == NULL)
+	if (SrcLine == term)
 		return L'\0';
 	{
 		Char c = *SrcChar;
@@ -203,10 +208,13 @@ static U16 BuildMemFgetwc(FILE* file_ptr)
 			SrcChar++;
 			return c;
 		}
-		SrcLine = *(void**)((U8*)SrcLine + 0x08);
-		if (SrcLine == NULL)
-			return L'\0';
-		SrcChar = (Char*)((U8*)*(void**)((U8*)*(void**)((U8*)SrcLine + 0x10) + 0x10) + 0x10);
+		SrcLine = (U8*)SrcLine + 0x08;
+		{
+			S64 len = *(S64*)((U8*)Src + 0x08);
+			if (SrcLine == term)
+				return L'\0';
+		}
+		SrcChar = (Char*)((U8*)*(void**)SrcLine + 0x10);
 		return L'\n';
 	}
 }
@@ -216,13 +224,14 @@ static size_t BuildMemGetSize(FILE* file_ptr)
 	UNUSED(file_ptr);
 	{
 		size_t total = 0;
-		void* ptr = *(void**)((U8*)Src + 0x10);
-		while (ptr != NULL)
+		S64 len = *(S64*)((U8*)Src + 0x08);
+		void* ptr = (U8*)Src + 0x10;
+		for (S64 i = 0; i < len; i++)
 		{
-			total += *(S64*)((U8*)*(void**)((U8*)*(void**)((U8*)ptr + 0x10) + 0x10) + 0x08);
+			total += *(S64*)((U8*)*(void**)ptr + 0x08);
 			if (total >= 2)
 				return 2; // A value of 2 or more is not distinguished.
-			ptr = *(void**)((U8*)ptr + 0x08);
+			ptr = (U8*)ptr + 0x08;
 		}
 		return total;
 	}

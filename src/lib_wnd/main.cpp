@@ -42,7 +42,8 @@ enum EWndKind
 	WndKind_Pager,
 	WndKind_Tab,
 	WndKind_Tree,
-	WndKind_Plain,
+	WndKind_SplitX,
+	WndKind_SplitY,
 	WndKind_ScrollX,
 	WndKind_ScrollY,
 };
@@ -82,7 +83,25 @@ struct SWnd
 struct SDraw
 {
 	SWndBase WndBase;
+	Bool EqualMagnification;
+	Bool DrawTwice;
 	void* DrawBuf;
+	void* OnPaint;
+	void* OnMouseDownL;
+	void* OnMouseDownR;
+	void* OnMouseDownM;
+	void* OnMouseUpL;
+	void* OnMouseUpR;
+	void* OnMouseUpM;
+	void* OnMouseMove;
+	void* OnMouseWheelX;
+	void* OnMouseWheelY;
+	void* OnFocus;
+	void* OnKeyDown;
+	void* OnKeyUp;
+	void* OnKeyChar;
+	void* OnScrollX;
+	void* OnScrollY;
 };
 
 struct SBtn
@@ -191,7 +210,12 @@ struct STree
 	SWndBase WndBase;
 };
 
-struct SPlain
+struct SSplitX
+{
+	SWndBase WndBase;
+};
+
+struct SSplitY
 {
 	SWndBase WndBase;
 };
@@ -245,7 +269,8 @@ static LRESULT CALLBACK WndProcListView(HWND wnd, UINT msg, WPARAM w_param, LPAR
 static LRESULT CALLBACK WndProcPager(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcTab(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
-static LRESULT CALLBACK WndProcPlain(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
+static LRESULT CALLBACK WndProcSplitX(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
+static LRESULT CALLBACK WndProcSplitY(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcScrollX(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcScrollY(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 
@@ -255,6 +280,13 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	UNUSED(reason);
 	UNUSED(reserved);
 	return TRUE;
+}
+
+SClass* IncWndRef(SClass* wnd)
+{
+	if (wnd != NULL)
+		wnd->RefCnt++;
+	return wnd;
 }
 
 EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
@@ -360,11 +392,10 @@ EXPORT_CPP Bool _act()
 				case WM_SYSKEYDOWN:
 					if (OnKeyPress != NULL)
 					{
-						S64 shiftCtrlAlt = 0;
-						shiftCtrlAlt |= (GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 1 : 0;
-						shiftCtrlAlt |= (GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 2 : 0;
-						shiftCtrlAlt |= (GetKeyState(VK_MENU) & 0x8000) != 0 ? 4 : 0;
-						if (static_cast<Bool>(reinterpret_cast<U64>(Call2Asm(reinterpret_cast<void*>(static_cast<U64>(msg.wParam)), reinterpret_cast<void*>(shiftCtrlAlt), OnKeyPress))))
+						U64 shiftCtrl = 0;
+						shiftCtrl |= (GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 1 : 0;
+						shiftCtrl |= (GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 2 : 0;
+						if (static_cast<Bool>(reinterpret_cast<U64>(Call2Asm(reinterpret_cast<void*>(static_cast<U64>(msg.wParam)), reinterpret_cast<void*>(shiftCtrl), OnKeyPress))))
 							continue;
 					}
 					break;
@@ -460,6 +491,112 @@ EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	return result;
 }
 
+EXPORT_CPP void _setClipboardStr(const U8* str)
+{
+	size_t len = static_cast<size_t>(*reinterpret_cast<const S64*>(str + 0x08));
+	{
+		const Char* ptr = reinterpret_cast<const Char*>(str + 0x10);
+		while (*ptr != L'\0')
+		{
+			if (*ptr == L'\n')
+				len++;
+			ptr++;
+		}
+	}
+	HGLOBAL handle = GlobalAlloc(GMEM_MOVEABLE | GMEM_SHARE | GHND, sizeof(Char) * (len + 1));
+	if (handle == NULL)
+		return;
+	{
+		const Char* ptr = reinterpret_cast<const Char*>(str + 0x10);
+		Char* buf = static_cast<Char*>(GlobalLock(handle));
+		if (buf == NULL)
+		{
+			GlobalFree(handle);
+			return;
+		}
+		const Char* top = buf;
+		UNUSED(top);
+		while (*ptr != L'\0')
+		{
+			if (*ptr == L'\n')
+			{
+				*buf = L'\r';
+				*buf++;
+			}
+			*buf = *ptr;
+			*buf++;
+			ptr++;
+		}
+		*buf = L'\0';
+		ASSERT(top + len == buf);
+		GlobalUnlock(handle);
+	}
+	if (OpenClipboard(NULL) == 0)
+	{
+		GlobalFree(handle);
+		return;
+	}
+	EmptyClipboard();
+	SetClipboardData(CF_UNICODETEXT, static_cast<HANDLE>(handle));
+	CloseClipboard();
+}
+
+EXPORT_CPP void* _getClipboardStr()
+{
+	if (IsClipboardFormatAvailable(CF_UNICODETEXT) == 0)
+		return NULL;
+	if (OpenClipboard(NULL) == 0)
+		return NULL;
+	HGLOBAL handle = GetClipboardData(CF_UNICODETEXT);
+	if (handle == NULL)
+	{
+		CloseClipboard();
+		return NULL;
+	}
+	U8* result = NULL;
+	{
+		const Char* buf = static_cast<Char*>(GlobalLock(handle));
+		if (buf == NULL)
+		{
+			CloseClipboard();
+			return NULL;
+		}
+		size_t len = 0;
+		{
+			const Char* ptr = buf;
+			while (*ptr != L'\0')
+			{
+				if (*ptr != L'\r')
+					len++;
+				ptr++;
+			}
+		}
+		result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * (len + 1)));
+		*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
+		*reinterpret_cast<S64*>(result + 0x08) = len;
+		{
+			const Char* src = buf;
+			Char* dst = reinterpret_cast<Char*>(result + 0x10);
+			const Char* top = dst;
+			UNUSED(top);
+			while (*src != L'\0')
+			{
+				if (*src != L'\r')
+				{
+					*dst = *src;
+					dst++;
+				}
+				src++;
+			}
+			*dst = L'\0';
+			ASSERT(top + len == dst);
+		}
+	}
+	GlobalUnlock(handle);
+	CloseClipboard();
+	return result;
+}
+
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
@@ -522,6 +659,20 @@ EXPORT_CPP void _wndBaseDtor(SClass* me_)
 	SendMessage(me2->WndHandle, WM_DESTROY, 0, 0);
 }
 
+EXPORT_CPP void _wndBaseGetSize(SClass* me_, S64* width, S64* height)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	RECT rect;
+	GetClientRect(me2->WndHandle, &rect);
+	*width = static_cast<S64>(rect.right - rect.left);
+	*height = static_cast<S64>(rect.bottom - rect.top);
+}
+
+EXPORT_CPP void _wndBasePaint(SClass* me_)
+{
+	InvalidateRect(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, FALSE);
+}
+
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
 {
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
@@ -575,11 +726,13 @@ EXPORT_CPP Bool _wndActive(SClass* me_)
 	return GetActiveWindow() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
 }
 
-EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
+EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	SDraw* me3 = reinterpret_cast<SDraw*>(me_);
-	SetCtrlParam(me2, reinterpret_cast<SWndBase*>(parent), WndKind_Draw, WC_STATIC, 0, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcDraw, anchorX, anchorY);
+	SetCtrlParam(me2, reinterpret_cast<SWndBase*>(parent), WndKind_Draw, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_NOTIFY, x, y, width, height, L"", WndProcDraw, anchorX, anchorY);
+	me3->EqualMagnification = equalMagnification;
+	me3->DrawTwice = True;
 	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), me2->WndHandle);
 	return me_;
 }
@@ -591,6 +744,53 @@ EXPORT_CPP void _drawDtor(SClass* me_)
 	if (me3->DrawBuf != NULL)
 		Draw::FinDrawBuf(me3->DrawBuf);
 	SendMessage(me2->WndHandle, WM_DESTROY, 0, 0);
+}
+
+EXPORT_CPP void _drawShowCaret(SClass* me_, S64 height, SClass* font)
+{
+	HWND wnd_handle = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	CreateCaret(wnd_handle, NULL, 2, static_cast<int>(height));
+	ShowCaret(wnd_handle);
+	if (font != NULL)
+	{
+		LOGFONT log_font;
+		HIMC imc = ImmGetContext(wnd_handle);
+		GetObject(Draw::ToFontHandle(font), sizeof(LOGFONT), &log_font);
+		if (imc)
+			ImmSetCompositionFont(imc, &log_font);
+		ImmReleaseContext(wnd_handle, imc);
+	}
+}
+
+EXPORT_CPP void _drawHideCaret(SClass* me_)
+{
+	UNUSED(me_);
+	DestroyCaret();
+}
+
+EXPORT_CPP void _drawMoveCaret(SClass* me_, S64 x, S64 y)
+{
+	HWND wnd_handle = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	if (x == -1 && y == -1)
+		SetCaretPos(-9999, -9999); // Hide the caret.
+	else
+		SetCaretPos(static_cast<int>(x), static_cast<int>(y));
+	HIMC imc = ImmGetContext(wnd_handle);
+	COMPOSITIONFORM form;
+	form.dwStyle = CFS_POINT;
+	if (x == -1 && y == -1)
+	{
+		form.ptCurrentPos.x = 0;
+		form.ptCurrentPos.y = 0;
+	}
+	else
+	{
+		form.ptCurrentPos.x = static_cast<LONG>(x);
+		form.ptCurrentPos.y = static_cast<LONG>(y);
+	}
+	if (imc)
+		ImmSetCompositionWindow(imc, &form);
+	ImmReleaseContext(wnd_handle, imc);
 }
 
 EXPORT_CPP SClass* _makeBtn(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
@@ -733,27 +933,33 @@ EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	return me_;
 }
 
-EXPORT_CPP SClass* _makePlain(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
+EXPORT_CPP SClass* _makeSplitX(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Plain, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_NOTIFY, x, y, width, height, L"", WndProcPlain, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_SplitX, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_NOTIFY, x, y, width, height, L"", WndProcSplitX, anchorX, anchorY);
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeSplitY(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
+{
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_SplitY, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_NOTIFY, x, y, width, height, L"", WndProcSplitY, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeScrollX(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ScrollX, WC_SCROLLBAR, 0, WS_VISIBLE | WS_CHILD | SBS_HORZ, x, y, width, height, L"", WndProcScrollX, anchorX, anchorY);
-	_scrollSet(me_, 0, 0, 1, 0);
+	_scrollSetState(me_, 0, 0, 1, 0);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeScrollY(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ScrollY, WC_SCROLLBAR, 0, WS_VISIBLE | WS_CHILD | SBS_VERT, x, y, width, height, L"", WndProcScrollY, anchorX, anchorY);
-	_scrollSet(me_, 0, 0, 1, 0);
+	_scrollSetState(me_, 0, 0, 1, 0);
 	return me_;
 }
 
-EXPORT_CPP void _scrollSet(SClass* me_, S64 min, S64 max, S64 page, S64 value)
+EXPORT_CPP void _scrollSetState(SClass* me_, S64 min, S64 max, S64 page, S64 value)
 {
 	if (max < min)
 		max = min;
@@ -1029,7 +1235,7 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 			// A menu item is clicked.
 			SWnd* wnd2 = reinterpret_cast<SWnd*>(ToWnd(wnd));
 			if (wnd2->OnPushMenu != NULL)
-				Call1Asm(reinterpret_cast<void*>(static_cast<U64>(LOWORD(w_param))), wnd2->OnPushMenu);
+				Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<U64>(LOWORD(w_param))), wnd2->OnPushMenu);
 			return;
 		}
 		HWND wnd_ctrl = reinterpret_cast<HWND>(l_param);
@@ -1046,7 +1252,7 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 							break;
 						case BN_CLICKED:
 							if (btn->OnPush != NULL)
-								Call0Asm(btn->OnPush);
+								Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), btn->OnPush);
 							break;
 						case BN_DBLCLK:
 							// TODO:
@@ -1183,7 +1389,7 @@ static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPA
 		case WM_CLOSE:
 			if (wnd3->OnClose != NULL)
 			{
-				if (!static_cast<Bool>(reinterpret_cast<U64>(Call0Asm(wnd3->OnClose))))
+				if (!static_cast<Bool>(reinterpret_cast<U64>(Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnClose))))
 					return 0;
 			}
 			SendMessage(wnd, WM_DESTROY, 0, 0);
@@ -1227,7 +1433,7 @@ static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 		case WM_CLOSE:
 			if (wnd3->OnClose != NULL)
 			{
-				if (!static_cast<Bool>(reinterpret_cast<U64>(Call0Asm(wnd3->OnClose))))
+				if (!static_cast<Bool>(reinterpret_cast<U64>(Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnClose))))
 					return 0;
 			}
 			SendMessage(wnd, WM_DESTROY, 0, 0);
@@ -1255,7 +1461,7 @@ static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPA
 		case WM_CLOSE:
 			if (wnd3->OnClose != NULL)
 			{
-				if (!static_cast<Bool>(reinterpret_cast<U64>(Call0Asm(wnd3->OnClose))))
+				if (!static_cast<Bool>(reinterpret_cast<U64>(Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnClose))))
 					return 0;
 			}
 			SendMessage(wnd, WM_DESTROY, 0, 0);
@@ -1295,15 +1501,142 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 	ASSERT(wnd2->Kind == WndKind_Draw);
 	switch (msg)
 	{
-		case WM_SIZE:
-			/*
-			// TODO: Resize.
-			if (wnd3->DrawBuf != NULL)
-				Draw::FinDrawBuf(wnd3->DrawBuf);
-			wnd3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(LOWORD(l_param)), static_cast<int>(HIWORD(l_param)), wnd2->WndHandle);
-			*/
+		case WM_PAINT:
+			if (wnd3->OnPaint != NULL)
+			{
+				RECT rect;
+				GetClientRect(wnd, &rect);
+				PAINTSTRUCT ps;
+				BeginPaint(wnd, &ps);
+				if (wnd3->DrawTwice)
+				{
+					Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(rect.right - rect.left)), reinterpret_cast<void*>(static_cast<S64>(rect.bottom - rect.top)), wnd3->OnPaint);
+					wnd3->DrawTwice = False;
+				}
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(rect.right - rect.left)), reinterpret_cast<void*>(static_cast<S64>(rect.bottom - rect.top)), wnd3->OnPaint);
+				EndPaint(wnd, &ps);
+				return 0;
+			}
 			break;
-		// TODO:
+		case WM_LBUTTONDOWN:
+			SetFocus(wnd);
+			if (wnd3->OnMouseDownL != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownL);
+			return 0;
+		case WM_LBUTTONUP:
+			if (wnd3->OnMouseUpL != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseUpL);
+			return 0;
+		case WM_RBUTTONDOWN:
+			if (wnd3->OnMouseDownR != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownR);
+			return 0;
+		case WM_RBUTTONUP:
+			if (wnd3->OnMouseUpR != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseUpR);
+			return 0;
+		case WM_MBUTTONDOWN:
+			if (wnd3->OnMouseDownM != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownM);
+			return 0;
+		case WM_MBUTTONUP:
+			if (wnd3->OnMouseUpM != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseUpM);
+			return 0;
+		case WM_MOUSEMOVE:
+			if (wnd3->OnMouseMove != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseMove);
+			return 0;
+		case WM_SETFOCUS:
+			if (wnd3->OnFocus != NULL)
+				Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<U64>(True)), wnd3->OnFocus);
+			return 0;
+		case WM_KILLFOCUS:
+			if (wnd3->OnFocus != NULL)
+				Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<U64>(False)), wnd3->OnFocus);
+			return 0;
+		case WM_KEYDOWN:
+			{
+				U64 shiftCtrl = 0;
+				shiftCtrl |= (GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 1 : 0;
+				shiftCtrl |= (GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 2 : 0;
+				if (wnd3->OnKeyDown != NULL)
+					Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<U64>(w_param)), reinterpret_cast<void*>(shiftCtrl), wnd3->OnKeyDown);
+			}
+			return 0;
+		case WM_KEYUP:
+			{
+				U64 shiftCtrl = 0;
+				shiftCtrl |= (GetKeyState(VK_SHIFT) & 0x8000) != 0 ? 1 : 0;
+				shiftCtrl |= (GetKeyState(VK_CONTROL) & 0x8000) != 0 ? 2 : 0;
+				if (wnd3->OnKeyUp != NULL)
+					Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<U64>(w_param)), reinterpret_cast<void*>(shiftCtrl), wnd3->OnKeyUp);
+			}
+			return 0;
+		case WM_CHAR:
+			if (wnd3->OnKeyChar != NULL)
+				Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<U64>(w_param)), wnd3->OnKeyChar);
+			return 0;
+		case WM_SIZE:
+			if (wnd3->EqualMagnification)
+			{
+				if (wnd3->DrawBuf != NULL)
+					Draw::FinDrawBuf(wnd3->DrawBuf);
+				wnd3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(LOWORD(l_param)), static_cast<int>(HIWORD(l_param)), wnd2->WndHandle);
+				wnd3->DrawTwice = True;
+			}
+			return 0;
+		case WM_HSCROLL:
+		case WM_VSCROLL:
+			{
+				HWND scroll = reinterpret_cast<HWND>(l_param);
+				SCROLLINFO info;
+				info.cbSize = sizeof(SCROLLINFO);
+				info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+				info.nTrackPos = 0;
+				GetScrollInfo(scroll, SB_CTL, &info);
+				switch (LOWORD(w_param))
+				{
+					case SB_LINEUP:
+						info.nPos--;
+						break;
+					case SB_LINEDOWN:
+						info.nPos++;
+						break;
+					case SB_PAGEUP:
+						info.nPos -= info.nPage;
+						break;
+					case SB_PAGEDOWN:
+						info.nPos += info.nPage;
+						break;
+					case SB_TOP:
+						info.nPos = info.nMin;
+						break;
+					case SB_BOTTOM:
+						info.nPos = info.nMax;
+						break;
+					case SB_THUMBPOSITION:
+					case SB_THUMBTRACK:
+						info.nPos = (int)HIWORD(w_param);
+						break;
+				}
+				if (info.nPos < info.nMin)
+					info.nPos = info.nMin;
+				if (info.nPos > info.nMax)
+					info.nPos = info.nMax;
+				SetScrollInfo(scroll, SB_CTL, &info, TRUE);
+				if (msg == WM_HSCROLL)
+				{
+					if (wnd3->OnScrollX != NULL)
+						Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(info.nPos)), wnd3->OnScrollX);
+				}
+				else
+				{
+					if (wnd3->OnScrollY != NULL)
+						Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(info.nPos)), wnd3->OnScrollY);
+				}
+			}
+			return 0;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }
@@ -1539,10 +1872,21 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }
 
-static LRESULT CALLBACK WndProcPlain(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
+static LRESULT CALLBACK WndProcSplitX(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
-	ASSERT(wnd2->Kind == WndKind_Plain);
+	ASSERT(wnd2->Kind == WndKind_SplitX);
+	switch (msg)
+	{
+		// TODO:
+	}
+	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
+}
+
+static LRESULT CALLBACK WndProcSplitY(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
+{
+	SWndBase* wnd2 = ToWnd(wnd);
+	ASSERT(wnd2->Kind == WndKind_SplitY);
 	switch (msg)
 	{
 		// TODO:

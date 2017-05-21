@@ -14,7 +14,7 @@ const int DepthNum = 4;
 const int BlendNum = 5;
 const int SamplerNum = 2;
 const int JointMax = 64;
-const int FontBitmapSize = 128;
+const int FontBitmapSize = 1024;
 
 struct SWndBuf
 {
@@ -56,16 +56,19 @@ struct SFont
 	SClass Class;
 	ID3D10Texture2D* Tex;
 	ID3D10ShaderResourceView* View;
-	int CellSize;
-	int CellSizeAlign;
-	int CellNum;
+	int CellWidth;
+	int CellHeight;
+	int CellSizeAligned;
 	U32 Cnt;
+	double Advance;
+	bool Proportional;
 	HFONT Font;
 	Char* CharMap;
 	U32* CntMap;
 	U8* Pixel;
 	HBITMAP Bitmap;
 	HDC Dc;
+	int* GlyphWidth;
 };
 
 struct SObj
@@ -578,7 +581,7 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 	Device->DrawIndexed(6, 0, 0);
 }
 
-EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic)
+EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool proportional, double advance)
 {
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
 	int char_height;
@@ -588,14 +591,38 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		ReleaseDC(NULL, dc);
 	}
 	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, reinterpret_cast<const Char*>(fontName + 0x10));
-	me2->CellSize = static_cast<int>(size) * 2;
-	me2->CellSizeAlign = 128; // Texture length must not be less than 128.
-	while (me2->CellSizeAlign < me2->CellSize)
-		me2->CellSizeAlign *= 2;
+	me2->Proportional = proportional;
+	me2->Advance = advance;
+	{
+		BITMAPINFO info = { 0 };
+		info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+		info.bmiHeader.biWidth = static_cast<LONG>(FontBitmapSize);
+		info.bmiHeader.biHeight = -static_cast<LONG>(FontBitmapSize);
+		info.bmiHeader.biPlanes = 1;
+		info.bmiHeader.biBitCount = 24;
+		info.bmiHeader.biCompression = BI_RGB;
+		HDC dc = GetDC(NULL);
+		me2->Bitmap = CreateDIBSection(dc, &info, DIB_RGB_COLORS, reinterpret_cast<void**>(&me2->Pixel), NULL, 0);
+		me2->Dc = CreateCompatibleDC(dc);
+		ReleaseDC(NULL, dc);
+	}
+	{
+		HGDIOBJ old_bitmap = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Bitmap));
+		HGDIOBJ old_font = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Font));
+		TEXTMETRIC tm;
+		GetTextMetrics(me2->Dc, &tm);
+		me2->CellWidth = tm.tmMaxCharWidth;
+		me2->CellHeight = tm.tmHeight;
+		SelectObject(me2->Dc, old_font);
+		SelectObject(me2->Dc, old_bitmap);
+	}
+	me2->CellSizeAligned = 128; // Texture length must not be less than 128.
+	while (me2->CellSizeAligned < me2->CellWidth || me2->CellSizeAligned < me2->CellHeight)
+		me2->CellSizeAligned *= 2;
 	{
 		D3D10_TEXTURE2D_DESC desc;
-		desc.Width = static_cast<UINT>(me2->CellSizeAlign);
-		desc.Height = static_cast<UINT>(me2->CellSizeAlign);
+		desc.Width = static_cast<UINT>(me2->CellSizeAligned);
+		desc.Height = static_cast<UINT>(me2->CellSizeAligned);
 		desc.MipLevels = 1;
 		desc.ArraySize = 1;
 		desc.Format = DXGI_FORMAT_R8_UNORM;
@@ -618,29 +645,25 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
 			THROW(0x1000, L"");
 	}
-	me2->CellNum = FontBitmapSize / me2->CellSize;
-	size_t buf_size = static_cast<size_t>(me2->CellNum * me2->CellNum);
+	size_t buf_size = static_cast<size_t>((FontBitmapSize / me2->CellWidth) * (FontBitmapSize / me2->CellHeight));
+	if (buf_size == 0)
+		THROW(0x1000, L"");
 	me2->CharMap = static_cast<Char*>(AllocMem(sizeof(Char) * buf_size));
-	me2->CntMap = static_cast<U32*>(AllocMem(sizeof(int) * buf_size));
+	me2->CntMap = static_cast<U32*>(AllocMem(sizeof(U32) * buf_size));
+	if (me2->Proportional)
+	{
+		me2->GlyphWidth = static_cast<int*>(AllocMem(sizeof(int) * buf_size));
+		for (size_t i = 0; i < buf_size; i++)
+			me2->GlyphWidth[i] = 0;
+	}
+	else
+		me2->GlyphWidth = NULL;
 	for (size_t i = 0; i < buf_size; i++)
 	{
 		me2->CharMap[i] = L'\0';
 		me2->CntMap[i] = 0;
 	}
 	me2->Cnt = 0;
-	{
-		BITMAPINFO info = { 0 };
-		info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-		info.bmiHeader.biWidth = static_cast<LONG>(FontBitmapSize);
-		info.bmiHeader.biHeight = -static_cast<LONG>(FontBitmapSize);
-		info.bmiHeader.biPlanes = 1;
-		info.bmiHeader.biBitCount = 24;
-		info.bmiHeader.biCompression = BI_RGB;
-		HDC dc = GetDC(NULL);
-		me2->Bitmap = CreateDIBSection(dc, &info, DIB_RGB_COLORS, reinterpret_cast<void**>(&me2->Pixel), NULL, 0);
-		me2->Dc = CreateCompatibleDC(dc);
-		ReleaseDC(NULL, dc);
-	}
 	return me_;
 }
 
@@ -649,6 +672,8 @@ EXPORT_CPP void _fontDtor(SClass* me_)
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
 	DeleteDC(me2->Dc);
 	DeleteObject(static_cast<HGDIOBJ>(me2->Bitmap));
+	if (me2->GlyphWidth != NULL)
+		FreeMem(me2->GlyphWidth);
 	FreeMem(me2->CntMap);
 	FreeMem(me2->CharMap);
 	if (me2->View != NULL)
@@ -662,18 +687,21 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
 	S64 len = *reinterpret_cast<const S64*>(text + 0x08);
 	const Char* ptr = reinterpret_cast<const Char*>(text + 0x10);
+	int cell_num_width = FontBitmapSize / me2->CellWidth;
+	int cell_num = cell_num_width * (FontBitmapSize / me2->CellHeight);
 
 	me2->Cnt++;
 	if (me2->Cnt == 0)
 	{
-		for (int i = 0; i < me2->CellNum * me2->CellNum; i++)
+		for (int i = 0; i < cell_num; i++)
 			me2->CntMap[i] = 0;
 	}
 
+	double x = dstX;
 	for (S64 i = 0; i < len; i++)
 	{
 		int pos = -1;
-		for (int j = 0; j < me2->CellNum * me2->CellNum; j++)
+		for (int j = 0; j < cell_num; j++)
 		{
 			if (me2->CharMap[j] == *ptr)
 			{
@@ -684,7 +712,7 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 		if (pos == -1)
 		{
 			U32 min = 0xffffffff;
-			for (int j = 0; j < me2->CellNum * me2->CellNum; j++)
+			for (int j = 0; j < cell_num; j++)
 			{
 				if (me2->CharMap[j] == L'\0')
 				{
@@ -704,11 +732,20 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 				SetBkColor(me2->Dc, RGB(0, 0, 0));
 				SetTextColor(me2->Dc, RGB(255, 255, 255));
 				RECT rect;
-				rect.left = static_cast<LONG>((pos % me2->CellNum) * me2->CellSize);
-				rect.top = static_cast<LONG>((pos / me2->CellNum) * me2->CellSize);
-				rect.right = rect.left + static_cast<LONG>(me2->CellSize);
-				rect.bottom = rect.top + static_cast<LONG>(me2->CellSize);
+				rect.left = static_cast<LONG>((pos % cell_num_width) * me2->CellWidth);
+				rect.top = static_cast<LONG>((pos / cell_num_width) * me2->CellHeight);
+				rect.right = rect.left + static_cast<LONG>(me2->CellWidth);
+				rect.bottom = rect.top + static_cast<LONG>(me2->CellHeight);
 				ExtTextOut(me2->Dc, static_cast<int>(rect.left), static_cast<int>(rect.top), ETO_CLIPPED | ETO_OPAQUE, &rect, ptr, 1, NULL);
+				if (me2->Proportional)
+				{
+					TEXTMETRIC tm;
+					GetTextMetrics(me2->Dc, &tm);
+					GLYPHMETRICS gm;
+					MAT2 mat = { { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 1 } };
+					GetGlyphOutline(me2->Dc, static_cast<UINT>(*ptr), GGO_METRICS, &gm, 0, NULL, &mat);
+					me2->GlyphWidth[pos] = static_cast<int>(gm.gmCellIncX);
+				}
 				SelectObject(me2->Dc, old_font);
 				SelectObject(me2->Dc, old_bitmap);
 			}
@@ -719,11 +756,11 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			D3D10_MAPPED_TEXTURE2D map;
 			me2->Tex->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_WRITE_DISCARD, 0, &map);
 			U8* dst = static_cast<U8*>(map.pData);
-			for (int j = 0; j < me2->CellSize; j++)
+			for (int j = 0; j < me2->CellHeight; j++)
 			{
-				int begin = ((pos / me2->CellNum) * me2->CellSize + j) * FontBitmapSize + (pos % me2->CellNum) * me2->CellSize;
-				for (int k = 0; k < me2->CellSize; k++)
-					dst[j * me2->CellSizeAlign + k] = me2->Pixel[(begin + k) * 3];
+				int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
+				for (int k = 0; k < me2->CellWidth; k++)
+					dst[j * me2->CellSizeAligned + k] = me2->Pixel[(begin + k) * 3];
 			}
 			me2->Tex->Unmap(D3D10CalcSubresource(0, 0, 1));
 		}
@@ -731,21 +768,21 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			{
 				float const_buf_vs[8] =
 				{
-					static_cast<float>(dstX + static_cast<double>(i) * static_cast<double>(me2->CellSize) * 0.5) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+					static_cast<float>(x) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
 					-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
-					static_cast<float>(me2->CellSize) / static_cast<float>(CurWndBuf->Width) * 2.0f,
-					-(static_cast<float>(me2->CellSize) / static_cast<float>(CurWndBuf->Height) * 2.0f),
+					static_cast<float>(me2->CellWidth) / static_cast<float>(CurWndBuf->Width) * 2.0f,
+					-(static_cast<float>(me2->CellHeight) / static_cast<float>(CurWndBuf->Height) * 2.0f),
 					0.0f,
 					0.0f,
-					static_cast<float>(me2->CellSize) / static_cast<float>(me2->CellSizeAlign),
-					-(static_cast<float>(me2->CellSize) / static_cast<float>(me2->CellSizeAlign)),
+					static_cast<float>(me2->CellWidth) / static_cast<float>(me2->CellSizeAligned),
+					-(static_cast<float>(me2->CellHeight) / static_cast<float>(me2->CellSizeAligned)),
 				};
 				float const_buf_ps[4] =
 				{
-					static_cast<float>(1.0),
-					static_cast<float>(1.0),
-					static_cast<float>(1.0),
-					static_cast<float>(1.0),
+					static_cast<float>(r),
+					static_cast<float>(g),
+					static_cast<float>(b),
+					static_cast<float>(a),
 				};
 				Draw::ConstBuf(TexVs, const_buf_vs);
 				Device->GSSetShader(NULL);
@@ -755,6 +792,9 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			}
 			Device->DrawIndexed(6, 0, 0);
 		}
+		x += me2->Advance;
+		if (me2->Proportional)
+			x += static_cast<double>(me2->GlyphWidth[pos]);
 		ptr++;
 	}
 }
@@ -2092,6 +2132,11 @@ void SetProjViewMtx(float out[4][4], const double proj[4][4], const double view[
 	out[3][1] = static_cast<float>(proj[0][1] * view[3][0] + proj[1][1] * view[3][1] + proj[2][1] * view[3][2] + proj[3][1] * view[3][3]);
 	out[3][2] = static_cast<float>(proj[0][2] * view[3][0] + proj[1][2] * view[3][1] + proj[2][2] * view[3][2] + proj[3][2] * view[3][3]);
 	out[3][3] = static_cast<float>(proj[0][3] * view[3][0] + proj[1][3] * view[3][1] + proj[2][3] * view[3][2] + proj[3][3] * view[3][3]);
+}
+
+HFONT ToFontHandle(SClass* font)
+{
+	return reinterpret_cast<SFont*>(font)->Font;
 }
 
 } // namespace Draw
