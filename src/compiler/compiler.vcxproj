@@ -107,7 +107,6 @@ echo F | xcopy /y /r $(TargetDir)compiler.lib $(SolutionDir)src\test_src\compile
     <ClCompile Include="ast.c" />
     <ClCompile Include="deploy.c" />
     <ClCompile Include="dict.c" />
-    <ClCompile Include="editor.c" />
     <ClCompile Include="list.c" />
     <ClCompile Include="log.c" />
     <ClCompile Include="machine.c" />
@@ -127,7 +126,6 @@ echo F | xcopy /y /r $(TargetDir)compiler.lib $(SolutionDir)src\test_src\compile
     <ClInclude Include="ast.h" />
     <ClInclude Include="deploy.h" />
     <ClInclude Include="dict.h" />
-    <ClInclude Include="editor.h" />
     <ClInclude Include="list.h" />
     <ClInclude Include="log.h" />
     <ClInclude Include="machine.h" />
