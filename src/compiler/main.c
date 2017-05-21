@@ -209,11 +209,8 @@ static U16 BuildMemFgetwc(FILE* file_ptr)
 			return c;
 		}
 		SrcLine = (U8*)SrcLine + 0x08;
-		{
-			S64 len = *(S64*)((U8*)Src + 0x08);
-			if (SrcLine == term)
-				return L'\0';
-		}
+		if (SrcLine == term)
+			return L'\0';
 		SrcChar = (Char*)((U8*)*(void**)SrcLine + 0x10);
 		return L'\n';
 	}
@@ -226,7 +223,8 @@ static size_t BuildMemGetSize(FILE* file_ptr)
 		size_t total = 0;
 		S64 len = *(S64*)((U8*)Src + 0x08);
 		void* ptr = (U8*)Src + 0x10;
-		for (S64 i = 0; i < len; i++)
+		S64 i;
+		for (i = 0; i < len; i++)
 		{
 			total += *(S64*)((U8*)*(void**)ptr + 0x08);
 			if (total >= 2)
