@@ -1,0 +1,9 @@
+func main()
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Kuinvaders") {ウインドウの生成}
+	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
+	var tex: draw@Tex :: draw@makeTex("res/test.png") {タイトル画像}
+	while(wnd@act())
+		do tex.draw(0.0, 0.0, 0.0, 0.0, 512.0, 512.0, 16#FF7F7F7F) {タイトル描画}
+		do draw@render(60)
+	end while
+end func

@@ -276,15 +276,19 @@ EXPORT_CPP void _sampler(S64 kind)
 	// TODO: Sampler = kind2;
 }
 
-EXPORT_CPP void _clearColor(double r, double g, double b)
+EXPORT_CPP void _clearColor(S64 color)
 {
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	CurWndBuf->ClearColor[0] = static_cast<FLOAT>(r);
 	CurWndBuf->ClearColor[1] = static_cast<FLOAT>(g);
 	CurWndBuf->ClearColor[2] = static_cast<FLOAT>(b);
 }
 
-EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, double r, double g, double b, double a)
+EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, S64 color)
 {
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
 		return;
 	if ((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1) < 0.0)
@@ -322,8 +326,10 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 	Device->DrawIndexed(3, 0, 0);
 }
 
-EXPORT_CPP void _rect(double x, double y, double w, double h, double r, double g, double b, double a)
+EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 {
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
 		return;
 	if (w < 0.0)
@@ -359,8 +365,10 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, double r, double g
 	Device->DrawIndexed(6, 0, 0);
 }
 
-EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, double r, double g, double b, double a)
+EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 color)
 {
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
 		return;
 	if (radiusX < 0.0)
@@ -485,7 +493,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 	return me_;
 }
 
-EXPORT_CPP SClass* _makeTexEven(SClass* me_, double r, double g, double b, double a)
+EXPORT_CPP SClass* _makeTexEvenRgba(SClass* me_, double r, double g, double b, double a)
 {
 	STex* me2 = reinterpret_cast<STex*>(me_);
 	float img[4] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a) };
@@ -522,6 +530,13 @@ EXPORT_CPP SClass* _makeTexEven(SClass* me_, double r, double g, double b, doubl
 	return me_;
 }
 
+EXPORT_CPP SClass* _makeTexEvenColor(SClass* me_, S64 color)
+{
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	return _makeTexEvenRgba(me_, r, g, b, a);
+}
+
 EXPORT_CPP void _texDtor(SClass* me_)
 {
 	STex* me2 = reinterpret_cast<STex*>(me_);
@@ -531,13 +546,18 @@ EXPORT_CPP void _texDtor(SClass* me_)
 		me2->Tex->Release();
 }
 
-EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH)
+EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH, S64 color)
 {
-	_texDrawScale(me_, dstX, dstY, srcW, srcH, srcX, srcY, srcW, srcH);
+	_texDrawScale(me_, dstX, dstY, srcW, srcH, srcX, srcY, srcW, srcH, color);
 }
 
-EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW, double dstH, double srcX, double srcY, double srcW, double srcH)
+EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW, double dstH, double srcX, double srcY, double srcW, double srcH, S64 color)
 {
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	if (a <= 0.04)
+		return;
+
 	STex* me2 = reinterpret_cast<STex*>(me_);
 	if (dstW < 0.0)
 	{
@@ -567,10 +587,10 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 		};
 		float const_buf_ps[4] =
 		{
-			static_cast<float>(1.0),
-			static_cast<float>(1.0),
-			static_cast<float>(1.0),
-			static_cast<float>(1.0),
+			static_cast<float>(r),
+			static_cast<float>(g),
+			static_cast<float>(b),
+			static_cast<float>(a),
 		};
 		Draw::ConstBuf(TexVs, const_buf_vs);
 		Device->GSSetShader(NULL);
@@ -682,8 +702,13 @@ EXPORT_CPP void _fontDtor(SClass* me_)
 		me2->Tex->Release();
 }
 
-EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text, double r, double g, double b, double a)
+EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text, S64 color)
 {
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	if (a <= 0.04)
+		return;
+
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
 	S64 len = *reinterpret_cast<const S64*>(text + 0x08);
 	const Char* ptr = reinterpret_cast<const Char*>(text + 0x10);
@@ -1061,8 +1086,10 @@ EXPORT_CPP void _objDtor(SClass* me_)
 		FreeMem(me2->ElementKinds);
 }
 
-EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, double r, double g, double b, double a)
+EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, S64 color)
 {
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	// TODO:
 	return NULL;
 }
@@ -2137,6 +2164,21 @@ void SetProjViewMtx(float out[4][4], const double proj[4][4], const double view[
 HFONT ToFontHandle(SClass* font)
 {
 	return reinterpret_cast<SFont*>(font)->Font;
+}
+
+void ColorToRgba(double* r, double* g, double* b, double* a, S64 color)
+{
+	if (color < 0 || 0xffffffff < color)
+		THROW(0x1000, L"");
+	*a = static_cast<double>((color >> 24) & 0xff) / 255.0;
+	*r = Gamma(static_cast<double>((color >> 16) & 0xff) / 255.0);
+	*g = Gamma(static_cast<double>((color >> 8) & 0xff) / 255.0);
+	*b = Gamma(static_cast<double>(color & 0xff) / 255.0);
+}
+
+double Gamma(double value)
+{
+	return pow(value, 2.2);
 }
 
 } // namespace Draw

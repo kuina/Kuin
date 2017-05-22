@@ -20,6 +20,11 @@ const undoBufSize: int :: 1024
 const cellWidth: int :: 10
 const cellHeight: int :: 18
 
+const colorBack: int :: 16#FFFFF5F5
+const colorLineNumber: int :: 16#FFFF7F7F
+const colorAreaBack: int :: 16#FF7F7F7F
+const colorText: int :: 16#FF000000
+
 var wndMain: wnd@Wnd
 var tabSrc: wnd@Tab
 var drawEditor: wnd@Draw
@@ -788,7 +793,7 @@ func addUndoMark()
 end func
 
 func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
-	do draw@rect(0.0, 0.0, width $ float, height $ float, 1.0, 0.96, 0.96, 1.0)
+	do draw@rect(0.0, 0.0, width $ float, height $ float, @colorBack)
 	; TODO: Draw the line.
 	for i(0, ^@curSrc.src - 1)
 		var y: float :: (i * @cellHeight) $ float
@@ -796,7 +801,7 @@ func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
 			skip i
 		end if
 		var str: []char :: (@pageY + i + 1).toStr()
-		do @font.draw((@lineNumberWidth - (^str + 1) * @cellWidth + @cellWidth / 2) $ float, y, str, 1.0, 0.5, 0.5, 1.0)
+		do @font.draw((@lineNumberWidth - (^str + 1) * @cellWidth + @cellWidth / 2) $ float, y, str, @colorLineNumber)
 	end for
 
 	var areaX1: int :: @areaX
@@ -839,12 +844,12 @@ func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
 					end if
 				end if
 				if(inArea)
-					do draw@rect(x2 $ float, (i * @cellHeight) $ float, @cellWidth $ float, @cellHeight $ float, 0.5, 0.5, 0.5, 1.0)
+					do draw@rect(x2 $ float, (i * @cellHeight) $ float, @cellWidth $ float, @cellHeight $ float, @colorAreaBack)
 				end if
 				if(j = ^str)
 					; TODO: Return mark.
 				else
-					do @font.draw(x2 $ float, (i * @cellHeight) $ float, str[j].toStr(), 0.0, 0.0, 0.0, 1.0)
+					do @font.draw(x2 $ float, (i * @cellHeight) $ float, str[j].toStr(), @colorText)
 				end if
 			end if
 			if(j <> ^str)

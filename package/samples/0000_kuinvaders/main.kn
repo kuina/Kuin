@@ -15,7 +15,7 @@ end func
 func title()
 	var texTitle: draw@Tex :: draw@makeTex("res/title.jpg") {タイトル画像}
 	while(wnd@act() & input@pad(0, %a) <> 1) {Aボタンが押されるまでループ}
-		do texTitle.draw(0.0, 0.0, 0.0, 0.0, 1600.0, 900.0) {タイトル描画}
+		do texTitle.draw(0.0, 0.0, 0.0, 0.0, 1600.0, 900.0, draw@white) {タイトル描画}
 		do draw@render(60) {画面更新および60FPSに調整。これが再度呼ばれるまでの間を1フレームと言う}
 	end while
 end func
@@ -49,7 +49,7 @@ func game()
 		; フレームごとのループ。
 		while(wnd@act())
 			; 背景描画。
-			do texBack.draw(0.0, 0.0, 0.0, 0.0, 1600.0, 900.0)
+			do texBack.draw(0.0, 0.0, 0.0, 0.0, 1600.0, 900.0, draw@white)
 			; 自機移動。
 			if(input@pad(0, %left) > 0) {左ボタン押し続け}
 				do playerX :- 12.0 {左に移動}
@@ -81,7 +81,7 @@ func game()
 			end if
 			; 自機描画。Kuin@Cnt関数は1フレームごとに1ずつ増える値を返す。
 			if(gameover <> 2)
-				do texGame.draw(playerX - 140.0 / 2.0, playerY - 220.0 / 2.0, (draw@cnt() / 10 % 3) $ float * 140.0, 0.0, 140.0, 220.0)
+				do texGame.draw(playerX - 140.0 / 2.0, playerY - 220.0 / 2.0, (draw@cnt() / 10 % 3) $ float * 140.0, 0.0, 140.0, 220.0, draw@white)
 			end if
 			; 敵全体の移動。
 			if(gameover = 0)
@@ -119,7 +119,7 @@ func game()
 						do beam.y :: enemyY + i $ float * 45.0
 						do enemyBeams.add(beam)
 					end if
-					do texGame.draw(enemyX - 200.0 / 2.0 + j $ float * 100.0, enemyY - 120.0 / 2.0 + i $ float * 45.0, (draw@cnt() / 10 % 3) $ float * 200.0, 220.0, 200.0, 120.0)
+					do texGame.draw(enemyX - 200.0 / 2.0 + j $ float * 100.0, enemyY - 120.0 / 2.0 + i $ float * 45.0, (draw@cnt() / 10 % 3) $ float * 200.0, 220.0, 200.0, 120.0, draw@white)
 				end for
 			end for
 			; 自機の弾移動および描画。
@@ -144,7 +144,7 @@ func game()
 						end if
 					end for
 				end for
-				do texGame.draw(beam.x - 90.0 / 2.0, beam.y - 90.0 / 2.0, 420.0, 0.0, 90.0, 90.0)
+				do texGame.draw(beam.x - 90.0 / 2.0, beam.y - 90.0 / 2.0, 420.0, 0.0, 90.0, 90.0, draw@white)
 				do beams.next()
 			end while
 			if(enemyNum = 0) {敵の数が0ならステージクリア}
@@ -187,7 +187,7 @@ func game()
 					do enemyBeams.del() {画面外に出たら削除}
 					skip loopEnemyBeams
 				end if
-				do texGame.draw(beam.x - 70.0 / 2.0, beam.y - 100.0 / 2.0, 420.0, 90.0, 70.0, 100.0)
+				do texGame.draw(beam.x - 70.0 / 2.0, beam.y - 100.0 / 2.0, 420.0, 90.0, 70.0, 100.0, draw@white)
 				do enemyBeams.next()
 			end while
 			do draw@render(60)

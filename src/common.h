@@ -35,7 +35,7 @@
 	#define ASSERT(cond) _ASSERTE((cond))
 	#define STATIC_ASSERT(cond) static_assert((cond), "Static assertion failed.")
 #else
-	#define ASSERT(cond)
+	#define ASSERT(cond) {}
 	#define STATIC_ASSERT(cond)
 #endif
 

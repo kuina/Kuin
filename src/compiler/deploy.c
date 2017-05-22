@@ -3,7 +3,7 @@
 #include "log.h"
 #include "util.h"
 
-static void CopyDlls(const Char* key, const void* value, void* param);
+static const void* CopyDlls(const Char* key, const void* value, void* param);
 
 void Deploy(U64 app_code, const SOption* option, SDict* dlls)
 {
@@ -39,9 +39,8 @@ void Deploy(U64 app_code, const SOption* option, SDict* dlls)
 	}
 }
 
-static void CopyDlls(const Char* key, const void* value, void* param)
+static const void* CopyDlls(const Char* key, const void* value, void* param)
 {
-	UNUSED(value);
 	{
 		const SOption* option = (SOption*)param;
 		Char src[MAX_PATH];
@@ -58,4 +57,5 @@ static void CopyDlls(const Char* key, const void* value, void* param)
 		if (CopyFile(src, dst, FALSE) == 0)
 			Err(L"EK0013", NULL, src, dst);
 	}
+	return value;
 }

@@ -162,6 +162,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 		U8 cmf = png_data->Data[cur_data][byte_ptr];
 		Step(png_data, &cur_data, &byte_ptr, 1);
 		U8 flg = png_data->Data[cur_data][byte_ptr];
+		UNUSED(flg);
 		Step(png_data, &cur_data, &byte_ptr, 1);
 		ASSERT((cmf & 0x0f) == 8);
 		ASSERT(((flg & 0x20) >> 5) == 0);
