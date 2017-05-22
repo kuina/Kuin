@@ -787,7 +787,7 @@ static Bool IsCorrectSrcName(const Char* name)
 {
 	if (*name == L'\\')
 		name++;
-	for (; ; name++)
+	for (; ; )
 	{
 		if (!(L'a' <= name[0] && name[0] <= L'z' || name[0] == L'_'))
 			return False;
@@ -802,6 +802,7 @@ static Bool IsCorrectSrcName(const Char* name)
 				return True;
 			return False;
 		}
+		name++;
 	}
 }
 
