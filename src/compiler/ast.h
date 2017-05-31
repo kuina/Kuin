@@ -116,6 +116,7 @@ typedef enum EFuncAttr
 	FuncAttr_MakeInstance = 0x0200, // Make an instance before calling the function.
 	FuncAttr_Force = 0x0400, // Force to define a method that cannot be overridden.
 	FuncAttr_ExitCode = 0x0800, // Set 'ExitCode'.
+	FuncAttr_TakeKeyValueFunc = 0x1000, // The function receives a callback function that receives key-value pairs.
 } EFuncAttr;
 
 typedef struct SAstFunc

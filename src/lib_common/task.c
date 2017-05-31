@@ -1,11 +1,27 @@
 #include "task.h"
 
+#include "main.h"
+
 typedef struct SProcess
 {
 	SClass Class;
 	HANDLE ProcessHandle;
 	HANDLE ThreadHandle;
 } SProcess;
+
+typedef struct SThread
+{
+	SClass Class;
+	HANDLE ThreadHandle;
+} SThread;
+
+typedef struct SMutex
+{
+	SClass Class;
+	CRITICAL_SECTION* Handle;
+} SMutex;
+
+static DWORD WINAPI ThreadFunc(LPVOID arg);
 
 EXPORT SClass* _makeProcess(SClass* me_, const U8* path, const U8* cmd_line)
 {
@@ -71,11 +87,6 @@ EXPORT S64 _processRun(SClass* me_, Bool waitUntilExit)
 	return (S64)(S32)exit_code;
 }
 
-EXPORT void _processRunAsync(SClass* me_, void* func)
-{
-	// TODO:
-}
-
 EXPORT void _taskOpen(const U8* path)
 {
 	const Char* path2 = (const Char*)(path + 0x10);
@@ -88,4 +99,65 @@ EXPORT void _taskOpen(const U8* path)
 			*(ptr + 1) = L'\0';
 	}
 	ShellExecute(NULL, L"open", path2, NULL, cur_dir, SW_SHOWNORMAL);
+}
+
+EXPORT SClass* _makeThread(SClass* me_, const void* thread_func)
+{
+	SThread* me2 = (SThread*)me_;
+	DWORD thread_id;
+	me2->ThreadHandle = CreateThread(NULL, 0, ThreadFunc, (LPVOID)thread_func, CREATE_SUSPENDED, &thread_id);
+	return me_;
+}
+
+EXPORT void _threadDtor(SClass* me_)
+{
+	SThread* me2 = (SThread*)me_;
+	if (me2->ThreadHandle != NULL)
+		CloseHandle(me2->ThreadHandle);
+}
+
+EXPORT void _threadRun(SClass* me_)
+{
+	SThread* me2 = (SThread*)me_;
+	if (ResumeThread(me2->ThreadHandle) == (DWORD)-1)
+		THROW(0x1000, L"");
+}
+
+EXPORT SClass* _makeMutex(SClass* me_)
+{
+	SMutex* me2 = (SMutex*)me_;
+	me2->Handle = (CRITICAL_SECTION*)AllocMem(sizeof(CRITICAL_SECTION));
+	InitializeCriticalSection(me2->Handle);
+	return me_;
+}
+
+EXPORT void _mutexDtor(SClass* me_)
+{
+	SMutex* me2 = (SMutex*)me_;
+	DeleteCriticalSection(me2->Handle);
+	FreeMem(me2->Handle);
+}
+
+EXPORT void _mutexLock(SClass* me_)
+{
+	SMutex* me2 = (SMutex*)me_;
+	EnterCriticalSection(me2->Handle);
+}
+
+EXPORT Bool _mutexTryLock(SClass* me_)
+{
+	SMutex* me2 = (SMutex*)me_;
+	return TryEnterCriticalSection(me2->Handle) ? True : False;
+}
+
+EXPORT void _mutexUnlock(SClass* me_)
+{
+	SMutex* me2 = (SMutex*)me_;
+	LeaveCriticalSection(me2->Handle);
+}
+
+static DWORD WINAPI ThreadFunc(LPVOID arg)
+{
+	Call0Asm(arg);
+	return 0;
 }

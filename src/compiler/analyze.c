@@ -13,13 +13,16 @@ static const Char* BuildInFuncs[] =
 	L"clamp\0        \x0b",
 	L"clampMax\0     \x0b",
 	L"clampMin\0     \x0b",
+	L"cmp\0          \x06",
 	L"del\0          \x09",
 	L"delNext\0      \x09",
 	L"endian\0       \x04",
+	L"exist\0        \x0d",
 	L"fill\0         \x05",
 	L"find\0         \x05",
 	L"findBin\0      \x05",
 	L"findLast\0     \x05",
+	L"forEach\0      \x0d",
 	L"get\0          \x08",
 	L"getOffset\0    \x09",
 	L"head\0         \x09",
@@ -3391,6 +3394,10 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 				if (((SAst*)var_type)->TypeId == AstTypeId_TypeArray && IsStr(((SAstTypeArray*)var_type)->ItemType))
 					correct = True;
 				break;
+			case 0x000d:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
+					correct = True;
+				break;
 		}
 		if (correct)
 		{
@@ -3420,6 +3427,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
 					ASSERT((func->FuncAttr & FuncAttr_TakeChild) == 0);
 					ASSERT((func->FuncAttr & FuncAttr_TakeKeyValue) == 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeKeyValueFunc) == 0);
 					ASSERT(func->Args->Len >= 3);
 #if defined(_DEBUG)
 					{
@@ -3434,6 +3442,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
 					ASSERT((func->FuncAttr & FuncAttr_TakeMe) == 0);
 					ASSERT((func->FuncAttr & FuncAttr_TakeKeyValue) == 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeKeyValueFunc) == 0);
 					ASSERT(func->Args->Len >= 3);
 #if defined(_DEBUG)
 					{
@@ -3456,6 +3465,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
 					ASSERT((func->FuncAttr & FuncAttr_TakeMe) == 0);
 					ASSERT((func->FuncAttr & FuncAttr_TakeChild) == 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeKeyValueFunc) == 0);
 					ASSERT(func->Args->Len >= 4);
 #if defined(_DEBUG)
 					{
@@ -3471,6 +3481,38 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 					ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
 					((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Next->Next->Next->Data)->Arg = ((SAstTypeDict*)var_type)->ItemTypeKey;
 					((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Next->Next->Next->Next->Data)->Arg = ((SAstTypeDict*)var_type)->ItemTypeValue;
+				}
+				if ((func->FuncAttr & FuncAttr_TakeKeyValueFunc) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeMe) == 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeChild) == 0);
+					ASSERT((func->FuncAttr & FuncAttr_TakeKeyValue) == 0);
+					ASSERT(func->Args->Len >= 3);
+#if defined(_DEBUG)
+					ASSERT(IsInt(((SAstTypeFuncArg*)func->Args->Top->Next->Next->Data)->Arg));
+#endif
+					ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
+					{
+						SAstTypeFunc* type = (SAstTypeFunc*)Alloc(sizeof(SAstTypeFunc));
+						InitAst((SAst*)type, AstTypeId_TypeFunc, ((SAst*)ast)->Pos);
+						type->FuncAttr = FuncAttr_None;
+						type->Args = ListNew();
+						{
+							SAstTypeFuncArg* item = (SAstTypeFuncArg*)Alloc(sizeof(SAstTypeFuncArg));
+							item->Arg = ((SAstTypeDict*)var_type)->ItemTypeKey;
+							item->RefVar = False;
+							ListAdd(type->Args, item);
+						}
+						{
+							SAstTypeFuncArg* item = (SAstTypeFuncArg*)Alloc(sizeof(SAstTypeFuncArg));
+							item->Arg = ((SAstTypeDict*)var_type)->ItemTypeValue;
+							item->RefVar = False;
+							ListAdd(type->Args, item);
+						}
+						type->Ret = NULL;
+						((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Next->Next->Data)->Arg = (SAstType*)type;
+					}
 				}
 				if ((func->FuncAttr & FuncAttr_RetMe) != 0)
 				{

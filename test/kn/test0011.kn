@@ -40,7 +40,7 @@ func main()
 			class C()
 				+var n: int
 
-				*func cmp(t: kuin@Class): int
+				+*func cmp(t: kuin@Class): int
 					ret me.n - (t $ C).n
 				end func
 			end class

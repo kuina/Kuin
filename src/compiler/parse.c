@@ -59,6 +59,21 @@ static const Char* Reserved[] =
 	L"while",
 };
 
+typedef enum ECharColor
+{
+	CharColor_None,
+	CharColor_Identifier,
+	CharColor_Global,
+	CharColor_Reserved,
+	CharColor_Number,
+	CharColor_Str,
+	CharColor_Char,
+	CharColor_LineComment,
+	CharColor_Comment,
+	CharColor_Symbol,
+	CharColor_Err,
+} ECharColor;
+
 static FILE*(*FuncWfopen)(const Char*, const Char*);
 static int(*FuncFclose)(FILE*);
 static U16(*FuncFgetwc)(FILE*);
@@ -204,6 +219,241 @@ SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FI
 	}
 #endif
 	return Srces;
+}
+
+void InterpretImpl1(const void* src, void* color)
+{
+	S64 len = *(const S64*)((const U8*)src + 0x08);
+	S64 i;
+	int comment_level = 0;
+	for (i = 0; i < len; i++)
+	{
+		const Char* str = (const Char*)((const U8*)*(const void**)((const U8*)src + 0x10 + 0x08 * (size_t)i) + 0x10);
+		U8* color_ptr = (U8*)*(void**)((U8*)color + 0x10 + 0x08 * (size_t)i) + 0x10;
+		while (*str != L'\0')
+		{
+			if (comment_level != 0)
+			{
+				if (*str == L'"')
+				{
+					do
+					{
+						if (*str == L'\\')
+						{
+							*color_ptr = CharColor_Comment;
+							str++;
+							color_ptr++;
+							if (*str == L'\0')
+								break;
+						}
+						*color_ptr = CharColor_Comment;
+						str++;
+						color_ptr++;
+						if (*str == L'"')
+						{
+							*color_ptr = CharColor_Comment;
+							str++;
+							color_ptr++;
+							break;
+						}
+					} while (*str != L'\0');
+				}
+				else if (*str == L'\'')
+				{
+					do
+					{
+						if (*str == L'\\')
+						{
+							*color_ptr = CharColor_Comment;
+							str++;
+							color_ptr++;
+							if (*str == L'\0')
+								break;
+						}
+						*color_ptr = CharColor_Comment;
+						str++;
+						color_ptr++;
+						if (*str == L'\'')
+						{
+							*color_ptr = CharColor_Comment;
+							str++;
+							color_ptr++;
+							break;
+						}
+					} while (*str != L'\0');
+				}
+				else if (*str == L';')
+				{
+					do
+					{
+						*color_ptr = CharColor_Comment;
+						str++;
+						color_ptr++;
+					} while (*str != L'\0');
+				}
+				else
+				{
+					if (*str == L'{')
+						comment_level++;
+					else if (*str == L'}')
+						comment_level--;
+					*color_ptr = CharColor_Comment;
+					str++;
+					color_ptr++;
+				}
+			}
+			else if (*str == L' ' || *str == L'\t')
+			{
+				str++;
+				color_ptr++;
+			}
+			else if (L'a' <= *str && *str <= L'z' || L'A' <= *str && *str <= L'Z' || *str == L'_' || *str == L'@' || *str == L'\\')
+			{
+				Bool at = False;
+				U8* begin = color_ptr;
+				const Char* str_begin = str;
+				U8* end;
+				do
+				{
+					if (*str == L'@')
+						at = True;
+					str++;
+					color_ptr++;
+				} while (L'a' <= *str && *str <= L'z' || L'A' <= *str && *str <= L'Z' || *str == L'_' || L'0' <= *str && *str <= L'9' || *str == L'@' || *str == L'\\');
+				end = color_ptr;
+				{
+					U8 new_color = (U8)(at ? CharColor_Global : CharColor_Identifier);
+					int word_len = (int)(str - str_begin);
+					if (!at && word_len <= 16)
+					{
+						Char word[17];
+						wcsncpy(word, str_begin, word_len);
+						word[word_len] = L'\0';
+						if (IsReserved(word))
+							new_color = (U8)CharColor_Reserved;
+					}
+					while (begin < end)
+					{
+						*begin = new_color;
+						begin++;
+					}
+				}
+			}
+			else if (L'0' <= *str && *str <= L'9')
+			{
+				U8 new_color = (U8)CharColor_Number;
+				do
+				{
+					*color_ptr = new_color;
+					str++;
+					color_ptr++;
+				} while (L'0' <= *str && *str <= L'9' || L'A' <= *str && *str <= L'F' || *str == L'#' || *str == L'.');
+				if (*str == L'e')
+				{
+					*color_ptr = new_color;
+					str++;
+					color_ptr++;
+					if (*str == L'+' || *str == L'-')
+					{
+						*color_ptr = new_color;
+						str++;
+						color_ptr++;
+						while (L'0' <= *str && *str <= L'9')
+						{
+							*color_ptr = new_color;
+							str++;
+							color_ptr++;
+						}
+					}
+				}
+				else if (*str == L'b')
+				{
+					*color_ptr = new_color;
+					while (L'0' <= *str && *str <= L'9')
+					{
+						*color_ptr = new_color;
+						str++;
+						color_ptr++;
+					}
+				}
+			}
+			else if (*str == L'"')
+			{
+				do
+				{
+					if (*str == L'\\')
+					{
+						*color_ptr = CharColor_Str;
+						str++;
+						color_ptr++;
+						if (*str == L'\0')
+							break;
+					}
+					*color_ptr = CharColor_Str;
+					str++;
+					color_ptr++;
+					if (*str == L'"')
+					{
+						*color_ptr = CharColor_Str;
+						str++;
+						color_ptr++;
+						break;
+					}
+				} while (*str != L'\0');
+			}
+			else if (*str == L'\'')
+			{
+				do
+				{
+					if (*str == L'\\')
+					{
+						*color_ptr = CharColor_Char;
+						str++;
+						color_ptr++;
+						if (*str == L'\0')
+							break;
+					}
+					*color_ptr = CharColor_Char;
+					str++;
+					color_ptr++;
+					if (*str == L'\'')
+					{
+						*color_ptr = CharColor_Char;
+						str++;
+						color_ptr++;
+						break;
+					}
+				} while (*str != L'\0');
+			}
+			else if (*str == L'{')
+			{
+				*color_ptr = CharColor_Comment;
+				comment_level = 1;
+				str++;
+				color_ptr++;
+			}
+			else if (*str == L';')
+			{
+				do
+				{
+					*color_ptr = CharColor_LineComment;
+					str++;
+					color_ptr++;
+				} while (*str != L'\0');
+			}
+			else if (*str == L' ' || *str == L'\t')
+			{
+				str++;
+				color_ptr++;
+			}
+			else
+			{
+				*color_ptr = CharColor_Symbol;
+				str++;
+				color_ptr++;
+			}
+		}
+	}
 }
 
 static Bool IsReserved(const Char* word)
@@ -916,6 +1166,8 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Force);
 					else if (wcscmp(func_attr, L"_exit_code") == 0 && (ast->FuncAttr & FuncAttr_ExitCode) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_ExitCode);
+					else if (wcscmp(func_attr, L"_take_key_value_func") == 0 && (ast->FuncAttr & FuncAttr_TakeKeyValueFunc) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeKeyValueFunc);
 					else if (ast->DllName == NULL)
 						ast->DllName = func_attr;
 					else if (ast->DllFuncName == NULL)

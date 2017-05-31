@@ -59,6 +59,7 @@ static int CmpBit64(const void* a, const void* b);
 static int CmpStr(const void* a, const void* b);
 static void* CatBin(int num, void** bins);
 static void MergeSort(void* me_, const U8* type, Bool asc);
+static void ForEachRecursion(void* ptr, const U8* child1, const U8* child2, const void* callback);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -1585,6 +1586,12 @@ EXPORT void* _replace(const U8* me_, Char old, Char new_)
 	}
 }
 
+EXPORT S64 _cmp(const U8* me_, const U8* target)
+{
+	S64 result = (S64)wcscmp((Char*)(me_ + 0x10), (Char*)(target + 0x10));
+	return result > 0 ? 1 : (result < 0 ? -1 : 0);
+}
+
 EXPORT void _addList(void* me_, const U8* type, const void* item)
 {
 	U8* node = (U8*)AllocMem(0x10 + GetSize(type[1]));
@@ -1921,6 +1928,40 @@ EXPORT void* _peek(void* me_, const U8* type)
 	void* result = NULL;
 	Copy(&result, type[1], (U8*)node + 0x08);
 	return result;
+}
+
+EXPORT Bool _exist(void* me_, const U8* type, const void* key)
+{
+	U8* child1;
+	U8* child2;
+	GetDictTypes(type, &child1, &child2);
+	{
+		int(*cmp_func)(const void* a, const void* b) = GetCmpFunc(child1);
+		const void* node = *(void**)((U8*)me_ + 0x10);
+		while (node != NULL)
+		{
+			int cmp = cmp_func(key, *(void**)((U8*)node + 0x18));
+			if (cmp == 0)
+				return True;
+			if (cmp < 0)
+				node = *(void**)node;
+			else
+				node = *(void**)((U8*)node + 0x08);
+		}
+	}
+	return False;
+}
+
+EXPORT void _forEach(void* me_, const U8* type, const void* callback)
+{
+	U8* child1;
+	U8* child2;
+	GetDictTypes(type, &child1, &child2);
+	{
+		void* ptr = *(void**)((U8*)me_ + 0x10);
+		if (ptr != NULL)
+			ForEachRecursion(ptr, child1, child2, callback);
+	}
 }
 
 static Bool IsRef(U8 type)
@@ -2404,4 +2445,21 @@ static void MergeSort(void* me_, const U8* type, Bool asc)
 	if (a != a2)
 		memcpy(a, b, (size_t)len * size);
 	FreeMem(b);
+}
+
+static void ForEachRecursion(void* ptr, const U8* child1, const U8* child2, const void* callback)
+{
+	if (*(void**)ptr != NULL)
+		ForEachRecursion(*(void**)ptr, child1, child2, callback);
+	if (*(void**)((U8*)ptr + 0x08) != NULL)
+		ForEachRecursion(*(void**)((U8*)ptr + 0x08), child1, child2, callback);
+	{
+		void* arg1 = *(void**)((U8*)ptr + 0x18);
+		void* arg2 = *(void**)((U8*)ptr + 0x20);
+		if (IsRef(*child1))
+			(*(S64*)arg1)++;
+		if (IsRef(*child2))
+			(*(S64*)arg2)++;
+		Call2Asm(arg1, arg2, (void*)callback);
+	}
 }

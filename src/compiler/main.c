@@ -71,6 +71,53 @@ EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output,
 	return result;
 }
 
+EXPORT void Interpret1(const void* src, const void* color)
+{
+	InterpretImpl1(src, color);
+}
+
+EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col))
+{
+	const Char* sys_dir2 = sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10);
+
+	FuncGetSrc = func_get_src;
+	FuncLog = func_log;
+
+	// Set the system directory.
+	if (sys_dir2 == NULL)
+	{
+		Char sys_dir3[1024 + 1];
+		GetModuleFileName(NULL, sys_dir3, 1024 + 1);
+		sys_dir2 = GetDir(sys_dir3, False, L"sys/");
+	}
+	else
+		sys_dir2 = GetDir(sys_dir2, True, NULL);
+
+	SetLogFunc(BuildMemLog, 0, sys_dir2);
+	ResetErrOccurred();
+
+	{
+		SOption option;
+		SDict* asts;
+		SAstFunc* entry;
+		SDict* dlls;
+		MakeOption(&option, (const Char*)(path + 0x10), NULL, sys_dir2, NULL, False, env == NULL ? NULL : (const Char*)(env + 0x10));
+		if (!ErrOccurred())
+		{
+			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
+			if (!ErrOccurred())
+				entry = Analyze(asts, &option, &dlls);
+		}
+	}
+
+	FuncGetSrc = NULL;
+	FuncLog = NULL;
+	DecSrc();
+	Src = NULL;
+	SrcLine = NULL;
+	SrcChar = NULL;
+}
+
 EXPORT void Version(S64* major, S64* minor, S64* micro)
 {
 	*major = 9;

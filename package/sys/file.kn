@@ -107,7 +107,7 @@ end enum
 +func [d0000.knd, _makeDir] makeDir(path: []char)
 end func
 
-+func [d0000.knd, _exist] exist(path: []char): bool
++func [d0000.knd, _existPath] exist(path: []char): bool
 end func
 
 +func [d0000.knd, _delDir] delDir(path: []char)

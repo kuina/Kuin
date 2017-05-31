@@ -55,6 +55,7 @@ EXPORT void* _trimRight(const U8* me_);
 EXPORT void* _split(const U8* me_, const U8* delimiter);
 EXPORT void* _join(const U8* me_, const U8* delimiter);
 EXPORT void* _replace(const U8* me_, Char old, Char new_);
+EXPORT S64 _cmp(const U8* me_, const U8* target);
 EXPORT void _addList(void* me_, const U8* type, const void* item);
 EXPORT void _addStack(void* me_, const U8* type, const void* item);
 EXPORT void _addQueue(void* me_, const U8* type, const void* item);
@@ -76,6 +77,8 @@ EXPORT void _delNext(void* me_, const U8* type);
 EXPORT void _ins(void* me_, const U8* type, const void* item);
 EXPORT void* _toArray(void* me_, const U8* type);
 EXPORT void* _peek(void* me_, const U8* type);
+EXPORT Bool _exist(void* me_, const U8* type, const void* key);
+EXPORT void _forEach(void* me_, const U8* type, const void* callback);
 
 // Assembly functions.
 void* ToBinClassAsm(const void* me_);
@@ -85,3 +88,7 @@ void DtorClassAsm(void* me_);
 void* CopyClassAsm(const void* me_);
 Bool AddAsm(S64* a, S64 b);
 Bool MulAsm(S64* a, S64 b);
+void* Call0Asm(void* func);
+void* Call1Asm(void* arg1, void* func);
+void* Call2Asm(void* arg1, void* arg2, void* func);
+void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);

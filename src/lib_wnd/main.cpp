@@ -843,6 +843,16 @@ EXPORT_CPP SClass* _makeList(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	return me_;
 }
 
+EXPORT_CPP void _listClear(SClass* me_)
+{
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_RESETCONTENT, 0, 0);
+}
+
+EXPORT_CPP void _listAdd(SClass* me_, const U8* text)
+{
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text + 0x10));
+}
+
 EXPORT_CPP SClass* _makeCombo(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Combo, WC_COMBOBOX, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | CBS_AUTOHSCROLL | CBS_DROPDOWN, x, y, width, height, L"", WndProcCombo, anchorX, anchorY);
@@ -1303,44 +1313,47 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 		ASSERT(msg == WM_NOTIFY);
 		HWND wnd_ctrl = reinterpret_cast<LPNMHDR>(l_param)->hwndFrom;
 		SWndBase* wnd_ctrl2 = ToWnd(wnd_ctrl);
-		switch (wnd_ctrl2->Kind)
+		if (wnd_ctrl2 != NULL)
 		{
-			case WndKind_Tab:
-				{
-					STab* tab = reinterpret_cast<STab*>(wnd_ctrl2);
-					switch (reinterpret_cast<LPNMHDR>(l_param)->code)
+			switch (wnd_ctrl2->Kind)
+			{
+				case WndKind_Tab:
 					{
-						case NM_CLICK:
-							// TODO:
-							break;
-						case NM_DBLCLK:
-							// TODO:
-							break;
-						case NM_RCLICK:
-							// TODO:
-							break;
-						case NM_RELEASEDCAPTURE:
-							// TODO:
-							break;
-						case TCN_FOCUSCHANGE:
-							// TODO:
-							break;
-						case TCN_GETOBJECT:
-							// TODO:
-							break;
-						case TCN_KEYDOWN:
-							// TODO:
-							break;
-						case TCN_SELCHANGE:
-							// TODO:
-							break;
-						case TCN_SELCHANGING:
-							// TODO:
-							break;
+						STab* tab = reinterpret_cast<STab*>(wnd_ctrl2);
+						switch (reinterpret_cast<LPNMHDR>(l_param)->code)
+						{
+							case NM_CLICK:
+								// TODO:
+								break;
+							case NM_DBLCLK:
+								// TODO:
+								break;
+							case NM_RCLICK:
+								// TODO:
+								break;
+							case NM_RELEASEDCAPTURE:
+								// TODO:
+								break;
+							case TCN_FOCUSCHANGE:
+								// TODO:
+								break;
+							case TCN_GETOBJECT:
+								// TODO:
+								break;
+							case TCN_KEYDOWN:
+								// TODO:
+								break;
+							case TCN_SELCHANGE:
+								// TODO:
+								break;
+							case TCN_SELCHANGING:
+								// TODO:
+								break;
+						}
 					}
-				}
-				break;
-			// TODO:
+					break;
+				// TODO:
+			}
 		}
 	}
 }

@@ -164,6 +164,12 @@ end class
 +class List(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+
+	+func [d0001.knd, _listClear] clear()
+	end func
+
+	+func [d0001.knd, _listAdd] add(text: []char)
+	end func
 end class
 
 +class Combo(@WndBase)

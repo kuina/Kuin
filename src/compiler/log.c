@@ -14,7 +14,7 @@ typedef struct SErrMsg
 } SErrMsg;
 
 static void(*LogFunc)(const Char* code, const Char* msg, const Char* src, int row, int col) = NULL;
-static Bool ErrFlag;
+static int ErrCnt;
 static SErrMsg ErrMsgs[MSG_NUM];
 static const Char* LastErrSrc;
 static int LastErrRow;
@@ -22,7 +22,7 @@ static int LastErrRow;
 Bool SetLogFunc(void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), int lang, const Char* sys_dir)
 {
 	LogFunc = func_log;
-	ErrFlag = False;
+	ErrCnt = 0;
 	LastErrSrc = L"$";
 	LastErrRow = -1;
 
@@ -101,6 +101,8 @@ Bool SetLogFunc(void(*func_log)(const Char* code, const Char* msg, const Char* s
 
 void Err(const Char* code, const SPos* pos, ...)
 {
+	if (ErrCnt == 100)
+		return; // Stop error detection at 100 pieces.
 	if (code[0] != L'I' && pos != NULL && wcscmp(pos->SrcName, LastErrSrc) == 0 && pos->Row == LastErrRow)
 		return;
 	if (pos != NULL)
@@ -190,15 +192,15 @@ void Err(const Char* code, const SPos* pos, ...)
 		}
 	}
 	if (code[0] == L'E')
-		ErrFlag = True;
+		ErrCnt++;
 }
 
 void ResetErrOccurred(void)
 {
-	ErrFlag = False;
+	ErrCnt = 0;
 }
 
 Bool ErrOccurred(void)
 {
-	return ErrFlag;
+	return ErrCnt > 0;
 }

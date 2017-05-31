@@ -4,6 +4,12 @@
 func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>): bool
 end func
 
+func [d0917.knd, Interpret1] interpret1(src: [][]char, color: [][]bit8)
+end func
+
+func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>)
+end func
+
 func [d0917.knd, Version] version(major: &int, minor: &int, micro: &int)
 end func
 
@@ -17,15 +23,17 @@ func [d0917.knd, ResetMemAllocator] resetMemAllocator()
 end func
 
 const undoBufSize: int :: 1024
-const cellWidth: int :: 10
+const fontSize: int :: 11
+const cellWidth: int :: 9
 const cellHeight: int :: 18
 
 const colorBack: int :: 16#FFFFF5F5
 const colorLineNumber: int :: 16#FFFF7F7F
-const colorAreaBack: int :: 16#FF7F7F7F
-const colorText: int :: 16#FF000000
+const colorAreaBack: int :: 16#FF808080
 
 var wndMain: wnd@Wnd
+var treeItem: wnd@Tree
+var listInfo: wnd@List
 var tabSrc: wnd@Tab
 var drawEditor: wnd@Draw
 var scrollXSrc: wnd@ScrollX
@@ -45,7 +53,23 @@ var popupMainHelp: wnd@Popup
 
 class Src()
 	+var src: [][]char
+	+var color: [][]bit8
 end class
+
+enum CharColor
+	none
+	identifier
+	global
+	reserved
+	number
+	str
+	char_
+	lineComment
+	comment
+	symbol
+	err
+	max
+end enum
 
 enum UndoKind
 	ins
@@ -60,14 +84,35 @@ class Undo()
 	+var str: []char
 end class
 
+class Pos()
+	+var src: []char
+	+var row: int
+	+var col: int
+
+	+*func cmp(t: @Pos): int
+		var result: int :: me.src.cmp(t.src)
+		if(result <> 0)
+			ret result
+		end if
+		do result :: me.row - t.row
+		if(result <> 0)
+			ret result
+		end if
+		ret me.col - t.col
+	end func
+end class
+
 var srcs: dict<[]char, @Src>
 var mainSrcName: []char
 var curSrc: @Src
-var curSrcColor: [][]bit8
 var undoBuf: []@Undo
 var redoBuf: []@Undo
 var undoPtr: int
 var changed: bool
+var dirty: int
+var dirtyTime: int
+var dirtyX: int
+var dirtyY: int
 var lineNumberWidth: int
 var pageX: int
 var pageY: int
@@ -76,6 +121,8 @@ var cursorY: int
 var areaX: int
 var areaY: int
 var drag: bool
+var charColor: []int
+var auxiliaryErr: dict<@Pos, []char>
 
 var font: draw@Font
 
@@ -94,16 +141,37 @@ func main()
 	end if
 
 	while(wnd@act())
+		switch(@dirty)
+		case 0
+			if(lib@sysTime() - @dirtyTime > 150)
+				do @interpret1(@curSrc.src, @curSrc.color)
+				do @drawEditor.paint()
+				do @dirty :: 1
+			end if
+		case 1
+			if(lib@sysTime() - @dirtyTime > 1200)
+				do @resetAuxiliary()
+				try
+					do @interpret2(@mainSrcName, @getSrc, null, @getEnv(), @logForInterpret)
+				catch
+				end try
+				do @hint()
+				do @updateAuxiliary()
+				do @dirty :: 2
+			end if
+		end switch
 	end while
 
 	do @finMemAllocator()
 
 	func makeWnd()
-		do @wndMain :: wnd@makeWnd(null, %normal, 1024, 768, "Kuin Programming Language")
+		do @wndMain :: wnd@makeWnd(null, %normal, 1224, 768, "Kuin Programming Language")
 		do @wndMain.minMax(384, 640, -1, -1)
 		do @wndMain.onClose :: @wndMainOnClose
 		do @wndMain.onPushMenu :: @wndMainOnPushMenu
-		do @tabSrc :: wnd@makeTab(@wndMain, 12, 12, 809, 603, %scale, %scale)
+		do @treeItem :: wnd@makeTree(@wndMain, 12, 12, 194, 366, %fix, %fix)
+		do @listInfo :: wnd@makeList(@wndMain, 12, 384, 194, 372, %fix, %scale)
+		do @tabSrc :: wnd@makeTab(@wndMain, 212, 12, 809, 603, %scale, %scale)
 		do @drawEditor :: wnd@makeDraw(@tabSrc, 6, 6, 797, 591, %scale, %scale, true)
 		do @drawEditor.onPaint :: @drawEditorOnPaint
 		do @drawEditor.onMouseDownL :: @drawEditorOnMouseDownL
@@ -118,19 +186,19 @@ func main()
 		do @scrollXSrc.setState(0, 0, 1, 0)
 		do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 780, 0, 17, 574, %move, %scale)
 		do @scrollYSrc.setState(0, 0, 1, 0)
-		do @editLog :: wnd@makeEditMulti(@wndMain, 12, 621, 1000, 135, %scale, %move)
+		do @editLog :: wnd@makeEditMulti(@wndMain, 212, 621, 1000, 135, %scale, %move)
 		do @editLog.readonly(true)
-		do @btnCompile :: wnd@makeBtn(@wndMain, 827, 12, 185, 23, %move, %fix, "Compile && Run")
+		do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, "Compile && Run")
 		do @btnCompile.onPush :: @btnCompileOnPush
-		do @groupEnv :: wnd@makeGroup(@wndMain, 827, 41, 185, 62, %move, %fix, "Environment")
+		do @groupEnv :: wnd@makeGroup(@wndMain, 1027, 41, 185, 62, %move, %fix, "Environment")
 		do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 173, 16, %fix, %fix, "Window")
 		do @radioEnvWnd.setChk(true)
 		do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 173, 16, %fix, %fix, "CUI")
-		do @btnRls :: wnd@makeBtn(@wndMain, 827, 109, 185, 23, %move, %fix, "Release Build...")
+		do @btnRls :: wnd@makeBtn(@wndMain, 1027, 109, 185, 23, %move, %fix, "Release Build...")
 		do @btnRls.onPush :: @btnRlsOnPush
-		do @editFile :: wnd@makeEdit(@wndMain, 827, 359, 185, 19, %move, %fix)
+		do @editFile :: wnd@makeEdit(@wndMain, 1027, 359, 185, 19, %move, %fix)
 		do @editFile.readonly(true)
-		do @listFile :: wnd@makeList(@wndMain, 827, 384, 185, 231, %move, %scale)
+		do @listFile :: wnd@makeList(@wndMain, 1027, 384, 185, 231, %move, %scale)
 		do @menuMain :: wnd@makeMenu()
 		do @popupMainFile :: wnd@makePopup()
 		do @popupMainFile.add(16#0001, "&New\tCtrl+N")
@@ -155,7 +223,19 @@ func main()
 	end func
 
 	func initEditor()
-		do @font :: draw@makeFont("Consolas", @cellWidth, false, false, false, @cellWidth $ float)
+		do @charColor :: #[%max $ @CharColor $ int]int
+		do @charColor[%none $ @CharColor $ int] :: 16#FF999999
+		do @charColor[%identifier $ @CharColor $ int] :: 16#FF009BEA
+		do @charColor[%global $ @CharColor $ int] :: 16#FFCC00F6
+		do @charColor[%reserved $ @CharColor $ int] :: 16#FF1400F6
+		do @charColor[%number $ @CharColor $ int] :: 16#FFEA0062
+		do @charColor[%str $ @CharColor $ int] :: 16#FFEA0062
+		do @charColor[%char_ $ @CharColor $ int] :: 16#FFEA0062
+		do @charColor[%lineComment $ @CharColor $ int] :: 16#FF1EB000
+		do @charColor[%comment $ @CharColor $ int] :: 16#FF1EB000
+		do @charColor[%symbol $ @CharColor $ int] :: 16#FF666666
+		do @charColor[%err $ @CharColor $ int] :: 16#FFFF3333
+		do @font :: draw@makeFont("Consolas", @fontSize, false, false, false, @cellWidth $ float)
 	end func
 end func
 
@@ -351,20 +431,18 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end try
 	do @resetMemAllocator()
 	do @editLog.setText("")
-	var env: []char
 	var cmd: []char
 	var cmdLine: []char
 	if(@radioEnvWnd.getChk())
-		do env :: "wnd"
 		do cmd :: out
 		do cmdLine :: null
 	elif(@radioEnvCui.getChk())
-		do env :: "cui"
 		do cmd :: file@sysDir(%system32) ~ "cmd.exe"
 		do cmdLine :: "/C \"\"" ~ file@exeDir().replace('/', '\\') ~ "sys\\launcher.bat\" \"" ~ out.replace('/', '\\') ~ "\"\""
 	end if
 	try
-		if(@build(@mainSrcName, @getSrc, null, out, null, false, env, @log))
+		do @resetAuxiliary()
+		if(@build(@mainSrcName, @getSrc, null, out, null, false, @getEnv(), @log))
 			if (@mainSrcName <> "_default_.kn")
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
 				do filePtr.writeStr(file@dir(@mainSrcName))
@@ -376,6 +454,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 				do process.run(false)
 			end if
 		end if
+		do @updateAuxiliary()
 	catch
 		do wnd@msgBox(@wndMain, "Unexpected error.", "Kuin Programming Language", %error, %ok)
 	end try
@@ -388,14 +467,9 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	end if
 	do @resetMemAllocator()
 	do @editLog.setText("")
-	var env: []char
-	if(@radioEnvWnd.getChk())
-		do env :: "wnd"
-	elif(@radioEnvCui.getChk())
-		do env :: "cui"
-	end if
 	try
-		if(@build(@mainSrcName, @getSrc, null, file, null, true, env, @log))
+		do @resetAuxiliary()
+		if(@build(@mainSrcName, @getSrc, null, file, null, true, @getEnv(), @log))
 			if (@mainSrcName <> "_default_.kn")
 				var resSrc: []char :: file@dir(@mainSrcName) ~ "res/"
 				if(file@exist(resSrc))
@@ -406,9 +480,19 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 			end if
 			do wnd@msgBox(@wndMain, "The build succeeded.", "Kuin Programming Language", %info, %ok)
 		end if
+		do @updateAuxiliary()
 	catch
 		do wnd@msgBox(@wndMain, "Unexpected error.", "Kuin Programming Language", %error, %ok)
 	end try
+end func
+
+func getEnv(): []char
+	if(@radioEnvWnd.getChk())
+		ret "wnd"
+	elif(@radioEnvCui.getChk())
+		ret "cui"
+	end if
+	ret "wnd"
 end func
 
 func getSrc(path: []char): [][]char
@@ -435,7 +519,32 @@ func getSrc(path: []char): [][]char
 end func
 
 func log(args: [][]char, row: int, col: int)
-	do @editLog.setText(@editLog.getText() ~ @nullStr(args[0]) ~ ", " ~ @nullStr(args[1]) ~ ", " ~ @nullStr(args[2]) ~ ", " ~ row.toStr() ~ ", " ~ col.toStr() ~ "\n")
+	var msg: []char :: @nullStr(args[0]) ~ ": " ~ @nullStr(args[1])
+	if(args[2] =& null)
+		do @editLog.setText(@editLog.getText() ~ msg ~ "\n")
+	else
+		do @editLog.setText(@editLog.getText() ~ msg ~ " (" ~ @nullStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n")
+		var pos: @Pos :: #@Pos
+		do pos.src :: ##args[2]
+		do pos.row :: row
+		do pos.col :: col
+		if(!@auxiliaryErr.exist(pos))
+			do @auxiliaryErr.add(pos, msg)
+		end if
+	end if
+end func
+
+func logForInterpret(args: [][]char, row: int, col: int)
+	if(args[2] <>& null)
+		var msg: []char :: @nullStr(args[0]) ~ ": " ~ @nullStr(args[1])
+		var pos: @Pos :: #@Pos
+		do pos.src :: ##args[2]
+		do pos.row :: row
+		do pos.col :: col
+		if(!@auxiliaryErr.exist(pos))
+			do @auxiliaryErr.add(pos, msg)
+		end if
+	end if
 end func
 
 func nullStr(s: []char): []char
@@ -460,13 +569,16 @@ func new(srcName: []char, src: [][]char)
 	do @srcs :: #dict<[]char, @Src>
 
 	do @curSrc :: #@Src
-	if(src =& null)
+	if(src =& null | ^src = 0)
 		do @curSrc.src :: [""]
+		do @curSrc.color :: [#[0]bit8]
 	else
-		do @curSrc.src :: ^src = 0 ?([""], src)
+		do @curSrc.src :: src
+		do @curSrc.color :: #[^src][]bit8
+		for i(0, ^src - 1)
+			do @curSrc.color[i] :: #[^src[i]]bit8
+		end for
 	end if
-
-	do @curSrcColor :: null
 
 	do @mainSrcName :: srcName =& null ?("_default_.kn", srcName)
 	do @srcs.add(@mainSrcName, @curSrc)
@@ -475,7 +587,6 @@ func new(srcName: []char, src: [][]char)
 	do @undoBuf :: #[@undoBufSize]@Undo
 	do @redoBuf :: #[@undoBufSize]@Undo
 	do @undoPtr :: 0
-	do @changed :: false
 
 	do @pageX :: 0
 	do @pageY :: 0
@@ -484,6 +595,11 @@ func new(srcName: []char, src: [][]char)
 	do @areaX :: -1
 	do @areaY :: -1
 	do @drag :: false
+
+	do @setDirty()
+	do @changed :: false
+
+	do @resetAuxiliary()
 	do @refreshCursor(false, true)
 	do @drawEditor.paint()
 end func
@@ -540,6 +656,14 @@ func charWidth(c: char, x: int): int
 		ret 0
 	end if
 	ret 2
+end func
+
+func setDirty()
+	do @changed :: true
+	do @dirty :: 0
+	do @dirtyX :: @cursorX
+	do @dirtyY :: @cursorY
+	do @dirtyTime :: lib@sysTime()
 end func
 
 func areaSelected(): bool
@@ -634,7 +758,6 @@ func undoPtrNext(ptr: int): int
 end func
 
 func ins(x: int, y: int, str: []char, recordUndo: bool)
-	do @changed :: true
 	if(recordUndo)
 		do @undoPtr :: @undoPtrNext(@undoPtr)
 		var redo: @Undo :: #@Undo
@@ -648,11 +771,14 @@ func ins(x: int, y: int, str: []char, recordUndo: bool)
 		if(c = '\n')
 			var line: []char :: @curSrc.src[y].sub(x, -1)
 			do @curSrc.src[y] :: @curSrc.src[y].sub(0, x)
+			do @curSrc.color[y] :: #[^@curSrc.src[y]]bit8
 			do @curSrc.src :: @curSrc.src.sub(0, y + 1) ~ [line] ~ @curSrc.src.sub(y + 1, -1)
+			do @curSrc.color :: @curSrc.color.sub(0, y + 1) ~ [#[^line]bit8] ~ @curSrc.color.sub(y + 1, -1)
 			do x :: 0
 			do y :+ 1
 		else
 			do @curSrc.src[y] :: @curSrc.src[y].sub(0, x) ~ c.toStr() ~ @curSrc.src[y].sub(x, -1)
+			do @curSrc.color[y] :: #[^@curSrc.src[y]]bit8
 			do x :+ 1
 		end if
 	end foreach
@@ -666,10 +792,10 @@ func ins(x: int, y: int, str: []char, recordUndo: bool)
 	end if
 	do @cursorX :: x
 	do @cursorY :: y
+	do @setDirty()
 end func
 
 func bs(x: int, y: int, len: int, recordUndo: bool)
-	do @changed :: true
 	if(recordUndo)
 		do @undoPtr :: @undoPtrNext(@undoPtr)
 		var redo: @Undo :: #@Undo
@@ -686,13 +812,16 @@ func bs(x: int, y: int, len: int, recordUndo: bool)
 				do undoStr :: "\n" ~ undoStr
 				var x2: int :: ^@curSrc.src[y - 1]
 				do @curSrc.src[y - 1] :~ @curSrc.src[y]
+				do @curSrc.color[y - 1] :: #[^@curSrc.src[y - 1]]bit8
 				do @curSrc.src :: @curSrc.src.sub(0, y) ~ @curSrc.src.sub(y + 1, -1)
+				do @curSrc.color :: @curSrc.color.sub(0, y) ~ @curSrc.color.sub(y + 1, -1)
 				do y :- 1
 				do x :: x2
 			end if
 		else
 			do undoStr :: @curSrc.src[y][x - 1].toStr() ~ undoStr
 			do @curSrc.src[y] :: @curSrc.src[y].sub(0, x - 1) ~ @curSrc.src[y].sub(x, -1)
+			do @curSrc.color[y] :: #[^@curSrc.src[y]]bit8
 			do x :- 1
 		end if
 	end for
@@ -706,10 +835,10 @@ func bs(x: int, y: int, len: int, recordUndo: bool)
 	end if
 	do @cursorX :: x
 	do @cursorY :: y
+	do @setDirty()
 end func
 
 func del(x: int, y: int, len: int, recordUndo: bool)
-	do @changed :: true
 	if(recordUndo)
 		do @undoPtr :: @undoPtrNext(@undoPtr)
 		var redo: @Undo :: #@Undo
@@ -725,11 +854,14 @@ func del(x: int, y: int, len: int, recordUndo: bool)
 			if(y <> ^@curSrc.src - 1)
 				do undoStr :~ "\n"
 				do @curSrc.src[y] :~ @curSrc.src[y + 1]
+				do @curSrc.color[y] :: #[^@curSrc.src[y]]bit8
 				do @curSrc.src :: @curSrc.src.sub(0, y + 1) ~ @curSrc.src.sub(y + 2, -1)
+				do @curSrc.color :: @curSrc.color.sub(0, y + 1) ~ @curSrc.color.sub(y + 2, -1)
 			end if
 		else
 			do undoStr :~ @curSrc.src[y][x].toStr()
 			do @curSrc.src[y] :: @curSrc.src[y].sub(0, x) ~ @curSrc.src[y].sub(x + 1, -1)
+			do @curSrc.color[y] :: #[^@curSrc.src[y]]bit8
 		end if
 	end for
 	if(recordUndo)
@@ -742,6 +874,7 @@ func del(x: int, y: int, len: int, recordUndo: bool)
 	end if
 	do @cursorX :: x
 	do @cursorY :: y
+	do @setDirty()
 end func
 
 func undo()
@@ -843,13 +976,21 @@ func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
 						do inArea :: areaX3 < areaX2
 					end if
 				end if
-				if(inArea)
-					do draw@rect(x2 $ float, (i * @cellHeight) $ float, @cellWidth $ float, @cellHeight $ float, @colorAreaBack)
-				end if
+				var textX: float :: x2 $ float
+				var textY: float :: (i * @cellHeight) $ float
 				if(j = ^str)
+					if(inArea)
+						do draw@rect(textX, textY, @cellWidth $ float, @cellHeight $ float, @colorAreaBack)
+					end if
 					; TODO: Return mark.
+				elif(inArea)
+					do draw@rect(textX, textY, @cellWidth $ float, @cellHeight $ float, @colorAreaBack)
+					do @font.draw(textX, textY, str[j].toStr(), draw@white)
+				elif(@curSrc.color[@pageY + i][j] = %err $ @CharColor $ bit8)
+					do draw@rect(textX, textY, @cellWidth $ float, @cellHeight $ float, @charColor[%err $ @CharColor $ int])
+					do @font.draw(textX, textY, str[j].toStr(), draw@white)
 				else
-					do @font.draw(x2 $ float, (i * @cellHeight) $ float, str[j].toStr(), @colorText)
+					do @font.draw(textX, textY, str[j].toStr(), @charColor[@curSrc.color[@pageY + i][j] $ int])
 				end if
 			end if
 			if(j <> ^str)
@@ -1010,7 +1151,9 @@ func drawEditorOnKeyDown(wnd: wnd@WndBase, key: input@Key, shiftCtrl: wnd@ShiftC
 			; TODO
 		else
 			do @setArea(shiftCtrl)
+			var absoluteX: int :: getAbsoluteX()
 			do @cursorY :- 1
+			do setAbsoluteX(absoluteX)
 			do @refreshCursor(false, true)
 			do @drawEditor.paint()
 		end if
@@ -1028,7 +1171,9 @@ func drawEditorOnKeyDown(wnd: wnd@WndBase, key: input@Key, shiftCtrl: wnd@ShiftC
 			; TODO
 		else
 			do @setArea(shiftCtrl)
+			var absoluteX: int :: getAbsoluteX()
 			do @cursorY :+ 1
+			do setAbsoluteX(absoluteX)
 			do @refreshCursor(false, true)
 			do @drawEditor.paint()
 		end if
@@ -1046,6 +1191,37 @@ func drawEditorOnKeyDown(wnd: wnd@WndBase, key: input@Key, shiftCtrl: wnd@ShiftC
 			do @drawEditor.paint()
 		end if
 	end switch
+
+	func getAbsoluteX(): int
+		if(@cursorY < 0 | ^@curSrc.src <= @cursorY)
+			ret 0
+		end if
+		var absoluteX: int :: 0
+		for i(0, @cursorX - 1)
+			if(i >= ^@curSrc.src[@cursorY])
+				break i
+			end if
+			var charWidth: int :: @charWidth(@curSrc.src[@cursorY][i], absoluteX)
+			do absoluteX :+ charWidth
+		end for
+		ret absoluteX
+	end func
+
+	func setAbsoluteX(absoluteX: int)
+		if(@cursorY < 0 | ^@curSrc.src <= @cursorY)
+			ret
+		end if
+		var x: int :: 0
+		do @cursorX :: 0
+		for i(0, ^@curSrc.src[@cursorY] - 1)
+			var charWidth: int :: @charWidth(@curSrc.src[@cursorY][i], x)
+			if(x + charWidth > absoluteX)
+				break i
+			end if
+			do x :+ charWidth
+			do @cursorX :+ 1
+		end for
+	end func
 end func
 
 func drawEditorOnKeyChar(wnd: wnd@WndBase, key: char)
@@ -1071,4 +1247,88 @@ func drawEditorOnScrollY(wnd: wnd@WndBase, pos: int)
 	do @pageY :: pos
 	do @refreshCursor(false, false)
 	do @drawEditor.paint()
+end func
+
+func resetAuxiliary()
+	do @auxiliaryErr :: #dict<@Pos, []char>
+	do @listInfo.clear()
+end func
+
+func updateAuxiliary()
+	do @auxiliaryErr.forEach(callback)
+	do @drawEditor.paint()
+
+	func callback(pos: @Pos, msg: []char)
+		do @listInfo.add(msg)
+		do @fillColor(pos.col, pos.row - 1, %err $ @CharColor $ bit8)
+	end func
+end func
+
+func hint()
+	var charColor: @CharColor
+	var word: []char :: getWord(&charColor)
+	if(word <>& null)
+		switch(charColor)
+		case %none
+		case %identifier
+		case %global
+		case %reserved
+			switch(word)
+			case "if"
+				do @editLog.setText("if BlockName(cond)\n\t...\nend if")
+			end switch
+		end switch
+	end if
+
+	func getWord(color: &@CharColor): []char
+		var x: int :: @dirtyX
+		var y: int :: @dirtyY
+		var color2: bit8
+		if(@moveWordTop(&x, &y, &color2))
+			var beginX: int :: x
+			while(x < ^@curSrc.color[y] & @curSrc.color[y][x] = color2)
+				do x :+ 1
+			end while
+			if(beginX = x)
+				ret null
+			end if
+			do color :: color2 $ @CharColor
+			ret @curSrc.src[y].sub(beginX, x - beginX)
+		end if
+		ret null
+	end func
+end func
+
+func moveWordTop(x: &int, y: &int, color: &bit8): bool
+	if(y < 0)
+		do y :: 0
+	elif(^@curSrc.color <= y)
+		do y :: ^@curSrc.color - 1
+	end if
+	if(1 <= x & x < ^@curSrc.color[y] & (@curSrc.src[y][x] = ' ' | @curSrc.src[y][x] = '\t'))
+		do x :- 1
+	end if
+	if(x < 0)
+		do x :: 0
+	elif(^@curSrc.color[y] <= x)
+		do x :: ^@curSrc.color[y] - 1
+	end if
+	if(^@curSrc.color[y] <> 0)
+		do color :: @curSrc.color[y][x]
+		while(x >= 1 & @curSrc.color[y][x - 1] = color)
+			do x :- 1
+		end while
+		ret true
+	end if
+	ret false
+end func
+
+func fillColor(x: int, y: int, newColor: bit8)
+	var color: bit8
+	if(@moveWordTop(&x, &y, &color))
+		while(x < ^@curSrc.color[y] & @curSrc.color[y][x] = color)
+			do @curSrc.color[y][x] :: newColor
+			do x :+ 1
+		end while
+	end if
 end func

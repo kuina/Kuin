@@ -26,7 +26,7 @@ EXPORT S64 _streamFileSize(SClass* me_);
 EXPORT Bool _streamTerm(SClass* me_);
 EXPORT void _makeDir(const U8* path);
 EXPORT void _foreachDir(const U8* path, Bool recursive, void* func);
-EXPORT Bool _exist(const U8* path);
+EXPORT Bool _existPath(const U8* path);
 EXPORT void _delDir(const U8* path);
 EXPORT void _delFile(const U8* path);
 EXPORT void _copyDir(const U8* dst, const U8* src);

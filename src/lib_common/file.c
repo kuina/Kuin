@@ -421,7 +421,7 @@ EXPORT void _foreachDir(const U8* path, Bool recursive, void* func)
 		THROW(0x1000, L"");
 }
 
-EXPORT Bool _exist(const U8* path)
+EXPORT Bool _existPath(const U8* path)
 {
 	return PathFileExists((const Char*)(path + 0x10)) != 0;
 }

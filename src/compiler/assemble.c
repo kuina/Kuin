@@ -907,6 +907,7 @@ static void GcDec(int reg_i, int reg_f, const SAstType* type)
 	// The values of less than 'reg_i', 'reg_f' and less, 'SI', and 'DI' are to be restored.
 	// Since 'reg_i' may be released, its value is not restored.
 	SAsmLabel* lbl1 = AsmLabel();
+	ASSERT(IsRef(type));
 	ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, RegI[reg_i]), ValImmU(8, 0x00)));
 	ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 	ListAdd(PackAsm->Asms, AsmDEC(ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));

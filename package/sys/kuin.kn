@@ -5,7 +5,7 @@
 	func _dtor()
 	end func
 
-	func cmp(t: @Class): int
+	+func cmp(t: @Class): int
 		throw 16#C9170004
 	end func
 
@@ -167,6 +167,9 @@ end func
 func [d0000.knd] _replace(me_: []char, old: char, new: char): []char
 end func
 
+func [d0000.knd] _cmp(me_: []char, target: []char): int
+end func
+
 func [d0000.knd, _any_type, _take_child] _addList(me_: []bit8, type: int, item: []bit8)
 end func
 
@@ -228,4 +231,10 @@ func [d0000.knd, _any_type, _ret_array_of_list_child] _toArray(me_: []bit8, type
 end func
 
 func [d0000.knd, _any_type, _ret_child] _peek(me_: []bit8, type: int): int
+end func
+
+func [d0000.knd, _any_type, _take_child] _exist(me_: []bit8, type: int, key: []bit8): bool
+end func
+
+func [d0000.knd, _any_type, _take_key_value_func] _forEach(me_: []bit8, type: int, callback: int)
 end func

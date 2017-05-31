@@ -14,3 +14,35 @@ end func
 
 +func [d0000.knd, _taskOpen] open(path: []char)
 end func
+
++class Thread(kuin@ResClass)
+	*func [d0000.knd, _threadDtor, _force] _dtor()
+	end func
+
+	+func [d0000.knd, _threadRun] run()
+	end func
+
+	var threadHandle: int
+end class
+
++func [d0000.knd, _makeThread, _make_instance] makeThread(me2: @Thread, threadFunc: func<()>): @Thread
+end func
+
++class Mutex(kuin@ResClass)
+	*func [d0000.knd, _mutexDtor, _force] _dtor()
+	end func
+
+	+func [d0000.knd, _mutexLock] lock()
+	end func
+
+	+func [d0000.knd, _mutexTryLock] tryLock(): bool
+	end func
+
+	+func [d0000.knd, _mutexUnlock] unlock()
+	end func
+
+	var criticalSection: int
+end class
+
++func [d0000.knd, _makeMutex, _make_instance] makeMutex(me2: @Mutex): @Mutex
+end func
