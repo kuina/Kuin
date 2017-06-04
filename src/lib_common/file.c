@@ -500,8 +500,29 @@ EXPORT void* _ext(const U8* path)
 
 EXPORT void* _fileName(const U8* path)
 {
-	// TODO:
-	return NULL;
+	const Char* path2 = (const Char*)(path + 0x10);
+	size_t len = wcslen(path2);
+	U8* result;
+	const Char* ptr = path2 + len;
+	const Char* ptr2 = ptr;
+	while (ptr != path2 && *ptr != L'\\' && *ptr != L'/')
+		ptr--;
+	if (ptr == path2)
+		return (void*)path;
+	ptr++;
+	{
+		size_t len2 = ptr2 + 1 - ptr;
+		size_t i;
+		Char* str;
+		result = (U8*)AllocMem(0x10 + sizeof(Char) * (len2 + 1));
+		*(S64*)(result + 0x00) = DefaultRefCntFunc;
+		*(S64*)(result + 0x08) = len2;
+		str = (Char*)(result + 0x10);
+		for (i = 0; i < len2; i++)
+			str[i] = ptr[i];
+		str[i] = L'\0';
+	}
+	return result;
 }
 
 EXPORT void* _fullPath(const U8* path)
@@ -512,8 +533,27 @@ EXPORT void* _fullPath(const U8* path)
 
 EXPORT void* _delExt(const U8* path)
 {
-	// TODO:
-	return NULL;
+	const Char* path2 = (const Char*)(path + 0x10);
+	size_t len = wcslen(path2);
+	U8* result;
+	const Char* ptr = path2 + len;
+	while (ptr != path2 && *ptr != L'\\' && *ptr != L'/' && *ptr != L'.')
+		ptr--;
+	if (ptr == path2 || *ptr != L'.')
+		return (void*)path;
+	{
+		size_t len2 = ptr - path2;
+		size_t i;
+		Char* str;
+		result = (U8*)AllocMem(0x10 + sizeof(Char) * (len2 + 1));
+		*(S64*)(result + 0x00) = DefaultRefCntFunc;
+		*(S64*)(result + 0x08) = len2;
+		str = (Char*)(result + 0x10);
+		for (i = 0; i < len2; i++)
+			str[i] = path2[i] == L'\\' ? L'/' : path2[i];
+		str[i] = L'\0';
+	}
+	return result;
 }
 
 EXPORT void* _tmpFile(void)

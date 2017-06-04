@@ -10,3 +10,5 @@ EXPORT void Version(S64* major, S64* minor, S64* micro);
 EXPORT void InitMemAllocator(void);
 EXPORT void FinMemAllocator(void);
 EXPORT void ResetMemAllocator(void);
+EXPORT void FreeIdentifierSet(void);
+EXPORT void* GetHint(const U8* name, const U8* src, S64 row);

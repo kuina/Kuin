@@ -59,5 +59,20 @@ func main()
 			do a.fill("y")
 			do cui@print(a[0])
 		end block
+
+		block
+			do cui@print(file@fileName("abc/def.txt"))
+			do cui@print(file@fileName("abc/"))
+			do cui@print(file@fileName("abcdef.txt"))
+			do cui@print(file@fileName("ab/cd/ef.txt"))
+			do cui@print(file@fileName("ab/cd/"))
+			do cui@print(file@delExt("abc/def.txt"))
+			do cui@print(file@delExt("abc/"))
+			do cui@print(file@delExt("abcdef.txt"))
+			do cui@print(file@delExt("ab/cd/ef.txt"))
+			do cui@print(file@delExt("ab/cd/"))
+			do cui@print(file@delExt("a.txt"))
+			do cui@print(file@delExt("a."))
+		end block
 	end for
 end func

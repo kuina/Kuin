@@ -12,6 +12,18 @@ Excpt: 80000003
 > yyyyy
 > x
 > y
+> def.txt
+> 
+> abcdef.txt
+> ef.txt
+> 
+> abc/def
+> abc/
+> abcdef
+> ab/cd/ef
+> ab/cd/
+> a
+> a
 > -16
 > -16
 > 2
@@ -24,6 +36,18 @@ Excpt: 80000003
 > yyyyy
 > x
 > y
+> def.txt
+> 
+> abcdef.txt
+> ef.txt
+> 
+> abc/def
+> abc/
+> abcdef
+> ab/cd/ef
+> ab/cd/
+> a
+> a
 > -16
 > -16
 > 2
@@ -36,4 +60,16 @@ Excpt: 80000003
 > yyyyy
 > x
 > y
+> def.txt
+> 
+> abcdef.txt
+> ef.txt
+> 
+> abc/def
+> abc/
+> abcdef
+> ab/cd/ef
+> ab/cd/
+> a
+> a
 end: ../../test/output/output0016.exe

@@ -18,11 +18,27 @@
 #include "parse.h"
 #include "util.h"
 
+typedef struct SIdentifier
+{
+	Char* Name;
+	Char* Hint;
+	int Row;
+} SIdentifier;
+
+typedef struct SIdentifierSet
+{
+	Char* Src;
+	int IdentifierNum;
+	SIdentifier* Identifiers;
+} SIdentifierSet;
+
 static const void*(*FuncGetSrc)(const U8*) = NULL;
 static void(*FuncLog)(const void*, S64, S64) = NULL;
 static const void* Src = NULL;
 static const void* SrcLine = NULL;
 static const Char* SrcChar = NULL;
+static int IdentifierSetNum = 0;
+static SIdentifierSet* IdentifierSets = NULL;
 
 // Assembly functions.
 void* Call0Asm(void* func);
@@ -31,13 +47,20 @@ void* Call2Asm(void* arg1, void* arg2, void* func);
 void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);
 
 static void DecSrc(void);
-static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col));
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), Bool analyze_identifiers);
 static FILE* BuildMemWfopen(const Char* file_name, const Char* mode);
 static int BuildMemFclose(FILE* file_ptr);
 static U16 BuildMemFgetwc(FILE* file_ptr);
 static size_t BuildMemGetSize(FILE* file_ptr);
 static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int row, int col);
 static size_t BuildFileGetSize(FILE* file_ptr);
+static void MakeIdentifierSet(SDict* asts);
+static const void* MakeIdentifierSet2(const Char* key, const void* value, void* param);
+static const void* MakeIdentifierSet3(const Char* key, const void* value, void* param);
+static const void* MakeIdentifierSet4(const Char* key, const void* value, void* param);
+static const void* MakeIdentifierSet5(const Char* key, const void* value, void* param);
+static int CmpIdentifierSet(const void* a, const void* b);
+static int CmpIdentifier(const void* a, const void* b);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -52,7 +75,7 @@ EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), cons
 	Bool result;
 	FuncGetSrc = func_get_src;
 	FuncLog = func_log;
-	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon == NULL ? NULL : (const Char*)(icon + 0x10), rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog);
+	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon == NULL ? NULL : (const Char*)(icon + 0x10), rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog, True);
 	FuncGetSrc = NULL;
 	FuncLog = NULL;
 	DecSrc();
@@ -66,7 +89,7 @@ EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output,
 {
 	Bool result;
 	InitAllocator();
-	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log);
+	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log, False);
 	FinAllocator();
 	return result;
 }
@@ -99,14 +122,17 @@ EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 	{
 		SOption option;
 		SDict* asts;
-		SAstFunc* entry;
 		SDict* dlls;
 		MakeOption(&option, (const Char*)(path + 0x10), NULL, sys_dir2, NULL, False, env == NULL ? NULL : (const Char*)(env + 0x10));
 		if (!ErrOccurred())
 		{
 			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
 			if (!ErrOccurred())
-				entry = Analyze(asts, &option, &dlls);
+			{
+				Analyze(asts, &option, &dlls);
+				if (!ErrOccurred())
+					MakeIdentifierSet(asts);
+			}
 		}
 	}
 
@@ -116,6 +142,12 @@ EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 	Src = NULL;
 	SrcLine = NULL;
 	SrcChar = NULL;
+}
+
+EXPORT void* Interpret3(const U8* src, S64 row, S64 col)
+{
+	// TODO: Search pos
+	return NULL;
 }
 
 EXPORT void Version(S64* major, S64* minor, S64* micro)
@@ -140,6 +172,68 @@ EXPORT void ResetMemAllocator(void)
 	ResetAllocator();
 }
 
+EXPORT void FreeIdentifierSet(void)
+{
+	if (IdentifierSets == NULL)
+		return;
+	for (int i = 0; i < IdentifierSetNum; i++)
+	{
+		for (int j = 0; j < IdentifierSets[i].IdentifierNum; j++)
+		{
+			free(IdentifierSets[i].Identifiers[j].Name);
+			free(IdentifierSets[i].Identifiers[j].Hint);
+		}
+		free(IdentifierSets[i].Identifiers);
+		free(IdentifierSets[i].Src);
+	}
+	free(IdentifierSets);
+	IdentifierSets = NULL;
+}
+
+EXPORT void* GetHint(const U8* name, const U8* src, S64 row)
+{
+	const Char* name2 = (const Char*)(name + 0x10);
+	for (int i = 0; i < IdentifierSetNum; i++)
+	{
+		int pos = -1;
+		if (wcscmp(IdentifierSets[i].Src, (const Char*)(src + 0x10)) != 0)
+			continue;
+		{
+			int min = 0;
+			int max = IdentifierSets[i].IdentifierNum - 1;
+			while (min <= max)
+			{
+				int mid = (min + max) / 2;
+				int cmp = wcscmp(name2, IdentifierSets[i].Identifiers[mid].Name);
+				if (cmp < 0)
+					max = mid - 1;
+				else if (cmp > 0)
+					min = mid + 1;
+				else
+				{
+					pos = mid;
+					break;
+				}
+			}
+		}
+		if (pos == -1)
+			continue;
+		while (pos - 1 >= 0 && wcscmp(name2, IdentifierSets[i].Identifiers[pos - 1].Name) == 0)
+			pos--;
+		while (pos + 1 < IdentifierSets[i].IdentifierNum && wcscmp(name2, IdentifierSets[i].Identifiers[pos + 1].Name) == 0 && row >= IdentifierSets[i].Identifiers[pos + 1].Row)
+			pos++;
+		{
+			size_t len = wcslen(IdentifierSets[i].Identifiers[pos].Hint);
+			U8* result = (U8*)Alloc(0x10 + sizeof(Char) * (len + 1));
+			*(S64*)(result + 0x00) = DefaultRefCntFunc + 1;
+			*(S64*)(result + 0x08) = (S64)len;
+			wcscpy((Char*)(result + 0x10), IdentifierSets[i].Identifiers[pos].Hint);
+			return result;
+		}
+	}
+	return NULL;
+}
+
 static void DecSrc(void)
 {
 	// Decrement 'Src', but do not release it here. It will be released in '.kn'.
@@ -150,7 +244,7 @@ static void DecSrc(void)
 	}
 }
 
-static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col))
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), Bool analyze_identifiers)
 {
 	SOption option;
 	SDict* asts;
@@ -187,6 +281,8 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0002", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
+	if (analyze_identifiers)
+		MakeIdentifierSet(asts);
 	Assemble(&pack_asm, entry, &option, dlls);
 	if (ErrOccurred())
 		goto ERR;
@@ -322,4 +418,117 @@ static size_t BuildFileGetSize(FILE* file_ptr)
 	file_size = (int)ftell(file_ptr);
 	fseek(file_ptr, 0, SEEK_SET);
 	return (size_t)file_size;
+}
+
+static void MakeIdentifierSet(SDict* asts)
+{
+	int len = 0;
+	FreeIdentifierSet();
+	DictForEach(asts, MakeIdentifierSet2, &len);
+	IdentifierSetNum = len;
+	IdentifierSets = (SIdentifierSet*)malloc(sizeof(SIdentifierSet) * (size_t)len);
+	{
+		int cnt = 0;
+		DictForEach(asts, MakeIdentifierSet3, &cnt);
+		qsort(IdentifierSets, len, sizeof(SIdentifierSet), CmpIdentifierSet);
+	}
+}
+
+static const void* MakeIdentifierSet2(const Char* key, const void* value, void* param)
+{
+	int* len = (int*)param;
+	UNUSED(key);
+	(*len)++;
+	return value;
+}
+
+static const void* MakeIdentifierSet3(const Char* key, const void* value, void* param)
+{
+	int* cnt = (int*)param;
+	size_t name_len = wcslen(key);
+	SAst* ast = (SAst*)value;
+	int len = 0;
+	IdentifierSets[*cnt].Src = (Char*)malloc(sizeof(Char) * (name_len + 1));
+	wcscpy(IdentifierSets[*cnt].Src, key);
+	DictForEach(ast->ScopeChildren, MakeIdentifierSet4, &len);
+	IdentifierSets[*cnt].IdentifierNum = len;
+	IdentifierSets[*cnt].Identifiers = (SIdentifier*)malloc(sizeof(SIdentifier) * (size_t)(len));
+	{
+		int cnt2[3];
+		cnt2[0] = *cnt;
+		cnt2[1] = 0;
+		cnt2[2] = 1;
+		DictForEach(ast->ScopeChildren, MakeIdentifierSet5, cnt2);
+		qsort(IdentifierSets[*cnt].Identifiers, len, sizeof(SIdentifier), CmpIdentifier);
+	}
+	(*cnt)++;
+	return value;
+}
+
+static const void* MakeIdentifierSet4(const Char* key, const void* value, void* param)
+{
+	UNUSED(key);
+	int* len = (int*)param;
+	SAst* ast = (SAst*)value;
+	if (ast->Name != NULL)
+		(*len)++;
+	if (ast->ScopeChildren != NULL)
+		DictForEach(ast->ScopeChildren, MakeIdentifierSet4, len);
+	return value;
+}
+
+static const void* MakeIdentifierSet5(const Char* key, const void* value, void* param)
+{
+	int* cnt = (int*)param;
+	SAst* ast = (SAst*)value;
+	if (ast->Name != NULL)
+	{
+		size_t name_len = wcslen(ast->Name);
+		SIdentifier* identifier = &IdentifierSets[cnt[0]].Identifiers[cnt[1]];
+		UNUSED(key);
+		if (cnt[2] == 1)
+		{
+			identifier->Name = (Char*)malloc(sizeof(Char) * (name_len + 2));
+			identifier->Name[0] = L'@';
+			wcscpy(identifier->Name + 1, ast->Name);
+		}
+		else
+		{
+			identifier->Name = (Char*)malloc(sizeof(Char) * (name_len + 1));
+			wcscpy(identifier->Name, ast->Name);
+		}
+		identifier->Row = ast->Pos->Row;
+		{
+			int hint_len;
+			const Char* hint = GetDefinition(&hint_len, ast);
+			identifier->Hint = (Char*)malloc(sizeof(Char) * (size_t)(hint_len + 1));
+			wcscpy(identifier->Hint, hint);
+		}
+		cnt[1]++;
+	}
+	if (ast->ScopeChildren != NULL)
+	{
+		int cnt2 = cnt[2];
+		cnt[2] = 0;
+		DictForEach(ast->ScopeChildren, MakeIdentifierSet5, cnt);
+		cnt[2] = cnt2;
+	}
+	return value;
+}
+
+static int CmpIdentifierSet(const void* a, const void* b)
+{
+	const SIdentifierSet* a2 = (const SIdentifierSet*)a;
+	const SIdentifierSet* b2 = (const SIdentifierSet*)b;
+	return wcscmp(a2->Src, b2->Src);
+}
+
+static int CmpIdentifier(const void* a, const void* b)
+{
+	const SIdentifier* a2 = (const SIdentifier*)a;
+	const SIdentifier* b2 = (const SIdentifier*)b;
+	int result = wcscmp(a2->Name, b2->Name);
+	if (result == 0)
+		result = a2->Row - b2->Row;
+	return result;
 }

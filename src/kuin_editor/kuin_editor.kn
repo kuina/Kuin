@@ -22,6 +22,12 @@ end func
 func [d0917.knd, ResetMemAllocator] resetMemAllocator()
 end func
 
+func [d0917.knd, FreeIdentifierSet] freeIdentifierSet()
+end func
+
+func [d0917.knd, GetHint] getHint(name: []char, src: []char, row: int): []char
+end func
+
 const undoBufSize: int :: 1024
 const fontSize: int :: 11
 const cellWidth: int :: 9
@@ -30,6 +36,7 @@ const cellHeight: int :: 18
 const colorBack: int :: 16#FFFFF5F5
 const colorLineNumber: int :: 16#FFFF7F7F
 const colorAreaBack: int :: 16#FF808080
+const colorErrBack: int :: 16#FFFF3333
 
 var wndMain: wnd@Wnd
 var treeItem: wnd@Tree
@@ -67,7 +74,6 @@ enum CharColor
 	lineComment
 	comment
 	symbol
-	err
 	max
 end enum
 
@@ -111,8 +117,8 @@ var undoPtr: int
 var changed: bool
 var dirty: int
 var dirtyTime: int
-var dirtyX: int
-var dirtyY: int
+var hint: bool
+var hintTime : int
 var lineNumberWidth: int
 var pageX: int
 var pageY: int
@@ -150,19 +156,26 @@ func main()
 			end if
 		case 1
 			if(lib@sysTime() - @dirtyTime > 1200)
+				do @resetMemAllocator()
 				do @resetAuxiliary()
 				try
 					do @interpret2(@mainSrcName, @getSrc, null, @getEnv(), @logForInterpret)
 				catch
 				end try
-				do @hint()
 				do @updateAuxiliary()
 				do @dirty :: 2
 			end if
 		end switch
+		if(@hint)
+			if(lib@sysTime() - @hintTime > 50 & @dirty >= 1)
+				do @showHint()
+				do @hint :: false
+			end if
+		end if
 	end while
 
 	do @finMemAllocator()
+	do @freeIdentifierSet()
 
 	func makeWnd()
 		do @wndMain :: wnd@makeWnd(null, %normal, 1224, 768, "Kuin Programming Language")
@@ -234,7 +247,6 @@ func main()
 		do @charColor[%lineComment $ @CharColor $ int] :: 16#FF1EB000
 		do @charColor[%comment $ @CharColor $ int] :: 16#FF1EB000
 		do @charColor[%symbol $ @CharColor $ int] :: 16#FF666666
-		do @charColor[%err $ @CharColor $ int] :: 16#FFFF3333
 		do @font :: draw@makeFont("Consolas", @fontSize, false, false, false, @cellWidth $ float)
 	end func
 end func
@@ -368,6 +380,8 @@ func refreshCursor(moveRight: bool, refreshScroll: bool)
 			do @drawEditor.moveCaret(x, y)
 		end if
 	end block
+
+	do @setHint()
 
 	func log10(n: int): int
 		var result: int :: 0
@@ -523,32 +537,40 @@ func log(args: [][]char, row: int, col: int)
 	if(args[2] =& null)
 		do @editLog.setText(@editLog.getText() ~ msg ~ "\n")
 	else
-		do @editLog.setText(@editLog.getText() ~ msg ~ " (" ~ @nullStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n")
+		do @editLog.setText(@editLog.getText() ~ msg ~ " (" ~ @srcStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n")
 		var pos: @Pos :: #@Pos
 		do pos.src :: ##args[2]
 		do pos.row :: row
 		do pos.col :: col
 		if(!@auxiliaryErr.exist(pos))
-			do @auxiliaryErr.add(pos, msg)
+			do @auxiliaryErr.add(pos, @nullStr(args[0]) ~ " (" ~ @srcStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")")
 		end if
 	end if
 end func
 
 func logForInterpret(args: [][]char, row: int, col: int)
 	if(args[2] <>& null)
-		var msg: []char :: @nullStr(args[0]) ~ ": " ~ @nullStr(args[1])
 		var pos: @Pos :: #@Pos
 		do pos.src :: ##args[2]
 		do pos.row :: row
 		do pos.col :: col
 		if(!@auxiliaryErr.exist(pos))
-			do @auxiliaryErr.add(pos, msg)
+			do @auxiliaryErr.add(pos, @nullStr(args[0]) ~ " (" ~ @srcStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")")
 		end if
 	end if
 end func
 
 func nullStr(s: []char): []char
 	ret s =& null ?("(null)", s)
+end func
+
+func srcStr(s: []char): []char
+	if(s =& null)
+		ret "(null)"
+	elif(s = "\\_default_")
+		ret "Untitled"
+	end if
+	ret s
 end func
 
 func chkChanged(): bool
@@ -598,6 +620,7 @@ func new(srcName: []char, src: [][]char)
 
 	do @setDirty()
 	do @changed :: false
+	do @setHint()
 
 	do @resetAuxiliary()
 	do @refreshCursor(false, true)
@@ -661,9 +684,12 @@ end func
 func setDirty()
 	do @changed :: true
 	do @dirty :: 0
-	do @dirtyX :: @cursorX
-	do @dirtyY :: @cursorY
 	do @dirtyTime :: lib@sysTime()
+end func
+
+func setHint()
+	do @hint :: true
+	do @hintTime :: lib@sysTime()
 end func
 
 func areaSelected(): bool
@@ -986,11 +1012,11 @@ func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
 				elif(inArea)
 					do draw@rect(textX, textY, @cellWidth $ float, @cellHeight $ float, @colorAreaBack)
 					do @font.draw(textX, textY, str[j].toStr(), draw@white)
-				elif(@curSrc.color[@pageY + i][j] = %err $ @CharColor $ bit8)
-					do draw@rect(textX, textY, @cellWidth $ float, @cellHeight $ float, @charColor[%err $ @CharColor $ int])
+				elif(@curSrc.color[@pageY + i][j].and(16#80b8) <> 0 $ @CharColor $ bit8)
+					do draw@rect(textX, textY, @cellWidth $ float, @cellHeight $ float, @colorErrBack)
 					do @font.draw(textX, textY, str[j].toStr(), draw@white)
 				else
-					do @font.draw(textX, textY, str[j].toStr(), @charColor[@curSrc.color[@pageY + i][j] $ int])
+					do @font.draw(textX, textY, str[j].toStr(), @charColor[@curSrc.color[@pageY + i][j].and(16#7Fb8) $ int])
 				end if
 			end if
 			if(j <> ^str)
@@ -1260,39 +1286,44 @@ func updateAuxiliary()
 
 	func callback(pos: @Pos, msg: []char)
 		do @listInfo.add(msg)
-		do @fillColor(pos.col, pos.row - 1, %err $ @CharColor $ bit8)
+		do @fillErrColor(pos.col, pos.row - 1)
 	end func
 end func
 
-func hint()
+func showHint()
 	var charColor: @CharColor
 	var word: []char :: getWord(&charColor)
 	if(word <>& null)
+		var hint: []char
 		switch(charColor)
 		case %none
 		case %identifier
+			do hint :: ##@getHint(word, "\\" ~ file@delExt(file@fileName(@mainSrcName)), @cursorY)
 		case %global
 		case %reserved
 			switch(word)
 			case "if"
-				do @editLog.setText("if BlockName(cond)\n\t...\nend if")
+				do hint :: "if BlockName(cond)\n\t...\nend if"
 			end switch
 		end switch
+		if(hint <>& null)
+			do @editLog.setText(hint)
+		end if
 	end if
 
 	func getWord(color: &@CharColor): []char
-		var x: int :: @dirtyX
-		var y: int :: @dirtyY
+		var x: int :: @cursorX
+		var y: int :: @cursorY
 		var color2: bit8
 		if(@moveWordTop(&x, &y, &color2))
 			var beginX: int :: x
-			while(x < ^@curSrc.color[y] & @curSrc.color[y][x] = color2)
+			while(x < ^@curSrc.color[y] & @curSrc.color[y][x].and(16#7Fb8) = color2)
 				do x :+ 1
 			end while
 			if(beginX = x)
 				ret null
 			end if
-			do color :: color2 $ @CharColor
+			do color :: color2.and(16#7Fb8) $ @CharColor
 			ret @curSrc.src[y].sub(beginX, x - beginX)
 		end if
 		ret null
@@ -1305,7 +1336,7 @@ func moveWordTop(x: &int, y: &int, color: &bit8): bool
 	elif(^@curSrc.color <= y)
 		do y :: ^@curSrc.color - 1
 	end if
-	if(1 <= x & x < ^@curSrc.color[y] & (@curSrc.src[y][x] = ' ' | @curSrc.src[y][x] = '\t'))
+	if(1 <= x & x < ^@curSrc.color[y] & (@curSrc.src[y][x] = ' ' | @curSrc.src[y][x] = '\t' | @curSrc.color[y][x].and(16#7Fb8) = %comment $ @CharColor $ bit8 | @curSrc.color[y][x].and(16#7Fb8) = %symbol $ @CharColor $ bit8))
 		do x :- 1
 	end if
 	if(x < 0)
@@ -1314,8 +1345,8 @@ func moveWordTop(x: &int, y: &int, color: &bit8): bool
 		do x :: ^@curSrc.color[y] - 1
 	end if
 	if(^@curSrc.color[y] <> 0)
-		do color :: @curSrc.color[y][x]
-		while(x >= 1 & @curSrc.color[y][x - 1] = color)
+		do color :: @curSrc.color[y][x].and(16#7Fb8)
+		while(x >= 1 & @curSrc.color[y][x - 1].and(16#7Fb8) = color)
 			do x :- 1
 		end while
 		ret true
@@ -1323,11 +1354,11 @@ func moveWordTop(x: &int, y: &int, color: &bit8): bool
 	ret false
 end func
 
-func fillColor(x: int, y: int, newColor: bit8)
+func fillErrColor(x: int, y: int)
 	var color: bit8
 	if(@moveWordTop(&x, &y, &color))
-		while(x < ^@curSrc.color[y] & @curSrc.color[y][x] = color)
-			do @curSrc.color[y][x] :: newColor
+		while(x < ^@curSrc.color[y] & @curSrc.color[y][x].and(16#7Fb8) = color)
+			do @curSrc.color[y][x] :: @curSrc.color[y][x].or(16#80b8)
 			do x :+ 1
 		end while
 	end if
