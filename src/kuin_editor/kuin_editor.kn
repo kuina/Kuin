@@ -129,6 +129,7 @@ var areaY: int
 var drag: bool
 var charColor: []int
 var auxiliaryErr: dict<@Pos, []char>
+var listInfoItem: list<@Pos>
 
 var font: draw@Font
 
@@ -184,6 +185,7 @@ func main()
 		do @wndMain.onPushMenu :: @wndMainOnPushMenu
 		do @treeItem :: wnd@makeTree(@wndMain, 12, 12, 194, 366, %fix, %fix)
 		do @listInfo :: wnd@makeList(@wndMain, 12, 384, 194, 372, %fix, %scale)
+		do @listInfo.onSel :: @listInfoOnSel
 		do @tabSrc :: wnd@makeTab(@wndMain, 212, 12, 809, 603, %scale, %scale)
 		do @drawEditor :: wnd@makeDraw(@tabSrc, 6, 6, 797, 591, %scale, %scale, true)
 		do @drawEditor.onPaint :: @drawEditorOnPaint
@@ -394,6 +396,10 @@ func refreshCursor(moveRight: bool, refreshScroll: bool)
 	end func
 end func
 
+func wndMainOnClose(wnd: wnd@WndBase): bool
+	ret @chkChanged()
+end func
+
 func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	switch(id)
 	case 16#0001
@@ -430,8 +436,19 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	end switch
 end func
 
-func wndMainOnClose(wnd: wnd@WndBase): bool
-	ret @chkChanged()
+func listInfoOnSel(wnd: wnd@WndBase)
+	var sel: int :: @listInfo.getSel()
+	if(sel <> -1 & sel < ^@listInfoItem)
+		do @listInfoItem.head()
+		var pos: @Pos :: @listInfoItem.getOffset(sel)
+		if(pos.src = @getSrcName(@mainSrcName))
+			do @cursorX :: pos.col - 1
+			do @cursorY :: pos.row - 1
+			do @refreshCursor(false, true)
+			do @drawEditor.paint()
+			do @drawEditor.focus()
+		end if
+	end if
 end func
 
 func btnCompileOnPush(wnd: wnd@WndBase)
@@ -1278,6 +1295,7 @@ end func
 func resetAuxiliary()
 	do @auxiliaryErr :: #dict<@Pos, []char>
 	do @listInfo.clear()
+	do @listInfoItem :: #list<@Pos>
 end func
 
 func updateAuxiliary()
@@ -1286,29 +1304,36 @@ func updateAuxiliary()
 
 	func callback(pos: @Pos, msg: []char)
 		do @listInfo.add(msg)
-		do @fillErrColor(pos.col, pos.row - 1)
+		do @listInfoItem.add(pos)
+		do @fillErrColor(pos.col - 1, pos.row - 1)
 	end func
+end func
+
+func getSrcName(srcName: []char): []char
+	ret "\\" ~ file@delExt(file@fileName(srcName))
 end func
 
 func showHint()
 	var charColor: @CharColor
 	var word: []char :: getWord(&charColor)
 	if(word <>& null)
-		var hint: []char
+		var hint: []char :: null
 		switch(charColor)
 		case %none
 		case %identifier
-			do hint :: ##@getHint(word, "\\" ~ file@delExt(file@fileName(@mainSrcName)), @cursorY)
+			do hint :: ##@getHint(word, @getSrcName(@mainSrcName), @cursorY)
 		case %global
+			do hint :: ##@getHint(word, @getSrcName(@mainSrcName), -1)
 		case %reserved
 			switch(word)
 			case "if"
 				do hint :: "if BlockName(cond)\n\t...\nend if"
 			end switch
 		end switch
-		if(hint <>& null)
-			do @editLog.setText(hint)
+		if(hint =& null)
+			do hint :: ""
 		end if
+		do @editLog.setText(hint)
 	end if
 
 	func getWord(color: &@CharColor): []char

@@ -133,6 +133,7 @@ struct SEditMulti
 struct SList
 {
 	SWndBase WndBase;
+	void* OnSel;
 };
 
 struct SCombo
@@ -673,6 +674,11 @@ EXPORT_CPP void _wndBasePaint(SClass* me_)
 	InvalidateRect(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, FALSE);
 }
 
+EXPORT_CPP void _wndBaseFocus(SClass* me_)
+{
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, WM_SETFOCUS, 0, 0);
+}
+
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
 {
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
@@ -839,7 +845,7 @@ EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64
 
 EXPORT_CPP SClass* _makeList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_List, WC_LISTBOX, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_DISABLENOSCROLL, x, y, width, height, L"", WndProcList, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_List, WC_LISTBOX, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_DISABLENOSCROLL | LBS_NOTIFY, x, y, width, height, L"", WndProcList, anchorX, anchorY);
 	return me_;
 }
 
@@ -851,6 +857,88 @@ EXPORT_CPP void _listClear(SClass* me_)
 EXPORT_CPP void _listAdd(SClass* me_, const U8* text)
 {
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text + 0x10));
+}
+
+EXPORT_CPP void _listIns(SClass* me_, S64 idx, const U8* text)
+{
+#if defined(DBG)
+	{
+		S64 len = _listLen(me_);
+		if (idx < 0 || len <= idx)
+			THROW(0x1000, L"");
+	}
+#endif
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
+}
+
+EXPORT_CPP void _listDel(SClass* me_, S64 idx)
+{
+#if defined(DBG)
+	{
+		S64 len = _listLen(me_);
+		if (idx < 0 || len <= idx)
+			THROW(0x1000, L"");
+	}
+#endif
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_DELETESTRING, static_cast<WPARAM>(idx), 0);
+}
+
+EXPORT_CPP S64 _listLen(SClass* me_)
+{
+	return static_cast<S64>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETCOUNT, 0, 0));
+}
+
+EXPORT_CPP void _listSetSel(SClass* me_, S64 idx)
+{
+#if defined(DBG)
+	{
+		S64 len = _listLen(me_);
+		if (idx < -1 || len <= idx)
+			THROW(0x1000, L"");
+	}
+#endif
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_SETCURSEL, static_cast<WPARAM>(idx), 0);
+}
+
+EXPORT_CPP S64 _listGetSel(SClass* me_)
+{
+	return static_cast<S64>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETCURSEL, 0, 0));
+}
+
+EXPORT_CPP void* _listGetText(SClass* me_, S64 idx)
+{
+#if defined(DBG)
+	{
+		S64 len = _listLen(me_);
+		if (idx < 0 || len <= idx)
+			THROW(0x1000, L"");
+	}
+#endif
+	{
+		size_t len = static_cast<size_t>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETTEXTLEN, static_cast<WPARAM>(idx), 0));
+		U8* result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * (len + 1)));
+		*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
+		*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len);
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETTEXT, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(result + 0x10));
+		return result;
+	}
+}
+
+EXPORT_CPP void _listSetText(SClass* me_, S64 idx, const U8* text)
+{
+#if defined(DBG)
+	{
+		S64 len = _listLen(me_);
+		if (idx < 0 || len <= idx)
+			THROW(0x1000, L"");
+	}
+#endif
+	{
+		int sel = static_cast<int>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETCURSEL, 0, 0));
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_DELETESTRING, static_cast<WPARAM>(idx + 1), 0);
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_SETCURSEL, static_cast<WPARAM>(sel), 0);
+	}
 }
 
 EXPORT_CPP SClass* _makeCombo(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
@@ -1300,6 +1388,24 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 							// TODO:
 							break;
 						case EN_VSCROLL:
+							// TODO:
+							break;
+					}
+				}
+				break;
+			case WndKind_List:
+				{
+					SList* list = reinterpret_cast<SList*>(wnd_ctrl2);
+					switch (HIWORD(w_param))
+					{
+						case LBN_KILLFOCUS:
+							// TODO:
+							break;
+						case LBN_SELCHANGE:
+							if (list->OnSel != NULL)
+								Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), list->OnSel);
+							break;
+						case LBN_SETFOCUS:
 							// TODO:
 							break;
 					}

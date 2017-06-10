@@ -23,6 +23,9 @@ typedef struct SIdentifier
 	Char* Name;
 	Char* Hint;
 	int Row;
+	int Col;
+	int ScopeRowBegin;
+	int ScopeRowEnd;
 } SIdentifier;
 
 typedef struct SIdentifierSet
@@ -144,12 +147,6 @@ EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 	SrcChar = NULL;
 }
 
-EXPORT void* Interpret3(const U8* src, S64 row, S64 col)
-{
-	// TODO: Search pos
-	return NULL;
-}
-
 EXPORT void Version(S64* major, S64* minor, S64* micro)
 {
 	*major = 9;
@@ -190,48 +187,76 @@ EXPORT void FreeIdentifierSet(void)
 	IdentifierSets = NULL;
 }
 
+EXPORT void DumpIdentifierSet(const Char* path)
+{
+	if (IdentifierSets == NULL)
+		return;
+	{
+		FILE* file_ptr = _wfopen(path, L"w, ccs=UTF-8");
+		for (int i = 0; i < IdentifierSetNum; i++)
+		{
+			fwprintf(file_ptr, L"%s:\n", IdentifierSets[i].Src);
+			for (int j = 0; j < IdentifierSets[i].IdentifierNum; j++)
+			{
+				SIdentifier* identifier = &IdentifierSets[i].Identifiers[j];
+				fwprintf(file_ptr, L"\t%s (%d, %d) [%d, %d]\n", identifier->Name, identifier->Row, identifier->Col, identifier->ScopeRowBegin, identifier->ScopeRowEnd);
+				fwprintf(file_ptr, L"\t\t%s\n", identifier->Hint);
+			}
+		}
+		fclose(file_ptr);
+	}
+}
+
 EXPORT void* GetHint(const U8* name, const U8* src, S64 row)
 {
 	const Char* name2 = (const Char*)(name + 0x10);
-	for (int i = 0; i < IdentifierSetNum; i++)
+	SIdentifierSet* identifier_set = NULL;
+	int i;
+	int ptr = -1;
+	for (i = 0; i < IdentifierSetNum; i++)
 	{
-		int pos = -1;
 		if (wcscmp(IdentifierSets[i].Src, (const Char*)(src + 0x10)) != 0)
 			continue;
-		{
-			int min = 0;
-			int max = IdentifierSets[i].IdentifierNum - 1;
-			while (min <= max)
-			{
-				int mid = (min + max) / 2;
-				int cmp = wcscmp(name2, IdentifierSets[i].Identifiers[mid].Name);
-				if (cmp < 0)
-					max = mid - 1;
-				else if (cmp > 0)
-					min = mid + 1;
-				else
-				{
-					pos = mid;
-					break;
-				}
-			}
-		}
-		if (pos == -1)
+		identifier_set = &IdentifierSets[i];
+	}
+	if (identifier_set == NULL)
+		return NULL;
+	for (i = 0; i < identifier_set->IdentifierNum; i++)
+	{
+		if (wcscmp(identifier_set->Identifiers[i].Name, name2) != 0)
 			continue;
-		while (pos - 1 >= 0 && wcscmp(name2, IdentifierSets[i].Identifiers[pos - 1].Name) == 0)
-			pos--;
-		while (pos + 1 < IdentifierSets[i].IdentifierNum && wcscmp(name2, IdentifierSets[i].Identifiers[pos + 1].Name) == 0 && row >= IdentifierSets[i].Identifiers[pos + 1].Row)
-			pos++;
+		ptr = i;
+	}
+	if (ptr == -1)
+		return NULL;
+
+	{
+		int max = INT_MIN;
+		int best = -1;
+		if (row == -1)
+			best = ptr;
+		while (ptr < identifier_set->IdentifierNum && wcscmp(identifier_set->Identifiers[ptr].Name, name2) == 0)
 		{
-			size_t len = wcslen(IdentifierSets[i].Identifiers[pos].Hint);
+			int begin = identifier_set->Identifiers[ptr].ScopeRowBegin;
+			int end = identifier_set->Identifiers[ptr].ScopeRowEnd;
+			if (max < begin && begin <= row && row <= end)
+			{
+				max = begin;
+				best = ptr;
+			}
+			ptr++;
+		}
+		if (best == -1)
+			return NULL;
+		{
+			size_t len = wcslen(identifier_set->Identifiers[best].Hint);
 			U8* result = (U8*)Alloc(0x10 + sizeof(Char) * (len + 1));
 			*(S64*)(result + 0x00) = DefaultRefCntFunc + 1;
 			*(S64*)(result + 0x08) = (S64)len;
-			wcscpy((Char*)(result + 0x10), IdentifierSets[i].Identifiers[pos].Hint);
+			wcscpy((Char*)(result + 0x10), identifier_set->Identifiers[best].Hint);
 			return result;
 		}
 	}
-	return NULL;
 }
 
 static void DecSrc(void)
@@ -281,8 +306,13 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0002", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
+#if defined(_DEBUG)
+	UNUSED(analyze_identifiers);
+	MakeIdentifierSet(asts);
+#else
 	if (analyze_identifiers)
 		MakeIdentifierSet(asts);
+#endif
 	Assemble(&pack_asm, entry, &option, dlls);
 	if (ErrOccurred())
 		goto ERR;
@@ -298,6 +328,9 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 
 	timeEndPeriod(1);
 	Err(L"IK0006", NULL);
+#if defined (_DEBUG)
+	DumpIdentifierSet(NewStr(NULL, L"%s_identifiers.txt", option.OutputFile));
+#endif
 	return True;
 
 ERR:
@@ -498,6 +531,11 @@ static const void* MakeIdentifierSet5(const Char* key, const void* value, void* 
 			wcscpy(identifier->Name, ast->Name);
 		}
 		identifier->Row = ast->Pos->Row;
+		identifier->Col = ast->Pos->Col;
+		ASSERT(ast->ScopeRowBegin == NULL && ast->ScopeRowEnd == NULL || ast->ScopeRowBegin != NULL && ast->ScopeRowEnd != NULL);
+		identifier->ScopeRowBegin = ast->ScopeRowBegin == NULL ? -1 : (*ast->ScopeRowBegin)->Pos->Row;
+		identifier->ScopeRowEnd = ast->ScopeRowEnd == NULL ? -1 : (*ast->ScopeRowEnd)->Pos->Row;
+		ASSERT(identifier->ScopeRowBegin == -1 || identifier->ScopeRowBegin <= identifier->Row && identifier->Row <= identifier->ScopeRowEnd);
 		{
 			int hint_len;
 			const Char* hint = GetDefinition(&hint_len, ast);

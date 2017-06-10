@@ -33,6 +33,9 @@ end enum
 	+func [d0001.knd, _wndBasePaint] paint()
 	end func
 
+	+func [d0001.knd, _wndBaseFocus] focus()
+	end func
+
 	var kind: int
 	var handle: int
 	var defaultWndProc: int
@@ -170,6 +173,29 @@ end class
 
 	+func [d0001.knd, _listAdd] add(text: []char)
 	end func
+
+	+func [d0001.knd, _listIns] ins(idx: int, text: []char)
+	end func
+
+	+func [d0001.knd, _listDel] del(idx: int)
+	end func
+
+	+func [d0001.knd, _listLen] len(): int
+	end func
+
+	+func [d0001.knd, _listSetSel] setSel(idx: int)
+	end func
+
+	+func [d0001.knd, _listGetSel] getSel(): int
+	end func
+
+	+func [d0001.knd, _listSetText] setText(idx: int, text: []char)
+	end func
+
+	+func [d0001.knd, _listGetText] getText(idx: int): []char
+	end func
+
+	+var onSel: func<(@WndBase)>
 end class
 
 +class Combo(@WndBase)

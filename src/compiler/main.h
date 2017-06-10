@@ -11,4 +11,7 @@ EXPORT void InitMemAllocator(void);
 EXPORT void FinMemAllocator(void);
 EXPORT void ResetMemAllocator(void);
 EXPORT void FreeIdentifierSet(void);
+#if defined(_DEBUG)
+EXPORT void DumpIdentifierSet(const Char* path);
+#endif
 EXPORT void* GetHint(const U8* name, const U8* src, S64 row);

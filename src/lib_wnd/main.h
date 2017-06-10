@@ -16,6 +16,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 EXPORT_CPP void _wndBaseDtor(SClass* me_);
 EXPORT_CPP void _wndBaseGetSize(SClass* me_, S64* width, S64* height);
 EXPORT_CPP void _wndBasePaint(SClass* me_);
+EXPORT_CPP void _wndBaseFocus(SClass* me_);
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight);
 EXPORT_CPP void _wndClose(SClass* me_);
 EXPORT_CPP void _wndExit(SClass* me_);
@@ -39,6 +40,13 @@ EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64
 EXPORT_CPP SClass* _makeList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP void _listClear(SClass* me_);
 EXPORT_CPP void _listAdd(SClass* me_, const U8* text);
+EXPORT_CPP void _listIns(SClass* me_, S64 idx, const U8* text);
+EXPORT_CPP void _listDel(SClass* me_, S64 idx);
+EXPORT_CPP S64 _listLen(SClass* me_);
+EXPORT_CPP void _listSetSel(SClass* me_, S64 idx);
+EXPORT_CPP S64 _listGetSel(SClass* me_);
+EXPORT_CPP void _listSetText(SClass* me_, S64 idx, const U8* text);
+EXPORT_CPP void* _listGetText(SClass* me_, S64 idx);
 EXPORT_CPP SClass* _makeCombo(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeComboList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeLabel(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text);

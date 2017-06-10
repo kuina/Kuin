@@ -92,6 +92,8 @@ typedef struct SAst
 	const Char* RefName;
 	struct SAst* RefItem;
 	struct SAst* AnalyzedCache;
+	struct SAst** ScopeRowBegin;
+	struct SAst** ScopeRowEnd;
 	Bool Public;
 } SAst;
 
