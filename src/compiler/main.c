@@ -173,15 +173,18 @@ EXPORT void FreeIdentifierSet(void)
 {
 	if (IdentifierSets == NULL)
 		return;
-	for (int i = 0; i < IdentifierSetNum; i++)
 	{
-		for (int j = 0; j < IdentifierSets[i].IdentifierNum; j++)
+		int i, j;
+		for (i = 0; i < IdentifierSetNum; i++)
 		{
-			free(IdentifierSets[i].Identifiers[j].Name);
-			free(IdentifierSets[i].Identifiers[j].Hint);
+			for (j = 0; j < IdentifierSets[i].IdentifierNum; j++)
+			{
+				free(IdentifierSets[i].Identifiers[j].Name);
+				free(IdentifierSets[i].Identifiers[j].Hint);
+			}
+			free(IdentifierSets[i].Identifiers);
+			free(IdentifierSets[i].Src);
 		}
-		free(IdentifierSets[i].Identifiers);
-		free(IdentifierSets[i].Src);
 	}
 	free(IdentifierSets);
 	IdentifierSets = NULL;
@@ -193,10 +196,11 @@ EXPORT void DumpIdentifierSet(const Char* path)
 		return;
 	{
 		FILE* file_ptr = _wfopen(path, L"w, ccs=UTF-8");
-		for (int i = 0; i < IdentifierSetNum; i++)
+		int i, j;
+		for (i = 0; i < IdentifierSetNum; i++)
 		{
 			fwprintf(file_ptr, L"%s:\n", IdentifierSets[i].Src);
-			for (int j = 0; j < IdentifierSets[i].IdentifierNum; j++)
+			for (j = 0; j < IdentifierSets[i].IdentifierNum; j++)
 			{
 				SIdentifier* identifier = &IdentifierSets[i].Identifiers[j];
 				fwprintf(file_ptr, L"\t%s (%d, %d) [%d, %d]\n", identifier->Name, identifier->Row, identifier->Col, identifier->ScopeRowBegin, identifier->ScopeRowEnd);
@@ -500,9 +504,9 @@ static const void* MakeIdentifierSet3(const Char* key, const void* value, void* 
 
 static const void* MakeIdentifierSet4(const Char* key, const void* value, void* param)
 {
-	UNUSED(key);
 	int* len = (int*)param;
 	SAst* ast = (SAst*)value;
+	UNUSED(key);
 	if (ast->Name != NULL)
 		(*len)++;
 	if (ast->ScopeChildren != NULL)
