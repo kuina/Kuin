@@ -308,7 +308,7 @@ end class
 
 +enum MsgBoxIcon
 	none
-	error :: 16#10
+	err :: 16#10
 	question :: 16#20
 	warn :: 16#30
 	info :: 16#40

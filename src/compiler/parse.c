@@ -115,7 +115,6 @@ static SAstExprValue* ObtainPrimValue(const SPos* pos, EAstTypePrimKind kind, co
 static SAstExprValue* ObtainStrValue(const SPos* pos, const Char* value);
 static Char EscChar(Char c);
 static Bool IsCorrectSrcName(const Char* name);
-static SAst* ParseSysCache(void);
 static SAstRoot* ParseRoot(void);
 static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** scope_end);
 static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class, SAst** scope_begin, SAst** scope_end);
@@ -482,18 +481,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 		if (src_name[0] == L'\\')
 			true_path = NewStr(NULL, L"%s%s.kn", Option->SrcDir, src_name + 1);
 		else
-		{
-			true_path = NewStr(NULL, L"%s%s.knc", Option->SysDir, src_name);
-			FilePtr = FuncWfopen(true_path, L"rb");
-			if (FilePtr != NULL)
-			{
-				SrcName = src_name;
-				Row = 1;
-				Col = 1;
-				return ParseSysCache();
-			}
 			true_path = NewStr(NULL, L"%s%s.kn", Option->SysDir, src_name);
-		}
 		for (; ; )
 		{
 			FilePtr = FuncWfopen(true_path, L"r, ccs=UTF-8");
@@ -1058,12 +1046,6 @@ static Bool IsCorrectSrcName(const Char* name)
 		}
 		name++;
 	}
-}
-
-static SAst* ParseSysCache(void)
-{
-	// TODO:
-	return NULL;
 }
 
 static SAstRoot* ParseRoot(void)
