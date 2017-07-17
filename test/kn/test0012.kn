@@ -1,8 +1,8 @@
 func dump(ns: []bit8)
 	var s: []char :: ""
-	foreach n(ns)
-		do s :~ " " ~ n.toStr()
-	end foreach
+	for i(0, ^ns - 1)
+		do s :~ " " ~ ns[i].toStr()
+	end for
 	do cui@print(s)
 end func
 

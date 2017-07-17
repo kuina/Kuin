@@ -97,7 +97,6 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type);
 static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type);
 static SAstStat* RebuildWhile(SAstStatWhile* ast, SAstType* ret_type);
 static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type);
-static SAstStat* RebuildForEach(SAstStatForEach* ast, SAstType* ret_type);
 static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type);
 static SAstStat* RebuildThrow(SAstStatThrow* ast);
 static SAstStat* RebuildIfDef(SAstStatIfDef* ast, SAstType* ret_type);
@@ -1725,7 +1724,6 @@ static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type)
 		case AstTypeId_StatSwitch: ast = RebuildSwitch((SAstStatSwitch*)ast, ret_type); break;
 		case AstTypeId_StatWhile: ast = RebuildWhile((SAstStatWhile*)ast, ret_type); break;
 		case AstTypeId_StatFor: ast = RebuildFor((SAstStatFor*)ast, ret_type); break;
-		case AstTypeId_StatForEach: ast = RebuildForEach((SAstStatForEach*)ast, ret_type); break;
 		case AstTypeId_StatTry: ast = RebuildTry((SAstStatTry*)ast, ret_type); break;
 		case AstTypeId_StatThrow: ast = RebuildThrow((SAstStatThrow*)ast); break;
 		case AstTypeId_StatIfDef: ast = RebuildIfDef((SAstStatIfDef*)ast, ret_type); break;
@@ -1891,27 +1889,6 @@ static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type)
 		Err(L"EA0024", ((SAst*)ast->Step)->Pos);
 	if (*((S64*)((SAstExprValue*)ast->Step)->Value) == 0)
 		Err(L"EA0025", ((SAst*)ast->Step)->Pos);
-	ast->Stats = RefreshStats(ast->Stats, ret_type);
-	return (SAstStat*)ast;
-}
-
-static SAstStat* RebuildForEach(SAstStatForEach* ast, SAstType* ret_type)
-{
-	if (((SAst*)ast)->AnalyzedCache != NULL)
-		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
-	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
-	ast->Cond = RebuildExpr(ast->Cond, False);
-	if (LocalErr)
-	{
-		LocalErr = False;
-		return (SAstStat*)DummyPtr;
-	}
-	if (((SAst*)ast->Cond->Type)->TypeId == AstTypeId_TypeArray)
-		((SAstStatBreakable*)ast)->BlockVar->Type = ((SAstTypeArray*)ast->Cond->Type)->ItemType;
-	else if (((SAst*)ast->Cond->Type)->TypeId == AstTypeId_TypeGen)
-		((SAstStatBreakable*)ast)->BlockVar->Type = ((SAstTypeGen*)ast->Cond->Type)->ItemType;
-	else
-		Err(L"EA0026", ((SAst*)ast->Cond)->Pos);
 	ast->Stats = RefreshStats(ast->Stats, ret_type);
 	return (SAstStat*)ast;
 }
@@ -3794,7 +3771,6 @@ static SAstExpr* RebuildExprRef(SAstExpr* ast)
 				break;
 			case AstTypeId_StatSwitch:
 			case AstTypeId_StatFor:
-			case AstTypeId_StatForEach:
 			case AstTypeId_StatTry:
 				ASSERT(ref_item->AnalyzedCache != NULL);
 				((SAst*)ast)->RefItem = (SAst*)((SAstStatBreakable*)ref_item)->BlockVar;

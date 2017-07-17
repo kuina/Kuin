@@ -120,18 +120,18 @@ class Obj2d()
 	+var y: float
 	+var width: float
 	+var height: float
-	
+
 	+func preview()
 		assert false
 	end func
-	
+
 	+func writeInstance()
 		assert false
 	end func
-	
+
 	+func readMeta(src: []char, ptr: &int)
 	end func
-	
+
 	+func writeMeta(filePtr: file@Writer): char
 	end func
 end class
@@ -672,7 +672,7 @@ func new(srcName: []char, src: [][]char)
 	for i(0, ^@curSrc.src - 1)
 		do @curSrc.color[i] :: #[^@curSrc.src[i]]bit8
 	end for
-	
+
 	do @mainSrcName :: srcName =& null ?("_default_.kn", srcName)
 	do @srcs.add(@mainSrcName, @curSrc)
 	do @editFile.setText(srcName =& null ?("No Title", srcName))
@@ -1490,7 +1490,7 @@ func readMeta(src: []char)
 	default
 		throw 16#1000
 	end switch
-	
+
 	func parseArWnd(src: []char, ptr: &int): @Obj2d
 		var word: []char :: @parseMetaWord(src, &ptr)
 		var obj2d: @Obj2d :: null
@@ -1552,7 +1552,7 @@ func writeMeta(filePtr: file@Writer)
 	default
 		throw 16#1000
 	end switch
-	
+
 	func writeArWnd(filePtr: file@Writer, first: bool, obj2d: @Obj2d)
 		if(!first)
 			do filePtr.writeChar(',')

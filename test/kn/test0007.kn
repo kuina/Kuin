@@ -8,9 +8,6 @@ func main()
 			do ns.add(4)
 			do ns.add(5)
 			do cui@print(ns.peek().toStr())
-			foreach n(ns)
-				do cui@print(n.toStr())
-			end foreach
 			while(^ns <> 0)
 				do cui@print(ns.get().toStr())
 			end while
@@ -25,9 +22,6 @@ func main()
 			do ns.add("d")
 			do ns.add("e")
 			do cui@print(ns.peek())
-			foreach n(ns)
-				do cui@print(n)
-			end foreach
 			while(^ns <> 0)
 				do cui@print(ns.get())
 			end while
@@ -42,9 +36,6 @@ func main()
 			do ns.add(4)
 			do ns.add(5)
 			do cui@print(ns.peek().toStr())
-			foreach n(ns)
-				do cui@print(n.toStr())
-			end foreach
 			while(^ns <> 0)
 				do cui@print(ns.get().toStr())
 			end while
@@ -59,9 +50,6 @@ func main()
 			do ns.add("d")
 			do ns.add("e")
 			do cui@print(ns.peek())
-			foreach n(ns)
-				do cui@print(n)
-			end foreach
 			while(^ns <> 0)
 				do cui@print(ns.get())
 			end while

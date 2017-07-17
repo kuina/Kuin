@@ -36,7 +36,6 @@ static const Char* Reserved[] =
 	L"finally",
 	L"float",
 	L"for",
-	L"foreach",
 	L"func",
 	L"if",
 	L"ifdef",
@@ -139,7 +138,6 @@ static SAstStat* ParseStatCase(int row, int col, const SAst* block);
 static SAstStat* ParseStatDefault(int row, int col, const SAst* block);
 static SAstStat* ParseStatWhile(SAst** scope_begin, SAst** scope_end);
 static SAstStat* ParseStatFor(int row, int col, SAst** scope_begin, SAst** scope_end);
-static SAstStat* ParseStatForEach(int row, int col, SAst** scope_begin, SAst** scope_end);
 static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope_end);
 static SAstStat* ParseStatCatch(int row, int col, const SAst* block);
 static SAstStat* ParseStatFinally(int row, int col, const SAst* block);
@@ -1615,8 +1613,6 @@ static SAstStat* ParseStat(SAst* block, SAst** scope_begin, SAst** scope_end)
 			ast = ParseStatWhile(scope_begin, scope_end);
 		else if (wcscmp(s, L"for") == 0)
 			ast = ParseStatFor(row, col, scope_begin, scope_end);
-		else if (wcscmp(s, L"foreach") == 0)
-			ast = ParseStatForEach(row, col, scope_begin, scope_end);
 		else if (wcscmp(s, L"try") == 0)
 			ast = ParseStatTry(row, col, scope_begin, scope_end);
 		else if (wcscmp(s, L"catch") == 0)
@@ -1683,11 +1679,6 @@ static SAstStat* ParseStatEnd(int row, int col, SAst* block)
 		else if (wcscmp(s, L"for") == 0)
 		{
 			if (block->TypeId != AstTypeId_StatFor)
-				err = True;
-		}
-		else if (wcscmp(s, L"foreach") == 0)
-		{
-			if (block->TypeId != AstTypeId_StatForEach)
 				err = True;
 		}
 		else if (wcscmp(s, L"try") == 0)
@@ -2136,45 +2127,6 @@ static SAstStat* ParseStatFor(int row, int col, SAst** scope_begin, SAst** scope
 				AssertNextChar(L'\n', True);
 			}
 		}
-	}
-	for (; ; )
-	{
-		SAstStat* stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
-		if (stat == (SAstStat*)DummyPtr)
-			return (SAstStat*)DummyPtr;
-		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
-		{
-			scope_new[0] = (SAst*)ast;
-			scope_new[1] = (SAst*)stat;
-			break;
-		}
-		ListAdd(ast->Stats, stat);
-	}
-	Scope = StackPop(Scope);
-	return (SAstStat*)ast;
-}
-
-static SAstStat* ParseStatForEach(int row, int col, SAst** scope_begin, SAst** scope_end)
-{
-	SAstStatForEach* ast = (SAstStatForEach*)Alloc(sizeof(SAstStatForEach));
-	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
-	InitAst((SAst*)ast, AstTypeId_StatForEach, NULL, NULL, False, True, scope_begin, scope_end);
-	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
-	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
-	((SAstStatSkipable*)ast)->SkipPoint = AsmLabel();
-	ast->Stats = ListNew();
-	PushDummyScope((SAst*)ast);
-	ObtainBlockName((SAst*)ast);
-	ast->Cond = ParseExpr();
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-	}
-	else
-	{
-		AssertNextChar(L')', True);
-		AssertNextChar(L'\n', True);
 	}
 	for (; ; )
 	{

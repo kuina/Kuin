@@ -34,7 +34,6 @@ static void DumpAstStatSwitch(const SAstStatSwitch* ast);
 static void DumpAstStatCase(const SAstStatCase* ast);
 static void DumpAstStatWhile(const SAstStatWhile* ast);
 static void DumpAstStatFor(const SAstStatFor* ast);
-static void DumpAstStatForEach(const SAstStatForEach* ast);
 static void DumpAstStatTry(const SAstStatTry* ast);
 static void DumpAstStatCatch(const SAstStatCatch* ast);
 static void DumpAstStatThrow(const SAstStatThrow* ast);
@@ -82,7 +81,6 @@ static const Char* GetDefinitionStatIf(int* len, const SAstStatIf* ast);
 static const Char* GetDefinitionStatSwitch(int* len, const SAstStatSwitch* ast);
 static const Char* GetDefinitionStatWhile(int* len, const SAstStatWhile* ast);
 static const Char* GetDefinitionStatFor(int* len, const SAstStatFor* ast);
-static const Char* GetDefinitionStatForEach(int* len, const SAstStatForEach* ast);
 static const Char* GetDefinitionStatTry(int* len, const SAstStatTry* ast);
 static const Char* GetDefinitionStatIfDef(int* len, const SAstStatIfDef* ast);
 static const Char* GetDefinitionStatBlock(int* len, const SAstStatBlock* ast);
@@ -168,7 +166,6 @@ const Char* GetDefinition(int* len, const SAst* ast)
 		case AstTypeId_StatSwitch: return GetDefinitionStatSwitch(len, (const SAstStatSwitch*)ast);
 		case AstTypeId_StatWhile: return GetDefinitionStatWhile(len, (const SAstStatWhile*)ast);
 		case AstTypeId_StatFor: return GetDefinitionStatFor(len, (const SAstStatFor*)ast);
-		case AstTypeId_StatForEach: return GetDefinitionStatForEach(len, (const SAstStatForEach*)ast);
 		case AstTypeId_StatTry: return GetDefinitionStatTry(len, (const SAstStatTry*)ast);
 		case AstTypeId_StatIfDef: return GetDefinitionStatIfDef(len, (const SAstStatIfDef*)ast);
 		case AstTypeId_StatBlock: return GetDefinitionStatBlock(len, (const SAstStatBlock*)ast);
@@ -254,7 +251,6 @@ static void DumpRecursion(const SAst* ast)
 		case AstTypeId_StatDefault: ASSERT(False); break;
 		case AstTypeId_StatWhile: DumpAstStatWhile((const SAstStatWhile*)ast); break;
 		case AstTypeId_StatFor: DumpAstStatFor((const SAstStatFor*)ast); break;
-		case AstTypeId_StatForEach: DumpAstStatForEach((const SAstStatForEach*)ast); break;
 		case AstTypeId_StatTry: DumpAstStatTry((const SAstStatTry*)ast); break;
 		case AstTypeId_StatCatch: DumpAstStatCatch((const SAstStatCatch*)ast); break;
 		case AstTypeId_StatFinally: ASSERT(False); break;
@@ -691,19 +687,6 @@ static void DumpAstStatFor(const SAstStatFor* ast)
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</StatFor>\n");
-}
-
-static void DumpAstStatForEach(const SAstStatForEach* ast)
-{
-	PrintTab(); fwprintf(FilePtr, L"<StatForEach>\n");
-	Tab++;
-	{
-		DumpAstStatSkipable((const SAstStatSkipable*)ast);
-		PrintAst(L"StatForEach_Cond", (const SAst*)ast->Cond);
-		PrintAstList(L"StatForEach_Stats", ast->Stats);
-	}
-	Tab--;
-	PrintTab(); fwprintf(FilePtr, L"</StatForEach>\n");
 }
 
 static void DumpAstStatTry(const SAstStatTry* ast)
@@ -1443,11 +1426,6 @@ static const Char* GetDefinitionStatWhile(int* len, const SAstStatWhile* ast)
 static const Char* GetDefinitionStatFor(int* len, const SAstStatFor* ast)
 {
 	return NewStr(len, L"for %s(...)", ((const SAst*)ast)->Name);
-}
-
-static const Char* GetDefinitionStatForEach(int* len, const SAstStatForEach* ast)
-{
-	return NewStr(len, L"foreach %s(...)", ((const SAst*)ast)->Name);
 }
 
 static const Char* GetDefinitionStatTry(int* len, const SAstStatTry* ast)

@@ -542,7 +542,7 @@ static const void* MakeIdentifierSet5(const Char* key, const void* value, void* 
 		ASSERT(identifier->ScopeRowBegin == -1 || identifier->ScopeRowBegin <= identifier->Row && identifier->Row <= identifier->ScopeRowEnd);
 		{
 			int hint_len;
-			const Char* hint = GetDefinition(&hint_len, ast);
+			const Char* hint = GetDefinition(&hint_len, ast->AnalyzedCache == NULL ? ast : ast->AnalyzedCache);
 			identifier->Hint = (Char*)malloc(sizeof(Char) * (size_t)(hint_len + 1));
 			wcscpy(identifier->Hint, hint);
 		}

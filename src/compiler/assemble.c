@@ -135,8 +135,6 @@ static void AssembleIf(SAstStatIf* ast);
 static void AssembleSwitch(SAstStatSwitch* ast);
 static void AssembleWhile(SAstStatWhile* ast);
 static void AssembleFor(SAstStatFor* ast);
-static void AssembleForEach(SAstStatForEach* ast);
-static void AssembleForEachRefresh(SAstStatForEach* ast, int size, SAstArg* tmp, int kind);
 static void AssembleTry(SAstStatTry* ast);
 static void AssembleThrow(SAstStatThrow* ast);
 static void AssembleBlock(SAstStatBlock* ast);
@@ -2005,7 +2003,6 @@ static void AssembleStats(SList* asts)
 			case AstTypeId_StatSwitch: AssembleSwitch((SAstStatSwitch*)ast); break;
 			case AstTypeId_StatWhile: AssembleWhile((SAstStatWhile*)ast); break;
 			case AstTypeId_StatFor: AssembleFor((SAstStatFor*)ast); break;
-			case AstTypeId_StatForEach: AssembleForEach((SAstStatForEach*)ast); break;
 			case AstTypeId_StatTry: AssembleTry((SAstStatTry*)ast); break;
 			case AstTypeId_StatThrow: AssembleThrow((SAstStatThrow*)ast); break;
 			case AstTypeId_StatBlock: AssembleBlock((SAstStatBlock*)ast); break;
@@ -2306,156 +2303,6 @@ static void AssembleFor(SAstStatFor* ast)
 	ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 	ListAdd(PackAsm->Asms, lbl2);
 	ListAdd(PackAsm->Asms, ((SAstStatBreakable*)ast)->BreakPoint);
-}
-
-static void AssembleForEach(SAstStatForEach* ast)
-{
-	SAsmLabel* lbl1 = AsmLabel();
-	SAsmLabel* lbl2 = AsmLabel();
-	SAstArg* tmp1 = MakeTmpVar(8, NULL); // The number of loops.
-	SAstArg* tmp2 = MakeTmpVar(8, NULL); // The pointer to elements.
-	int size = GetSize(((SAstStatBreakable*)ast)->BlockVar->Type);
-	int kind = 0;
-	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
-	if (((SAst*)ast->Cond->Type)->TypeId == AstTypeId_TypeArray)
-		kind = 0;
-	else
-	{
-		ASSERT(((SAst*)ast->Cond->Type)->TypeId == AstTypeId_TypeGen);
-		switch (((SAstTypeGen*)ast->Cond->Type)->Kind)
-		{
-			case AstTypeGenKind_List: kind = 1; break;
-			case AstTypeGenKind_Stack: kind = 2; break;
-			case AstTypeGenKind_Queue: kind = 3; break;
-			default:
-				ASSERT(False);
-				break;
-		}
-	}
-	AssembleExpr(ast->Cond, 0, 0);
-	ToValue(ast->Cond, 0, 0);
-	ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x08)));
-	ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp1), False)), ValReg(8, Reg_SI)));
-	if (kind == 0)
-		ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[0]), ValImmU(8, 0x10)));
-	else
-	{
-		ASSERT(1 <= kind && kind <= 3);
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x10)));
-	}
-	ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp2), False)), ValReg(8, RegI[0])));
-	ListAdd(PackAsm->Asms, lbl1);
-	ListAdd(PackAsm->Asms, AsmCMP(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp1), False)), ValImmU(8, 0x00)));
-	ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
-	// Refer to the element and assign it to the block variable.
-	ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp2), False))));
-	switch (kind)
-	{
-		case 0:
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(size, RegI[0]), ValMemS(size, ValReg(8, RegI[0]), NULL, 0x00)));
-			break;
-		case 1:
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(size, RegI[0]), ValMemS(size, ValReg(8, RegI[0]), NULL, 0x10)));
-			break;
-		case 2:
-		case 3:
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(size, RegI[0]), ValMemS(size, ValReg(8, RegI[0]), NULL, 0x08)));
-			break;
-		default:
-			ASSERT(False);
-			break;
-	}
-	if (IsRef(((SAstStatBreakable*)ast)->BlockVar->Type))
-	{
-		GcInc(0);
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValReg(8, RegI[0])));
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False))));
-		GcDec(0, -1, ((SAstStatBreakable*)ast)->BlockVar->Type);
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValReg(8, Reg_SI)));
-	}
-	ListAdd(PackAsm->Asms, AsmMOV(ValMem(size, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValReg(size, RegI[0])));
-	AssembleStats(ast->Stats);
-	ListAdd(PackAsm->Asms, ((SAstStatSkipable*)ast)->SkipPoint);
-	AssembleForEachRefresh(ast, size, tmp2, kind);
-	ListAdd(PackAsm->Asms, AsmDEC(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp1), False))));
-	// Increment the pointer.
-	switch (kind)
-	{
-		case 0:
-			ListAdd(PackAsm->Asms, AsmADD(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp2), False)), ValImmS(8, (S64)size)));
-			break;
-		case 1:
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp2), False))));
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_AX), NULL, 0x08)));
-			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp2), False)), ValReg(8, Reg_AX)));
-			break;
-		case 2:
-		case 3:
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp2), False))));
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_AX), NULL, 0x00)));
-			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp2), False)), ValReg(8, Reg_AX)));
-			break;
-		default:
-			ASSERT(False);
-			break;
-	}
-	ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-	ListAdd(PackAsm->Asms, ((SAstStatBreakable*)ast)->BreakPoint);
-	AssembleForEachRefresh(ast, size, tmp2, kind);
-	ListAdd(PackAsm->Asms, lbl2);
-	if (IsRef(((SAstStatBreakable*)ast)->BlockVar->Type))
-	{
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False))));
-		GcDec(0, -1, ((SAstStatBreakable*)ast)->BlockVar->Type);
-		ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValImmU(8, 0x00)));
-	}
-}
-
-static void AssembleForEachRefresh(SAstStatForEach* ast, int size, SAstArg* tmp, int kind)
-{
-	// Update the block variable with the new value of the element.
-	ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False))));
-	if (IsRef(((SAstStatBreakable*)ast)->BlockVar->Type))
-	{
-		GcInc(0);
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValReg(8, RegI[0])));
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp), False))));
-		switch (kind)
-		{
-			case 0:
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x00)));
-				break;
-			case 1:
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x10)));
-				break;
-			case 2:
-			case 3:
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x08)));
-				break;
-			default:
-				ASSERT(False);
-				break;
-		}
-		GcDec(0, -1, ((SAstStatBreakable*)ast)->BlockVar->Type);
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValReg(8, Reg_SI)));
-	}
-	ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp), False))));
-	switch (kind)
-	{
-		case 0:
-			ListAdd(PackAsm->Asms, AsmMOV(ValMemS(size, ValReg(8, Reg_SI), NULL, 0x00), ValReg(size, RegI[0])));
-			break;
-		case 1:
-			ListAdd(PackAsm->Asms, AsmMOV(ValMemS(size, ValReg(8, Reg_SI), NULL, 0x10), ValReg(size, RegI[0])));
-			break;
-		case 2:
-		case 3:
-			ListAdd(PackAsm->Asms, AsmMOV(ValMemS(size, ValReg(8, Reg_SI), NULL, 0x08), ValReg(size, RegI[0])));
-			break;
-		default:
-			ASSERT(False);
-			break;
-	}
 }
 
 static void AssembleTry(SAstStatTry* ast)

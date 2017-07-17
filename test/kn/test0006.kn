@@ -59,13 +59,11 @@ func main()
 			do ns.tail()
 			do ns.del()
 			do cui@print((^ns).toStr())
-			foreach n(ns)
-				do cui@print(n.toStr())
-				do n :+ 5
-			end foreach
-			foreach n(ns)
-				do cui@print(n.toStr())
-			end foreach
+			do ns.head()
+			while(!ns.term())
+				do cui@print(ns.get().toStr())
+				do ns.next()
+			end while
 
 			var ss: list<[]char> :: #list<[]char>
 			do ss.add("ab")
@@ -82,25 +80,15 @@ func main()
 				do cui@print(ss.get())
 				do ss.prev()
 			end while
-			foreach s(ss)
-				do cui@print(s)
-				if(s = "cd")
-					do s :: "xx"
-					skip s
-				elif(s = "ef")
-					do s :: "xx"
-					break s
-				end if
-				do s :: "xx"
-			end foreach
 			do ss.head()
 			do ss.del()
 			do ss.tail()
 			do ss.del()
 			do cui@print((^ss).toStr())
-			foreach s(ss)
-				do cui@print(s)
-			end foreach
+			while(!ss.term())
+				do cui@print(ss.get())
+				do ss.prev()
+			end while
 		end block
 	end for
 end func

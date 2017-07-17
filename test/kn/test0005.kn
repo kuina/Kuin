@@ -1,29 +1,6 @@
 func main()
 	for(1, 3)
 		block
-			var s: []char :: "abcde"
-			foreach c(s)
-				do cui@print(c.toStr())
-				do c :: 'x'
-			end foreach
-			do cui@print(s)
-
-			var a: [][]char :: ["ab", "cd", "ef"]
-			foreach b(a)
-				do cui@print(b)
-				if(b = "cd")
-					do b :: "xx"
-					skip b
-				elif(b="ef")
-					do b :: "xx"
-					break b
-				end if
-				do b :: "xx"
-			end foreach
-			do cui@print(a[0] ~ ", " ~ a[1] ~ ", " ~ a[2])
-		end block
-
-		block
 			for i(1, 10)
 				for j(1, 10)
 					if(i = 2)

@@ -17,11 +17,6 @@ Excpt: 80000003
 > 2
 > 6
 > 7
-> 10
-> 6
-> 7
-> 11
-> 12
 > ef
 > mn
 > kl
@@ -29,19 +24,7 @@ Excpt: 80000003
 > ab
 > ij
 > gh
-> gh
-> ij
-> ab
-> cd
-> kl
-> mn
-> ef
 > 5
-> xx
-> xx
-> xx
-> xx
-> xx
 > true, true, true, true, false, false
 > false, false, false, false, true, true
 > 5, 1234
@@ -59,11 +42,6 @@ Excpt: 80000003
 > 2
 > 6
 > 7
-> 10
-> 6
-> 7
-> 11
-> 12
 > ef
 > mn
 > kl
@@ -71,19 +49,7 @@ Excpt: 80000003
 > ab
 > ij
 > gh
-> gh
-> ij
-> ab
-> cd
-> kl
-> mn
-> ef
 > 5
-> xx
-> xx
-> xx
-> xx
-> xx
 > true, true, true, true, false, false
 > false, false, false, false, true, true
 > 5, 1234
@@ -101,11 +67,6 @@ Excpt: 80000003
 > 2
 > 6
 > 7
-> 10
-> 6
-> 7
-> 11
-> 12
 > ef
 > mn
 > kl
@@ -113,17 +74,5 @@ Excpt: 80000003
 > ab
 > ij
 > gh
-> gh
-> ij
-> ab
-> cd
-> kl
-> mn
-> ef
 > 5
-> xx
-> xx
-> xx
-> xx
-> xx
 end: ../../test/output/output0006.exe

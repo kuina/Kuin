@@ -41,7 +41,6 @@ typedef enum EAstTypeId
 	AstTypeId_StatDefault = AstTypeId_Stat | 0x0b,
 	AstTypeId_StatWhile = AstTypeId_StatSkipable | 0x01,
 	AstTypeId_StatFor = AstTypeId_StatSkipable | 0x02,
-	AstTypeId_StatForEach = AstTypeId_StatSkipable | 0x03,
 	AstTypeId_StatTry = AstTypeId_StatBreakable | 0x03,
 	AstTypeId_StatCatch = AstTypeId_Stat | 0x0c,
 	AstTypeId_StatFinally = AstTypeId_Stat | 0x0d,
@@ -305,13 +304,6 @@ typedef struct SAstStatFor
 	struct SAstExpr* Step;
 	SList* Stats;
 } SAstStatFor;
-
-typedef struct SAstStatForEach
-{
-	SAstStatSkipable AstStatSkipable;
-	struct SAstExpr* Cond;
-	SList* Stats;
-} SAstStatForEach;
 
 typedef struct SAstStatTry
 {

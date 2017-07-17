@@ -1,15 +1,5 @@
 Begin: ../../test/output/output0005.exe
 Excpt: 80000003
-> a
-> b
-> c
-> d
-> e
-> xxxxx
-> ab
-> cd
-> ef
-> xx, xx, xx
 > 1, 1
 > 1, 2
 > 1, 4
@@ -34,16 +24,6 @@ Excpt: 80000003
 > 255
 > 255
 > 255
-> a
-> b
-> c
-> d
-> e
-> xxxxx
-> ab
-> cd
-> ef
-> xx, xx, xx
 > 1, 1
 > 1, 2
 > 1, 4
@@ -68,16 +48,6 @@ Excpt: 80000003
 > 255
 > 255
 > 255
-> a
-> b
-> c
-> d
-> e
-> xxxxx
-> ab
-> cd
-> ef
-> xx, xx, xx
 > 1, 1
 > 1, 2
 > 1, 4

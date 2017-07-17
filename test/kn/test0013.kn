@@ -86,9 +86,9 @@ func main()
 			var s: []char :: "abxxcdexxfxxxxg"
 			var ts: [][]char :: s.split("xx")
 			do cui@print((^ts).toStr())
-			foreach t(ts)
-				do cui@print(t)
-			end foreach
+			for i(0, ^ts - 1)
+				do cui@print(ts[i])
+			end for
 		end block
 
 		block
