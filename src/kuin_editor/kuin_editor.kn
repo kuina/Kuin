@@ -80,6 +80,7 @@ end class
 
 class Document()
 	+func init(src: [][]char)
+		do me.initVars()
 	end func
 
 	+func getSrc(): [][]char
@@ -213,7 +214,7 @@ class DocumentSrc(@Document)
 	end func
 
 	+*func draw(width: int, height: int)
-		do draw@rect(0.0, 0.0, width $ float, height $ float, colorBack)
+		do draw@rect(0.0, 0.0, width $ float, height $ float, @colorBack)
 		; TODO: Draw the line.
 		for i(0, ^me.src.src - 1)
 			var y: float :: (i * @cellHeight) $ float
@@ -285,7 +286,6 @@ class DocumentSrc(@Document)
 				end if
 			end for
 		end for
-		do draw@render(0)
 	end func
 
 	+*func mouseDownL(x: int, y: int)
@@ -533,7 +533,6 @@ class DocumentSrc(@Document)
 		do me.refreshCursor(false, true)
 	end func
 
-	const colorBack: int :: 16#FFFFF5F5
 	const colorLineNumber: int :: 16#FFFF7F7F
 	const colorAreaBack: int :: 16#FF808080
 	const colorErrBack: int :: 16#FFFF3333
@@ -950,43 +949,161 @@ class DocumentSrc(@Document)
 end class
 
 class DocumentArBase(@Document)
-	class Obj2d()
-		+var children: list<Obj2d>
-		+var name: []char
-		+var x: float
-		+var y: float
-		+var width: float
-		+var height: float
+	+*func init(src: [][]char)
+		do me.initVars()
+		do me.obj2dRoot :: #@Obj2dRoot
+		do me.obj2dRoot.init("", 0.0, 0.0, 1600.0, 900.0)
 
-		+func preview()
-			assert false
+		assert src[0].sub(0, 6) = ";;[ar_"
+		var ptr: int :: 6
+		while(src[0][ptr] <> ']')
+			do ptr :+ 1
+		end while
+		do ptr :+ 1
+		do me.initFromMeta(src[0], &ptr)
+	end func
+
+	+*func getSrc(): [][]char
+		ret getSrcRecursion(me.obj2dRoot)
+
+		func getSrcRecursion(obj: @Obj2d): [][]char
+			var src: [][]char :: obj.getSrc()
+			do obj.children.head()
+			while(!obj.children.term())
+				do src :~ getSrcRecursion(obj.children.get())
+				do obj.children.next()
+			end while
+			ret src
 		end func
+	end func
 
-		+func writeInstance()
-			assert false
+	+*func draw(width: int, height: int)
+		do draw@rect(0.0, 0.0, width $ float, height $ float, @colorBack)
+		do drawRecursion(me.obj2dRoot)
+
+		func drawRecursion(obj: @Obj2d)
+			do obj.draw()
+			do obj.children.head()
+			while(!obj.children.term())
+				do drawRecursion(obj.children.get())
+				do obj.children.next()
+			end while
 		end func
+	end func
 
-		+func readMeta(src: []char, ptr: &int)
-		end func
+	+*func mouseDownL(x: int, y: int)
+		; TODO:
+	end func
 
-		+func writeMeta(filePtr: file@Writer): char
-		end func
-	end class
+	+*func mouseUpL(x: int, y: int)
+		; TODO:
+	end func
 
-	var obj2dRoot: Obj2d
+	+*func mouseMove(x: int, y: int)
+		; TODO:
+	end func
+
+	+*func focus(isFocus: bool)
+		; TODO:
+	end func
+
+	+*func keyDown(key: input@Key, shiftCtrl: wnd@ShiftCtrl)
+		; TODO:
+	end func
+
+	+*func keyChar(key: char)
+		; TODO:
+	end func
+
+	+*func scrollX(pos: int)
+		; TODO:
+	end func
+
+	+*func scrollY(pos: int)
+		; TODO:
+	end func
+
+	var obj2dRoot: @Obj2dRoot
+
+	*func undoImpl(undo: @Undo)
+		; TODO:
+	end func
+
+	func initFromMeta(src: []char, ptr: &int)
+	end func
+
+	func parseWord(src: []char, ptr: &int): []char
+		var last: int :: ptr
+		while(last < ^src & src[last] <> ',')
+			do last :+ 1
+		end while
+		do ptr :: last + 1
+		ret src.sub(ptr, last - ptr)
+	end func
+end class
+
+class Obj2d()
+	+func init(name: []char, x: float, y: float, width: float, height: float)
+		do me.children :: #list<Obj2d>
+		do me.name :: name
+		do me.x :: x
+		do me.y :: y
+		do me.width :: width
+		do me.height :: height
+	end func
+
+	+func draw()
+	end func
+
+	+func getSrc(): [][]char
+	end func
+
+	+func readMeta(src: []char, ptr: &int)
+	end func
+
+	+func writeMeta(): []char
+	end func
+
+	+var children: list<Obj2d>
+	+var name: []char
+	+var x: float
+	+var y: float
+	+var width: float
+	+var height: float
+end class
+
+class Obj2dRoot(@Obj2d)
+	+*func draw()
+		do draw@rect(me.x, me.y, me.width, me.height, me.color)
+	end func
+
+	+*func getSrc(): [][]char
+	end func
+
+	+var color: int
 end class
 
 class DocumentArWnd(@DocumentArBase)
+	*func initFromMeta(src: []char, ptr: &int)
+		do me.obj2dRoot.color :: draw@white
+	end func
 end class
 
 class DocumentArDraw(@DocumentArDraw)
+	*func initFromMeta(src: []char, ptr: &int)
+		do me.obj2dRoot.color :: draw@white
+		; TODO:
+	end func
 end class
 
 const fontSize: int :: 11
 const cellWidth: int :: 9
 const cellHeight: int :: 18
 const title: []char :: "Kuin Programming Language"
-const langEn: bool :: false
+const langEn: bool :: true
+const colorBack: int :: 16#FFFFF5F5
+const untitledSrcName: []char :: "_untitled_.kn"
+const untitledInternalName: []char :: "\\_untitled_"
 
 enum CharColor
 	none
@@ -1003,6 +1120,8 @@ enum CharColor
 end enum
 
 var mainSrcName: []char
+var mainSrcDir: []char
+var sysDir: []char
 var srcCharColor: []int
 var font: draw@Font
 var documents: dict<[]char, @Document>
@@ -1070,6 +1189,7 @@ func main()
 		do @editFile :: wnd@makeEdit(@wndMain, 1027, 359, 185, 19, %move, %fix)
 		do @editFile.readonly(true)
 		do @listFile :: wnd@makeList(@wndMain, 1027, 384, 185, 231, %move, %scale)
+		do @listFile.onSel :: @listFileOnSel
 		do @menuMain :: wnd@makeMenu()
 		do @popupMainFile :: wnd@makePopup()
 		do @popupMainFile.add(16#0001, @langEn ?("&New\tCtrl+N", "????(&N)\tCtrl+N"))
@@ -1094,6 +1214,7 @@ func main()
 	end func
 
 	func initEditor()
+		do @sysDir :: file@exeDir() ~ "sys/"
 		do @srcCharColor :: #[%max $ @CharColor $ int]int
 		do @srcCharColor[%none $ @CharColor $ int] :: 16#FF999999
 		do @srcCharColor[%identifier $ @CharColor $ int] :: 16#FF009BEA
@@ -1213,13 +1334,14 @@ func new(srcName: []char, src: [][]char)
 	do @documents :: #dict<[]char, @Document>
 	do @curDocument :: #@DocumentSrc
 	do @curDocument.init(src)
-	do @mainSrcName :: srcName =& null ?("_default_.kn", srcName)
+	do @mainSrcName :: srcName =& null ?(@untitledSrcName, srcName)
+	do @mainSrcDir :: srcName =& null ?("", file@dir(srcName))
 	do @documents.add(@mainSrcName, @curDocument)
 	; TODO:
 end func
 
 func save(): bool
-	if(@mainSrcName = "_default_.kn")
+	if(@mainSrcName = @untitledSrcName)
 		var file: []char :: wnd@saveFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuin?????? (*.kn)"), "*.kn"], 0, "kn")
 		if(file =& null)
 			ret false
@@ -1241,7 +1363,7 @@ func save(): bool
 end func
 
 func saveAll(): bool
-	if(@mainSrcName = "_default_.kn")
+	if(@mainSrcName = @untitledSrcName)
 		if(!@save())
 			ret false
 		end if
@@ -1295,12 +1417,31 @@ func add(file: []char): @Document
 		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret null
 	end if
-	while(!filePtr.term())
-		do src.add(filePtr.readLine())
+
+	var document: @Document :: null
+	var first: bool :: true
+	while loop(!filePtr.term())
+		var line: []char :: filePtr.readLine()
+		do src.add(line)
+		if(first)
+			do first :: false
+			if(^line >= 3 & line.sub(0, 3) = ";;[")
+				var ptr: int :: 6
+				while(ptr < ^line & line[ptr] <> ']')
+					do ptr :+ 1
+				end while
+				switch(line.sub(3, ptr - 3))
+				case "ar_wnd"
+					do document :: #@DocumentArWnd
+				end switch
+				break loop
+			end if
+		end if
 	end while
 	do filePtr.fin()
-	var document: @Document :: #@DocumentSrc
-	; TODO:
+	if(document =& null)
+		do document :: #@DocumentSrc
+	end if
 	do document.init(src.toArray())
 	do @documents.add(file, document)
 	ret document
@@ -1391,6 +1532,7 @@ end func
 
 func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
 	do @curDocument.draw(width, height)
+	do draw@render(0)
 end func
 
 func drawEditorOnMouseDownL(wnd: wnd@WndBase, x: int, y: int)
@@ -1456,7 +1598,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	try
 		do @resetAuxiliary()
 		if(@build(@mainSrcName, @getSrc, null, out, null, false, @getEnv(), @log))
-			if (@mainSrcName <> "_default_.kn")
+			if (@mainSrcName <> @untitledSrcName)
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
 				do filePtr.writeStr(file@dir(@mainSrcName))
 				do filePtr.writeChar('\n')
@@ -1484,7 +1626,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	try
 		do @resetAuxiliary()
 		if(@build(@mainSrcName, @getSrc, null, file, null, true, @getEnv(), @log))
-			if (@mainSrcName <> "_default_.kn")
+			if (@mainSrcName <> @untitledSrcName)
 				var resSrc: []char :: file@dir(@mainSrcName) ~ "res/"
 				if(file@exist(resSrc))
 					var resDst: []char :: file@dir(file) ~ "res/"
@@ -1499,6 +1641,17 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, @langEn ?("Unexpected error.", "??????????"), @title, %err, %ok)
 	end try
 	do @updateUi()
+end func
+
+func listFileOnSel(wnd: wnd@WndBase)
+	var sel: int :: @listFile.getSel()
+	if(sel <> -1)
+		var src: []char :: @internalNameToSrcName(@listFile.getText(sel))
+		var document: @Document :: @documents.get(src)
+		if(document <>& null)
+			; TODO:
+		end if
+	end if
 end func
 
 func getSrc(path: []char): [][]char
@@ -1526,7 +1679,7 @@ func log(args: [][]char, row: int, col: int)
 	if(args[2] =& null)
 		do @editLog.setText(@editLog.getText() ~ msg ~ "\n")
 	else
-		do @editLog.setText(@editLog.getText() ~ msg ~ " (" ~ @srcStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n")
+		do @editLog.setText(@editLog.getText() ~ msg ~ " (" ~ @nullStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n")
 	end if
 	var pos: @Pos :: #@Pos
 	do pos.src :: ##args[2]
@@ -1538,20 +1691,11 @@ func log(args: [][]char, row: int, col: int)
 end func
 
 func errStr(msg: []char, src: []char, row: int, col: int): []char
-	ret "[" ~ @srcStr(src) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ "] " ~ @nullStr(msg)
+	ret "[" ~ @nullStr(src) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ "] " ~ @nullStr(msg)
 end func
 
 func nullStr(s: []char): []char
 	ret s =& null ?("(null)", s)
-end func
-
-func srcStr(s: []char): []char
-	if(s =& null)
-		ret "(null)"
-	elif(s = "\\_default_")
-		ret @langEn ?("Untitled", "??")
-	end if
-	ret s
 end func
 
 func setDirtyInterpret()
@@ -1625,14 +1769,21 @@ func moveWordTop(src: [][]char, srcColor: [][]bit8, x: &int, y: &int, color: &bi
 end func
 
 func srcNameToInternalName(srcName: []char): []char
-	ret "\\" ~ file@delExt(file@fileName(srcName))
+	if(file@dir(srcName) = @sysDir)
+		ret file@delExt(file@fileName(srcName))
+	else
+		ret "\\" ~ file@delExt(file@fileName(srcName))
+	end if
 end func
 
 func internalNameToSrcName(internalName: []char): []char
-	if(^internalName > 1 & internalName[0] = '\\')
-		ret internalName.sub(1, -1) ~ ".kn"
+	if(internalName = @untitledInternalName)
+		ret @untitledSrcName
 	end if
-	ret null
+	if(^internalName > 1 & internalName[0] = '\\')
+		ret @mainSrcDir ~ internalName.sub(1, -1) ~ ".kn"
+	end if
+	ret @sysDir ~ internalName ~ ".kn"
 end func
 
 func logForInterpret(args: [][]char, row: int, col: int)
@@ -1655,4 +1806,11 @@ func updateUi()
 		do @listInfo.add(@listInfoItem.get().text)
 		do @listInfoItem.next()
 	end while
+
+	do @listFile.clear()
+	do @documents.forEach(callback)
+
+	func callback(src: []char, document: @Document)
+		do @listFile.add(@srcNameToInternalName(src))
+	end func
 end func
