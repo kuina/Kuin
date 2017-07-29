@@ -44,9 +44,15 @@ var btnRls: wnd@Btn
 var editFile: wnd@Edit
 var listFile: wnd@List
 var menuMain: wnd@Menu
+var popupMainEdit: wnd@Popup
 var popupMainFile: wnd@Popup
 var popupMainBuild: wnd@Popup
 var popupMainHelp: wnd@Popup
+var wndDlg: wnd@Wnd
+var wndDlgResultFile: []char
+var wndDlgResultType: int
+var wndDlgEditFile: wnd@Edit
+var wndDlgListType: wnd@List
 
 class Undo()
 end class
@@ -207,6 +213,7 @@ class DocumentSrc(@Document)
 		do me.areaX :: -1
 		do me.areaY :: -1
 		do me.lineNumberWidth :: 0
+		do me.interpreted :: false
 	end func
 
 	+*func getSrc(): [][]char
@@ -563,6 +570,7 @@ class DocumentSrc(@Document)
 	var areaX: int
 	var areaY: int
 	var lineNumberWidth: int
+	+var interpreted: bool
 
 	func areaSelected(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
@@ -954,17 +962,30 @@ class DocumentArBase(@Document)
 		do me.obj2dRoot :: #@Obj2dRoot
 		do me.obj2dRoot.init("", 0.0, 0.0, 1600.0, 900.0)
 
-		assert src[0].sub(0, 6) = ";;[ar_"
-		var ptr: int :: 6
-		while(src[0][ptr] <> ']')
+		if(src <>& null)
+			assert src[0].sub(0, 6) = ";;[ar_"
+			var ptr: int :: 6
+			while(src[0][ptr] <> ']')
+				do ptr :+ 1
+			end while
 			do ptr :+ 1
-		end while
-		do ptr :+ 1
-		do me.initFromMeta(src[0], &ptr)
+			do me.initFromMeta(src[0], &ptr)
+		end if
 	end func
 
 	+*func getSrc(): [][]char
-		ret getSrcRecursion(me.obj2dRoot)
+		var meta: []char :: ";;[ar_" ~ me.getMeta() ~ "]" ~ getMetaRecursion(me.obj2dRoot)
+		ret [meta] ~ getSrcRecursion(me.obj2dRoot)
+
+		func getMetaRecursion(obj: @Obj2d): []char
+			var meta: []char :: obj.writeMeta()
+			do obj.children.head()
+			while(!obj.children.term())
+				do meta :~ getMetaRecursion(obj.children.get())
+				do obj.children.next()
+			end while
+			ret meta
+		end func
 
 		func getSrcRecursion(obj: @Obj2d): [][]char
 			var src: [][]char :: obj.getSrc()
@@ -1032,13 +1053,17 @@ class DocumentArBase(@Document)
 	func initFromMeta(src: []char, ptr: &int)
 	end func
 
+	func getMeta(): []char
+	end func
+
 	func parseWord(src: []char, ptr: &int): []char
 		var last: int :: ptr
 		while(last < ^src & src[last] <> ',')
 			do last :+ 1
 		end while
+		var word: []char :: src.sub(ptr, last - ptr)
 		do ptr :: last + 1
-		ret src.sub(ptr, last - ptr)
+		ret word
 	end func
 end class
 
@@ -1078,6 +1103,14 @@ class Obj2dRoot(@Obj2d)
 	end func
 
 	+*func getSrc(): [][]char
+		ret [""]
+	end func
+
+	+*func readMeta(src: []char, ptr: &int)
+	end func
+
+	+*func writeMeta(): []char
+		ret (^me.children).toStr()
 	end func
 
 	+var color: int
@@ -1086,6 +1119,23 @@ end class
 class DocumentArWnd(@DocumentArBase)
 	*func initFromMeta(src: []char, ptr: &int)
 		do me.obj2dRoot.color :: draw@white
+		do me.initFromMetaRecursion(me.obj2dRoot, src, &ptr)
+	end func
+
+	*func getMeta(): []char
+		ret "wnd"
+	end func
+
+	func initFromMetaRecursion(parent: @Obj2d, src: []char, ptr: &int)
+		var num: int :: me.parseWord(src, &ptr).toInt()
+		for i(0, num - 1)
+			var obj: @Obj2d
+			switch(me.parseWord(src, &ptr))
+				; TODO:
+			end switch
+			do obj.readMeta(src, &ptr)
+			do parent.children.add(obj)
+		end for
 	end func
 end class
 
@@ -1093,6 +1143,10 @@ class DocumentArDraw(@DocumentArDraw)
 	*func initFromMeta(src: []char, ptr: &int)
 		do me.obj2dRoot.color :: draw@white
 		; TODO:
+	end func
+
+	*func getMeta(): []char
+		ret "draw"
 	end func
 end class
 
@@ -1146,11 +1200,6 @@ func main()
 		do @new(null, null)
 	end if
 
-	do @setDirtyInterpret()
-	do @setDirtyHint()
-	do @resetAuxiliary()
-	do @drawEditor.paint()
-
 	do mainLoop()
 
 	func makeWnd()
@@ -1200,6 +1249,19 @@ func main()
 		do @popupMainFile.addLine()
 		do @popupMainFile.add(16#0005, @langEn ?("E&xit\tCtrl+Q", "??(&E)\tCtrl+Q"))
 		do @menuMain.addPopup(@langEn ?("&File", "????(&F)"), @popupMainFile)
+		do @popupMainEdit :: wnd@makePopup()
+		do @popupMainEdit.add(16#0030, @langEn ?("Add Ne&w File\tCtrl+Shift+A", "????(&W)\tCtrl+Shift+A"))
+		do @popupMainEdit.add(16#0031, @langEn ?("Add Existin&g File", "????(&G)"))
+		do @popupMainEdit.addLine()
+		do @popupMainEdit.add(16#0032, @langEn ?("&Undo\tCtrl+Z", "????(&U)\tCtrl+Z"))
+		do @popupMainEdit.add(16#0033, @langEn ?("&Redo\tCtrl+Y", "????(&R)\tCtrl+Y"))
+		do @popupMainEdit.addLine()
+		do @popupMainEdit.add(16#0034, @langEn ?("Cu&t\tCtrl+X", "????(&T)\tCtrl+X"))
+		do @popupMainEdit.add(16#0035, @langEn ?("&Copy\tCtrl+C", "????(&C)\tCtrl+C"))
+		do @popupMainEdit.add(16#0036, @langEn ?("&Paste\tCtrl+V", "????(&P)\tCtrl+V"))
+		do @popupMainEdit.add(16#0037, @langEn ?("&Delete\tDel", "????(&D)\tDel"))
+		do @popupMainEdit.add(16#0038, @langEn ?("Select &All\tCtrl+A", "????(&A)\tCtrl+A"))
+		do @menuMain.addPopup(@langEn ?("&Edit", "????(&E)"), @popupMainEdit)
 		do @popupMainBuild :: wnd@makePopup()
 		do @popupMainBuild.add(16#0020, @langEn ?("&Compile && Run\tF5", "????????(&C)\tF5"))
 		do @popupMainBuild.addLine()
@@ -1238,6 +1300,7 @@ func main()
 				case 0
 					if(lib@sysTime() - @dirtyInterpretTime > 150)
 						do @interpret1(document.src.src, document.src.color)
+						do document.interpreted :: true
 						do @drawEditor.paint()
 						do @dirtyInterpret :: 1
 					end if
@@ -1299,6 +1362,8 @@ func onKeyPress(key: input@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		end switch
 	case %shiftCtrl
 		switch(key)
+		case %a
+			do @wndMainOnPushMenu(@wndMain, 16#0030)
 		case %b
 			do @wndMainOnPushMenu(@wndMain, 16#0021)
 			ret true
@@ -1337,6 +1402,12 @@ func new(srcName: []char, src: [][]char)
 	do @mainSrcName :: srcName =& null ?(@untitledSrcName, srcName)
 	do @mainSrcDir :: srcName =& null ?("", file@dir(srcName))
 	do @documents.add(@mainSrcName, @curDocument)
+	do @setDirtyInterpret()
+	do @setDirtyHint()
+	do @resetAuxiliary()
+	do @updateUi()
+	do @drawEditor.paint()
+	do @drawEditor.focus()
 	; TODO:
 end func
 
@@ -1349,13 +1420,6 @@ func save(): bool
 		do @mainSrcName :: file
 	end if
 	if(!@saveSrc(@mainSrcName, @curDocument.getSrc()))
-		var msg: []char
-		if(@langEn)
-			do msg :: "Saving failed. " ~ @mainSrcName
-		else
-			do msg :: "?????????? " ~ @mainSrcName
-		end if
-		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret false
 	end if
 	do @curDocument.changed :: false
@@ -1375,13 +1439,6 @@ func saveAll(): bool
 	func callback(src: []char, document: @Document)
 		if(document.changed)
 			if(!@saveSrc(src, document.getSrc()))
-				var msg: []char
-				if(@langEn)
-					do msg :: "Saving failed. " ~ src
-				else
-					do msg :: "?????????? " ~ src
-				end if
-				do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 				do @saveAllSuccess :: false
 			end if
 		end if
@@ -1392,6 +1449,13 @@ var saveAllSuccess: bool
 func saveSrc(path: []char, src: [][]char): bool
 	var filePtr: file@Writer :: file@makeWriter(path, false)
 	if(filePtr =& null)
+		var msg: []char
+		if(@langEn)
+			do msg :: "Saving failed. " ~ path
+		else
+			do msg :: "?????????? " ~ path
+		end if
+		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret false
 	end if
 	for line(0, ^src - 1)
@@ -1445,6 +1509,19 @@ func add(file: []char): @Document
 	do document.init(src.toArray())
 	do @documents.add(file, document)
 	ret document
+end func
+
+func setCurSrc(document: @Document)
+	do @curDocument :: document
+	if(document =$ @DocumentSrc)
+		var document2: @DocumentSrc :: document $ @DocumentSrc
+		if(!document2.interpreted)
+			do @interpret1(document2.src.src, document2.src.color)
+			do document2.interpreted :: true
+		end if
+	end if
+	do @drawEditor.paint()
+	do @drawEditor.focus()
 end func
 
 func chkChanged(): bool
@@ -1512,6 +1589,24 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		do @btnCompileOnPush(@btnCompile)
 	case 16#0021
 		do @btnRlsOnPush(@btnRls)
+	case 16#0030
+		do @addNewFile()
+	case 16#0031
+		do @addExistingFile()
+	case 16#0032
+		; TODO:
+	case 16#0033
+		; TODO:
+	case 16#0034
+		; TODO:
+	case 16#0035
+		; TODO:
+	case 16#0036
+		; TODO:
+	case 16#0037
+		; TODO:
+	case 16#0038
+		; TODO:
 	end switch
 end func
 
@@ -1649,7 +1744,7 @@ func listFileOnSel(wnd: wnd@WndBase)
 		var src: []char :: @internalNameToSrcName(@listFile.getText(sel))
 		var document: @Document :: @documents.get(src)
 		if(document <>& null)
-			; TODO:
+			do @setCurSrc(document)
 		end if
 	end if
 end func
@@ -1813,4 +1908,60 @@ func updateUi()
 	func callback(src: []char, document: @Document)
 		do @listFile.add(@srcNameToInternalName(src))
 	end func
+end func
+
+func addNewFile()
+	if(@mainSrcDir = "")
+		do wnd@msgBox(@wndMain, @langEn ?("The main source file must be saved before adding another file.", "??????????"), @title, %err, %ok)
+		ret
+	end if
+	do @wndDlg :: wnd@makeWnd(@wndMain, %fix, 640, 480, @langEn?("Add New File", "????"))
+	do @wndDlgResultFile :: null
+	do @wndDlgResultType :: 0
+	do @wndDlgListType :: wnd@makeList(@wndDlg, 12, 12, 616, 100, %fix, %scale)
+	do @wndDlgListType.add(@langEn?("Source Code", "????"))
+	do @wndDlgListType.add(@langEn?("Window", "????"))
+	do @wndDlgListType.setSel(0)
+	do @wndDlgEditFile :: wnd@makeEdit(@wndDlg, 12, 118, 616, 19, %fix, %fix)
+	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndDlg, 12, 143, 100, 23, %fix, %fix, @langEn ?("Add", "???????"))
+	do btnAdd.onPush :: btnAddOnPush
+	do @wndDlg.modal()
+	if(@wndDlgResultFile <>& null & @wndDlgResultFile <> "")
+		var document: @Document
+		switch(@wndDlgResultType)
+		case 0
+			do document :: #@DocumentSrc
+		case 1
+			do document :: #@DocumentArWnd
+		end switch
+		do document.init(null)
+		if(@saveSrc(@wndDlgResultFile, document.getSrc()))
+			do @add(@wndDlgResultFile)
+			do @updateUi()
+			; TODO: Exchange the files.
+		end if
+	end if
+	do @wndDlg :: null
+	do @wndDlgResultFile :: null
+	do @wndDlgEditFile :: null
+	do @wndDlgListType :: null
+
+	func btnAddOnPush(wnd: wnd@WndBase)
+		do @wndDlgResultFile :: @wndDlgEditFile.getText()
+		do @wndDlgResultType :: @wndDlgListType.getSel()
+		do @wndDlg.close()
+	end func
+end func
+
+func addExistingFile()
+	if(@mainSrcDir = "")
+		do wnd@msgBox(@wndMain, @langEn ?("The main source file must be saved before adding another file.", "??????????"), @title, %err, %ok)
+		ret
+	end if
+	var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuin?????? (*.kn)"), "*.kn"], 0)
+	if(file <>& null)
+		do @add(file)
+		do @updateUi()
+		; TODO: Exchange the files.
+	end if
 end func

@@ -36,6 +36,9 @@ end enum
 	+func [d0001.knd, _wndBaseFocus] focus()
 	end func
 
+	+func [d0001.knd, _wndBaseEnable] enable(isEnabled: bool)
+	end func
+
 	var kind: int
 	var handle: int
 	var defaultWndProc: int
@@ -62,9 +65,19 @@ end class
 	+func [d0001.knd, _wndActive] active(): bool
 	end func
 
+	+func modal()
+		do me.setModalLock()
+		while(@act() & me.modalLock)
+		end while
+	end func
+
+	func [d0001.knd, _wndSetModalLock] setModalLock()
+	end func
+
 	+var minMaxRect: int
 	+var onClose: func<(@WndBase): bool>
 	+var onPushMenu: func<(@WndBase, int)>
+	+var modalLock: bool
 end class
 
 +enum ShiftCtrl

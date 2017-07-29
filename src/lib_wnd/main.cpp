@@ -78,6 +78,7 @@ struct SWnd
 	U16 MaxHeight;
 	void* OnClose;
 	void* OnPushMenu;
+	Bool ModalLock;
 };
 
 struct SDraw
@@ -647,6 +648,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 		me3->MaxHeight = static_cast<U16>(-1);
 		me3->OnClose = NULL;
 		me3->OnPushMenu = NULL;
+		me3->ModalLock = False;
 	}
 	SendMessage(me2->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
 	ShowWindow(me2->WndHandle, SW_SHOWNORMAL);
@@ -657,7 +659,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 EXPORT_CPP void _wndBaseDtor(SClass* me_)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
-	SendMessage(me2->WndHandle, WM_DESTROY, 0, 0);
+	DestroyWindow(me2->WndHandle);
 }
 
 EXPORT_CPP void _wndBaseGetSize(SClass* me_, S64* width, S64* height)
@@ -676,7 +678,12 @@ EXPORT_CPP void _wndBasePaint(SClass* me_)
 
 EXPORT_CPP void _wndBaseFocus(SClass* me_)
 {
-	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, WM_SETFOCUS, 0, 0);
+	SetFocus(reinterpret_cast<SWndBase*>(me_)->WndHandle);
+}
+
+EXPORT_CPP void _wndBaseEnable(SClass* me_, Bool is_enabled)
+{
+	EnableWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_enabled ? TRUE : FALSE);
 }
 
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
@@ -695,7 +702,7 @@ EXPORT_CPP void _wndClose(SClass* me_)
 
 EXPORT_CPP void _wndExit(SClass* me_)
 {
-	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, WM_DESTROY, 0, 0);
+	DestroyWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle);
 }
 
 EXPORT_CPP void _wndSetText(SClass* me_, const U8* text)
@@ -732,6 +739,14 @@ EXPORT_CPP Bool _wndActive(SClass* me_)
 	return GetActiveWindow() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
 }
 
+EXPORT_CPP void _wndSetModalLock(SClass* me_)
+{
+	HWND parent = GetWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle, GW_OWNER);
+	if (parent != NULL)
+		EnableWindow(parent, FALSE);
+	reinterpret_cast<SWnd*>(me_)->ModalLock = True;
+}
+
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
@@ -749,7 +764,7 @@ EXPORT_CPP void _drawDtor(SClass* me_)
 	SDraw* me3 = reinterpret_cast<SDraw*>(me_);
 	if (me3->DrawBuf != NULL)
 		Draw::FinDrawBuf(me3->DrawBuf);
-	SendMessage(me2->WndHandle, WM_DESTROY, 0, 0);
+	DestroyWindow(me2->WndHandle);
 }
 
 EXPORT_CPP void _drawShowCaret(SClass* me_, S64 height, SClass* font)
@@ -1511,10 +1526,20 @@ static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPA
 				if (!static_cast<Bool>(reinterpret_cast<U64>(Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnClose))))
 					return 0;
 			}
-			SendMessage(wnd, WM_DESTROY, 0, 0);
+			DestroyWindow(wnd);
 			return 0;
 		case WM_DESTROY:
 			WndCnt--;
+			if (wnd3->ModalLock)
+			{
+				HWND parent = GetWindow(wnd2->WndHandle, GW_OWNER);
+				if (parent != NULL)
+				{
+					EnableWindow(parent, TRUE);
+					SetActiveWindow(parent);
+				}
+				wnd3->ModalLock = False;
+			}
 			return 0;
 		case WM_SIZE:
 			EnumChildWindows(wnd, ResizeCallback, 1);
@@ -1555,10 +1580,20 @@ static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 				if (!static_cast<Bool>(reinterpret_cast<U64>(Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnClose))))
 					return 0;
 			}
-			SendMessage(wnd, WM_DESTROY, 0, 0);
+			DestroyWindow(wnd);
 			return 0;
 		case WM_DESTROY:
 			WndCnt--;
+			if (wnd3->ModalLock)
+			{
+				HWND parent = GetWindow(wnd2->WndHandle, GW_OWNER);
+				if (parent != NULL)
+				{
+					EnableWindow(parent, TRUE);
+					SetActiveWindow(parent);
+				}
+				wnd3->ModalLock = False;
+			}
 			return 0;
 		case WM_COMMAND:
 		case WM_NOTIFY:
@@ -1583,10 +1618,20 @@ static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPA
 				if (!static_cast<Bool>(reinterpret_cast<U64>(Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnClose))))
 					return 0;
 			}
-			SendMessage(wnd, WM_DESTROY, 0, 0);
+			DestroyWindow(wnd);
 			return 0;
 		case WM_DESTROY:
 			WndCnt--;
+			if (wnd3->ModalLock)
+			{
+				HWND parent = GetWindow(wnd2->WndHandle, GW_OWNER);
+				if (parent != NULL)
+				{
+					EnableWindow(parent, TRUE);
+					SetActiveWindow(parent);
+				}
+				wnd3->ModalLock = False;
+			}
 			return 0;
 		case WM_SIZE:
 			EnumChildWindows(wnd, ResizeCallback, 1);
