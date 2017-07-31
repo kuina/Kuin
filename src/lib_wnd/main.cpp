@@ -1742,12 +1742,16 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<U64>(w_param)), wnd3->OnKeyChar);
 			return 0;
 		case WM_SIZE:
-			if (wnd3->EqualMagnification)
 			{
-				if (wnd3->DrawBuf != NULL)
-					Draw::FinDrawBuf(wnd3->DrawBuf);
-				wnd3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(LOWORD(l_param)), static_cast<int>(HIWORD(l_param)), wnd2->WndHandle);
-				wnd3->DrawTwice = True;
+				int width = static_cast<int>(LOWORD(l_param));
+				int height = static_cast<int>(HIWORD(l_param));
+				if (wnd3->EqualMagnification && width > 0 && height > 0)
+				{
+					if (wnd3->DrawBuf != NULL)
+						Draw::FinDrawBuf(wnd3->DrawBuf);
+					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, wnd2->WndHandle);
+					wnd3->DrawTwice = True;
+				}
 			}
 			return 0;
 		case WM_HSCROLL:

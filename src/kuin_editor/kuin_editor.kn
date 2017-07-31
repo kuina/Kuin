@@ -960,7 +960,9 @@ class DocumentArBase(@Document)
 	+*func init(src: [][]char)
 		do me.initVars()
 		do me.obj2dRoot :: #@Obj2dRoot
-		do me.obj2dRoot.init("", 0.0, 0.0, 1600.0, 900.0)
+		do me.obj2dRoot.init("", 0, 0, 1600, 900)
+		do me.pageX :: 0
+		do me.pageY :: 0
 
 		if(src <>& null)
 			assert src[0].sub(0, 6) = ";;[ar_"
@@ -1000,13 +1002,13 @@ class DocumentArBase(@Document)
 
 	+*func draw(width: int, height: int)
 		do draw@rect(0.0, 0.0, width $ float, height $ float, @colorBack)
-		do drawRecursion(me.obj2dRoot)
+		do drawRecursion(me.obj2dRoot, me.pageX, me.pageY)
 
-		func drawRecursion(obj: @Obj2d)
-			do obj.draw()
+		func drawRecursion(obj: @Obj2d, pageX: int, pageY: int)
+			do obj.draw(pageX, pageY)
 			do obj.children.head()
 			while(!obj.children.term())
-				do drawRecursion(obj.children.get())
+				do drawRecursion(obj.children.get(), pageX, pageY)
 				do obj.children.next()
 			end while
 		end func
@@ -1025,7 +1027,9 @@ class DocumentArBase(@Document)
 	end func
 
 	+*func focus(isFocus: bool)
-		; TODO:
+		if(isFocus)
+			do me.refreshScroll()
+		end if
 	end func
 
 	+*func keyDown(key: input@Key, shiftCtrl: wnd@ShiftCtrl)
@@ -1037,14 +1041,20 @@ class DocumentArBase(@Document)
 	end func
 
 	+*func scrollX(pos: int)
-		; TODO:
+		do me.pageX :: pos
+		do @drawEditor.paint()
 	end func
 
 	+*func scrollY(pos: int)
-		; TODO:
+		do me.pageY :: pos
+		do @drawEditor.paint()
 	end func
 
+	const padding: int :: 32
+
 	var obj2dRoot: @Obj2dRoot
+	var pageX: int
+	var pageY: int
 
 	*func undoImpl(undo: @Undo)
 		; TODO:
@@ -1065,10 +1075,18 @@ class DocumentArBase(@Document)
 		do ptr :: last + 1
 		ret word
 	end func
+
+	func refreshScroll()
+		var scrWidth: int
+		var scrHeight: int
+		do @drawEditor.getSize(&scrWidth, &scrHeight)
+		do @scrollXSrc.setState(me.obj2dRoot.x, me.obj2dRoot.width + padding, scrWidth, me.pageX)
+		do @scrollYSrc.setState(me.obj2dRoot.y, me.obj2dRoot.height + padding, scrHeight, me.pageY)
+	end func
 end class
 
 class Obj2d()
-	+func init(name: []char, x: float, y: float, width: float, height: float)
+	+func init(name: []char, x: int, y: int, width: int, height: int)
 		do me.children :: #list<Obj2d>
 		do me.name :: name
 		do me.x :: x
@@ -1077,7 +1095,7 @@ class Obj2d()
 		do me.height :: height
 	end func
 
-	+func draw()
+	+func draw(pageX: int, pageY: int)
 	end func
 
 	+func getSrc(): [][]char
@@ -1091,15 +1109,15 @@ class Obj2d()
 
 	+var children: list<Obj2d>
 	+var name: []char
-	+var x: float
-	+var y: float
-	+var width: float
-	+var height: float
+	+var x: int
+	+var y: int
+	+var width: int
+	+var height: int
 end class
 
 class Obj2dRoot(@Obj2d)
-	+*func draw()
-		do draw@rect(me.x, me.y, me.width, me.height, me.color)
+	+*func draw(pageX: int, pageY: int)
+		do draw@rect((me.x - pageX) $ float, (me.y - pageY) $ float, me.width $ float, me.height $ float, me.color)
 	end func
 
 	+*func getSrc(): [][]char
