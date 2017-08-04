@@ -265,6 +265,7 @@ EXPORT void _freeSet(void* ptr, const U8* type)
 			break;
 		default:
 			ASSERT(*type == TypeId_Class);
+			*(S64*)ptr = 2;
 			DtorClassAsm(ptr);
 			FreeMem(ptr);
 			break;
@@ -2128,9 +2129,15 @@ static void* AddDictRecursion(void* node, const void* key, const void* item, int
 		int cmp = cmp_func(key, *(void**)((U8*)node + 0x18));
 		if (cmp == 0)
 		{
-			if (IsRef(*item_type) && *(const void**)((U8*)node + 0x20) != NULL)
-				_freeSet((U8*)node + 0x20, item_type); // TODO: This may be decremented.
-			*(const void**)((U8*)node + 0x20) = item;
+			void** ptr = (void**)((U8*)node + 0x20);
+			if (IsRef(*item_type) && *ptr != NULL)
+			{
+				(*(S64*)item)++;
+				(*(S64*)*ptr)--;
+				if (*(S64*)*ptr == 0)
+					_freeSet(*ptr, item_type);
+			}
+			*ptr = (void*)item;
 			*addition = False;
 			return node;
 		}

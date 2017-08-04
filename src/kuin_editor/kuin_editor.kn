@@ -976,8 +976,10 @@ class DocumentArBase(@Document)
 	end func
 
 	+*func getSrc(): [][]char
+		do wnd@msgBox(null, "piyo", "", %none, %ok)
 		var meta: []char :: ";;[ar_" ~ me.getMeta() ~ "]" ~ getMetaRecursion(me.obj2dRoot)
-		ret [meta] ~ getSrcRecursion(me.obj2dRoot)
+		do me.src :: [meta] ~ getSrcRecursion(me.obj2dRoot)
+		ret me.src
 
 		func getMetaRecursion(obj: @Obj2d): []char
 			var meta: []char :: obj.writeMeta()
@@ -1052,6 +1054,7 @@ class DocumentArBase(@Document)
 
 	const padding: int :: 32
 
+	var src: [][]char
 	var obj2dRoot: @Obj2dRoot
 	var pageX: int
 	var pageY: int
@@ -1487,6 +1490,17 @@ func saveSrc(path: []char, src: [][]char): bool
 end func
 
 func add(file: []char): @Document
+	if(!(^@sysDir <= ^file & @sysDir = file.sub(0, ^@sysDir) | @mainSrcDir <> "" & ^@mainSrcDir <= ^file & @mainSrcDir = file.sub(0, ^@mainSrcDir)))
+		var msg: []char
+		if(@langEn)
+			do msg :: "The file exists in a directory outside the main file. " ~ file
+		else
+			do msg :: "???????????? " ~ file
+		end if
+		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
+		ret null
+	end if
+
 	var src: list<[]char> :: #list<[]char>
 	var filePtr: file@Reader :: file@makeReader(file)
 	if(filePtr =& null)
@@ -1768,7 +1782,7 @@ func listFileOnSel(wnd: wnd@WndBase)
 end func
 
 func getSrc(path: []char): [][]char
-	var path2: []char :: ##path
+	var path2: []char :: (##path).replace('\\', '/')
 	var document: @Document :: @documents.get(path2)
 	if(document <>& null)
 		ret document.getSrc()
@@ -1882,10 +1896,12 @@ func moveWordTop(src: [][]char, srcColor: [][]bit8, x: &int, y: &int, color: &bi
 end func
 
 func srcNameToInternalName(srcName: []char): []char
-	if(file@dir(srcName) = @sysDir)
-		ret file@delExt(file@fileName(srcName))
+	if(^@sysDir <= ^srcName & @sysDir = srcName.sub(0, ^@sysDir))
+		ret file@delExt(srcName.sub(^@sysDir, -1)).replace('/', '\\')
+	elif(@mainSrcDir <> "" & ^@mainSrcDir <= ^srcName & @mainSrcDir = srcName.sub(0, ^@mainSrcDir))
+		ret "\\" ~ file@delExt(srcName.sub(^@mainSrcDir, -1)).replace('/', '\\')
 	else
-		ret "\\" ~ file@delExt(file@fileName(srcName))
+		ret "\\" ~ file@delExt(file@fileName(srcName)).replace('/', '\\')
 	end if
 end func
 
@@ -1894,9 +1910,9 @@ func internalNameToSrcName(internalName: []char): []char
 		ret @untitledSrcName
 	end if
 	if(^internalName > 1 & internalName[0] = '\\')
-		ret @mainSrcDir ~ internalName.sub(1, -1) ~ ".kn"
+		ret @mainSrcDir ~ internalName.sub(1, -1).replace('\\', '/') ~ ".kn"
 	end if
-	ret @sysDir ~ internalName ~ ".kn"
+	ret @sysDir ~ internalName.replace('\\', '/') ~ ".kn"
 end func
 
 func logForInterpret(args: [][]char, row: int, col: int)
@@ -1965,7 +1981,7 @@ func addNewFile()
 	do @wndDlgListType :: null
 
 	func btnAddOnPush(wnd: wnd@WndBase)
-		do @wndDlgResultFile :: @wndDlgEditFile.getText()
+		do @wndDlgResultFile :: @wndDlgEditFile.getText().replace('\\', '/')
 		do @wndDlgResultType :: @wndDlgListType.getSel()
 		do @wndDlg.close()
 	end func

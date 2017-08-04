@@ -11,8 +11,9 @@ PUBLIC Call2Asm
 PUBLIC Call3Asm
 
 _TEXT SEGMENT
-ToBinClassAsm PROC
+ToBinClassAsm PROC FRAME
 	sub rsp, 00a8h
+	.ALLOCSTACK 00a8h
 	mov QWORD PTR 20h[rsp], rbx
 	mov QWORD PTR 28h[rsp], rsi
 	mov QWORD PTR 30h[rsp], rdi
@@ -30,6 +31,7 @@ ToBinClassAsm PROC
 	movsd QWORD PTR 90h[rsp], xmm13
 	movsd QWORD PTR 98h[rsp], xmm14
 	movsd QWORD PTR 00a0h[rsp], xmm15
+	.ENDPROLOG
 	; begin
 	inc QWORD PTR 00h[rcx]
 	mov QWORD PTR 00h[rsp], rcx
@@ -61,8 +63,9 @@ ToBinClassAsm ENDP
 _TEXT ENDS
 
 _TEXT SEGMENT
-FromBinClassAsm PROC
+FromBinClassAsm PROC FRAME
 	sub rsp, 00a8h
+	.ALLOCSTACK 00a8h
 	mov QWORD PTR 20h[rsp], rbx
 	mov QWORD PTR 28h[rsp], rsi
 	mov QWORD PTR 30h[rsp], rdi
@@ -80,6 +83,7 @@ FromBinClassAsm PROC
 	movsd QWORD PTR 90h[rsp], xmm13
 	movsd QWORD PTR 98h[rsp], xmm14
 	movsd QWORD PTR 00a0h[rsp], xmm15
+	.ENDPROLOG
 	; begin
 	lea rax, QWORD PTR 30h[rcx]
 	add rax, QWORD PTR 30h[rcx]
@@ -113,8 +117,9 @@ FromBinClassAsm ENDP
 _TEXT ENDS
 
 _TEXT SEGMENT
-CmpClassAsm PROC
+CmpClassAsm PROC FRAME
 	sub rsp, 00a8h
+	.ALLOCSTACK 00a8h
 	mov QWORD PTR 20h[rsp], rbx
 	mov QWORD PTR 28h[rsp], rsi
 	mov QWORD PTR 30h[rsp], rdi
@@ -132,6 +137,7 @@ CmpClassAsm PROC
 	movsd QWORD PTR 90h[rsp], xmm13
 	movsd QWORD PTR 98h[rsp], xmm14
 	movsd QWORD PTR 00a0h[rsp], xmm15
+	.ENDPROLOG
 	; begin
 	inc QWORD PTR 00h[rcx]
 	mov QWORD PTR 00h[rsp], rcx
@@ -165,8 +171,9 @@ CmpClassAsm ENDP
 _TEXT ENDS
 
 _TEXT SEGMENT
-DtorClassAsm PROC
+DtorClassAsm PROC FRAME
 	sub rsp, 00a8h
+	.ALLOCSTACK 00a8h
 	mov QWORD PTR 20h[rsp], rbx
 	mov QWORD PTR 28h[rsp], rsi
 	mov QWORD PTR 30h[rsp], rdi
@@ -184,6 +191,7 @@ DtorClassAsm PROC
 	movsd QWORD PTR 90h[rsp], xmm13
 	movsd QWORD PTR 98h[rsp], xmm14
 	movsd QWORD PTR 00a0h[rsp], xmm15
+	.ENDPROLOG
 	; begin
 	mov QWORD PTR 00h[rcx], 02h
 	mov QWORD PTR 00h[rsp], rcx
@@ -215,8 +223,9 @@ DtorClassAsm ENDP
 _TEXT ENDS
 
 _TEXT SEGMENT
-CopyClassAsm PROC
+CopyClassAsm PROC FRAME
 	sub rsp, 00a8h
+	.ALLOCSTACK 00a8h
 	mov QWORD PTR 20h[rsp], rbx
 	mov QWORD PTR 28h[rsp], rsi
 	mov QWORD PTR 30h[rsp], rdi
@@ -234,6 +243,7 @@ CopyClassAsm PROC
 	movsd QWORD PTR 90h[rsp], xmm13
 	movsd QWORD PTR 98h[rsp], xmm14
 	movsd QWORD PTR 00a0h[rsp], xmm15
+	.ENDPROLOG
 	; begin
 	inc QWORD PTR 00h[rcx]
 	mov QWORD PTR 00h[rsp], rcx
@@ -297,8 +307,9 @@ MulAsm ENDP
 _TEXT ENDS
 
 _TEXT SEGMENT
-Call0Asm PROC
+Call0Asm PROC FRAME
 	sub rsp, 00a8h
+	.ALLOCSTACK 00a8h
 	mov QWORD PTR 20h[rsp], rbx
 	mov QWORD PTR 28h[rsp], rsi
 	mov QWORD PTR 30h[rsp], rdi
@@ -316,6 +327,7 @@ Call0Asm PROC
 	movsd QWORD PTR 90h[rsp], xmm13
 	movsd QWORD PTR 98h[rsp], xmm14
 	movsd QWORD PTR 00a0h[rsp], xmm15
+	.ENDPROLOG
 	; begin
 	call rcx
 	; end
@@ -342,8 +354,9 @@ Call0Asm ENDP
 _TEXT ENDS
 
 _TEXT SEGMENT
-Call1Asm PROC
+Call1Asm PROC FRAME
 	sub rsp, 00a8h
+	.ALLOCSTACK 00a8h
 	mov QWORD PTR 20h[rsp], rbx
 	mov QWORD PTR 28h[rsp], rsi
 	mov QWORD PTR 30h[rsp], rdi
@@ -361,6 +374,7 @@ Call1Asm PROC
 	movsd QWORD PTR 90h[rsp], xmm13
 	movsd QWORD PTR 98h[rsp], xmm14
 	movsd QWORD PTR 00a0h[rsp], xmm15
+	.ENDPROLOG
 	; begin
 	mov QWORD PTR 00h[rsp], rcx
 	call rdx
@@ -388,8 +402,9 @@ Call1Asm ENDP
 _TEXT ENDS
 
 _TEXT SEGMENT
-Call2Asm PROC
+Call2Asm PROC FRAME
 	sub rsp, 00a8h
+	.ALLOCSTACK 00a8h
 	mov QWORD PTR 20h[rsp], rbx
 	mov QWORD PTR 28h[rsp], rsi
 	mov QWORD PTR 30h[rsp], rdi
@@ -407,6 +422,7 @@ Call2Asm PROC
 	movsd QWORD PTR 90h[rsp], xmm13
 	movsd QWORD PTR 98h[rsp], xmm14
 	movsd QWORD PTR 00a0h[rsp], xmm15
+	.ENDPROLOG
 	; begin
 	mov QWORD PTR 00h[rsp], rcx
 	mov QWORD PTR 08h[rsp], rdx
@@ -435,8 +451,9 @@ Call2Asm ENDP
 _TEXT ENDS
 
 _TEXT SEGMENT
-Call3Asm PROC
+Call3Asm PROC FRAME
 	sub rsp, 00a8h
+	.ALLOCSTACK 00a8h
 	mov QWORD PTR 20h[rsp], rbx
 	mov QWORD PTR 28h[rsp], rsi
 	mov QWORD PTR 30h[rsp], rdi
@@ -454,6 +471,7 @@ Call3Asm PROC
 	movsd QWORD PTR 90h[rsp], xmm13
 	movsd QWORD PTR 98h[rsp], xmm14
 	movsd QWORD PTR 00a0h[rsp], xmm15
+	.ENDPROLOG
 	; begin
 	mov QWORD PTR 00h[rsp], rcx
 	mov QWORD PTR 08h[rsp], rdx
