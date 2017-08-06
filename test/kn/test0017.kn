@@ -1,0 +1,28 @@
+func main()
+	for(1, 3)
+		block
+			class ObjA()
+				+func f(str: []char): int
+					do cui@print("A" ~ str)
+					ret 1
+				end func
+			end class
+
+			class ObjB(ObjA)
+				+**func f(str: []char): int
+					do cui@print("B" ~ str)
+					ret 2
+				end func
+			end class
+
+			class ObjC(ObjB)
+				+**func f(str: []char): int
+					do cui@print("C" ~ str)
+					ret 3
+				end func
+			end class
+
+			do cui@print((#ObjC).f("X").toStr())
+		end block
+	end for
+end func

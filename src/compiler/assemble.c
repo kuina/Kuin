@@ -751,7 +751,7 @@ static S64* RefClass(SAstClass* class_)
 				SAstClassItem* item = (SAstClassItem*)ptr->Data;
 				if ((item->Def->TypeId & AstTypeId_Func) == AstTypeId_Func)
 				{
-					if (item->Override)
+					if (item->Override != 0)
 						item->Addr = item->ParentItem->Addr;
 					else
 					{

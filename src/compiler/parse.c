@@ -1372,7 +1372,7 @@ static SAstClass* ParseClass(SAst** scope_begin, SAst** scope_end)
 			int col = Col;
 			SAstClassItem* item = (SAstClassItem*)Alloc(sizeof(SAstClassItem));
 			item->Public = False;
-			item->Override = False;
+			item->Override = 0;
 			item->ParentItem = NULL;
 			item->Addr = -1;
 			if (c == L'+')
@@ -1381,7 +1381,14 @@ static SAstClass* ParseClass(SAst** scope_begin, SAst** scope_end)
 				FileBuf = c;
 			c = ReadChar();
 			if (c == L'*')
-				item->Override = True;
+			{
+				item->Override = 1;
+				c = ReadChar();
+				if (c == L'*')
+					item->Override = 2;
+				else
+					FileBuf = c;
+			}
 			else
 				FileBuf = c;
 			{
@@ -1391,7 +1398,7 @@ static SAstClass* ParseClass(SAst** scope_begin, SAst** scope_end)
 					item->Def = (SAst*)ParseFunc(class_name, &scope_new[0], &scope_new[1]);
 				else if (wcscmp(s, L"var") == 0)
 				{
-					if (item->Override)
+					if (item->Override != 0)
 						Err(L"EP0028", NewPos(SrcName, row, col), s);
 					item->Def = (SAst*)ParseVar(AstArgKind_Member, class_name, &scope_new[0], &scope_new[1]);
 				}
@@ -1399,7 +1406,7 @@ static SAstClass* ParseClass(SAst** scope_begin, SAst** scope_end)
 				{
 					if (item->Public)
 						Err(L"EP0029", NewPos(SrcName, row, col), s);
-					if (item->Override)
+					if (item->Override != 0)
 						Err(L"EP0028", NewPos(SrcName, row, col), s);
 					if (wcscmp(s, L"end") == 0)
 					{

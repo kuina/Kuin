@@ -162,7 +162,7 @@ typedef struct SAstAlias
 typedef struct SAstClassItem
 {
 	Bool Public;
-	Bool Override;
+	U8 Override; // 0 = none, 1 = override, 2 = override and call its parent method.
 	SAst* Def;
 	struct SAstClassItem* ParentItem;
 	S64 Addr;

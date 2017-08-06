@@ -963,6 +963,8 @@ class DocumentArBase(@Document)
 		do me.obj2dRoot.init("", 0, 0, 1600, 900)
 		do me.pageX :: 0
 		do me.pageY :: 0
+		do me.mode :: %none
+		do me.hold :: null
 
 		if(src <>& null)
 			assert src[0].sub(0, 6) = ";;[ar_"
@@ -976,7 +978,6 @@ class DocumentArBase(@Document)
 	end func
 
 	+*func getSrc(): [][]char
-		do wnd@msgBox(null, "piyo", "", %none, %ok)
 		var meta: []char :: ";;[ar_" ~ me.getMeta() ~ "]" ~ getMetaRecursion(me.obj2dRoot)
 		do me.src :: [meta] ~ getSrcRecursion(me.obj2dRoot)
 		ret me.src
@@ -1004,28 +1005,73 @@ class DocumentArBase(@Document)
 
 	+*func draw(width: int, height: int)
 		do draw@rect(0.0, 0.0, width $ float, height $ float, @colorBack)
-		do drawRecursion(me.obj2dRoot, me.pageX, me.pageY)
+		do drawRecursion(me.obj2dRoot, me.pageX, me.pageY, me.hold)
 
-		func drawRecursion(obj: @Obj2d, pageX: int, pageY: int)
+		func drawRecursion(obj: @Obj2d, pageX: int, pageY: int, hold: @Obj2d)
+			do draw@rect((obj.x - 2 - pageX) $ float, (obj.y - 2 - pageY) $ float, (obj.width + 4) $ float, (obj.height + 4) $ float, hold =& obj ?(16#FF6666FF, 16#FF666666))
 			do obj.draw(pageX, pageY)
 			do obj.children.head()
 			while(!obj.children.term())
-				do drawRecursion(obj.children.get(), pageX, pageY)
+				do drawRecursion(obj.children.get(), pageX, pageY, hold)
 				do obj.children.next()
 			end while
 		end func
 	end func
 
 	+*func mouseDownL(x: int, y: int)
-		; TODO:
+		var sel: int :: @listInfo.getSel()
+		if(sel <= 0)
+			do me.mode :: %move
+			do me.hold :: selRecursion(me.obj2dRoot, x + me.pageX, y + me.pageY)
+			if(me.hold =& null)
+				do me.hold :: me.obj2dRoot
+			end if
+		else
+			var name: []char :: @listInfo.getText(sel)
+			do me.mode :: %put
+			var obj: @Obj2d :: me.makeObj2d(name)
+			do obj.init(me.getDefaultName(name), x, y, minSize, minSize)
+			if(me.hold =& null)
+				do me.obj2dRoot.children.add(obj)
+			else
+				do me.hold.children.add(obj)
+			end if
+			do me.hold :: obj
+			do me.changed :: true
+		end if
+		do @drawEditor.paint()
+
+		func selRecursion(obj: @Obj2d, x: int, y: int): @Obj2d
+			do obj.children.head()
+			while(!obj.children.term())
+				var result: @Obj2d :: selRecursion(obj.children.get(), x, y)
+				if(result <>& null)
+					ret result
+				end if
+				do obj.children.next()
+			end while
+			if(obj.x <= x & x <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
+				ret obj
+			end if
+			ret null
+		end func
 	end func
 
 	+*func mouseUpL(x: int, y: int)
-		; TODO:
+		switch(me.mode)
+		case %put
+			do me.moveObj2d(x, y)
+			do me.mode :: %none
+			do @drawEditor.paint()
+		end switch
 	end func
 
 	+*func mouseMove(x: int, y: int)
-		; TODO:
+		switch(me.mode)
+		case %put
+			do me.moveObj2d(x, y)
+			do @drawEditor.paint()
+		end switch
 	end func
 
 	+*func focus(isFocus: bool)
@@ -1053,11 +1099,20 @@ class DocumentArBase(@Document)
 	end func
 
 	const padding: int :: 32
+	const minSize: int :: 50
+
+	enum Mode
+		none
+		put
+		move
+	end enum
 
 	var src: [][]char
 	var obj2dRoot: @Obj2dRoot
 	var pageX: int
 	var pageY: int
+	var mode: Mode
+	var hold: @Obj2d
 
 	*func undoImpl(undo: @Undo)
 		; TODO:
@@ -1069,22 +1124,55 @@ class DocumentArBase(@Document)
 	func getMeta(): []char
 	end func
 
-	func parseWord(src: []char, ptr: &int): []char
-		var last: int :: ptr
-		while(last < ^src & src[last] <> ',')
-			do last :+ 1
-		end while
-		var word: []char :: src.sub(ptr, last - ptr)
-		do ptr :: last + 1
-		ret word
-	end func
-
 	func refreshScroll()
 		var scrWidth: int
 		var scrHeight: int
 		do @drawEditor.getSize(&scrWidth, &scrHeight)
 		do @scrollXSrc.setState(me.obj2dRoot.x, me.obj2dRoot.width + padding, scrWidth, me.pageX)
 		do @scrollYSrc.setState(me.obj2dRoot.y, me.obj2dRoot.height + padding, scrHeight, me.pageY)
+	end func
+
+	func makeObj2d(name: []char): @Obj2d
+	end func
+
+	func getDefaultName(name: []char): []char
+		var num: int :: 1
+		var newName: []char
+		while loop(true)
+			do newName :: name ~ num.toStr()
+			if(!searchRecursion(newName, me.obj2dRoot))
+				break loop
+			end if
+			do num :+ 1
+		end while
+		ret newName
+
+		func searchRecursion(name: []char, obj: @Obj2d): bool
+			if(name = obj.name)
+				ret true
+			end if
+			do obj.children.head()
+			while(!obj.children.term())
+				if(searchRecursion(name, obj.children.get()))
+					ret true
+				end if
+				do obj.children.next()
+			end while
+			ret false
+		end func
+	end func
+
+	func moveObj2d(x: int, y: int)
+		var width: int :: x - me.hold.x
+		var height: int :: y - me.hold.y
+		if(width < minSize)
+			do width :: minSize
+		end if
+		if(height < minSize)
+			do height :: minSize
+		end if
+		do me.hold.width :: width
+		do me.hold.height :: height
 	end func
 end class
 
@@ -1116,6 +1204,14 @@ class Obj2d()
 	+var y: int
 	+var width: int
 	+var height: int
+
+	func readMetaBase(src: []char, ptr: &int)
+		do me.init(@arBaseParseWord(src, &ptr), @arBaseParseWord(src, &ptr).toInt(), @arBaseParseWord(src, &ptr).toInt(), @arBaseParseWord(src, &ptr).toInt(), @arBaseParseWord(src, &ptr).toInt())
+	end func
+
+	func writeMetaBase(type: []char): []char
+		ret ",\{type},\{me.name},\{me.x.toStr()},\{me.y.toStr()},\{me.width.toStr()},\{me.height.toStr()},\{(^me.children).toStr()}"
+	end func
 end class
 
 class Obj2dRoot(@Obj2d)
@@ -1125,9 +1221,6 @@ class Obj2dRoot(@Obj2d)
 
 	+*func getSrc(): [][]char
 		ret [""]
-	end func
-
-	+*func readMeta(src: []char, ptr: &int)
 	end func
 
 	+*func writeMeta(): []char
@@ -1147,15 +1240,46 @@ class DocumentArWnd(@DocumentArBase)
 		ret "wnd"
 	end func
 
+	*func makeObj2d(name: []char): @Obj2d
+		switch(name)
+		case "Button"
+			ret #Obj2dBtn
+		end switch
+		assert(false)
+	end func
+
+	class Obj2dBtn(@Obj2d)
+		+*func draw(pageX: int, pageY: int)
+			do draw@rect((me.x - pageX) $ float, (me.y - pageY) $ float, me.width $ float, me.height $ float, 16#FF808080)
+		end func
+
+		+*func getSrc(): [][]char
+			ret [""]
+			; TODO:
+		end func
+
+		+*func readMeta(src: []char, ptr: &int)
+			do me.readMetaBase(src, &ptr)
+		end func
+
+		+*func writeMeta(): []char
+			ret me.writeMetaBase("btn")
+		end func
+	end class
+
 	func initFromMetaRecursion(parent: @Obj2d, src: []char, ptr: &int)
-		var num: int :: me.parseWord(src, &ptr).toInt()
+		var num: int :: @arBaseParseWord(src, &ptr).toInt()
 		for i(0, num - 1)
 			var obj: @Obj2d
-			switch(me.parseWord(src, &ptr))
-				; TODO:
+			switch(@arBaseParseWord(src, &ptr))
+			case "btn"
+				do obj :: #Obj2dBtn
+			default
+				ret
 			end switch
 			do obj.readMeta(src, &ptr)
 			do parent.children.add(obj)
+			do me.initFromMetaRecursion(obj, src, &ptr)
 		end for
 	end func
 end class
@@ -1168,6 +1292,9 @@ class DocumentArDraw(@DocumentArDraw)
 
 	*func getMeta(): []char
 		ret "draw"
+	end func
+
+	*func makeObj2d(name: []char): @Obj2d
 	end func
 end class
 
@@ -1459,7 +1586,9 @@ func saveAll(): bool
 
 	func callback(src: []char, document: @Document)
 		if(document.changed)
-			if(!@saveSrc(src, document.getSrc()))
+			if(@saveSrc(src, document.getSrc()))
+				do document.changed :: false
+			else
 				do @saveAllSuccess :: false
 			end if
 		end if
@@ -1654,6 +1783,7 @@ func listInfoOnSel(wnd: wnd@WndBase)
 				do @drawEditor.focus()
 			end if
 		end if
+	elif(@curDocument =$ @DocumentArBase)
 	end if
 end func
 
@@ -1779,6 +1909,7 @@ func listFileOnSel(wnd: wnd@WndBase)
 			do @setCurSrc(document)
 		end if
 	end if
+	do @updateUi()
 end func
 
 func getSrc(path: []char): [][]char
@@ -1929,12 +2060,17 @@ end func
 
 func updateUi()
 	do @listInfo.clear()
-	; TODO: do @listInfoItem.sort()
-	do @listInfoItem.head()
-	while(!@listInfoItem.term())
-		do @listInfo.add(@listInfoItem.get().text)
-		do @listInfoItem.next()
-	end while
+	if(@curDocument =$ @DocumentSrc)
+		; TODO: do @listInfoItem.sort()
+		do @listInfoItem.head()
+		while(!@listInfoItem.term())
+			do @listInfo.add(@listInfoItem.get().text)
+			do @listInfoItem.next()
+		end while
+	elif(@curDocument =$ @DocumentArWnd)
+		do @listInfo.add(@langEn ?("None", "????"))
+		do @listInfo.add("Button")
+	end if
 
 	do @listFile.clear()
 	do @documents.forEach(callback)
@@ -1998,4 +2134,14 @@ func addExistingFile()
 		do @updateUi()
 		; TODO: Exchange the files.
 	end if
+end func
+
+func arBaseParseWord(src: []char, ptr: &int): []char
+	var last: int :: ptr
+	while(last < ^src & src[last] <> ',')
+		do last :+ 1
+	end while
+	var word: []char :: src.sub(ptr, last - ptr)
+	do ptr :: last + 1
+	ret word
 end func

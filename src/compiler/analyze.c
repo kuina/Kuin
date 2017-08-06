@@ -479,7 +479,7 @@ static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name)
 	{
 		// These functions override functions of the root class.
 		SAstClassItem* item = (SAstClassItem*)Alloc(sizeof(SAstClassItem));
-		item->Override = True;
+		item->Override = 1;
 		item->Def = (SAst*)func;
 		item->ParentItem = NULL;
 		item->Addr = -1;
@@ -1041,7 +1041,7 @@ static void RebuildClass(SAstClass* ast)
 					}
 					if (parent_item == NULL)
 					{
-						if (item->Override)
+						if (item->Override != 0)
 						{
 							Err(L"EA0005", item->Def->Pos, member_name);
 							return;
@@ -1049,7 +1049,7 @@ static void RebuildClass(SAstClass* ast)
 					}
 					else
 					{
-						if (!item->Override)
+						if (item->Override == 0)
 						{
 							Err(L"EA0006", item->Def->Pos, member_name);
 							return;
@@ -1096,7 +1096,7 @@ static void RebuildClass(SAstClass* ast)
 				if (wcscmp(member_name, L"_dtor") == 0 || wcscmp(member_name, L"_copy") == 0 || wcscmp(member_name, L"_toBin") == 0 || wcscmp(member_name, L"_fromBin") == 0)
 				{
 					ASSERT(item->Def->TypeId == AstTypeId_Func);
-					if (item->Override && (((SAstFunc*)item->Def)->FuncAttr & FuncAttr_Force) == 0)
+					if (item->Override != 0 && (((SAstFunc*)item->Def)->FuncAttr & FuncAttr_Force) == 0)
 					{
 						Err(L"EA0010", item->Def->Pos, member_name);
 						return;
@@ -1118,7 +1118,48 @@ static void RebuildClass(SAstClass* ast)
 					// Analyze functions and variables in classes because they can be referred to as instances.
 					SAst* def = item->Def;
 					if (def->TypeId == AstTypeId_Func)
+					{
+						if (item->Override == 2)
+						{
+							// Call its parent's function.
+							SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+							InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
+							{
+								SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
+								InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, ((SAst*)ast)->Pos);
+								{
+									SAstExpr* expr = (SAstExpr*)Alloc(sizeof(SAstExpr));
+									InitAstExpr(expr, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+									((SAst*)expr)->RefItem = item->ParentItem->Def;
+									call->Func = expr;
+								}
+								call->Args = ListNew();
+								{
+									SListNode* node = ((SAstFunc*)item->Def)->Args->Top;
+									while (node != NULL)
+									{
+										SAstArg* arg = (SAstArg*)node->Data;
+										{
+											SAstExprCallArg* expr = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+											{
+												SAstExpr* expr2 = (SAstExpr*)Alloc(sizeof(SAstExpr));
+												InitAstExpr(expr2, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+												((SAst*)expr2)->RefName = ((SAst*)arg)->Name;
+												((SAst*)expr2)->RefItem = (SAst*)arg;
+												expr->Arg = expr2;
+												expr->RefVar = arg->RefVar;
+											}
+											ListAdd(call->Args, expr);
+										}
+										node = node->Next;
+									}
+								}
+								do_->Expr = (SAstExpr*)call;
+							}
+							ListIns(((SAstFunc*)def)->Stats, ((SAstFunc*)def)->Stats->Top, do_);
+						}
 						RebuildFunc((SAstFunc*)def);
+					}
 					else if (def->TypeId == AstTypeId_Var)
 						RebuildVar((SAstVar*)def);
 				}

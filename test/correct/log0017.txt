@@ -1,0 +1,15 @@
+Begin: ../../test/output/output0017.exe
+Excpt: 80000003
+> AX
+> BX
+> CX
+> 3
+> AX
+> BX
+> CX
+> 3
+> AX
+> BX
+> CX
+> 3
+end: ../../test/output/output0017.exe
