@@ -4,12 +4,30 @@ Excpt: 80000003
 > BX
 > CX
 > 3
+> true
+> a, null
+> 100
+> b, B
+> 100
+> false
 > AX
 > BX
 > CX
 > 3
+> true
+> a, null
+> 100
+> b, B
+> 100
+> false
 > AX
 > BX
 > CX
 > 3
+> true
+> a, null
+> 100
+> b, B
+> 100
+> false
 end: ../../test/output/output0017.exe

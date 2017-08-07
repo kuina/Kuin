@@ -59,7 +59,7 @@ static int CmpBit64(const void* a, const void* b);
 static int CmpStr(const void* a, const void* b);
 static void* CatBin(int num, void** bins);
 static void MergeSort(void* me_, const U8* type, Bool asc);
-static void ForEachRecursion(void* ptr, const U8* child1, const U8* child2, const void* callback);
+static Bool ForEachRecursion(void* ptr, const U8* child1, const U8* child2, const void* callback, void* data);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -1037,6 +1037,7 @@ EXPORT S64 _or(const void* me_, const U8* type, const void* n)
 		case TypeId_Bit16: return (S64)(U64)(*(U16*)&me_ | *(U16*)&n);
 		case TypeId_Bit32: return (S64)(U64)(*(U32*)&me_ | *(U32*)&n);
 		case TypeId_Bit64: return (S64)(*(U64*)&me_ | *(U64*)&n);
+		case TypeId_Enum: return (S64)(*(U64*)&me_ | *(U64*)&n);
 		default:
 			ASSERT(False);
 			return 0;
@@ -1051,6 +1052,7 @@ EXPORT S64 _and(const void* me_, const U8* type, const void* n)
 		case TypeId_Bit16: return (S64)(U64)(*(U16*)&me_ & *(U16*)&n);
 		case TypeId_Bit32: return (S64)(U64)(*(U32*)&me_ & *(U32*)&n);
 		case TypeId_Bit64: return (S64)(*(U64*)&me_ & *(U64*)&n);
+		case TypeId_Enum: return (S64)(*(U64*)&me_ & *(U64*)&n);
 		default:
 			ASSERT(False);
 			return 0;
@@ -1065,6 +1067,7 @@ EXPORT S64 _xor(const void* me_, const U8* type, const void* n)
 		case TypeId_Bit16: return (S64)(U64)(*(U16*)&me_ ^ *(U16*)&n);
 		case TypeId_Bit32: return (S64)(U64)(*(U32*)&me_ ^ *(U32*)&n);
 		case TypeId_Bit64: return (S64)(*(U64*)&me_ ^ *(U64*)&n);
+		case TypeId_Enum: return (S64)(*(U64*)&me_ ^ *(U64*)&n);
 		default:
 			ASSERT(False);
 			return 0;
@@ -1079,6 +1082,7 @@ EXPORT S64 _not(const void* me_, const U8* type)
 		case TypeId_Bit16: return (S64)(U64)(~*(U16*)&me_);
 		case TypeId_Bit32: return (S64)(U64)(~*(U32*)&me_);
 		case TypeId_Bit64: return (S64)(~*(U64*)&me_);
+		case TypeId_Enum: return (S64)(~*(U64*)&me_);
 		default:
 			ASSERT(False);
 			return 0;
@@ -1953,15 +1957,16 @@ EXPORT Bool _exist(void* me_, const U8* type, const void* key)
 	return False;
 }
 
-EXPORT void _forEach(void* me_, const U8* type, const void* callback)
+EXPORT Bool _forEach(void* me_, const U8* type, const void* callback, void* data)
 {
 	U8* child1;
 	U8* child2;
 	GetDictTypes(type, &child1, &child2);
 	{
 		void* ptr = *(void**)((U8*)me_ + 0x10);
-		if (ptr != NULL)
-			ForEachRecursion(ptr, child1, child2, callback);
+		if (ptr == NULL)
+			return True;
+		return ForEachRecursion(ptr, child1, child2, callback, data);
 	}
 }
 
@@ -2071,16 +2076,22 @@ static void FreeDictRecursion(void* ptr, const U8* child1, const U8* child2)
 	if (IsRef(*child1))
 	{
 		void* ptr2 = *(void**)((U8*)ptr + 0x18);
-		(*(S64*)ptr2)--;
-		if (*(S64*)ptr2 == 0)
-			_freeSet(ptr2, child1);
+		if (ptr2 != NULL)
+		{
+			(*(S64*)ptr2)--;
+			if (*(S64*)ptr2 == 0)
+				_freeSet(ptr2, child1);
+		}
 	}
 	if (IsRef(*child2))
 	{
 		void* ptr2 = *(void**)((U8*)ptr + 0x20);
-		(*(S64*)ptr2)--;
-		if (*(S64*)ptr2 == 0)
-			_freeSet(ptr2, child2);
+		if (ptr2 != NULL)
+		{
+			(*(S64*)ptr2)--;
+			if (*(S64*)ptr2 == 0)
+				_freeSet(ptr2, child2);
+		}
 	}
 	FreeMem(ptr);
 }
@@ -2132,7 +2143,8 @@ static void* AddDictRecursion(void* node, const void* key, const void* item, int
 			void** ptr = (void**)((U8*)node + 0x20);
 			if (IsRef(*item_type) && *ptr != NULL)
 			{
-				(*(S64*)item)++;
+				if (item != NULL)
+					(*(S64*)item)++;
 				(*(S64*)*ptr)--;
 				if (*(S64*)*ptr == 0)
 					_freeSet(*ptr, item_type);
@@ -2454,19 +2466,29 @@ static void MergeSort(void* me_, const U8* type, Bool asc)
 	FreeMem(b);
 }
 
-static void ForEachRecursion(void* ptr, const U8* child1, const U8* child2, const void* callback)
+static Bool ForEachRecursion(void* ptr, const U8* child1, const U8* child2, const void* callback, void* data)
 {
 	if (*(void**)ptr != NULL)
-		ForEachRecursion(*(void**)ptr, child1, child2, callback);
-	if (*(void**)((U8*)ptr + 0x08) != NULL)
-		ForEachRecursion(*(void**)((U8*)ptr + 0x08), child1, child2, callback);
+	{
+		if (!ForEachRecursion(*(void**)ptr, child1, child2, callback, data))
+			return False;
+	}
 	{
 		void* arg1 = *(void**)((U8*)ptr + 0x18);
 		void* arg2 = *(void**)((U8*)ptr + 0x20);
-		if (IsRef(*child1))
+		if (IsRef(*child1) && arg1 != NULL)
 			(*(S64*)arg1)++;
-		if (IsRef(*child2))
+		if (IsRef(*child2) && arg2 != NULL)
 			(*(S64*)arg2)++;
-		Call2Asm(arg1, arg2, (void*)callback);
+		if (data != NULL)
+			(*(S64*)data)++;
+		if (!(Bool)(U64)Call3Asm(arg1, arg2, data, (void*)callback))
+			return False;
 	}
+	if (*(void**)((U8*)ptr + 0x08) != NULL)
+	{
+		if (!ForEachRecursion(*(void**)((U8*)ptr + 0x08), child1, child2, callback, data))
+			return False;
+	}
+	return True;
 }

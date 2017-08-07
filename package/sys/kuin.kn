@@ -236,5 +236,5 @@ end func
 func [d0000.knd, _any_type, _take_child] _exist(me_: []bit8, type: int, key: []bit8): bool
 end func
 
-func [d0000.knd, _any_type, _take_key_value_func] _forEach(me_: []bit8, type: int, callback: int)
+func [d0000.knd, _any_type, _take_key_value_func] _forEach(me_: []bit8, type: int, callback: int, data: @Class): bool
 end func

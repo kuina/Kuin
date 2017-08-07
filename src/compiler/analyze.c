@@ -9,7 +9,7 @@ static const Char* BuildInFuncs[] =
 {
 	L"abs\0          \x0b",
 	L"add\0          \x07",
-	L"and\0          \x04",
+	L"and\0          \x0e",
 	L"clamp\0        \x0b",
 	L"clampMax\0     \x0b",
 	L"clampMin\0     \x0b",
@@ -31,9 +31,9 @@ static const Char* BuildInFuncs[] =
 	L"lower\0        \x06",
 	L"moveOffset\0   \x09",
 	L"next\0         \x09",
-	L"not\0          \x04",
+	L"not\0          \x0e",
 	L"offset\0       \x03",
-	L"or\0           \x04",
+	L"or\0           \x0e",
 	L"peek\0         \x0a",
 	L"prev\0         \x09",
 	L"replace\0      \x06",
@@ -58,7 +58,7 @@ static const Char* BuildInFuncs[] =
 	L"trimLeft\0     \x06",
 	L"trimRight\0    \x06",
 	L"upper\0        \x06",
-	L"xor\0          \x04",
+	L"xor\0          \x0e",
 };
 
 static SDict* Asts;
@@ -3418,6 +3418,10 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 				if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
 					correct = True;
 				break;
+			case 0x000e:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeBit || IsEnum(var_type))
+					correct = True;
+				break;
 		}
 		if (correct)
 		{
@@ -3530,7 +3534,13 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 							item->RefVar = False;
 							ListAdd(type->Args, item);
 						}
-						type->Ret = NULL;
+						{
+							SAstTypeFuncArg* item = (SAstTypeFuncArg*)Alloc(sizeof(SAstTypeFuncArg));
+							item->Arg = ((SAstTypeFuncArg*)func->Args->Top->Next->Next->Next->Data)->Arg;
+							item->RefVar = False;
+							ListAdd(type->Args, item);
+						}
+						type->Ret = func->Ret;
 						((SAstTypeFuncArg*)((SAstTypeFunc*)expr->Type)->Args->Top->Next->Next->Data)->Arg = (SAstType*)type;
 					}
 				}

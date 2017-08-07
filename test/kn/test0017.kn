@@ -24,5 +24,44 @@ func main()
 
 			do cui@print((#ObjC).f("X").toStr())
 		end block
+
+		block
+			enum Color
+				red :: 1
+				green :: 2
+				blue :: 4
+			end enum
+
+			var c1: Color :: %red
+			do c1 :: c1.or(%green)
+			var c2: Color :: %green
+			do c2 :: c2.or(%blue)
+			do cui@print((c1.and(c2) = %green).toStr())
+		end block
+
+		block
+			var d: dict<[]char, []char> :: #dict<[]char, []char>
+			do d.add("a", "A")
+			do d.add("a", "A")
+			do d.add("a", "A")
+			do d.add("a", null)
+			do d.add("a", null)
+			do d.add("a", null)
+			do d.add("c", "C")
+			do d.add("b", "B")
+			var c: @C :: #@C
+			do c.value :: 100
+			do cui@print(d.forEach(callback, c).toStr())
+
+			func callback(key: []char, value: []char, data: @C): bool
+				do cui@print(key ~ ", " ~ (value =& null ?("null", value)))
+				do cui@print(data.value.toStr())
+				ret !(value <>& null & value = "B")
+			end func
+		end block
 	end for
 end func
+
+class C()
+	+var value: int
+end class
