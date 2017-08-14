@@ -127,6 +127,7 @@ const U8* GetRectVsBin(size_t* size);
 const U8* GetCircleVsBin(size_t* size);
 const U8* GetCirclePsBin(size_t* size);
 const U8* GetTexVsBin(size_t* size);
+const U8* GetTexRotVsBin(size_t* size);
 const U8* GetTexPsBin(size_t* size);
 const U8* GetObjVsBin(size_t* size);
 const U8* GetObjJointVsBin(size_t* size);
@@ -144,11 +145,14 @@ static void* TriVertex = NULL;
 static void* TriVs = NULL;
 static void* TriPs = NULL;
 static void* RectVertex = NULL;
+static void* LineVertex = NULL;
+static void* RectLineVertex = NULL;
 static void* RectVs = NULL;
 static void* CircleVertex = NULL;
 static void* CircleVs = NULL;
 static void* CirclePs = NULL;
 static void* TexVs = NULL;
+static void* TexRotVs = NULL;
 static void* TexPs = NULL;
 static void* FontPs = NULL;
 static void* ObjVs = NULL;
@@ -285,6 +289,37 @@ EXPORT_CPP void _clearColor(S64 color)
 	CurWndBuf->ClearColor[2] = static_cast<FLOAT>(b);
 }
 
+EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
+{
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	if (a <= 0.04)
+		return;
+	{
+		float const_buf_vs[4] =
+		{
+			static_cast<float>(x1) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+			-(static_cast<float>(y1) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
+			static_cast<float>(x2 - x1) / static_cast<float>(CurWndBuf->Width) * 2.0f,
+			-(static_cast<float>(y2 - y1) / static_cast<float>(CurWndBuf->Height) * 2.0f),
+		};
+		float const_buf_ps[4] =
+		{
+			static_cast<float>(r),
+			static_cast<float>(g),
+			static_cast<float>(b),
+			static_cast<float>(a),
+		};
+		Draw::ConstBuf(RectVs, const_buf_vs);
+		Device->GSSetShader(NULL);
+		Draw::ConstBuf(TriPs, const_buf_ps);
+		Draw::VertexBuf(LineVertex);
+	}
+	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+	Device->DrawIndexed(2, 0, 0);
+	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
 EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, S64 color)
 {
 	double r, g, b, a;
@@ -363,6 +398,47 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 		Draw::VertexBuf(RectVertex);
 	}
 	Device->DrawIndexed(6, 0, 0);
+}
+
+EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
+{
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	if (a <= 0.04)
+		return;
+	if (w < 0.0)
+	{
+		x += w;
+		w = -w;
+	}
+	if (h < 0.0)
+	{
+		y += h;
+		h = -h;
+	}
+	{
+		float const_buf_vs[4] =
+		{
+			static_cast<float>(x) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
+			static_cast<float>(w) / static_cast<float>(CurWndBuf->Width) * 2.0f,
+			-(static_cast<float>(h) / static_cast<float>(CurWndBuf->Height) * 2.0f),
+		};
+		float const_buf_ps[4] =
+		{
+			static_cast<float>(r),
+			static_cast<float>(g),
+			static_cast<float>(b),
+			static_cast<float>(a),
+		};
+		Draw::ConstBuf(RectVs, const_buf_vs);
+		Device->GSSetShader(NULL);
+		Draw::ConstBuf(TriPs, const_buf_ps);
+		Draw::VertexBuf(RectLineVertex);
+	}
+	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+	Device->DrawIndexed(8, 0, 0);
+	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 color)
@@ -593,6 +669,64 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 			static_cast<float>(a),
 		};
 		Draw::ConstBuf(TexVs, const_buf_vs);
+		Device->GSSetShader(NULL);
+		Draw::ConstBuf(TexPs, const_buf_ps);
+		Draw::VertexBuf(RectVertex);
+		Device->PSSetShaderResources(0, 1, &me2->View);
+	}
+	Device->DrawIndexed(6, 0, 0);
+}
+
+EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, double dstH, double srcX, double srcY, double srcW, double srcH, double centerX, double centerY, double angle, S64 color)
+{
+	double r, g, b, a;
+	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	if (a <= 0.04)
+		return;
+
+	STex* me2 = reinterpret_cast<STex*>(me_);
+	if (dstW < 0.0)
+	{
+		dstX += dstW;
+		dstW = -dstW;
+		srcX += srcW;
+		srcW = -srcW;
+	}
+	if (dstH < 0.0)
+	{
+		dstY += dstH;
+		dstH = -dstH;
+		srcY += srcH;
+		srcH = -srcH;
+	}
+	{
+		float const_buf_vs[16] =
+		{
+			static_cast<float>(dstX) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
+			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->Width) * 2.0f,
+			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->Height) * 2.0f),
+			static_cast<float>(srcX) / static_cast<float>(me2->Width),
+			-(static_cast<float>(srcY) / static_cast<float>(me2->Height)),
+			static_cast<float>(srcW) / static_cast<float>(me2->Width),
+			-(static_cast<float>(srcH) / static_cast<float>(me2->Height)),
+			static_cast<float>(centerX) / static_cast<float>(CurWndBuf->Width) * 2.0f,
+			-(static_cast<float>(centerY) / static_cast<float>(CurWndBuf->Height) * 2.0f),
+			static_cast<float>(sin(-angle)),
+			static_cast<float>(cos(-angle)),
+			static_cast<float>(CurWndBuf->Width) / static_cast<float>(CurWndBuf->Height),
+			0.0f,
+			0.0f,
+			0.0f,
+		};
+		float const_buf_ps[4] =
+		{
+			static_cast<float>(r),
+			static_cast<float>(g),
+			static_cast<float>(b),
+			static_cast<float>(a),
+		};
+		Draw::ConstBuf(TexRotVs, const_buf_vs);
 		Device->GSSetShader(NULL);
 		Draw::ConstBuf(TexPs, const_buf_ps);
 		Draw::VertexBuf(RectVertex);
@@ -1503,6 +1637,41 @@ void Init()
 		}
 
 		{
+			float vertices[] =
+			{
+				0.0, 0.0,
+				1.0, 1.0,
+			};
+
+			U32 idces[] =
+			{
+				0, 1,
+			};
+
+			LineVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+		}
+
+		{
+			float vertices[] =
+			{
+				0.0, 0.0,
+				0.0, 1.0,
+				1.0, 1.0,
+				1.0, 0.0,
+			};
+
+			U32 idces[] =
+			{
+				0, 1,
+				1, 2,
+				2, 3,
+				3, 0,
+			};
+
+			RectLineVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+		}
+
+		{
 			ELayoutType layout_types[1] =
 			{
 				LayoutType_Float2,
@@ -1582,6 +1751,11 @@ void Init()
 				size_t size;
 				const U8* bin = GetTexVsBin(&size);
 				TexVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 8, 1, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetTexRotVsBin(&size);
+				TexRotVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 16, 1, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
@@ -1698,6 +1872,8 @@ void Fin()
 		FinShaderBuf(FontPs);
 	if (TexPs != NULL)
 		FinShaderBuf(TexPs);
+	if (TexRotVs != NULL)
+		FinShaderBuf(TexRotVs);
 	if (TexVs != NULL)
 		FinShaderBuf(TexVs);
 	if (CirclePs != NULL)
@@ -1708,6 +1884,10 @@ void Fin()
 		FinVertexBuf(CircleVertex);
 	if (RectVs != NULL)
 		FinShaderBuf(RectVs);
+	if (RectLineVertex != NULL)
+		FinVertexBuf(RectLineVertex);
+	if (LineVertex != NULL)
+		FinVertexBuf(LineVertex);
 	if (RectVertex != NULL)
 		FinVertexBuf(RectVertex);
 	if (TriPs != NULL)

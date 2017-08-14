@@ -159,6 +159,7 @@
     <ClCompile Include="rect_vs.c" />
     <ClCompile Include="snd.cpp" />
     <ClCompile Include="tex_ps.c" />
+    <ClCompile Include="tex_rot_vs.c" />
     <ClCompile Include="tex_vs.c" />
     <ClCompile Include="tri_ps.c" />
     <ClCompile Include="tri_vs.c" />

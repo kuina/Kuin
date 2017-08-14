@@ -21,6 +21,7 @@
     <ClCompile Include="obj_joint_vs.c" />
     <ClCompile Include="wav.cpp" />
     <ClCompile Include="font_ps.c" />
+    <ClCompile Include="tex_rot_vs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />
