@@ -123,7 +123,8 @@ typedef enum EFuncAttr
 typedef struct SAstFunc
 {
 	SAst Ast;
-	S64* Addr;
+	S64* AddrTop;
+	S64 AddrBottom;
 	const Char* DllName;
 	const Char* DllFuncName;
 	EFuncAttr FuncAttr;

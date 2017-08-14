@@ -49,7 +49,11 @@ EXPORT SClass* _makeProcess(SClass* me_, const U8* path, const U8* cmd_line)
 		STARTUPINFO startup_info = { 0 };
 		startup_info.cb = sizeof(STARTUPINFO);
 		if (!CreateProcess(path2, cmd_line_buf, NULL, NULL, FALSE, CREATE_SUSPENDED | NORMAL_PRIORITY_CLASS, NULL, cur_dir, &startup_info, &process_info))
+		{
+			if (cmd_line_buf != NULL)
+				FreeMem(cmd_line_buf);
 			return NULL;
+		}
 		me2->ProcessHandle = process_info.hProcess;
 		me2->ThreadHandle = process_info.hThread;
 	}
@@ -121,6 +125,14 @@ EXPORT void _threadRun(SClass* me_)
 	SThread* me2 = (SThread*)me_;
 	if (ResumeThread(me2->ThreadHandle) == (DWORD)-1)
 		THROW(0x1000, L"");
+}
+
+EXPORT Bool _threadRunning(SClass* me_)
+{
+	SThread* me2 = (SThread*)me_;
+	DWORD exit_code;
+	GetExitCodeThread(me2->ThreadHandle, &exit_code);
+	return exit_code == STILL_ACTIVE;
 }
 
 EXPORT SClass* _makeMutex(SClass* me_)

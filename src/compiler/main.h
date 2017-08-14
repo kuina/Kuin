@@ -15,3 +15,4 @@ EXPORT void FreeIdentifierSet(void);
 EXPORT void DumpIdentifierSet(const Char* path);
 #endif
 EXPORT void* GetHint(const U8* name, const U8* src, S64 row);
+EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func);

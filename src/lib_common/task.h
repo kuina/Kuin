@@ -10,6 +10,7 @@ EXPORT void _taskOpen(const U8* path);
 EXPORT SClass* _makeThread(SClass* me_, const void* thread_func);
 EXPORT void _threadDtor(SClass* me_);
 EXPORT void _threadRun(SClass* me_);
+EXPORT Bool _threadRunning(SClass* me_);
 EXPORT SClass* _makeMutex(SClass* me_);
 EXPORT void _mutexDtor(SClass* me_);
 EXPORT void _mutexLock(SClass* me_);

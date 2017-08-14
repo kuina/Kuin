@@ -1183,7 +1183,8 @@ static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** 
 			FileBuf = c;
 	}
 	InitAst((SAst*)ast, AstTypeId_Func, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, True, scope_begin, scope_end);
-	ast->Addr = NewAddr();
+	ast->AddrTop = NewAddr();
+	ast->AddrBottom = -1;
 	ast->Args = ListNew();
 	ast->Ret = NULL;
 	ast->Stats = ListNew();

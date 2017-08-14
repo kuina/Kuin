@@ -331,7 +331,7 @@ static void DumpAstFunc(const SAstFunc* ast)
 	Tab++;
 	{
 		DumpAst((const SAst*)ast);
-		ASSERT(ast->Addr != NULL && *ast->Addr == -1);
+		ASSERT(ast->AddrTop != NULL && *ast->AddrTop == -1);
 		ASSERT(ast->RetPoint == NULL);
 		PrintAstList(L"Func_Args", ast->Args);
 		if (ast->Ret != NULL)

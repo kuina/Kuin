@@ -202,7 +202,8 @@ void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, 
 		memset(func, 0, sizeof(SAst));
 		((SAst*)func)->TypeId = AstTypeId_FuncRaw;
 		((SAst*)func)->AnalyzedCache = (SAst*)func;
-		((SAstFunc*)func)->Addr = NewAddr();
+		((SAstFunc*)func)->AddrTop = NewAddr();
+		((SAstFunc*)func)->AddrBottom = -1;
 		((SAstFunc*)func)->DllName = NULL;
 		((SAstFunc*)func)->DllFuncName = NULL;
 		((SAstFunc*)func)->FuncAttr = FuncAttr_None;
@@ -214,15 +215,21 @@ void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, 
 		func->ArgNum = -1;
 		func->Header = GetExceptionFuncHeader();
 		ListAdd(Funcs, func);
-		PackAsm->ExcptFunc = ((SAstFunc*)func)->Addr;
+		PackAsm->ExcptFunc = ((SAstFunc*)func)->AddrTop;
 	}
 
 	while (Funcs->Len != 0)
 	{
-		int addr = PackAsm->Asms->Len;
+		SListNode* last_node = PackAsm->Asms->Bottom;
+		SAsm** asms = (SAsm**)Alloc(sizeof(SAsm*) * 2);
 		SAstFunc* func = (SAstFunc*)Funcs->Top->Data;
 		AssembleFunc(func, func == entry);
-		PackAsm->FuncAddrs = DictIAdd(PackAsm->FuncAddrs, (U64)addr, func->Addr);
+		if (last_node == NULL)
+			asms[0] = (SAsm*)PackAsm->Asms->Top->Data;
+		else
+			asms[0] = (SAsm*)last_node->Next->Data;
+		asms[1] = (SAsm*)PackAsm->Asms->Bottom->Data;
+		PackAsm->FuncAddrs = DictIAdd(PackAsm->FuncAddrs, (U64)func, asms);
 		ListDel(Funcs, &Funcs->Top);
 	}
 
@@ -707,13 +714,13 @@ static SAstArg* MakeTmpVar(int size, SAstType* type)
 
 static S64* RefLocalFunc(SAstFunc* func)
 {
-	if (*func->Addr == -1)
+	if (*func->AddrTop == -1)
 	{
 		ListAdd(Funcs, func);
-		*func->Addr = -2;
+		*func->AddrTop = -2;
 	}
-	ASSERT(*func->Addr == -2);
-	return func->Addr;
+	ASSERT(*func->AddrTop == -2);
+	return func->AddrTop;
 }
 
 static S64* RefLocalVar(SAstArg* var)
@@ -1861,7 +1868,8 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 					memset(func, 0, sizeof(SAst));
 					((SAst*)func)->TypeId = AstTypeId_FuncRaw;
 					((SAst*)func)->AnalyzedCache = (SAst*)func;
-					((SAstFunc*)func)->Addr = NewAddr();
+					((SAstFunc*)func)->AddrTop = NewAddr();
+					((SAstFunc*)func)->AddrBottom = -1;
 					((SAstFunc*)func)->DllName = NULL;
 					((SAstFunc*)func)->DllFuncName = NULL;
 					((SAstFunc*)func)->FuncAttr = FuncAttr_None;
@@ -2446,7 +2454,8 @@ static void AssembleTry(SAstStatTry* ast)
 			memset(func, 0, sizeof(SAst));
 			((SAst*)func)->TypeId = AstTypeId_FuncRaw;
 			((SAst*)func)->AnalyzedCache = (SAst*)func;
-			((SAstFunc*)func)->Addr = NewAddr();
+			((SAstFunc*)func)->AddrTop = NewAddr();
+			((SAstFunc*)func)->AddrBottom = -1;
 			((SAstFunc*)func)->DllName = NULL;
 			((SAstFunc*)func)->DllFuncName = NULL;
 			((SAstFunc*)func)->FuncAttr = FuncAttr_None;
@@ -2549,7 +2558,8 @@ static void AssembleTry(SAstStatTry* ast)
 			memset(func, 0, sizeof(SAst));
 			((SAst*)func)->TypeId = AstTypeId_FuncRaw;
 			((SAst*)func)->AnalyzedCache = (SAst*)func;
-			((SAstFunc*)func)->Addr = NewAddr();
+			((SAstFunc*)func)->AddrTop = NewAddr();
+			((SAstFunc*)func)->AddrBottom = -1;
 			((SAstFunc*)func)->DllName = NULL;
 			((SAstFunc*)func)->DllFuncName = NULL;
 			((SAstFunc*)func)->FuncAttr = FuncAttr_None;

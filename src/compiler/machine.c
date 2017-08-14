@@ -177,6 +177,7 @@ static S64 ImportLen;
 
 static void Write(U64 addr, size_t size, U64 data);
 static void WriteCode(void);
+static const void* UpdateFuncAddrCallback(U64 key, const void* value, void* param);
 static void WriteReadonlyData(void);
 static void WriteFuncAddrRecursion(SAstClass* class_, S64 file_origin, S64 addr_origin);
 static void WriteExcpt(void);
@@ -341,18 +342,11 @@ static void Write(U64 addr, size_t size, U64 data)
 static void WriteCode(void)
 {
 	SListNode* ptr = PackAsm->Asms->Top;
-	int idx = 0;
 	while (ptr != NULL)
 	{
 		SAsm* asm_ = (SAsm*)ptr->Data;
 		S64 addr = (S64)ftell(FilePtr) - (S64)Code.DataPos + (S64)Code.ImgPos;
 		ASSERT(addr >= 0);
-		{
-			// Set all the function addresses.
-			S64* func_addr = (S64*)DictISearch(PackAsm->FuncAddrs, (U64)idx);
-			if (func_addr != NULL)
-				*func_addr = addr;
-		}
 		{
 			// Write machine language.
 			SListNode* ptr2 = PackAsm->RefValueList->Bottom;
@@ -372,8 +366,21 @@ static void WriteCode(void)
 			}
 		}
 		ptr = ptr->Next;
-		idx++;
 	}
+	{
+		// Update all the function addresses.
+		DictIForEach(PackAsm->FuncAddrs, UpdateFuncAddrCallback, NULL);
+	}
+}
+
+static const void* UpdateFuncAddrCallback(U64 key, const void* value, void* param)
+{
+	SAstFunc* func = (SAstFunc*)key;
+	const SAsm** asm_ = (const SAsm**)value;
+	UNUSED(param);
+	*func->AddrTop = *asm_[0]->Addr;
+	func->AddrBottom = *asm_[1]->Addr;
+	return value;
 }
 
 static void WriteReadonlyData(void)
@@ -770,7 +777,7 @@ static void WriteFuncAddrRecursion(SAstClass* class_, S64 file_origin, S64 addr_
 			{
 				ASSERT(item->Addr >= 0);
 				{
-					S64 addr = *((SAstFunc*)item->Def)->Addr;
+					S64 addr = *((SAstFunc*)item->Def)->AddrTop;
 					ASSERT(addr != -1 && addr != -2);
 					addr -= addr_origin + item->Addr;
 					fseek(FilePtr, (long)(file_origin + item->Addr), SEEK_SET);

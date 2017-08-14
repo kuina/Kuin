@@ -28,6 +28,9 @@ end func
 func [d0917.knd, GetHint] getHint(name: []char, src: []char, row: int): []char
 end func
 
+func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>): bool
+end func
+
 var wndMain: wnd@Wnd
 var treeItem: wnd@Tree
 var listInfo: wnd@List
@@ -1581,10 +1584,10 @@ func saveAll(): bool
 		end if
 	end if
 	do @saveAllSuccess :: true
-	do @documents.forEach(callback)
+	do @documents.forEach(callback, null)
 	ret @saveAllSuccess
 
-	func callback(src: []char, document: @Document)
+	func callback(src: []char, document: @Document, data: kuin@Class): bool
 		if(document.changed)
 			if(@saveSrc(src, document.getSrc()))
 				do document.changed :: false
@@ -1592,6 +1595,7 @@ func saveAll(): bool
 				do @saveAllSuccess :: false
 			end if
 		end if
+		ret true
 	end func
 end func
 var saveAllSuccess: bool
@@ -1687,7 +1691,7 @@ end func
 
 func chkChanged(): bool
 	do @chkCloseChanged :: false
-	do @documents.forEach(callback)
+	do @documents.forEach(callback, null)
 	if(!@chkCloseChanged)
 		ret true
 	end if
@@ -1705,10 +1709,12 @@ func chkChanged(): bool
 	end if
 	ret @saveAll()
 
-	func callback(src: []char, document: @Document)
+	func callback(src: []char, document: @Document, data: kuin@Class): bool
 		if(document.changed)
 			do @chkCloseChanged :: true
+			ret false
 		end if
+		ret true
 	end func
 end func
 var chkCloseChanged: bool
@@ -1861,9 +1867,8 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 				do filePtr.writeChar('\n')
 				do filePtr.fin()
 			end if
-			var process: task@Process :: task@makeProcess(cmd, cmdLine)
-			if(process <>& null)
-				do process.run(false)
+			if(!@runDbg(cmd, cmdLine, idleFunc))
+				do wnd@msgBox(@wndMain, @langEn ?("Could not run.", "????"), @title, %err, %ok)
 			end if
 		end if
 		do @updateAuxiliary()
@@ -1871,6 +1876,10 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, @langEn ?("Unexpected error.", "??????????"), @title, %err, %ok)
 	end try
 	do @updateUi()
+
+	func idleFunc()
+		do wnd@act()
+	end func
 end func
 
 func btnRlsOnPush(wnd: wnd@WndBase)
@@ -1940,7 +1949,7 @@ func log(args: [][]char, row: int, col: int)
 		do @editLog.setText(@editLog.getText() ~ msg ~ " (" ~ @nullStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n")
 	end if
 	var pos: @Pos :: #@Pos
-	do pos.src :: ##args[2]
+	do pos.src :: args[2] =& null ?("", ##args[2])
 	do pos.row :: row
 	do pos.col :: col
 	if(!@auxiliaryErr.exist(pos))
@@ -1972,10 +1981,10 @@ func resetAuxiliary()
 end func
 
 func updateAuxiliary()
-	do @auxiliaryErr.forEach(callback)
+	do @auxiliaryErr.forEach(callback, null)
 	do @drawEditor.paint()
 
-	func callback(pos: @Pos, msg: []char)
+	func callback(pos: @Pos, msg: []char, data: kuin@Class): bool
 		var listInfoItem: @ListInfoItem :: #@ListInfoItem
 		do listInfoItem.text :: msg
 		do listInfoItem.pos :: pos
@@ -1984,7 +1993,7 @@ func updateAuxiliary()
 		; Fill in words with the error color.
 		var srcName: []char :: @internalNameToSrcName(pos.src)
 		if(srcName =& null)
-			ret
+			ret true
 		end if
 		var document: @Document :: @documents.get(srcName)
 		if(document <>& null & document =$ @DocumentSrc)
@@ -1999,6 +2008,7 @@ func updateAuxiliary()
 				end while
 			end if
 		end if
+		ret true
 	end func
 end func
 
@@ -2049,7 +2059,7 @@ end func
 func logForInterpret(args: [][]char, row: int, col: int)
 	if(args[2] <>& null)
 		var pos: @Pos :: #@Pos
-		do pos.src :: ##args[2]
+		do pos.src :: args[2] =& null ?("", ##args[2])
 		do pos.row :: row
 		do pos.col :: col
 		if(!@auxiliaryErr.exist(pos))
@@ -2073,10 +2083,11 @@ func updateUi()
 	end if
 
 	do @listFile.clear()
-	do @documents.forEach(callback)
+	do @documents.forEach(callback, null)
 
-	func callback(src: []char, document: @Document)
+	func callback(src: []char, document: @Document, data: kuin@Class): bool
 		do @listFile.add(@srcNameToInternalName(src))
+		ret true
 	end func
 end func
 

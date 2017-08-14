@@ -453,7 +453,8 @@ static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name)
 	SAstFunc* func = (SAstFunc*)Alloc(sizeof(SAstFunc));
 	InitAst((SAst*)func, AstTypeId_Func, ((SAst*)class_)->Pos);
 	((SAst*)func)->Name = name;
-	func->Addr = NewAddr();
+	func->AddrTop = NewAddr();
+	func->AddrBottom = -1;
 	func->DllName = NULL;
 	func->DllFuncName = NULL;
 	func->FuncAttr = FuncAttr_None;
@@ -602,7 +603,8 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 	SAstFunc* func = (SAstFunc*)Alloc(sizeof(SAstFunc));
 	InitAst((SAst*)func, AstTypeId_Func, pos);
 	((SAst*)func)->Name = L"$";
-	func->Addr = NewAddr();
+	func->AddrTop = NewAddr();
+	func->AddrBottom = -1;
 	func->DllName = NULL;
 	func->DllFuncName = NULL;
 	func->FuncAttr = FuncAttr_None;

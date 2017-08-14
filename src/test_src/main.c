@@ -51,7 +51,7 @@ int wmain(void)
 			{
 				STARTUPINFO startup_info = { 0 };
 				startup_info.cb = sizeof(STARTUPINFO);
-				if (!CreateProcess(output_path, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED | NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE | DEBUG_ONLY_THIS_PROCESS | DEBUG_PROCESS, NULL, NULL, &startup_info, &process_info))
+				if (!CreateProcess(output_path, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED | NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE | DEBUG_ONLY_THIS_PROCESS, NULL, NULL, &startup_info, &process_info))
 					goto Failure;
 				process = OpenProcess(PROCESS_VM_READ, FALSE, process_info.dwProcessId);
 			}
@@ -70,30 +70,36 @@ int wmain(void)
 					WaitForDebugEvent(&debug_event, INFINITE);
 					switch (debug_event.dwDebugEventCode)
 					{
-					case EXIT_PROCESS_DEBUG_EVENT:
-						end = True;
-						break;
-					case EXCEPTION_DEBUG_EVENT:
-						fwprintf(file_ptr, L"Excpt: %08x\n", debug_event.u.Exception.ExceptionRecord.ExceptionCode);
-						break;
-					case OUTPUT_DEBUG_STRING_EVENT:
-					{
-						U8 buf[1024] = { 0 };
-						SIZE_T size;
-						if (!ReadProcessMemory(process, debug_event.u.DebugString.lpDebugStringData, buf, debug_event.u.DebugString.nDebugStringLength, &size))
-							goto Failure;
-						fwprintf(file_ptr, L"> ");
+						case CREATE_PROCESS_DEBUG_EVENT:
+							CloseHandle(debug_event.u.CreateProcessInfo.hFile);
+							break;
+						case LOAD_DLL_DEBUG_EVENT:
+							CloseHandle(debug_event.u.LoadDll.hFile);
+							break;
+						case EXIT_PROCESS_DEBUG_EVENT:
+							end = True;
+							break;
+						case EXCEPTION_DEBUG_EVENT:
+							fwprintf(file_ptr, L"Excpt: %08x\n", debug_event.u.Exception.ExceptionRecord.ExceptionCode);
+							break;
+						case OUTPUT_DEBUG_STRING_EVENT:
 						{
-							const U8* ptr = buf;
-							while (*ptr != 0)
+							U8 buf[1024] = { 0 };
+							SIZE_T size;
+							if (!ReadProcessMemory(process, debug_event.u.DebugString.lpDebugStringData, buf, debug_event.u.DebugString.nDebugStringLength, &size))
+								goto Failure;
+							fwprintf(file_ptr, L"> ");
 							{
-								fwprintf(file_ptr, L"%c", *ptr);
-								ptr++;
+								const U8* ptr = buf;
+								while (*ptr != 0)
+								{
+									fwprintf(file_ptr, L"%c", *ptr);
+									ptr++;
+								}
 							}
+							fwprintf(file_ptr, L"\n");
 						}
-						fwprintf(file_ptr, L"\n");
-					}
-					break;
+						break;
 					}
 					ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, DBG_CONTINUE);
 				}

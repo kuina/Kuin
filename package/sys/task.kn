@@ -22,6 +22,9 @@ end func
 	+func [d0000.knd, _threadRun] run()
 	end func
 
+	+func [d0000.knd, _threadRunning] running(): bool
+	end func
+
 	var threadHandle: int
 end class
 

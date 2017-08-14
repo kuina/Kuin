@@ -18,6 +18,9 @@
 #include "parse.h"
 #include "util.h"
 
+#include <DbgHelp.h> // 'StackWalk64'
+#pragma comment(lib, "DbgHelp.lib")
+
 typedef struct SIdentifier
 {
 	Char* Name;
@@ -35,6 +38,13 @@ typedef struct SIdentifierSet
 	SIdentifier* Identifiers;
 } SIdentifierSet;
 
+typedef struct SDbgInfoSet
+{
+	U64 Begin;
+	U64 End;
+	SAstFunc* Func;
+} SDbgInfoSet;
+
 static const void*(*FuncGetSrc)(const U8*) = NULL;
 static void(*FuncLog)(const void*, S64, S64) = NULL;
 static const void* Src = NULL;
@@ -42,6 +52,10 @@ static const void* SrcLine = NULL;
 static const Char* SrcChar = NULL;
 static int IdentifierSetNum = 0;
 static SIdentifierSet* IdentifierSets = NULL;
+static int DbgInfoSetNum = 0;
+static SDbgInfoSet* DbgInfoSets = NULL;
+static SPackAsm PackAsm;
+static U64 DbgStartAddr;
 
 // Assembly functions.
 void* Call0Asm(void* func);
@@ -64,6 +78,8 @@ static const void* MakeIdentifierSet4(const Char* key, const void* value, void* 
 static const void* MakeIdentifierSet5(const Char* key, const void* value, void* param);
 static int CmpIdentifierSet(const void* a, const void* b);
 static int CmpIdentifier(const void* a, const void* b);
+static SPos* AddrToPos(U64 addr, Char* name);
+static const void* AddrToPosCallback(U64 key, const void* value, void* param);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -263,6 +279,189 @@ EXPORT void* GetHint(const U8* name, const U8* src, S64 row)
 	}
 }
 
+EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func)
+{
+	const Char* path2 = (const Char*)(path + 0x10);
+	Char cur_dir[MAX_PATH + 1];
+	Char* cmd_line_buf = NULL;
+	PROCESS_INFORMATION process_info;
+	{
+		Char* ptr;
+		wcscpy(cur_dir, path2);
+		ptr = cur_dir + wcslen(cur_dir);
+		while (ptr != cur_dir && *ptr != L'/' && *ptr != L'\\')
+			ptr--;
+		if (ptr != NULL)
+			*(ptr + 1) = L'\0';
+	}
+	if (cmd_line != NULL)
+	{
+		size_t len = wcslen((const Char*)(cmd_line + 0x10));
+		cmd_line_buf = (Char*)AllocMem(sizeof(Char) * (len + 1));
+		wcscpy(cmd_line_buf, (const Char*)(cmd_line + 0x10));
+	}
+	{
+		STARTUPINFO startup_info = { 0 };
+		startup_info.cb = sizeof(STARTUPINFO);
+		if (!CreateProcess(path2, cmd_line_buf, NULL, NULL, FALSE, CREATE_SUSPENDED | NORMAL_PRIORITY_CLASS | DEBUG_ONLY_THIS_PROCESS, NULL, cur_dir, &startup_info, &process_info))
+		{
+			if (cmd_line_buf != NULL)
+				FreeMem(cmd_line_buf);
+			return False;
+		}
+	}
+	if (cmd_line_buf != NULL)
+		FreeMem(cmd_line_buf);
+
+	{
+		DEBUG_EVENT debug_event;
+		Bool end = False;
+		DbgStartAddr = 0;
+		ResumeThread(process_info.hThread);
+		while (!end)
+		{
+			DWORD continue_status = DBG_EXCEPTION_NOT_HANDLED;
+			Call0Asm(idle_func);
+			WaitForDebugEvent(&debug_event, 0);
+			switch (debug_event.dwDebugEventCode)
+			{
+				case CREATE_PROCESS_DEBUG_EVENT:
+					DbgStartAddr = (U64)debug_event.u.CreateProcessInfo.lpBaseOfImage;
+					CloseHandle(debug_event.u.CreateProcessInfo.hFile);
+					break;
+				case LOAD_DLL_DEBUG_EVENT:
+					CloseHandle(debug_event.u.LoadDll.hFile);
+					break;
+				case EXIT_PROCESS_DEBUG_EVENT:
+					end = True;
+					break;
+				case EXCEPTION_DEBUG_EVENT:
+					if (debug_event.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003)
+						break;
+					{
+						Char str[4096] = L"";
+						CONTEXT context;
+						STACKFRAME64 stack;
+						IMAGEHLP_SYMBOL64 symbol;
+						memset(&context, 0, sizeof(context));
+						context.ContextFlags = CONTEXT_FULL;
+						if (!GetThreadContext(process_info.hThread, &context))
+							break;
+						memset(&stack, 0, sizeof(stack));
+						stack.AddrPC.Offset = context.Rip;
+						stack.AddrPC.Mode = AddrModeFlat;
+						stack.AddrStack.Offset = context.Rsp;
+						stack.AddrStack.Mode = AddrModeFlat;
+						stack.AddrFrame.Offset = context.Rbp;
+						stack.AddrFrame.Mode = AddrModeFlat;
+						SymInitialize(process_info.hProcess, NULL, TRUE);
+						{
+							DWORD code = debug_event.u.Exception.ExceptionRecord.ExceptionCode;
+							PVOID addr = debug_event.u.Exception.ExceptionRecord.ExceptionAddress;
+							const Char* text = L"Unknown exception.";
+							DWORD param_num = debug_event.u.Exception.ExceptionRecord.NumberParameters;
+							const ULONG_PTR* params = debug_event.u.Exception.ExceptionRecord.ExceptionInformation;
+							if (code <= 0x0000ffff)
+								text = L"User defined exception.";
+							else if (0x09170000 <= code && code <= 0x0917ffff)
+								text = L"Kuin library exception.";
+							else
+							{
+								switch (code)
+								{
+									case 0xc0000005: text = L"Access violation."; break;
+									case 0xc0000017: text = L"No memory."; break;
+									case 0xc0000090: text = L"Float invalid operation."; break;
+									case 0xc0000094: text = L"Integer division by zero."; break;
+									case 0xc00000fd: text = L"Stack overflow."; break;
+									case 0xc000013a: text = L"Ctrl-C exit."; break;
+									case 0xc9170000: text = L"Assertion failed."; break;
+									case 0xc9170001: text = L"Class cast failed."; break;
+									case 0xc9170002: text = L"Array index out of range."; break;
+									case 0xc9170003: text = L"Integer overflow."; break;
+									case 0xc9170004: text = L"Invalid call of non inherited 'cmp' method."; break;
+									case 0xc9170005: text = L"Invalid operation on standard library class."; break;
+								}
+							}
+							swprintf(str, 1024, L"An exception of '0x%08X' occurred at '0x%016I64X'.\r\n> %s\r\n\r\n", debug_event.u.Exception.ExceptionRecord.ExceptionCode, (U64)debug_event.u.Exception.ExceptionRecord.ExceptionAddress, text);
+						}
+
+						for (; ; )
+						{
+							if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process_info.hProcess, process_info.hThread, &stack, &context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL))
+								break;
+
+							{
+								Char str2[1024];
+								swprintf(str2, 1024, L"0x%016I64X: \t", context.Rip);
+								wcscat(str, str2);
+							}
+
+							symbol.SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
+							symbol.MaxNameLength = 255;
+							DWORD64 displacement;
+							if (SymGetSymFromAddr64(process_info.hProcess, (DWORD64)stack.AddrPC.Offset, &displacement, &symbol))
+							{
+								char name[1024];
+								UnDecorateSymbolName(symbol.Name, (PSTR)name, 1024, UNDNAME_COMPLETE);
+								{
+									Char* dst = str;
+									char* src = name;
+									while (*dst != L'\0')
+										dst++;
+									while (*src != L'\0')
+									{
+										*dst = (Char)*src;
+										dst++;
+										src++;
+									}
+									*dst = L'\r';
+									dst++;
+									*dst = L'\n';
+									dst++;
+									*dst = L'\0';
+								}
+							}
+							else
+							{
+								Char name[129];
+								SPos* pos = AddrToPos((U64)context.Rip, name);
+								if (pos != NULL)
+								{
+									Char str2[1024];
+									swprintf(str2, 1024, L"%s (%s: %d, %d)\r\n", name, pos->SrcName, pos->Row, pos->Col);
+									wcscat(str, str2);
+								}
+								else
+									wcscat(str, L"\r\n");
+							}
+							if (stack.AddrPC.Offset == 0)
+								break;
+						}
+						MessageBox(NULL, str, NULL, 0);
+					}
+					continue_status = DBG_CONTINUE;
+					break;
+				case OUTPUT_DEBUG_STRING_EVENT:
+					// TODO: Debug printing.
+					break;
+			}
+			ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, continue_status);
+		}
+	}
+	{
+		DWORD exit_code;
+		while (GetExitCodeThread(process_info.hThread, &exit_code) == STILL_ACTIVE)
+			Call0Asm(idle_func);
+	}
+
+	if (process_info.hThread != NULL)
+		CloseHandle(process_info.hThread);
+	if (process_info.hProcess != NULL)
+		CloseHandle(process_info.hProcess);
+	return True;
+}
+
 static void DecSrc(void)
 {
 	// Decrement 'Src', but do not release it here. It will be released in '.kn'.
@@ -279,7 +478,6 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	SDict* asts;
 	SAstFunc* entry;
 	SDict* dlls;
-	SPackAsm pack_asm;
 	U32 begin_time;
 
 	// Set the system directory.
@@ -309,7 +507,6 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	entry = Analyze(asts, &option, &dlls);
 	if (ErrOccurred())
 		goto ERR;
-	Err(L"IK0002", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
 #if defined(_DEBUG)
 	UNUSED(analyze_identifiers);
 	MakeIdentifierSet(asts);
@@ -317,15 +514,16 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	if (analyze_identifiers)
 		MakeIdentifierSet(asts);
 #endif
-	Assemble(&pack_asm, entry, &option, dlls);
+	Err(L"IK0002", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
+	Assemble(&PackAsm, entry, &option, dlls);
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0003", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
-	ToMachineCode(&pack_asm, &option);
+	ToMachineCode(&PackAsm, &option);
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0004", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
-	Deploy(pack_asm.AppCode, &option, dlls);
+	Deploy(PackAsm.AppCode, &option, dlls);
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0005", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
@@ -580,4 +778,31 @@ static int CmpIdentifier(const void* a, const void* b)
 	if (result == 0)
 		result = a2->Row - b2->Row;
 	return result;
+}
+
+static SPos* AddrToPos(U64 addr, Char* name)
+{
+	SPos* result = NULL;
+	void* params[3];
+	params[0] = (void*)&result;
+	params[1] = (void*)addr;
+	params[2] = name;
+	DictIForEach(PackAsm.FuncAddrs, AddrToPosCallback, params);
+	return result;
+}
+
+static const void* AddrToPosCallback(U64 key, const void* value, void* param)
+{
+	SAstFunc* func = (SAstFunc*)key;
+	void** params = (void**)param;
+	SPos** result = (SPos**)params[0];
+	U64 addr = (U64)params[1];
+	Char* name = (Char*)params[2];
+	UNUSED(value);
+	if ((U64)*func->AddrTop + DbgStartAddr <= addr && addr <= (U64)func->AddrBottom + DbgStartAddr)
+	{
+		*result = (SPos*)((SAst*)func)->Pos;
+		wcscpy(name, ((SAst*)func)->Name);
+	}
+	return value;
 }
