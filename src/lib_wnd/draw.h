@@ -80,4 +80,5 @@ namespace Draw
 	HFONT ToFontHandle(SClass* font);
 	void ColorToRgba(double* r, double* g, double* b, double* a, S64 color);
 	double Gamma(double value);
+	U8* AdjustTexSize(U8* rgba, int* width, int* height);
 }

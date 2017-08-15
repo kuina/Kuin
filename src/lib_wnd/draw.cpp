@@ -498,17 +498,23 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 		{
 			img = DecodePng(size, bin, &width, &height);
 			format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
+				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
 		}
 		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".jpg"))
 		{
 			img = DecodeJpg(size, bin, &width, &height);
 			format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
+				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
 		}
 		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".dds"))
 		{
 			img = DecodeBc(size, bin, &width, &height);
 			img_ref = True;
 			format = DXGI_FORMAT_BC3_UNORM_SRGB;
+			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
+				THROW(0x1000, L"");
 		}
 		else
 		{
@@ -518,8 +524,6 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 			height = 0;
 		}
 	}
-	if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
-		THROW(0x1000, L"");
 	me2->Width = width;
 	me2->Height = height;
 	{
@@ -2359,6 +2363,26 @@ void ColorToRgba(double* r, double* g, double* b, double* a, S64 color)
 double Gamma(double value)
 {
 	return pow(value, 2.2);
+}
+
+U8* AdjustTexSize(U8* rgba, int* width, int* height)
+{
+	int width2 = 1;
+	int height2 = 1;
+	while (width2 < *width)
+		width2 *= 2;
+	while (height2 < *height)
+		height2 *= 2;
+
+	U8* rgba2 = static_cast<U8*>(AllocMem(static_cast<size_t>(width2 * height2 * 4)));
+	memset(rgba2, 0, static_cast<size_t>(width2 * height2 * 4));
+	for (int i = 0; i < *height; i++)
+		memcpy(rgba2 + width2 * 4 * i, rgba + *width * 4 * i, *width * 4);
+
+	*width = width2;
+	*height = height2;
+	FreeMem(rgba);
+	return rgba2;
 }
 
 } // namespace Draw
