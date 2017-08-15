@@ -748,7 +748,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		char_height = MulDiv(static_cast<int>(size), GetDeviceCaps(dc, LOGPIXELSY), 72);
 		ReleaseDC(NULL, dc);
 	}
-	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, reinterpret_cast<const Char*>(fontName + 0x10));
+	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, fontName == NULL ? L"" : reinterpret_cast<const Char*>(fontName + 0x10));
 	me2->Proportional = proportional;
 	me2->Advance = advance;
 	{
