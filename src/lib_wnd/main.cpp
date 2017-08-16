@@ -86,6 +86,7 @@ struct SDraw
 	SWndBase WndBase;
 	Bool EqualMagnification;
 	Bool DrawTwice;
+	Bool Enter;
 	void* DrawBuf;
 	void* OnPaint;
 	void* OnMouseDownL;
@@ -95,6 +96,8 @@ struct SDraw
 	void* OnMouseUpR;
 	void* OnMouseUpM;
 	void* OnMouseMove;
+	void* OnMouseEnter;
+	void* OnMouseLeave;
 	void* OnMouseWheelX;
 	void* OnMouseWheelY;
 	void* OnFocus;
@@ -754,6 +757,7 @@ EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	SetCtrlParam(me2, reinterpret_cast<SWndBase*>(parent), WndKind_Draw, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_NOTIFY, x, y, width, height, L"", WndProcDraw, anchorX, anchorY);
 	me3->EqualMagnification = equalMagnification;
 	me3->DrawTwice = True;
+	me3->Enter = False;
 	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), me2->WndHandle);
 	return me_;
 }
@@ -1708,8 +1712,27 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseUpM);
 			return 0;
 		case WM_MOUSEMOVE:
+			if (!wnd3->Enter)
+			{
+				wnd3->Enter = True;
+				if (wnd3->OnMouseEnter != NULL)
+					Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseEnter);
+			}
 			if (wnd3->OnMouseMove != NULL)
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseMove);
+			{
+				TRACKMOUSEEVENT track_mouse_event;
+				track_mouse_event.cbSize = sizeof(track_mouse_event);
+				track_mouse_event.dwFlags = TME_LEAVE;
+				track_mouse_event.dwHoverTime = HOVER_DEFAULT;
+				track_mouse_event.hwndTrack = wnd;
+				TrackMouseEvent(&track_mouse_event);
+			}
+			return 0;
+		case WM_MOUSELEAVE:
+			wnd3->Enter = False;
+			if (wnd3->OnMouseLeave != NULL)
+				Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnMouseLeave);
 			return 0;
 		case WM_SETFOCUS:
 			if (wnd3->OnFocus != NULL)

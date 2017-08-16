@@ -304,7 +304,7 @@ class DocumentSrc(@Document)
 	end func
 
 	+*func mouseDownL(x: int, y: int)
-		do me.setArea(input@getKey(%shift) ?(%shift $ wnd@ShiftCtrl, %none))
+		do me.setArea(input@key(%shift) ?(%shift $ wnd@ShiftCtrl, %none))
 		do me.mousePosToCharPos(x, y)
 		do me.refreshCursor(false, true)
 		if(!me.areaSelected())
@@ -379,7 +379,7 @@ class DocumentSrc(@Document)
 				do me.undo()
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
-			elif(shiftCtrl = %shiftCtrl)
+			elif(shiftCtrl = (%shift $ wnd@ShiftCtrl).or(%ctrl))
 				if(me.areaSelected())
 					do me.areaX :: -1
 				end if
@@ -434,7 +434,7 @@ class DocumentSrc(@Document)
 		case %end_
 			do me.setArea(shiftCtrl)
 			do me.cursorX :: lib@intMax
-			if(shiftCtrl = %ctrl | shiftCtrl = %shiftCtrl)
+			if(shiftCtrl.and(%ctrl) <> %none)
 				do me.cursorY :: lib@intMax
 			end if
 			do me.refreshCursor(false, true)
@@ -442,7 +442,7 @@ class DocumentSrc(@Document)
 		case %home
 			do me.setArea(shiftCtrl)
 			do me.cursorX :: 0
-			if(shiftCtrl = %ctrl | shiftCtrl = %shiftCtrl)
+			if(shiftCtrl.and(%ctrl) <> %none)
 				do me.cursorY :: 0
 			end if
 			do me.refreshCursor(false, true)
@@ -608,7 +608,7 @@ class DocumentSrc(@Document)
 	end func
 
 	func setArea(shiftCtrl: wnd@ShiftCtrl)
-		if(shiftCtrl = %shift | shiftCtrl = %shiftCtrl)
+		if(shiftCtrl.and(%shift) <> %none)
 			if(!me.areaSelected())
 				do me.areaX :: me.cursorX
 				do me.areaY :: me.cursorY
@@ -1528,7 +1528,7 @@ func onKeyPress(key: input@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			do @wndMainOnPushMenu(@wndMain, 16#0005)
 			ret true
 		end switch
-	case %shiftCtrl
+	case (%shift $ wnd@ShiftCtrl).or(%ctrl)
 		switch(key)
 		case %a
 			do @wndMainOnPushMenu(@wndMain, 16#0030)
@@ -1584,7 +1584,7 @@ func save(): bool
 	if(file =& null)
 		ret false
 	end if
-	if(!@saveSrc(@mainSrcName, @curDocument.getSrc()))
+	if(!@saveSrc(file, @curDocument.getSrc()))
 		ret false
 	end if
 	do @mainSrcName :: file
@@ -1959,7 +1959,7 @@ func listFileOnSel(wnd: wnd@WndBase)
 		var begin: int :: 0
 		while loop(begin < ^src)
 			switch(src[begin])
-			case '*'
+			case '*', '>'
 				do begin :+ 1
 			default
 				break loop
@@ -2138,7 +2138,14 @@ func updateUi()
 	do @documents.forEach(callback, null)
 
 	func callback(src: []char, document: @Document, data: kuin@Class): bool
-		do @listFile.add((document.changed ?("*", "")) ~ @srcNameToInternalName(src))
+		var prefix: []char :: ""
+		if(document =& @curDocument)
+			do prefix :~ ">"
+		end if
+		if(document.changed)
+			do prefix :~ "*"
+		end if
+		do @listFile.add(prefix ~ @srcNameToInternalName(src))
 		ret true
 	end func
 end func

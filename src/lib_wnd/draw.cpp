@@ -808,14 +808,9 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		THROW(0x1000, L"");
 	me2->CharMap = static_cast<Char*>(AllocMem(sizeof(Char) * buf_size));
 	me2->CntMap = static_cast<U32*>(AllocMem(sizeof(U32) * buf_size));
-	if (me2->Proportional)
-	{
-		me2->GlyphWidth = static_cast<int*>(AllocMem(sizeof(int) * buf_size));
-		for (size_t i = 0; i < buf_size; i++)
-			me2->GlyphWidth[i] = 0;
-	}
-	else
-		me2->GlyphWidth = NULL;
+	me2->GlyphWidth = static_cast<int*>(AllocMem(sizeof(int) * buf_size));
+	for (size_t i = 0; i < buf_size; i++)
+		me2->GlyphWidth[i] = 0;
 	for (size_t i = 0; i < buf_size; i++)
 	{
 		me2->CharMap[i] = L'\0';
@@ -900,7 +895,6 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 				rect.right = rect.left + static_cast<LONG>(me2->CellWidth);
 				rect.bottom = rect.top + static_cast<LONG>(me2->CellHeight);
 				ExtTextOut(me2->Dc, static_cast<int>(rect.left), static_cast<int>(rect.top), ETO_CLIPPED | ETO_OPAQUE, &rect, ptr, 1, NULL);
-				if (me2->Proportional)
 				{
 					TEXTMETRIC tm;
 					GetTextMetrics(me2->Dc, &tm);
@@ -927,11 +921,14 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			}
 			me2->Tex->Unmap(D3D10CalcSubresource(0, 0, 1));
 		}
+		double half_space = 0.0;
+		if (!me2->Proportional)
+			half_space = floor((me2->Advance - static_cast<double>(me2->GlyphWidth[pos])) / 2.0);
 		{
 			{
 				float const_buf_vs[8] =
 				{
-					static_cast<float>(x) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
+					static_cast<float>(half_space + x) / static_cast<float>(CurWndBuf->Width) * 2.0f - 1.0f,
 					-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->Height) * 2.0f - 1.0f),
 					static_cast<float>(me2->CellWidth) / static_cast<float>(CurWndBuf->Width) * 2.0f,
 					-(static_cast<float>(me2->CellHeight) / static_cast<float>(CurWndBuf->Height) * 2.0f),

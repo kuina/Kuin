@@ -1,0 +1,67 @@
+; Input Sample (C)Kuina-chan
+
+var MouseX: int
+var MouseY: int
+var MouseDownL: bool
+var KeyBuf: []char
+
+func main()
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Draw 2D") {ウインドウの生成}
+	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
+	do drawMain.onMouseMove :: @drawMainOnMouseMove {マウス移動のイベント}
+	do drawMain.onMouseDownL :: @drawMainOnMouseDownL {マウスボタンを押したときのイベント}
+	do drawMain.onMouseUpL :: @drawMainOnMouseUpL {マウスボタンを離したときのイベント}
+	do drawMain.onMouseEnter :: @drawMainOnMouseEnter {マウスが突入したときのイベント}
+	do drawMain.onMouseLeave :: @drawMainOnMouseLeave {マウスが離脱したときのイベント}
+	do drawMain.onKeyChar :: @drawMainOnKeyChar {文字が入力されたときのイベント}
+	var font: draw@Font :: draw@makeFont(null, 28, false, false, false, 22.0)
+	do @KeyBuf :: "                    "
+	while(wnd@act())
+		do font.draw(100.0, 50.0, "'A' button ('Z' key): " ~ input@pad(0, %a).toStr(), draw@white)
+		do font.draw(100.0, 100.0, "'B' button ('X' key): " ~ input@pad(0, %b).toStr(), draw@white)
+		do font.draw(100.0, 150.0, "'C' button ('C' key): " ~ input@pad(0, %c).toStr(), draw@white)
+		do font.draw(100.0, 200.0, "'D' button ('V' key): " ~ input@pad(0, %d).toStr(), draw@white)
+		do font.draw(100.0, 250.0, "'E' button: " ~ input@pad(0, %e).toStr(), draw@white)
+		do font.draw(100.0, 300.0, "'F' button: " ~ input@pad(0, %f).toStr(), draw@white)
+		do font.draw(100.0, 350.0, "'G' button: " ~ input@pad(0, %g).toStr(), draw@white)
+		do font.draw(100.0, 400.0, "'H' button: " ~ input@pad(0, %h).toStr(), draw@white)
+		do font.draw(100.0, 450.0, "'I' button: " ~ input@pad(0, %i).toStr(), draw@white)
+		do font.draw(100.0, 500.0, "'L' button ('A' key): " ~ input@pad(0, %l).toStr(), draw@white)
+		do font.draw(100.0, 550.0, "'R' button ('S' key): " ~ input@pad(0, %r).toStr(), draw@white)
+		do font.draw(100.0, 600.0, "'Menu' button  ('Esc' key):   " ~ input@pad(0, %menu).toStr(), draw@white)
+		do font.draw(100.0, 650.0, "'Left' button  ('Left' key):  " ~ input@pad(0, %left).toStr(), draw@white)
+		do font.draw(100.0, 700.0, "'Right' button ('Right' key): " ~ input@pad(0, %right).toStr(), draw@white)
+		do font.draw(100.0, 750.0, "'Up' button    ('Up' key):    " ~ input@pad(0, %up).toStr(), draw@white)
+		do font.draw(100.0, 800.0, "'Down' button  ('Down' key):  " ~ input@pad(0, %down).toStr(), draw@white)
+		do draw@circle(@MouseX $ float, @MouseY $ float, 20.0, 20.0, @MouseDownL ?(16#FF0000FF, 16#FFFFFF00))
+		do font.draw(800.0, 50.0, "Key: " ~ @KeyBuf, draw@white)
+		do draw@render(60)
+	end while
+end func
+
+func drawMainOnMouseMove(wnd: wnd@Draw, x: int, y: int)
+	; マウスが動いたら追跡する
+	do @MouseX :: x
+	do @MouseY :: y
+end func
+
+func drawMainOnMouseDownL(wnd: wnd@Draw, x: int, y: int)
+	do @MouseDownL :: true {左ボタンが押された}
+end func
+
+func drawMainOnMouseUpL(wnd: wnd@Draw, x: int, y: int)
+	do @MouseDownL :: false {左ボタンが離された}
+end func
+
+func drawMainOnMouseEnter(wnd: wnd@Draw, x: int, y: int)
+	do @MouseDownL :: input@key(%mouseL) {左ボタンを押したままウインドウ外に出て入りなおす場合の対処}
+	do draw@clearColor(16#FFFF9999) {ウインドウ内に入ったら背景色をピンクにする}
+end func
+
+func drawMainOnMouseLeave(wnd: wnd@Draw)
+	do draw@clearColor(16#FF000000) {ウインドウ外に出たら背景色を黒にする}
+end func
+
+func drawMainOnKeyChar(wnd: wnd@Draw, key: char)
+	do @KeyBuf :: (@KeyBuf ~ key.toStr()).sub(1, 20)
+end func

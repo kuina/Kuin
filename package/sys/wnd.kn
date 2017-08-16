@@ -82,9 +82,8 @@ end class
 
 +enum ShiftCtrl
 	none
-	shift
-	ctrl
-	shiftCtrl
+	shift :: 16#01
+	ctrl :: 16#02
 end enum
 
 +class Draw(@WndBase)
@@ -110,6 +109,8 @@ end enum
 	+var onMouseUpR: func<(@WndBase, int, int)>
 	+var onMouseUpM: func<(@WndBase, int, int)>
 	+var onMouseMove: func<(@WndBase, int, int)>
+	+var onMouseEnter: func<(@WndBase, int, int)>
+	+var onMouseLeave: func<(@WndBase)>
 	+var onMouseWheelX: func<(@WndBase)>
 	+var onMouseWheelY: func<(@WndBase)>
 	+var onFocus: func<(@WndBase, bool)>

@@ -18,6 +18,9 @@
 end enum
 
 +enum Key
+	mouseL :: 16#01
+	mouseR
+	mouseC :: 16#04
 	bs :: 16#08
 	tab
 	enter :: 16#0D
@@ -102,5 +105,5 @@ end func
 +func [d0001.knd, _setCfgKey] setCfgKey(idx: int, btn: @PadBtn, keys: []@Key)
 end func
 
-+func [d0001.knd, _getKey] getKey(key: @Key): bool
++func [d0001.knd, _key] key(key_: @Key): bool
 end func
