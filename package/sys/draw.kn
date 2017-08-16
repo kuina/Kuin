@@ -118,7 +118,7 @@ end func
 	+func [d0001.knd, _objDraw] draw(diffuse: @Tex, specular: @Tex, element: int, frame: float)
 	end func
 
-	+func [d0001.knd, _objMtx] mtx(mtx: []float, normMtx: []float)
+	+func [d0001.knd, _objMtx] mtx(mtx_: []float, normMtx: []float)
 	end func
 
 	+func [d0001.knd, _objPos] pos(scaleX: float, scaleY: float, scaleZ: float, rotX: float, rotY: float, rotZ: float, transX: float, transY: float, transZ: float)

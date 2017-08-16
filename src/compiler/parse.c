@@ -878,13 +878,34 @@ static void AddScopeName(SAst* ast, Bool refuse_reserved)
 		return;
 	}
 	{
-		SDict* children = ((SAst*)StackPeek(Scope))->ScopeChildren;
-		if (DictSearch(children, ast->Name) != NULL)
+		SAst* scope = ((SAst*)StackPeek(Scope));
+		if (DictSearch(scope->ScopeChildren, ast->Name) != NULL)
 		{
 			Err(L"EP0005", NewPos(SrcName, Row, Col), ast->Name);
 			return;
 		}
-		((SAst*)StackPeek(Scope))->ScopeChildren = DictAdd(children, ast->Name, ast);
+		{
+			const SAst* parent = scope;
+			for (; ; )
+			{
+				if (parent->ScopeParent == NULL)
+					break;
+				if (parent->Name != NULL && wcscmp(parent->Name, ast->Name) == 0)
+				{
+					Err(L"EP0058", NewPos(SrcName, Row, Col), ast->Name);
+					return;
+				}
+				if (DictSearch(parent->ScopeChildren, ast->Name) != NULL)
+				{
+					Err(L"EP0058", NewPos(SrcName, Row, Col), ast->Name);
+					return;
+				}
+				if ((parent->TypeId & AstTypeId_Func) == AstTypeId_Func && parent->RefName == NULL)
+					break;
+				parent = parent->ScopeParent;
+			}
+		}
+		scope->ScopeChildren = DictAdd(scope->ScopeChildren, ast->Name, ast);
 	}
 }
 

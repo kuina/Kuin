@@ -225,7 +225,8 @@ class DocumentSrc(@Document)
 
 	+*func draw(width: int, height: int)
 		do draw@rect(0.0, 0.0, width $ float, height $ float, @colorBack)
-		; TODO: Draw the line.
+		var lineX: float :: (me.lineNumberWidth - 2) $ float
+		do draw@line(lineX, 0.0, lineX, height $ float, colorLineNumber)
 		for i(0, ^me.src.src - 1)
 			var y: float :: (i * @cellHeight) $ float
 			if(y < -@cellHeight $ float | y >= (height + @cellHeight) $ float)
@@ -409,7 +410,17 @@ class DocumentSrc(@Document)
 				if(me.areaSelected())
 					do me.delAreaStr()
 				end if
-				do me.ins(me.cursorX, me.cursorY, "\n", true)
+				block
+					var str: []char :: "\n"
+					for i(0, ^me.src.src[me.cursorY] - 1)
+						if(me.src.src[me.cursorY][i] = '\t')
+							do str :~ "\t"
+						else
+							break i
+						end if
+					end for
+					do me.ins(me.cursorX, me.cursorY, str, true)
+				end block
 				do me.addUndoMark()
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
@@ -1338,6 +1349,7 @@ var dirtyHint: bool
 var dirtyHintTime : int
 var listInfoItem: list<@ListInfoItem>
 var auxiliaryErr: dict<@Pos, []char>
+var lockingEditor: bool
 
 func main()
 	do @initMemAllocator()
@@ -1441,6 +1453,7 @@ func main()
 		do @srcCharColor[%symbol $ @CharColor $ int] :: 16#FF666666
 		do @font :: draw@makeFont("Consolas", @fontSize, false, false, false, @cellWidth $ float)
 		do @drag :: false
+		do @lockingEditor :: false
 	end func
 
 	func mainLoop()
@@ -1569,6 +1582,7 @@ func save(): bool
 			ret false
 		end if
 		do @mainSrcName :: file
+		do @mainSrcDir :: file@dir(file)
 	end if
 	if(!@saveSrc(@mainSrcName, @curDocument.getSrc()))
 		ret false
@@ -1847,6 +1861,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret
 	end try
+	do @lockEditor(true)
 	do @resetMemAllocator()
 	do @editLog.setText("")
 	var cmd: []char
@@ -1876,6 +1891,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, @langEn ?("Unexpected error.", "??????????"), @title, %err, %ok)
 	end try
 	do @updateUi()
+	do @lockEditor(false)
 
 	func idleFunc()
 		do wnd@act()
@@ -1887,6 +1903,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	if(file =& null)
 		ret
 	end if
+	do @lockEditor(true)
 	do @resetMemAllocator()
 	do @editLog.setText("")
 	try
@@ -1907,6 +1924,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, @langEn ?("Unexpected error.", "??????????"), @title, %err, %ok)
 	end try
 	do @updateUi()
+	do @lockEditor(false)
 end func
 
 func listFileOnSel(wnd: wnd@WndBase)
@@ -2155,4 +2173,10 @@ func arBaseParseWord(src: []char, ptr: &int): []char
 	var word: []char :: src.sub(ptr, last - ptr)
 	do ptr :: last + 1
 	ret word
+end func
+
+func lockEditor(lock: bool)
+	do @lockingEditor :: lock
+	do @btnCompile.enable(!lock)
+	do @btnRls.enable(!lock)
 end func
