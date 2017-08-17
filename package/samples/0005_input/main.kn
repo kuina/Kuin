@@ -6,8 +6,8 @@ var MouseDownL: bool
 var KeyBuf: []char
 
 func main()
-	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Draw 2D") {ウインドウの生成}
-	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Input Sample")
+	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false)
 	do drawMain.onMouseMove :: @drawMainOnMouseMove {マウス移動のイベント}
 	do drawMain.onMouseDownL :: @drawMainOnMouseDownL {マウスボタンを押したときのイベント}
 	do drawMain.onMouseUpL :: @drawMainOnMouseUpL {マウスボタンを離したときのイベント}

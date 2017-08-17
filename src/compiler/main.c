@@ -440,7 +440,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func)
 						}
 						MessageBox(NULL, str, NULL, 0);
 					}
-					continue_status = DBG_CONTINUE;
+					// TODO: continue_status = DBG_CONTINUE;
 					break;
 				case OUTPUT_DEBUG_STRING_EVENT:
 					// TODO: Debug printing.

@@ -301,6 +301,7 @@ void InterpretImpl1(const void* src, void* color)
 			}
 			else if (*str == L' ' || *str == L'\t')
 			{
+				*color_ptr = CharColor_None;
 				str++;
 				color_ptr++;
 			}
@@ -437,11 +438,6 @@ void InterpretImpl1(const void* src, void* color)
 					str++;
 					color_ptr++;
 				} while (*str != L'\0');
-			}
-			else if (*str == L' ' || *str == L'\t')
-			{
-				str++;
-				color_ptr++;
 			}
 			else
 			{

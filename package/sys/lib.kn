@@ -113,5 +113,11 @@ end func
 +func [d0000.knd, _dateToInt] dateToInt(year: int, month: int, day: int, hour: int, minute: int, second: int): int
 end func
 
++func [d0000.knd, _intToLocalDate] intToLocalDate(time: int, year: &int, month: &int, day: &int, hour: &int, minute: &int, second: &int): int
+end func
+
++func [d0000.knd, _localDateToInt] localDateToInt(year: int, month: int, day: int, hour: int, minute: int, second: int): int
+end func
+
 +func [d0000.knd] sleep(ms: int)
 end func

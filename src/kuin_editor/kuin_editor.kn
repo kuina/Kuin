@@ -1655,26 +1655,12 @@ end func
 
 func add(file: []char): @Document
 	if(!(^@sysDir <= ^file & @sysDir = file.sub(0, ^@sysDir) | @mainSrcDir <> "" & ^@mainSrcDir <= ^file & @mainSrcDir = file.sub(0, ^@mainSrcDir)))
-		var msg: []char
-		if(@langEn)
-			do msg :: "The file exists in a directory outside the main file. " ~ file
-		else
-			do msg :: "???????????? " ~ file
-		end if
-		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret null
 	end if
 
 	var src: list<[]char> :: #list<[]char>
 	var filePtr: file@Reader :: file@makeReader(file)
 	if(filePtr =& null)
-		var msg: []char
-		if(@langEn)
-			do msg :: "Loading failed. " ~ file
-		else
-			do msg :: "???????????? " ~ file
-		end if
-		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret null
 	end if
 
@@ -1751,7 +1737,15 @@ end func
 var chkCloseChanged: bool
 
 func wndMainOnClose(wnd: wnd@WndBase): bool
-	ret @chkChanged()
+	if(@chkChanged())
+		var dir: []char :: file@sysDir(%appData) ~ "Kuin/"
+		try
+			do file@delDir(dir)
+		catch
+		end try
+		ret true
+	end if
+	ret false
 end func
 
 func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
@@ -1819,6 +1813,8 @@ func listInfoOnSel(wnd: wnd@WndBase)
 				do @drawEditor.paint()
 				do @drawEditor.focus()
 			end if
+			do @editLog.setText(item.text)
+			do @dirtyHint :: false
 		end if
 	elif(@curDocument =$ @DocumentArBase)
 	end if
@@ -1981,7 +1977,7 @@ func getSrc(path: []char): [][]char
 	end if
 
 	do document :: @add(path2)
-	ret document.getSrc()
+	ret document =& null ?(null, document.getSrc())
 end func
 
 func getEnv(): []char
@@ -2005,12 +2001,12 @@ func log(args: [][]char, row: int, col: int)
 	do pos.row :: row
 	do pos.col :: col
 	if(!@auxiliaryErr.exist(pos))
-		do @auxiliaryErr.add(pos, @errStr(args[0], args[2], row, col))
+		do @auxiliaryErr.add(pos, @errStr(args[0], args[1], args[2], row, col))
 	end if
 end func
 
-func errStr(msg: []char, src: []char, row: int, col: int): []char
-	ret "[" ~ @nullStr(src) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ "] " ~ @nullStr(msg)
+func errStr(code: []char, msg: []char, src: []char, row: int, col: int): []char
+	ret "[" ~ @nullStr(src) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ "] " ~ @nullStr(code) ~ ": " ~ @nullStr(msg)
 end func
 
 func nullStr(s: []char): []char
@@ -2109,14 +2105,12 @@ func internalNameToSrcName(internalName: []char): []char
 end func
 
 func logForInterpret(args: [][]char, row: int, col: int)
-	if(args[2] <>& null)
-		var pos: @Pos :: #@Pos
-		do pos.src :: args[2] =& null ?("", ##args[2])
-		do pos.row :: row
-		do pos.col :: col
-		if(!@auxiliaryErr.exist(pos))
-			do @auxiliaryErr.add(pos, @errStr(args[0], args[2], row, col))
-		end if
+	var pos: @Pos :: #@Pos
+	do pos.src :: args[2] =& null ?("", ##args[2])
+	do pos.row :: row
+	do pos.col :: col
+	if(!@auxiliaryErr.exist(pos))
+		do @auxiliaryErr.add(pos, @errStr(args[0], args[1], args[2], row, col))
 	end if
 end func
 

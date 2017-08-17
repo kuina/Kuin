@@ -1,7 +1,7 @@
 ; Draw 2D Sample (C)Kuina-chan
 
 func main()
-	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Draw 2D") {ウインドウの生成}
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Draw 2D Sample") {ウインドウの生成}
 	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
 	var texKuin: draw@Tex :: draw@makeTex("res/kuin.png") {画像の読み込み}
 	var fontProportional: draw@Font :: draw@makeFont(null, 32, false, false, true, 0.0) {プロポーショナルフォントの生成}
