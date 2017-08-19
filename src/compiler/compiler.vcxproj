@@ -111,6 +111,7 @@ echo F | xcopy /y /r $(TargetDir)compiler.lib $(SolutionDir)src\test_src\compile
     <ClCompile Include="log.c" />
     <ClCompile Include="machine.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="manifest.c" />
     <ClCompile Include="mem.c" />
     <ClCompile Include="option.c" />
     <ClCompile Include="parse.c" />

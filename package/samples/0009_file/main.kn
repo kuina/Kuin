@@ -17,7 +17,7 @@ func main()
 		; ファイルの読み書きに失敗
 		do edit.setText("An error occurred.")
 	end try
-	while (wnd@act())
+	while(wnd@act())
 	end while
 
 	func save()
@@ -52,7 +52,7 @@ func main()
 		; 暗号化されたファイルを読み込んで復号する
 		do reader :: file@makeReader(@fileName2)
 		var encryptedData: []bit8 :: reader.read(reader.fileSize()) {ファイルをすべて読み込む}
-		var data: []char :: lib@decrypt(encryptedData, @getKey()) $< []char {復号化}
+		var data: []char :: lib@decrypt(encryptedData, @getKey()) $< []char {復号}
 		do str :~ data
 
 		ret str
@@ -63,7 +63,7 @@ end func
 func getKey(): []bit8
 	; 鍵は32byteでなければならない
 	ret [16#12b8, 16#34b8, 16#56b8, 16#78b8, 16#9Ab8, 16#BCb8, 16#DEb8, 16#F0b8,
-	    |16#75b8, 16#38b8, 16#9Bb8, 16#C4b8, 16#21b8, 16#A0b8, 16#DFb8, 16#E6b8,
-	    |16#49b8, 16#2Fb8, 16#B5b8, 16#3Db8, 16#01b8, 16#68b8, 16#7Ab8, 16#CEb8,
-	    |16#F0b8, 16#52b8, 16#CAb8, 16#E6b8, 16#89b8, 16#D7b8, 16#4Bb8, 16#31b8]
+		|16#75b8, 16#38b8, 16#9Bb8, 16#C4b8, 16#21b8, 16#A0b8, 16#DFb8, 16#E6b8,
+		|16#49b8, 16#2Fb8, 16#B5b8, 16#3Db8, 16#01b8, 16#68b8, 16#7Ab8, 16#CEb8,
+		|16#F0b8, 16#52b8, 16#CAb8, 16#E6b8, 16#89b8, 16#D7b8, 16#4Bb8, 16#31b8]
 end func

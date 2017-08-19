@@ -185,6 +185,8 @@ static const void* CalcWritableData(const Char* key, const void* value, void* pa
 static void WriteRes(void);
 static void WriteResRecursion(SList* res, long* data_entry_addrs, int* idx, S64 base_addr);
 
+const U8* GetManifestBin(size_t* size);
+
 void ToMachineCode(const SPackAsm* pack_asm, const SOption* option)
 {
 	PackAsm = pack_asm;
@@ -824,11 +826,11 @@ static const void* CalcWritableData(const Char* key, const void* value, void* pa
 static void WriteRes(void)
 {
 	S64 base_addr = (S64)ftell(FilePtr);
-	long* data_entry_addrs = (long*)Alloc(sizeof(long) * (PackAsm->ResIconNum + 1));
+	long* data_entry_addrs = (long*)Alloc(sizeof(long) * (PackAsm->ResIconNum + 2));
 	{
 		int idx = 0;
 		WriteResRecursion(PackAsm->ResEntries, data_entry_addrs, &idx, base_addr);
-		if (idx != PackAsm->ResIconNum + 1)
+		if (idx != PackAsm->ResIconNum + 2)
 		{
 			Err(L"EK0008", NULL, Option->IconFile);
 			return;
@@ -865,6 +867,21 @@ static void WriteRes(void)
 			else
 				fwrite(PackAsm->ResIconBins[i], 1, (size_t)PackAsm->ResIconBinSize[i], FilePtr);
 		}
+	}
+	{
+		size_t manifest_size;
+		const U8* manifest = GetManifestBin(&manifest_size);
+		{
+			U32 addr = (U32)((S64)ftell(FilePtr) - base_addr + Res.ImgPos);
+			U32 size = (U32)manifest_size;
+			long pos = data_entry_addrs[PackAsm->ResIconNum + 1];
+			long tmp = ftell(FilePtr);
+			fseek(FilePtr, pos, SEEK_SET);
+			fwrite(&addr, 1, 4, FilePtr);
+			fwrite(&size, 1, 4, FilePtr);
+			fseek(FilePtr, tmp, SEEK_SET);
+		}
+		fwrite(manifest, 1, manifest_size, FilePtr);
 	}
 }
 
@@ -929,7 +946,7 @@ static void WriteResRecursion(SList* res, long* data_entry_addrs, int* idx, S64 
 			}
 			if (entry->Children == NULL)
 			{
-				if (*idx == PackAsm->ResIconNum + 1)
+				if (*idx == PackAsm->ResIconNum + 2)
 				{
 					Err(L"EK0008", NULL, Option->IconFile);
 					return;

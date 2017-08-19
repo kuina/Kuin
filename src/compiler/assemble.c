@@ -98,7 +98,7 @@ static Bool LoadResources(void);
 static SList* GetExceptionFunc(void);
 static SList* GetExceptionFuncHeader(void);
 static S64* AddReadonlyData(int data_size, const U8* data, Bool align128);
-static S64* AddDLLImport(int dll_name_size, const U8* dll_name, int func_name_size, U8* func_name);
+static S64* AddDllImport(int dll_name_size, const U8* dll_name, int func_name_size, U8* func_name);
 static S64* AddWritableData(const Char* tag, int size);
 static void CallAPI(SList* asms, const Char* dll_name, const Char* func_name);
 static void CallKuinLib(const Char* func_name);
@@ -123,8 +123,8 @@ static int GetSize(const SAstType* type);
 static void DbgBreak(void);
 static void RefFuncRecursion(SAstClass* class_);
 static const void* InitDlls(const Char* key, const void* value, void* param);
-static const void* InitDLLFuncs(const Char* key, const void* value, void* param);
-static const void* FinDLLs(const Char* key, const void* value, void* param);
+static const void* InitDllFuncs(const Char* key, const void* value, void* param);
+static const void* FinDlls(const Char* key, const void* value, void* param);
 static void SetTypeId(EReg reg, const SAstType* type);
 static int SetTypeIdRecursion(U8* ptr, int idx, const SAstType* type);
 static void SetTypeIdForFromBin(EReg reg, const SAstType* type);
@@ -362,6 +362,27 @@ Failed:
 			}
 			ListAdd(PackAsm->ResEntries, entry_icon);
 		}
+		{
+			SResEntry* entry_manifest = (SResEntry*)Alloc(sizeof(SResEntry));
+			entry_manifest->Addr = -1;
+			entry_manifest->Value = 0x18; // 'RT_MANIFEST'
+			entry_manifest->Children = ListNew();
+			{
+				SResEntry* entry_id = (SResEntry*)Alloc(sizeof(SResEntry));
+				entry_id->Addr = -1;
+				entry_id->Value = 0x01; // 'ID'
+				entry_id->Children = ListNew();
+				{
+					SResEntry* entry_lang = (SResEntry*)Alloc(sizeof(SResEntry));
+					entry_lang->Addr = -1;
+					entry_lang->Value = 0x0409; // 'en-us'
+					entry_lang->Children = NULL;
+					ListAdd(entry_id->Children, entry_lang);
+				}
+				ListAdd(entry_manifest->Children, entry_id);
+			}
+			ListAdd(PackAsm->ResEntries, entry_manifest);
+		}
 	}
 	return True;
 }
@@ -598,7 +619,7 @@ static S64* AddReadonlyData(int data_size, const U8* data, Bool align128)
 	}
 }
 
-static S64* AddDLLImport(int dll_name_size, const U8* dll_name, int func_name_size, U8* func_name)
+static S64* AddDllImport(int dll_name_size, const U8* dll_name, int func_name_size, U8* func_name)
 {
 	{
 		SListNode* ptr = PackAsm->DLLImport->Top;
@@ -672,7 +693,7 @@ static void CallAPI(SList* asms, const Char* dll_name, const Char* func_name)
 	bin_dll_name = StrToBin(dll_name, &bin_dll_name_size);
 	bin_func_name = StrToBin(func_name, &bin_func_name_size);
 	{
-		S64* addr = AddDLLImport(bin_dll_name_size, bin_dll_name, bin_func_name_size, bin_func_name);
+		S64* addr = AddDllImport(bin_dll_name_size, bin_dll_name, bin_func_name_size, bin_func_name);
 		ListAdd(asms, AsmCALL(ValRIP(8, RefValueAddr(addr, True))));
 	}
 }
@@ -1186,7 +1207,7 @@ static const void* InitDlls(const Char* key, const void* value, void* param)
 		ListAdd(PackAsm->Asms, AsmMOV(ValRIP(8, RefValueAddr(addr, True)), ValReg(8, Reg_AX)));
 	}
 	ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValReg(8, Reg_AX)));
-	DictForEach((SDict*)value, InitDLLFuncs, lbl1);
+	DictForEach((SDict*)value, InitDllFuncs, lbl1);
 	ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 	ListAdd(PackAsm->Asms, lbl1);
 	{
@@ -1204,7 +1225,7 @@ static const void* InitDlls(const Char* key, const void* value, void* param)
 	return value;
 }
 
-static const void* InitDLLFuncs(const Char* key, const void* value, void* param)
+static const void* InitDllFuncs(const Char* key, const void* value, void* param)
 {
 	{
 		const Char* func_name = (const Char*)value;
@@ -1233,7 +1254,7 @@ static const void* InitDLLFuncs(const Char* key, const void* value, void* param)
 	return value;
 }
 
-static const void* FinDLLs(const Char* key, const void* value, void* param)
+static const void* FinDlls(const Char* key, const void* value, void* param)
 {
 	SAsmLabel* lbl1 = AsmLabel();
 	UNUSED(param);
@@ -1897,7 +1918,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 			{
 				// Finalize the Dlls.
 				SAsmLabel* lbl1 = AsmLabel();
-				DictForEach(Dlls, FinDLLs, NULL);
+				DictForEach(Dlls, FinDlls, NULL);
 				ListAdd(PackAsm->Asms, lbl1);
 			}
 			{

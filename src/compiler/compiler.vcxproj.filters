@@ -18,6 +18,7 @@
     <ClCompile Include="stack.c" />
     <ClCompile Include="util.c" />
     <ClCompile Include="..\common.c" />
+    <ClCompile Include="manifest.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="analyze.h" />
