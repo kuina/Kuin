@@ -11,10 +11,10 @@ end func
 	*func [d0001.knd, _sndDtor, _force] _dtor()
 	end func
 
-	+func [d0001.knd, _sndPlay] play(startPos: float)
+	+func [d0001.knd, _sndPlay] play()
 	end func
 
-	+func [d0001.knd, _sndPlayLoop] playLoop(startPos: float, loopPos: float)
+	+func [d0001.knd, _sndPlayLoop] playLoop(loopPos: float)
 	end func
 
 	+func [d0001.knd, _sndStop] stop()
@@ -32,7 +32,10 @@ end func
 	+func [d0001.knd, _sndFreq] freq(value: float)
 	end func
 
-	+func [d0001.knd, _sndPos] pos(): float
+	+func [d0001.knd, _sndSetPos] setPos(value: float)
+	end func
+
+	+func [d0001.knd, _sndGetPos] getPos(): float
 	end func
 
 	+func [d0001.knd, _sndLen] len(): float

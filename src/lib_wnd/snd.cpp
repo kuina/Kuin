@@ -37,6 +37,8 @@ static LPDIRECTSOUND8 Device = NULL;
 static SListSnd* ListSndTop = NULL;
 static SListSnd* ListSndBottom = NULL;
 static double MainVolume = 1.0;
+static HMODULE DllOgg = NULL;
+static void*(*LoadOgg)(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64)) = NULL;
 
 static LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static DWORD WINAPI CBStreamThread(LPVOID param);
@@ -77,6 +79,14 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 			if (StrCmpIgnoreCase(path2 + len - 4, L".wav"))
 			{
 				me2->Handle = LoadWav(path2, &channel, &samples_per_sec, &bits_per_sample, &total, &me2->FuncClose, &me2->FuncRead);
+				if (me2->Handle == NULL)
+					break;
+			}
+			else if (StrCmpIgnoreCase(path2 + len - 4, L".ogg"))
+			{
+				if (LoadOgg == NULL)
+					break;
+				me2->Handle = LoadOgg(path2, &channel, &samples_per_sec, &bits_per_sample, &total, &me2->FuncClose, &me2->FuncRead);
 				if (me2->Handle == NULL)
 					break;
 			}
@@ -192,23 +202,19 @@ EXPORT_CPP void _sndDtor(SClass* me_)
 	}
 }
 
-EXPORT_CPP void _sndPlay(SClass* me_, double startPos)
+EXPORT_CPP void _sndPlay(SClass* me_)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	if (startPos < 0.0 || startPos >= me2->EndPos)
-		THROW(0x1000, L"");
 	me2->LoopPos = -1;
-	me2->SndBuf->SetCurrentPosition(static_cast<DWORD>(startPos * (double)me2->SizePerSec));
 	me2->SndBuf->Play(0, 0, me2->Streaming ? DSBPLAY_LOOPING : 0);
 }
 
-EXPORT_CPP void _sndPlayLoop(SClass* me_, double startPos, double loopPos)
+EXPORT_CPP void _sndPlayLoop(SClass* me_, double loopPos)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	if (startPos < 0.0 || startPos >= me2->EndPos || !me2->Streaming && loopPos != 0.0 || loopPos < 0.0 || loopPos >= me2->EndPos)
+	if (!me2->Streaming && loopPos != 0.0 || loopPos < 0.0 || loopPos >= me2->EndPos)
 		THROW(0x1000, L"");
 	me2->LoopPos = static_cast<S64>(loopPos * (double)me2->SizePerSec);
-	me2->SndBuf->SetCurrentPosition(static_cast<DWORD>(startPos * (double)me2->SizePerSec));
 	me2->SndBuf->Play(0, 0, DSBPLAY_LOOPING);
 }
 
@@ -247,7 +253,13 @@ EXPORT_CPP void _sndFreq(SClass* me_, double value)
 	me2->SndBuf->SetFrequency(static_cast<DWORD>(static_cast<double>(me2->Freq) * value));
 }
 
-EXPORT_CPP double _sndPos(SClass* me_)
+EXPORT_CPP void _sndSetPos(SClass* me_, double value)
+{
+	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
+	me2->SndBuf->SetCurrentPosition(static_cast<DWORD>(value * (double)me2->SizePerSec));
+}
+
+EXPORT_CPP double _sndGetPos(SClass* me_)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 	DWORD pos = 0;
@@ -290,10 +302,24 @@ void Init()
 		THROW(0x1000, L"");
 	ListSndTop = NULL;
 	ListSndBottom = NULL;
+	LoadOgg = NULL;
+
+	DllOgg = LoadLibrary(L"data/d1000.knd");
+	if (DllOgg != NULL)
+	{
+		LoadOgg = reinterpret_cast<void*(*)(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64))>(GetProcAddress(DllOgg, "LoadOgg"));
+		if (LoadOgg == NULL)
+		{
+			FreeLibrary(DllOgg);
+			DllOgg = NULL;
+		}
+	}
 }
 
 void Fin()
 {
+	if (DllOgg != NULL)
+		FreeLibrary(DllOgg);
 	ASSERT(ListSndTop == NULL);
 	if (Device != NULL)
 		Device->Release();
@@ -327,7 +353,7 @@ static DWORD WINAPI CBStreamThread(LPVOID param)
 	for (; ; )
 	{
 		int finish_cnt = 0;
-		while (finish_cnt < 3)
+		while (finish_cnt < 3) // Repeat until the buffer is completely cleared.
 		{
 			DWORD pos = 0;
 			me_->SndBuf->GetCurrentPosition(&pos, NULL);

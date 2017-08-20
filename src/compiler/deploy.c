@@ -4,6 +4,7 @@
 #include "util.h"
 
 static const void* CopyDlls(const Char* key, const void* value, void* param);
+static void CopyKuinFile(const Char* name, const SOption* option);
 
 void Deploy(U64 app_code, const SOption* option, SDict* dlls)
 {
@@ -29,8 +30,8 @@ void Deploy(U64 app_code, const SOption* option, SDict* dlls)
 
 static const void* CopyDlls(const Char* key, const void* value, void* param)
 {
+	const SOption* option = (SOption*)param;
 	{
-		const SOption* option = (SOption*)param;
 		Char src[MAX_PATH];
 		Char dst[MAX_PATH];
 		wcscpy(src, option->SysDir);
@@ -45,5 +46,21 @@ static const void* CopyDlls(const Char* key, const void* value, void* param)
 		if (CopyFile(src, dst, FALSE) == 0)
 			Err(L"EK0013", NULL, src, dst);
 	}
+	// Copy license files.
+	if (wcscmp(key, L"d1000.knd") == 0)
+		CopyKuinFile(L"license_ogg_vorbis.txt", option);
 	return value;
+}
+
+static void CopyKuinFile(const Char* name, const SOption* option)
+{
+	Char src[MAX_PATH];
+	Char dst[MAX_PATH];
+	wcscpy(src, option->SysDir);
+	wcscat(src, name);
+	wcscpy(dst, option->OutputDir);
+	wcscat(dst, L"data/");
+	wcscat(dst, name);
+	if (CopyFile(src, dst, FALSE) == 0)
+		Err(L"EK0013", NULL, src, dst);
 }

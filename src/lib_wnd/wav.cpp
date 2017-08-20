@@ -7,6 +7,7 @@ struct SWav
 	U32 SamplesPerSec;
 	U32 BitsPerSample;
 	U32 WaveSize;
+	S64 Begin;
 };
 
 static void Close(void* handle);
@@ -88,7 +89,7 @@ void* LoadWav(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_pe
 		}
 		if (!fmt_chunk || !data_chunk)
 			break;
-
+		result->Begin = TellFileStream(result->FileStream);
 		success = True;
 		break;
 	}
@@ -110,13 +111,25 @@ static void Close(void* handle)
 
 static Bool Read(void* handle, void* buf, S64 size, S64 loop_pos)
 {
-	// TODO: loop_pos
 	SWav* handle2 = reinterpret_cast<SWav*>(handle);
-	S64 size2 = static_cast<S64>(ReadFileStream(handle2->FileStream, size, buf));
-	if (size != size2)
+	U8* dst = static_cast<U8*>(buf);
+	S64 remain = size;
+	while (remain > 0)
 	{
-		memset(static_cast<U8*>(buf) + size2, 0x00, static_cast<size_t>(size - size2));
-		return True;
+		S64 actual_read = static_cast<S64>(ReadFileStream(handle2->FileStream, remain, dst));
+		if (actual_read <= 0)
+		{
+			if (loop_pos == -1)
+			{
+				memset(dst, 0x00, static_cast<size_t>(remain));
+				return True;
+			}
+			S64 align = handle2->BitsPerSample / 8 * (handle2->Steleo ? 2 : 1);
+			SeekFileStream(handle2->FileStream, handle2->Begin + loop_pos / align * align, SEEK_SET);
+			continue;
+		}
+		remain -= actual_read;
+		dst += actual_read;
 	}
 	return False;
 }

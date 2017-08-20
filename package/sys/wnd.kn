@@ -50,6 +50,12 @@ end class
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
+	+func [d0001.knd, _wndSetText] setText(text: []char)
+	end func
+
+	+func [d0001.knd, _wndGetText] getText(): []char
+	end func
+
 	+func [d0001.knd, _wndClose] close()
 	end func
 
@@ -125,11 +131,23 @@ end class
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
+	+func [d0001.knd, _wndSetText] setText(text: []char)
+	end func
+
+	+func [d0001.knd, _wndGetText] getText(): []char
+	end func
+
 	+var onPush: func<(@WndBase)>
 end class
 
 +class Chk(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _wndSetText] setText(text: []char)
+	end func
+
+	+func [d0001.knd, _wndGetText] getText(): []char
 	end func
 
 	+func [d0001.knd, _btnSetChk] setChk(value: bool)
@@ -141,6 +159,12 @@ end class
 
 +class Radio(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _wndSetText] setText(text: []char)
+	end func
+
+	+func [d0001.knd, _wndGetText] getText(): []char
 	end func
 
 	+func [d0001.knd, _btnSetChk] setChk(value: bool)
@@ -225,10 +249,22 @@ end class
 +class Label(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+
+	+func [d0001.knd, _wndSetText] setText(text: []char)
+	end func
+
+	+func [d0001.knd, _wndGetText] getText(): []char
+	end func
 end class
 
 +class Group(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _wndSetText] setText(text: []char)
+	end func
+
+	+func [d0001.knd, _wndGetText] getText(): []char
 	end func
 end class
 

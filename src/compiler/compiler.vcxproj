@@ -66,7 +66,8 @@
     </Link>
     <PostBuildEvent>
       <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)test\test_exe\compiler.dll
-echo F | xcopy /y /r $(TargetDir)compiler.lib $(SolutionDir)src\test_src\compiler.lib</Command>
+echo F | xcopy /y /r $(TargetDir)compiler.lib $(SolutionDir)src\test_src\compiler.lib
+echo F | xcopy /y /r $(TargetPath) $(SolutionDir)test\output\data\d0917.knd</Command>
     </PostBuildEvent>
     <CustomBuild>
       <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp /Zi /Zd %(Filename).asm</Command>
