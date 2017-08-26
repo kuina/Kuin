@@ -134,15 +134,18 @@ EXPORT void _err(const void* excpt)
 	Char str[1024];
 	S64 code = *(S64*)((U8*)excpt + 0x10);
 	const Char* text = L"Unknown exception.";
-	const Char* msg = *(const Char**)((U8*)excpt + 0x18);
-	if (msg == NULL)
-		msg = L"No message.";
-	else
-		msg = (const Char*)((const U8*)msg + 0x10);
+	const Char* msg = L"-";
+	Bool read_msg = False;
 	if (0x00000000 <= code && code <= 0x0000ffff)
+	{
 		text = L"User defined exception.";
+		read_msg = True;
+	}
 	else if (0x09170000 <= code && code <= 0x0917ffff)
+	{
 		text = L"Kuin library exception.";
+		read_msg = True;
+	}
 	else
 	{
 		switch (code)
@@ -161,7 +164,13 @@ EXPORT void _err(const void* excpt)
 			case 0xc9170005: text = L"Invalid operation on standard library class."; break;
 		}
 	}
-	swprintf(str, 1024, L"An exception of '0x%08X' occurred.\r\n%s\r\n\r\n> %s", (U32)code, text, msg);
+	if (read_msg)
+	{
+		const void* ptr = *(const void**)((U8*)excpt + 0x18);
+		if (ptr != NULL)
+			msg = (const Char*)((const U8*)ptr + 0x10);
+	}
+	swprintf(str, 1024, L"An exception '0x%08X' occurred.\r\n\r\n> %s\r\n> %s", (U32)code, text, msg);
 	MessageBox(0, str, NULL, 0);
 #endif
 }

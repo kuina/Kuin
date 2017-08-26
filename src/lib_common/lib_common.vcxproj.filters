@@ -10,6 +10,7 @@
     <ClCompile Include="hash.c" />
     <ClCompile Include="cipher.c" />
     <ClCompile Include="task.c" />
+    <ClCompile Include="dbg.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />
@@ -21,6 +22,7 @@
     <ClInclude Include="hash.h" />
     <ClInclude Include="cipher.h" />
     <ClInclude Include="task.h" />
+    <ClInclude Include="dbg.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="low_level.asm" />

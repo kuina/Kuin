@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClCompile Include="..\common.c" />
     <ClCompile Include="cipher.c" />
+    <ClCompile Include="dbg.c" />
     <ClCompile Include="file.c" />
     <ClCompile Include="hash.c" />
     <ClCompile Include="lib.c" />
@@ -156,6 +157,7 @@
   <ItemGroup>
     <ClInclude Include="..\common.h" />
     <ClInclude Include="cipher.h" />
+    <ClInclude Include="dbg.h" />
     <ClInclude Include="file.h" />
     <ClInclude Include="hash.h" />
     <ClInclude Include="lib.h" />

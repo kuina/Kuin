@@ -8,10 +8,12 @@
 #include <fcntl.h>
 #include <io.h>
 
-typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col));
+#define LANG (1)
+
+typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang);
 typedef void(*TypeOfVersion)(int* major, int* minor, int* micro);
-typedef void(*TypeOfInitMemAllocator)(void);
-typedef void(*TypeOfFinMemAllocator)(void);
+typedef void(*TypeOfInitCompiler)(S64 lang);
+typedef void(*TypeOfFinCompiler)(void);
 
 static Bool Quiet;
 
@@ -139,8 +141,8 @@ int wmain(int argc, Char** argv)
 		{
 			TypeOfBuild func_build = (TypeOfBuild)GetProcAddress(library, "BuildFile");
 			TypeOfVersion func_version = (TypeOfVersion)GetProcAddress(library, "Version");
-			TypeOfInitMemAllocator func_init_mem_allocator = (TypeOfInitMemAllocator)GetProcAddress(library, "InitMemAllocator");
-			TypeOfFinMemAllocator func_fin_mem_allocator = (TypeOfFinMemAllocator)GetProcAddress(library, "FinMemAllocator");
+			TypeOfInitCompiler func_init_compiler = (TypeOfInitCompiler)GetProcAddress(library, "InitCompiler");
+			TypeOfFinCompiler func_fin_compiler = (TypeOfFinCompiler)GetProcAddress(library, "FinCompiler");
 			if (func_build == NULL || func_version == NULL)
 			{
 				wprintf(L"The file 'sys/d0917.knd' was broken.\n");
@@ -159,8 +161,8 @@ int wmain(int argc, Char** argv)
 				wprintf(L"Usage: kuincl [-i input.kn] [-o output.kn] [-s 'sys' directory] [-c icon.ico] [-e environment] [-r] [-h] [-v] [-q]\n");
 				return 0;
 			}
-			func_init_mem_allocator();
-			if (func_build(input, sys_dir, output, icon, rls, env, Log))
+			func_init_compiler(-1);
+			if (func_build(input, sys_dir, output, icon, rls, env, Log, LANG))
 			{
 				if (!Quiet)
 					wprintf(L"Success.\n");
@@ -170,7 +172,7 @@ int wmain(int argc, Char** argv)
 				wprintf(L"Failure.\n");
 				ret_code = 1;
 			}
-			func_fin_mem_allocator();
+			func_fin_compiler();
 		}
 		FreeLibrary(library);
 	}

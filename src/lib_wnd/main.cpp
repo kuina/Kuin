@@ -375,8 +375,6 @@ EXPORT_CPP void _fin()
 	Draw::Fin();
 
 	DeleteObject(static_cast<HGDIOBJ>(FontCtrl));
-
-	// TODO:
 }
 
 EXPORT_CPP Bool _act()

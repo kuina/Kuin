@@ -1,22 +1,22 @@
 ; Kuin Editor
 ; (C)Kuina-chan
 
-func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>): bool
+func [d0917.knd, InitCompiler] initCompiler()
+end func
+
+func [d0917.knd, FinCompiler] finCompiler()
+end func
+
+func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>, lang: int): bool
 end func
 
 func [d0917.knd, Interpret1] interpret1(src: [][]char, color: [][]bit8)
 end func
 
-func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>)
+func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>, lang: int)
 end func
 
 func [d0917.knd, Version] version(major: &int, minor: &int, micro: &int)
-end func
-
-func [d0917.knd, InitMemAllocator] initMemAllocator()
-end func
-
-func [d0917.knd, FinMemAllocator] finMemAllocator()
 end func
 
 func [d0917.knd, ResetMemAllocator] resetMemAllocator()
@@ -28,7 +28,7 @@ end func
 func [d0917.knd, GetHint] getHint(name: []char, src: []char, row: int): []char
 end func
 
-func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>): bool
+func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>): bool
 end func
 
 var wndMain: wnd@Wnd
@@ -430,7 +430,29 @@ class DocumentSrc(@Document)
 				do @drawEditor.paint()
 			end if
 		case %pageUp
+			if(shiftCtrl <> %ctrl)
+				do me.setArea(shiftCtrl)
+				var absoluteX: int :: me.getAbsoluteX()
+				var width: int
+				var height: int
+				do @drawEditor.getSize(&width, &height)
+				do me.cursorY :- height / @cellHeight
+				do me.setAbsoluteX(absoluteX)
+				do me.refreshCursor(false, true)
+				do @drawEditor.paint()
+			end if
 		case %pageDown
+			if(shiftCtrl <> %ctrl)
+				do me.setArea(shiftCtrl)
+				var absoluteX: int :: me.getAbsoluteX()
+				var width: int
+				var height: int
+				do @drawEditor.getSize(&width, &height)
+				do me.cursorY :+ height / @cellHeight
+				do me.setAbsoluteX(absoluteX)
+				do me.refreshCursor(false, true)
+				do @drawEditor.paint()
+			end if
 		case %end_
 			do me.setArea(shiftCtrl)
 			do me.cursorX :: lib@intMax
@@ -1356,7 +1378,7 @@ var auxiliaryErr: dict<@Pos, []char>
 var lockingEditor: bool
 
 func main()
-	do @initMemAllocator()
+	do @initCompiler()
 	do wnd@onKeyPress(@onKeyPress)
 	do makeWnd()
 	do initEditor()
@@ -1477,7 +1499,7 @@ func main()
 						do @resetMemAllocator()
 						do @resetAuxiliary()
 						try
-							do @interpret2(@mainSrcName, @getSrc, null, @getEnv(), @logForInterpret)
+							do @interpret2(@mainSrcName, @getSrc, null, @getEnv(), @logForInterpret, @langEn ?(1, 0))
 						catch
 						end try
 						do @updateAuxiliary()
@@ -1494,7 +1516,7 @@ func main()
 			end if
 		end while
 
-		do @finMemAllocator()
+		do @finCompiler()
 		do @freeIdentifierSet()
 	end func
 end func
@@ -1888,14 +1910,14 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end if
 	try
 		do @resetAuxiliary()
-		if(@build(@mainSrcName, @getSrc, null, out, null, false, @getEnv(), @log))
+		if(@build(@mainSrcName, @getSrc, null, out, null, false, @getEnv(), @log, @langEn ?(1, 0)))
 			if (@mainSrcName <> @untitledSrcName)
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
 				do filePtr.writeStr(file@dir(@mainSrcName))
 				do filePtr.writeChar('\n')
 				do filePtr.fin()
 			end if
-			if(!@runDbg(cmd, cmdLine, idleFunc))
+			if(!@runDbg(cmd, cmdLine, idleFunc, eventFunc))
 				do wnd@msgBox(@wndMain, @langEn ?("Could not run.", "????"), @title, %err, %ok)
 			end if
 		end if
@@ -1909,6 +1931,9 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	func idleFunc()
 		do wnd@act()
 	end func
+
+	func eventFunc(type: int, str: []char): int
+	end func
 end func
 
 func btnRlsOnPush(wnd: wnd@WndBase)
@@ -1921,7 +1946,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	do @editLog.setText("")
 	try
 		do @resetAuxiliary()
-		if(@build(@mainSrcName, @getSrc, null, file, null, true, @getEnv(), @log))
+		if(@build(@mainSrcName, @getSrc, null, file, null, true, @getEnv(), @log, @langEn ?(1, 0)))
 			if (@mainSrcName <> @untitledSrcName)
 				var resSrc: []char :: file@dir(@mainSrcName) ~ "res/"
 				if(file@exist(resSrc))

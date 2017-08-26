@@ -9,11 +9,12 @@
 #include <io.h>
 #include <conio.h>
 
+#define LANG (1)
 #define TEST_NUM (18)
 
 #pragma comment(lib, "compiler.lib")
 
-Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col));
+Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang);
 
 static size_t UsedMem;
 
@@ -44,7 +45,7 @@ int wmain(void)
 			swprintf(log_path, MAX_PATH, L"../../test/output/log%04d.txt", i);
 			wprintf(L"%s\n", output_path);
 			UsedMem = 0;
-			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Log))
+			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Log, 1))
 				goto Failure;
 			wprintf(L"Mem: %I64u[byte]\n", UsedMem);
 			wprintf(L"Compile[S]");
@@ -83,23 +84,23 @@ int wmain(void)
 							fwprintf(file_ptr, L"Excpt: %08x\n", debug_event.u.Exception.ExceptionRecord.ExceptionCode);
 							break;
 						case OUTPUT_DEBUG_STRING_EVENT:
-						{
-							U8 buf[1024] = { 0 };
-							SIZE_T size;
-							if (!ReadProcessMemory(process, debug_event.u.DebugString.lpDebugStringData, buf, debug_event.u.DebugString.nDebugStringLength, &size))
-								goto Failure;
-							fwprintf(file_ptr, L"> ");
 							{
-								const U8* ptr = buf;
-								while (*ptr != 0)
+								U8 buf[1024] = { 0 };
+								SIZE_T size;
+								if (!ReadProcessMemory(process, debug_event.u.DebugString.lpDebugStringData, buf, debug_event.u.DebugString.nDebugStringLength, &size))
+									goto Failure;
+								fwprintf(file_ptr, L"> ");
 								{
-									fwprintf(file_ptr, L"%c", *ptr);
-									ptr++;
+									const U8* ptr = buf;
+									while (*ptr != 0)
+									{
+										fwprintf(file_ptr, L"%c", *ptr);
+										ptr++;
+									}
 								}
+								fwprintf(file_ptr, L"\n");
 							}
-							fwprintf(file_ptr, L"\n");
-						}
-						break;
+							break;
 					}
 					ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, DBG_CONTINUE);
 				}
@@ -129,13 +130,13 @@ int wmain(void)
 	else if (type == -1)
 	{
 		UsedMem = 0;
-		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Log))
+		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Log, LANG))
 			goto Failure;
 	}
 	else if (type == -2)
 	{
 		UsedMem = 0;
-		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Log))
+		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Log, LANG))
 			goto Failure;
 	}
 	else

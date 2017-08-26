@@ -10,7 +10,7 @@
 typedef struct SErrMsg
 {
 	U32 Code;
-	Char Msg[MSG_MAX];
+	Char Msg[MSG_MAX + 1];
 } SErrMsg;
 
 static void(*LogFunc)(const Char* code, const Char* msg, const Char* src, int row, int col) = NULL;
@@ -18,6 +18,7 @@ static int ErrCnt;
 static SErrMsg ErrMsgs[MSG_NUM];
 static const Char* LastErrSrc;
 static int LastErrRow;
+static Bool MsgLoaded = (Bool)0;
 
 Bool SetLogFunc(void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), int lang, const Char* sys_dir)
 {
@@ -26,6 +27,7 @@ Bool SetLogFunc(void(*func_log)(const Char* code, const Char* msg, const Char* s
 	LastErrSrc = L"$";
 	LastErrRow = -1;
 
+	if (!MsgLoaded)
 	{
 		FILE* file_ptr;
 		ASSERT(0 <= lang && lang < LANG_NUM); // 0 = 'Ja', 1 = 'En'.
@@ -95,6 +97,7 @@ Bool SetLogFunc(void(*func_log)(const Char* code, const Char* msg, const Char* s
 			ASSERT(fgetwc(file_ptr) == WEOF);
 		}
 		fclose(file_ptr);
+		MsgLoaded = True;
 	}
 	return True;
 }

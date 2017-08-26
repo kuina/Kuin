@@ -21,6 +21,17 @@
 #include <DbgHelp.h> // 'StackWalk64'
 #pragma comment(lib, "DbgHelp.lib")
 
+#define MSG_NUM (6 / 3)
+#define FUNC_NAME_MAX (128)
+#define MSG_MAX (128)
+#define LANG_NUM (2)
+
+typedef struct SExcptMsg
+{
+	S64 Code;
+	Char Msg[MSG_MAX + 1];
+} SErrMsg;
+
 typedef struct SIdentifier
 {
 	Char* Name;
@@ -56,6 +67,8 @@ static int DbgInfoSetNum = 0;
 static SDbgInfoSet* DbgInfoSets = NULL;
 static SPackAsm PackAsm;
 static U64 DbgStartAddr;
+static SErrMsg ExcptMsgs[MSG_NUM];
+static Bool MsgLoaded = (Bool)0;
 
 // Assembly functions.
 void* Call0Asm(void* func);
@@ -63,8 +76,9 @@ void* Call1Asm(void* arg1, void* func);
 void* Call2Asm(void* arg1, void* arg2, void* func);
 void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);
 
+static void LoadExcptMsg(S64 lang);
 static void DecSrc(void);
-static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), Bool analyze_identifiers);
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), Bool analyze_identifiers, S64 lang);
 static FILE* BuildMemWfopen(const Char* file_name, const Char* mode);
 static int BuildMemFclose(FILE* file_ptr);
 static U16 BuildMemFgetwc(FILE* file_ptr);
@@ -89,12 +103,25 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* output, const U8* icon, Bool rls, const U8* env, void(*func_log)(const void* args, S64 row, S64 col))
+EXPORT void InitCompiler(S64 lang)
 {
+	InitAllocator();
+	if (lang >= 0)
+		LoadExcptMsg(lang);
+}
+
+EXPORT void FinCompiler(void)
+{
+	FinAllocator();
+}
+
+EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* output, const U8* icon, Bool rls, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang)
+{
+	// This function is for the Kuin Editor.
 	Bool result;
 	FuncGetSrc = func_get_src;
 	FuncLog = func_log;
-	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon == NULL ? NULL : (const Char*)(icon + 0x10), rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog, True);
+	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon == NULL ? NULL : (const Char*)(icon + 0x10), rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog, True, lang);
 	FuncGetSrc = NULL;
 	FuncLog = NULL;
 	DecSrc();
@@ -104,11 +131,12 @@ EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), cons
 	return result;
 }
 
-EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col))
+EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang)
 {
+	// This function is for 'kuincl'.
 	Bool result;
 	InitAllocator();
-	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log, False);
+	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log, False, lang);
 	FinAllocator();
 	return result;
 }
@@ -118,7 +146,7 @@ EXPORT void Interpret1(const void* src, const void* color)
 	InterpretImpl1(src, color);
 }
 
-EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col))
+EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang)
 {
 	const Char* sys_dir2 = sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10);
 
@@ -135,7 +163,7 @@ EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 	else
 		sys_dir2 = GetDir(sys_dir2, True, NULL);
 
-	SetLogFunc(BuildMemLog, 0, sys_dir2);
+	SetLogFunc(BuildMemLog, (int)lang, sys_dir2);
 	ResetErrOccurred();
 
 	{
@@ -168,16 +196,6 @@ EXPORT void Version(S64* major, S64* minor, S64* micro)
 	*major = 9;
 	*minor = 17;
 	*micro = 0;
-}
-
-EXPORT void InitMemAllocator(void)
-{
-	InitAllocator();
-}
-
-EXPORT void FinMemAllocator(void)
-{
-	FinAllocator();
 }
 
 EXPORT void ResetMemAllocator(void)
@@ -279,7 +297,7 @@ EXPORT void* GetHint(const U8* name, const U8* src, S64 row)
 	}
 }
 
-EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func)
+EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func)
 {
 	const Char* path2 = (const Char*)(path + 0x10);
 	Char cur_dir[MAX_PATH + 1];
@@ -318,6 +336,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func)
 		Bool end = False;
 		DbgStartAddr = 0;
 		ResumeThread(process_info.hThread);
+		Bool excpt_occurred = False;
 		while (!end)
 		{
 			DWORD continue_status = DBG_EXCEPTION_NOT_HANDLED;
@@ -337,6 +356,8 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func)
 					break;
 				case EXCEPTION_DEBUG_EVENT:
 					if (debug_event.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003)
+						break;
+					if (excpt_occurred)
 						break;
 					{
 						Char str[4096] = L"";
@@ -358,32 +379,38 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func)
 						{
 							DWORD code = debug_event.u.Exception.ExceptionRecord.ExceptionCode;
 							PVOID addr = debug_event.u.Exception.ExceptionRecord.ExceptionAddress;
-							const Char* text = L"Unknown exception.";
+							const Char* text = ExcptMsgs[0].Msg;
 							DWORD param_num = debug_event.u.Exception.ExceptionRecord.NumberParameters;
 							const ULONG_PTR* params = debug_event.u.Exception.ExceptionRecord.ExceptionInformation;
+							const Char* msg = L"-";
 							if (code <= 0x0000ffff)
-								text = L"User defined exception.";
-							else if (0x09170000 <= code && code <= 0x0917ffff)
-								text = L"Kuin library exception.";
+								text = ExcptMsgs[1].Msg;
 							else
 							{
-								switch (code)
+								int min = 0;
+								int max = MSG_NUM - 1;
+								int found = -1;
+								while (min <= max)
 								{
-									case 0xc0000005: text = L"Access violation."; break;
-									case 0xc0000017: text = L"No memory."; break;
-									case 0xc0000090: text = L"Float invalid operation."; break;
-									case 0xc0000094: text = L"Integer division by zero."; break;
-									case 0xc00000fd: text = L"Stack overflow."; break;
-									case 0xc000013a: text = L"Ctrl-C exit."; break;
-									case 0xc9170000: text = L"Assertion failed."; break;
-									case 0xc9170001: text = L"Class cast failed."; break;
-									case 0xc9170002: text = L"Array index out of range."; break;
-									case 0xc9170003: text = L"Integer overflow."; break;
-									case 0xc9170004: text = L"Invalid call of non inherited 'cmp' method."; break;
-									case 0xc9170005: text = L"Invalid operation on standard library class."; break;
+									int mid = (min + max) / 2;
+									if ((S64)code < ExcptMsgs[mid].Code)
+										max = mid - 1;
+									else if ((S64)code > ExcptMsgs[mid].Code)
+										min = mid + 1;
+									else
+									{
+										found = mid;
+										break;
+									}
 								}
+								if (found != -1)
+									text = ExcptMsgs[found].Msg;
 							}
-							swprintf(str, 1024, L"An exception of '0x%08X' occurred at '0x%016I64X'.\r\n> %s\r\n\r\n", debug_event.u.Exception.ExceptionRecord.ExceptionCode, (U64)debug_event.u.Exception.ExceptionRecord.ExceptionAddress, text);
+							if ((0x00000000 <= code && code <= 0x0000ffff || 0x09170000 <= code && code <= 0x0917ffff) && param_num > 0)
+							{
+								// TODO: Get the exception message.
+							}
+							swprintf(str, 1024, L"An exception '0x%08X' occurred at '0x%016I64X'.\r\n\r\n> %s\r\n> %s\r\n\r\n", code, (U64)addr, text, msg);
 						}
 
 						for (; ; )
@@ -440,10 +467,22 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func)
 						}
 						MessageBox(NULL, str, NULL, 0);
 					}
+					excpt_occurred = True;
 					// TODO: continue_status = DBG_CONTINUE;
 					break;
 				case OUTPUT_DEBUG_STRING_EVENT:
-					// TODO: Debug printing.
+					if (debug_event.u.DebugString.fUnicode != 0)
+					{
+						Char* buf = malloc(sizeof(Char) * (size_t)debug_event.u.DebugString.nDebugStringLength);
+						SIZE_T size = 0;
+						if (!ReadProcessMemory(process_info.hProcess, debug_event.u.DebugString.lpDebugStringData, buf, debug_event.u.DebugString.nDebugStringLength, &size) || size == 0)
+						{
+							free(buf);
+							break;
+						}
+						// TODO: Send the text to the editor.
+						free(buf);
+					}
 					break;
 			}
 			ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, continue_status);
@@ -462,6 +501,54 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func)
 	return True;
 }
 
+static void LoadExcptMsg(S64 lang)
+{
+	if (!MsgLoaded)
+	{
+		FILE* file_ptr;
+		ASSERT(0 <= lang && lang < LANG_NUM); // 0 = 'Ja', 1 = 'En'.
+		{
+			file_ptr = _wfopen(L"sys/excpt.knd", L"r, ccs=UTF-8");
+			if (file_ptr == NULL)
+				return;
+		}
+		{
+			int i;
+			int j;
+			Char buf[256];
+#if defined(_DEBUG)
+			S64 prev_code = 0;
+#endif
+			for (i = 0; i < MSG_NUM; i++)
+			{
+				ReadFileLine(buf, 256, file_ptr);
+				if (wcscmp(buf, L"none") == 0)
+					ExcptMsgs[i].Code = -1;
+				else
+				{
+					ASSERT(wcslen(buf) == 8);
+					ExcptMsgs[i].Code = (S64)(U32)_wcstoui64(buf, NULL, 16);
+				}
+#if defined(_DEBUG)
+				if (i != 0)
+					ASSERT(prev_code < ExcptMsgs[i].Code);
+				prev_code = ExcptMsgs[i].Code;
+#endif
+				for (j = 0; j < LANG_NUM; j++)
+				{
+					ReadFileLine(buf, 256, file_ptr);
+					ASSERT(wcslen(buf) < MSG_MAX);
+					if (j == lang)
+						wcscpy(ExcptMsgs[i].Msg, buf);
+				}
+			}
+			ASSERT(fgetwc(file_ptr) == WEOF);
+		}
+		fclose(file_ptr);
+		MsgLoaded = True;
+	}
+}
+
 static void DecSrc(void)
 {
 	// Decrement 'Src', but do not release it here. It will be released in '.kn'.
@@ -472,7 +559,7 @@ static void DecSrc(void)
 	}
 }
 
-static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), Bool analyze_identifiers)
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), Bool analyze_identifiers, S64 lang)
 {
 	SOption option;
 	SDict* asts;
@@ -490,7 +577,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	else
 		sys_dir = GetDir(sys_dir, True, NULL);
 
-	SetLogFunc(func_log, 0, sys_dir);
+	SetLogFunc(func_log, (int)lang, sys_dir);
 	ResetErrOccurred();
 
 	timeBeginPeriod(1);
