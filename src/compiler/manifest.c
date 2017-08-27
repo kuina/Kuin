@@ -1,4 +1,4 @@
-﻿#include "../common.h"
+#include "../common.h"
 
 const U8* GetManifestBin(size_t* size)
 {
