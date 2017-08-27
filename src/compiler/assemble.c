@@ -2050,35 +2050,45 @@ static void AssembleStats(SList* asts)
 
 static void AssembleIf(SAstStatIf* ast)
 {
-	SAsmLabel* lbl1 = AsmLabel();
-	SAsmLabel* lbl2 = AsmLabel();
-	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
-	AssembleExpr(ast->Cond, 0, 0);
-	ToValue(ast->Cond, 0, 0);
-	ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[0]), ValImmU(1, 0x00)));
-	ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-	AssembleStats(ast->Stats);
-	ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
-	ListAdd(PackAsm->Asms, lbl1);
+	if (ast->Cond == NULL)
 	{
-		SListNode* ptr = ast->ElIfs->Top;
-		while (ptr != NULL)
-		{
-			SAstStatElIf* elif = (SAstStatElIf*)ptr->Data;
-			SAsmLabel* lbl3 = AsmLabel();
-			AssembleExpr(elif->Cond, 0, 0);
-			ToValue(elif->Cond, 0, 0);
-			ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[0]), ValImmU(1, 0x00)));
-			ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl3)->Addr, True))));
-			AssembleStats(elif->Stats);
-			ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
-			ListAdd(PackAsm->Asms, lbl3);
-			ptr = ptr->Next;
-		}
+		// Optimized code.
+		ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
+		AssembleStats(ast->Stats);
+		ListAdd(PackAsm->Asms, ((SAstStatBreakable*)ast)->BreakPoint);
 	}
-	AssembleStats(ast->ElseStats);
-	ListAdd(PackAsm->Asms, lbl2);
-	ListAdd(PackAsm->Asms, ((SAstStatBreakable*)ast)->BreakPoint);
+	else
+	{
+		SAsmLabel* lbl1 = AsmLabel();
+		SAsmLabel* lbl2 = AsmLabel();
+		ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
+		AssembleExpr(ast->Cond, 0, 0);
+		ToValue(ast->Cond, 0, 0);
+		ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[0]), ValImmU(1, 0x00)));
+		ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
+		AssembleStats(ast->Stats);
+		ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
+		ListAdd(PackAsm->Asms, lbl1);
+		{
+			SListNode* ptr = ast->ElIfs->Top;
+			while (ptr != NULL)
+			{
+				SAstStatElIf* elif = (SAstStatElIf*)ptr->Data;
+				SAsmLabel* lbl3 = AsmLabel();
+				AssembleExpr(elif->Cond, 0, 0);
+				ToValue(elif->Cond, 0, 0);
+				ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[0]), ValImmU(1, 0x00)));
+				ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl3)->Addr, True))));
+				AssembleStats(elif->Stats);
+				ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
+				ListAdd(PackAsm->Asms, lbl3);
+				ptr = ptr->Next;
+			}
+		}
+		AssembleStats(ast->ElseStats);
+		ListAdd(PackAsm->Asms, lbl2);
+		ListAdd(PackAsm->Asms, ((SAstStatBreakable*)ast)->BreakPoint);
+	}
 }
 
 static void AssembleSwitch(SAstStatSwitch* ast)

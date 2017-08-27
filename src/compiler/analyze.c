@@ -99,7 +99,6 @@ static SAstStat* RebuildWhile(SAstStatWhile* ast, SAstType* ret_type);
 static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type);
 static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type);
 static SAstStat* RebuildThrow(SAstStatThrow* ast);
-static SAstStat* RebuildIfDef(SAstStatIfDef* ast, SAstType* ret_type);
 static SAstStat* RebuildBlock(SAstStatBlock* ast, SAstType* ret_type);
 static SAstStat* RebuildRet(SAstStatRet* ast, SAstType* ret_type);
 static SAstStat* RebuildDo(SAstStatDo* ast);
@@ -1769,7 +1768,6 @@ static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type)
 		case AstTypeId_StatFor: ast = RebuildFor((SAstStatFor*)ast, ret_type); break;
 		case AstTypeId_StatTry: ast = RebuildTry((SAstStatTry*)ast, ret_type); break;
 		case AstTypeId_StatThrow: ast = RebuildThrow((SAstStatThrow*)ast); break;
-		case AstTypeId_StatIfDef: ast = RebuildIfDef((SAstStatIfDef*)ast, ret_type); break;
 		case AstTypeId_StatBlock: ast = RebuildBlock((SAstStatBlock*)ast, ret_type); break;
 		case AstTypeId_StatRet: ast = RebuildRet((SAstStatRet*)ast, ret_type); break;
 		case AstTypeId_StatDo: ast = RebuildDo((SAstStatDo*)ast); break;
@@ -1819,7 +1817,35 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
 		}
 	}
 	ast->ElseStats = RefreshStats(ast->ElseStats, ret_type);
-	return (SAstStat*)ast;
+	{
+		// Optimize the code.
+		SList* stats = NULL;
+		if (((SAst*)ast->Cond)->TypeId != AstTypeId_ExprValue)
+			return (SAstStat*)ast;
+		if (*((S64*)((SAstExprValue*)ast->Cond)->Value) != 0)
+			stats = ast->Stats;
+		if (stats == NULL)
+		{
+			SListNode* ptr = ast->ElIfs->Top;
+			while (ptr != NULL)
+			{
+				SAstStatElIf* elif = (SAstStatElIf*)ptr->Data;
+				if (((SAst*)elif->Cond)->TypeId != AstTypeId_ExprValue)
+					return (SAstStat*)ast;
+				if (*((S64*)((SAstExprValue*)elif->Cond)->Value) != 0)
+				{
+					stats = elif->Stats;
+					break;
+				}
+				ptr = ptr->Next;
+			}
+			if (stats == NULL)
+				stats = ast->ElseStats;
+		}
+		ast->Cond = NULL;
+		ast->Stats = stats;
+		return (SAstStat*)ast;
+	}
 }
 
 static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type)
@@ -2008,24 +2034,6 @@ static SAstStat* RebuildThrow(SAstStatThrow* ast)
 			Err(L"EA0029", ((SAst*)ast->Msg)->Pos);
 	}
 	return (SAstStat*)ast;
-}
-
-static SAstStat* RebuildIfDef(SAstStatIfDef* ast, SAstType* ret_type)
-{
-	if (((SAst*)ast)->AnalyzedCache != NULL)
-		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
-	if (ast->Dbg == Option->Rls)
-		return NULL;
-	{
-		SAstStatBlock* ast2 = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
-		InitAst((SAst*)ast2, AstTypeId_StatBlock, ((SAst*)ast)->Pos);
-		((SAstStatBreakable*)ast2)->BlockVar = NULL;
-		((SAstStatBreakable*)ast2)->BreakPoint = AsmLabel();
-		ast2->Stats = RefreshStats(ast->Stats, ret_type);
-		((SAst*)ast2)->AnalyzedCache = (SAst*)ast2;
-		((SAst*)ast)->AnalyzedCache = (SAst*)ast2;
-		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
-	}
 }
 
 static SAstStat* RebuildBlock(SAstStatBlock* ast, SAstType* ret_type)

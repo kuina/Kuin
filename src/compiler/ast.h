@@ -45,8 +45,7 @@ typedef enum EAstTypeId
 	AstTypeId_StatCatch = AstTypeId_Stat | 0x0c,
 	AstTypeId_StatFinally = AstTypeId_Stat | 0x0d,
 	AstTypeId_StatThrow = AstTypeId_Stat | 0x0e,
-	AstTypeId_StatIfDef = AstTypeId_StatBreakable | 0x04,
-	AstTypeId_StatBlock = AstTypeId_StatBreakable | 0x05,
+	AstTypeId_StatBlock = AstTypeId_StatBreakable | 0x04,
 	AstTypeId_StatRet = AstTypeId_Stat | 0x0f,
 	AstTypeId_StatDo = AstTypeId_Stat | 0x10,
 	AstTypeId_StatBreak = AstTypeId_Stat | 0x11,
@@ -327,13 +326,6 @@ typedef struct SAstStatThrow
 	struct SAstExpr* Code;
 	struct SAstExpr* Msg;
 } SAstStatThrow;
-
-typedef struct SAstStatIfDef
-{
-	SAstStatBreakable AstStatBreakable;
-	Bool Dbg;
-	SList* Stats;
-} SAstStatIfDef;
 
 typedef struct SAstStatBlock
 {

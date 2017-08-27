@@ -22,13 +22,6 @@ func main()
 			do cui@print(n.toStr())
 		end block
 
-		ifdef(dbg)
-			do cui@print("dbg")
-		end ifdef
-		ifdef(rls)
-			do cui@print("rls")
-		end ifdef
-
 		enum A
 			a
 			b

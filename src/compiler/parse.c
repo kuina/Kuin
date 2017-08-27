@@ -38,7 +38,6 @@ static const Char* Reserved[] =
 	L"for",
 	L"func",
 	L"if",
-	L"ifdef",
 	L"inf",
 	L"int",
 	L"list",
@@ -46,7 +45,6 @@ static const Char* Reserved[] =
 	L"null",
 	L"queue",
 	L"ret",
-	L"rls",
 	L"skip",
 	L"stack",
 	L"switch",
@@ -142,7 +140,6 @@ static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope
 static SAstStat* ParseStatCatch(int row, int col, const SAst* block);
 static SAstStat* ParseStatFinally(int row, int col, const SAst* block);
 static SAstStat* ParseStatThrow(void);
-static SAstStat* ParseStatIfDef(SAst** scope_begin, SAst** scope_end);
 static SAstStat* ParseStatBlock(SAst** scope_begin, SAst** scope_end);
 static SAstStat* ParseStatRet(void);
 static SAstStat* ParseStatDo(void);
@@ -172,7 +169,7 @@ SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FI
 	FuncFgetwc = func_fgetwc;
 	FuncSize = func_size;
 
-#ifdef _DEBUG
+#if defined(_DEBUG)
 	{
 		int len = (int)(sizeof(Reserved) / sizeof(Char*));
 		int i;
@@ -1646,8 +1643,6 @@ static SAstStat* ParseStat(SAst* block, SAst** scope_begin, SAst** scope_end)
 			ast = ParseStatFinally(row, col, block);
 		else if (wcscmp(s, L"throw") == 0)
 			ast = ParseStatThrow();
-		else if (wcscmp(s, L"ifdef") == 0)
-			ast = ParseStatIfDef(scope_begin, scope_end);
 		else if (wcscmp(s, L"block") == 0)
 			ast = ParseStatBlock(scope_begin, scope_end);
 		else if (wcscmp(s, L"ret") == 0)
@@ -1709,11 +1704,6 @@ static SAstStat* ParseStatEnd(int row, int col, SAst* block)
 		else if (wcscmp(s, L"try") == 0)
 		{
 			if (block->TypeId != AstTypeId_StatTry)
-				err = True;
-		}
-		else if (wcscmp(s, L"ifdef") == 0)
-		{
-			if (block->TypeId != AstTypeId_StatIfDef)
 				err = True;
 		}
 		else if (wcscmp(s, L"block") == 0)
@@ -2376,46 +2366,6 @@ static SAstStat* ParseStatThrow(void)
 		if (c != L'\n')
 			NextCharErr(L'\n', c);
 	}
-	return (SAstStat*)ast;
-}
-
-static SAstStat* ParseStatIfDef(SAst** scope_begin, SAst** scope_end)
-{
-	SAstStatIfDef* ast = (SAstStatIfDef*)Alloc(sizeof(SAstStatIfDef));
-	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
-	InitAst((SAst*)ast, AstTypeId_StatIfDef, NULL, NULL, False, True, scope_begin, scope_end);
-	((SAstStatBreakable*)ast)->BlockVar = NULL;
-	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
-	ast->Stats = ListNew();
-	PushDummyScope((SAst*)ast);
-	ObtainBlockName((SAst*)ast);
-	{
-		int row = Row;
-		int col = Col;
-		const Char* s = ReadIdentifier(True, False);
-		if (wcscmp(s, L"dbg") == 0)
-			ast->Dbg = True;
-		else if (wcscmp(s, L"rls") == 0)
-			ast->Dbg = False;
-		else
-			Err(L"EP0053", NewPos(SrcName, row, col), s);
-	}
-	AssertNextChar(L')', True);
-	AssertNextChar(L'\n', True);
-	for (; ; )
-	{
-		SAstStat* stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
-		if (stat == (SAstStat*)DummyPtr)
-			return (SAstStat*)DummyPtr;
-		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
-		{
-			scope_new[0] = (SAst*)ast;
-			scope_new[1] = (SAst*)stat;
-			break;
-		}
-		ListAdd(ast->Stats, stat);
-	}
-	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
 
@@ -3648,6 +3598,11 @@ static SAstExpr* ParseExprValue(void)
 						}
 						*(U64*)ast->Value = 0;
 						return (SAstExpr*)ast;
+					}
+					if (wcscmp(s, L"dbg") == 0)
+					{
+						U64 value = Option->Rls ? 0 : 1;
+						return (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Bool, &value);
 					}
 					{
 						SAstExpr* ast = (SAstExpr*)Alloc(sizeof(SAstExpr));

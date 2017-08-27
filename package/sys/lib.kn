@@ -7,11 +7,11 @@
 end func
 
 +func [_exit_code] exitCode(code: int)
-	ifdef(dbg)
+	if(dbg)
 		if(code < 0 | 16#FFFFFFFF < code)
 			throw 16#09170000, "lib@exitCode: 'code' must be in the range 0 to 16#FFFFFFFF."
 		end if
-	end ifdef
+	end if
 end func
 
 +func [d0000.knd, _rnd] rnd(min: int, max: int): int

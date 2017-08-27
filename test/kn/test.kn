@@ -1,0 +1,12 @@
+func main()
+	var a: bool :: true
+	if(false)
+		do wnd@msgBox(null, "a", null, %none, %ok)
+	elif(true)
+		do wnd@msgBox(null, "b", null, %none, %ok)
+	elif(a)
+		do wnd@msgBox(null, "c", null, %none, %ok)
+	else
+		do wnd@msgBox(null, "d", null, %none, %ok)
+	end if
+end func
