@@ -9,11 +9,10 @@ static const Char* BuildInFuncs[] =
 {
 	L"abs\0          \x0b",
 	L"add\0          \x07",
-	L"and\0          \x0e",
+	L"and\0          \x02",
 	L"clamp\0        \x0b",
 	L"clampMax\0     \x0b",
 	L"clampMin\0     \x0b",
-	L"cmp\0          \x06",
 	L"del\0          \x09",
 	L"delNext\0      \x09",
 	L"endian\0       \x04",
@@ -31,14 +30,13 @@ static const Char* BuildInFuncs[] =
 	L"lower\0        \x06",
 	L"moveOffset\0   \x09",
 	L"next\0         \x09",
-	L"not\0          \x0e",
+	L"not\0          \x02",
 	L"offset\0       \x03",
-	L"or\0           \x0e",
+	L"or\0           \x02",
 	L"peek\0         \x0a",
 	L"prev\0         \x09",
 	L"replace\0      \x06",
 	L"reverse\0      \x05",
-	L"same\0         \x02",
 	L"sar\0          \x04",
 	L"shl\0          \x04",
 	L"shr\0          \x04",
@@ -58,7 +56,7 @@ static const Char* BuildInFuncs[] =
 	L"trimLeft\0     \x06",
 	L"trimRight\0    \x06",
 	L"upper\0        \x06",
-	L"xor\0          \x0e",
+	L"xor\0          \x02",
 };
 
 static SDict* Asts;
@@ -3382,7 +3380,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 					correct = True;
 				break;
 			case 0x0002:
-				if (IsFloat(var_type))
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeBit || IsEnum(var_type))
 					correct = True;
 				break;
 			case 0x0003:
@@ -3479,10 +3477,6 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 				break;
 			case 0x000d:
 				if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
-					correct = True;
-				break;
-			case 0x000e:
-				if (((SAst*)var_type)->TypeId == AstTypeId_TypeBit || IsEnum(var_type))
 					correct = True;
 				break;
 		}

@@ -109,10 +109,10 @@ end func
 +func [d0000.knd, _chase] chase(x: &float, target: float, vel: float): bool
 end func
 
-func [d0000.knd] _same(n1: float, n2: float): bool
++func [d0000.knd, _same] same(n1: float, n2: float): bool
 end func
 
-func [d0000.knd] _cmp(s1: []char, s2: []char): int
++func [d0000.knd, _cmp] cmp(s1: []char, s2: []char): int
 end func
 
 +func [d0000.knd, _hash] hash(data: []bit8): []bit8

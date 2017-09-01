@@ -66,7 +66,7 @@ class Pos()
 	+var col: int
 
 	+*func cmp(t: Pos): int
-		var result: int :: me.src.cmp(t.src)
+		var result: int :: lib@cmp(me.src, t.src)
 		if(result <> 0)
 			ret result
 		end if
@@ -969,9 +969,17 @@ class DocumentSrc(@Document)
 		case %ins
 			do me.ins(undo3.x, undo3.y, undo3.str, false)
 		case %bs
-			do me.bs(undo3.x, undo3.y, undo3.str.toInt(), false)
+			block
+				var n: int
+				do undo3.str.toInt(&n)
+				do me.bs(undo3.x, undo3.y, n, false)
+			end block
 		case %del
-			do me.del(undo3.x, undo3.y, undo3.str.toInt(), false)
+			block
+				var n: int
+				do undo3.str.toInt(&n)
+				do me.del(undo3.x, undo3.y, n, false)
+			end block
 		default
 			assert false
 		end switch
@@ -1246,7 +1254,15 @@ class Obj2d()
 	+var height: int
 
 	func readMetaBase(src: []char, ptr: &int)
-		do me.init(@arBaseParseWord(src, &ptr), @arBaseParseWord(src, &ptr).toInt(), @arBaseParseWord(src, &ptr).toInt(), @arBaseParseWord(src, &ptr).toInt(), @arBaseParseWord(src, &ptr).toInt())
+		var x2: int
+		do @arBaseParseWord(src, &ptr).toInt(&x2)
+		var y2: int
+		do @arBaseParseWord(src, &ptr).toInt(&y2)
+		var width2: int
+		do @arBaseParseWord(src, &ptr).toInt(&width2)
+		var height2: int
+		do @arBaseParseWord(src, &ptr).toInt(&height2)
+		do me.init(@arBaseParseWord(src, &ptr), x2, y2, width2, height2)
 	end func
 
 	func writeMetaBase(type: []char): []char
@@ -1308,7 +1324,8 @@ class DocumentArWnd(@DocumentArBase)
 	end class
 
 	func initFromMetaRecursion(parent: @Obj2d, src: []char, ptr: &int)
-		var num: int :: @arBaseParseWord(src, &ptr).toInt()
+		var num: int
+		do @arBaseParseWord(src, &ptr).toInt(&num)
 		for i(0, num - 1)
 			var obj: @Obj2d
 			switch(@arBaseParseWord(src, &ptr))
@@ -1384,7 +1401,7 @@ func main()
 	do initEditor()
 
 	if(^lib@cmdLine() > 0)
-		do @open(lib@cmdLine()[0].replace('\\', '/'))
+		do @open(lib@cmdLine()[0].replace("\\", "/"))
 	else
 		do @new(null, null)
 	end if
@@ -1906,7 +1923,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do cmdLine :: null
 	elif(@radioEnvCui.getChk())
 		do cmd :: file@sysDir(%system32) ~ "cmd.exe"
-		do cmdLine :: "/C \"\"" ~ file@exeDir().replace('/', '\\') ~ "sys\\launcher.bat\" \"" ~ out.replace('/', '\\') ~ "\"\""
+		do cmdLine :: "/C \"\"" ~ file@exeDir().replace("/", "\\") ~ "sys\\launcher.bat\" \"" ~ out.replace("/", "\\") ~ "\"\""
 	end if
 	try
 		do @resetAuxiliary()
@@ -1995,7 +2012,7 @@ func listFileOnSel(wnd: wnd@WndBase)
 end func
 
 func getSrc(path: []char): [][]char
-	var path2: []char :: (##path).replace('\\', '/')
+	var path2: []char :: (##path).replace("\\", "/")
 	var document: @Document :: @documents.get(path2)
 	if(document <>& null)
 		ret document.getSrc()
@@ -2111,11 +2128,11 @@ end func
 
 func srcNameToInternalName(srcName: []char): []char
 	if(^@sysDir <= ^srcName & @sysDir = srcName.sub(0, ^@sysDir))
-		ret file@delExt(srcName.sub(^@sysDir, -1)).replace('/', '\\')
+		ret file@delExt(srcName.sub(^@sysDir, -1)).replace("/", "\\")
 	elif(@mainSrcDir <> "" & ^@mainSrcDir <= ^srcName & @mainSrcDir = srcName.sub(0, ^@mainSrcDir))
-		ret "\\" ~ file@delExt(srcName.sub(^@mainSrcDir, -1)).replace('/', '\\')
+		ret "\\" ~ file@delExt(srcName.sub(^@mainSrcDir, -1)).replace("/", "\\")
 	else
-		ret "\\" ~ file@delExt(file@fileName(srcName)).replace('/', '\\')
+		ret "\\" ~ file@delExt(file@fileName(srcName)).replace("/", "\\")
 	end if
 end func
 
@@ -2124,9 +2141,9 @@ func internalNameToSrcName(internalName: []char): []char
 		ret @untitledSrcName
 	end if
 	if(^internalName > 1 & internalName[0] = '\\')
-		ret @mainSrcDir ~ internalName.sub(1, -1).replace('\\', '/') ~ ".kn"
+		ret @mainSrcDir ~ internalName.sub(1, -1).replace("\\", "/") ~ ".kn"
 	end if
-	ret @sysDir ~ internalName.replace('\\', '/') ~ ".kn"
+	ret @sysDir ~ internalName.replace("\\", "/") ~ ".kn"
 end func
 
 func logForInterpret(args: [][]char, row: int, col: int)
@@ -2206,7 +2223,7 @@ func addNewFile()
 	do @wndDlgListType :: null
 
 	func btnAddOnPush(wnd: wnd@WndBase)
-		do @wndDlgResultFile :: @wndDlgEditFile.getText().replace('\\', '/')
+		do @wndDlgResultFile :: @wndDlgEditFile.getText().replace("\\", "/")
 		do @wndDlgResultType :: @wndDlgListType.getSel()
 		do @wndDlg.close()
 	end func

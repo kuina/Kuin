@@ -10,6 +10,15 @@ Excpt: 80000003
 > b, B
 > 100
 > false
+> abc
+> null
+> def
+> def
+> null
+> abc
+> abc
+> null
+> def
 > AX
 > BX
 > CX
@@ -20,6 +29,15 @@ Excpt: 80000003
 > b, B
 > 100
 > false
+> abc
+> null
+> def
+> def
+> null
+> abc
+> abc
+> null
+> def
 > AX
 > BX
 > CX
@@ -30,4 +48,13 @@ Excpt: 80000003
 > b, B
 > 100
 > false
+> abc
+> null
+> def
+> def
+> null
+> abc
+> abc
+> null
+> def
 end: ../../test/output/output0017.exe

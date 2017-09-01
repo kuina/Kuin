@@ -28,7 +28,7 @@ func main()
 			for(1, 10)
 				do n :+ 0.1
 			end for
-			do cui@print((n = 1.0).toStr() ~ ", " ~ n.same(1.0).toStr())
+			do cui@print((n = 1.0).toStr() ~ ", " ~ lib@same(n, 1.0).toStr())
 		end block
 
 		block
