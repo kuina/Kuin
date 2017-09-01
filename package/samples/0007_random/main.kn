@@ -4,16 +4,26 @@ func main()
 	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1000, 700, "Random Sample")
 	var edit1: wnd@EditMulti :: wnd@makeEditMulti(wndMain, 12, 12, 485, 676, %fix, %scale)
 	do edit1.readonly(true)
-	do edit1.setText("[1, 6]\n----------\n")
 	var edit2: wnd@EditMulti :: wnd@makeEditMulti(wndMain, 500, 12, 485, 676, %scale, %scale)
-	do edit2.setText("[0.0, 1.0)\n----------\n")
 	do edit2.readonly(true)
-	for(1, 50)
-		; 1以上6以下の整数の乱数を生成
+	var rnd: lib@Rnd :: lib@makeRnd(1234) {シード1234で再現性のある乱数を生成}
+
+	; 1以上6以下の整数の乱数を生成
+	do edit1.setText("[1, 6]\n----------\n")
+	do edit2.setText("[1, 6]\n----------\n")
+	for(1, 20)
 		do edit1.setText(edit1.getText() ~ lib@rnd(1, 6).toStr() ~ "\n")
-		; 0.0以上1.0未満の小数の乱数を生成
-		do edit2.setText(edit2.getText() ~ lib@rndFloat(0.0, 1.0).toStr() ~ "\n")
+		do edit2.setText(edit2.getText() ~ rnd.rnd(1, 6).toStr() ~ "\n")
 	end for
+
+	; 0.0以上1.0未満の小数の乱数を生成
+	do edit1.setText(edit1.getText() ~ "\n[0.0, 1.0)\n----------\n")
+	do edit2.setText(edit2.getText() ~ "\n[0.0, 1.0)\n----------\n")
+	for(1, 20)
+		do edit1.setText(edit1.getText() ~ lib@rndFloat(0.0, 1.0).toStr() ~ "\n")
+		do edit2.setText(edit2.getText() ~ rnd.rndFloat(0.0, 1.0).toStr() ~ "\n")
+	end for
+
 	while(wnd@act())
 	end while
 end func

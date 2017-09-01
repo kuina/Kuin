@@ -26,6 +26,8 @@ end func
 
 	+func [d0000.knd, _rndRndBit64] rndBit64(): bit64
 	end func
+
+	var rndState: int
 end class
 
 +func [d0000.knd, _makeRnd, _make_instance] makeRnd(me2: @Rnd, seed: int): @Rnd
