@@ -12,6 +12,7 @@ EXPORT_CPP void* _openFileDialogMulti(SClass* parent, const U8* filter, S64 defa
 EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFilter, const U8* defaultExt);
 EXPORT_CPP void _setClipboardStr(const U8* str);
 EXPORT_CPP void* _getClipboardStr();
+EXPORT_CPP void _target(SClass* me_);
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text);
 EXPORT_CPP void _wndBaseDtor(SClass* me_);
 EXPORT_CPP void _wndBaseGetSize(SClass* me_, S64* width, S64* height);

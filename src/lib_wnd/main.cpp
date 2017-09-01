@@ -67,6 +67,7 @@ struct SWndBase
 	U16 DefaultY;
 	U16 DefaultWidth;
 	U16 DefaultHeight;
+	void* Children;
 };
 
 struct SWnd
@@ -234,6 +235,7 @@ struct SMenu
 {
 	SClass Class;
 	HMENU MenuHandle;
+	void* Children;
 };
 
 static void* OnKeyPress;
@@ -600,6 +602,12 @@ EXPORT_CPP void* _getClipboardStr()
 	return result;
 }
 
+EXPORT_CPP void _target(SClass* me_)
+{
+	SDraw* me2 = reinterpret_cast<SDraw*>(me_);
+	Draw::ActiveDrawBuf(me2->DrawBuf);
+}
+
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
@@ -633,6 +641,9 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	me2->DefaultY = 0;
 	me2->DefaultWidth = static_cast<U16>(width);
 	me2->DefaultHeight = static_cast<U16>(height);
+	me2->Children = AllocMem(0x28);
+	*(S64*)me2->Children = 1;
+	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
 	{
 		RECT rect;
 		GetClientRect(me2->WndHandle, &rect);
@@ -1097,7 +1108,11 @@ EXPORT_CPP void _scrollSetState(SClass* me_, S64 min, S64 max, S64 page, S64 val
 
 EXPORT_CPP SClass* _makeMenu(SClass* me_)
 {
-	reinterpret_cast<SMenu*>(me_)->MenuHandle = CreateMenu();
+	SMenu* me2 = reinterpret_cast<SMenu*>(me_);
+	me2->MenuHandle = CreateMenu();
+	me2->Children = AllocMem(0x28);
+	*(S64*)me2->Children = 1;
+	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
 	return me_;
 }
 
@@ -1127,7 +1142,11 @@ EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup)
 
 EXPORT_CPP SClass* _makePopup(SClass* me_)
 {
-	reinterpret_cast<SMenu*>(me_)->MenuHandle = CreatePopupMenu();
+	SMenu* me2 = reinterpret_cast<SMenu*>(me_);
+	me2->MenuHandle = CreatePopupMenu();
+	me2->Children = AllocMem(0x28);
+	*(S64*)me2->Children = 1;
+	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
 	return me_;
 }
 
@@ -1293,6 +1312,9 @@ static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const C
 	ASSERT(wnd->WndHandle != NULL);
 	SetWindowLongPtr(wnd->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(wnd));
 	wnd->DefaultWndProc = reinterpret_cast<WNDPROC>(GetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC));
+	wnd->Children = AllocMem(0x28);
+	*(S64*)wnd->Children = 1;
+	memset((U8*)wnd->Children + 0x08, 0x00, 0x20);
 	SetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(wnd_proc));
 	ParseAnchor(wnd, parent, anchor_x, anchor_y, x, y, width, height);
 	SendMessage(wnd->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
@@ -1674,6 +1696,7 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				GetClientRect(wnd, &rect);
 				PAINTSTRUCT ps;
 				BeginPaint(wnd, &ps);
+				Draw::ActiveDrawBuf(wnd3->DrawBuf);
 				if (wnd3->DrawTwice)
 				{
 					Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(rect.right - rect.left)), reinterpret_cast<void*>(static_cast<S64>(rect.bottom - rect.top)), wnd3->OnPaint);

@@ -37,6 +37,7 @@ typedef struct SBinList
 static Bool IsRef(U8 type);
 static size_t GetSize(U8 type);
 static S64 Add(S64 a, S64 b);
+static S64 Sub(S64 a, S64 b);
 static S64 Mul(S64 a, S64 b);
 static void GetDictTypes(const U8* type, const U8** child1, const U8** child2);
 static void GetDictTypesRecursion(const U8** type);
@@ -128,27 +129,18 @@ EXPORT void _fin(void)
 	timeEndPeriod(1);
 }
 
-EXPORT void _err(const void* excpt)
+EXPORT void _err(S64 excpt)
 {
 #if defined(DBG)
 	Char str[1024];
-	S64 code = *(S64*)((U8*)excpt + 0x10);
 	const Char* text = L"Unknown exception.";
-	const Char* msg = L"-";
-	Bool read_msg = False;
-	if (0x00000000 <= code && code <= 0x0000ffff)
+	if (0x00000000 <= excpt && excpt <= 0x0000ffff)
 	{
 		text = L"User defined exception.";
-		read_msg = True;
-	}
-	else if (0x09170000 <= code && code <= 0x0917ffff)
-	{
-		text = L"Kuin library exception.";
-		read_msg = True;
 	}
 	else
 	{
-		switch (code)
+		switch (excpt)
 		{
 			case 0xc0000005: text = L"Access violation."; break;
 			case 0xc0000017: text = L"No memory."; break;
@@ -156,21 +148,16 @@ EXPORT void _err(const void* excpt)
 			case 0xc0000094: text = L"Integer division by zero."; break;
 			case 0xc00000fd: text = L"Stack overflow."; break;
 			case 0xc000013a: text = L"Ctrl-C exit."; break;
-			case 0xc9170000: text = L"Assertion failed."; break;
-			case 0xc9170001: text = L"Class cast failed."; break;
-			case 0xc9170002: text = L"Array index out of range."; break;
-			case 0xc9170003: text = L"Integer overflow."; break;
-			case 0xc9170004: text = L"Invalid call of non inherited 'cmp' method."; break;
-			case 0xc9170005: text = L"Invalid operation on standard library class."; break;
+			case 0xe9170000: text = L"Assertion failed."; break;
+			case 0xe9170001: text = L"Class cast failed."; break;
+			case 0xe9170002: text = L"Array index out of range."; break;
+			case 0xe9170003: text = L"Integer overflow."; break;
+			case 0xe9170004: text = L"Invalid call of non inherited 'cmp' method."; break;
+			case 0xe9170005: text = L"Invalid operation on standard library class."; break;
+			// TODO:
 		}
 	}
-	if (read_msg)
-	{
-		const void* ptr = *(const void**)((U8*)excpt + 0x18);
-		if (ptr != NULL)
-			msg = (const Char*)((const U8*)ptr + 0x10);
-	}
-	swprintf(str, 1024, L"An exception '0x%08X' occurred.\r\n\r\n> %s\r\n> %s", (U32)code, text, msg);
+	swprintf(str, 1024, L"An exception '0x%08X' occurred.\r\n\r\n> %s", (U32)excpt, text);
 	MessageBox(0, str, NULL, 0);
 #endif
 }
@@ -209,9 +196,12 @@ EXPORT void _freeSet(void* ptr, const U8* type)
 					if (IsRef(*type))
 					{
 						void* ptr4 = *(void**)((U8*)ptr2 + 0x10);
-						(*(S64*)ptr4)--;
-						if (*(S64*)ptr4 == 0)
-							_freeSet(ptr4, type);
+						if (ptr4 != NULL)
+						{
+							(*(S64*)ptr4)--;
+							if (*(S64*)ptr4 == 0)
+								_freeSet(ptr4, type);
+						}
 					}
 					ptr2 = *(void**)((U8*)ptr2 + 0x08);
 					FreeMem(ptr3);
@@ -229,9 +219,12 @@ EXPORT void _freeSet(void* ptr, const U8* type)
 					if (IsRef(*type))
 					{
 						void* ptr4 = *(void**)((U8*)ptr2 + 0x08);
-						(*(S64*)ptr4)--;
-						if (*(S64*)ptr4 == 0)
-							_freeSet(ptr4, type);
+						if (ptr4 != NULL)
+						{
+							(*(S64*)ptr4)--;
+							if (*(S64*)ptr4 == 0)
+								_freeSet(ptr4, type);
+						}
 					}
 					ptr2 = *(void**)ptr2;
 					FreeMem(ptr3);
@@ -249,9 +242,12 @@ EXPORT void _freeSet(void* ptr, const U8* type)
 					if (IsRef(*type))
 					{
 						void* ptr4 = *(void**)((U8*)ptr2 + 0x08);
-						(*(S64*)ptr4)--;
-						if (*(S64*)ptr4 == 0)
-							_freeSet(ptr4, type);
+						if (ptr4 != NULL)
+						{
+							(*(S64*)ptr4)--;
+							if (*(S64*)ptr4 == 0)
+								_freeSet(ptr4, type);
+						}
 					}
 					ptr2 = *(void**)ptr2;
 					FreeMem(ptr3);
@@ -861,16 +857,19 @@ EXPORT S64 _powInt(S64 n, S64 m)
 	switch (m)
 	{
 		case 0:
-			THROWDBG(n == 0, 0xc9170003, NULL);
 			return 1;
 		case 1:
 			return n;
 		case 2:
 			return Mul(n, n);
 		default:
+			if (m < 0)
+			{
+				THROWDBG(n == 0, 0xe9170003);
+				return n == 1 ? 1 : 0;
+			}
 			{
 				S64 result = 1;
-				THROWDBG(m < 0, 0xc9170003, NULL);
 				while (m != 0)
 				{
 					if ((m & 1) == 1)
@@ -901,7 +900,7 @@ EXPORT S64 _cmpStr(const U8* a, const U8* b)
 
 EXPORT void* _newArray(S64 len, S64* nums, const U8* type)
 {
-	THROWDBG(*nums < 0, 0xc9170002, NULL);
+	THROWDBG(*nums < 0, 0xe9170002);
 	{
 		size_t size = len == 1 ? GetSize(*type) : 8;
 		Bool is_str = len == 1 && *type == TypeId_Char;
@@ -974,7 +973,7 @@ EXPORT U8* _toStr(const void* me_, const U8* type)
 
 EXPORT S64 _absInt(S64 me_)
 {
-	return me_ >= 0 ? me_ : -me_;
+	return me_ >= 0 ? me_ : Sub(0, me_);
 }
 
 EXPORT double _absFloat(double me_)
@@ -984,7 +983,7 @@ EXPORT double _absFloat(double me_)
 
 EXPORT S64 _clampInt(S64 me_, S64 min, S64 max)
 {
-	THROWDBG(min > max, 0x09170000, L"int.clamp: 'min' must not be greater than 'max'.");
+	THROWDBG(min > max, 0xe9170006);
 	if (me_ < min)
 		return min;
 	if (me_ > max)
@@ -994,7 +993,7 @@ EXPORT S64 _clampInt(S64 me_, S64 min, S64 max)
 
 EXPORT double _clampFloat(double me_, double min, double max)
 {
-	THROWDBG(min > max, 0x09170000, L"float.clamp: 'min' must not be greater than 'max'.");
+	THROWDBG(min > max, 0xe9170006);
 	if (me_ < min)
 		return min;
 	if (me_ > max)
@@ -1020,17 +1019,6 @@ EXPORT S64 _clampMaxInt(S64 me_, S64 max)
 EXPORT double _clampMaxFloat(double me_, double max)
 {
 	return me_ > max ? max : me_;
-}
-
-EXPORT Bool _same(double me_, double n)
-{
-	U64 i1 = *(U64*)&me_;
-	U64 i2 = *(U64*)&n;
-	S64 diff;
-	if ((i1 >> 63) != (i2 >> 63))
-		return me_ == n;
-	diff = (S64)(i1 - i2);
-	return -24 <= diff && diff <= 24;
 }
 
 EXPORT Char _offset(Char me_, int n)
@@ -1158,11 +1146,11 @@ EXPORT S64 _endian(const void* me_, const U8* type)
 
 EXPORT void* _sub(const void* me_, const U8* type, S64 start, S64 len)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	S64 len2 = *(S64*)((U8*)me_ + 0x08);
 	if (len == -1)
 		len = len2 - start;
-	if (start < 0 || len < 0 || start + len > len2)
-		THROW(0x1000, L"");
+	THROWDBG(start < 0 || len < 0 || start + len > len2, 0xe9170002);
 	{
 		Bool is_str = IsStr(type);
 		size_t size = GetSize(type[1]);
@@ -1190,6 +1178,7 @@ EXPORT void* _sub(const void* me_, const U8* type, S64 start, S64 len)
 
 EXPORT void _reverse(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
 	U8* a = (U8*)me_ + 0x10;
@@ -1208,6 +1197,7 @@ EXPORT void _reverse(void* me_, const U8* type)
 
 EXPORT void _shuffle(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
 	U8* a = (U8*)me_ + 0x10;
@@ -1229,16 +1219,19 @@ EXPORT void _shuffle(void* me_, const U8* type)
 
 EXPORT void _sort(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	MergeSort(me_, type, True);
 }
 
 EXPORT void _sortDesc(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	MergeSort(me_, type, False);
 }
 
 EXPORT S64 _find(const void* me_, const U8* type, const void* item)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
@@ -1261,6 +1254,7 @@ EXPORT S64 _find(const void* me_, const U8* type, const void* item)
 
 EXPORT S64 _findLast(const void* me_, const U8* type, const void* item)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
@@ -1283,6 +1277,7 @@ EXPORT S64 _findLast(const void* me_, const U8* type, const void* item)
 
 EXPORT S64 _findBin(const void* me_, const U8* type, const void* item)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
@@ -1312,6 +1307,7 @@ EXPORT S64 _findBin(const void* me_, const U8* type, const void* item)
 
 EXPORT void _fill(void* me_, const U8* type, const void* value)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
 	U8* ptr = (U8*)me_ + 0x10;
@@ -1345,28 +1341,25 @@ EXPORT void _fill(void* me_, const U8* type, const void* value)
 	}
 }
 
-EXPORT S64 _toInt(const U8* me_)
+EXPORT Bool _toInt(const U8* me_, S64* value)
 {
-	S64 result;
+	THROWDBG(me_ == NULL, 0xc0000005);
 	errno = 0;
-	result = _wtoi64((const Char*)(me_ + 0x10));
-	if (errno != 0)
-		THROW(0x1000, L"");
-	return result;
+	*value = _wtoi64((const Char*)(me_ + 0x10));
+	return errno == 0;
 }
 
-EXPORT double _toFloat(const U8* me_)
+EXPORT Bool _toFloat(const U8* me_, double* value)
 {
-	double result;
+	THROWDBG(me_ == NULL, 0xc0000005);
 	errno = 0;
-	result = _wtof((const Char*)(me_ + 0x10));
-	if (errno != 0)
-		THROW(0x1000, L"");
-	return result;
+	*value = _wtof((const Char*)(me_ + 0x10));
+	return errno == 0;
 }
 
 EXPORT void* _lower(const U8* me_)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	S64 len = *(S64*)(me_ + 0x08);
 	U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (size_t)(len + 1));
 	((S64*)result)[0] = DefaultRefCntFunc;
@@ -1391,6 +1384,7 @@ EXPORT void* _lower(const U8* me_)
 
 EXPORT void* _upper(const U8* me_)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	S64 len = *(S64*)(me_ + 0x08);
 	U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (size_t)(len + 1));
 	((S64*)result)[0] = DefaultRefCntFunc;
@@ -1415,6 +1409,7 @@ EXPORT void* _upper(const U8* me_)
 
 EXPORT void* _trim(const U8* me_)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	S64 len = *(S64*)(me_ + 0x08);
 	const Char* first = (Char*)(me_ + 0x10);
 	const Char* last = first + len - 1;
@@ -1441,6 +1436,7 @@ EXPORT void* _trim(const U8* me_)
 
 EXPORT void* _trimLeft(const U8* me_)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	S64 len = *(S64*)(me_ + 0x08);
 	const Char* first = (Char*)(me_ + 0x10);
 	while (len > 0 && IsSpace(*first))
@@ -1460,6 +1456,7 @@ EXPORT void* _trimLeft(const U8* me_)
 
 EXPORT void* _trimRight(const U8* me_)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	S64 len = *(S64*)(me_ + 0x08);
 	const Char* last = (Char*)(me_ + 0x10) + len - 1;
 	while (len > 0 && IsSpace(*last))
@@ -1479,12 +1476,14 @@ EXPORT void* _trimRight(const U8* me_)
 
 EXPORT void* _split(const U8* me_, const U8* delimiter)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(delimiter == NULL, 0xc0000005);
 	SBinList* top = NULL;
 	SBinList* bottom = NULL;
 	size_t len = 0;
 	const Char* str = (const Char*)(me_ + 0x10);
+	size_t delimiter_len = *(const S64*)(delimiter + 0x08);
 	const Char* delimiter2 = (const Char*)(delimiter + 0x10);
-	size_t delimiter_len = wcslen(delimiter2);
 	const Char* ptr = str;
 	Bool end_flag = False;
 	U8* result;
@@ -1514,7 +1513,7 @@ EXPORT void* _split(const U8* me_, const U8* delimiter)
 		}
 		ptr += delimiter_len;
 	}
-	result = (U8*)AllocMem(0x10 + sizeof(Char*) * len);
+	result = (U8*)AllocMem(0x10 + sizeof(void*) * len);
 	((S64*)result)[0] = DefaultRefCntFunc;
 	((S64*)result)[1] = len;
 	ASSERT(len != 0);
@@ -1543,6 +1542,8 @@ EXPORT void* _split(const U8* me_, const U8* delimiter)
 
 EXPORT void* _join(const U8* me_, const U8* delimiter)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(delimiter == NULL, 0xc0000005);
 	S64 delimiter_len = *(const S64*)(delimiter + 0x08);
 	S64 array_len = *(const S64*)(me_ + 0x08);
 	const void** array_ = (const void**)(me_ + 0x10);
@@ -1578,36 +1579,80 @@ EXPORT void* _join(const U8* me_, const U8* delimiter)
 	return result;
 }
 
-EXPORT void* _replace(const U8* me_, Char old, Char new_)
+EXPORT void* _replace(const U8* me_, const U8* old, const U8* new_)
 {
-	S64 len = *(S64*)(me_ + 0x08);
+	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(old == NULL, 0xc0000005);
+	THROWDBG(new_ == NULL, 0xc0000005);
+	SBinList* top = NULL;
+	SBinList* bottom = NULL;
+	size_t len = 0;
+	size_t str_len = *(const S64*)(me_ + 0x08);
+	const Char* str = (const Char*)(me_ + 0x10);
+	size_t old_len = *(const S64*)(old + 0x08);
+	const Char* old2 = (const Char*)(old + 0x10);
+	size_t new_len = *(const S64*)(new_ + 0x08);
+	const Char* new2 = (const Char*)(new_ + 0x10);
+	const Char* ptr = str;
+	Bool end_flag = False;
+	U8* result;
+	while (!end_flag)
 	{
-		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (size_t)(len + 1));
-		((S64*)result)[0] = DefaultRefCntFunc;
-		((S64*)result)[1] = len;
+		ptr = wcsstr(ptr, old2);
+		if (ptr == NULL)
 		{
-			S64 i;
-			const Char* src = (const Char*)(me_ + 0x10);
-			Char* dst = (Char*)(result + 0x10);
-			for (i = 0; i < len + 1; i++)
-			{
-				*dst = *src == old ? new_ : *src;
-				src++;
-				dst++;
-			}
+			ptr = str + wcslen(str);
+			end_flag = True;
 		}
-		return result;
+		{
+			SBinList* node = (SBinList*)AllocMem(sizeof(SBinList));
+			node->Next = NULL;
+			node->Bin = ptr;
+			if (top == NULL)
+			{
+				top = node;
+				bottom = node;
+			}
+			else
+			{
+				bottom->Next = node;
+				bottom = node;
+			}
+			len++;
+		}
+		ptr += old_len;
 	}
-}
-
-EXPORT S64 _cmp(const U8* me_, const U8* target)
-{
-	S64 result = (S64)wcscmp((Char*)(me_ + 0x10), (Char*)(target + 0x10));
-	return result > 0 ? 1 : (result < 0 ? -1 : 0);
+	size_t result_len = str_len - (len - 1) * old_len + (len - 1) * new_len;
+	result = (U8*)AllocMem(0x10 + sizeof(Char) * (result_len + 1));
+	((S64*)result)[0] = DefaultRefCntFunc;
+	((S64*)result)[1] = result_len;
+	{
+		SBinList* ptr2 = top;
+		const Char* prev = str;
+		Char* ptr3 = (Char*)(result + 0x10);
+		ptr3[result_len] = L'\0';
+		while (ptr2 != NULL)
+		{
+			SBinList* ptr4 = ptr2;
+			size_t len2 = (const Char*)ptr4->Bin - prev;
+			memcpy(ptr3, prev, sizeof(Char) * len2);
+			ptr3 += len2;
+			if (ptr2->Next != NULL)
+			{
+				memcpy(ptr3, new2, sizeof(Char) * new_len);
+				ptr3 += new_len;
+			}
+			prev = (const Char*)ptr4->Bin + old_len;
+			ptr2 = ptr2->Next;
+			FreeMem(ptr4);
+		}
+	}
+	return result;
 }
 
 EXPORT void _addList(void* me_, const U8* type, const void* item)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	U8* node = (U8*)AllocMem(0x10 + GetSize(type[1]));
 	Copy(node + 0x10, type[1], &item);
 	*(void**)(node + 0x08) = NULL;
@@ -1628,6 +1673,7 @@ EXPORT void _addList(void* me_, const U8* type, const void* item)
 
 EXPORT void _addStack(void* me_, const U8* type, const void* item)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	U8* node = (U8*)AllocMem(0x08 + GetSize(type[1]));
 	Copy(node + 0x08, type[1], &item);
 	*(void**)node = *(void**)((U8*)me_ + 0x10);
@@ -1637,6 +1683,7 @@ EXPORT void _addStack(void* me_, const U8* type, const void* item)
 
 EXPORT void _addQueue(void* me_, const U8* type, const void* item)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	U8* node = (U8*)AllocMem(0x08 + GetSize(type[1]));
 	Copy(node + 0x08, type[1], &item);
 	*(void**)node = NULL;
@@ -1650,11 +1697,13 @@ EXPORT void _addQueue(void* me_, const U8* type, const void* item)
 
 EXPORT void _addDict(void* me_, const U8* type, const U8* value_type, const void* key, const void* item)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	Bool addition;
 	U8* child1;
 	U8* child2;
 	UNUSED(value_type);
 	GetDictTypes(type, &child1, &child2);
+	THROWDBG(IsRef(*child1) && key == NULL, 0xc0000005); // 'key' must not be 'null'.
 	*(void**)((U8*)me_ + 0x10) = AddDictRecursion(*(void**)((U8*)me_ + 0x10), key, item, GetCmpFunc(child1), child1, child2, &addition);
 	if (addition)
 		(*(S64*)((U8*)me_ + 0x08))++;
@@ -1663,6 +1712,8 @@ EXPORT void _addDict(void* me_, const U8* type, const U8* value_type, const void
 
 EXPORT void* _getList(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(*(void**)((U8*)me_ + 0x20) == NULL, 0xc0000005);
 	void* result = NULL;
 	Copy(&result, type[1], (U8*)*(void**)((U8*)me_ + 0x20) + 0x10);
 	return result;
@@ -1670,7 +1721,9 @@ EXPORT void* _getList(void* me_, const U8* type)
 
 EXPORT void* _getStack(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	void* node = *(void**)((U8*)me_ + 0x10);
+	THROWDBG(node == NULL, 0xc0000005);
 	void* result = NULL;
 	Copy(&result, type[1], (U8*)node + 0x08);
 	*(void**)((U8*)me_ + 0x10) = *(void**)node;
@@ -1678,9 +1731,12 @@ EXPORT void* _getStack(void* me_, const U8* type)
 	if (IsRef(type[1]))
 	{
 		void* ptr2 = *(void**)((U8*)node + 0x08);
-		(*(S64*)ptr2)--;
-		if (*(S64*)ptr2 == 0)
-			_freeSet(ptr2, type + 1);
+		if (ptr2 != NULL)
+		{
+			(*(S64*)ptr2)--;
+			if (*(S64*)ptr2 == 0)
+				_freeSet(ptr2, type + 1);
+		}
 	}
 	FreeMem(node);
 	return result;
@@ -1688,7 +1744,9 @@ EXPORT void* _getStack(void* me_, const U8* type)
 
 EXPORT void* _getQueue(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	void* node = *(void**)((U8*)me_ + 0x10);
+	THROWDBG(node == NULL, 0xc0000005);
 	void* result = NULL;
 	Copy(&result, type[1], (U8*)node + 0x08);
 	*(void**)((U8*)me_ + 0x10) = *(void**)node;
@@ -1698,9 +1756,12 @@ EXPORT void* _getQueue(void* me_, const U8* type)
 	if (IsRef(type[1]))
 	{
 		void* ptr2 = *(void**)((U8*)node + 0x08);
-		(*(S64*)ptr2)--;
-		if (*(S64*)ptr2 == 0)
-			_freeSet(ptr2, type + 1);
+		if (ptr2 != NULL)
+		{
+			(*(S64*)ptr2)--;
+			if (*(S64*)ptr2 == 0)
+				_freeSet(ptr2, type + 1);
+		}
 	}
 	FreeMem(node);
 	return result;
@@ -1708,9 +1769,11 @@ EXPORT void* _getQueue(void* me_, const U8* type)
 
 EXPORT void* _getDict(void* me_, const U8* type, const void* key)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	U8* child1;
 	U8* child2;
 	GetDictTypes(type, &child1, &child2);
+	THROWDBG(IsRef(*child1) && key == NULL, 0xc0000005); // 'key' must not be 'null'.
 	{
 		int(*cmp_func)(const void* a, const void* b) = GetCmpFunc(child1);
 		const void* node = *(void**)((U8*)me_ + 0x10);
@@ -1734,6 +1797,7 @@ EXPORT void* _getDict(void* me_, const U8* type, const void* key)
 
 EXPORT void* _getOffset(void* me_, const U8* type, S64 offset)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	void* ptr = *(void**)((U8*)me_ + 0x20);
 	S64 i;
 	if (offset >= 0)
@@ -1746,6 +1810,7 @@ EXPORT void* _getOffset(void* me_, const U8* type, S64 offset)
 		for (i = 0; i > offset; i--)
 			ptr = *(void**)ptr;
 	}
+	THROWDBG(ptr == NULL, 0xc0000005);
 	{
 		void* result = NULL;
 		Copy(&result, type[1], (U8*)ptr + 0x10);
@@ -1755,32 +1820,39 @@ EXPORT void* _getOffset(void* me_, const U8* type, S64 offset)
 
 EXPORT void _head(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	UNUSED(type);
 	*(void**)((U8*)me_ + 0x20) = *(void**)((U8*)me_ + 0x10);
 }
 
 EXPORT void _tail(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	UNUSED(type);
 	*(void**)((U8*)me_ + 0x20) = *(void**)((U8*)me_ + 0x18);
 }
 
 EXPORT void _next(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	void* ptr = *(void**)((U8*)me_ + 0x20);
+	THROWDBG(ptr == NULL, 0xc0000005);
 	UNUSED(type);
 	*(void**)((U8*)me_ + 0x20) = *(void**)((U8*)ptr + 0x08);
 }
 
 EXPORT void _prev(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	void* ptr = *(void**)((U8*)me_ + 0x20);
+	THROWDBG(ptr == NULL, 0xc0000005);
 	UNUSED(type);
 	*(void**)((U8*)me_ + 0x20) = *(void**)ptr;
 }
 
 EXPORT void _moveOffset(void* me_, const U8* type, S64 offset)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	void* ptr = *(void**)((U8*)me_ + 0x20);
 	S64 i;
 	UNUSED(type);
@@ -1807,12 +1879,14 @@ EXPORT void _moveOffset(void* me_, const U8* type, S64 offset)
 
 EXPORT Bool _term(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	UNUSED(type);
 	return *(void**)((U8*)me_ + 0x20) == NULL;
 }
 
 EXPORT Bool _termOffset(void* me_, const U8* type, S64 offset)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	void* ptr = *(void**)((U8*)me_ + 0x20);
 	S64 i;
 	UNUSED(type);
@@ -1841,8 +1915,8 @@ EXPORT Bool _termOffset(void* me_, const U8* type, S64 offset)
 
 EXPORT void _del(void* me_, const U8* type)
 {
-	if (*(void**)((U8*)me_ + 0x20) == NULL)
-		THROW(0x1000, L"");
+	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(*(void**)((U8*)me_ + 0x20) == NULL, 0xc0000005);
 	{
 		void* ptr = *(void**)((U8*)me_ + 0x20);
 		void* next = *(void**)((U8*)ptr + 0x08);
@@ -1860,9 +1934,12 @@ EXPORT void _del(void* me_, const U8* type)
 		if (IsRef(type[1]))
 		{
 			void* ptr2 = *(void**)((U8*)ptr + 0x10);
-			(*(S64*)ptr2)--;
-			if (*(S64*)ptr2 == 0)
-				_freeSet(ptr2, type + 1);
+			if (ptr2 != NULL)
+			{
+				(*(S64*)ptr2)--;
+				if (*(S64*)ptr2 == 0)
+					_freeSet(ptr2, type + 1);
+			}
 		}
 		FreeMem(ptr);
 	}
@@ -1870,11 +1947,12 @@ EXPORT void _del(void* me_, const U8* type)
 
 EXPORT void _delNext(void* me_, const U8* type)
 {
-	if (*(void**)((U8*)me_ + 0x20) == NULL)
-		THROW(0x1000, L"");
+	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(*(void**)((U8*)me_ + 0x20) == NULL, 0xc0000005);
 	{
 		void* ptr = *(void**)((U8*)me_ + 0x20);
 		void* next = *(void**)((U8*)ptr + 0x08);
+		THROWDBG(next == NULL, 0xc0000005);
 		void* next_next = *(void**)((U8*)next + 0x08);
 		*(void**)((U8*)ptr + 0x08) = next_next;
 		if (next_next == NULL)
@@ -1885,9 +1963,12 @@ EXPORT void _delNext(void* me_, const U8* type)
 		if (IsRef(type[1]))
 		{
 			void* ptr2 = *(void**)((U8*)next + 0x10);
-			(*(S64*)ptr2)--;
-			if (*(S64*)ptr2 == 0)
-				_freeSet(ptr2, type + 1);
+			if (ptr2 != NULL)
+			{
+				(*(S64*)ptr2)--;
+				if (*(S64*)ptr2 == 0)
+					_freeSet(ptr2, type + 1);
+			}
 		}
 		FreeMem(next);
 	}
@@ -1895,8 +1976,8 @@ EXPORT void _delNext(void* me_, const U8* type)
 
 EXPORT void _ins(void* me_, const U8* type, const void* item)
 {
-	if (*(void**)((U8*)me_ + 0x20) == NULL)
-		THROW(0x1000, L"");
+	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(*(void**)((U8*)me_ + 0x20) == NULL, 0xc0000005);
 	{
 		void* ptr = *(void**)((U8*)me_ + 0x20);
 		U8* node = (U8*)AllocMem(0x10 + GetSize(type[1]));
@@ -1914,6 +1995,7 @@ EXPORT void _ins(void* me_, const U8* type, const void* item)
 
 EXPORT void* _toArray(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
 	Bool is_str = IsStr(type);
@@ -1938,7 +2020,9 @@ EXPORT void* _toArray(void* me_, const U8* type)
 
 EXPORT void* _peek(void* me_, const U8* type)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	void* node = *(void**)((U8*)me_ + 0x10);
+	THROWDBG(node == NULL, 0xc0000005);
 	void* result = NULL;
 	Copy(&result, type[1], (U8*)node + 0x08);
 	return result;
@@ -1946,9 +2030,11 @@ EXPORT void* _peek(void* me_, const U8* type)
 
 EXPORT Bool _exist(void* me_, const U8* type, const void* key)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	U8* child1;
 	U8* child2;
 	GetDictTypes(type, &child1, &child2);
+	THROWDBG(IsRef(*child1) && key == NULL, 0xc0000005); // 'key' must not be 'null'.
 	{
 		int(*cmp_func)(const void* a, const void* b) = GetCmpFunc(child1);
 		const void* node = *(void**)((U8*)me_ + 0x10);
@@ -1968,6 +2054,7 @@ EXPORT Bool _exist(void* me_, const U8* type, const void* key)
 
 EXPORT Bool _forEach(void* me_, const U8* type, const void* callback, void* data)
 {
+	THROWDBG(me_ == NULL, 0xc0000005);
 	U8* child1;
 	U8* child2;
 	GetDictTypes(type, &child1, &child2);
@@ -2013,10 +2100,21 @@ static S64 Add(S64 a, S64 b)
 {
 #if defined(DBG)
 	if (AddAsm(&a, b))
-		THROW(0xc9170003, NULL);
+		THROW(0xe9170003, NULL);
 	return a;
 #else
 	return a + b;
+#endif
+}
+
+static S64 Sub(S64 a, S64 b)
+{
+#if defined(DBG)
+	if (SubAsm(&a, b))
+		THROW(0xe9170003, NULL);
+	return a;
+#else
+	return a - b;
 #endif
 }
 
@@ -2024,7 +2122,7 @@ static S64 Mul(S64 a, S64 b)
 {
 #if defined(DBG)
 	if (MulAsm(&a, b))
-		THROW(0xc9170003, NULL);
+		THROW(0xe9170003, NULL);
 	return a;
 #else
 	return a * b;

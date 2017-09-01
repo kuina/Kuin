@@ -574,9 +574,6 @@ static Char Read(void)
 		Char c = ReadBuf();
 		switch (c)
 		{
-			case L'\u3000':
-				Err(L"EP0008", NewPos(SrcName, Row, Col));
-				continue;
 			case L'{':
 				ReadComment();
 				return L' ';
@@ -653,8 +650,6 @@ static void ReadComment(void)
 			for (; ; )
 			{
 				c = ReadBuf();
-				if (c == L'\u3000')
-					Err(L"EP0008", NewPos(SrcName, Row, Col));
 				if (c == L'\0')
 				{
 					Err(L"EP0009", NewPos(SrcName, row, col));
@@ -683,11 +678,6 @@ static Char ReadChar(void)
 					do
 					{
 						c = ReadBuf();
-						if (c == L'\u3000')
-						{
-							Err(L"EP0008", NewPos(SrcName, Row, Col));
-							continue;
-						}
 						if (c == L'\0')
 							return L'\0';
 					} while (c != L'\n');
@@ -711,9 +701,6 @@ static Char ReadStrict(void)
 		Char c = ReadBuf();
 		switch (c)
 		{
-			case L'\u3000':
-				Err(L"EP0008", NewPos(SrcName, Row, Col));
-				continue;
 			case L'\t':
 				Err(L"EP0010", NewPos(SrcName, Row, Col));
 				continue;
@@ -2184,10 +2171,9 @@ static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope
 			((SAst*)ast)->Name = L"$";
 	}
 	{
-		SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
-		InitAst((SAst*)type, AstTypeId_TypeUser, NewPos(SrcName, row, col), NULL, False, False, NULL, NULL);
-		((SAst*)type)->RefName = L"kuin@Excpt";
-		AddScopeRefeds((SAst*)type);
+		SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+		InitAst((SAst*)type, AstTypeId_TypePrim, NewPos(SrcName, row, col), NULL, False, False, NULL, NULL);
+		type->Kind = AstTypePrimKind_Int;
 		((SAstStatBreakable*)ast)->BlockVar->Type = (SAstType*)type;
 	}
 	{
@@ -2342,7 +2328,6 @@ static SAstStat* ParseStatThrow(void)
 {
 	SAstStatThrow* ast = (SAstStatThrow*)Alloc(sizeof(SAstStatThrow));
 	InitAst((SAst*)ast, AstTypeId_StatThrow, NULL, NULL, False, False, NULL, NULL);
-	ast->Msg = NULL;
 	ast->Code = ParseExpr();
 	if (LocalErr)
 	{
@@ -2350,22 +2335,7 @@ static SAstStat* ParseStatThrow(void)
 		ReadUntilRet();
 		return (SAstStat*)DummyPtr;
 	}
-	{
-		Char c = ReadChar();
-		if (c == L',')
-		{
-			ast->Msg = ParseExpr();
-			if (LocalErr)
-			{
-				LocalErr = False;
-				ReadUntilRet();
-				return (SAstStat*)DummyPtr;
-			}
-			c = ReadChar();
-		}
-		if (c != L'\n')
-			NextCharErr(L'\n', c);
-	}
+	AssertNextChar(L'\n', True);
 	return (SAstStat*)ast;
 }
 
@@ -2479,7 +2449,6 @@ static SAstStat* ParseStatAssert(void)
 		ReadUntilRet();
 		return (SAstStat*)DummyPtr;
 	}
-	ast->Msg = (SAstExpr*)ObtainStrValue(NewPos(SrcName, row, col), NewStr(NULL, L"(%s: %d, %d)", SrcName, row, col));
 	AssertNextChar(L'\n', True);
 	return (SAstStat*)ast;
 }

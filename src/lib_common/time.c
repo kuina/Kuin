@@ -26,6 +26,12 @@ EXPORT S64 _intToDate(S64 time, S64* year, S64* month, S64* day, S64* hour, S64*
 
 EXPORT S64 _dateToInt(S64 year, S64 month, S64 day, S64 hour, S64 minute, S64 second)
 {
+	THROWDBG(year < 1970 || 3000 < year, 0xe9170006);
+	THROWDBG(month < 1 || 12 < month, 0xe9170006);
+	THROWDBG(day < 1 || 31 < day, 0xe9170006);
+	THROWDBG(hour < 0 || 23 < hour, 0xe9170006);
+	THROWDBG(minute < 0 || 59 < minute, 0xe9170006);
+	THROWDBG(second < 0 || 59 < second, 0xe9170006);
 	struct tm t;
 	t.tm_year = (int)year - 1900;
 	t.tm_mon = (int)month - 1;
@@ -33,7 +39,9 @@ EXPORT S64 _dateToInt(S64 year, S64 month, S64 day, S64 hour, S64 minute, S64 se
 	t.tm_hour = (int)hour;
 	t.tm_min = (int)minute;
 	t.tm_sec = (int)second;
-	return _mkgmtime64(&t);
+	S64 result = _mkgmtime64(&t);
+	THROWDBG(result == -1, 0xe9170006);
+	return result;
 }
 
 EXPORT S64 _intToLocalDate(S64 time, S64* year, S64* month, S64* day, S64* hour, S64* minute, S64* second)
@@ -52,6 +60,12 @@ EXPORT S64 _intToLocalDate(S64 time, S64* year, S64* month, S64* day, S64* hour,
 
 EXPORT S64 _localDateToInt(S64 year, S64 month, S64 day, S64 hour, S64 minute, S64 second)
 {
+	THROWDBG(year < 1970 || 3000 < year, 0xe9170006);
+	THROWDBG(month < 1 || 12 < month, 0xe9170006);
+	THROWDBG(day < 1 || 31 < day, 0xe9170006);
+	THROWDBG(hour < 0 || 23 < hour, 0xe9170006);
+	THROWDBG(minute < 0 || 59 < minute, 0xe9170006);
+	THROWDBG(second < 0 || 59 < second, 0xe9170006);
 	struct tm t;
 	t.tm_year = (int)year - 1900;
 	t.tm_mon = (int)month - 1;
@@ -59,7 +73,9 @@ EXPORT S64 _localDateToInt(S64 year, S64 month, S64 day, S64 hour, S64 minute, S
 	t.tm_hour = (int)hour;
 	t.tm_min = (int)minute;
 	t.tm_sec = (int)second;
-	return _mktime64(&t);
+	S64 result = _mktime64(&t);
+	THROWDBG(result == -1, 0xe9170006);
+	return result;
 }
 
 EXPORT void sleep(S64 ms)

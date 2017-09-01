@@ -382,7 +382,6 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 							const Char* text = ExcptMsgs[0].Msg;
 							DWORD param_num = debug_event.u.Exception.ExceptionRecord.NumberParameters;
 							const ULONG_PTR* params = debug_event.u.Exception.ExceptionRecord.ExceptionInformation;
-							const Char* msg = L"-";
 							if (code <= 0x0000ffff)
 								text = ExcptMsgs[1].Msg;
 							else
@@ -406,11 +405,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 								if (found != -1)
 									text = ExcptMsgs[found].Msg;
 							}
-							if ((0x00000000 <= code && code <= 0x0000ffff || 0x09170000 <= code && code <= 0x0917ffff) && param_num > 0)
-							{
-								// TODO: Get the exception message.
-							}
-							swprintf(str, 1024, L"An exception '0x%08X' occurred at '0x%016I64X'.\r\n\r\n> %s\r\n> %s\r\n\r\n", code, (U64)addr, text, msg);
+							swprintf(str, 1024, L"An exception '0x%08X' occurred at '0x%016I64X'.\r\n\r\n> %s\r\n\r\n", code, (U64)addr, text);
 						}
 
 						for (; ; )

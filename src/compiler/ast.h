@@ -324,7 +324,6 @@ typedef struct SAstStatThrow
 {
 	SAstStat AstStat;
 	struct SAstExpr* Code;
-	struct SAstExpr* Msg;
 } SAstStatThrow;
 
 typedef struct SAstStatBlock
@@ -349,7 +348,6 @@ typedef struct SAstStatAssert
 {
 	SAstStat AstStat;
 	struct SAstExpr* Cond;
-	struct SAstExpr* Msg;
 } SAstStatAssert;
 
 typedef struct SAstType
@@ -601,6 +599,7 @@ Bool IsFloat(const SAstType* type);
 Bool IsChar(const SAstType* type);
 Bool IsBool(const SAstType* type);
 Bool IsRef(const SAstType* type);
+Bool IsNullable(const SAstType* type);
 Bool IsClass(const SAstType* type);
 Bool IsEnum(const SAstType* type);
 Bool IsStr(const SAstType* type);

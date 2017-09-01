@@ -59,6 +59,41 @@ func main()
 				ret !(value <>& null & value = "B")
 			end func
 		end block
+
+		block
+			var a: list<[]char> :: #list<[]char>
+			do a.add("abc")
+			do a.add(null)
+			do a.add("def")
+			do a.head()
+			while(!a.term())
+				var b: []char :: a.get()
+				do cui@print((b =& null ?("null", b)))
+				do a.del()
+			end while
+		end block
+
+		block
+			var a: stack<[]char> :: #stack<[]char>
+			do a.add("abc")
+			do a.add(null)
+			do a.add("def")
+			while(^a <> 0)
+				var b: []char :: a.get()
+				do cui@print((b =& null ?("null", b)))
+			end while
+		end block
+
+		block
+			var a: queue<[]char> :: #queue<[]char>
+			do a.add("abc")
+			do a.add(null)
+			do a.add("def")
+			while(^a <> 0)
+				var b: []char :: a.get()
+				do cui@print((b =& null ?("null", b)))
+			end while
+		end block
 	end for
 end func
 

@@ -122,6 +122,10 @@ static SAstExpr* RebuildExprValue(SAstExprValue* ast);
 static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast);
 static SAstExpr* RebuildExprRef(SAstExpr* ast);
 
+Bool AddAsm(S64* a, S64 b);
+Bool SubAsm(S64* a, S64 b);
+Bool MulAsm(S64* a, S64 b);
+
 SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 {
 	SAstFunc* result = NULL;
@@ -622,9 +626,9 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 			var->Kind = AstArgKind_LocalVar;
 			var->RefVar = False;
 			{
-				SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
-				InitAst((SAst*)type, AstTypeId_TypeUser, pos);
-				((SAst*)type)->RefItem = SearchStdItem(L"kuin", L"Excpt", False);
+				SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
+				InitAst((SAst*)type, AstTypeId_TypePrim, pos);
+				type->Kind = AstTypePrimKind_Int;
 				var->Type = (SAstType*)type;
 			}
 			var->Expr = NULL;
@@ -2022,17 +2026,6 @@ static SAstStat* RebuildThrow(SAstStatThrow* ast)
 	}
 	if (!IsInt(ast->Code->Type))
 		Err(L"EA0028", ((SAst*)ast->Code)->Pos);
-	if (ast->Msg != NULL)
-	{
-		ast->Msg = RebuildExpr(ast->Msg, False);
-		if (LocalErr)
-		{
-			LocalErr = False;
-			return (SAstStat*)DummyPtr;
-		}
-		if (!IsStr(ast->Msg->Type))
-			Err(L"EA0029", ((SAst*)ast->Msg)->Pos);
-	}
 	return (SAstStat*)ast;
 }
 
@@ -2131,13 +2124,6 @@ static SAstStat* RebuildAssert(SAstStatAssert* ast)
 	}
 	if (!IsBool(ast->Cond->Type))
 		Err(L"EA0035", ((SAst*)ast->Cond)->Pos);
-	ast->Msg = RebuildExpr(ast->Msg, False);
-	if (LocalErr)
-	{
-		LocalErr = False;
-		return (SAstStat*)DummyPtr;
-	}
-	ASSERT(IsStr(ast->Msg->Type));
 	return (SAstStat*)ast;
 }
 
@@ -2621,7 +2607,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 				break;
 			case AstExpr2Kind_EqRef:
 			case AstExpr2Kind_NEqRef:
-				if (IsRef(ast->Children[0]->Type) || ((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeNull)
+				if (IsNullable(ast->Children[0]->Type) || ((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeNull)
 				{
 					SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
 					InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos);
@@ -2690,8 +2676,6 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 						SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
 						InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
 						((SAstExpr*)expr)->Type = ast->Children[0]->Type;
-						// TODO: Deal with division by zero.
-						// TODO: Overflow check.
 						if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeBit)
 						{
 							U64 n1 = *(U64*)((SAstExprValue*)ast->Children[0])->Value;
@@ -2701,8 +2685,24 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 								case AstExpr2Kind_Add: n1 += n2; break;
 								case AstExpr2Kind_Sub: n1 -= n2; break;
 								case AstExpr2Kind_Mul: n1 *= n2; break;
-								case AstExpr2Kind_Div: n1 /= n2; break;
-								case AstExpr2Kind_Mod: n1 %= n2; break;
+								case AstExpr2Kind_Div:
+									if (n2 == 0)
+									{
+										Err(L"EA0063", ((SAst*)ast)->Pos);
+										LocalErr = True;
+										return (SAstExpr*)DummyPtr;
+									}
+									n1 /= n2;
+									break;
+								case AstExpr2Kind_Mod:
+									if (n2 == 0)
+									{
+										Err(L"EA0063", ((SAst*)ast)->Pos);
+										LocalErr = True;
+										return (SAstExpr*)DummyPtr;
+									}
+									n1 %= n2;
+									break;
 								default:
 									ASSERT(False);
 									break;
@@ -2716,11 +2716,48 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 							S64 n2 = *(S64*)((SAstExprValue*)ast->Children[1])->Value;
 							switch (ast->Kind)
 							{
-								case AstExpr2Kind_Add: n1 += n2; break;
-								case AstExpr2Kind_Sub: n1 -= n2; break;
-								case AstExpr2Kind_Mul: n1 *= n2; break;
-								case AstExpr2Kind_Div: n1 /= n2; break;
-								case AstExpr2Kind_Mod: n1 %= n2; break;
+								case AstExpr2Kind_Add:
+									if (AddAsm(&n1, n2))
+									{
+										Err(L"EA0064", ((SAst*)ast)->Pos);
+										LocalErr = True;
+										return (SAstExpr*)DummyPtr;
+									}
+									break;
+								case AstExpr2Kind_Sub:
+									if (SubAsm(&n1, n2))
+									{
+										Err(L"EA0064", ((SAst*)ast)->Pos);
+										LocalErr = True;
+										return (SAstExpr*)DummyPtr;
+									}
+									break;
+								case AstExpr2Kind_Mul:
+									if (MulAsm(&n1, n2))
+									{
+										Err(L"EA0064", ((SAst*)ast)->Pos);
+										LocalErr = True;
+										return (SAstExpr*)DummyPtr;
+									}
+									break;
+								case AstExpr2Kind_Div:
+									if (n2 == 0)
+									{
+										Err(L"EA0063", ((SAst*)ast)->Pos);
+										LocalErr = True;
+										return (SAstExpr*)DummyPtr;
+									}
+									n1 /= n2;
+									break;
+								case AstExpr2Kind_Mod:
+									if (n2 == 0)
+									{
+										Err(L"EA0063", ((SAst*)ast)->Pos);
+										LocalErr = True;
+										return (SAstExpr*)DummyPtr;
+									}
+									n1 %= n2;
+									break;
 								default:
 									ASSERT(False);
 									break;
@@ -2738,8 +2775,24 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 									case AstExpr2Kind_Add: n1 += n2; break;
 									case AstExpr2Kind_Sub: n1 -= n2; break;
 									case AstExpr2Kind_Mul: n1 *= n2; break;
-									case AstExpr2Kind_Div: n1 /= n2; break;
-									case AstExpr2Kind_Mod: n1 = fmod(n1, n2); break;
+									case AstExpr2Kind_Div:
+										if (n1 == 0.0 && n2 == 0.0)
+										{
+											Err(L"EA0063", ((SAst*)ast)->Pos);
+											LocalErr = True;
+											return (SAstExpr*)DummyPtr;
+										}
+										n1 /= n2;
+										break;
+									case AstExpr2Kind_Mod:
+										if (n1 == 0.0 && n2 == 0.0)
+										{
+											Err(L"EA0063", ((SAst*)ast)->Pos);
+											LocalErr = True;
+											return (SAstExpr*)DummyPtr;
+										}
+										n1 = fmod(n1, n2);
+										break;
 									default:
 										ASSERT(False);
 										break;
@@ -3652,7 +3705,7 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 					else
 					{
 						// Determine the type of the array initializer when a value other than 'null' is specified.
-						if (null_set && !IsRef(data_type))
+						if (null_set && !IsNullable(data_type))
 						{
 							Err(L"EA0053", ((SAst*)ast)->Pos);
 							LocalErr = True;

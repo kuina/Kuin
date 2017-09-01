@@ -117,6 +117,12 @@ Bool IsRef(const SAstType* type)
 	return type_id == AstTypeId_TypeArray || type_id == AstTypeId_TypeGen || type_id == AstTypeId_TypeDict || IsClass(type);
 }
 
+Bool IsNullable(const SAstType* type)
+{
+	EAstTypeId type_id = ((SAst*)type)->TypeId;
+	return (type_id | AstTypeId_TypeNullable) != 0 && !(((SAst*)type)->TypeId == AstTypeId_TypeUser && ((SAst*)type)->RefItem->TypeId == AstTypeId_Enum);
+}
+
 Bool IsClass(const SAstType* type)
 {
 	return ((SAst*)type)->TypeId == AstTypeId_TypeUser && ((SAst*)type)->RefItem->TypeId == AstTypeId_Class;
@@ -748,12 +754,6 @@ static void DumpAstStatThrow(const SAstStatThrow* ast)
 	{
 		DumpAstStat((const SAstStat*)ast);
 		PrintAst(L"StatThrow_Code", (const SAst*)ast->Code);
-		if (ast->Msg == NULL)
-		{
-			PrintTab(); fwprintf(FilePtr, L"<StatThrow_Msg />\n");
-		}
-		else
-			PrintAst(L"StatThrow_Msg", (const SAst*)ast->Msg);
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</StatThrow>\n");
@@ -827,7 +827,6 @@ static void DumpAstStatAssert(const SAstStatAssert* ast)
 	{
 		DumpAstStat((const SAstStat*)ast);
 		PrintAst(L"StatAssert_Cond", (const SAst*)ast->Cond);
-		PrintAst(L"StatAssert_Msg", (const SAst*)ast->Msg);
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</StatAssert>\n");

@@ -30,4 +30,6 @@ EXPORT void _rot(double* x, double* y, double centerX, double centerY, double an
 EXPORT double _invRot(double x, double y, double centerX, double centerY);
 EXPORT double _dist(double x, double y, double centerX, double centerY);
 EXPORT Bool _chase(double* x, double target, double vel);
+EXPORT Bool _same(double n1, double n2);
+EXPORT S64 _cmp(const U8* s1, const U8* s2);
 void LibInit(void);

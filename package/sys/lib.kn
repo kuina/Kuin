@@ -9,9 +9,26 @@ end func
 +func [_exit_code] exitCode(code: int)
 	if(dbg)
 		if(code < 0 | 16#FFFFFFFF < code)
-			throw 16#09170000, "lib@exitCode: 'code' must be in the range 0 to 16#FFFFFFFF."
+			throw 16#E9170006
 		end if
 	end if
+end func
+
++class Rnd(kuin@ResClass)
+	*func [d0000.knd, _rndDtor, _force] _dtor()
+	end func
+
+	+func [d0000.knd, _rndRnd] rnd(min: int, max: int): int
+	end func
+
+	+func [d0000.knd, _rndRndFloat] rndFloat(min: float, max: float): float
+	end func
+
+	+func [d0000.knd, _rndRndBit64] rndBit64(): bit64
+	end func
+end class
+
++func [d0000.knd, _makeRnd, _make_instance] makeRnd(me2: @Rnd, seed: int): @Rnd
 end func
 
 +func [d0000.knd, _rnd] rnd(min: int, max: int): int
@@ -90,6 +107,12 @@ end func
 end func
 
 +func [d0000.knd, _chase] chase(x: &float, target: float, vel: float): bool
+end func
+
+func [d0000.knd] _same(n1: float, n2: float): bool
+end func
+
+func [d0000.knd] _cmp(s1: []char, s2: []char): int
 end func
 
 +func [d0000.knd, _hash] hash(data: []bit8): []bit8

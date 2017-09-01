@@ -6,7 +6,7 @@
 	end func
 
 	+func cmp(t: @Class): int
-		throw 16#C9170004
+		throw 16#E9170004
 	end func
 
 	func _copy(): @Class
@@ -19,22 +19,17 @@
 	end func
 end class
 
-+class Excpt()
-	+var code: int
-	+var msg: []char
-end class
-
 +class ResClass()
 	*func [_force] _copy(): @Class
-		throw 16#C9170005
+		throw 16#E9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#C9170005
+		throw 16#E9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): @Class
-		throw 16#C9170005
+		throw 16#E9170005
 	end func
 end class
 
@@ -44,7 +39,7 @@ end func
 func [d0000.knd] _fin()
 end func
 
-func [d0000.knd] _err(excpt: @Excpt)
+func [d0000.knd] _err(excpt: int)
 end func
 
 func _initVars()
@@ -78,9 +73,6 @@ func [d0000.knd] _clampMaxInt(me_: int, max: int): int
 end func
 
 func [d0000.knd] _clampMaxFloat(me_: float, max: float): float
-end func
-
-func [d0000.knd] _same(me_: float, n: float): bool
 end func
 
 func [d0000.knd] _offset(me_: char, n: int): char
@@ -137,10 +129,10 @@ end func
 func [d0000.knd, _any_type, _take_child] _fill(me_: []bit8, type: int, value: []bit8)
 end func
 
-func [d0000.knd] _toInt(me_: []char): int
+func [d0000.knd] _toInt(me_: []char, value: &int): bool
 end func
 
-func [d0000.knd] _toFloat(me_: []char): float
+func [d0000.knd] _toFloat(me_: []char, value: &float): bool
 end func
 
 func [d0000.knd] _lower(me_: []char): []char
@@ -164,10 +156,7 @@ end func
 func [d0000.knd] _join(me_: [][]char, delimiter: []char): []char
 end func
 
-func [d0000.knd] _replace(me_: []char, old: char, new: char): []char
-end func
-
-func [d0000.knd] _cmp(me_: []char, target: []char): int
+func [d0000.knd] _replace(me_: []char, old: []char, new: []char): []char
 end func
 
 func [d0000.knd, _any_type, _take_child] _addList(me_: []bit8, type: int, item: []bit8)

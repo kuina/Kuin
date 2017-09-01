@@ -41,22 +41,9 @@ void FreeMem(void* ptr)
 #endif
 }
 
-void ThrowImpl(U32 code, const Char* msg)
+void ThrowImpl(U32 code)
 {
-	void* arg0 = NULL;
-	if (msg != NULL)
-	{
-		size_t len = wcslen(msg);
-		arg0 = AllocMem(0x10 + sizeof(Char) * (len + 1));
-		((S64*)arg0)[0] = 1; // The caught class refers to this.
-		((S64*)arg0)[1] = len;
-		wcscpy((Char*)((S64*)arg0 + 2), msg);
-	}
-	{
-		ULONG_PTR args[1];
-		args[0] = (ULONG_PTR)arg0;
-		RaiseException((DWORD)code, 0, 1, args);
-	}
+	RaiseException((DWORD)code, 0, 0, NULL);
 }
 
 void* LoadFileAll(const Char* path, size_t* size)

@@ -1041,7 +1041,7 @@ static void ChkOverflow(void)
 	{
 		SAsmLabel* lbl1 = AsmLabel();
 		ListAdd(PackAsm->Asms, AsmJNO(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-		RaiseExcpt(0xc9170003);
+		RaiseExcpt(0xe9170003);
 		ListAdd(PackAsm->Asms, lbl1);
 	}
 }
@@ -1787,27 +1787,11 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 			if (ast->Ret != NULL && IsRef(ast->Ret))
 				GcInc(0);
 			{
-				// Decrement the reference counter.
-				SAstArg* tmp_code = MakeTmpVar(8, NULL);
-				SAstArg* tmp_value = MakeTmpVar(8, NULL);
 				scope_gc_dec->Begin = table->Begin;
 				scope_gc_dec->End = AsmLabel();
-				{
-					// Write the exception information to temporary variables.
-					SAsmLabel* lbl1 = AsmLabel();
-					excpt = MakeTmpVar(8, NULL);
-					ListAdd(PackAsm->Asms, AsmNOP());
-					ListAdd(PackAsm->Asms, scope_gc_dec->End);
-					ListAdd(PackAsm->Asms, AsmCMP(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(excpt), False)), ValImmU(8, 0x00)));
-					ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(excpt), False))));
-					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x00)));
-					ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_DI), ValMemS(4, ValReg(8, Reg_SI), NULL, 0x00)));
-					ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False)), ValReg(8, Reg_DI)));
-					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x20)));
-					ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_value), False)), ValReg(8, Reg_DI)));
-					ListAdd(PackAsm->Asms, lbl1);
-				}
+				excpt = MakeTmpVar(8, NULL);
+				ListAdd(PackAsm->Asms, AsmNOP());
+				ListAdd(PackAsm->Asms, scope_gc_dec->End);
 				{
 					// Save the return value so that it is not overwritten.
 					if (ast->Ret != NULL && !IsFloat(ast->Ret))
@@ -1876,10 +1860,10 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 					SAsmLabel* lbl1 = AsmLabel();
 					ListAdd(PackAsm->Asms, AsmCMP(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(excpt), False)), ValImmU(8, 0x00)));
 					ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-					ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValMem(4, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False))));
+					ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValMem(4, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(excpt), False))));
 					ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
-					ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_R8), ValImmU(4, 0x01)));
-					ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_R9), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_value), False))));
+					ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R8), ValReg(4, Reg_R8)));
+					ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R9), ValReg(4, Reg_R9)));
 					CallAPI(PackAsm->Asms, L"KERNEL32.dll", L"RaiseException");
 					ListAdd(PackAsm->Asms, lbl1);
 				}
@@ -1901,7 +1885,9 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 					func->Asms = ListNew();
 					func->ArgNum = 0;
 					func->Header = NULL;
-					ListAdd(func->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_DX), NULL, RefValueAddr(RefLocalVar(excpt), False)), ValReg(8, Reg_CX)));
+					ListAdd(func->Asms, AsmMOV(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_CX), NULL, 0x00)));
+					ListAdd(func->Asms, AsmMOV(ValReg(4, Reg_AX), ValMemS(4, ValReg(8, Reg_AX), NULL, 0x00)));
+					ListAdd(func->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_DX), NULL, RefValueAddr(RefLocalVar(excpt), False)), ValReg(8, Reg_AX)));
 					ListAdd(func->Asms, AsmMOV(ValReg(4, Reg_AX), ValImmU(4, 0x01)));
 					scope_gc_dec->CatchFunc = RefLocalFunc((SAstFunc*)func);
 				}
@@ -2375,39 +2361,9 @@ static void AssembleTry(SAstStatTry* ast)
 		{
 			SAsmLabel* lbl1 = AsmLabel();
 			SAstArg* tmp_code = MakeTmpVar(8, NULL);
-			SAstArg* tmp_value = MakeTmpVar(8, NULL);
 			ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 			ListAdd(PackAsm->Asms, scope_catch->End);
-			// Save the exception code and the exception message.
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False))));
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x00)));
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_DI), ValMemS(4, ValReg(8, Reg_SI), NULL, 0x00)));
-			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False)), ValReg(8, Reg_DI)));
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x20)));
-			{
-				// Set the exception message to 'null' in case of CPU exception.
-				SAsmLabel* lbl2 = AsmLabel();
-				ListAdd(PackAsm->Asms, AsmCMP(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False)), ValImmU(4, 0x80000000)));
-				ListAdd(PackAsm->Asms, AsmJB(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
-				ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DI), ValReg(4, Reg_DI)));
-				ListAdd(PackAsm->Asms, lbl2);
-			}
-			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_value), False)), ValReg(8, Reg_DI)));
-			// Make an instance of the exception class.
-			{
-				SAstClass* class_ = (SAstClass*)((SAst*)((SAstStatBreakable*)ast)->BlockVar->Type)->RefItem;
-				S64* addr = RefClass(class_);
-				AllocHeap(ValImmU(8, 0x10 + (U64)class_->VarSize)); // TODO:
-				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x00), ValImmU(8, 0x02))); // TODO: Is this for 'GcInstance' and the block variable? Is it safe in loop processing?
-				ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_SI), ValRIP(8, RefValueAddr(addr, True))));
-				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x08), ValReg(8, Reg_SI)));
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False))));
-				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x10), ValReg(8, Reg_SI)));
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_value), False))));
-				ListAdd(PackAsm->Asms, AsmMOV(ValMemS(8, ValReg(8, Reg_AX), NULL, 0x18), ValReg(8, Reg_SI)));
-				ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValReg(8, Reg_AX)));
-				SetGcInstance(0, -1, ((SAstStatBreakable*)ast)->BlockVar->Type);
-			}
+			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False))));
 			// The statements of 'catch'
 			if (ast->Catches->Len == 1)
 				AssembleStats(((SAstStatCatch*)ast->Catches->Top->Data)->Stats);
@@ -2415,7 +2371,6 @@ static void AssembleTry(SAstStatTry* ast)
 			{
 				SAsmLabel** lbl2 = (SAsmLabel**)Alloc(sizeof(SAsmLabel*) * (size_t)(ast->Catches->Len - 1));
 				SAsmLabel* lbl3 = AsmLabel();
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False))));
 				{
 					SListNode* ptr = ast->Catches->Top;
 					int idx = 0;
@@ -2472,11 +2427,7 @@ static void AssembleTry(SAstStatTry* ast)
 			}
 			ListAdd(PackAsm->Asms, ((SAstStatBreakable*)ast)->BreakPoint);
 			if (scope_finally != NULL)
-			{
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False))));
-				GcDec(0, -1, ((SAstStatBreakable*)ast)->BlockVar->Type);
 				ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValImmU(8, 0x00)));
-			}
 			ListAdd(PackAsm->Asms, lbl1);
 		}
 		// Make the exception function.
@@ -2539,7 +2490,7 @@ static void AssembleTry(SAstStatTry* ast)
 				ListAdd(func->Asms, AsmXOR(ValReg(4, Reg_AX), ValReg(4, Reg_AX)));
 				ListAdd(func->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 				ListAdd(func->Asms, lbl1);
-				ListAdd(func->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_DX), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValReg(8, Reg_CX)));
+				ListAdd(func->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_DX), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValReg(8, Reg_AX)));
 				ListAdd(func->Asms, AsmMOV(ValReg(4, Reg_AX), ValImmU(4, 0x01)));
 				ListAdd(func->Asms, lbl2);
 			}
@@ -2551,35 +2502,18 @@ static void AssembleTry(SAstStatTry* ast)
 	if (scope_finally != NULL)
 	{
 		// 'finally'
-		SAstArg* tmp_code = MakeTmpVar(8, NULL);
-		SAstArg* tmp_value = MakeTmpVar(8, NULL);
 		ListAdd(PackAsm->Asms, AsmNOP());
 		ListAdd(PackAsm->Asms, scope_finally->End);
-		{
-			SAsmLabel* lbl1 = AsmLabel();
-			ListAdd(PackAsm->Asms, AsmCMP(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValImmU(8, 0x00)));
-			ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-			// Save the exception code and exception message.
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False))));
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x00)));
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_DI), ValMemS(4, ValReg(8, Reg_SI), NULL, 0x00)));
-			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False)), ValReg(8, Reg_DI)));
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x20)));
-			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_value), False)), ValReg(8, Reg_DI)));
-			// In the 'finally' clause, clear the block variable.
-			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValImmU(8, 0x00)));
-			ListAdd(PackAsm->Asms, lbl1);
-		}
 		AssembleStats(ast->FinallyStats);
 		// Throw the exception again.
 		{
 			SAsmLabel* lbl1 = AsmLabel();
-			ListAdd(PackAsm->Asms, AsmCMP(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False)), ValImmU(8, 0x00)));
+			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_CX), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False))));
+			ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, Reg_CX), ValImmU(8, 0x00)));
 			ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValMem(4, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_code), False))));
 			ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
-			ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_R8), ValImmU(4, 0x01)));
-			ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_R9), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_value), False))));
+			ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R8), ValReg(4, Reg_R8)));
+			ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R9), ValReg(4, Reg_R9)));
 			CallAPI(PackAsm->Asms, L"KERNEL32.dll", L"RaiseException");
 			ListAdd(PackAsm->Asms, lbl1);
 		}
@@ -2601,7 +2535,9 @@ static void AssembleTry(SAstStatTry* ast)
 			func->Asms = ListNew();
 			func->ArgNum = 0;
 			func->Header = NULL;
-			ListAdd(func->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_DX), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValReg(8, Reg_CX)));
+			ListAdd(func->Asms, AsmMOV(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_CX), NULL, 0x00)));
+			ListAdd(func->Asms, AsmMOV(ValReg(4, Reg_AX), ValMemS(4, ValReg(8, Reg_AX), NULL, 0x00)));
+			ListAdd(func->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_DX), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValReg(8, Reg_AX)));
 			ListAdd(func->Asms, AsmMOV(ValReg(4, Reg_AX), ValImmU(4, 0x01)));
 			scope_finally->CatchFunc = RefLocalFunc((SAstFunc*)func);
 		}
@@ -2613,22 +2549,11 @@ static void AssembleThrow(SAstStatThrow* ast)
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
 	AssembleExpr(ast->Code, 0, 0);
 	ToValue(ast->Code, 0, 0);
-	{
-		SAstArg* tmp = MakeTmpVar(8, NULL);
-		if (ast->Msg != NULL)
-		{
-			// Note: When 'Msg' is null, the program does not need to do anything because 'tmp' will be 0 by stack initialization.
-			AssembleExpr(ast->Msg, 1, 0);
-			ToValue(ast->Msg, 1, 0);
-			GcInc(1); // The instance of the exception message is to be released with release of the class that catches the exception.
-			ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp), False)), ValReg(8, RegI[1])));
-		}
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValReg(4, RegI[0])));
-		ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_R8), ValImmU(4, 0x01)));
-		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_R9), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp), False))));
-		CallAPI(PackAsm->Asms, L"KERNEL32.dll", L"RaiseException");
-	}
+	ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValReg(4, RegI[0])));
+	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
+	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R8), ValReg(4, Reg_R8)));
+	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R9), ValReg(4, Reg_R9)));
+	CallAPI(PackAsm->Asms, L"KERNEL32.dll", L"RaiseException");
 }
 
 static void AssembleBlock(SAstStatBlock* ast)
@@ -2676,20 +2601,11 @@ static void AssembleAssert(SAstStatAssert* ast)
 	ToValue(ast->Cond, 0, 0);
 	ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[0]), ValImmU(1, 0x00)));
 	ListAdd(PackAsm->Asms, AsmJNE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-	{
-		// Throw an exception.
-		SAstArg* tmp = MakeTmpVar(8, NULL);
-		ASSERT(ast->Msg != NULL);
-		AssembleExpr(ast->Msg, 0, 0);
-		ToValue(ast->Msg, 0, 0);
-		GcInc(0);
-		ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp), False)), ValReg(8, RegI[0])));
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValImmU(4, 0xc9170000)));
-		ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
-		ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_R8), ValImmU(4, 0x01)));
-		ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_R9), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp), False))));
-		CallAPI(PackAsm->Asms, L"KERNEL32.dll", L"RaiseException");
-	}
+	ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValImmU(4, 0xe9170000)));
+	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
+	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R8), ValReg(4, Reg_R8)));
+	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R9), ValReg(4, Reg_R9)));
+	CallAPI(PackAsm->Asms, L"KERNEL32.dll", L"RaiseException");
 	ListAdd(PackAsm->Asms, lbl1);
 }
 
@@ -2986,7 +2902,7 @@ static void AssembleExpr2(SAstExpr2* ast, int reg_i, int reg_f)
 						}
 						else
 						{
-							ASSERT(IsRef(type) || ((SAst*)type)->TypeId == AstTypeId_TypeNull);
+							ASSERT(IsNullable(type) || ((SAst*)type)->TypeId == AstTypeId_TypeNull);
 							if (kind == AstExpr2Kind_EqRef || kind == AstExpr2Kind_NEqRef)
 							{
 								ListAdd(PackAsm->Asms, AsmCMP(ValReg(size, RegI[reg_i]), ValReg(size, RegI[reg_i + 1])));
@@ -3072,8 +2988,8 @@ static void AssembleExpr2(SAstExpr2* ast, int reg_i, int reg_f)
 					STmpVars* tmp = PushRegs(reg_i - 1, reg_f - 1);
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValReg(8, RegI[reg_i])));
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_DI), ValReg(8, RegI[reg_i + 1])));
-					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x08)));
-					ListAdd(PackAsm->Asms, AsmADD(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_DI), NULL, 0x08)));
+					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_SI), NULL, 0x08))); // Throw an exception if the first value is null.
+					ListAdd(PackAsm->Asms, AsmADD(ValReg(8, Reg_AX), ValMemS(8, ValReg(8, Reg_DI), NULL, 0x08))); // Throw an exception if the second value is null.
 					if (IsChar(type2))
 						ListAdd(PackAsm->Asms, AsmINC(ValReg(8, Reg_AX)));
 					ListAdd(PackAsm->Asms, AsmIMUL(ValReg(8, Reg_AX), ValReg(8, Reg_AX), ValImmU(8, size2)));
@@ -3504,7 +3420,7 @@ static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f)
 					ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValReg(8, Reg_DI)));
 					ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 					ListAdd(PackAsm->Asms, lbl2);
-					RaiseExcpt(0xc9170001);
+					RaiseExcpt(0xe9170001);
 					ListAdd(PackAsm->Asms, lbl3);
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValReg(8, Reg_SI)));
 				}
@@ -3764,7 +3680,7 @@ static void AssembleExprArray(SAstExprArray* ast, int reg_i, int reg_f)
 		ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, RegI[reg_i + 1]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08)));
 		ListAdd(PackAsm->Asms, AsmJL(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 		ListAdd(PackAsm->Asms, lbl1);
-		RaiseExcpt(0xc9170002);
+		RaiseExcpt(0xe9170002);
 		ListAdd(PackAsm->Asms, lbl2);
 	}
 	ASSERT(((SAst*)ast->Var->Type)->TypeId == AstTypeId_TypeArray);

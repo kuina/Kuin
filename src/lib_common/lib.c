@@ -32,13 +32,13 @@ EXPORT void* _cmdLine(void)
 
 EXPORT S64 _rnd(S64 min, S64 max)
 {
-	THROWDBG(min > max, 0x09170000, L"lib@rnd: 'min' must not be greater than 'max'.");
+	THROWDBG(min > max, 0xe9170006);
 	return RndGet(&GlobalRnd, min, max);
 }
 
 EXPORT double _rndFloat(double min, double max)
 {
-	THROWDBG(min >= max, 0x09170000, L"lib@rndFloat: 'min' must be less than 'max'.");
+	THROWDBG(min >= max, 0xe9170006);
 	return RndGetFloat(&GlobalRnd, min, max);
 }
 
@@ -219,6 +219,25 @@ EXPORT Bool _chase(double* x, double target, double vel)
 		}
 	}
 	return False;
+}
+
+EXPORT Bool _same(double n1, double n2)
+{
+	U64 i1 = *(U64*)&n1;
+	U64 i2 = *(U64*)&n2;
+	S64 diff;
+	if ((i1 >> 63) != (i2 >> 63))
+		return n1 == n2;
+	diff = (S64)(i1 - i2);
+	return -24 <= diff && diff <= 24;
+}
+
+EXPORT S64 _cmp(const U8* s1, const U8* s2)
+{
+	THROWDBG(s1 == NULL, 0xc0000005);
+	THROWDBG(s2 == NULL, 0xc0000005);
+	S64 result = (S64)wcscmp((Char*)(s1 + 0x10), (Char*)(s2 + 0x10));
+	return result > 0 ? 1 : (result < 0 ? -1 : 0);
 }
 
 void LibInit(void)

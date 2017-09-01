@@ -65,6 +65,7 @@ namespace Draw
 	void Fin();
 	void* MakeDrawBuf(int width, int height, HWND wnd);
 	void FinDrawBuf(void* wnd_buf);
+	void ActiveDrawBuf(void* wnd_buf);
 	void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const_buf_size, int layout_num, const ELayoutType* layout_types, const Char** layout_semantics);
 	void FinShaderBuf(void* shader_buf);
 	void ConstBuf(void* shader_buf, const void* data);

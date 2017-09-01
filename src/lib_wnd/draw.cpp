@@ -140,7 +140,7 @@ static ID3D10RasterizerState* RasterizerState = NULL;
 static ID3D10DepthStencilState* DepthState[DepthNum] = { NULL };
 static ID3D10BlendState* BlendState[BlendNum] = { NULL };
 static ID3D10SamplerState* Sampler[SamplerNum] = { NULL };
-static SWndBuf* CurWndBuf;
+static SWndBuf* CurWndBuf = NULL;
 static void* TriVertex = NULL;
 static void* TriVs = NULL;
 static void* TriPs = NULL;
@@ -2009,9 +2009,8 @@ void* MakeDrawBuf(int width, int height, HWND wnd)
 			THROW(0x1000, L"");
 	}
 
-	CurWndBuf = wnd_buf;
-	Device->OMSetRenderTargets(1, &CurWndBuf->RenderTargetView, CurWndBuf->DepthView); // TODO:
-	_resetViewport(); // TODO:
+	ActiveDrawBuf(wnd_buf);
+	_resetViewport();
 	return wnd_buf;
 }
 
@@ -2025,6 +2024,16 @@ void FinDrawBuf(void* wnd_buf)
 	if (wnd_buf2->SwapChain != NULL)
 		wnd_buf2->SwapChain->Release();
 	FreeMem(wnd_buf);
+}
+
+void ActiveDrawBuf(void* wnd_buf)
+{
+	if (CurWndBuf != wnd_buf)
+	{
+		SWndBuf* wnd_buf2 = static_cast<SWndBuf*>(wnd_buf);
+		CurWndBuf = wnd_buf2;
+		Device->OMSetRenderTargets(1, &CurWndBuf->RenderTargetView, CurWndBuf->DepthView);
+	}
 }
 
 void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const_buf_size, int layout_num, const ELayoutType* layout_types, const Char** layout_semantics)

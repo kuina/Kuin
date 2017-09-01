@@ -10,6 +10,40 @@ static S128 RndMask;
 
 static void RndDo(S128* r, S128 a, S128 b, S128 c, const S128* d);
 
+EXPORT SClass* _makeRnd(SClass* me_, S64 seed)
+{
+	THROWDBG(seed < 0 || 0xffffffff < seed, 0xc9170006);
+	SRnd* me2 = (SRnd*)me_;
+	RndInit(&me2->RndState, (U32)seed);
+	return me_;
+}
+
+EXPORT void _rndDtor(SClass* me_)
+{
+	// Do nothing.
+	UNUSED(me_);
+}
+
+EXPORT S64 _rndRnd(SClass* me_, S64 min, S64 max)
+{
+	THROWDBG(min > max, 0xe9170006);
+	SRnd* me2 = (SRnd*)me_;
+	return RndGet(&me2->RndState, min, max);
+}
+
+EXPORT double _rndRndFloat(SClass* me_, double min, double max)
+{
+	THROWDBG(min >= max, 0xe9170006);
+	SRnd* me2 = (SRnd*)me_;
+	return RndGetFloat(&me2->RndState, min, max);
+}
+
+EXPORT U64 _rndRndBit64(SClass* me_)
+{
+	SRnd* me2 = (SRnd*)me_;
+	return RndGetBit64(&me2->RndState);
+}
+
 void InitRndMask(void)
 {
 	RndMask = _mm_set_epi32(0x7ff7fb2f, 0xff777b7d, 0xef7f3f7d, 0xfdff37ff);

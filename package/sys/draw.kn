@@ -1,6 +1,9 @@
 +const white: int :: 16#FFFFFFFF
 +const black: int :: 16#FF000000
 
++func [d0001.knd, _target] target(wnd: wnd@Draw)
+end func
+
 +func [d0001.knd, _render] render(fps: int)
 end func
 
