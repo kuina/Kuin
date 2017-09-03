@@ -719,7 +719,7 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 	Char c = skip_spaces ? ReadChar() : Read();
 	if (!(L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || ref && (c == L'@' || c == L'\\')))
 	{
-		Err(L"EP0000", NewPos(SrcName, Row, Col), c);
+		Err(L"EP0000", NewPos(SrcName, Row, Col), CharToStr(c));
 		return L"";
 	}
 	{
@@ -784,7 +784,7 @@ static const Char* ReadFuncAttr(void)
 	Char c = ReadChar();
 	if (!(L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || L'0' <= c && c <= L'9' || c == L'_' || c == L'.'))
 	{
-		Err(L"EP0023", NewPos(SrcName, Row, Col), c);
+		Err(L"EP0023", NewPos(SrcName, Row, Col), CharToStr(c));
 		return L"";
 	}
 	{
@@ -905,7 +905,7 @@ static void NextCharErr(Char c, Char c2)
 		c = L' ';
 	if (c2 == L'\0')
 		c2 = L' ';
-	Err(L"EP0006", NewPos(SrcName, Row, Col), c, c2);
+	Err(L"EP0006", NewPos(SrcName, Row, Col), CharToStr(c), CharToStr(c2));
 }
 
 static void AddScopeRefeds(SAst* ast)
@@ -1019,7 +1019,7 @@ static Char EscChar(Char c)
 				}
 			}
 		default:
-			Err(L"EP0007", NewPos(SrcName, Row, Col), c);
+			Err(L"EP0007", NewPos(SrcName, Row, Col), CharToStr(c));
 			return c;
 	}
 }
@@ -2667,7 +2667,7 @@ static SAstExpr* ParseExpr(void)
 					case L'~': ast2->Kind = AstExpr2Kind_AssignCat; break;
 					case L'$': ast2->Kind = AstExpr2Kind_Swap; break;
 					default:
-						Err(L"EP0054", NewPos(SrcName, row, col), c2);
+						Err(L"EP0054", NewPos(SrcName, row, col), CharToStr(c2));
 						LocalErr = True;
 						ReadUntilRet();
 						return (SAstExpr*)DummyPtr;
@@ -3142,7 +3142,7 @@ static SAstExpr* ParseExprPlus(void)
 				case L'!': ast2->Kind = AstExpr1Kind_Not; break;
 				case L'^': ast2->Kind = AstExpr1Kind_Len; break;
 				default:
-					Err(L"EP0054", NewPos(SrcName, row, col), c);
+					Err(L"EP0054", NewPos(SrcName, row, col), CharToStr(c));
 					LocalErr = True;
 					ReadUntilRet();
 					return (SAstExpr*)DummyPtr;
@@ -3428,7 +3428,7 @@ static SAstExpr* ParseExprValue(void)
 					{
 						if (set)
 						{
-							Err(L"EP0013", NewPos(SrcName, row, col), buf);
+							Err(L"EP0013", NewPos(SrcName, row, col), CharToStr(buf));
 							LocalErr = True;
 							ReadUntilRet();
 							return (SAstExpr*)DummyPtr;
@@ -3447,7 +3447,7 @@ static SAstExpr* ParseExprValue(void)
 					}
 					if (set)
 					{
-						Err(L"EP0013", NewPos(SrcName, row, col), buf);
+						Err(L"EP0013", NewPos(SrcName, row, col), CharToStr(buf));
 						LocalErr = True;
 						ReadUntilRet();
 						return (SAstExpr*)DummyPtr;

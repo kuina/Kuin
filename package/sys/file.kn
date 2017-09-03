@@ -95,7 +95,7 @@ end func
 +func [d0000.knd, _makeWriter, _make_instance] makeWriter(me2: @Writer, path: []char, append: bool): @Writer
 end func
 
-enum SysDir
++enum SysDir
 	desktop :: 16#00
 	fonts :: 16#14
 	appData :: 16#1A
@@ -104,25 +104,25 @@ enum SysDir
 	programFiles :: 16#26
 end enum
 
-+func [d0000.knd, _makeDir] makeDir(path: []char)
++func [d0000.knd, _makeDir] makeDir(path: []char): bool
 end func
 
 +func [d0000.knd, _existPath] exist(path: []char): bool
 end func
 
-+func [d0000.knd, _delDir] delDir(path: []char)
++func [d0000.knd, _delDir] delDir(path: []char): bool
 end func
 
-+func [d0000.knd, _delFile] delFile(path: []char)
++func [d0000.knd, _delFile] delFile(path: []char): bool
 end func
 
-+func [d0000.knd, _copyDir] copyDir(dst: []char, src: []char)
++func [d0000.knd, _copyDir] copyDir(dst: []char, src: []char): bool
 end func
 
-+func [d0000.knd, _copyFile] copyFile(dst: []char, src: []char)
++func [d0000.knd, _copyFile] copyFile(dst: []char, src: []char): bool
 end func
 
-+func [d0000.knd, _moveFile] moveFile(dst: []char, src: []char)
++func [d0000.knd, _moveFile] moveFile(dst: []char, src: []char): bool
 end func
 
 +func [d0000.knd, _dir] dir(path: []char): []char

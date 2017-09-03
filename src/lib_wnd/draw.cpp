@@ -2016,6 +2016,8 @@ void* MakeDrawBuf(int width, int height, HWND wnd)
 
 void FinDrawBuf(void* wnd_buf)
 {
+	if (CurWndBuf == wnd_buf)
+		CurWndBuf = NULL;
 	SWndBuf* wnd_buf2 = static_cast<SWndBuf*>(wnd_buf);
 	if (wnd_buf2->DepthView != NULL)
 		wnd_buf2->DepthView->Release();

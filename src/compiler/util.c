@@ -195,3 +195,21 @@ Bool DelDir(const Char* path)
 	}
 	return RemoveDirectory(path2) != 0;
 }
+
+const Char* CharToStr(Char c)
+{
+	switch (c)
+	{
+		case L'\n':
+			return L"(Return)";
+		case L'\t':
+		case L' ':
+			return L"(Space)";
+	}
+	{
+		Char* result = (Char*)Alloc(sizeof(Char) * 2);
+		result[0] = c;
+		result[1] = L'\0';
+		return result;
+	}
+}

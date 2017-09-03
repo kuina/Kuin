@@ -401,17 +401,17 @@ EXPORT Bool _streamTerm(SClass* me_)
 	}
 }
 
-EXPORT void _makeDir(const U8* path)
+EXPORT Bool _makeDir(const U8* path)
 {
 	if (*(S64*)(path + 0x08) > MAX_PATH)
 		THROW(0x1000, L"");
 	if (!DelDirRecursion((const Char*)(path + 0x10)))
-		THROW(0x1000, L"");
+		return False;
 	{
 		Char path2[MAX_PATH + 2];
 		wcscpy(path2, (const Char*)(path + 0x10));
 		NormPathBackSlash(path2, True);
-		SHCreateDirectory(NULL, path2);
+		return SHCreateDirectory(NULL, path2) == ERROR_SUCCESS;
 	}
 }
 
@@ -426,39 +426,34 @@ EXPORT Bool _existPath(const U8* path)
 	return PathFileExists((const Char*)(path + 0x10)) != 0;
 }
 
-EXPORT void _delDir(const U8* path)
+EXPORT Bool _delDir(const U8* path)
 {
-	if (!DelDirRecursion((const Char*)(path + 0x10)))
-		THROW(0x1000, L"");
+	return DelDirRecursion((const Char*)(path + 0x10)) != 0;
 }
 
-EXPORT void _delFile(const U8* path)
+EXPORT Bool _delFile(const U8* path)
 {
-	if (!DeleteFile((const Char*)(path + 0x10)))
-		THROW(0x1000, L"");
+	return DeleteFile((const Char*)(path + 0x10)) != 0;
 }
 
-EXPORT void _copyDir(const U8* dst, const U8* src)
+EXPORT Bool _copyDir(const U8* dst, const U8* src)
 {
-	if (!CopyDirRecursion((const Char*)(dst + 0x10), (const Char*)(src + 0x10)))
-		THROW(0x1000, L"");
+	return CopyDirRecursion((const Char*)(dst + 0x10), (const Char*)(src + 0x10)) != 0;
 }
 
-EXPORT void _copyFile(const U8* dst, const U8* src)
+EXPORT Bool _copyFile(const U8* dst, const U8* src)
 {
-	if (!CopyFile((const Char*)(src + 0x10), (const Char*)(dst + 0x10), FALSE))
-		THROW(0x1000, L"");
+	return CopyFile((const Char*)(src + 0x10), (const Char*)(dst + 0x10), FALSE) != 0;
 }
 
-EXPORT void _moveDir(const U8* dst, const U8* src)
+EXPORT Bool _moveDir(const U8* dst, const U8* src)
 {
 	// TODO:
 }
 
-EXPORT void _moveFile(const U8* dst, const U8* src)
+EXPORT Bool _moveFile(const U8* dst, const U8* src)
 {
-	if (!MoveFileEx((const Char*)(src + 0x10), (const Char*)(dst + 0x10), MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH | MOVEFILE_REPLACE_EXISTING))
-		THROW(0x1000, L"");
+	return MoveFileEx((const Char*)(src + 0x10), (const Char*)(dst + 0x10), MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH | MOVEFILE_REPLACE_EXISTING) != 0;
 }
 
 EXPORT void* _dir(const U8* path)

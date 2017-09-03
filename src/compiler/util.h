@@ -11,3 +11,4 @@ Bool CmpData(int size1, const U8* data1, int size2, const U8* data2);
 void ReadFileLine(Char* buf, int size, FILE* file_ptr);
 Char* GetDir(const Char* path, Bool dir, const Char* add_name);
 Bool DelDir(const Char* path);
+const Char* CharToStr(Char c);

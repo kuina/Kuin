@@ -1359,7 +1359,7 @@ const fontSize: int :: 11
 const cellWidth: int :: 9
 const cellHeight: int :: 18
 const title: []char :: "Kuin Programming Language"
-const langEn: bool :: true
+const langEn: bool :: false
 const colorBack: int :: 16#FFFFF5F5
 const untitledSrcName: []char :: "_untitled_.kn"
 const untitledInternalName: []char :: "\\_untitled_"
@@ -1433,13 +1433,13 @@ func main()
 		do @scrollYSrc.setState(0, 0, 1, 0)
 		do @editLog :: wnd@makeEditMulti(@wndMain, 212, 621, 1000, 135, %scale, %move)
 		do @editLog.readonly(true)
-		do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, @langEn ?("Compile && Run", "????????"))
+		do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, @langEn ?("Compile && Run", "コンパイル＆実行"))
 		do @btnCompile.onPush :: @btnCompileOnPush
-		do @groupEnv :: wnd@makeGroup(@wndMain, 1027, 41, 185, 62, %move, %fix, @langEn ?("Environment", "??"))
-		do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 173, 16, %fix, %fix, @langEn ?("Window", "?????"))
+		do @groupEnv :: wnd@makeGroup(@wndMain, 1027, 41, 185, 62, %move, %fix, @langEn ?("Environment", "実行環境"))
+		do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 173, 16, %fix, %fix, @langEn ?("Window", "ウインドウ"))
 		do @radioEnvWnd.setChk(true)
 		do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 173, 16, %fix, %fix, @langEn ?("CUI", "CUI"))
-		do @btnRls :: wnd@makeBtn(@wndMain, 1027, 109, 185, 23, %move, %fix, @langEn ?("Release Build...", "???????"))
+		do @btnRls :: wnd@makeBtn(@wndMain, 1027, 109, 185, 23, %move, %fix, @langEn ?("Release Build...", "リリースビルド"))
 		do @btnRls.onPush :: @btnRlsOnPush
 		do @editFile :: wnd@makeEdit(@wndMain, 1027, 359, 185, 19, %move, %fix)
 		do @editFile.readonly(true)
@@ -1447,37 +1447,37 @@ func main()
 		do @listFile.onSel :: @listFileOnSel
 		do @menuMain :: wnd@makeMenu()
 		do @popupMainFile :: wnd@makePopup()
-		do @popupMainFile.add(16#0001, @langEn ?("&New\tCtrl+N", "????(&N)\tCtrl+N"))
-		do @popupMainFile.add(16#0002, @langEn ?("&Load...\tCtrl+O", "??(&O)\tCtrl+O"))
+		do @popupMainFile.add(16#0001, @langEn ?("&New\tCtrl+N", "新規作成(&N)\tCtrl+N"))
+		do @popupMainFile.add(16#0002, @langEn ?("&Load...\tCtrl+O", "開く(&O)\tCtrl+O"))
 		do @popupMainFile.addLine()
-		do @popupMainFile.add(16#0003, @langEn ?("&Save All\tCtrl+S", "?????(&S)\tCtrl+S"))
-		do @popupMainFile.add(16#0004, @langEn ?("Save &As...\tCtrl+Shift+S", "????????(&A)\tCtrl+Shift+S"))
+		do @popupMainFile.add(16#0003, @langEn ?("&Save All\tCtrl+S", "すべて保存(&S)\tCtrl+S"))
+		do @popupMainFile.add(16#0004, @langEn ?("Save &As...\tCtrl+Shift+S", "名前を付けて保存(&A)\tCtrl+Shift+S"))
 		do @popupMainFile.addLine()
-		do @popupMainFile.add(16#0005, @langEn ?("E&xit\tCtrl+Q", "??(&E)\tCtrl+Q"))
-		do @menuMain.addPopup(@langEn ?("&File", "????(&F)"), @popupMainFile)
+		do @popupMainFile.add(16#0005, @langEn ?("E&xit\tCtrl+Q", "終了(&E)\tCtrl+Q"))
+		do @menuMain.addPopup(@langEn ?("&File", "ファイル(&F)"), @popupMainFile)
 		do @popupMainEdit :: wnd@makePopup()
-		do @popupMainEdit.add(16#0030, @langEn ?("Add Ne&w File\tCtrl+Shift+A", "????(&W)\tCtrl+Shift+A"))
-		do @popupMainEdit.add(16#0031, @langEn ?("Add Existin&g File", "????(&G)"))
+		do @popupMainEdit.add(16#0030, @langEn ?("Add Ne&w File\tCtrl+Shift+A", "新しいファイルを追加(&W)\tCtrl+Shift+A"))
+		do @popupMainEdit.add(16#0031, @langEn ?("Add Existin&g File", "既存のファイルを追加(&G)"))
 		do @popupMainEdit.addLine()
-		do @popupMainEdit.add(16#0032, @langEn ?("&Undo\tCtrl+Z", "????(&U)\tCtrl+Z"))
-		do @popupMainEdit.add(16#0033, @langEn ?("&Redo\tCtrl+Y", "????(&R)\tCtrl+Y"))
+		do @popupMainEdit.add(16#0032, @langEn ?("&Undo\tCtrl+Z", "元に戻す(&U)\tCtrl+Z"))
+		do @popupMainEdit.add(16#0033, @langEn ?("&Redo\tCtrl+Y", "やり直し(&R)\tCtrl+Y"))
 		do @popupMainEdit.addLine()
-		do @popupMainEdit.add(16#0034, @langEn ?("Cu&t\tCtrl+X", "????(&T)\tCtrl+X"))
-		do @popupMainEdit.add(16#0035, @langEn ?("&Copy\tCtrl+C", "????(&C)\tCtrl+C"))
-		do @popupMainEdit.add(16#0036, @langEn ?("&Paste\tCtrl+V", "????(&P)\tCtrl+V"))
-		do @popupMainEdit.add(16#0037, @langEn ?("&Delete\tDel", "????(&D)\tDel"))
-		do @popupMainEdit.add(16#0038, @langEn ?("Select &All\tCtrl+A", "????(&A)\tCtrl+A"))
-		do @menuMain.addPopup(@langEn ?("&Edit", "????(&E)"), @popupMainEdit)
+		do @popupMainEdit.add(16#0034, @langEn ?("Cu&t\tCtrl+X", "切り取り(&T)\tCtrl+X"))
+		do @popupMainEdit.add(16#0035, @langEn ?("&Copy\tCtrl+C", "コピー(&C)\tCtrl+C"))
+		do @popupMainEdit.add(16#0036, @langEn ?("&Paste\tCtrl+V", "貼り付け(&P)\tCtrl+V"))
+		do @popupMainEdit.add(16#0037, @langEn ?("&Delete\tDel", "削除(&D)\tDel"))
+		do @popupMainEdit.add(16#0038, @langEn ?("Select &All\tCtrl+A", "すべて選択(&A)\tCtrl+A"))
+		do @menuMain.addPopup(@langEn ?("&Edit", "編集(&E)"), @popupMainEdit)
 		do @popupMainBuild :: wnd@makePopup()
-		do @popupMainBuild.add(16#0020, @langEn ?("&Compile && Run\tF5", "????????(&C)\tF5"))
+		do @popupMainBuild.add(16#0020, @langEn ?("&Compile && Run\tF5", "コンパイル＆実行(&C)\tF5"))
 		do @popupMainBuild.addLine()
-		do @popupMainBuild.add(16#0021, @langEn ?("&Release Build...\tCtrl+Shift+B", "???????(&R)\tCtrl+Shift+B"))
-		do @menuMain.addPopup(@langEn ?("&Build", "???(&B)"), @popupMainBuild)
+		do @popupMainBuild.add(16#0021, @langEn ?("&Release Build...\tCtrl+Shift+B", "リリースビルド(&R)\tCtrl+Shift+B"))
+		do @menuMain.addPopup(@langEn ?("&Build", "ビルド(&B)"), @popupMainBuild)
 		do @popupMainHelp :: wnd@makePopup()
-		do @popupMainHelp.add(16#0010, @langEn ?("&View Help\tF1", "??????(&V)\tF1"))
+		do @popupMainHelp.add(16#0010, @langEn ?("&View Help\tF1", "ヘルプの表示(&V)\tF1"))
 		do @popupMainHelp.addLine()
-		do @popupMainHelp.add(16#0011, @langEn ?("&About Kuin...", "Kuin????(&A)..."))
-		do @menuMain.addPopup(@langEn ?("&Help", "???(&H)"), @popupMainHelp)
+		do @popupMainHelp.add(16#0011, @langEn ?("&About Kuin...", "Kuinについて(&A)..."))
+		do @menuMain.addPopup(@langEn ?("&Help", "ヘルプ(&H)"), @popupMainHelp)
 		do @wndMain.setMenu(@menuMain)
 	end func
 
@@ -1590,7 +1590,7 @@ func open(file: []char)
 		if(@langEn)
 			do msg :: "Loading failed. " ~ file
 		else
-			do msg :: "???????????? " ~ file
+			do msg :: "読み込みに失敗しました。 " ~ file
 		end if
 		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret
@@ -1619,7 +1619,7 @@ func new(srcName: []char, src: [][]char)
 end func
 
 func save(): bool
-	var file: []char :: wnd@saveFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuin?????? (*.kn)"), "*.kn"], 0, "kn")
+	var file: []char :: wnd@saveFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
 	if(file =& null)
 		ret false
 	end if
@@ -1677,7 +1677,7 @@ func saveSrc(path: []char, src: [][]char): bool
 		if(@langEn)
 			do msg :: "Saving failed. " ~ path
 		else
-			do msg :: "?????????? " ~ path
+			do msg :: "保存に失敗しました。 " ~ path
 		end if
 		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret false
@@ -1755,7 +1755,7 @@ func chkChanged(): bool
 	if(@langEn)
 		do msg :: "Do you want to save changes to the documents?"
 	else
-		do msg :: "??????????????????"
+		do msg :: "ドキュメントへの変更を保存しますか？"
 	end if
 	var result: wnd@MsgBoxResult :: wnd@msgBox(@wndMain, msg, @title, %warn, %yesNoCancel)
 	if(result = %cancel)
@@ -1795,7 +1795,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		end if
 	case 16#0002
 		if (@chkChanged())
-			var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuin?????? (*.kn)"), "*.kn"], 0)
+			var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0)
 			if(file <>& null)
 				do @open(file)
 			end if
@@ -1908,7 +1908,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		if(@langEn)
 			do msg :: "Could not delete. " ~ tmp
 		else
-			do msg :: "??????????? " ~ tmp
+			do msg :: "削除できませんでした。 " ~ tmp
 		end if
 		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret
@@ -1935,12 +1935,12 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 				do filePtr.fin()
 			end if
 			if(!@runDbg(cmd, cmdLine, idleFunc, eventFunc))
-				do wnd@msgBox(@wndMain, @langEn ?("Could not run.", "????"), @title, %err, %ok)
+				do wnd@msgBox(@wndMain, @langEn ?("Could not run.", "実行できませんでした。"), @title, %err, %ok)
 			end if
 		end if
 		do @updateAuxiliary()
 	catch
-		do wnd@msgBox(@wndMain, @langEn ?("Unexpected error.", "??????????"), @title, %err, %ok)
+		do wnd@msgBox(@wndMain, @langEn ?("Unexpected error.", "予期せぬエラーです。"), @title, %err, %ok)
 	end try
 	do @updateUi()
 	do @lockEditor(false)
@@ -1954,7 +1954,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 end func
 
 func btnRlsOnPush(wnd: wnd@WndBase)
-	var file: []char :: wnd@saveFileDialog(@wndMain, [@langEn ?("Executable file (*.exe)", "?????? (*.exe)"), "*.exe"], 0, "exe")
+	var file: []char :: wnd@saveFileDialog(@wndMain, [@langEn ?("Executable file (*.exe)", "実行ファイル (*.exe)"), "*.exe"], 0, "exe")
 	if(file =& null)
 		ret
 	end if
@@ -1972,11 +1972,11 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 					do file@copyDir(resDst, resSrc)
 				end if
 			end if
-			do wnd@msgBox(@wndMain, @langEn ?("The build succeeded.", "???????????"), @title, %info, %ok)
+			do wnd@msgBox(@wndMain, @langEn ?("The build succeeded.", "ビルドが成功しました。"), @title, %info, %ok)
 		end if
 		do @updateAuxiliary()
 	catch
-		do wnd@msgBox(@wndMain, @langEn ?("Unexpected error.", "??????????"), @title, %err, %ok)
+		do wnd@msgBox(@wndMain, @langEn ?("Unexpected error.", "予期せぬエラーです。"), @title, %err, %ok)
 	end try
 	do @updateUi()
 	do @lockEditor(false)
@@ -2166,7 +2166,7 @@ func updateUi()
 			do @listInfoItem.next()
 		end while
 	elif(@curDocument =$ @DocumentArWnd)
-		do @listInfo.add(@langEn ?("None", "????"))
+		do @listInfo.add(@langEn ?("None", "なし"))
 		do @listInfo.add("Button")
 	end if
 
@@ -2188,18 +2188,18 @@ end func
 
 func addNewFile()
 	if(@mainSrcDir = "")
-		do wnd@msgBox(@wndMain, @langEn ?("The main source file must be saved before adding another file.", "??????????"), @title, %err, %ok)
+		do wnd@msgBox(@wndMain, @langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), @title, %err, %ok)
 		ret
 	end if
-	do @wndDlg :: wnd@makeWnd(@wndMain, %fix, 640, 480, @langEn?("Add New File", "????"))
+	do @wndDlg :: wnd@makeWnd(@wndMain, %fix, 640, 480, @langEn?("Add New File", "新しいファイルを追加"))
 	do @wndDlgResultFile :: null
 	do @wndDlgResultType :: 0
 	do @wndDlgListType :: wnd@makeList(@wndDlg, 12, 12, 616, 100, %fix, %scale)
-	do @wndDlgListType.add(@langEn?("Source Code", "????"))
-	do @wndDlgListType.add(@langEn?("Window", "????"))
+	do @wndDlgListType.add(@langEn?("Source Code", "ソースコード"))
+	do @wndDlgListType.add(@langEn?("Window", "ウインドウ"))
 	do @wndDlgListType.setSel(0)
 	do @wndDlgEditFile :: wnd@makeEdit(@wndDlg, 12, 118, 616, 19, %fix, %fix)
-	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndDlg, 12, 143, 100, 23, %fix, %fix, @langEn ?("Add", "???????"))
+	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndDlg, 12, 143, 100, 23, %fix, %fix, @langEn ?("Add", "追加"))
 	do btnAdd.onPush :: btnAddOnPush
 	do @wndDlg.modal()
 	if(@wndDlgResultFile <>& null & @wndDlgResultFile <> "")
@@ -2231,10 +2231,10 @@ end func
 
 func addExistingFile()
 	if(@mainSrcDir = "")
-		do wnd@msgBox(@wndMain, @langEn ?("The main source file must be saved before adding another file.", "??????????"), @title, %err, %ok)
+		do wnd@msgBox(@wndMain, @langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), @title, %err, %ok)
 		ret
 	end if
-	var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuin?????? (*.kn)"), "*.kn"], 0)
+	var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0)
 	if(file <>& null)
 		do @add(file)
 		do @updateUi()

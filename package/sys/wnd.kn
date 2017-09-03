@@ -331,7 +331,7 @@ end class
 	end func
 end class
 
-+class SplitBase(@WndBase)
+class SplitBase(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
@@ -346,7 +346,7 @@ end class
 	end func
 end class
 
-+class ScrollBase(@WndBase)
+class ScrollBase(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
