@@ -337,6 +337,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 		DbgStartAddr = 0;
 		ResumeThread(process_info.hThread);
 		Bool excpt_occurred = False;
+		Char dbg_code = L'\0';
 		while (!end)
 		{
 			DWORD continue_status = DBG_EXCEPTION_NOT_HANDLED;
@@ -463,19 +464,46 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 						MessageBox(NULL, str, NULL, 0);
 					}
 					excpt_occurred = True;
-					// TODO: continue_status = DBG_CONTINUE;
 					break;
 				case OUTPUT_DEBUG_STRING_EVENT:
-					if (debug_event.u.DebugString.fUnicode != 0)
 					{
-						Char* buf = malloc(sizeof(Char) * (size_t)debug_event.u.DebugString.nDebugStringLength);
-						SIZE_T size = 0;
-						if (!ReadProcessMemory(process_info.hProcess, debug_event.u.DebugString.lpDebugStringData, buf, debug_event.u.DebugString.nDebugStringLength, &size) || size == 0)
+						void* buf = NULL;
+						if (debug_event.u.DebugString.fUnicode == 0)
 						{
-							free(buf);
-							break;
+							char* buf2 = (char*)malloc((size_t)debug_event.u.DebugString.nDebugStringLength);
+							SIZE_T size = 0;
+							if (!ReadProcessMemory(process_info.hProcess, debug_event.u.DebugString.lpDebugStringData, buf2, debug_event.u.DebugString.nDebugStringLength, &size) || size == 0)
+							{
+								free(buf2);
+								break;
+							}
+							int size2 = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buf2, (int)size, NULL, 0);
+							buf = malloc(0x10 + sizeof(Char) * (size_t)size2);
+							MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buf2, (int)size, (Char*)((U8*)buf + 0x10), size2);
+							((S64*)buf)[1] = (S64)size2 - 1;
+							free(buf2);
 						}
-						// TODO: Send the text to the editor.
+						else
+						{
+							buf = malloc(0x10 + sizeof(Char) * (size_t)debug_event.u.DebugString.nDebugStringLength);
+							SIZE_T size = 0;
+							if (!ReadProcessMemory(process_info.hProcess, debug_event.u.DebugString.lpDebugStringData, (Char*)((U8*)buf + 0x10), debug_event.u.DebugString.nDebugStringLength, &size) || size == 0)
+							{
+								free(buf);
+								break;
+							}
+							((S64*)buf)[1] = (S64)debug_event.u.DebugString.nDebugStringLength - 1;
+						}
+						*((S64*)buf) = 2;
+						if (((S64*)buf)[1] >= 5)
+						{
+							const Char* ptr = (const Char*)((U8*)buf + 0x10);
+							if (ptr[0] == L'd' && ptr[1] == L'b' && ptr[2] == L'g' && L'0' <= ptr[3] && ptr[3] <= L'9' && ptr[3] != dbg_code && ptr[4] == L'!')
+							{
+								dbg_code = ptr[3];
+								Call2Asm(0, buf, event_func);
+							}
+						}
 						free(buf);
 					}
 					break;

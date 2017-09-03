@@ -2085,6 +2085,10 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end func
 
 	func eventFunc(type: int, str: []char): int
+		switch(type)
+		case 0
+			do @editLog.setText(@editLog.getText() ~ str.sub(5, -1) ~ "\n")
+		end switch
 	end func
 end func
 
