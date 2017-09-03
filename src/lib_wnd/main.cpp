@@ -88,6 +88,8 @@ struct SDraw
 	Bool EqualMagnification;
 	Bool DrawTwice;
 	Bool Enter;
+	S16 WheelX;
+	S16 WheelY;
 	void* DrawBuf;
 	void* OnPaint;
 	void* OnMouseDownL;
@@ -767,6 +769,8 @@ EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	me3->EqualMagnification = equalMagnification;
 	me3->DrawTwice = True;
 	me3->Enter = False;
+	me3->WheelX = 0;
+	me3->WheelY = 0;
 	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), me2->WndHandle);
 	return me_;
 }
@@ -1754,6 +1758,44 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 			wnd3->Enter = False;
 			if (wnd3->OnMouseLeave != NULL)
 				Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnMouseLeave);
+			return 0;
+		case WM_MOUSEWHEEL:
+			if (wnd3->OnMouseWheelY != NULL)
+			{
+				S64 wheel = 0;
+				wnd3->WheelY += static_cast<S16>(HIWORD(w_param));
+				while (wnd3->WheelY <= -WHEEL_DELTA)
+				{
+					wheel--;
+					wnd3->WheelY += WHEEL_DELTA;
+				}
+				while (wnd3->WheelY >= WHEEL_DELTA)
+				{
+					wheel++;
+					wnd3->WheelY -= WHEEL_DELTA;
+				}
+				if (wheel != 0)
+					Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(-wheel), wnd3->OnMouseWheelY);
+			}
+			return 0;
+		case WM_MOUSEHWHEEL:
+			if (wnd3->OnMouseWheelX != NULL)
+			{
+				S64 wheel = 0;
+				wnd3->WheelX += static_cast<S16>(HIWORD(w_param));
+				while (wnd3->WheelX <= -WHEEL_DELTA)
+				{
+					wheel--;
+					wnd3->WheelX += WHEEL_DELTA;
+				}
+				while (wnd3->WheelX >= WHEEL_DELTA)
+				{
+					wheel++;
+					wnd3->WheelX -= WHEEL_DELTA;
+				}
+				if (wheel != 0)
+					Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(wheel), wnd3->OnMouseWheelX);
+			}
 			return 0;
 		case WM_SETFOCUS:
 			if (wnd3->OnFocus != NULL)

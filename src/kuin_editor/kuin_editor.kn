@@ -126,6 +126,12 @@ class Document()
 	+func scrollY(pos: int)
 	end func
 
+	+func wheelX(wheel: int)
+	end func
+
+	+func wheelY(wheel: int)
+	end func
+
 	+func undo()
 		if(me.undoBuf[me.undoPtrPrev(me.undoPtr)] =& null)
 			ret
@@ -351,6 +357,9 @@ class DocumentSrc(@Document)
 				do me.copyAreaStr()
 			end if
 		case %v
+			if (@lockingEditor)
+				ret
+			end if
 			if(shiftCtrl = %ctrl)
 				var str: []char :: wnd@getClipboardStr()
 				if(str <>& null)
@@ -364,6 +373,9 @@ class DocumentSrc(@Document)
 				end if
 			end if
 		case %x
+			if (@lockingEditor)
+				ret
+			end if
 			if(shiftCtrl = %ctrl & me.areaSelected())
 				do me.copyAreaStr()
 				do me.delAreaStr()
@@ -372,6 +384,9 @@ class DocumentSrc(@Document)
 				do @drawEditor.paint()
 			end if
 		case %z
+			if (@lockingEditor)
+				ret
+			end if
 			if(shiftCtrl = %ctrl)
 				if(me.areaSelected())
 					do me.areaX :: -1
@@ -388,6 +403,9 @@ class DocumentSrc(@Document)
 				do @drawEditor.paint()
 			end if
 		case %bs
+			if (@lockingEditor)
+				ret
+			end if
 			if(shiftCtrl = %none)
 				if(me.areaSelected())
 					do me.delAreaStr()
@@ -399,6 +417,9 @@ class DocumentSrc(@Document)
 				do @drawEditor.paint()
 			end if
 		case %tab
+			if (@lockingEditor)
+				ret
+			end if
 			if(shiftCtrl = %none)
 				if(!me.areaSelected())
 					do me.ins(me.cursorX, me.cursorY, "\t", true)
@@ -410,6 +431,9 @@ class DocumentSrc(@Document)
 				end if
 			end if
 		case %enter
+			if (@lockingEditor)
+				ret
+			end if
 			if(shiftCtrl = %none)
 				if(me.areaSelected())
 					do me.delAreaStr()
@@ -512,6 +536,9 @@ class DocumentSrc(@Document)
 		case %ins
 			; TODO: Insert mode.
 		case %del
+			if (@lockingEditor)
+				ret
+			end if
 			if(shiftCtrl = %none)
 				if(me.areaSelected())
 					do me.delAreaStr()
@@ -526,6 +553,9 @@ class DocumentSrc(@Document)
 	end func
 
 	+*func keyChar(key: char)
+		if (@lockingEditor)
+			ret
+		end if
 		if(key = '\t' | me.charWidth(key, 0) = 0)
 			ret
 		end if
@@ -546,6 +576,32 @@ class DocumentSrc(@Document)
 
 	+*func scrollY(pos: int)
 		do me.pageY :: pos
+		do me.refreshCursor(false, false)
+		do @drawEditor.paint()
+	end func
+
+	+*func wheelX(wheel: int)
+		do me.pageX :+ wheel
+		; TODO: me.pageX >= ?
+		if(me.pageX < 0)
+			do me.pageX :: 0
+		end if
+		do me.refreshCursor(false, false)
+		do @drawEditor.paint()
+	end func
+
+	+*func wheelY(wheel: int)
+		do me.pageY :+ wheel
+		const paddingY: int :: 17 / @cellHeight + 1
+		var scrWidth: int
+		var scrHeight: int
+		do @drawEditor.getSize(&scrWidth, &scrHeight)
+		if (me.pageY >= ^me.src.src - scrHeight / @cellHeight + paddingY)
+			do me.pageY :: ^me.src.src - scrHeight / @cellHeight + paddingY
+		end if
+		if (me.pageY < 0)
+			do me.pageY :: 0
+		end if
 		do me.refreshCursor(false, false)
 		do @drawEditor.paint()
 	end func
@@ -1075,6 +1131,9 @@ class DocumentArBase(@Document)
 				do me.hold :: me.obj2dRoot
 			end if
 		else
+			if (@lockingEditor)
+				ret
+			end if
 			var name: []char :: @listInfo.getText(sel)
 			do me.mode :: %put
 			var obj: @Obj2d :: me.makeObj2d(name)
@@ -1108,6 +1167,9 @@ class DocumentArBase(@Document)
 	+*func mouseUpL(x: int, y: int)
 		switch(me.mode)
 		case %put
+			if (@lockingEditor)
+				ret
+			end if
 			do me.moveObj2d(x, y)
 			do me.mode :: %none
 			do @drawEditor.paint()
@@ -1117,6 +1179,9 @@ class DocumentArBase(@Document)
 	+*func mouseMove(x: int, y: int)
 		switch(me.mode)
 		case %put
+			if (@lockingEditor)
+				ret
+			end if
 			do me.moveObj2d(x, y)
 			do @drawEditor.paint()
 		end switch
@@ -1144,6 +1209,14 @@ class DocumentArBase(@Document)
 	+*func scrollY(pos: int)
 		do me.pageY :: pos
 		do @drawEditor.paint()
+	end func
+
+	+*func wheelX(wheel: int)
+		; TODO:
+	end func
+
+	+*func wheelY(wheel: int)
+		; TODO:
 	end func
 
 	const padding: int :: 32
@@ -1427,6 +1500,8 @@ func main()
 		do @drawEditor.onKeyChar :: @drawEditorOnKeyChar
 		do @drawEditor.onScrollX :: @drawEditorOnScrollX
 		do @drawEditor.onScrollY :: @drawEditorOnScrollY
+		do @drawEditor.onMouseWheelX :: @drawEditorOnMouseWheelX
+		do @drawEditor.onMouseWheelY :: @drawEditorOnMouseWheelY
 		do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 574, 780, 17, %scale, %move)
 		do @scrollXSrc.setState(0, 0, 1, 0)
 		do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 780, 0, 17, 574, %move, %scale)
@@ -1776,6 +1851,10 @@ end func
 var chkCloseChanged: bool
 
 func wndMainOnClose(wnd: wnd@WndBase): bool
+	if(@lockingEditor)
+		do wnd@msgBox(@wndMain, @langEn ?("It is running.", "実行中です。"), @title, %err, %ok)
+		ret false
+	end if
 	if(@chkChanged())
 		var dir: []char :: file@sysDir(%appData) ~ "Kuin/"
 		try
@@ -1790,10 +1869,16 @@ end func
 func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	switch(id)
 	case 16#0001
+		if(@lockingEditor)
+			ret
+		end if
 		if (@chkChanged())
 			do @new(null, null)
 		end if
 	case 16#0002
+		if(@lockingEditor)
+			ret
+		end if
 		if (@chkChanged())
 			var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0)
 			if(file <>& null)
@@ -1801,8 +1886,14 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			end if
 		end if
 	case 16#0003
+		if(@lockingEditor)
+			ret
+		end if
 		do @saveAll()
 	case 16#0004
+		if(@lockingEditor)
+			ret
+		end if
 		do @save()
 	case 16#0005
 		do @wndMain.close()
@@ -1817,26 +1908,59 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			do wnd@msgBox(@wndMain, "Kuin Programming Language\nVersion \{major}.\{minor}.\{micro}\n(C)Kuina-chan", @title, %info, %ok)
 		end block
 	case 16#0020
+		if(@lockingEditor)
+			ret
+		end if
 		do @btnCompileOnPush(@btnCompile)
 	case 16#0021
+		if(@lockingEditor)
+			ret
+		end if
 		do @btnRlsOnPush(@btnRls)
 	case 16#0030
+		if(@lockingEditor)
+			ret
+		end if
 		do @addNewFile()
 	case 16#0031
+		if(@lockingEditor)
+			ret
+		end if
 		do @addExistingFile()
 	case 16#0032
+		if(@lockingEditor)
+			ret
+		end if
 		; TODO:
 	case 16#0033
+		if(@lockingEditor)
+			ret
+		end if
 		; TODO:
 	case 16#0034
+		if(@lockingEditor)
+			ret
+		end if
 		; TODO:
 	case 16#0035
+		if(@lockingEditor)
+			ret
+		end if
 		; TODO:
 	case 16#0036
+		if(@lockingEditor)
+			ret
+		end if
 		; TODO:
 	case 16#0037
+		if(@lockingEditor)
+			ret
+		end if
 		; TODO:
 	case 16#0038
+		if(@lockingEditor)
+			ret
+		end if
 		; TODO:
 	end switch
 end func
@@ -1898,7 +2022,18 @@ func drawEditorOnScrollY(wnd: wnd@WndBase, pos: int)
 	do @curDocument.scrollY(pos)
 end func
 
+func drawEditorOnMouseWheelX(wnd: wnd@WndBase, wheel: int)
+	do @curDocument.wheelX(wheel)
+end func
+
+func drawEditorOnMouseWheelY(wnd: wnd@WndBase, wheel: int)
+	do @curDocument.wheelY(wheel)
+end func
+
 func btnCompileOnPush(wnd: wnd@WndBase)
+	if(@lockingEditor)
+		ret
+	end if
 	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/tmp/"
 	var out: []char :: tmp ~ "out.exe"
 	try
@@ -1954,6 +2089,9 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 end func
 
 func btnRlsOnPush(wnd: wnd@WndBase)
+	if(@lockingEditor)
+		ret
+	end if
 	var file: []char :: wnd@saveFileDialog(@wndMain, [@langEn ?("Executable file (*.exe)", "実行ファイル (*.exe)"), "*.exe"], 0, "exe")
 	if(file =& null)
 		ret
