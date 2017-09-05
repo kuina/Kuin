@@ -1,0 +1,2 @@
++func [d1001.knd, _zip] zip(dst: []char, src: []char, compressionLevel: int): bool
+end func

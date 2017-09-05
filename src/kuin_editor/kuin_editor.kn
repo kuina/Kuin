@@ -38,6 +38,7 @@ var tabSrc: wnd@Tab
 var drawEditor: wnd@Draw
 var scrollXSrc: wnd@ScrollX
 var scrollYSrc: wnd@ScrollY
+var editHint: wnd@EditMulti
 var editLog: wnd@EditMulti
 var btnCompile: wnd@Btn
 var groupEnv: wnd@Group
@@ -609,6 +610,7 @@ class DocumentSrc(@Document)
 	+func showHint()
 		var charColor: @CharColor
 		var word: []char :: me.getWord(&charColor)
+		do charColor :: charColor.and(16#7Fb8 $ @CharColor)
 		if(word <>& null)
 			var hint: []char :: null
 			switch(charColor)
@@ -626,7 +628,11 @@ class DocumentSrc(@Document)
 			if(hint =& null)
 				do hint :: ""
 			end if
-			do @editLog.setText(hint)
+			if(@textHint <> hint)
+				do @textHint :: hint
+				do @updateLog()
+			end if
+			do me.getFuncHint(me.cursorX, me.cursorY, charColor)
 		end if
 	end func
 
@@ -1058,6 +1064,68 @@ class DocumentSrc(@Document)
 		end if
 		ret null
 	end func
+
+	func getFuncHint(x: int, y: int, charColor: @CharColor)
+		if(x > 0)
+			do x :- 1
+		end if
+		switch(charColor)
+		case %char_, %str, %lineComment, %comment
+			while(x > 0 & me.src.color[y][x].and(16#7Fb8) = charColor $ bit8)
+				do x :- 1
+			end while
+		end switch
+		var parenthesisNum: int :: 0
+		var commaNum: int :: 0
+		while(x > 0)
+			switch(me.src.src[y][x])
+			case '('
+				do parenthesisNum :- 1
+				if(parenthesisNum < 0)
+					while(x > 0 & (me.src.src[y][x - 1] = ' ' | me.src.src[y][x - 1] = '\t'))
+						do x :- 1
+					end while
+					if(x > 0)
+						switch color(me.src.color[y][x - 1].and(16#7Fb8) $ @CharColor)
+						case %identifier, %global
+							do x :- 1
+							var last: int :: x
+							while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
+								do x :- 1
+							end while
+							var word: []char :: me.src.src[y].sub(x, last - x + 1) ~ ", " ~ commaNum.toStr()
+							if(@textFunc <> word)
+								do @textFunc :: word
+								do @updateLog()
+							end if
+							ret
+						default
+							do parenthesisNum :: 0
+							do commaNum :: 0
+						end switch
+					end if
+				end if
+			case ')'
+				do parenthesisNum :+ 1
+			case ','
+				if(parenthesisNum = 0)
+					do commaNum :+ 1
+				end if
+			default
+				switch color(me.src.color[y][x].and(16#7Fb8) $ @CharColor)
+				case %char_, %str, %lineComment, %comment
+					while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
+						do x :- 1
+					end while
+				end switch
+			end switch
+			do x :- 1
+		end while
+		if(@textFunc <> "")
+			do @textFunc :: ""
+			do @updateLog()
+		end if
+	end func
 end class
 
 class DocumentArBase(@Document)
@@ -1466,6 +1534,10 @@ var dirtyHintTime : int
 var listInfoItem: list<@ListInfoItem>
 var auxiliaryErr: dict<@Pos, []char>
 var lockingEditor: bool
+var textErr: []char
+var textHint: []char
+var textFunc: []char
+var textLog: []char
 
 func main()
 	do @initCompiler()
@@ -1506,7 +1578,9 @@ func main()
 		do @scrollXSrc.setState(0, 0, 1, 0)
 		do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 780, 0, 17, 574, %move, %scale)
 		do @scrollYSrc.setState(0, 0, 1, 0)
-		do @editLog :: wnd@makeEditMulti(@wndMain, 212, 621, 1000, 135, %scale, %move)
+		do @editHint :: wnd@makeEditMulti(@wndMain, 212, 621, 391, 135, %scale, %move)
+		do @editHint.readonly(true)
+		do @editLog :: wnd@makeEditMulti(@wndMain, 609, 621, 391, 135, %scale, %move)
 		do @editLog.readonly(true)
 		do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, @langEn ?("Compile && Run", "コンパイル＆実行"))
 		do @btnCompile.onPush :: @btnCompileOnPush
@@ -1572,6 +1646,10 @@ func main()
 		do @font :: draw@makeFont("Consolas", @fontSize, false, false, false, @cellWidth $ float)
 		do @drag :: false
 		do @lockingEditor :: false
+		do @textErr :: ""
+		do @textHint :: ""
+		do @textFunc :: ""
+		do @textLog :: ""
 	end func
 
 	func mainLoop()
@@ -1600,7 +1678,7 @@ func main()
 					end if
 				end switch
 				if(@dirtyHint)
-					if(lib@sysTime() - @dirtyHintTime > 50 & @dirtyInterpret >= 1)
+					if(lib@sysTime() - @dirtyHintTime > 100 & @dirtyInterpret >= 1)
 						do document.showHint()
 						do @dirtyHint :: false
 					end if
@@ -1976,7 +2054,8 @@ func listInfoOnSel(wnd: wnd@WndBase)
 				do @drawEditor.paint()
 				do @drawEditor.focus()
 			end if
-			do @editLog.setText(item.text)
+			do @textErr :: item.text
+			do @updateLog()
 			do @dirtyHint :: false
 		end if
 	elif(@curDocument =$ @DocumentArBase)
@@ -2050,7 +2129,8 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end try
 	do @lockEditor(true)
 	do @resetMemAllocator()
-	do @editLog.setText("")
+	do @textLog :: ""
+	do @updateLog()
 	var cmd: []char
 	var cmdLine: []char
 	if(@radioEnvWnd.getChk())
@@ -2069,7 +2149,14 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 				do filePtr.writeChar('\n')
 				do filePtr.fin()
 			end if
-			if(!@runDbg(cmd, cmdLine, idleFunc, eventFunc))
+			do @textLog :~ "IK9999: 実行。\n"
+			do @updateLog()
+			if(@runDbg(cmd, cmdLine, idleFunc, eventFunc))
+				do @textLog :~ "IK9999: 正常終了。\n"
+				do @updateLog()
+			else
+				do @textLog :~ "IK9999: 実行失敗。\n"
+				do @updateLog()
 				do wnd@msgBox(@wndMain, @langEn ?("Could not run.", "実行できませんでした。"), @title, %err, %ok)
 			end if
 		end if
@@ -2087,7 +2174,8 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	func eventFunc(type: int, str: []char): int
 		switch(type)
 		case 0
-			do @editLog.setText(@editLog.getText() ~ str.sub(5, -1) ~ "\n")
+			do @textLog :~ str.sub(5, -1) ~ "\n"
+			do @updateLog()
 		end switch
 	end func
 end func
@@ -2102,7 +2190,8 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	end if
 	do @lockEditor(true)
 	do @resetMemAllocator()
-	do @editLog.setText("")
+	do @textLog :: ""
+	do @updateLog()
 	try
 		do @resetAuxiliary()
 		if(@build(@mainSrcName, @getSrc, null, file, null, true, @getEnv(), @log, @langEn ?(1, 0)))
@@ -2176,10 +2265,11 @@ end func
 func log(args: [][]char, row: int, col: int)
 	var msg: []char :: @nullStr(args[0]) ~ ": " ~ @nullStr(args[1])
 	if(args[2] =& null)
-		do @editLog.setText(@editLog.getText() ~ msg ~ "\n")
+		do @textLog :~ msg ~ "\n"
 	else
-		do @editLog.setText(@editLog.getText() ~ msg ~ " (" ~ @nullStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n")
+		do @textLog :~ msg ~ " (" ~ @nullStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n"
 	end if
+	do @updateLog()
 	var pos: @Pos :: #@Pos
 	do pos.src :: args[2] =& null ?("", ##args[2])
 	do pos.row :: row
@@ -2398,4 +2488,9 @@ func lockEditor(lock: bool)
 	do @lockingEditor :: lock
 	do @btnCompile.enable(!lock)
 	do @btnRls.enable(!lock)
+end func
+
+func updateLog()
+	do @editHint.setText(@textErr ~ (@textErr =& null ?("", "\n\n")) ~ @textHint ~ (@textHint =& null ?("", "\n\n")) ~ @textFunc)
+	do @editLog.setText(@textLog)
 end func
