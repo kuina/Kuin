@@ -34,7 +34,6 @@ end func
 var wndMain: wnd@Wnd
 var treeItem: wnd@Tree
 var listInfo: wnd@List
-var tabSrc: wnd@Tab
 var drawEditor: wnd@Draw
 var scrollXSrc: wnd@ScrollX
 var scrollYSrc: wnd@ScrollY
@@ -1561,8 +1560,7 @@ func main()
 		do @treeItem :: wnd@makeTree(@wndMain, 12, 12, 194, 366, %fix, %fix)
 		do @listInfo :: wnd@makeList(@wndMain, 12, 384, 194, 372, %fix, %scale)
 		do @listInfo.onSel :: @listInfoOnSel
-		do @tabSrc :: wnd@makeTab(@wndMain, 212, 12, 809, 603, %scale, %scale)
-		do @drawEditor :: wnd@makeDraw(@tabSrc, 6, 6, 797, 591, %scale, %scale, true)
+		do @drawEditor :: wnd@makeDraw(@wndMain, 212, 12, 809, 603, %scale, %scale, true)
 		do @drawEditor.onPaint :: @drawEditorOnPaint
 		do @drawEditor.onMouseDownL :: @drawEditorOnMouseDownL
 		do @drawEditor.onMouseUpL :: @drawEditorOnMouseUpL
@@ -1574,9 +1572,9 @@ func main()
 		do @drawEditor.onScrollY :: @drawEditorOnScrollY
 		do @drawEditor.onMouseWheelX :: @drawEditorOnMouseWheelX
 		do @drawEditor.onMouseWheelY :: @drawEditorOnMouseWheelY
-		do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 574, 780, 17, %scale, %move)
+		do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 586, 792, 17, %scale, %move)
 		do @scrollXSrc.setState(0, 0, 1, 0)
-		do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 780, 0, 17, 574, %move, %scale)
+		do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 792, 0, 17, 586, %move, %scale)
 		do @scrollYSrc.setState(0, 0, 1, 0)
 		do @editHint :: wnd@makeEditMulti(@wndMain, 212, 621, 391, 135, %scale, %move)
 		do @editHint.readonly(true)
@@ -2113,6 +2111,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	if(@lockingEditor)
 		ret
 	end if
+	do @lockEditor(true)
 	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/tmp/"
 	var out: []char :: tmp ~ "out.exe"
 	try
@@ -2127,7 +2126,6 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret
 	end try
-	do @lockEditor(true)
 	do @resetMemAllocator()
 	do @textLog :: ""
 	do @updateLog()
@@ -2184,24 +2182,48 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	if(@lockingEditor)
 		ret
 	end if
-	var file: []char :: wnd@saveFileDialog(@wndMain, [@langEn ?("Executable file (*.exe)", "実行ファイル (*.exe)"), "*.exe"], 0, "exe")
+	var file: []char :: wnd@saveFileDialog(@wndMain, [@langEn ?("Archive file (*.zip)", "アーカイブファイル (*.zip)"), "*.zip"], 0, "zip")
 	if(file =& null)
 		ret
 	end if
 	do @lockEditor(true)
+	var fileName: []char :: file@delExt(file@fileName(file))
+	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/rls/" ~ fileName ~ "/"
+	var out: []char :: tmp ~ fileName ~ ".exe"
+	try
+		do file@makeDir(tmp)
+	catch
+		var msg: []char
+		if(@langEn)
+			do msg :: "Could not delete. " ~ tmp
+		else
+			do msg :: "削除できませんでした。 " ~ tmp
+		end if
+		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
+		ret
+	end try
 	do @resetMemAllocator()
 	do @textLog :: ""
 	do @updateLog()
 	try
 		do @resetAuxiliary()
-		if(@build(@mainSrcName, @getSrc, null, file, null, true, @getEnv(), @log, @langEn ?(1, 0)))
-			if (@mainSrcName <> @untitledSrcName)
+		if(@build(@mainSrcName, @getSrc, null, out, null, true, @getEnv(), @log, @langEn ?(1, 0)))
+			if(@mainSrcName <> @untitledSrcName)
 				var resSrc: []char :: file@dir(@mainSrcName) ~ "res/"
 				if(file@exist(resSrc))
-					var resDst: []char :: file@dir(file) ~ "res/"
-					do file@delDir(resDst)
+					var resDst: []char :: tmp ~ "res/"
 					do file@copyDir(resDst, resSrc)
 				end if
+			end if
+			if(!zip@zip(file, tmp, -1))
+				var msg: []char
+				if(@langEn)
+					do msg :: "Could not make the archive file. " ~ file
+				else
+					do msg :: "アーカイブファイルを作成できませんでした。 " ~ file
+				end if
+				do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
+				ret
 			end if
 			do wnd@msgBox(@wndMain, @langEn ?("The build succeeded.", "ビルドが成功しました。"), @title, %info, %ok)
 		end if

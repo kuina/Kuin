@@ -1,7 +1,5 @@
 #include "png_decoder.h"
 
-// TODO: Replace 'ASSERT' to 'THROW'.
-
 #define IdatMax (32)
 
 struct SPngData
@@ -53,7 +51,7 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 	UNUSED(size);
 
 	const U8* ptr = static_cast<const U8*>(data);
-	ASSERT(*reinterpret_cast<const U64*>(ptr) == 0x0a1a0a0d474e5089); // '.PNG'
+	THROWDBG(*reinterpret_cast<const U64*>(ptr) != 0x0a1a0a0d474e5089); // '.PNG'
 	ptr += sizeof(U64);
 
 	*width = 0;
@@ -72,7 +70,7 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 		switch (chunk)
 		{
 			case 0x52444849: // 'IHDR'
-				ASSERT(size2 == sizeof(U32) * 2 + sizeof(U8) * 5);
+				THROWDBG(size2 != sizeof(U32) * 2 + sizeof(U8) * 5);
 				png_data.Width = static_cast<int>(SwapEndianU32(*reinterpret_cast<const U32*>(ptr)));
 				*width = png_data.Width;
 				ptr += sizeof(U32);
@@ -91,7 +89,7 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 				ptr += sizeof(U8);
 				break;
 			case 0x54414449: // 'IDAT'
-				ASSERT(png_data.DataNum != IdatMax);
+				THROWDBG(png_data.DataNum == IdatMax);
 				png_data.Data[png_data.DataNum] = ptr;
 				png_data.DataSize[png_data.DataNum] = static_cast<size_t>(size2);
 				png_data.DataNum++;
@@ -109,9 +107,9 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 			break;
 	}
 
-	ASSERT(png_data.DataNum != 0);
-	ASSERT(png_data.Width != 0);
-	ASSERT(png_data.Height != 0);
+	THROWDBG(png_data.DataNum == 0);
+	THROWDBG(png_data.Width == 0);
+	THROWDBG(png_data.Height == 0);
 
 	U8* rgba = static_cast<U8*>(AllocMem(png_data.Width * png_data.Height * 4));
 	Decode(&png_data, rgba);
@@ -121,7 +119,7 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 static void Decode(SPngData* png_data, U8* rgba)
 {
 	{
-		ASSERT(png_data->BitDepth == 8);
+		THROWDBG(png_data->BitDepth != 8);
 		int two_line = 0;
 		switch (png_data->ColorType)
 		{
@@ -138,7 +136,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 				two_line = png_data->Width * 4;
 				break;
 			default: // Unsupported format.
-				ASSERT(False);
+				THROWDBG(True);
 				break;
 		}
 
@@ -164,8 +162,8 @@ static void Decode(SPngData* png_data, U8* rgba)
 		U8 flg = png_data->Data[cur_data][byte_ptr];
 		UNUSED(flg);
 		Step(png_data, &cur_data, &byte_ptr, 1);
-		ASSERT((cmf & 0x0f) == 8);
-		ASSERT(((flg & 0x20) >> 5) == 0);
+		THROWDBG((cmf & 0x0f) != 8);
+		THROWDBG(((flg & 0x20) >> 5) != 0);
 		U32 window_size = 1 << (((cmf & 0xf0) >> 4) + 8);
 		png_data->WindowBuf = static_cast<U8*>(AllocMem(window_size));
 		U32 window_used = 0;
@@ -313,7 +311,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 							code_tree_ptr = code_tree_ptr->One;
 						else
 							code_tree_ptr = code_tree_ptr->Zero;
-						ASSERT(code_tree_ptr != NULL);
+						THROWDBG(code_tree_ptr == NULL);
 						if (code_tree_ptr->Zero == NULL && code_tree_ptr->One == NULL)
 						{
 							U32 value = code_tree_ptr->Data;
@@ -394,7 +392,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 				dist_tree = NULL;
 			}
 			else
-				ASSERT(False);
+				THROWDBG(True);
 			if (bfinal != 0)
 				break;
 		}
@@ -407,7 +405,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 
 static void Output(SPngData* png_data, U8* rgba, U8 data)
 {
-	ASSERT(png_data->Y <= png_data->Height);
+	THROWDBG(png_data->Y > png_data->Height);
 	if (png_data->X == -1)
 	{
 		png_data->Filter = data;
@@ -481,7 +479,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				}
 				break;
 			default:
-				ASSERT(False);
+				THROWDBG(True);
 				break;
 		}
 		if (png_data->X >= png_data->Width)
@@ -499,7 +497,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 	else
 	{
 		// Interlace.
-		ASSERT(png_data->InterlaceMethod == 1);
+		THROWDBG(png_data->InterlaceMethod != 1);
 		int ilw = 0, ilh = 0, ilx = 0, ily = 0;
 		switch (png_data->InterlacePass)
 		{
@@ -546,7 +544,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				ily = 1 + png_data->Y * 2;
 				break;
 			default:
-				ASSERT(False);
+				THROWDBG(True);
 				break;
 		}
 		switch (png_data->ColorType)
@@ -608,7 +606,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				}
 				break;
 			default:
-				ASSERT(False);
+				THROWDBG(True);
 				break;
 		}
 		if (png_data->X >= ilw)

@@ -426,6 +426,7 @@ EXPORT_CPP void _onKeyPress(void* onKeyPressFunc)
 
 EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon, S64 btn)
 {
+	THROWDBG(text == NULL, 0xc0000005);
 	return MessageBox(parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle, reinterpret_cast<const Char*>(text + 0x10), title == NULL ? AppName : reinterpret_cast<const Char*>(title + 0x10), static_cast<UINT>(icon | btn));
 }
 
@@ -614,7 +615,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	me2->Kind = static_cast<EWndKind>(static_cast<S64>(WndKind_WndNormal) + style);
-	ASSERT(width >= -1 && height >= -1);
+	THROWDBG(width < -1 || height < -1);
 	int width2 = width == -1 ? CW_USEDEFAULT : static_cast<int>(width);
 	int height2 = height == -1 ? CW_USEDEFAULT : static_cast<int>(height);
 	HWND parent2 = parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle;
@@ -636,7 +637,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 			ASSERT(False);
 			break;
 	}
-	ASSERT(me2->WndHandle != NULL);
+	THROWDBG(me2->WndHandle == NULL);
 	me2->DefaultWndProc = NULL;
 	me2->CtrlFlag = static_cast<U64>(CtrlFlag_AnchorLeft) | static_cast<U64>(CtrlFlag_AnchorTop);
 	me2->DefaultX = 0;
@@ -1127,8 +1128,8 @@ EXPORT_CPP void _menuDtor(SClass* me_)
 
 EXPORT_CPP void _menuAdd(SClass* me_, S64 id, const U8* text)
 {
-	ASSERT(0x0001 <= id && id <= 0xffff);
-	ASSERT(text != NULL);
+	THROWDBG(id < 0x0001 || 0xffff < id);
+	THROWDBG(text == NULL);
 	AppendMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, MF_ENABLED | MF_STRING, static_cast<UINT_PTR>(id), reinterpret_cast<const Char*>(text + 0x10));
 }
 
@@ -1139,8 +1140,8 @@ EXPORT_CPP void _menuAddLine(SClass* me_)
 
 EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup)
 {
-	ASSERT(text != NULL);
-	ASSERT(popup != NULL);
+	THROWDBG(text == NULL);
+	THROWDBG(popup == NULL);
 	AppendMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, MF_ENABLED | MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), reinterpret_cast<const Char*>(text + 0x10));
 }
 
@@ -1239,7 +1240,7 @@ static const U8* RNToN(const Char* str)
 
 static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64 anchor_y, S64 x, S64 y, S64 width, S64 height)
 {
-	ASSERT(x == static_cast<S64>(static_cast<U16>(x)) && y == static_cast<S64>(static_cast<U16>(y)) && width == static_cast<S64>(static_cast<U16>(width)) && height == static_cast<S64>(static_cast<U16>(height)));
+	THROWDBG(x != static_cast<S64>(static_cast<U16>(x)) || y != static_cast<S64>(static_cast<U16>(y)) || width != static_cast<S64>(static_cast<U16>(width)) || height != static_cast<S64>(static_cast<U16>(height)));
 	wnd->CtrlFlag = 0;
 	switch (anchor_x)
 	{
@@ -1254,7 +1255,7 @@ static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64
 			wnd->CtrlFlag |= static_cast<U64>(CtrlFlag_AnchorRight);
 			break;
 		default:
-			ASSERT(False);
+			THROWDBG(True);
 			break;
 	}
 	switch (anchor_y)
@@ -1270,7 +1271,7 @@ static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64
 			wnd->CtrlFlag |= static_cast<U64>(CtrlFlag_AnchorBottom);
 			break;
 		default:
-			ASSERT(False);
+			THROWDBG(True);
 			break;
 	}
 	RECT parent_rect;
@@ -1309,11 +1310,11 @@ static SWndBase* ToWnd(HWND wnd)
 
 static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const Char* ctrl, DWORD style_ex, DWORD style, S64 x, S64 y, S64 width, S64 height, const Char* text, WNDPROC wnd_proc, S64 anchor_x, S64 anchor_y)
 {
-	ASSERT(parent != NULL);
-	ASSERT(width >= 0 && height >= 0);
+	THROWDBG(parent == NULL);
+	THROWDBG(width < 0 || height < 0);
 	wnd->Kind = kind;
 	wnd->WndHandle = CreateWindowEx(style_ex, ctrl, text, style, static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height), parent->WndHandle, NULL, Instance, NULL);
-	ASSERT(wnd->WndHandle != NULL);
+	THROWDBG(wnd->WndHandle == NULL);
 	SetWindowLongPtr(wnd->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(wnd));
 	wnd->DefaultWndProc = reinterpret_cast<WNDPROC>(GetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC));
 	wnd->Children = AllocMem(0x28);
@@ -1512,7 +1513,7 @@ static Char* ParseFilter(const U8* filter)
 	if (filter == NULL)
 		return NULL;
 	S64 len_parent = *reinterpret_cast<const S64*>(filter + 0x08);
-	ASSERT(len_parent % 2 == 0);
+	THROWDBG(len_parent % 2 != 0);
 	S64 total = 0;
 	{
 		const void*const* ptr = reinterpret_cast<const void*const*>(filter + 0x10);

@@ -257,7 +257,7 @@ EXPORT_CPP void _depth(Bool test, Bool write)
 
 EXPORT_CPP void _blend(S64 kind)
 {
-	ASSERT(0 <= kind && kind < BlendNum);
+	THROWDBG(kind < 0 || BlendNum <= kind, 0xe9170006);
 	int kind2 = static_cast<int>(kind);
 	/*
 	// TODO:
@@ -270,7 +270,7 @@ EXPORT_CPP void _blend(S64 kind)
 
 EXPORT_CPP void _sampler(S64 kind)
 {
-	ASSERT(0 <= kind && kind < SamplerNum);
+	THROWDBG(kind < 0 || SamplerNum <= kind, 0xe9170006);
 	/*
 	// TODO:
 	if (Sampler == kind2)
@@ -282,6 +282,7 @@ EXPORT_CPP void _sampler(S64 kind)
 
 EXPORT_CPP void _clearColor(S64 color)
 {
+	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	CurWndBuf->ClearColor[0] = static_cast<FLOAT>(r);
@@ -291,6 +292,7 @@ EXPORT_CPP void _clearColor(S64 color)
 
 EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
 {
+	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
@@ -322,6 +324,7 @@ EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
 
 EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, S64 color)
 {
+	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
@@ -363,6 +366,7 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 
 EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 {
+	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
@@ -402,6 +406,7 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 
 EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 {
+	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
@@ -443,6 +448,7 @@ EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 
 EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 color)
 {
+	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
@@ -493,7 +499,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 			THROW(0x1000, L"");
 			return NULL;
 		}
-		ASSERT(path_len >= 4);
+		THROWDBG(path_len < 4);
 		if (StrCmpIgnoreCase(path2 + path_len - 4, L".png"))
 		{
 			img = DecodePng(size, bin, &width, &height);
@@ -518,7 +524,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 		}
 		else
 		{
-			ASSERT(False);
+			THROWDBG(True);
 			format = DXGI_FORMAT_UNKNOWN;
 			width = 0;
 			height = 0;
@@ -967,16 +973,14 @@ EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, doubl
 	look[1] = atY - eyeY;
 	look[2] = atZ - eyeZ;
 	eye_len = Draw::Normalize(look);
-	ASSERT(eye_len != 0.0);
+	THROWDBG(eye_len == 0.0);
 
 	up[0] = upX;
 	up[1] = upY;
 	up[2] = upZ;
 	Draw::Cross(right, up, look);
 	if (Draw::Normalize(right) == 0.0)
-	{
-		ASSERT(false);
-	}
+		THROWDBG(True);
 
 	Draw::Cross(up, look, right);
 
@@ -1170,7 +1174,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 						}
 						break;
 					default:
-						ASSERT(False);
+						THROWDBG(True);
 						break;
 				}
 				if (!correct)
@@ -1232,14 +1236,14 @@ EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, S64 color
 EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, S64 element, double frame)
 {
 	SObj* me2 = (SObj*)me_;
-	ASSERT(0 <= element && element < static_cast<S64>(me2->ElementNum));
+	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element);
 	switch (me2->ElementKinds[element])
 	{
 		case 0: // Polygon.
 			{
 				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
-				ASSERT(static_cast<double>(element2->Begin) <= frame && frame < static_cast<double>(element2->End));
-				ASSERT(0 <= element2->JointNum && element2->JointNum <= JointMax);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || static_cast<double>(element2->End) <= frame);
+				THROWDBG(element2->JointNum < 0 && JointMax < element2->JointNum);
 				Bool joint = element2->JointNum != 0;
 
 				memcpy(ObjVsConstBuf.World, me2->Mtx, sizeof(float[4][4]));
@@ -2046,15 +2050,15 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 	{
 		case ShaderKind_Vs:
 			if (FAILED(Device->CreateVertexShader(bin, size, reinterpret_cast<ID3D10VertexShader**>(&shader_buf->Shader))))
-				ASSERT(False);
+				THROWDBG(True);
 			break;
 		case ShaderKind_Gs:
 			if (FAILED(Device->CreateGeometryShader(bin, size, reinterpret_cast<ID3D10GeometryShader**>(&shader_buf->Shader))))
-				ASSERT(False);
+				THROWDBG(True);
 			break;
 		case ShaderKind_Ps:
 			if (FAILED(Device->CreatePixelShader(bin, size, reinterpret_cast<ID3D10PixelShader**>(&shader_buf->Shader))))
-				ASSERT(False);
+				THROWDBG(True);
 			break;
 		default:
 			ASSERT(False);
@@ -2071,7 +2075,7 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 		desc.MiscFlags = 0;
 		if (FAILED(Device->CreateBuffer(&desc, NULL, &shader_buf->ConstBuf)))
-			ASSERT(False);
+			THROWDBG(True);
 	}
 
 	if (layout_num == 0)
@@ -2085,7 +2089,7 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 		{
 			{
 				size_t len = wcslen(layout_semantics[i]);
-				ASSERT(len <= 32);
+				THROWDBG(len > 32);
 				for (int j = 0; j < len; j++)
 					semantics[i][j] = static_cast<char>(layout_semantics[i][j]);
 				semantics[i][len] = '\0';
@@ -2139,7 +2143,7 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 			}
 		}
 		if (FAILED(Device->CreateInputLayout(descs, static_cast<UINT>(layout_num), bin, size, &shader_buf->Layout)))
-			ASSERT(False);
+			THROWDBG(True);
 		FreeMem(semantics);
 		FreeMem(descs);
 	}
@@ -2180,7 +2184,7 @@ void ConstBuf(void* shader_buf, const void* data)
 	SShaderBuf* shader_buf2 = static_cast<SShaderBuf*>(shader_buf);
 	void* buf;
 	if (shader_buf2->ConstBuf->Map(D3D10_MAP_WRITE_DISCARD, 0, &buf))
-		ASSERT(False);
+		THROWDBG(True);
 	memcpy(buf, data, shader_buf2->ConstBufSize);
 	shader_buf2->ConstBuf->Unmap();
 
@@ -2234,7 +2238,7 @@ void* MakeVertexBuf(size_t vertex_size, const void* vertices, size_t vertex_line
 		sub.SysMemSlicePitch = 0;
 
 		if (FAILED(Device->CreateBuffer(&desc, &sub, &vertex_buf->Vertex)))
-			ASSERT(False);
+			THROWDBG(True);
 	}
 
 	vertex_buf->VertexLineSize = vertex_line_size;
@@ -2253,7 +2257,7 @@ void* MakeVertexBuf(size_t vertex_size, const void* vertices, size_t vertex_line
 		sub.SysMemSlicePitch = 0;
 
 		if (FAILED(Device->CreateBuffer(&desc, &sub, &vertex_buf->Idx)))
-			ASSERT(False);
+			THROWDBG(True);
 	}
 
 	return vertex_buf;

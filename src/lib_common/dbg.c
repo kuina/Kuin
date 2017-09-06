@@ -1,9 +1,12 @@
 #include "dbg.h"
 
+#if defined(DBG)
 static int DbgCode = 0;
+#endif
 
 EXPORT void _dbgPrint(const U8* str)
 {
+#if defined(DBG)
 	if (str == NULL)
 		OutputDebugString(L"(null)");
 	else
@@ -20,4 +23,7 @@ EXPORT void _dbgPrint(const U8* str)
 		free(str2);
 		DbgCode = (DbgCode + 1) % 10;
 	}
+#else
+	UNUSED(str);
+#endif
 }

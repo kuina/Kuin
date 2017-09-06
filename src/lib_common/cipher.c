@@ -66,7 +66,7 @@ EXPORT void* _encrypt(const U8* data, const U8* key)
 	U32 w[60];
 	if (len2 % 16 != 0)
 		len2 += 16 - len2 % 16;
-	ASSERT(*(const S64*)(key + 0x08) == 32);
+	THROWDBG(*(const S64*)(key + 0x08) != 32, 0xe9170006);
 	data2 = (U8*)AllocMem((size_t)len2);
 	result = (U8*)AllocMem(0x10 + (size_t)len2);
 	((S64*)result)[0] = DefaultRefCntFunc;
@@ -117,8 +117,8 @@ EXPORT void* _decrypt(const U8* data, const U8* key)
 	U8* data2;
 	U8* result;
 	U32 w[60];
-	ASSERT(len % 16 == 0);
-	ASSERT(*(const S64*)(key + 0x08) == 32);
+	THROWDBG(len % 16 != 0, 0xe9170006);
+	THROWDBG(*(const S64*)(key + 0x08) != 32, 0xe9170006);
 	data2 = (U8*)AllocMem(len);
 	result = (U8*)AllocMem(0x10 + len);
 	((S64*)result)[0] = DefaultRefCntFunc;

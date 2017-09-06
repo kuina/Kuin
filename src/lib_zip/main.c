@@ -73,6 +73,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 
 EXPORT Bool _zip(const U8* out_path, const U8* path, S64 compression_level)
 {
+	THROWDBG(out_path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, 0xc0000005);
 	THROWDBG(!(compression_level == -1 || 1 <= compression_level && compression_level <= 9), 0xe9170006);
 	const Char* path2 = (const Char*)(path + 0x10);
 	const Char* slash_pos;
@@ -185,13 +187,13 @@ EXPORT Bool _zip(const U8* out_path, const U8* path, S64 compression_level)
 				zip_header[i].Crc32 = 0xffffffff;
 				stream.avail_in = (uInt)zip_header[i].UncompressedSize;
 				stream.next_in = (Bytef*)data;
+				for (j = 0; j < (int)stream.avail_in; j++)
+					zip_header[i].Crc32 = (zip_header[i].Crc32 >> 8) ^ crc32[(U8)stream.next_in[j] ^ (U8)zip_header[i].Crc32];
+				zip_header[i].Crc32 = ~zip_header[i].Crc32;
 				do
 				{
 					stream.avail_out = TMP_BUF_SIZE;
 					stream.next_out = tmp_buf;
-					for (j = 0; j < (int)stream.avail_in; j++)
-						zip_header[i].Crc32 = (zip_header[i].Crc32 >> 8) ^ crc32[(U8)stream.next_in[j] ^ (U8)zip_header[i].Crc32];
-					zip_header[i].Crc32 = ~zip_header[i].Crc32;
 					deflate(&stream, Z_FINISH);
 					fwrite(tmp_buf, 1, (size_t)(TMP_BUF_SIZE - stream.avail_out), file_ptr);
 				} while (stream.avail_out == 0);
