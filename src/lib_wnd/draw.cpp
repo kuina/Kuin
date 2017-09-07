@@ -1843,8 +1843,6 @@ void Init()
 	memset(&ObjPsConstBuf, 0, sizeof(SObjPsConstBuf));
 	_camera(0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 	_proj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.01, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
-	_camera(100.0, 150.0, 250.0, 20.0, 30.0, 0.0, 0.0, 1.0, 0.0);
-	_proj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.01, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
 	{
 		double dir[3] = { 2.0, 5.0, 1.0 };
 		Draw::Normalize(dir);
@@ -1861,7 +1859,6 @@ void Init()
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Device->RSSetState(RasterizerState);
 	_depth(False, False);
-	_depth(True, True);
 	_blend(1);
 	_sampler(1);
 }
@@ -2040,6 +2037,7 @@ void ActiveDrawBuf(void* wnd_buf)
 		SWndBuf* wnd_buf2 = static_cast<SWndBuf*>(wnd_buf);
 		CurWndBuf = wnd_buf2;
 		Device->OMSetRenderTargets(1, &CurWndBuf->RenderTargetView, CurWndBuf->DepthView);
+		_resetViewport();
 	}
 }
 

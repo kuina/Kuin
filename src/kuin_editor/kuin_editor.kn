@@ -469,7 +469,7 @@ class DocumentSrc(@Document)
 			do @drawEditor.paint()
 		case %left
 			if(shiftCtrl = %ctrl)
-				do me.wheelX(-1)
+				do me.scrollPageX(-1)
 			else
 				do me.setArea(shiftCtrl)
 				do me.cursorX :- 1
@@ -478,7 +478,7 @@ class DocumentSrc(@Document)
 			end if
 		case %up
 			if(shiftCtrl = %ctrl)
-				do me.wheelY(-1)
+				do me.scrollPageY(-1)
 			else
 				do me.setArea(shiftCtrl)
 				var absoluteX: int :: me.getAbsoluteX()
@@ -489,7 +489,7 @@ class DocumentSrc(@Document)
 			end if
 		case %right
 			if(shiftCtrl = %ctrl)
-				do me.wheelX(1)
+				do me.scrollPageX(1)
 			else
 				do me.setArea(shiftCtrl)
 				do me.cursorX :+ 1
@@ -498,7 +498,7 @@ class DocumentSrc(@Document)
 			end if
 		case %down
 			if(shiftCtrl = %ctrl)
-				do me.wheelY(1)
+				do me.scrollPageY(1)
 			else
 				do me.setArea(shiftCtrl)
 				var absoluteX: int :: me.getAbsoluteX()
@@ -541,29 +541,11 @@ class DocumentSrc(@Document)
 	end func
 
 	+*func wheelX(wheel: int)
-		do me.pageX :+ wheel
-		; TODO: me.pageX >= ?
-		if(me.pageX < 0)
-			do me.pageX :: 0
-		end if
-		do me.refreshCursor(false, false)
-		do @drawEditor.paint()
+		do me.scrollPageX(wheel)
 	end func
 
 	+*func wheelY(wheel: int)
-		do me.pageY :+ wheel
-		const paddingY: int :: 17 / @cellHeight + 1
-		var scrWidth: int
-		var scrHeight: int
-		do @drawEditor.getSize(&scrWidth, &scrHeight)
-		if (me.pageY >= ^me.src.src - scrHeight / @cellHeight + paddingY)
-			do me.pageY :: ^me.src.src - scrHeight / @cellHeight + paddingY
-		end if
-		if (me.pageY < 0)
-			do me.pageY :: 0
-		end if
-		do me.refreshCursor(false, false)
-		do @drawEditor.paint()
+		do me.scrollPageY(wheel * 3)
 	end func
 
 	+*func cmdUndo()
@@ -1238,6 +1220,32 @@ class DocumentSrc(@Document)
 			do @textFunc :: ""
 			do @updateLog()
 		end if
+	end func
+
+	func scrollPageX(wheel: int)
+		do me.pageX :+ wheel
+		; TODO: me.pageX >= ?
+		if(me.pageX < 0)
+			do me.pageX :: 0
+		end if
+		do me.refreshCursor(false, false)
+		do @drawEditor.paint()
+	end func
+
+	func scrollPageY(wheel: int)
+		do me.pageY :+ wheel
+		const paddingY: int :: 17 / @cellHeight + 1
+		var scrWidth: int
+		var scrHeight: int
+		do @drawEditor.getSize(&scrWidth, &scrHeight)
+		if (me.pageY >= ^me.src.src - scrHeight / @cellHeight + paddingY)
+			do me.pageY :: ^me.src.src - scrHeight / @cellHeight + paddingY
+		end if
+		if (me.pageY < 0)
+			do me.pageY :: 0
+		end if
+		do me.refreshCursor(false, false)
+		do @drawEditor.paint()
 	end func
 end class
 

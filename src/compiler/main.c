@@ -356,7 +356,11 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 					end = True;
 					break;
 				case EXCEPTION_DEBUG_EVENT:
+					/*
 					if (debug_event.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003)
+						break;
+					*/
+					if ((debug_event.u.Exception.ExceptionRecord.ExceptionCode & 0xc0000000) != 0xc0000000)
 						break;
 					if (excpt_occurred)
 						break;
