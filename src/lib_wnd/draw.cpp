@@ -499,7 +499,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 			THROW(0x1000, L"");
 			return NULL;
 		}
-		THROWDBG(path_len < 4);
+		THROWDBG(path_len < 4, 0xe9170006);
 		if (StrCmpIgnoreCase(path2 + path_len - 4, L".png"))
 		{
 			img = DecodePng(size, bin, &width, &height);
@@ -524,7 +524,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 		}
 		else
 		{
-			THROWDBG(True);
+			THROWDBG(True, 0xe9170006);
 			format = DXGI_FORMAT_UNKNOWN;
 			width = 0;
 			height = 0;
@@ -973,14 +973,15 @@ EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, doubl
 	look[1] = atY - eyeY;
 	look[2] = atZ - eyeZ;
 	eye_len = Draw::Normalize(look);
-	THROWDBG(eye_len == 0.0);
+	if (eye_len == 0.0)
+		return;
 
 	up[0] = upX;
 	up[1] = upY;
 	up[2] = upZ;
 	Draw::Cross(right, up, look);
 	if (Draw::Normalize(right) == 0.0)
-		THROWDBG(True);
+		return;
 
 	Draw::Cross(up, look, right);
 
@@ -1174,7 +1175,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 						}
 						break;
 					default:
-						THROWDBG(True);
+						THROWDBG(True, 0xe9170008);
 						break;
 				}
 				if (!correct)
@@ -1236,14 +1237,14 @@ EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, S64 color
 EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, S64 element, double frame)
 {
 	SObj* me2 = (SObj*)me_;
-	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element);
+	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, 0xe9170006);
 	switch (me2->ElementKinds[element])
 	{
 		case 0: // Polygon.
 			{
 				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
-				THROWDBG(frame < static_cast<double>(element2->Begin) || static_cast<double>(element2->End) <= frame);
-				THROWDBG(element2->JointNum < 0 && JointMax < element2->JointNum);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || static_cast<double>(element2->End) <= frame, 0xe9170006);
+				THROWDBG(element2->JointNum < 0 && JointMax < element2->JointNum, 0xe9170006);
 				Bool joint = element2->JointNum != 0;
 
 				memcpy(ObjVsConstBuf.World, me2->Mtx, sizeof(float[4][4]));
@@ -2050,15 +2051,15 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 	{
 		case ShaderKind_Vs:
 			if (FAILED(Device->CreateVertexShader(bin, size, reinterpret_cast<ID3D10VertexShader**>(&shader_buf->Shader))))
-				THROWDBG(True);
+				return NULL;
 			break;
 		case ShaderKind_Gs:
 			if (FAILED(Device->CreateGeometryShader(bin, size, reinterpret_cast<ID3D10GeometryShader**>(&shader_buf->Shader))))
-				THROWDBG(True);
+				return NULL;
 			break;
 		case ShaderKind_Ps:
 			if (FAILED(Device->CreatePixelShader(bin, size, reinterpret_cast<ID3D10PixelShader**>(&shader_buf->Shader))))
-				THROWDBG(True);
+				return NULL;
 			break;
 		default:
 			ASSERT(False);
@@ -2075,7 +2076,7 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 		desc.MiscFlags = 0;
 		if (FAILED(Device->CreateBuffer(&desc, NULL, &shader_buf->ConstBuf)))
-			THROWDBG(True);
+			return NULL;
 	}
 
 	if (layout_num == 0)
@@ -2089,7 +2090,7 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 		{
 			{
 				size_t len = wcslen(layout_semantics[i]);
-				THROWDBG(len > 32);
+				ASSERT(len <= 32);
 				for (int j = 0; j < len; j++)
 					semantics[i][j] = static_cast<char>(layout_semantics[i][j]);
 				semantics[i][len] = '\0';
@@ -2143,7 +2144,7 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 			}
 		}
 		if (FAILED(Device->CreateInputLayout(descs, static_cast<UINT>(layout_num), bin, size, &shader_buf->Layout)))
-			THROWDBG(True);
+			return NULL;
 		FreeMem(semantics);
 		FreeMem(descs);
 	}
@@ -2184,7 +2185,7 @@ void ConstBuf(void* shader_buf, const void* data)
 	SShaderBuf* shader_buf2 = static_cast<SShaderBuf*>(shader_buf);
 	void* buf;
 	if (shader_buf2->ConstBuf->Map(D3D10_MAP_WRITE_DISCARD, 0, &buf))
-		THROWDBG(True);
+		return;
 	memcpy(buf, data, shader_buf2->ConstBufSize);
 	shader_buf2->ConstBuf->Unmap();
 
@@ -2238,7 +2239,7 @@ void* MakeVertexBuf(size_t vertex_size, const void* vertices, size_t vertex_line
 		sub.SysMemSlicePitch = 0;
 
 		if (FAILED(Device->CreateBuffer(&desc, &sub, &vertex_buf->Vertex)))
-			THROWDBG(True);
+			return NULL;
 	}
 
 	vertex_buf->VertexLineSize = vertex_line_size;
@@ -2257,7 +2258,7 @@ void* MakeVertexBuf(size_t vertex_size, const void* vertices, size_t vertex_line
 		sub.SysMemSlicePitch = 0;
 
 		if (FAILED(Device->CreateBuffer(&desc, &sub, &vertex_buf->Idx)))
-			THROWDBG(True);
+			return NULL;
 	}
 
 	return vertex_buf;

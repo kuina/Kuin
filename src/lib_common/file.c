@@ -144,7 +144,7 @@ EXPORT S64 _streamReadInt(SClass* me_)
 		if (c == WEOF)
 		{
 			if (buf[0] == L'\0')
-				THROWDBG(True);
+				THROWDBG(True, 0xe9170008);
 			break;
 		}
 		if (c == L'\0')
@@ -154,7 +154,7 @@ EXPORT S64 _streamReadInt(SClass* me_)
 			break;
 		}
 		if (ptr == 32)
-			THROWDBG(True);
+			THROWDBG(True, 0xe9170008);
 		buf[ptr] = c;
 		ptr++;
 	}
@@ -191,7 +191,7 @@ EXPORT double _streamReadFloat(SClass* me_)
 		if (c == WEOF)
 		{
 			if (buf[0] == L'\0')
-				THROWDBG(True);
+				THROWDBG(True, 0xe9170008);
 			break;
 		}
 		if (c == L'\0')
@@ -201,7 +201,7 @@ EXPORT double _streamReadFloat(SClass* me_)
 			break;
 		}
 		if (ptr == 32)
-			THROWDBG(True);
+			THROWDBG(True, 0xe9170008);
 		buf[ptr] = c;
 		ptr++;
 	}
@@ -234,7 +234,7 @@ EXPORT Char _streamReadChar(SClass* me_)
 	{
 		c = ReadUtf8((SStream*)me_, True);
 		if (c == WEOF)
-			THROWDBG(True);
+			THROWDBG(True, 0xe9170008);
 		if (c != L'\0')
 			break;
 	}
@@ -263,7 +263,7 @@ EXPORT void* _streamReadStr(SClass* me_)
 		if (c == WEOF)
 		{
 			if (buf[0] == L'\0')
-				THROWDBG(True);
+				THROWDBG(True, 0xe9170008);
 			break;
 		}
 		if (c == L'\0')
@@ -438,7 +438,7 @@ EXPORT Bool _delDir(const U8* path)
 EXPORT Bool _delFile(const U8* path)
 {
 	THROWDBG(path == NULL, 0xc0000005);
-	if (!PathFileExists(path))
+	if (!PathFileExists((const Char*)(path + 0x10)))
 		return True;
 	return DeleteFile((const Char*)(path + 0x10)) != 0;
 }
@@ -682,7 +682,7 @@ static Char ReadUtf8(SStream* me_, Bool replace_delimiter)
 		for (i = 0; i < len; i++)
 		{
 			if (fread(&c, 1, 1, me_->Handle) != 1 || (c & 0xc0) != 0x80)
-				THROWDBG(True);
+				THROWDBG(True, 0xe9170008);
 			u = (u << 6) | (c & 0x3f);
 		}
 	}

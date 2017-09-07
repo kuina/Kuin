@@ -90,6 +90,7 @@ end class
 
 	+var minMaxRect: int
 	+var onClose: func<(@WndBase): bool>
+	+var onActivate: func<(@WndBase, bool, bool)>
 	+var onPushMenu: func<(@WndBase, int)>
 	+var modalLock: bool
 end class

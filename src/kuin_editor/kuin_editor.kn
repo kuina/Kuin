@@ -34,6 +34,7 @@ end func
 var wndMain: wnd@Wnd
 var treeItem: wnd@Tree
 var listInfo: wnd@List
+var editFile: wnd@Edit
 var drawEditor: wnd@Draw
 var scrollXSrc: wnd@ScrollX
 var scrollYSrc: wnd@ScrollY
@@ -44,7 +45,6 @@ var groupEnv: wnd@Group
 var radioEnvWnd: wnd@Radio
 var radioEnvCui: wnd@Radio
 var btnRls: wnd@Btn
-var editFile: wnd@Edit
 var listFile: wnd@List
 var menuMain: wnd@Menu
 var popupMainEdit: wnd@Popup
@@ -417,19 +417,31 @@ class DocumentSrc(@Document)
 				do @drawEditor.paint()
 			end if
 		case %tab
-			if (@lockingEditor)
-				ret
-			end if
-			if(shiftCtrl = %none)
+			switch(shiftCtrl)
+			case %none
+				if (@lockingEditor)
+					ret
+				end if
 				if(!me.areaSelected())
 					do me.ins(me.cursorX, me.cursorY, "\t", true)
 					do me.addUndoMark()
 					do me.refreshCursor(false, true)
 					do @drawEditor.paint()
 				else
-					; TODO: Indent.
+					do me.indentAreaStr()
+					do me.refreshCursor(false, true)
+					do @drawEditor.paint()
 				end if
-			end if
+			case %shift
+				if (@lockingEditor)
+					ret
+				end if
+				if(me.areaSelected())
+					do me.unindentAreaStr()
+					do me.refreshCursor(false, true)
+					do @drawEditor.paint()
+				end if
+			end switch
 		case %enter
 			if (@lockingEditor)
 				ret
@@ -899,6 +911,64 @@ class DocumentSrc(@Document)
 		do me.cursorY :: y1
 		do me.del(me.cursorX, me.cursorY, len, true)
 		do me.areaX :: -1
+	end func
+
+	func indentAreaStr()
+		assert me.areaSelected()
+		var oldX: int :: me.cursorX
+		var oldY: int :: me.cursorY
+		var x1: int :: me.areaX
+		var y1: int :: me.areaY
+		var x2: int :: me.cursorX
+		var y2: int :: me.cursorY
+		var dirty: bool :: false
+		if(y1 > y2 | y1 = y2 & x1 > x2)
+			do x1 :$ x2
+			do y1 :$ y2
+		end if
+		for i(y1, y2)
+			if(^me.src.src[i] <> 0)
+				do me.ins(0, i, "\t", true)
+				do dirty :: true
+				if(i = oldY)
+					do oldX :+ 1
+				end if
+			end if
+		end for
+		if(dirty)
+			do me.addUndoMark()
+		end if
+		do me.cursorX :: oldX
+		do me.cursorY :: oldY
+	end func
+
+	func unindentAreaStr()
+		assert me.areaSelected()
+		var oldX: int :: me.cursorX
+		var oldY: int :: me.cursorY
+		var x1: int :: me.areaX
+		var y1: int :: me.areaY
+		var x2: int :: me.cursorX
+		var y2: int :: me.cursorY
+		var dirty: bool :: false
+		if(y1 > y2 | y1 = y2 & x1 > x2)
+			do x1 :$ x2
+			do y1 :$ y2
+		end if
+		for i(y1, y2)
+			if(^me.src.src[i] > 0 & me.src.src[i][0] = '\t')
+				do me.del(0, i, 1, true)
+				do dirty :: true
+				if(i = oldY & oldX > 0)
+					do oldX :- 1
+				end if
+			end if
+		end for
+		if(dirty)
+			do me.addUndoMark()
+		end if
+		do me.cursorX :: oldX
+		do me.cursorY :: oldY
 	end func
 
 	func ins(x: int, y: int, str: []char, recordUndo: bool)
@@ -1554,13 +1624,16 @@ func main()
 
 	func makeWnd()
 		do @wndMain :: wnd@makeWnd(null, %normal, 1224, 768, @title)
-		do @wndMain.minMax(384, 640, -1, -1)
+		do @wndMain.minMax(930, 640, -1, -1)
 		do @wndMain.onClose :: @wndMainOnClose
+		do @wndMain.onActivate :: @wndMainOnActivate
 		do @wndMain.onPushMenu :: @wndMainOnPushMenu
-		do @treeItem :: wnd@makeTree(@wndMain, 12, 12, 194, 366, %fix, %fix)
-		do @listInfo :: wnd@makeList(@wndMain, 12, 384, 194, 372, %fix, %scale)
+		do @treeItem :: wnd@makeTree(@wndMain, 12, 12, 244, 466, %fix, %fix)
+		do @listInfo :: wnd@makeList(@wndMain, 12, 484, 244, 272, %fix, %scale)
 		do @listInfo.onSel :: @listInfoOnSel
-		do @drawEditor :: wnd@makeDraw(@wndMain, 212, 12, 809, 603, %scale, %scale, true)
+		do @editFile :: wnd@makeEdit(@wndMain, 262, 12, 759, 15, %scale, %fix)
+		do @editFile.readonly(true)
+		do @drawEditor :: wnd@makeDraw(@wndMain, 262, 33, 759, 582, %scale, %scale, true)
 		do @drawEditor.onPaint :: @drawEditorOnPaint
 		do @drawEditor.onMouseDownL :: @drawEditorOnMouseDownL
 		do @drawEditor.onMouseUpL :: @drawEditorOnMouseUpL
@@ -1572,13 +1645,13 @@ func main()
 		do @drawEditor.onScrollY :: @drawEditorOnScrollY
 		do @drawEditor.onMouseWheelX :: @drawEditorOnMouseWheelX
 		do @drawEditor.onMouseWheelY :: @drawEditorOnMouseWheelY
-		do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 586, 792, 17, %scale, %move)
+		do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 565, 742, 17, %scale, %move)
 		do @scrollXSrc.setState(0, 0, 1, 0)
-		do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 792, 0, 17, 586, %move, %scale)
+		do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 742, 0, 17, 565, %move, %scale)
 		do @scrollYSrc.setState(0, 0, 1, 0)
-		do @editHint :: wnd@makeEditMulti(@wndMain, 212, 621, 391, 135, %scale, %move)
+		do @editHint :: wnd@makeEditMulti(@wndMain, 262, 621, 391, 135, %scale, %move)
 		do @editHint.readonly(true)
-		do @editLog :: wnd@makeEditMulti(@wndMain, 609, 621, 391, 135, %scale, %move)
+		do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
 		do @editLog.readonly(true)
 		do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, @langEn ?("Compile && Run", "コンパイル＆実行"))
 		do @btnCompile.onPush :: @btnCompileOnPush
@@ -1588,9 +1661,7 @@ func main()
 		do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 173, 16, %fix, %fix, @langEn ?("CUI", "CUI"))
 		do @btnRls :: wnd@makeBtn(@wndMain, 1027, 109, 185, 23, %move, %fix, @langEn ?("Release Build...", "リリースビルド"))
 		do @btnRls.onPush :: @btnRlsOnPush
-		do @editFile :: wnd@makeEdit(@wndMain, 1027, 359, 185, 19, %move, %fix)
-		do @editFile.readonly(true)
-		do @listFile :: wnd@makeList(@wndMain, 1027, 384, 185, 231, %move, %scale)
+		do @listFile :: wnd@makeList(@wndMain, 1027, 255, 185, 360, %move, %scale)
 		do @listFile.onSel :: @listFileOnSel
 		do @menuMain :: wnd@makeMenu()
 		do @popupMainFile :: wnd@makePopup()
@@ -1940,6 +2011,12 @@ func wndMainOnClose(wnd: wnd@WndBase): bool
 		ret true
 	end if
 	ret false
+end func
+
+func wndMainOnActivate(wnd: wnd@WndBase, active: bool, minimized: bool)
+	if(active & !minimized)
+		do @drawEditor.focus()
+	end if
 end func
 
 func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
@@ -2411,6 +2488,7 @@ func logForInterpret(args: [][]char, row: int, col: int)
 end func
 
 func updateUi()
+	do @editFile.setText("")
 	do @listInfo.clear()
 	if(@curDocument =$ @DocumentSrc)
 		; TODO: do @listInfoItem.sort()
@@ -2429,13 +2507,15 @@ func updateUi()
 
 	func callback(src: []char, document: @Document, data: kuin@Class): bool
 		var prefix: []char :: ""
+		var internalName: []char :: @srcNameToInternalName(src)
 		if(document =& @curDocument)
 			do prefix :~ ">"
+			do @editFile.setText(internalName)
 		end if
 		if(document.changed)
 			do prefix :~ "*"
 		end if
-		do @listFile.add(prefix ~ @srcNameToInternalName(src))
+		do @listFile.add(prefix ~ internalName)
 		ret true
 	end func
 end func
