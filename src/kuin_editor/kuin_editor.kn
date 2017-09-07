@@ -132,6 +132,27 @@ class Document()
 	+func wheelY(wheel: int)
 	end func
 
+	+func cmdUndo()
+	end func
+
+	+func cmdRedo()
+	end func
+
+	+func cmdCut()
+	end func
+
+	+func cmdCopy()
+	end func
+
+	+func cmdPaste()
+	end func
+
+	+func cmdDel()
+	end func
+
+	+func cmdSelAll()
+	end func
+
 	+func undo()
 		if(me.undoBuf[me.undoPtrPrev(me.undoPtr)] =& null)
 			ret
@@ -343,65 +364,6 @@ class DocumentSrc(@Document)
 
 	+*func keyDown(key: input@Key, shiftCtrl: wnd@ShiftCtrl)
 		switch(key)
-		case %a
-			if(shiftCtrl = %ctrl)
-				do me.areaX :: 0
-				do me.areaY :: 0
-				do me.cursorX :: lib@intMax
-				do me.cursorY :: lib@intMax
-				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
-			end if
-		case %c
-			if(shiftCtrl = %ctrl & me.areaSelected())
-				do me.copyAreaStr()
-			end if
-		case %v
-			if (@lockingEditor)
-				ret
-			end if
-			if(shiftCtrl = %ctrl)
-				var str: []char :: wnd@getClipboardStr()
-				if(str <>& null)
-					if(me.areaSelected())
-						do me.delAreaStr()
-					end if
-					do me.ins(me.cursorX, me.cursorY, str, true)
-					do me.addUndoMark()
-					do me.refreshCursor(false, true)
-					do @drawEditor.paint()
-				end if
-			end if
-		case %x
-			if (@lockingEditor)
-				ret
-			end if
-			if(shiftCtrl = %ctrl & me.areaSelected())
-				do me.copyAreaStr()
-				do me.delAreaStr()
-				do me.addUndoMark()
-				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
-			end if
-		case %z
-			if (@lockingEditor)
-				ret
-			end if
-			if(shiftCtrl = %ctrl)
-				if(me.areaSelected())
-					do me.areaX :: -1
-				end if
-				do me.undo()
-				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
-			elif(shiftCtrl = (%shift $ wnd@ShiftCtrl).or(%ctrl))
-				if(me.areaSelected())
-					do me.areaX :: -1
-				end if
-				do me.redo()
-				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
-			end if
 		case %bs
 			if (@lockingEditor)
 				ret
@@ -507,7 +469,7 @@ class DocumentSrc(@Document)
 			do @drawEditor.paint()
 		case %left
 			if(shiftCtrl = %ctrl)
-				; TODO
+				do me.wheelX(-1)
 			else
 				do me.setArea(shiftCtrl)
 				do me.cursorX :- 1
@@ -516,7 +478,7 @@ class DocumentSrc(@Document)
 			end if
 		case %up
 			if(shiftCtrl = %ctrl)
-				; TODO
+				do me.wheelY(-1)
 			else
 				do me.setArea(shiftCtrl)
 				var absoluteX: int :: me.getAbsoluteX()
@@ -527,7 +489,7 @@ class DocumentSrc(@Document)
 			end if
 		case %right
 			if(shiftCtrl = %ctrl)
-				; TODO
+				do me.wheelX(1)
 			else
 				do me.setArea(shiftCtrl)
 				do me.cursorX :+ 1
@@ -536,7 +498,7 @@ class DocumentSrc(@Document)
 			end if
 		case %down
 			if(shiftCtrl = %ctrl)
-				; TODO
+				do me.wheelY(1)
 			else
 				do me.setArea(shiftCtrl)
 				var absoluteX: int :: me.getAbsoluteX()
@@ -547,20 +509,6 @@ class DocumentSrc(@Document)
 			end if
 		case %ins
 			; TODO: Insert mode.
-		case %del
-			if (@lockingEditor)
-				ret
-			end if
-			if(shiftCtrl = %none)
-				if(me.areaSelected())
-					do me.delAreaStr()
-				else
-					do me.del(me.cursorX, me.cursorY, 1, true)
-				end if
-				do me.addUndoMark()
-				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
-			end if
 		end switch
 	end func
 
@@ -615,6 +563,88 @@ class DocumentSrc(@Document)
 			do me.pageY :: 0
 		end if
 		do me.refreshCursor(false, false)
+		do @drawEditor.paint()
+	end func
+
+	+*func cmdUndo()
+		if (@lockingEditor)
+			ret
+		end if
+		if(me.areaSelected())
+			do me.areaX :: -1
+		end if
+		do me.undo()
+		do me.refreshCursor(false, true)
+		do @drawEditor.paint()
+	end func
+
+	+*func cmdRedo()
+		if (@lockingEditor)
+			ret
+		end if
+		if(me.areaSelected())
+			do me.areaX :: -1
+		end if
+		do me.redo()
+		do me.refreshCursor(false, true)
+		do @drawEditor.paint()
+	end func
+
+	+*func cmdCut()
+		if (@lockingEditor)
+			ret
+		end if
+		if(me.areaSelected())
+			do me.copyAreaStr()
+			do me.delAreaStr()
+			do me.addUndoMark()
+			do me.refreshCursor(false, true)
+			do @drawEditor.paint()
+		end if
+	end func
+
+	+*func cmdCopy()
+		if(me.areaSelected())
+			do me.copyAreaStr()
+		end if
+	end func
+
+	+*func cmdPaste()
+		if (@lockingEditor)
+			ret
+		end if
+		var str: []char :: wnd@getClipboardStr()
+		if(str <>& null)
+			if(me.areaSelected())
+				do me.delAreaStr()
+			end if
+			do me.ins(me.cursorX, me.cursorY, str, true)
+			do me.addUndoMark()
+			do me.refreshCursor(false, true)
+			do @drawEditor.paint()
+		end if
+	end func
+
+	+*func cmdDel()
+		if (@lockingEditor)
+			ret
+		end if
+		if(me.areaSelected())
+			do me.delAreaStr()
+		else
+			do me.del(me.cursorX, me.cursorY, 1, true)
+		end if
+		do me.addUndoMark()
+		do me.refreshCursor(false, true)
+		do @drawEditor.paint()
+	end func
+
+	+*func cmdSelAll()
+		do me.areaX :: 0
+		do me.areaY :: 0
+		do me.cursorX :: lib@intMax
+		do me.cursorY :: lib@intMax
+		do me.refreshCursor(false, true)
 		do @drawEditor.paint()
 	end func
 
@@ -915,8 +945,10 @@ class DocumentSrc(@Document)
 
 	func indentAreaStr()
 		assert me.areaSelected()
-		var oldX: int :: me.cursorX
-		var oldY: int :: me.cursorY
+		var oldAreaX: int :: me.areaX
+		var oldAreaY: int :: me.areaY
+		var oldCursorX: int :: me.cursorX
+		var oldCursorY: int :: me.cursorY
 		var x1: int :: me.areaX
 		var y1: int :: me.areaY
 		var x2: int :: me.cursorX
@@ -930,22 +962,29 @@ class DocumentSrc(@Document)
 			if(^me.src.src[i] <> 0)
 				do me.ins(0, i, "\t", true)
 				do dirty :: true
-				if(i = oldY)
-					do oldX :+ 1
+				if(i = oldAreaY)
+					do oldAreaX :+ 1
+				end if
+				if(i = oldCursorY)
+					do oldCursorX :+ 1
 				end if
 			end if
 		end for
 		if(dirty)
 			do me.addUndoMark()
 		end if
-		do me.cursorX :: oldX
-		do me.cursorY :: oldY
+		do me.areaX :: oldAreaX
+		do me.areaY :: oldAreaY
+		do me.cursorX :: oldCursorX
+		do me.cursorY :: oldCursorY
 	end func
 
 	func unindentAreaStr()
 		assert me.areaSelected()
-		var oldX: int :: me.cursorX
-		var oldY: int :: me.cursorY
+		var oldAreaX: int :: me.areaX
+		var oldAreaY: int :: me.areaY
+		var oldCursorX: int :: me.cursorX
+		var oldCursorY: int :: me.cursorY
 		var x1: int :: me.areaX
 		var y1: int :: me.areaY
 		var x2: int :: me.cursorX
@@ -959,16 +998,21 @@ class DocumentSrc(@Document)
 			if(^me.src.src[i] > 0 & me.src.src[i][0] = '\t')
 				do me.del(0, i, 1, true)
 				do dirty :: true
-				if(i = oldY & oldX > 0)
-					do oldX :- 1
+				if(i = oldAreaY & oldAreaX > 0)
+					do oldAreaX :- 1
+				end if
+				if(i = oldCursorY & oldCursorX > 0)
+					do oldCursorX :- 1
 				end if
 			end if
 		end for
 		if(dirty)
 			do me.addUndoMark()
 		end if
-		do me.cursorX :: oldX
-		do me.cursorY :: oldY
+		do me.areaX :: oldAreaX
+		do me.areaY :: oldAreaY
+		do me.cursorX :: oldCursorX
+		do me.cursorY :: oldCursorY
 	end func
 
 	func ins(x: int, y: int, str: []char, recordUndo: bool)
@@ -1353,6 +1397,34 @@ class DocumentArBase(@Document)
 	end func
 
 	+*func wheelY(wheel: int)
+		; TODO:
+	end func
+
+	+*func cmdUndo()
+		; TODO:
+	end func
+
+	+*func cmdRedo()
+		; TODO:
+	end func
+
+	+*func cmdCut()
+		; TODO:
+	end func
+
+	+*func cmdCopy()
+		; TODO:
+	end func
+
+	+*func cmdPaste()
+		; TODO:
+	end func
+
+	+*func cmdDel()
+		; TODO:
+	end func
+
+	+*func cmdSelAll()
 		; TODO:
 	end func
 
@@ -1764,6 +1836,9 @@ func onKeyPress(key: input@Key, shiftCtrl: wnd@ShiftCtrl): bool
 	switch(shiftCtrl)
 	case %none
 		switch(key)
+		case %del
+			do @wndMainOnPushMenu(@wndMain, 16#0037)
+			ret true
 		case %f1
 			do @wndMainOnPushMenu(@wndMain, 16#0011)
 			ret true
@@ -1776,6 +1851,12 @@ func onKeyPress(key: input@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		end switch
 	case %ctrl
 		switch(key)
+		case %a
+			do @wndMainOnPushMenu(@wndMain, 16#0038)
+			ret true
+		case %c
+			do @wndMainOnPushMenu(@wndMain, 16#0035)
+			ret true
 		case %n
 			do @wndMainOnPushMenu(@wndMain, 16#0001)
 			ret true
@@ -1788,6 +1869,15 @@ func onKeyPress(key: input@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		case %q
 			do @wndMainOnPushMenu(@wndMain, 16#0005)
 			ret true
+		case %v
+			do @wndMainOnPushMenu(@wndMain, 16#0036)
+			ret true
+		case %x
+			do @wndMainOnPushMenu(@wndMain, 16#0034)
+			ret true
+		case %z
+			do @wndMainOnPushMenu(@wndMain, 16#0032)
+			ret true
 		end switch
 	case (%shift $ wnd@ShiftCtrl).or(%ctrl)
 		switch(key)
@@ -1798,6 +1888,9 @@ func onKeyPress(key: input@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			ret true
 		case %s
 			do @wndMainOnPushMenu(@wndMain, 16#0004)
+			ret true
+		case %z
+			do @wndMainOnPushMenu(@wndMain, 16#0033)
 			ret true
 		end switch
 	end switch
@@ -2081,40 +2174,19 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		end if
 		do @addExistingFile()
 	case 16#0032
-		if(@lockingEditor)
-			ret
-		end if
-		; TODO:
+		do @curDocument.cmdUndo()
 	case 16#0033
-		if(@lockingEditor)
-			ret
-		end if
-		; TODO:
+		do @curDocument.cmdRedo()
 	case 16#0034
-		if(@lockingEditor)
-			ret
-		end if
-		; TODO:
+		do @curDocument.cmdCut()
 	case 16#0035
-		if(@lockingEditor)
-			ret
-		end if
-		; TODO:
+		do @curDocument.cmdCopy()
 	case 16#0036
-		if(@lockingEditor)
-			ret
-		end if
-		; TODO:
+		do @curDocument.cmdPaste()
 	case 16#0037
-		if(@lockingEditor)
-			ret
-		end if
-		; TODO:
+		do @curDocument.cmdDel()
 	case 16#0038
-		if(@lockingEditor)
-			ret
-		end if
-		; TODO:
+		do @curDocument.cmdSelAll()
 	end switch
 end func
 
