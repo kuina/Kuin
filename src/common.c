@@ -136,7 +136,7 @@ Bool SeekFileStream(void* handle, S64 offset, S64 origin)
 		return False;
 	}
 	else
-		return fseek((FILE*)handle2->Handle, (long)offset, (int)origin) == 0;
+		return _fseeki64((FILE*)handle2->Handle, offset, (int)origin) == 0;
 }
 
 S64 TellFileStream(void* handle)
@@ -149,7 +149,7 @@ S64 TellFileStream(void* handle)
 		return 0;
 	}
 	else
-		return (S64)ftell((FILE*)handle2->Handle);
+		return _ftelli64((FILE*)handle2->Handle);
 }
 
 Bool StrCmpIgnoreCase(const Char* a, const Char* b)

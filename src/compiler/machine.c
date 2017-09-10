@@ -183,7 +183,7 @@ static void WriteFuncAddrRecursion(SAstClass* class_, S64 file_origin, S64 addr_
 static void WriteExcpt(void);
 static const void* CalcWritableData(const Char* key, const void* value, void* param);
 static void WriteRes(void);
-static void WriteResRecursion(SList* res, long* data_entry_addrs, int* idx, S64 base_addr);
+static void WriteResRecursion(SList* res, S64* data_entry_addrs, int* idx, S64 base_addr);
 
 const U8* GetManifestBin(size_t* size);
 
@@ -199,44 +199,44 @@ void ToMachineCode(const SPackAsm* pack_asm, const SOption* option)
 	}
 	{
 		fwrite(DOSHeader, 1, sizeof(DOSHeader), FilePtr);
-		while (ftell(FilePtr) < 0x80)
+		while (_ftelli64(FilePtr) < 0x80)
 			fputc(0x00, FilePtr);
 		fwrite(PEHeader, 1, sizeof(PEHeader), FilePtr);
 		fwrite(SectionHeader, 1, sizeof(SectionHeader), FilePtr);
-		while (ftell(FilePtr) < 0x0400)
+		while (_ftelli64(FilePtr) < 0x0400)
 			fputc(0x00, FilePtr);
 		{
-			Code.DataPos = (U64)ftell(FilePtr);
+			Code.DataPos = (U64)_ftelli64(FilePtr);
 			Code.ImgPos = 0x1000;
 			WriteCode();
-			Code.Len = (U64)ftell(FilePtr) - Code.DataPos;
-			while (ftell(FilePtr) % 0x0200 != 0)
+			Code.Len = (U64)_ftelli64(FilePtr) - Code.DataPos;
+			while (_ftelli64(FilePtr) % 0x0200 != 0)
 				fputc(0x00, FilePtr);
-			Code.DataSize = (U64)ftell(FilePtr) - Code.DataPos;
+			Code.DataSize = (U64)_ftelli64(FilePtr) - Code.DataPos;
 			Code.ImgSize = Code.Len;
 			if (Code.ImgSize % 0x1000 != 0)
 				Code.ImgSize += 0x1000 - Code.ImgSize % 0x1000;
 		}
 		{
-			ReadonlyData.DataPos = (U64)ftell(FilePtr);
+			ReadonlyData.DataPos = (U64)_ftelli64(FilePtr);
 			ReadonlyData.ImgPos = Code.ImgPos + Code.ImgSize;
 			WriteReadonlyData();
-			ReadonlyData.Len = (U64)ftell(FilePtr) - ReadonlyData.DataPos;
-			while (ftell(FilePtr) % 0x0200 != 0)
+			ReadonlyData.Len = (U64)_ftelli64(FilePtr) - ReadonlyData.DataPos;
+			while (_ftelli64(FilePtr) % 0x0200 != 0)
 				fputc(0x00, FilePtr);
-			ReadonlyData.DataSize = (U64)ftell(FilePtr) - ReadonlyData.DataPos;
+			ReadonlyData.DataSize = (U64)_ftelli64(FilePtr) - ReadonlyData.DataPos;
 			ReadonlyData.ImgSize = ReadonlyData.Len;
 			if (ReadonlyData.ImgSize % 0x1000 != 0)
 				ReadonlyData.ImgSize += 0x1000 - ReadonlyData.ImgSize % 0x1000;
 		}
 		{
-			Excpt.DataPos = (U64)ftell(FilePtr);
+			Excpt.DataPos = (U64)_ftelli64(FilePtr);
 			Excpt.ImgPos = ReadonlyData.ImgPos + ReadonlyData.ImgSize;
 			WriteExcpt();
-			Excpt.Len = (U64)ftell(FilePtr) - Excpt.DataPos;
-			while (ftell(FilePtr) % 0x0200 != 0)
+			Excpt.Len = (U64)_ftelli64(FilePtr) - Excpt.DataPos;
+			while (_ftelli64(FilePtr) % 0x0200 != 0)
 				fputc(0x00, FilePtr);
-			Excpt.DataSize = (U64)ftell(FilePtr) - Excpt.DataPos;
+			Excpt.DataSize = (U64)_ftelli64(FilePtr) - Excpt.DataPos;
 			Excpt.ImgSize = Excpt.Len;
 			if (Excpt.ImgSize % 0x1000 != 0)
 				Excpt.ImgSize += 0x1000 - Excpt.ImgSize % 0x1000;
@@ -256,13 +256,13 @@ void ToMachineCode(const SPackAsm* pack_asm, const SOption* option)
 				WritableData.ImgSize += 0x1000 - WritableData.ImgSize % 0x1000;
 		}
 		{
-			Res.DataPos = (U64)ftell(FilePtr);
+			Res.DataPos = (U64)_ftelli64(FilePtr);
 			Res.ImgPos = WritableData.ImgPos + WritableData.ImgSize;
 			WriteRes();
-			Res.Len = (U64)ftell(FilePtr) - Res.DataPos;
-			while (ftell(FilePtr) % 0x0200 != 0)
+			Res.Len = (U64)_ftelli64(FilePtr) - Res.DataPos;
+			while (_ftelli64(FilePtr) % 0x0200 != 0)
 				fputc(0x00, FilePtr);
-			Res.DataSize = (U64)ftell(FilePtr) - Res.DataPos;
+			Res.DataSize = (U64)_ftelli64(FilePtr) - Res.DataPos;
 			Res.ImgSize = Res.Len;
 			if (Res.ImgSize % 0x1000 != 0)
 				Res.ImgSize += 0x1000 - Res.ImgSize % 0x1000;
@@ -337,7 +337,7 @@ void ToMachineCode(const SPackAsm* pack_asm, const SOption* option)
 
 static void Write(U64 addr, size_t size, U64 data)
 {
-	fseek(FilePtr, (long)addr, SEEK_SET);
+	_fseeki64(FilePtr, (S64)addr, SEEK_SET);
 	fwrite(&data, 1, size, FilePtr);
 }
 
@@ -347,7 +347,7 @@ static void WriteCode(void)
 	while (ptr != NULL)
 	{
 		SAsm* asm_ = (SAsm*)ptr->Data;
-		S64 addr = (S64)ftell(FilePtr) - (S64)Code.DataPos + (S64)Code.ImgPos;
+		S64 addr = _ftelli64(FilePtr) - (S64)Code.DataPos + (S64)Code.ImgPos;
 		ASSERT(addr >= 0);
 		{
 			// Write machine language.
@@ -359,7 +359,7 @@ static void WriteCode(void)
 			else
 				ptr2 = ptr2->Next;
 			{
-				S64 addr2 = (S64)ftell(FilePtr) - (S64)Code.DataPos + (S64)Code.ImgPos;
+				S64 addr2 = _ftelli64(FilePtr) - (S64)Code.DataPos + (S64)Code.ImgPos;
 				while (ptr2 != NULL)
 				{
 					((SRefValueAddr*)ptr2->Data)->Bottom = addr2;
@@ -434,7 +434,7 @@ static void WriteReadonlyData(void)
 	}
 	{
 		// 'Lookup'
-		S64 base_addr = (S64)ftell(FilePtr);
+		S64 base_addr = _ftelli64(FilePtr);
 		S64 dll_pos = 0;
 		SListNode* ptr = PackAsm->DLLImport->Top;
 		while (ptr != NULL)
@@ -449,7 +449,7 @@ static void WriteReadonlyData(void)
 				while (ptr2 != NULL)
 				{
 					SDLLImportFunc* func = (SDLLImportFunc*)ptr2->Data;
-					*func->Addr = (S64)ReadonlyData.ImgPos + (S64)ftell(FilePtr) - base_addr;
+					*func->Addr = (S64)ReadonlyData.ImgPos + _ftelli64(FilePtr) - base_addr;
 					{
 						U32 addr = (U32)((S64)ReadonlyData.ImgPos + LookupLen + ReadonlyDataLen + LookupLen + (S64)(20 * (PackAsm->DLLImport->Len + 1)) + dll_pos);
 						fwrite(&addr, 1, 4, FilePtr);
@@ -478,7 +478,7 @@ static void WriteReadonlyData(void)
 	}
 	{
 		// 'ReadonlyData'
-		S64 base_addr = (S64)ftell(FilePtr);
+		S64 base_addr = _ftelli64(FilePtr);
 		{
 			// Write a blank.
 			S64 i;
@@ -493,19 +493,19 @@ static void WriteReadonlyData(void)
 				SReadonlyData* data = (SReadonlyData*)ptr->Data;
 				if (data->Align128)
 				{
-					while (ftell(FilePtr) % 16 != 0)
+					while (_ftelli64(FilePtr) % 16 != 0)
 						fputc(0x00, FilePtr);
 				}
-				*data->Addr = (S64)ftell(FilePtr) - base_addr + ReadonlyData.ImgPos + LookupLen;
+				*data->Addr = _ftelli64(FilePtr) - base_addr + ReadonlyData.ImgPos + LookupLen;
 				fwrite(data->Buf, 1, (size_t)data->BufSize, FilePtr);
 				ptr = ptr->Next;
 			}
 		}
-		while (ftell(FilePtr) % 8 != 0)
+		while (_ftelli64(FilePtr) % 8 != 0)
 			fputc(0x00, FilePtr);
 		{
 			// Write all the class tables.
-			S64 class_pos = (S64)ftell(FilePtr) - base_addr;
+			S64 class_pos = _ftelli64(FilePtr) - base_addr;
 			{
 				SListNode* ptr = PackAsm->ClassTables->Top;
 				while (ptr != NULL)
@@ -526,16 +526,16 @@ static void WriteReadonlyData(void)
 					U64 addr = table->Parent == NULL ? 0 : (U64)(*table->Parent - *table->Addr);
 					S64 origin;
 					fwrite(&addr, 1, 8, FilePtr);
-					origin = (S64)ftell(FilePtr);
+					origin = _ftelli64(FilePtr);
 					for (j = 0; j < table->Class->FuncSize; j += 8)
 						fwrite(&blank, 0, 8, FilePtr);
 					WriteFuncAddrRecursion(table->Class, origin, *table->Addr + 0x08);
-					fseek(FilePtr, (long)(origin + table->Class->FuncSize), SEEK_SET);
+					_fseeki64(FilePtr, origin + (S64)table->Class->FuncSize, SEEK_SET);
 					ptr = ptr->Next;
 				}
 			}
 		}
-		while (ftell(FilePtr) % 8 != 0)
+		while (_ftelli64(FilePtr) % 8 != 0)
 			fputc(0x00, FilePtr);
 	}
 	{
@@ -579,7 +579,7 @@ static void WriteReadonlyData(void)
 	}
 	{
 		// 'DLL Import'
-		S64 base_addr = (S64)ftell(FilePtr);
+		S64 base_addr = _ftelli64(FilePtr);
 		{
 			SListNode* ptr = PackAsm->DLLImport->Top;
 			S64 lookup_pos = 0;
@@ -634,13 +634,13 @@ static void WriteReadonlyData(void)
 		}
 		{
 			SListNode* ptr = PackAsm->DLLImport->Top;
-			ASSERT(ftell(FilePtr) % 2 == 0);
+			ASSERT(_ftelli64(FilePtr) % 2 == 0);
 			while (ptr != NULL)
 			{
 				SDLLImport* dll = (SDLLImport*)ptr->Data;
 				fwrite(dll->DllName, 1, (size_t)dll->DLLNameSize, FilePtr);
 				fputc(0x00, FilePtr); // The terminating character.
-				if (ftell(FilePtr) % 2 != 0)
+				if (_ftelli64(FilePtr) % 2 != 0)
 					fputc(0x00, FilePtr);
 				{
 					SListNode* ptr2 = dll->Funcs->Top;
@@ -651,17 +651,17 @@ static void WriteReadonlyData(void)
 						fputc(0x00, FilePtr);
 						fwrite(func->FuncName, 1, (size_t)func->FuncNameSize, FilePtr);
 						fputc(0x00, FilePtr); // The terminating character.
-						if (ftell(FilePtr) % 2 != 0)
+						if (_ftelli64(FilePtr) % 2 != 0)
 							fputc(0x00, FilePtr);
 						ptr2 = ptr2->Next;
 					}
 				}
 				ptr = ptr->Next;
 			}
-			while (ftell(FilePtr) % 4 != 0)
+			while (_ftelli64(FilePtr) % 4 != 0)
 				fputc(0x00, FilePtr);
 		}
-		ImportLen = (S64)ftell(FilePtr) - base_addr;
+		ImportLen = _ftelli64(FilePtr) - base_addr;
 	}
 	{
 		// 'Unwind'
@@ -675,7 +675,7 @@ static void WriteReadonlyData(void)
 				size_of_prologue = (U8)size;
 				ASSERT(size == (S64)size_of_prologue); // The size of 'Prologue' should fit in 'U8'.
 			}
-			table->Addr = (S64)ftell(FilePtr) - (S64)ReadonlyData.DataPos + (S64)ReadonlyData.ImgPos;
+			table->Addr = _ftelli64(FilePtr) - (S64)ReadonlyData.DataPos + (S64)ReadonlyData.ImgPos;
 			fputc(table->TryScopes->Len == 0 ? 0x01 : 0x09, FilePtr); // 'Version and flags'
 			fputc(size_of_prologue, FilePtr);
 			if (table->StackSize == -1)
@@ -782,7 +782,7 @@ static void WriteFuncAddrRecursion(SAstClass* class_, S64 file_origin, S64 addr_
 					S64 addr = *((SAstFunc*)item->Def)->AddrTop;
 					ASSERT(addr != -1 && addr != -2);
 					addr -= addr_origin + item->Addr;
-					fseek(FilePtr, (long)(file_origin + item->Addr), SEEK_SET);
+					_fseeki64(FilePtr, file_origin + item->Addr, SEEK_SET);
 					fwrite(&addr, 1, 8, FilePtr);
 				}
 			}
@@ -825,8 +825,8 @@ static const void* CalcWritableData(const Char* key, const void* value, void* pa
 
 static void WriteRes(void)
 {
-	S64 base_addr = (S64)ftell(FilePtr);
-	long* data_entry_addrs = (long*)Alloc(sizeof(long) * (PackAsm->ResIconNum + 2));
+	S64 base_addr = _ftelli64(FilePtr);
+	S64* data_entry_addrs = (S64*)Alloc(sizeof(S64) * (PackAsm->ResIconNum + 2));
 	{
 		int idx = 0;
 		WriteResRecursion(PackAsm->ResEntries, data_entry_addrs, &idx, base_addr);
@@ -841,14 +841,14 @@ static void WriteRes(void)
 		for (i = 0; i < PackAsm->ResIconNum + 1; i++)
 		{
 			{
-				U32 addr = (U32)((S64)ftell(FilePtr) - base_addr + Res.ImgPos);
+				U32 addr = (U32)(_ftelli64(FilePtr) - base_addr + Res.ImgPos);
 				U32 size = i == PackAsm->ResIconNum ? (U32)(6 + 14 * PackAsm->ResIconNum) : (U32)PackAsm->ResIconBinSize[i];
-				long pos = data_entry_addrs[i];
-				long tmp = ftell(FilePtr);
-				fseek(FilePtr, pos, SEEK_SET);
+				S64 pos = data_entry_addrs[i];
+				S64 tmp = _ftelli64(FilePtr);
+				_fseeki64(FilePtr, pos, SEEK_SET);
 				fwrite(&addr, 1, 4, FilePtr);
 				fwrite(&size, 1, 4, FilePtr);
-				fseek(FilePtr, tmp, SEEK_SET);
+				_fseeki64(FilePtr, tmp, SEEK_SET);
 			}
 			if (i == PackAsm->ResIconNum)
 			{
@@ -872,20 +872,20 @@ static void WriteRes(void)
 		size_t manifest_size;
 		const U8* manifest = GetManifestBin(&manifest_size);
 		{
-			U32 addr = (U32)((S64)ftell(FilePtr) - base_addr + Res.ImgPos);
+			U32 addr = (U32)(_ftelli64(FilePtr) - base_addr + Res.ImgPos);
 			U32 size = (U32)manifest_size;
-			long pos = data_entry_addrs[PackAsm->ResIconNum + 1];
-			long tmp = ftell(FilePtr);
-			fseek(FilePtr, pos, SEEK_SET);
+			S64 pos = data_entry_addrs[PackAsm->ResIconNum + 1];
+			S64 tmp = _ftelli64(FilePtr);
+			_fseeki64(FilePtr, pos, SEEK_SET);
 			fwrite(&addr, 1, 4, FilePtr);
 			fwrite(&size, 1, 4, FilePtr);
-			fseek(FilePtr, tmp, SEEK_SET);
+			_fseeki64(FilePtr, tmp, SEEK_SET);
 		}
 		fwrite(manifest, 1, manifest_size, FilePtr);
 	}
 }
 
-static void WriteResRecursion(SList* res, long* data_entry_addrs, int* idx, S64 base_addr)
+static void WriteResRecursion(SList* res, S64* data_entry_addrs, int* idx, S64 base_addr)
 {
 	// 'Characteristics'
 	fputc(0x00, FilePtr);
@@ -922,7 +922,7 @@ static void WriteResRecursion(SList* res, long* data_entry_addrs, int* idx, S64 
 		{
 			SResEntry* entry = (SResEntry*)ptr->Data;
 			fwrite(&entry->Value, 1, 4, FilePtr);
-			entry->Addr = ftell(FilePtr);
+			entry->Addr = _ftelli64(FilePtr);
 			fputc(0xff, FilePtr);
 			fputc(0xff, FilePtr);
 			fputc(0xff, FilePtr);
@@ -936,13 +936,13 @@ static void WriteResRecursion(SList* res, long* data_entry_addrs, int* idx, S64 
 		{
 			SResEntry* entry = (SResEntry*)ptr->Data;
 			{
-				U32 addr = (U32)((S64)ftell(FilePtr) - base_addr);
-				long tmp = ftell(FilePtr);
+				U32 addr = (U32)(_ftelli64(FilePtr) - base_addr);
+				S64 tmp = _ftelli64(FilePtr);
 				if (entry->Children != NULL)
 					addr |= 0x80000000;
-				fseek(FilePtr, entry->Addr, SEEK_SET);
+				_fseeki64(FilePtr, entry->Addr, SEEK_SET);
 				fwrite(&addr, 1, 4, FilePtr);
-				fseek(FilePtr, tmp, SEEK_SET);
+				_fseeki64(FilePtr, tmp, SEEK_SET);
 			}
 			if (entry->Children == NULL)
 			{
@@ -951,7 +951,7 @@ static void WriteResRecursion(SList* res, long* data_entry_addrs, int* idx, S64 
 					Err(L"EK0008", NULL, Option->IconFile);
 					return;
 				}
-				data_entry_addrs[*idx] = ftell(FilePtr);
+				data_entry_addrs[*idx] = _ftelli64(FilePtr);
 				(*idx)++;
 				fputc(0xff, FilePtr);
 				fputc(0xff, FilePtr);

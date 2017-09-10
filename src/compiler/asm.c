@@ -1753,7 +1753,7 @@ static U64 GetRefValue(SRefValue* value, FILE* file_ptr, SList* ref_value_list)
 		// 'ref_value_list' is set to 'NULL' when the address is to be updated later, not now.
 		if (ref_value_list != NULL)
 		{
-			((SRefValueAddr*)value)->Pos = (S64)ftell(file_ptr) - 0x0400 + 0x1000;
+			((SRefValueAddr*)value)->Pos = _ftelli64(file_ptr) - 0x0400 + 0x1000;
 			ListAdd(ref_value_list, value);
 		}
 		return 0xffffffff;

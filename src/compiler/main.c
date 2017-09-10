@@ -760,10 +760,10 @@ static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int 
 
 static size_t BuildFileGetSize(FILE* file_ptr)
 {
-	int file_size;
-	fseek(file_ptr, 0, SEEK_END);
-	file_size = (int)ftell(file_ptr);
-	fseek(file_ptr, 0, SEEK_SET);
+	S64 file_size;
+	_fseeki64(file_ptr, 0, SEEK_END);
+	file_size = _ftelli64(file_ptr);
+	_fseeki64(file_ptr, 0, SEEK_SET);
 	return (size_t)file_size;
 }
 

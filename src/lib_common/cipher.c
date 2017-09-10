@@ -79,29 +79,29 @@ EXPORT void* _encrypt(const U8* data, const U8* key)
 		int i;
 		U8* ptr_buf = result + 0x10;
 		U8* ptr_data = data2;
-		U32 current[4];
+		U32 cur[4];
 		U32 old[4] = { 0 };
 		while (len2 > 0)
 		{
-			memcpy(current, ptr_data, 16);
+			memcpy(cur, ptr_data, 16);
 			for (i = 0; i < 4; i++)
-				current[i] ^= old[i];
+				cur[i] ^= old[i];
 			{
-				AddRoundKey(current, w, 0);
+				AddRoundKey(cur, w, 0);
 				for (i = 1; i < 14; i++)
 				{
-					SubBytes(current);
-					ShiftRows(current);
-					MixColumns(current);
-					AddRoundKey(current, w, i);
+					SubBytes(cur);
+					ShiftRows(cur);
+					MixColumns(cur);
+					AddRoundKey(cur, w, i);
 				}
-				SubBytes(current);
-				ShiftRows(current);
-				AddRoundKey(current, w, 14);
+				SubBytes(cur);
+				ShiftRows(cur);
+				AddRoundKey(cur, w, 14);
 			}
 
-			memcpy(ptr_buf, current, 16);
-			memcpy(old, current, 16);
+			memcpy(ptr_buf, cur, 16);
+			memcpy(old, cur, 16);
 			ptr_data += 16;
 			ptr_buf += 16;
 			len2 -= 16;
@@ -128,32 +128,32 @@ EXPORT void* _decrypt(const U8* data, const U8* key)
 	{
 		U8* ptr_buf = result + 0x10;
 		U8* ptr_data = data2;
-		U32 current[4];
+		U32 cur[4];
 		U32 old[4] = { 0 };
 		while (len > 0)
 		{
 			int i;
 			U32 tmp[4];
-			memcpy(current, ptr_data, 16);
+			memcpy(cur, ptr_data, 16);
 			memcpy(tmp, old, 16);
-			memcpy(old, current, 16);
+			memcpy(old, cur, 16);
 			{
-				AddRoundKey(current, w, 14);
+				AddRoundKey(cur, w, 14);
 				for (i = 13; i > 0; i--)
 				{
-					InvShiftRows(current);
-					InvSubBytes(current);
-					AddRoundKey(current, w, i);
-					InvMixColumns(current);
+					InvShiftRows(cur);
+					InvSubBytes(cur);
+					AddRoundKey(cur, w, i);
+					InvMixColumns(cur);
 				}
-				InvShiftRows(current);
-				InvSubBytes(current);
-				AddRoundKey(current, w, 0);
+				InvShiftRows(cur);
+				InvSubBytes(cur);
+				AddRoundKey(cur, w, 0);
 			}
 
 			for (i = 0; i < 4; i++)
-				current[i] ^= tmp[i];
-			memcpy(ptr_buf, current, 16);
+				cur[i] ^= tmp[i];
+			memcpy(ptr_buf, cur, 16);
 			ptr_data += 16;
 			ptr_buf += 16;
 			len -= 16;

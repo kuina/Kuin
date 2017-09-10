@@ -59,7 +59,7 @@ typedef struct SResEntry
 {
 	int Value;
 	struct SList* Children;
-	long Addr;
+	S64 Addr;
 } SResEntry;
 
 typedef struct SClassTable

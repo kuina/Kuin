@@ -841,7 +841,7 @@ EXPORT void* _fromBin(const U8* me_, const void** type, S64* idx)
 		default:
 			ASSERT(*type2 == TypeId_Class);
 			if (*(S64*)(me_ + 0x10 + *idx) != 0)
-				THROW(0x1000, NULL);
+				THROW(0x1000, NULL); // TODO: What is this code?
 			*idx += 8;
 			{
 				const void** type3 = (const void**)type[1];

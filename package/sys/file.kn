@@ -48,10 +48,9 @@ end enum
 	end func
 
 	var handle: int
-
 	var delimiterNum: int
-
 	var delimiters: int
+	var fileSize_: int
 end class
 
 +class Writer(kuin@ResClass)
@@ -83,10 +82,9 @@ end class
 	end func
 
 	var handle: int
-
 	var delimiterNum: int
-
 	var delimiter: int
+	var fileSize_: int
 end class
 
 +func [d0000.knd, _makeReader, _make_instance] makeReader(me2: @Reader, path: []char): @Reader

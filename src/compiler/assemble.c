@@ -3615,7 +3615,7 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(size, RegI[1]), ValMem(size, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_args[idx]), False))));
 					ListAdd(PackAsm->Asms, AsmMOV(ValMemS(size, ValReg(8, Reg_SP), NULL, (S64)idx * 8), ValReg(size, RegI[1])));
 					if (IsRef(arg->Arg->Type) && !arg->RefVar)
-						GcInc(1); // TODO: Check whether there is no need to increment the reference counter in the case of 'RefVar' and 'IsRef'.
+						GcInc(1);
 				}
 				ptr = ptr->Next;
 				idx++;

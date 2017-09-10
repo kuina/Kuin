@@ -446,15 +446,15 @@ static void DecodeDht(SJpgData* jpg_data)
 		for (int codelen = 1; codelen <= 16; codelen++)
 		{
 			spread >>= 1;
-			int current = counts[codelen - 1];
-			if (current == 0)
+			int cur = counts[codelen - 1];
+			if (cur == 0)
 				continue;
-			if (jpg_data->Len < current)
+			if (jpg_data->Len < cur)
 				THROW(0xe9170008);
-			remain -= current << (16 - codelen);
+			remain -= cur << (16 - codelen);
 			if (remain < 0)
 				THROW(0xe9170008);
-			for (i = 0; i < current; i++)
+			for (i = 0; i < cur; i++)
 			{
 				U8 code = jpg_data->Ptr[i];
 				for (int j = spread; j > 0; j--)
@@ -464,7 +464,7 @@ static void DecodeDht(SJpgData* jpg_data)
 					vlc++;
 				}
 			}
-			Skip(jpg_data, current);
+			Skip(jpg_data, cur);
 		}
 		while (remain--)
 		{
