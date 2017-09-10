@@ -73,11 +73,6 @@ EXPORT_CPP void _setCfgKey(S64 idx, S64 btn, const U8* keys)
 	}
 }
 
-EXPORT_CPP Bool _key(S64 key)
-{
-	return (GetKeyState(static_cast<int>(key)) & 0x8000) != 0;
-}
-
 namespace Input
 {
 

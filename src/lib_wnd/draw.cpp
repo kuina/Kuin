@@ -162,6 +162,9 @@ static double ViewMtx[4][4];
 static double ProjMtx[4][4];
 static SObjJointVsConstBuf ObjVsConstBuf;
 static SObjPsConstBuf ObjPsConstBuf;
+static int CurZBuf = -1;
+static int CurBlend = -1;
+static int CurSampler = -1;
 
 EXPORT_CPP void _render(S64 fps)
 {
@@ -170,10 +173,9 @@ EXPORT_CPP void _render(S64 fps)
 	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 	Device->RSSetState(RasterizerState);
 
-	Cnt++;
-
 	if (fps == 0)
 		return;
+	Cnt++;
 	U32 now = static_cast<U32>(timeGetTime());
 	U32 diff = now - PrevTime;
 	int next_wait = 0;
@@ -187,10 +189,13 @@ EXPORT_CPP void _render(S64 fps)
 			sleep_time = (Cnt % 3 == 0 ? 16 : 17);
 			break;
 		default:
-			THROW(0x1000, L"");
-			break;
+			THROWDBG(True, 0xe9170006);
+			return;
 	}
-	sleep_time -= static_cast<int>(diff);
+	{
+		int sleep_time2 = sleep_time - static_cast<int>(diff);
+		sleep_time = sleep_time < sleep_time2 ? 0 : sleep_time2;
+	}
 	if (sleep_time > 2)
 	{
 		U32 to_time = now + static_cast<U32>(sleep_time);
@@ -246,38 +251,30 @@ EXPORT_CPP void _resetViewport()
 EXPORT_CPP void _depth(Bool test, Bool write)
 {
 	int kind = (static_cast<int>(test) << 1) | static_cast<int>(write);
-	/*
-	// TODO:
-	if (ZBuf == zbuf)
-	return;
-	*/
+	if (CurZBuf == kind)
+		return;
 	Device->OMSetDepthStencilState(DepthState[kind], 0);
-	// TODO: ZBuf = zbuf;
+	CurZBuf = kind;
 }
 
 EXPORT_CPP void _blend(S64 kind)
 {
 	THROWDBG(kind < 0 || BlendNum <= kind, 0xe9170006);
 	int kind2 = static_cast<int>(kind);
-	/*
-	// TODO:
-	if (Blend == kind2)
-	return;
-	*/
+	if (CurBlend == kind2)
+		return;
 	Device->OMSetBlendState(BlendState[kind2], BlendFactor, 0xffffffff);
-	// TODO: Blend = kind2;
+	CurBlend = kind2;
 }
 
 EXPORT_CPP void _sampler(S64 kind)
 {
 	THROWDBG(kind < 0 || SamplerNum <= kind, 0xe9170006);
-	/*
-	// TODO:
-	if (Sampler == kind2)
-	return;
-	*/
-	Device->PSSetSamplers(0, 1, &Sampler[kind]);
-	// TODO: Sampler = kind2;
+	int kind2 = static_cast<int>(kind);
+	if (CurSampler == kind2)
+		return;
+	Device->PSSetSamplers(0, 1, &Sampler[kind2]);
+	CurSampler = kind2;
 }
 
 EXPORT_CPP void _clearColor(S64 color)

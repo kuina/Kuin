@@ -88,11 +88,11 @@ end class
 	func [d0001.knd, _wndSetModalLock] setModalLock()
 	end func
 
-	+var minMaxRect: int
+	var minMaxRect: int
 	+var onClose: func<(@WndBase): bool>
 	+var onActivate: func<(@WndBase, bool, bool)>
 	+var onPushMenu: func<(@WndBase, int)>
-	+var modalLock: bool
+	var modalLock: bool
 end class
 
 +enum ShiftCtrl
@@ -129,8 +129,8 @@ end enum
 	+var onMouseWheelX: func<(@WndBase, int)>
 	+var onMouseWheelY: func<(@WndBase, int)>
 	+var onFocus: func<(@WndBase, bool)>
-	+var onKeyDown: func<(@WndBase, input@Key, @ShiftCtrl)>
-	+var onKeyUp: func<(@WndBase, input@Key, @ShiftCtrl)>
+	+var onKeyDown: func<(@WndBase, @Key, @ShiftCtrl)>
+	+var onKeyUp: func<(@WndBase, @Key, @ShiftCtrl)>
 	+var onKeyChar: func<(@WndBase, char)>
 	+var onScrollX: func<(@WndBase, int)>
 	+var onScrollY: func<(@WndBase, int)>
@@ -395,7 +395,7 @@ end enum
 	continue
 end enum
 
-+func [d0001.knd, _onKeyPress] onKeyPress(onKeyPressFunc: func<(input@Key, @ShiftCtrl): bool>)
++func [d0001.knd, _onKeyPress] onKeyPress(onKeyPressFunc: func<(@Key, @ShiftCtrl): bool>)
 end func
 
 +func [d0001.knd, _msgBox] msgBox(parent: @WndBase, text: []char, title: []char, icon: @MsgBoxIcon, btn: @MsgBoxBtn): @MsgBoxResult
@@ -608,3 +608,79 @@ end func
 
 +func [d0001.knd, _makePopup, _make_instance] makePopup(me2: @Popup): @Popup
 end func
+
++func [d0001.knd, _key] key(key_: @Key): bool
+end func
+
++enum Key
+	mouseL :: 16#01
+	mouseR
+	mouseC :: 16#04
+	bs :: 16#08
+	tab
+	enter :: 16#0D
+	shift :: 16#10
+	ctrl
+	alt
+	pause
+	esc :: 16#1B
+	space :: 16#20
+	pageUp
+	pageDown
+	end_
+	home
+	left
+	up
+	right
+	down
+	ins :: 16#2D
+	del
+	_0 :: 16#30
+	_1
+	_2
+	_3
+	_4
+	_5
+	_6
+	_7
+	_8
+	_9
+	a :: 16#41
+	b
+	c
+	d
+	e
+	f
+	g
+	h
+	i
+	j
+	k
+	l
+	m
+	n
+	o
+	p
+	q
+	r
+	s
+	t
+	u
+	v
+	w
+	x
+	y
+	z
+	f1 :: 16#70
+	f2
+	f3
+	f4
+	f5
+	f6
+	f7
+	f8
+	f9
+	f10
+	f11
+	f12
+end enum

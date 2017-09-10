@@ -114,7 +114,7 @@ class Document()
 	+func focus(isFocus: bool)
 	end func
 
-	+func keyDown(key: input@Key, shiftCtrl: wnd@ShiftCtrl)
+	+func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 	end func
 
 	+func keyChar(key: char)
@@ -331,7 +331,7 @@ class DocumentSrc(@Document)
 	end func
 
 	+*func mouseDownL(x: int, y: int)
-		do me.setArea(input@key(%shift) ?(%shift $ wnd@ShiftCtrl, %none))
+		do me.setArea(wnd@key(%shift) ?(%shift $ wnd@ShiftCtrl, %none))
 		do me.mousePosToCharPos(x, y)
 		do me.refreshCursor(false, true)
 		if(!me.areaSelected())
@@ -362,7 +362,7 @@ class DocumentSrc(@Document)
 		end if
 	end func
 
-	+*func keyDown(key: input@Key, shiftCtrl: wnd@ShiftCtrl)
+	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 		switch(key)
 		case %bs
 			if (@lockingEditor)
@@ -1382,7 +1382,7 @@ class DocumentArBase(@Document)
 		end if
 	end func
 
-	+*func keyDown(key: input@Key, shiftCtrl: wnd@ShiftCtrl)
+	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 		; TODO:
 	end func
 
@@ -1840,7 +1840,7 @@ func main()
 	end func
 end func
 
-func onKeyPress(key: input@Key, shiftCtrl: wnd@ShiftCtrl): bool
+func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 	switch(shiftCtrl)
 	case %none
 		switch(key)
@@ -2240,7 +2240,7 @@ func drawEditorOnFocus(wnd: wnd@WndBase, focus: bool)
 	do @curDocument.focus(focus)
 end func
 
-func drawEditorOnKeyDown(wnd: wnd@WndBase, key: input@Key, shiftCtrl: wnd@ShiftCtrl)
+func drawEditorOnKeyDown(wnd: wnd@WndBase, key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 	do @curDocument.keyDown(key, shiftCtrl)
 end func
 
