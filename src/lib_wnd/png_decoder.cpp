@@ -51,7 +51,8 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 	UNUSED(size);
 
 	const U8* ptr = static_cast<const U8*>(data);
-	THROWDBG(*reinterpret_cast<const U64*>(ptr) != 0x0a1a0a0d474e5089, 0xe9170008); // '.PNG'
+	if (*reinterpret_cast<const U64*>(ptr) != 0x0a1a0a0d474e5089)
+		THROW(0xe9170008); // '.PNG'
 	ptr += sizeof(U64);
 
 	*width = 0;
@@ -70,7 +71,8 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 		switch (chunk)
 		{
 			case 0x52444849: // 'IHDR'
-				THROWDBG(size2 != sizeof(U32) * 2 + sizeof(U8) * 5, 0xe9170008);
+				if (size2 != sizeof(U32) * 2 + sizeof(U8) * 5)
+					THROW(0xe9170008);
 				png_data.Width = static_cast<int>(SwapEndianU32(*reinterpret_cast<const U32*>(ptr)));
 				*width = png_data.Width;
 				ptr += sizeof(U32);
@@ -89,7 +91,8 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 				ptr += sizeof(U8);
 				break;
 			case 0x54414449: // 'IDAT'
-				THROWDBG(png_data.DataNum == IdatMax, 0xe9170008);
+				if (png_data.DataNum == IdatMax)
+					THROW(0xe9170008);
 				png_data.Data[png_data.DataNum] = ptr;
 				png_data.DataSize[png_data.DataNum] = static_cast<size_t>(size2);
 				png_data.DataNum++;
@@ -107,9 +110,12 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 			break;
 	}
 
-	THROWDBG(png_data.DataNum == 0, 0xe9170008);
-	THROWDBG(png_data.Width == 0, 0xe9170008);
-	THROWDBG(png_data.Height == 0, 0xe9170008);
+	if (png_data.DataNum == 0)
+		THROW(0xe9170008);
+	if (png_data.Width == 0)
+		THROW(0xe9170008);
+	if (png_data.Height == 0)
+		THROW(0xe9170008);
 
 	U8* rgba = static_cast<U8*>(AllocMem(png_data.Width * png_data.Height * 4));
 	Decode(&png_data, rgba);
@@ -119,7 +125,8 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 static void Decode(SPngData* png_data, U8* rgba)
 {
 	{
-		THROWDBG(png_data->BitDepth != 8, 0xe9170008);
+		if (png_data->BitDepth != 8)
+			THROW(0xe9170008);
 		int two_line = 0;
 		switch (png_data->ColorType)
 		{
@@ -136,7 +143,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 				two_line = png_data->Width * 4;
 				break;
 			default: // Unsupported format.
-				THROWDBG(True, 0xe9170008);
+				THROW(0xe9170008);
 				break;
 		}
 
@@ -162,8 +169,10 @@ static void Decode(SPngData* png_data, U8* rgba)
 		U8 flg = png_data->Data[cur_data][byte_ptr];
 		UNUSED(flg);
 		Step(png_data, &cur_data, &byte_ptr, 1);
-		THROWDBG((cmf & 0x0f) != 8, 0xe9170008);
-		THROWDBG(((flg & 0x20) >> 5) != 0, 0xe9170008);
+		if ((cmf & 0x0f) != 8)
+			THROW(0xe9170008);
+		if (((flg & 0x20) >> 5) != 0)
+			THROW(0xe9170008);
 		U32 window_size = 1 << (((cmf & 0xf0) >> 4) + 8);
 		png_data->WindowBuf = static_cast<U8*>(AllocMem(window_size));
 		U32 window_used = 0;
@@ -311,7 +320,8 @@ static void Decode(SPngData* png_data, U8* rgba)
 							code_tree_ptr = code_tree_ptr->One;
 						else
 							code_tree_ptr = code_tree_ptr->Zero;
-						THROWDBG(code_tree_ptr == NULL, 0xe9170008);
+						if (code_tree_ptr == NULL)
+							THROW(0xe9170008);
 						if (code_tree_ptr->Zero == NULL && code_tree_ptr->One == NULL)
 						{
 							U32 value = code_tree_ptr->Data;
@@ -392,7 +402,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 				dist_tree = NULL;
 			}
 			else
-				THROWDBG(True, 0xe9170008);
+				THROW(0xe9170008);
 			if (bfinal != 0)
 				break;
 		}
@@ -405,7 +415,8 @@ static void Decode(SPngData* png_data, U8* rgba)
 
 static void Output(SPngData* png_data, U8* rgba, U8 data)
 {
-	THROWDBG(png_data->Y > png_data->Height, 0xe9170008);
+	if (png_data->Y > png_data->Height)
+		THROW(0xe9170008);
 	if (png_data->X == -1)
 	{
 		png_data->Filter = data;
@@ -479,7 +490,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				}
 				break;
 			default:
-				THROWDBG(True, 0xe9170008);
+				THROW(0xe9170008);
 				break;
 		}
 		if (png_data->X >= png_data->Width)
@@ -497,7 +508,8 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 	else
 	{
 		// Interlace.
-		THROWDBG(png_data->InterlaceMethod != 1, 0xe9170008);
+		if (png_data->InterlaceMethod != 1)
+			THROW(0xe9170008);
 		int ilw = 0, ilh = 0, ilx = 0, ily = 0;
 		switch (png_data->InterlacePass)
 		{
@@ -544,7 +556,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				ily = 1 + png_data->Y * 2;
 				break;
 			default:
-				THROWDBG(True, 0xe9170008);
+				THROW(0xe9170008);
 				break;
 		}
 		switch (png_data->ColorType)
@@ -606,7 +618,7 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				}
 				break;
 			default:
-				THROWDBG(True, 0xe9170008);
+				THROW(0xe9170008);
 				break;
 		}
 		if (png_data->X >= ilw)

@@ -253,7 +253,7 @@ static SWndBase* ToWnd(HWND wnd);
 static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const Char* ctrl, DWORD style_ex, DWORD style, S64 x, S64 y, S64 width, S64 height, const Char* text, WNDPROC wnd_proc, S64 anchor_x, S64 anchor_y);
 static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param);
 static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
-static Char* ParseFilter(const U8* filter);
+static Char* ParseFilter(const U8* filter, int* num);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -427,21 +427,22 @@ EXPORT_CPP void _onKeyPress(void* onKeyPressFunc)
 
 EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon, S64 btn)
 {
-	THROWDBG(text == NULL, 0xc0000005);
-	return MessageBox(parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle, reinterpret_cast<const Char*>(text + 0x10), title == NULL ? AppName : reinterpret_cast<const Char*>(title + 0x10), static_cast<UINT>(icon | btn));
+	return MessageBox(parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), title == NULL ? AppName : reinterpret_cast<const Char*>(title + 0x10), static_cast<UINT>(icon | btn));
 }
 
 EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFilter)
 {
 	Char path[MAX_PATH + 1];
 	path[0] = L'\0';
-	Char* filter_mem = ParseFilter(filter);
+	int filter_num;
+	Char* filter_mem = ParseFilter(filter, &filter_num);
+	THROWDBG(!(filter_num == 0 && defaultFilter == 0 || filter_num != 0 && 0 <= defaultFilter && defaultFilter < filter_num), 0xe9170006);
 	OPENFILENAME open_file_name;
 	memset(&open_file_name, 0, sizeof(OPENFILENAME));
 	open_file_name.lStructSize = sizeof(OPENFILENAME);
 	open_file_name.hwndOwner = parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle;
 	open_file_name.lpstrFilter = filter_mem;
-	open_file_name.nFilterIndex = static_cast<DWORD>(defaultFilter);
+	open_file_name.nFilterIndex = filter_num == 0 ? 0 : static_cast<DWORD>(defaultFilter + 1);
 	open_file_name.lpstrFile = path;
 	open_file_name.nMaxFile = MAX_PATH + 1;
 	open_file_name.lpstrInitialDir = NULL;
@@ -472,13 +473,15 @@ EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 {
 	Char path[MAX_PATH + 1];
 	path[0] = L'\0';
-	Char* filter_mem = ParseFilter(filter);
+	int filter_num;
+	Char* filter_mem = ParseFilter(filter, &filter_num);
+	THROWDBG(!(filter_num == 0 && defaultFilter == 0 || filter_num != 0 && 0 <= defaultFilter && defaultFilter < filter_num), 0xe9170006);
 	OPENFILENAME open_file_name;
 	memset(&open_file_name, 0, sizeof(OPENFILENAME));
 	open_file_name.lStructSize = sizeof(OPENFILENAME);
 	open_file_name.hwndOwner = parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle;
 	open_file_name.lpstrFilter = filter_mem;
-	open_file_name.nFilterIndex = static_cast<DWORD>(defaultFilter);
+	open_file_name.nFilterIndex = filter_num == 0 ? 0 : static_cast<DWORD>(defaultFilter + 1);
 	open_file_name.lpstrFile = path;
 	open_file_name.nMaxFile = MAX_PATH + 1;
 	open_file_name.lpstrInitialDir = NULL;
@@ -606,10 +609,10 @@ EXPORT_CPP void* _getClipboardStr()
 	return result;
 }
 
-EXPORT_CPP void _target(SClass* me_)
+EXPORT_CPP void _target(SClass* draw_ctrl)
 {
-	SDraw* me2 = reinterpret_cast<SDraw*>(me_);
-	Draw::ActiveDrawBuf(me2->DrawBuf);
+	SDraw* draw_ctrl2 = reinterpret_cast<SDraw*>(draw_ctrl);
+	Draw::ActiveDrawBuf(draw_ctrl2->DrawBuf);
 }
 
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text)
@@ -623,22 +626,23 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	switch (me2->Kind)
 	{
 		case WndKind_WndNormal:
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndNormalClass", reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(0, L"KuinWndNormalClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndFix:
 			ASSERT(width >= 0 && height >= 0);
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndFixClass", reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(0, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndAspect:
 			ASSERT(width >= 0 && height >= 0);
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndAspectClass", reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(0, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 			// TODO:
 		default:
-			ASSERT(False);
+			THROWDBG(True, 0xe9170006);
 			break;
 	}
-	THROWDBG(me2->WndHandle == NULL, 0);
+	if (me2->WndHandle == NULL)
+		THROW(0xe9170009);
 	me2->DefaultWndProc = NULL;
 	me2->CtrlFlag = static_cast<U64>(CtrlFlag_AnchorLeft) | static_cast<U64>(CtrlFlag_AnchorTop);
 	me2->DefaultX = 0;
@@ -1509,10 +1513,13 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 	}
 }
 
-static Char* ParseFilter(const U8* filter)
+static Char* ParseFilter(const U8* filter, int* num)
 {
 	if (filter == NULL)
+	{
+		*num = 0;
 		return NULL;
+	}
 	S64 len_parent = *reinterpret_cast<const S64*>(filter + 0x08);
 	THROWDBG(len_parent % 2 != 0, 0xe9170006);
 	S64 total = 0;
@@ -1538,6 +1545,7 @@ static Char* ParseFilter(const U8* filter)
 		}
 		*ptr2 = L'\0';
 	}
+	*num = (int)(len_parent / 2);
 	return result;
 }
 

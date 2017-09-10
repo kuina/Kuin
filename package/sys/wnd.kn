@@ -10,11 +10,13 @@ end func
 +enum WndStyle
 	normal
 	fix
+{
 	aspect
 	mdi
 	mdiChild
 	dock
 	dockChild
+}
 end enum
 
 +enum Anchor
@@ -398,13 +400,13 @@ end enum
 +func [d0001.knd, _onKeyPress] onKeyPress(onKeyPressFunc: func<(input@Key, @ShiftCtrl): bool>)
 end func
 
-+func [d0001.knd, _msgBox] msgBox(parent: @WndBase, text: []char, title: []char, icon: @MsgBoxIcon, btn: @MsgBoxBtn): @MsgBoxResult
++func [d0001.knd, _msgBox] msgBox(parent: @Wnd, text: []char, title: []char, icon: @MsgBoxIcon, btn: @MsgBoxBtn): @MsgBoxResult
 end func
 
-+func [d0001.knd, _openFileDialog] openFileDialog(parent: @WndBase, filter: [][]char, defaultFilter: int): []char
++func [d0001.knd, _openFileDialog] openFileDialog(parent: @Wnd, filter: [][]char, defaultFilter: int): []char
 end func
 
-+func [d0001.knd, _saveFileDialog] saveFileDialog(parent: @WndBase, filter: [][]char, defaultFilter: int, defaultExt: []char): []char
++func [d0001.knd, _saveFileDialog] saveFileDialog(parent: @Wnd, filter: [][]char, defaultFilter: int, defaultExt: []char): []char
 end func
 
 +func [d0001.knd, _setClipboardStr] setClipboardStr(str: []char)
@@ -413,7 +415,7 @@ end func
 +func [d0001.knd, _getClipboardStr] getClipboardStr(): []char
 end func
 
-+func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, parent: @WndBase, style: @WndStyle, width: int, height: int, text: []char): @Wnd
++func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, parent: @Wnd, style: @WndStyle, width: int, height: int, text: []char): @Wnd
 	if(parent <>& null)
 		do parent.addChild(me2)
 	end if

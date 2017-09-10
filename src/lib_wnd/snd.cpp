@@ -46,6 +46,7 @@ static Bool StreamCopy(SSnd* me_, S64 id);
 
 EXPORT_CPP void _setMainVolume(double value)
 {
+	THROWDBG(value < 0.0 || 1.0 < value, 0xe9170006);
 	MainVolume = value;
 	SListSnd* ptr = ListSndTop;
 	while (ptr != NULL)
@@ -62,6 +63,7 @@ EXPORT_CPP double _getMainVolume()
 
 EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 {
+	THROWDBG(path == NULL, 0xc0000005);
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 
 	WAVEFORMATEX pcmwf;
@@ -91,7 +93,10 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 					break;
 			}
 			else
+			{
+				THROWDBG(True, 0xe9170006);
 				break;
+			}
 			{
 				pcmwf.wFormatTag = WAVE_FORMAT_PCM;
 				pcmwf.nChannels = static_cast<WORD>(channel);
@@ -113,8 +118,7 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 		me2->Streaming = streaming;
 		if (me2->Streaming)
 		{
-			if (me2->EndPos < 1.0)
-				THROW(0x1000, L"");
+			THROWDBG(me2->EndPos < 1.0, 0xe9170006);
 			desc.dwBufferBytes = static_cast<DWORD>(BufSize * me2->SizePerSec);
 		}
 		{

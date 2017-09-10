@@ -26,6 +26,8 @@ static BOOL CALLBACK CBEnumAxis(LPCDIDEVICEOBJECTINSTANCE lpddoi, LPVOID pvref);
 
 EXPORT_CPP S64 _pad(S64 idx, S64 btn)
 {
+	THROWDBG(idx < 0 || PadNum <= idx, 0xe9170006);
+	THROWDBG(btn < 0 || PadBtnNum <= btn, 0xe9170006);
 	return PadBtn[idx][btn];
 }
 

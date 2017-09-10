@@ -482,6 +482,7 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 
 EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 {
+	THROWDBG(path == NULL, 0xc0000005);
 	S64 path_len = *reinterpret_cast<const S64*>(path + 0x08);
 	const Char* path2 = reinterpret_cast<const Char*>(path + 0x10);
 	STex* me2 = reinterpret_cast<STex*>(me_);
@@ -520,7 +521,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 			img_ref = True;
 			format = DXGI_FORMAT_BC3_UNORM_SRGB;
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
-				THROW(0x1000, L"");
+				THROW(0xe9170008);
 		}
 		else
 		{
@@ -747,6 +748,7 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 
 EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool proportional, double advance)
 {
+	THROWDBG(size < 1, 0xe9170006);
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
 	int char_height;
 	{
@@ -754,7 +756,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		char_height = MulDiv(static_cast<int>(size), GetDeviceCaps(dc, LOGPIXELSY), 72);
 		ReleaseDC(NULL, dc);
 	}
-	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, fontName == NULL ? L"" : reinterpret_cast<const Char*>(fontName + 0x10));
+	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, fontName == NULL ? L"Meiryo UI" : reinterpret_cast<const Char*>(fontName + 0x10));
 	me2->Proportional = proportional;
 	me2->Advance = advance;
 	{
@@ -1175,7 +1177,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 						}
 						break;
 					default:
-						THROWDBG(True, 0xe9170008);
+						THROW(0xe9170008);
 						break;
 				}
 				if (!correct)

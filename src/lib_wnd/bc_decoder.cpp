@@ -5,9 +5,11 @@ void* DecodeBc(size_t size, const void* data, int* width, int* height)
 	UNUSED(size);
 
 	const U8* ptr = static_cast<const U8*>(data);
-	THROWDBG(*reinterpret_cast<const DWORD*>(ptr) != 0x20534444, 0xe9170008); // ' SDD'
+	if (*reinterpret_cast<const DWORD*>(ptr) != 0x20534444)
+		THROW(0xe9170008); // ' SDD'
 	ptr += sizeof(DWORD);
-	THROWDBG(*reinterpret_cast<const DWORD*>(ptr) != 124, 0xe9170008); // Always 124.
+	if (*reinterpret_cast<const DWORD*>(ptr) != 124)
+		THROW(0xe9170008); // Always 124.
 	ptr += sizeof(DWORD);
 	// DWORD header_flags = *reinterpret_cast<const DWORD*>(ptr);
 	ptr += sizeof(DWORD);
@@ -17,17 +19,22 @@ void* DecodeBc(size_t size, const void* data, int* width, int* height)
 	ptr += sizeof(DWORD);
 	// DWORD header_pitch_or_linear_size
 	ptr += sizeof(DWORD);
-	THROWDBG(*reinterpret_cast<const DWORD*>(ptr) != 1, 0xe9170008); // DWORD header_depth
+	if (*reinterpret_cast<const DWORD*>(ptr) != 1)
+		THROW(0xe9170008); // DWORD header_depth
 	ptr += sizeof(DWORD);
-	THROWDBG(*reinterpret_cast<const DWORD*>(ptr) != 1, 0xe9170008); // DWORD header_mip_map
+	if (*reinterpret_cast<const DWORD*>(ptr) != 1)
+		THROW(0xe9170008); // DWORD header_mip_map
 	ptr += sizeof(DWORD);
 	for (int i = 0; i < 11; i++)
 		ptr += sizeof(DWORD);
-	THROWDBG(*reinterpret_cast<const DWORD*>(ptr) != 32, 0xe9170008); // Always 32.
+	if (*reinterpret_cast<const DWORD*>(ptr) != 32)
+		THROW(0xe9170008); // Always 32.
 	ptr += sizeof(DWORD);
-	THROWDBG((*reinterpret_cast<const DWORD*>(ptr) & 0x00000004) == 0, 0xe9170008);
+	if ((*reinterpret_cast<const DWORD*>(ptr) & 0x00000004) == 0)
+		THROW(0xe9170008);
 	ptr += sizeof(DWORD);
-	THROWDBG(*reinterpret_cast<const DWORD*>(ptr) != 0x30315844, 0xe9170008); // 'DX10'
+	if (*reinterpret_cast<const DWORD*>(ptr) != 0x30315844)
+		THROW(0xe9170008); // 'DX10'
 	ptr += sizeof(DWORD);
 	for (int i = 0; i < 11; i++)
 		ptr += sizeof(DWORD);
