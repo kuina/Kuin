@@ -1235,7 +1235,7 @@ EXPORT S64 _find(const void* me_, const U8* type, const void* item)
 	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
-		THROW(0x1000, L"");
+		THROW(0xe9170004);
 	{
 		S64 len = *(S64*)((U8*)me_ + 0x08);
 		U8* ptr = (U8*)me_ + 0x10;
@@ -1258,7 +1258,7 @@ EXPORT S64 _findLast(const void* me_, const U8* type, const void* item)
 	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
-		THROW(0x1000, L"");
+		THROW(0xe9170004);
 	{
 		S64 len = *(S64*)((U8*)me_ + 0x08);
 		U8* ptr = (U8*)me_ + 0x10 + size * (size_t)(len - 1);
@@ -1281,7 +1281,7 @@ EXPORT S64 _findBin(const void* me_, const U8* type, const void* item)
 	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
-		THROW(0x1000, L"");
+		THROW(0xe9170004);
 	{
 		S64 len = *(S64*)((U8*)me_ + 0x08);
 		U8* ptr = (U8*)me_ + 0x10;
@@ -2516,7 +2516,7 @@ static void MergeSort(void* me_, const U8* type, Bool asc)
 	S64 i, j;
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
-		THROW(0x1000, L"");
+		THROW(0xe9170004);
 	while (n < len)
 	{
 		for (i = 0; i < len; i += n * 2)

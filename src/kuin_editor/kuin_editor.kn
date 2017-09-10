@@ -2610,9 +2610,11 @@ func addNewFile()
 	do @wndDlgResultType :: 0
 	do @wndDlgListType :: wnd@makeList(@wndDlg, 12, 12, 616, 100, %fix, %scale)
 	do @wndDlgListType.add(@langEn?("Source Code", "ソースコード"))
-	do @wndDlgListType.add(@langEn?("Window", "ウインドウ"))
+	; TODO: do @wndDlgListType.add(@langEn?("Window", "ウインドウ"))
 	do @wndDlgListType.setSel(0)
-	do @wndDlgEditFile :: wnd@makeEdit(@wndDlg, 12, 118, 616, 19, %fix, %fix)
+	do @wndDlgEditFile :: wnd@makeEdit(@wndDlg, 12, 118, 510, 19, %fix, %fix)
+	var btnFile: wnd@Btn :: wnd@makeBtn(@wndDlg, 528, 118, 100, 23, %fix, %fix, @langEn ?("Browse...", "参照..."))
+	do btnFile.onPush :: btnFileOnPush
 	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndDlg, 12, 143, 100, 23, %fix, %fix, @langEn ?("Add", "追加"))
 	do btnAdd.onPush :: btnAddOnPush
 	do @wndDlg.modal()
@@ -2635,6 +2637,13 @@ func addNewFile()
 	do @wndDlgResultFile :: null
 	do @wndDlgEditFile :: null
 	do @wndDlgListType :: null
+
+	func btnFileOnPush(wnd: wnd@WndBase)
+		var path: []char :: wnd@saveFileDialog(@wndDlg, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
+		if(path <>& null)
+			do @wndDlgEditFile.setText(path)
+		end if
+	end func
 
 	func btnAddOnPush(wnd: wnd@WndBase)
 		do @wndDlgResultFile :: @wndDlgEditFile.getText().replace("\\", "/")

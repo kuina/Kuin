@@ -648,9 +648,6 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 				case Env_Cui:
 					ListAdd(funcs, SearchStdItem(L"cui", L"_init", False));
 					break;
-				case Env_Web:
-					// TODO:
-					break;
 				default:
 					ASSERT(False);
 					break;
@@ -755,9 +752,6 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 				break;
 			case Env_Cui:
 				ListAdd(funcs, SearchStdItem(L"cui", L"_fin", False));
-				break;
-			case Env_Web:
-				// TODO:
 				break;
 			default:
 				ASSERT(False);
@@ -1334,11 +1328,6 @@ static void RebuildClass(SAstClass* ast)
 							if (item->Def->TypeId == AstTypeId_Var)
 							{
 								SAstArg* member = ((SAstVar*)item->Def)->Var;
-								EAstTypeId type_id = ((SAst*)member->Type)->TypeId;
-								/*
-								// TODO: Should the all types be written?
-								if (type_id == AstTypeId_TypeArray || type_id == AstTypeId_TypeBit || type_id == AstTypeId_TypeGen || type_id == AstTypeId_TypeDict || type_id == AstTypeId_TypePrim || IsClass(member->Type) || IsEnum(member->Type))
-								*/
 								{
 									SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 									InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
@@ -1469,10 +1458,6 @@ static void RebuildClass(SAstClass* ast)
 							if (item->Def->TypeId == AstTypeId_Var)
 							{
 								SAstArg* member = ((SAstVar*)item->Def)->Var;
-								/*
-								// TODO: Should the all types be written?
-								if (type_id == AstTypeId_TypeArray || type_id == AstTypeId_TypeBit || type_id == AstTypeId_TypeGen || type_id == AstTypeId_TypeDict || type_id == AstTypeId_TypePrim || IsClass(member->Type) || IsEnum(member->Type))
-								*/
 								{
 									SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 									InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
@@ -1566,10 +1551,6 @@ static void RebuildClass(SAstClass* ast)
 							if (item->Def->TypeId == AstTypeId_Var)
 							{
 								SAstArg* member = ((SAstVar*)item->Def)->Var;
-								/*
-								// TODO: Should the all types be written?
-								if (type_id == AstTypeId_TypeArray || type_id == AstTypeId_TypeBit || type_id == AstTypeId_TypeGen || type_id == AstTypeId_TypeDict || type_id == AstTypeId_TypePrim || IsClass(member->Type) || IsEnum(member->Type))
-								*/
 								{
 									SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 									InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
@@ -3112,6 +3093,12 @@ static SAstExpr* RebuildExprToBin(SAstExprToBin* ast)
 	ast->Child = RebuildExpr(ast->Child, False);
 	if (LocalErr)
 		return (SAstExpr*)DummyPtr;
+	if (((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeNull || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeEnumElement)
+	{
+		Err(L"EA0056", ((SAst*)ast)->Pos);
+		LocalErr = True;
+		return (SAstExpr*)DummyPtr;
+	}
 	if (((SAst*)ast->ChildType)->TypeId != AstTypeId_TypeArray || ((SAst*)((SAstTypeArray*)ast->ChildType)->ItemType)->TypeId != AstTypeId_TypeBit || ((SAstTypeBit*)((SAstTypeArray*)ast->ChildType)->ItemType)->Size != 1)
 	{
 		Err(L"EA0056", ((SAst*)ast)->Pos);

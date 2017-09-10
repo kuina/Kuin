@@ -192,10 +192,7 @@ EXPORT_CPP void _render(S64 fps)
 			THROWDBG(True, 0xe9170006);
 			return;
 	}
-	{
-		int sleep_time2 = sleep_time - static_cast<int>(diff);
-		sleep_time = sleep_time < sleep_time2 ? 0 : sleep_time2;
-	}
+	sleep_time -= static_cast<int>(diff);
 	if (sleep_time > 2)
 	{
 		U32 to_time = now + static_cast<U32>(sleep_time);
@@ -279,7 +276,6 @@ EXPORT_CPP void _sampler(S64 kind)
 
 EXPORT_CPP void _clearColor(S64 color)
 {
-	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	CurWndBuf->ClearColor[0] = static_cast<FLOAT>(r);
@@ -289,7 +285,6 @@ EXPORT_CPP void _clearColor(S64 color)
 
 EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
 {
-	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
@@ -321,7 +316,6 @@ EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
 
 EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, S64 color)
 {
-	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
@@ -363,7 +357,6 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 
 EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 {
-	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
@@ -403,7 +396,6 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 
 EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 {
-	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
@@ -445,7 +437,6 @@ EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 
 EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 color)
 {
-	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)
@@ -493,7 +484,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 		bin = LoadFileAll(path2, &size);
 		if (bin == NULL)
 		{
-			THROW(0x1000, L"");
+			THROW(0xe9170007);
 			return NULL;
 		}
 		THROWDBG(path_len < 4, 0xe9170006);
@@ -517,7 +508,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 			img_ref = True;
 			format = DXGI_FORMAT_BC3_UNORM_SRGB;
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
-				THROW(0x1000, L"");
+				THROW(0xe9170008);
 		}
 		else
 		{
@@ -571,7 +562,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 		if (bin != NULL)
 			FreeMem(bin);
 		if (!success)
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 	return me_;
 }
@@ -598,7 +589,7 @@ EXPORT_CPP SClass* _makeTexEvenRgba(SClass* me_, double r, double g, double b, d
 		sub.SysMemPitch = static_cast<UINT>(sizeof(img));
 		sub.SysMemSlicePitch = 0;
 		if (FAILED(Device->CreateTexture2D(&desc, &sub, &me2->Tex)))
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 	{
 		D3D10_SHADER_RESOURCE_VIEW_DESC desc;
@@ -608,7 +599,7 @@ EXPORT_CPP SClass* _makeTexEvenRgba(SClass* me_, double r, double g, double b, d
 		desc.Texture2D.MostDetailedMip = 0;
 		desc.Texture2D.MipLevels = 1;
 		if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 	return me_;
 }
@@ -794,7 +785,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 		desc.MiscFlags = 0;
 		if (FAILED(Device->CreateTexture2D(&desc, NULL, &me2->Tex)))
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 	{
 		D3D10_SHADER_RESOURCE_VIEW_DESC desc;
@@ -804,11 +795,10 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		desc.Texture2D.MostDetailedMip = 0;
 		desc.Texture2D.MipLevels = 1;
 		if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 	size_t buf_size = static_cast<size_t>((FontBitmapSize / me2->CellWidth) * (FontBitmapSize / me2->CellHeight));
-	if (buf_size == 0)
-		THROW(0x1000, L"");
+	ASSERT(buf_size != 0);
 	me2->CharMap = static_cast<Char*>(AllocMem(sizeof(Char) * buf_size));
 	me2->CntMap = static_cast<U32*>(AllocMem(sizeof(U32) * buf_size));
 	me2->GlyphWidth = static_cast<int*>(AllocMem(sizeof(int) * buf_size));
@@ -1432,10 +1422,10 @@ namespace Draw
 void Init()
 {
 	if (FAILED(D3D10CreateDevice(NULL, D3D10_DRIVER_TYPE_HARDWARE, NULL, 0, D3D10_SDK_VERSION, &Device)))
-		THROW(0x1000, L"");
+		THROW(0xe9170009);
 
 	Cnt = 0;
-	PrevTime = 0;
+	PrevTime = static_cast<U32>(timeGetTime());
 
 	// Create a rasterizer state.
 	{
@@ -1452,7 +1442,7 @@ void Init()
 		desc.MultisampleEnable = FALSE;
 		desc.AntialiasedLineEnable = FALSE;
 		if (FAILED(Device->CreateRasterizerState(&desc, &RasterizerState)))
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 
 	// Create depth buffer modes.
@@ -1489,7 +1479,7 @@ void Init()
 				break;
 		}
 		if (FAILED(Device->CreateDepthStencilState(&desc, &DepthState[i])))
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 
 	// Create blend modes.
@@ -1546,7 +1536,7 @@ void Init()
 				break;
 		}
 		if (FAILED(Device->CreateBlendState(&desc, &BlendState[i])))
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 
 	// Create a sampler.
@@ -1574,7 +1564,7 @@ void Init()
 		desc.MinLOD = 0.0f;
 		desc.MaxLOD = D3D10_FLOAT32_MAX;
 		if (FAILED(Device->CreateSamplerState(&desc, &Sampler[i])))
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 
 	// Initialize 'Tri'.
@@ -1957,7 +1947,7 @@ void* MakeDrawBuf(int width, int height, HWND wnd)
 		if (factory != NULL)
 			factory->Release();
 		if (!success)
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 
 	// Create a back buffer and a depth buffer.
@@ -2005,7 +1995,7 @@ void* MakeDrawBuf(int width, int height, HWND wnd)
 		if (back != NULL)
 			back->Release();
 		if (!success)
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 
 	ActiveDrawBuf(wnd_buf);
@@ -2360,8 +2350,7 @@ HFONT ToFontHandle(SClass* font)
 
 void ColorToRgba(double* r, double* g, double* b, double* a, S64 color)
 {
-	if (color < 0 || 0xffffffff < color)
-		THROW(0x1000, L"");
+	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	*a = static_cast<double>((color >> 24) & 0xff) / 255.0;
 	*r = Gamma(static_cast<double>((color >> 16) & 0xff) / 255.0);
 	*g = Gamma(static_cast<double>((color >> 8) & 0xff) / 255.0);
