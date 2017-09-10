@@ -350,7 +350,6 @@ static void DumpAstFuncRaw(const SAstFuncRaw* ast)
 	Tab++;
 	{
 		DumpAstFunc((const SAstFunc*)ast);
-		// TODO:
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</FuncRaw>\n");

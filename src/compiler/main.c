@@ -385,8 +385,6 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 							DWORD code = debug_event.u.Exception.ExceptionRecord.ExceptionCode;
 							PVOID addr = debug_event.u.Exception.ExceptionRecord.ExceptionAddress;
 							const Char* text = ExcptMsgs[0].Msg;
-							DWORD param_num = debug_event.u.Exception.ExceptionRecord.NumberParameters;
-							const ULONG_PTR* params = debug_event.u.Exception.ExceptionRecord.ExceptionInformation;
 							if (code <= 0x0000ffff)
 								text = ExcptMsgs[1].Msg;
 							else

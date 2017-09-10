@@ -190,9 +190,6 @@ SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FI
 		case Env_Cui:
 			Srces = DictAdd(Srces, L"cui", NULL);
 			break;
-		case Env_Web:
-			// TODO:
-			break;
 		default:
 			ASSERT(False);
 			break;
@@ -2438,8 +2435,6 @@ static SAstStat* ParseStatSkip(void)
 
 static SAstStat* ParseStatAssert(void)
 {
-	int row = Row;
-	int col = Col;
 	SAstStatAssert* ast = (SAstStatAssert*)Alloc(sizeof(SAstStatAssert));
 	InitAst((SAst*)ast, AstTypeId_StatAssert, NULL, NULL, False, False, NULL, NULL);
 	ast->Cond = ParseExpr();

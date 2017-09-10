@@ -1,5 +1,6 @@
 ; Input Sample (C)Kuina-chan
 
+var drawMain: wnd@Draw
 var MouseX: int
 var MouseY: int
 var MouseDownL: bool
@@ -7,15 +8,17 @@ var KeyBuf: []char
 
 func main()
 	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Input Sample")
-	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false)
-	do drawMain.onMouseMove :: @drawMainOnMouseMove {マウス移動のイベント}
-	do drawMain.onMouseDownL :: @drawMainOnMouseDownL {マウスボタンを押したときのイベント}
-	do drawMain.onMouseUpL :: @drawMainOnMouseUpL {マウスボタンを離したときのイベント}
-	do drawMain.onMouseEnter :: @drawMainOnMouseEnter {マウスが突入したときのイベント}
-	do drawMain.onMouseLeave :: @drawMainOnMouseLeave {マウスが離脱したときのイベント}
-	do drawMain.onKeyChar :: @drawMainOnKeyChar {文字が入力されたときのイベント}
+	do wndMain.onActivate :: @wndMainOnActivate {ウインドウのアクティブイベント}
+	do @drawMain :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false)
+	do @drawMain.onMouseMove :: @drawMainOnMouseMove {マウス移動のイベント}
+	do @drawMain.onMouseDownL :: @drawMainOnMouseDownL {マウスボタンを押したときのイベント}
+	do @drawMain.onMouseUpL :: @drawMainOnMouseUpL {マウスボタンを離したときのイベント}
+	do @drawMain.onMouseEnter :: @drawMainOnMouseEnter {マウスが突入したときのイベント}
+	do @drawMain.onMouseLeave :: @drawMainOnMouseLeave {マウスが離脱したときのイベント}
+	do @drawMain.onKeyChar :: @drawMainOnKeyChar {文字が入力されたときのイベント}
 	var font: draw@Font :: draw@makeFont(null, 28, false, false, false, 22.0)
 	do @KeyBuf :: "                    "
+	do @drawMain.focus() {キーを受け取るためにフォーカスさせる}
 	while(wnd@act())
 		do font.draw(100.0, 50.0, "'A' button ('Z' key): " ~ input@pad(0, %a).toStr(), draw@white)
 		do font.draw(100.0, 100.0, "'B' button ('X' key): " ~ input@pad(0, %b).toStr(), draw@white)
@@ -39,6 +42,12 @@ func main()
 	end while
 end func
 
+func wndMainOnActivate(wnd: wnd@Wnd, active: bool, minimized: bool)
+	if(active & !minimized)
+		do @drawMain.focus() {キーを受け取るためにフォーカスさせる}
+	end if
+end func
+
 func drawMainOnMouseMove(wnd: wnd@Draw, x: int, y: int)
 	; マウスが動いたら追跡する
 	do @MouseX :: x
@@ -54,7 +63,7 @@ func drawMainOnMouseUpL(wnd: wnd@Draw, x: int, y: int)
 end func
 
 func drawMainOnMouseEnter(wnd: wnd@Draw, x: int, y: int)
-	do @MouseDownL :: input@key(%mouseL) {左ボタンを押したままウインドウ外に出て入りなおす場合の対処}
+	do @MouseDownL :: wnd@key(%mouseL) {左ボタンを押したままウインドウ外に出て入りなおす場合の対処}
 	do draw@clearColor(16#FFFF9999) {ウインドウ内に入ったら背景色をピンクにする}
 end func
 

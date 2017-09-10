@@ -1379,7 +1379,7 @@ static int SetTypeIdRecursion(U8* ptr, int idx, const SAstType* type)
 	ptr[idx] = TypeId_Class;
 	return idx + 1;
 Err:
-	// TODO: Err
+	Err(L"EK9999", ((SAst*)type)->Pos);
 	return 0;
 }
 
@@ -1545,7 +1545,7 @@ static void SetTypeIdForFromBinRecursion(int* idx_type, U8* data_type, int* idx_
 	}
 	return;
 Err:
-	// TODO: Err
+	Err(L"EK9999", ((SAst*)type)->Pos);
 	return;
 }
 
@@ -2360,7 +2360,6 @@ static void AssembleTry(SAstStatTry* ast)
 		// 'catch'
 		{
 			SAsmLabel* lbl1 = AsmLabel();
-			SAstArg* tmp_code = MakeTmpVar(8, NULL);
 			ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 			ListAdd(PackAsm->Asms, scope_catch->End);
 			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False))));

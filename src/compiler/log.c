@@ -3,7 +3,7 @@
 #include "mem.h"
 #include "util.h"
 
-#define MSG_NUM (438 / 3)
+#define MSG_NUM (441 / 3)
 #define MSG_MAX (128)
 #define LANG_NUM (2)
 

@@ -25,7 +25,7 @@ void* LoadWav(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_pe
 		result->FileStream = OpenFileStream(path);
 		if (result->FileStream == NULL)
 		{
-			THROW(0x1000, NULL);
+			THROW(0xe9170007);
 			break;
 		}
 
@@ -65,7 +65,7 @@ void* LoadWav(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_pe
 						case 1: result->Steleo = False; break;
 						case 2: result->Steleo = True; break;
 						default:
-							THROW(0x1000, L"");
+							THROW(0xe9170008);
 							break;
 					}
 					*channel = static_cast<S64>(fmt.wf.nChannels);

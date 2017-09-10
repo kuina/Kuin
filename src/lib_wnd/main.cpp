@@ -615,6 +615,11 @@ EXPORT_CPP void _target(SClass* draw_ctrl)
 	Draw::ActiveDrawBuf(draw_ctrl2->DrawBuf);
 }
 
+EXPORT_CPP Bool _key(S64 key)
+{
+	return (GetKeyState(static_cast<int>(key)) & 0x8000) != 0;
+}
+
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
@@ -840,7 +845,7 @@ EXPORT_CPP void _drawMoveCaret(SClass* me_, S64 x, S64 y)
 EXPORT_CPP SClass* _makeBtn(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
 	SBtn* me2 = reinterpret_cast<SBtn*>(me_);
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Btn, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_NOTIFY, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcBtn, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Btn, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_NOTIFY, x, y, width, height, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WndProcBtn, anchorX, anchorY);
 	me2->OnPush = NULL;
 	return me_;
 }
@@ -1316,10 +1321,11 @@ static SWndBase* ToWnd(HWND wnd)
 static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const Char* ctrl, DWORD style_ex, DWORD style, S64 x, S64 y, S64 width, S64 height, const Char* text, WNDPROC wnd_proc, S64 anchor_x, S64 anchor_y)
 {
 	THROWDBG(parent == NULL, 0xe9170006);
-	THROWDBG(width < 0 || height < 0, 0xe9170006);
+	THROWDBG(x < 0 || y < 0 || width < 0 || height < 0, 0xe9170006);
 	wnd->Kind = kind;
 	wnd->WndHandle = CreateWindowEx(style_ex, ctrl, text, style, static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height), parent->WndHandle, NULL, Instance, NULL);
-	THROWDBG(wnd->WndHandle == NULL, 0);
+	if (wnd->WndHandle == NULL)
+		THROW(0xe9170009);
 	SetWindowLongPtr(wnd->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(wnd));
 	wnd->DefaultWndProc = reinterpret_cast<WNDPROC>(GetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC));
 	wnd->Children = AllocMem(0x28);

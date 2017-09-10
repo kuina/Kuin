@@ -75,11 +75,6 @@ EXPORT_CPP void _setCfgKey(S64 idx, S64 btn, const U8* keys)
 	}
 }
 
-EXPORT_CPP Bool _key(S64 key)
-{
-	return (GetKeyState(static_cast<int>(key)) & 0x8000) != 0;
-}
-
 namespace Input
 {
 
@@ -105,7 +100,7 @@ void Init()
 	PadKey[0][14][0] = DIK_UP;
 	PadKey[0][15][0] = DIK_DOWN;
 	if (FAILED(DirectInput8Create(Instance, 0x0800, IID_IDirectInput8, reinterpret_cast<void**>(&Device), NULL)))
-		THROW(0x1000, L"");
+		THROW(0xe9170009);
 	if (FAILED(Device->CreateDevice(GUID_SysKeyboard, &Keyboard, NULL)))
 		Keyboard = NULL;
 	else if (FAILED(Keyboard->SetDataFormat(&c_dfDIKeyboard)))

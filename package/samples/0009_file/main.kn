@@ -10,9 +10,11 @@ func main()
 	try
 		do save() {ファイルに保存}
 		do edit.setText(load()) {ファイルから読み込み}
-		; ファイルの削除
-		do file@delFile(@fileName)
-		do file@delFile(@fileName2)
+		if(wnd@msgBox(wndMain, "生成したファイルを削除しますか？", "File Sample", %info, %yesNo) = %yes)
+			; ファイルの削除
+			do file@delFile(@fileName)
+			do file@delFile(@fileName2)
+		end if
 	catch
 		; ファイルの読み書きに失敗
 		do edit.setText("An error occurred.")

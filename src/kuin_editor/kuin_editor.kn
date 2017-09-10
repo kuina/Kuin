@@ -114,7 +114,7 @@ class Document()
 	+func focus(isFocus: bool)
 	end func
 
-	+func keyDown(key: input@Key, shiftCtrl: wnd@ShiftCtrl)
+	+func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 	end func
 
 	+func keyChar(key: char)
@@ -331,7 +331,7 @@ class DocumentSrc(@Document)
 	end func
 
 	+*func mouseDownL(x: int, y: int)
-		do me.setArea(input@key(%shift) ?(%shift $ wnd@ShiftCtrl, %none))
+		do me.setArea(wnd@key(%shift) ?(%shift $ wnd@ShiftCtrl, %none))
 		do me.mousePosToCharPos(x, y)
 		do me.refreshCursor(false, true)
 		if(!me.areaSelected())
@@ -362,7 +362,7 @@ class DocumentSrc(@Document)
 		end if
 	end func
 
-	+*func keyDown(key: input@Key, shiftCtrl: wnd@ShiftCtrl)
+	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 		switch(key)
 		case %bs
 			if (@lockingEditor)
@@ -1382,7 +1382,7 @@ class DocumentArBase(@Document)
 		end if
 	end func
 
-	+*func keyDown(key: input@Key, shiftCtrl: wnd@ShiftCtrl)
+	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 		; TODO:
 	end func
 
@@ -1840,7 +1840,7 @@ func main()
 	end func
 end func
 
-func onKeyPress(key: input@Key, shiftCtrl: wnd@ShiftCtrl): bool
+func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 	switch(shiftCtrl)
 	case %none
 		switch(key)
@@ -2240,7 +2240,7 @@ func drawEditorOnFocus(wnd: wnd@WndBase, focus: bool)
 	do @curDocument.focus(focus)
 end func
 
-func drawEditorOnKeyDown(wnd: wnd@WndBase, key: input@Key, shiftCtrl: wnd@ShiftCtrl)
+func drawEditorOnKeyDown(wnd: wnd@WndBase, key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 	do @curDocument.keyDown(key, shiftCtrl)
 end func
 
@@ -2610,9 +2610,11 @@ func addNewFile()
 	do @wndDlgResultType :: 0
 	do @wndDlgListType :: wnd@makeList(@wndDlg, 12, 12, 616, 100, %fix, %scale)
 	do @wndDlgListType.add(@langEn?("Source Code", "ソースコード"))
-	do @wndDlgListType.add(@langEn?("Window", "ウインドウ"))
+	; TODO: do @wndDlgListType.add(@langEn?("Window", "ウインドウ"))
 	do @wndDlgListType.setSel(0)
-	do @wndDlgEditFile :: wnd@makeEdit(@wndDlg, 12, 118, 616, 19, %fix, %fix)
+	do @wndDlgEditFile :: wnd@makeEdit(@wndDlg, 12, 118, 510, 19, %fix, %fix)
+	var btnFile: wnd@Btn :: wnd@makeBtn(@wndDlg, 528, 118, 100, 23, %fix, %fix, @langEn ?("Browse...", "参照..."))
+	do btnFile.onPush :: btnFileOnPush
 	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndDlg, 12, 143, 100, 23, %fix, %fix, @langEn ?("Add", "追加"))
 	do btnAdd.onPush :: btnAddOnPush
 	do @wndDlg.modal()
@@ -2635,6 +2637,13 @@ func addNewFile()
 	do @wndDlgResultFile :: null
 	do @wndDlgEditFile :: null
 	do @wndDlgListType :: null
+
+	func btnFileOnPush(wnd: wnd@WndBase)
+		var path: []char :: wnd@saveFileDialog(@wndDlg, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
+		if(path <>& null)
+			do @wndDlgEditFile.setText(path)
+		end if
+	end func
 
 	func btnAddOnPush(wnd: wnd@WndBase)
 		do @wndDlgResultFile :: @wndDlgEditFile.getText().replace("\\", "/")

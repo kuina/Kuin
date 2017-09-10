@@ -301,9 +301,9 @@ void Init()
 	Wnd = CreateWindowEx(0, L"KuinSndClass", L"", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
 
 	if (FAILED(DirectSoundCreate8(NULL, &Device, NULL)))
-		THROW(0x1000, L"");
+		THROW(0xe9170009);
 	if (FAILED(Device->SetCooperativeLevel(Wnd, DSSCL_PRIORITY)))
-		THROW(0x1000, L"");
+		THROW(0xe9170009);
 	ListSndTop = NULL;
 	ListSndBottom = NULL;
 	LoadOgg = NULL;
