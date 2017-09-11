@@ -19,7 +19,7 @@ static DIJOYSTATE PadState[PadNum] = { 0 };
 static S64 PadBtn[PadNum][PadBtnNum] = { 0 };
 static U8 PadKey[PadNum][PadBtnNum][PadKeyNum] = { 0 };
 static S64 Cfg[PadNum][PadBtnNum - 4] = { 0 };
-static Bool Lock = False;
+static Bool EnableCfgKey = True;
 
 static BOOL CALLBACK CBEnumJoypad(const DIDEVICEINSTANCE* lpddi, VOID* pvref);
 static BOOL CALLBACK CBEnumAxis(LPCDIDEVICEOBJECTINSTANCE lpddoi, LPVOID pvref);
@@ -55,15 +55,15 @@ EXPORT_CPP S64 _getCfg(S64 idx, S64 btn)
 	return Cfg[idx][btn];
 }
 
-EXPORT_CPP void _lockCfg(Bool enabled)
+EXPORT_CPP void _enableCfgKey(Bool enabled)
 {
-	Lock = enabled;
+	EnableCfgKey = enabled;
 }
 
 EXPORT_CPP void _setCfgKey(S64 idx, S64 btn, const U8* keys)
 {
 	THROWDBG(idx < 0 || PadNum <= idx, 0xe9170006);
-	THROWDBG(btn < 0 || PadBtnNum - 4 <= btn, 0xe9170006);
+	THROWDBG(btn < 0 || PadBtnNum <= btn, 0xe9170006);
 	int n = static_cast<int>(*reinterpret_cast<const S64*>(keys + 0x08));
 	THROWDBG(n < 0 || PadKeyNum <= n, 0xe9170006);
 	for (int i = 0; i < PadKeyNum; i++)
@@ -85,6 +85,7 @@ void Init()
 		for (int j = 0; j < PadBtnNum - 4; j++)
 			Cfg[i][j] = j;
 	}
+	EnableCfgKey = True;
 	PadKey[0][0][0] = DIK_Z;
 	PadKey[0][0][1] = DIK_RETURN;
 	PadKey[0][0][2] = DIK_SPACE;
@@ -212,7 +213,7 @@ void Update()
 			ZeroMemory(&PadState[i], sizeof(DIJOYSTATE));
 		}
 	}
-	if (!Lock)
+	if (EnableCfgKey)
 	{
 		Bool flag, flag2;
 		for (int i = 0; i < PadNum; i++)

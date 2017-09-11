@@ -13,6 +13,7 @@ typedef struct SThread
 {
 	SClass Class;
 	HANDLE ThreadHandle;
+	Bool Begin;
 } SThread;
 
 typedef struct SMutex
@@ -25,6 +26,7 @@ static DWORD WINAPI ThreadFunc(LPVOID arg);
 
 EXPORT SClass* _makeProcess(SClass* me_, const U8* path, const U8* cmd_line)
 {
+	THROWDBG(path == NULL, 0xc0000005);
 	SProcess* me2 = (SProcess*)me_;
 	const Char* path2 = (const Char*)(path + 0x10);
 	Char cur_dir[MAX_PATH + 1];
@@ -52,6 +54,7 @@ EXPORT SClass* _makeProcess(SClass* me_, const U8* path, const U8* cmd_line)
 		{
 			if (cmd_line_buf != NULL)
 				FreeMem(cmd_line_buf);
+			THROW(0xe9170009);
 			return NULL;
 		}
 		me2->ProcessHandle = process_info.hProcess;
@@ -76,13 +79,13 @@ EXPORT S64 _processRun(SClass* me_, Bool waitUntilExit)
 	SProcess* me2 = (SProcess*)me_;
 	DWORD exit_code = 0;
 	if (ResumeThread(me2->ThreadHandle) == (DWORD)-1)
-		THROW(0x1000, L"");
+		THROW(0xe9170009);
 	if (waitUntilExit)
 	{
 		if (WaitForSingleObject(me2->ProcessHandle, INFINITE) == WAIT_FAILED)
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 		if (!GetExitCodeProcess(me2->ProcessHandle, &exit_code))
-			THROW(0x1000, L"");
+			THROW(0xe9170009);
 	}
 	CloseHandle(me2->ThreadHandle);
 	CloseHandle(me2->ProcessHandle);
@@ -102,14 +105,21 @@ EXPORT void _taskOpen(const U8* path)
 		if (ptr != NULL)
 			*(ptr + 1) = L'\0';
 	}
-	ShellExecute(NULL, L"open", path2, NULL, cur_dir, SW_SHOWNORMAL);
+	if ((U64)ShellExecute(NULL, L"open", path2, NULL, cur_dir, SW_SHOWNORMAL) <= 32)
+		THROW(0xe9170009);
 }
 
 EXPORT SClass* _makeThread(SClass* me_, const void* thread_func)
 {
+	THROWDBG(thread_func == NULL, 0xc0000005);
 	SThread* me2 = (SThread*)me_;
-	DWORD thread_id;
-	me2->ThreadHandle = CreateThread(NULL, 0, ThreadFunc, (LPVOID)thread_func, CREATE_SUSPENDED, &thread_id);
+	me2->Begin = False;
+	me2->ThreadHandle = CreateThread(NULL, 0, ThreadFunc, (LPVOID)thread_func, CREATE_SUSPENDED, NULL);
+	if (me2->ThreadHandle == NULL)
+	{
+		THROW(0xe9170009);
+		return NULL;
+	}
 	return me_;
 }
 
@@ -123,13 +133,16 @@ EXPORT void _threadDtor(SClass* me_)
 EXPORT void _threadRun(SClass* me_)
 {
 	SThread* me2 = (SThread*)me_;
+	me2->Begin = True;
 	if (ResumeThread(me2->ThreadHandle) == (DWORD)-1)
-		THROW(0x1000, L"");
+		THROW(0xe9170009);
 }
 
 EXPORT Bool _threadRunning(SClass* me_)
 {
 	SThread* me2 = (SThread*)me_;
+	if (!me2->Begin)
+		return False;
 	DWORD exit_code;
 	GetExitCodeThread(me2->ThreadHandle, &exit_code);
 	return exit_code == STILL_ACTIVE;

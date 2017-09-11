@@ -26,6 +26,7 @@ end func
 	end func
 
 	var threadHandle: int
+	var begin: bool
 end class
 
 +func [d0000.knd, _makeThread, _make_instance] makeThread(me2: @Thread, threadFunc: func<()>): @Thread

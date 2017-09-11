@@ -20,13 +20,13 @@ end enum
 +func [d0001.knd, _pad] pad(idx: int, btn: @PadBtn): int
 end func
 
-+func [d0001.knd, _setCfg] setCfg(idx: int, btn: @PadBtn, newBtn: @PadBtn)
++func [d0001.knd, _setCfg] setCfg(idx: int, btn: @PadBtn, newBtn: int)
 end func
 
 +func [d0001.knd, _getCfg] getCfg(idx: int, btn: @PadBtn): int
 end func
 
-+func [d0001.knd, _lockCfg] lockCfg(enabled: bool)
++func [d0001.knd, _enableCfgKey] enableCfgKey(enabled: bool)
 end func
 
 +func [d0001.knd, _setCfgKey] setCfgKey(idx: int, btn: @PadBtn, keys: []wnd@Key)

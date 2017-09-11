@@ -864,13 +864,13 @@ EXPORT_CPP Bool _btnGetChk(SClass* me_)
 
 EXPORT_CPP SClass* _makeChk(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Chk, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcChk, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Chk, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX, x, y, width, height, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WndProcChk, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeRadio(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Radio, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcRadio, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Radio, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON, x, y, width, height, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WndProcRadio, anchorX, anchorY);
 	return me_;
 }
 
@@ -998,13 +998,13 @@ EXPORT_CPP SClass* _makeComboList(SClass* me_, SClass* parent, S64 x, S64 y, S64
 
 EXPORT_CPP SClass* _makeLabel(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Label, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_SIMPLE, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcLabel, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Label, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_SIMPLE, x, y, width, height, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WndProcLabel, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeGroup(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Group, WC_BUTTON, WS_EX_TRANSPARENT, WS_VISIBLE | WS_CHILD | BS_GROUPBOX, x, y, width, height, reinterpret_cast<const Char*>(text + 0x10), WndProcGroup, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Group, WC_BUTTON, WS_EX_TRANSPARENT, WS_VISIBLE | WS_CHILD | BS_GROUPBOX, x, y, width, height, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WndProcGroup, anchorX, anchorY);
 	return me_;
 }
 
@@ -1125,6 +1125,8 @@ EXPORT_CPP SClass* _makeMenu(SClass* me_)
 {
 	SMenu* me2 = reinterpret_cast<SMenu*>(me_);
 	me2->MenuHandle = CreateMenu();
+	if (me2->MenuHandle == NULL)
+		THROW(0xe9170009);
 	me2->Children = AllocMem(0x28);
 	*(S64*)me2->Children = 1;
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
@@ -1159,6 +1161,8 @@ EXPORT_CPP SClass* _makePopup(SClass* me_)
 {
 	SMenu* me2 = reinterpret_cast<SMenu*>(me_);
 	me2->MenuHandle = CreatePopupMenu();
+	if (me2->MenuHandle == NULL)
+		THROW(0xe9170009);
 	me2->Children = AllocMem(0x28);
 	*(S64*)me2->Children = 1;
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
