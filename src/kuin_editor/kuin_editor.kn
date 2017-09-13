@@ -1170,8 +1170,6 @@ class DocumentSrc(@Document)
 							var hint: []char :: ##@getHint(srcName, y + 1, x)
 							if(hint =& null)
 								do hint :: ""
-							else
-								do hint :: "func: " ~ hint
 							end if
 							if(@textFunc <> hint)
 								do @textFunc :: hint
