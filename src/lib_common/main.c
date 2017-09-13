@@ -2100,7 +2100,7 @@ static S64 Add(S64 a, S64 b)
 {
 #if defined(DBG)
 	if (AddAsm(&a, b))
-		THROW(0xe9170003, NULL);
+		THROW(0xe9170003);
 	return a;
 #else
 	return a + b;
@@ -2111,7 +2111,7 @@ static S64 Sub(S64 a, S64 b)
 {
 #if defined(DBG)
 	if (SubAsm(&a, b))
-		THROW(0xe9170003, NULL);
+		THROW(0xe9170003);
 	return a;
 #else
 	return a - b;
@@ -2122,7 +2122,7 @@ static S64 Mul(S64 a, S64 b)
 {
 #if defined(DBG)
 	if (MulAsm(&a, b))
-		THROW(0xe9170003, NULL);
+		THROW(0xe9170003);
 	return a;
 #else
 	return a * b;

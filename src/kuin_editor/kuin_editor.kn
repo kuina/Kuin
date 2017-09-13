@@ -22,10 +22,7 @@ end func
 func [d0917.knd, ResetMemAllocator] resetMemAllocator()
 end func
 
-func [d0917.knd, FreeIdentifierSet] freeIdentifierSet()
-end func
-
-func [d0917.knd, GetHint] getHint(name: []char, src: []char, row: int): []char
+func [d0917.knd, GetHint] getHint(src: []char, row: int, col: int): []char
 end func
 
 func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>): bool
@@ -631,32 +628,29 @@ class DocumentSrc(@Document)
 	end func
 
 	+func showHint()
-		var charColor: @CharColor
-		var word: []char :: me.getWord(&charColor)
-		do charColor :: charColor.and(16#7Fb8 $ @CharColor)
-		if(word <>& null)
-			var hint: []char :: null
-			switch(charColor)
-			case %none
-			case %identifier
-				do hint :: ##@getHint(word, @srcNameToInternalName(@mainSrcName), me.cursorY)
-			case %global
-				do hint :: ##@getHint(word, @srcNameToInternalName(@mainSrcName), -1)
-			case %reserved
-				switch(word)
-				case "if"
-					do hint :: "if BlockName(cond)\n\t...\nend if"
-				end switch
-			end switch
-			if(hint =& null)
-				do hint :: ""
+		var x: int :: me.cursorX
+		while(x > 0 & (me.src.src[me.cursorY][x] = ' ' | me.src.src[me.cursorY][x] = '\t'))
+			do x :- 1
+		end while
+		var srcName: []char :: @srcNameToInternalName(@getDocumentName(@curDocument))
+		if(^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t')
+			if(srcName <>& null)
+				var hint: []char :: ##@getHint(srcName, me.cursorY + 1, x)
+				if(hint =& null)
+					do hint :: ""
+				end if
+				if(@textHint <> hint)
+					do @textHint :: hint
+					do @updateLog()
+				end if
 			end if
-			if(@textHint <> hint)
-				do @textHint :: hint
+		else
+			if(@textHint <> "")
+				do @textHint :: ""
 				do @updateLog()
 			end if
-			do me.getFuncHint(me.cursorX, me.cursorY, charColor)
 		end if
+		do me.getFuncHint(srcName, x, me.cursorY)
 	end func
 
 	+func move(col: int, row: int)
@@ -1142,31 +1136,14 @@ class DocumentSrc(@Document)
 		end switch
 	end func
 
-	func getWord(color: &@CharColor): []char
-		var x: int :: me.cursorX
-		var y: int :: me.cursorY
-		var color2: bit8
-		if(@moveWordTop(me.src.src, me.src.color, &x, &y, &color2))
-			var beginX: int :: x
-			while(x < ^me.src.color[y] & me.src.color[y][x].and(16#7Fb8) = color2)
-				do x :+ 1
-			end while
-			if(beginX = x)
-				ret null
-			end if
-			do color :: color2.and(16#7Fb8) $ @CharColor
-			ret me.src.src[y].sub(beginX, x - beginX)
-		end if
-		ret null
-	end func
-
-	func getFuncHint(x: int, y: int, charColor: @CharColor)
+	func getFuncHint(srcName: []char, x: int, y: int)
+		var charColor: bit8 :: me.src.color[y][x]
 		if(x > 0)
 			do x :- 1
 		end if
-		switch(charColor)
+		switch(charColor $ @CharColor)
 		case %char_, %str, %lineComment, %comment
-			while(x > 0 & me.src.color[y][x].and(16#7Fb8) = charColor $ bit8)
+			while(x > 0 & me.src.color[y][x].and(16#7Fb8) = charColor)
 				do x :- 1
 			end while
 		end switch
@@ -1182,15 +1159,16 @@ class DocumentSrc(@Document)
 					end while
 					if(x > 0)
 						switch color(me.src.color[y][x - 1].and(16#7Fb8) $ @CharColor)
-						case %identifier, %global
+						case %identifier, %global, %reserved
 							do x :- 1
-							var last: int :: x
-							while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
-								do x :- 1
-							end while
-							var word: []char :: me.src.src[y].sub(x, last - x + 1) ~ ", " ~ commaNum.toStr()
-							if(@textFunc <> word)
-								do @textFunc :: word
+							var hint: []char :: ##@getHint(srcName, y + 1, x)
+							if(hint =& null)
+								do hint :: ""
+							else
+								do hint :: "func: " ~ hint
+							end if
+							if(@textFunc <> hint)
+								do @textFunc :: hint
 								do @updateLog()
 							end if
 							ret
@@ -1836,7 +1814,6 @@ func main()
 		end while
 
 		do @finCompiler()
-		do @freeIdentifierSet()
 	end func
 end func
 
@@ -2502,7 +2479,7 @@ func updateAuxiliary()
 			var x: int :: pos.col - 1
 			var y: int :: pos.row - 1
 			var color: bit8
-			if(@moveWordTop(document2.src.src, document2.src.color, &x, &y, &color))
+			if(moveWordTop(document2.src.src, document2.src.color, &x, &y, &color))
 				while(x < ^document2.src.color[y] & document2.src.color[y][x].and(16#7Fb8) = color)
 					do document2.src.color[y][x] :: document2.src.color[y][x].or(16#80b8)
 					do x :+ 1
@@ -2510,31 +2487,31 @@ func updateAuxiliary()
 			end if
 		end if
 		ret true
-	end func
-end func
 
-func moveWordTop(src: [][]char, srcColor: [][]bit8, x: &int, y: &int, color: &bit8): bool
-	if(y < 0)
-		do y :: 0
-	elif(^srcColor <= y)
-		do y :: ^srcColor - 1
-	end if
-	if(1 <= x & x < ^srcColor[y] & (src[y][x] = ' ' | src[y][x] = '\t' | srcColor[y][x].and(16#7Fb8) = %comment $ @CharColor $ bit8 | srcColor[y][x].and(16#7Fb8) = %symbol $ @CharColor $ bit8))
-		do x :- 1
-	end if
-	if(x < 0)
-		do x :: 0
-	elif(^srcColor[y] <= x)
-		do x :: ^srcColor[y] - 1
-	end if
-	if(^srcColor[y] <> 0)
-		do color :: srcColor[y][x].and(16#7Fb8)
-		while(x >= 1 & srcColor[y][x - 1].and(16#7Fb8) = color)
-			do x :- 1
-		end while
-		ret true
-	end if
-	ret false
+		func moveWordTop(src: [][]char, srcColor: [][]bit8, x: &int, y: &int, color: &bit8): bool
+			if(y < 0)
+				do y :: 0
+			elif(^srcColor <= y)
+				do y :: ^srcColor - 1
+			end if
+			if(1 <= x & x < ^srcColor[y] & (src[y][x] = ' ' | src[y][x] = '\t' | srcColor[y][x].and(16#7Fb8) = %comment $ @CharColor $ bit8 | srcColor[y][x].and(16#7Fb8) = %symbol $ @CharColor $ bit8))
+				do x :- 1
+			end if
+			if(x < 0)
+				do x :: 0
+			elif(^srcColor[y] <= x)
+				do x :: ^srcColor[y] - 1
+			end if
+			if(^srcColor[y] <> 0)
+				do color :: srcColor[y][x].and(16#7Fb8)
+				while(x >= 1 & srcColor[y][x - 1].and(16#7Fb8) = color)
+					do x :- 1
+				end while
+				ret true
+			end if
+			ret false
+		end func
+	end func
 end func
 
 func srcNameToInternalName(srcName: []char): []char
@@ -2684,4 +2661,25 @@ end func
 func updateLog()
 	do @editHint.setText(@textErr ~ (@textErr =& null ?("", "\n\n")) ~ @textHint ~ (@textHint =& null ?("", "\n\n")) ~ @textFunc)
 	do @editLog.setText(@textLog)
+end func
+
+class GetDocumentNameClass()
+	+var src: []char
+	+var document: @Document
+end class
+
+func getDocumentName(document: @Document): []char
+	var getSrcClass: @GetDocumentNameClass :: #@GetDocumentNameClass
+	do getSrcClass.src :: null
+	do getSrcClass.document :: document
+	do @documents.forEach(callback, getSrcClass)
+	ret getSrcClass.src
+
+	func callback(src: []char, document: @Document, param: @GetDocumentNameClass): bool
+		if(document =& param.document)
+			do param.src :: src
+			ret false
+		end if
+		ret true
+	end func
 end func

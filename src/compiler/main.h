@@ -10,9 +10,5 @@ EXPORT void Interpret1(const void* src, const void* color);
 EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang);
 EXPORT void Version(S64* major, S64* minor, S64* micro);
 EXPORT void ResetMemAllocator(void);
-EXPORT void FreeIdentifierSet(void);
-#if defined(_DEBUG)
-EXPORT void DumpIdentifierSet(const Char* path);
-#endif
-EXPORT void* GetHint(const U8* name, const U8* src, S64 row);
+EXPORT void* GetHint(const U8* src, S64 row, S64 col);
 EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func);

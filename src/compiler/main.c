@@ -61,14 +61,11 @@ static void(*FuncLog)(const void*, S64, S64) = NULL;
 static const void* Src = NULL;
 static const void* SrcLine = NULL;
 static const Char* SrcChar = NULL;
-static int IdentifierSetNum = 0;
-static SIdentifierSet* IdentifierSets = NULL;
-static int DbgInfoSetNum = 0;
-static SDbgInfoSet* DbgInfoSets = NULL;
 static SPackAsm PackAsm;
 static U64 DbgStartAddr;
 static SErrMsg ExcptMsgs[MSG_NUM];
 static Bool MsgLoaded = (Bool)0;
+static SDict* HintAsts = NULL;
 
 // Assembly functions.
 void* Call0Asm(void* func);
@@ -78,22 +75,18 @@ void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);
 
 static void LoadExcptMsg(S64 lang);
 static void DecSrc(void);
-static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), Bool analyze_identifiers, S64 lang);
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang);
 static FILE* BuildMemWfopen(const Char* file_name, const Char* mode);
 static int BuildMemFclose(FILE* file_ptr);
 static U16 BuildMemFgetwc(FILE* file_ptr);
 static size_t BuildMemGetSize(FILE* file_ptr);
 static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int row, int col);
 static size_t BuildFileGetSize(FILE* file_ptr);
-static void MakeIdentifierSet(SDict* asts);
-static const void* MakeIdentifierSet2(const Char* key, const void* value, void* param);
-static const void* MakeIdentifierSet3(const Char* key, const void* value, void* param);
-static const void* MakeIdentifierSet4(const Char* key, const void* value, void* param);
-static const void* MakeIdentifierSet5(const Char* key, const void* value, void* param);
-static int CmpIdentifierSet(const void* a, const void* b);
-static int CmpIdentifier(const void* a, const void* b);
 static SPos* AddrToPos(U64 addr, Char* name);
 static const void* AddrToPosCallback(U64 key, const void* value, void* param);
+static const SAst* SearchHint(int row, int col, const SAst* ast);
+static const SAst* SearchHintList(int row, int col, SList* list);
+static const SAst* BetterHint(const SAst* a, const SAst* b);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -121,7 +114,7 @@ EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), cons
 	Bool result;
 	FuncGetSrc = func_get_src;
 	FuncLog = func_log;
-	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon == NULL ? NULL : (const Char*)(icon + 0x10), rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog, True, lang);
+	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon == NULL ? NULL : (const Char*)(icon + 0x10), rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog, lang);
 	FuncGetSrc = NULL;
 	FuncLog = NULL;
 	DecSrc();
@@ -136,7 +129,7 @@ EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output,
 	// This function is for 'kuincl'.
 	Bool result;
 	InitAllocator();
-	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log, False, lang);
+	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log, lang);
 	FinAllocator();
 	return result;
 }
@@ -176,9 +169,8 @@ EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
 			if (!ErrOccurred())
 			{
+				HintAsts = asts;
 				Analyze(asts, &option, &dlls);
-				if (!ErrOccurred())
-					MakeIdentifierSet(asts);
 			}
 		}
 	}
@@ -201,99 +193,36 @@ EXPORT void Version(S64* major, S64* minor, S64* micro)
 EXPORT void ResetMemAllocator(void)
 {
 	ResetAllocator();
+	HintAsts = NULL;
 }
 
-EXPORT void FreeIdentifierSet(void)
+EXPORT void* GetHint(const U8* src, S64 row, S64 col)
 {
-	if (IdentifierSets == NULL)
-		return;
+	const Char* src2 = (const Char*)(src + 0x10);
+	Char buf[1024];
+	if (HintAsts == NULL)
+		swprintf(buf, 1024, L"[A]");
+	else
 	{
-		int i, j;
-		for (i = 0; i < IdentifierSetNum; i++)
+		const SAst* root = (const SAst*)DictSearch(HintAsts, src2);
+		if (root == NULL)
+			swprintf(buf, 1024, L"[B]");
+		else
 		{
-			for (j = 0; j < IdentifierSets[i].IdentifierNum; j++)
-			{
-				free(IdentifierSets[i].Identifiers[j].Name);
-				free(IdentifierSets[i].Identifiers[j].Hint);
-			}
-			free(IdentifierSets[i].Identifiers);
-			free(IdentifierSets[i].Src);
+			const SAst* best = SearchHint((int)row, (int)col, root);
+			if (best == NULL)
+				swprintf(buf, 1024, L"Not found.");
+			else
+				swprintf(buf, 1024, L"%s: %d, %d - %s (%08x)", best->Pos->SrcName, best->Pos->Row, best->Pos->Col, best->Name, best->TypeId);
 		}
 	}
-	free(IdentifierSets);
-	IdentifierSets = NULL;
-}
-
-EXPORT void DumpIdentifierSet(const Char* path)
-{
-	if (IdentifierSets == NULL)
-		return;
 	{
-		FILE* file_ptr = _wfopen(path, L"w, ccs=UTF-8");
-		int i, j;
-		for (i = 0; i < IdentifierSetNum; i++)
-		{
-			fwprintf(file_ptr, L"%s:\n", IdentifierSets[i].Src);
-			for (j = 0; j < IdentifierSets[i].IdentifierNum; j++)
-			{
-				SIdentifier* identifier = &IdentifierSets[i].Identifiers[j];
-				fwprintf(file_ptr, L"\t%s (%d, %d) [%d, %d]\n", identifier->Name, identifier->Row, identifier->Col, identifier->ScopeRowBegin, identifier->ScopeRowEnd);
-				fwprintf(file_ptr, L"\t\t%s\n", identifier->Hint);
-			}
-		}
-		fclose(file_ptr);
-	}
-}
-
-EXPORT void* GetHint(const U8* name, const U8* src, S64 row)
-{
-	const Char* name2 = (const Char*)(name + 0x10);
-	SIdentifierSet* identifier_set = NULL;
-	int i;
-	int ptr = -1;
-	for (i = 0; i < IdentifierSetNum; i++)
-	{
-		if (wcscmp(IdentifierSets[i].Src, (const Char*)(src + 0x10)) != 0)
-			continue;
-		identifier_set = &IdentifierSets[i];
-	}
-	if (identifier_set == NULL)
-		return NULL;
-	for (i = 0; i < identifier_set->IdentifierNum; i++)
-	{
-		if (wcscmp(identifier_set->Identifiers[i].Name, name2) != 0)
-			continue;
-		ptr = i;
-	}
-	if (ptr == -1)
-		return NULL;
-
-	{
-		int max = INT_MIN;
-		int best = -1;
-		if (row == -1)
-			best = ptr;
-		while (ptr < identifier_set->IdentifierNum && wcscmp(identifier_set->Identifiers[ptr].Name, name2) == 0)
-		{
-			int begin = identifier_set->Identifiers[ptr].ScopeRowBegin;
-			int end = identifier_set->Identifiers[ptr].ScopeRowEnd;
-			if (max < begin && begin <= row && row <= end)
-			{
-				max = begin;
-				best = ptr;
-			}
-			ptr++;
-		}
-		if (best == -1)
-			return NULL;
-		{
-			size_t len = wcslen(identifier_set->Identifiers[best].Hint);
-			U8* result = (U8*)Alloc(0x10 + sizeof(Char) * (len + 1));
-			*(S64*)(result + 0x00) = DefaultRefCntFunc + 1;
-			*(S64*)(result + 0x08) = (S64)len;
-			wcscpy((Char*)(result + 0x10), identifier_set->Identifiers[best].Hint);
-			return result;
-		}
+		size_t len = wcslen(buf);
+		U8* result = (U8*)Alloc(0x10 + sizeof(Char) * (len + 1));
+		*(S64*)(result + 0x00) = DefaultRefCntFunc + 1;
+		*(S64*)(result + 0x08) = (S64)len;
+		wcscpy((Char*)(result + 0x10), buf);
+		return result;
 	}
 }
 
@@ -584,7 +513,7 @@ static void DecSrc(void)
 	}
 }
 
-static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), Bool analyze_identifiers, S64 lang)
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang)
 {
 	SOption option;
 	SDict* asts;
@@ -619,13 +548,6 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	entry = Analyze(asts, &option, &dlls);
 	if (ErrOccurred())
 		goto ERR;
-#if defined(_DEBUG)
-	UNUSED(analyze_identifiers);
-	MakeIdentifierSet(asts);
-#else
-	if (analyze_identifiers)
-		MakeIdentifierSet(asts);
-#endif
 	Err(L"IK0002", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
 	Assemble(&PackAsm, entry, &option, dlls);
 	if (ErrOccurred())
@@ -642,9 +564,6 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 
 	timeEndPeriod(1);
 	Err(L"IK0006", NULL);
-#if defined (_DEBUG)
-	DumpIdentifierSet(NewStr(NULL, L"%s_identifiers.txt", option.OutputFile));
-#endif
 	return True;
 
 ERR:
@@ -767,131 +686,6 @@ static size_t BuildFileGetSize(FILE* file_ptr)
 	return (size_t)file_size;
 }
 
-static void MakeIdentifierSet(SDict* asts)
-{
-	int len = 0;
-	FreeIdentifierSet();
-	DictForEach(asts, MakeIdentifierSet2, &len);
-	IdentifierSetNum = len;
-	IdentifierSets = (SIdentifierSet*)malloc(sizeof(SIdentifierSet) * (size_t)len);
-	{
-		int cnt = 0;
-		DictForEach(asts, MakeIdentifierSet3, &cnt);
-		qsort(IdentifierSets, len, sizeof(SIdentifierSet), CmpIdentifierSet);
-	}
-}
-
-static const void* MakeIdentifierSet2(const Char* key, const void* value, void* param)
-{
-	int* len = (int*)param;
-	UNUSED(key);
-	(*len)++;
-	return value;
-}
-
-static const void* MakeIdentifierSet3(const Char* key, const void* value, void* param)
-{
-	int* cnt = (int*)param;
-	size_t name_len = wcslen(key);
-	SAst* ast = (SAst*)value;
-	int len = 0;
-	IdentifierSets[*cnt].Src = (Char*)malloc(sizeof(Char) * (name_len + 1));
-	wcscpy(IdentifierSets[*cnt].Src, key);
-	DictForEach(ast->ScopeChildren, MakeIdentifierSet4, &len);
-	IdentifierSets[*cnt].IdentifierNum = len;
-	IdentifierSets[*cnt].Identifiers = (SIdentifier*)malloc(sizeof(SIdentifier) * (size_t)(len));
-	{
-		int cnt2[3];
-		cnt2[0] = *cnt;
-		cnt2[1] = 0;
-		cnt2[2] = 1;
-		DictForEach(ast->ScopeChildren, MakeIdentifierSet5, cnt2);
-		qsort(IdentifierSets[*cnt].Identifiers, len, sizeof(SIdentifier), CmpIdentifier);
-	}
-	(*cnt)++;
-	return value;
-}
-
-static const void* MakeIdentifierSet4(const Char* key, const void* value, void* param)
-{
-	int* len = (int*)param;
-	SAst* ast = (SAst*)value;
-	UNUSED(key);
-	if (ast->Name != NULL)
-		(*len)++;
-	if (ast->ScopeChildren != NULL)
-		DictForEach(ast->ScopeChildren, MakeIdentifierSet4, len);
-	return value;
-}
-
-static const void* MakeIdentifierSet5(const Char* key, const void* value, void* param)
-{
-	int* cnt = (int*)param;
-	SAst* ast = (SAst*)value;
-	if (ast->Name != NULL)
-	{
-		size_t name_len = wcslen(ast->Name);
-		SIdentifier* identifier = &IdentifierSets[cnt[0]].Identifiers[cnt[1]];
-		UNUSED(key);
-		if (cnt[2] == 1)
-		{
-			identifier->Name = (Char*)malloc(sizeof(Char) * (name_len + 2));
-			identifier->Name[0] = L'@';
-			wcscpy(identifier->Name + 1, ast->Name);
-		}
-		else
-		{
-			identifier->Name = (Char*)malloc(sizeof(Char) * (name_len + 1));
-			wcscpy(identifier->Name, ast->Name);
-		}
-		identifier->Row = ast->Pos->Row;
-		identifier->Col = ast->Pos->Col;
-		ASSERT(ast->ScopeRowBegin == NULL && ast->ScopeRowEnd == NULL || ast->ScopeRowBegin != NULL && ast->ScopeRowEnd != NULL);
-		identifier->ScopeRowBegin = ast->ScopeRowBegin == NULL ? -1 : (*ast->ScopeRowBegin)->Pos->Row;
-		identifier->ScopeRowEnd = ast->ScopeRowEnd == NULL ? -1 : (*ast->ScopeRowEnd)->Pos->Row;
-		ASSERT(identifier->ScopeRowBegin == -1 || identifier->ScopeRowBegin <= identifier->Row && identifier->Row <= identifier->ScopeRowEnd);
-		{
-			int hint_len;
-			const Char* hint;
-			if (ast->AnalyzedCache == NULL)
-			{
-				hint = L"unreferenced";
-				hint_len = (int)wcslen(hint);
-			}
-			else
-				hint = GetDefinition(&hint_len, ast->AnalyzedCache);
-			identifier->Hint = (Char*)malloc(sizeof(Char) * (size_t)(hint_len + 1));
-			wcscpy(identifier->Hint, hint);
-		}
-		cnt[1]++;
-	}
-	if (ast->ScopeChildren != NULL)
-	{
-		int cnt2 = cnt[2];
-		cnt[2] = 0;
-		DictForEach(ast->ScopeChildren, MakeIdentifierSet5, cnt);
-		cnt[2] = cnt2;
-	}
-	return value;
-}
-
-static int CmpIdentifierSet(const void* a, const void* b)
-{
-	const SIdentifierSet* a2 = (const SIdentifierSet*)a;
-	const SIdentifierSet* b2 = (const SIdentifierSet*)b;
-	return wcscmp(a2->Src, b2->Src);
-}
-
-static int CmpIdentifier(const void* a, const void* b)
-{
-	const SIdentifier* a2 = (const SIdentifier*)a;
-	const SIdentifier* b2 = (const SIdentifier*)b;
-	int result = wcscmp(a2->Name, b2->Name);
-	if (result == 0)
-		result = a2->Row - b2->Row;
-	return result;
-}
-
 static SPos* AddrToPos(U64 addr, Char* name)
 {
 	SPos* result = NULL;
@@ -917,4 +711,268 @@ static const void* AddrToPosCallback(U64 key, const void* value, void* param)
 		wcscpy(name, ((SAst*)func)->Name);
 	}
 	return value;
+}
+
+static const SAst* SearchHint(int row, int col, const SAst* ast)
+{
+	if (ast == NULL)
+		return NULL;
+	const SAst* best = NULL;
+	switch (ast->TypeId)
+	{
+		case AstTypeId_Root:
+			best = SearchHintList(row, col, ((const SAstRoot*)ast)->Items);
+			break;
+		case AstTypeId_Func:
+		case AstTypeId_FuncRaw:
+			{
+				const SAstFunc* ast2 = (const SAstFunc*)ast;
+				best = SearchHintList(row, col, ast2->Args);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->Ret));
+				best = BetterHint(best, SearchHintList(row, col, ast2->Stats));
+			}
+			break;
+		case AstTypeId_Var:
+			best = SearchHint(row, col, (const SAst*)((const SAstVar*)ast)->Var);
+			break;
+		case AstTypeId_Const:
+			best = SearchHint(row, col, (const SAst*)((const SAstConst*)ast)->Var);
+			break;
+		case AstTypeId_Alias:
+			best = SearchHint(row, col, (const SAst*)((const SAstAlias*)ast)->Type);
+			break;
+		case AstTypeId_Class:
+			{
+				const SAstClass* ast2 = (const SAstClass*)ast;
+				// TODO:
+			}
+			break;
+		case AstTypeId_Enum:
+			best = SearchHintList(row, col, ((const SAstEnum*)ast)->Items);
+			break;
+		case AstTypeId_Arg:
+			{
+				const SAstArg* ast2 = (const SAstArg*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Type);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->Expr));
+			}
+			break;
+		case AstTypeId_StatFunc:
+			best = SearchHint(row, col, (const SAst*)((const SAstStatFunc*)ast)->Def);
+			break;
+		case AstTypeId_StatVar:
+			best = SearchHint(row, col, (const SAst*)((const SAstStatVar*)ast)->Def);
+			break;
+		case AstTypeId_StatConst:
+			best = SearchHint(row, col, (const SAst*)((const SAstStatConst*)ast)->Def);
+			break;
+		case AstTypeId_StatAlias:
+			best = SearchHint(row, col, (const SAst*)((const SAstStatAlias*)ast)->Def);
+			break;
+		case AstTypeId_StatClass:
+			best = SearchHint(row, col, (const SAst*)((const SAstStatClass*)ast)->Def);
+			break;
+		case AstTypeId_StatEnum:
+			best = SearchHint(row, col, (const SAst*)((const SAstStatEnum*)ast)->Def);
+			break;
+		case AstTypeId_StatIf:
+			{
+				const SAstStatIf* ast2 = (const SAstStatIf*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Cond);
+				best = BetterHint(best, SearchHintList(row, col, ast2->Stats));
+				best = BetterHint(best, SearchHintList(row, col, ast2->ElIfs));
+				best = BetterHint(best, SearchHintList(row, col, ast2->ElseStats));
+			}
+			break;
+		case AstTypeId_StatElIf:
+			{
+				const SAstStatElIf* ast2 = (const SAstStatElIf*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Cond);
+				best = BetterHint(best, SearchHintList(row, col, ast2->Stats));
+			}
+			break;
+		case AstTypeId_StatSwitch:
+			{
+				const SAstStatSwitch* ast2 = (const SAstStatSwitch*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Cond);
+				best = BetterHint(best, SearchHintList(row, col, ast2->Cases));
+				best = BetterHint(best, SearchHintList(row, col, ast2->DefaultStats));
+			}
+			break;
+		case AstTypeId_StatCase:
+			{
+				const SAstStatCase* ast2 = (const SAstStatCase*)ast;
+				// TODO:
+			}
+			break;
+		case AstTypeId_StatWhile:
+			{
+				const SAstStatWhile* ast2 = (const SAstStatWhile*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Cond);
+				best = BetterHint(best, SearchHintList(row, col, ast2->Stats));
+			}
+			break;
+		case AstTypeId_StatFor:
+			{
+				const SAstStatFor* ast2 = (const SAstStatFor*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Start);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->Cond));
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->Step));
+				best = BetterHint(best, SearchHintList(row, col, ast2->Stats));
+			}
+			break;
+		case AstTypeId_StatTry:
+			{
+				const SAstStatTry* ast2 = (const SAstStatTry*)ast;
+				best = SearchHintList(row, col, ast2->Stats);
+				best = BetterHint(best, SearchHintList(row, col, ast2->Catches));
+				best = BetterHint(best, SearchHintList(row, col, ast2->FinallyStats));
+			}
+			break;
+		case AstTypeId_StatCatch:
+			{
+				const SAstStatCatch* ast2 = (const SAstStatCatch*)ast;
+				// TODO:
+			}
+			break;
+		case AstTypeId_StatThrow:
+			best = SearchHint(row, col, (const SAst*)((const SAstStatThrow*)ast)->Code);
+			break;
+		case AstTypeId_StatBlock:
+			best = SearchHintList(row, col, ((const SAstStatBlock*)ast)->Stats);
+			break;
+		case AstTypeId_StatRet:
+			best = SearchHint(row, col, (const SAst*)((const SAstStatRet*)ast)->Value);
+			break;
+		case AstTypeId_StatDo:
+			best = SearchHint(row, col, (const SAst*)((const SAstStatDo*)ast)->Expr);
+			break;
+		case AstTypeId_StatAssert:
+			best = SearchHint(row, col, (const SAst*)((const SAstStatAssert*)ast)->Cond);
+			break;
+		case AstTypeId_TypeArray:
+			best = SearchHint(row, col, (const SAst*)((const SAstTypeArray*)ast)->ItemType);
+			break;
+		case AstTypeId_TypeFunc:
+			{
+				const SAstTypeFunc* ast2 = (const SAstTypeFunc*)ast;
+				// TODO:
+			}
+			break;
+		case AstTypeId_TypeGen:
+			best = SearchHint(row, col, (const SAst*)((const SAstTypeGen*)ast)->ItemType);
+			break;
+		case AstTypeId_TypeDict:
+			{
+				const SAstTypeDict* ast2 = (const SAstTypeDict*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->ItemTypeKey);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->ItemTypeValue));
+			}
+			break;
+		case AstTypeId_Expr1:
+			best = SearchHint(row, col, (const SAst*)((const SAstExpr1*)ast)->Child);
+			break;
+		case AstTypeId_Expr2:
+			{
+				const SAstExpr2* ast2 = (const SAstExpr2*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Children[0]);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->Children[1]));
+			}
+			break;
+		case AstTypeId_Expr3:
+			{
+				const SAstExpr3* ast2 = (const SAstExpr3*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Children[0]);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->Children[1]));
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->Children[2]));
+			}
+			break;
+		case AstTypeId_ExprNew:
+			best = SearchHint(row, col, (const SAst*)((const SAstExprNew*)ast)->ItemType);
+			break;
+		case AstTypeId_ExprNewArray:
+			{
+				const SAstExprNewArray* ast2 = (const SAstExprNewArray*)ast;
+				best = SearchHintList(row, col, ast2->Idces);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->ItemType));
+			}
+			break;
+		case AstTypeId_ExprAs:
+			{
+				const SAstExprAs* ast2 = (const SAstExprAs*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Child);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->ChildType));
+			}
+			break;
+		case AstTypeId_ExprToBin:
+			{
+				const SAstExprToBin* ast2 = (const SAstExprToBin*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Child);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->ChildType));
+			}
+			break;
+		case AstTypeId_ExprFromBin:
+			{
+				const SAstExprFromBin* ast2 = (const SAstExprFromBin*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Child);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->ChildType));
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->Offset));
+			}
+			break;
+		case AstTypeId_ExprCall:
+			{
+				const SAstExprCall* ast2 = (const SAstExprCall*)ast;
+				// TODO:
+			}
+			break;
+		case AstTypeId_ExprArray:
+			{
+				const SAstExprArray* ast2 = (const SAstExprArray*)ast;
+				best = SearchHint(row, col, (const SAst*)ast2->Var);
+				best = BetterHint(best, SearchHint(row, col, (const SAst*)ast2->Idx));
+			}
+			break;
+		case AstTypeId_ExprDot:
+			best = SearchHint(row, col, (const SAst*)((const SAstExprDot*)ast)->Var);
+			break;
+		case AstTypeId_ExprValueArray:
+			best = SearchHintList(row, col, ((const SAstExprValueArray*)ast)->Values);
+			break;
+	}
+	if (ast->Pos != NULL && ast->Pos->Row == row && ast->Pos->Col <= col)
+	{
+		if (best == NULL || best->Pos->Col < ast->Pos->Col)
+			best = ast;
+	}
+	return best;
+}
+
+static const SAst* SearchHintList(int row, int col, SList* list)
+{
+	SListNode* ptr = list->Bottom;
+	const SAst* found = NULL;
+	while (ptr != NULL)
+	{
+		const SAst* data = (const SAst*)ptr->Data;
+		if (data->Pos != NULL && (data->Pos->Row < row || data->Pos->Row == row && data->Pos->Col <= col) && wcscmp(data->Pos->SrcName, L"kuin") != 0)
+		{
+			found = data;
+			break;
+		}
+		ptr = ptr->Prev;
+	}
+	if (found == NULL)
+		return NULL;
+	return SearchHint(row, col, found);
+}
+
+static const SAst* BetterHint(const SAst* a, const SAst* b)
+{
+	if (a == NULL)
+		return b;
+	if (b == NULL)
+		return a;
+	if (a->Pos->Col >= b->Pos->Col)
+		return a;
+	return b;
 }
