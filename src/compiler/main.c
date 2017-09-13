@@ -18,7 +18,11 @@
 #include "parse.h"
 #include "util.h"
 
+#pragma warning(push)
+#pragma warning(disable:4091)
 #include <DbgHelp.h> // 'StackWalk64'
+#pragma warning(pop)
+
 #pragma comment(lib, "DbgHelp.lib")
 
 #define MSG_NUM (6 / 3)
@@ -185,9 +189,9 @@ EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 
 EXPORT void Version(S64* major, S64* minor, S64* micro)
 {
-	*major = 9;
-	*minor = 17;
-	*micro = 0;
+	*major = 2017;
+	*minor = 9;
+	*micro = 17;
 }
 
 EXPORT void ResetMemAllocator(void)
@@ -229,7 +233,7 @@ EXPORT void* GetHint(const U8* src, S64 row, S64 col)
 EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func)
 {
 	const Char* path2 = (const Char*)(path + 0x10);
-	Char cur_dir[MAX_PATH + 1];
+	Char cur_dir[KUIN_MAX_PATH + 1];
 	Char* cmd_line_buf = NULL;
 	PROCESS_INFORMATION process_info;
 	{
@@ -392,7 +396,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 							if (stack.AddrPC.Offset == 0)
 								break;
 						}
-						MessageBox(NULL, str, NULL, 0);
+						MessageBox(NULL, str, NULL, MB_SETFOREGROUND);
 					}
 					excpt_occurred = True;
 					break;
@@ -576,7 +580,7 @@ static FILE* BuildMemWfopen(const Char* file_name, const Char* mode)
 {
 	UNUSED(mode);
 	{
-		U8 file_name2[0x10 + sizeof(Char) * (MAX_PATH + 1)];
+		U8 file_name2[0x10 + sizeof(Char) * (KUIN_MAX_PATH + 1)];
 		*(S64*)(file_name2 + 0x00) = 2;
 		*(S64*)(file_name2 + 0x08) = (S64)wcslen(file_name);
 		wcscpy((Char*)(file_name2 + 0x10), file_name);
@@ -646,10 +650,10 @@ static size_t BuildMemGetSize(FILE* file_ptr)
 
 static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int row, int col)
 {
-	U8 code2[0x10 + sizeof(Char) * (MAX_PATH + 1)];
+	U8 code2[0x10 + sizeof(Char) * (KUIN_MAX_PATH + 1)];
 	size_t len_msg = wcslen(msg);
 	U8* msg2 = (U8*)Alloc(0x10 + sizeof(Char) * (len_msg + 1));
-	U8 src2[0x10 + sizeof(Char) * (MAX_PATH + 1)];
+	U8 src2[0x10 + sizeof(Char) * (KUIN_MAX_PATH + 1)];
 	U8 args[0x10 + 0x18];
 	{
 		*(S64*)(code2 + 0x00) = 1;

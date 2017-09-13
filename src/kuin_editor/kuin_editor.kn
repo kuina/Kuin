@@ -934,16 +934,19 @@ class DocumentSrc(@Document)
 			do x1 :$ x2
 			do y1 :$ y2
 		end if
+		if(x2 = 0)
+			do y2 :- 1
+		end if
 		for i(y1, y2)
 			if(^me.src.src[i] <> 0)
-				do me.ins(0, i, "\t", true)
-				do dirty :: true
 				if(i = oldAreaY)
 					do oldAreaX :+ 1
 				end if
 				if(i = oldCursorY)
 					do oldCursorX :+ 1
 				end if
+				do me.ins(0, i, "\t", true)
+				do dirty :: true
 			end if
 		end for
 		if(dirty)
@@ -970,16 +973,19 @@ class DocumentSrc(@Document)
 			do x1 :$ x2
 			do y1 :$ y2
 		end if
+		if(x2 = 0)
+			do y2 :- 1
+		end if
 		for i(y1, y2)
 			if(^me.src.src[i] > 0 & me.src.src[i][0] = '\t')
-				do me.del(0, i, 1, true)
-				do dirty :: true
-				if(i = oldAreaY & oldAreaX > 0)
+				if(i = oldAreaY & oldAreaX > 0 & me.src.src[i][oldAreaX] <> '\t')
 					do oldAreaX :- 1
 				end if
-				if(i = oldCursorY & oldCursorX > 0)
+				if(i = oldCursorY & oldCursorX > 0 & me.src.src[i][oldCursorX] <> '\t')
 					do oldCursorX :- 1
 				end if
+				do me.del(0, i, 1, true)
+				do dirty :: true
 			end if
 		end for
 		if(dirty)

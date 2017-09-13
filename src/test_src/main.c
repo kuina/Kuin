@@ -37,12 +37,12 @@ int wmain(void)
 		{
 			PROCESS_INFORMATION process_info;
 			HANDLE process;
-			Char test_path[MAX_PATH];
-			Char output_path[MAX_PATH];
-			Char log_path[MAX_PATH];
-			swprintf(test_path, MAX_PATH, L"../../test/kn/test%04d.kn", i);
-			swprintf(output_path, MAX_PATH, L"../../test/output/output%04d.exe", i);
-			swprintf(log_path, MAX_PATH, L"../../test/output/log%04d.txt", i);
+			Char test_path[KUIN_MAX_PATH];
+			Char output_path[KUIN_MAX_PATH];
+			Char log_path[KUIN_MAX_PATH];
+			swprintf(test_path, KUIN_MAX_PATH, L"../../test/kn/test%04d.kn", i);
+			swprintf(output_path, KUIN_MAX_PATH, L"../../test/output/output%04d.exe", i);
+			swprintf(log_path, KUIN_MAX_PATH, L"../../test/output/log%04d.txt", i);
 			wprintf(L"%s\n", output_path);
 			UsedMem = 0;
 			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Log, 1))
@@ -112,8 +112,8 @@ int wmain(void)
 			}
 			wprintf(L", Run[S]");
 			{
-				Char path[MAX_PATH];
-				swprintf(path, MAX_PATH, L"../../test/correct/log%04d.txt", i);
+				Char path[KUIN_MAX_PATH];
+				swprintf(path, KUIN_MAX_PATH, L"../../test/correct/log%04d.txt", i);
 				if (!Compare(log_path, path))
 				{
 					correct = False;

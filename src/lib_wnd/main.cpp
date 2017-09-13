@@ -432,7 +432,7 @@ EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon
 
 EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFilter)
 {
-	Char path[MAX_PATH + 1];
+	Char path[KUIN_MAX_PATH + 1];
 	path[0] = L'\0';
 	int filter_num;
 	Char* filter_mem = ParseFilter(filter, &filter_num);
@@ -444,7 +444,7 @@ EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	open_file_name.lpstrFilter = filter_mem;
 	open_file_name.nFilterIndex = filter_num == 0 ? 0 : static_cast<DWORD>(defaultFilter + 1);
 	open_file_name.lpstrFile = path;
-	open_file_name.nMaxFile = MAX_PATH + 1;
+	open_file_name.nMaxFile = KUIN_MAX_PATH + 1;
 	open_file_name.lpstrInitialDir = NULL;
 	open_file_name.lpstrTitle = NULL;
 	open_file_name.Flags = OFN_FILEMUSTEXIST;
@@ -471,7 +471,7 @@ EXPORT_CPP void* _openFileDialogMulti(SClass* parent, const U8* filter, S64 defa
 
 EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFilter, const U8* defaultExt)
 {
-	Char path[MAX_PATH + 1];
+	Char path[KUIN_MAX_PATH + 1];
 	path[0] = L'\0';
 	int filter_num;
 	Char* filter_mem = ParseFilter(filter, &filter_num);
@@ -483,7 +483,7 @@ EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	open_file_name.lpstrFilter = filter_mem;
 	open_file_name.nFilterIndex = filter_num == 0 ? 0 : static_cast<DWORD>(defaultFilter + 1);
 	open_file_name.lpstrFile = path;
-	open_file_name.nMaxFile = MAX_PATH + 1;
+	open_file_name.nMaxFile = KUIN_MAX_PATH + 1;
 	open_file_name.lpstrInitialDir = NULL;
 	open_file_name.lpstrTitle = NULL;
 	open_file_name.lpstrDefExt = defaultExt == NULL ? NULL : reinterpret_cast<const Char*>(defaultExt + 0x10);
@@ -776,7 +776,7 @@ EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	SDraw* me3 = reinterpret_cast<SDraw*>(me_);
-	SetCtrlParam(me2, reinterpret_cast<SWndBase*>(parent), WndKind_Draw, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_NOTIFY, x, y, width, height, L"", WndProcDraw, anchorX, anchorY);
+	SetCtrlParam(me2, reinterpret_cast<SWndBase*>(parent), WndKind_Draw, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_NOTIFY | WS_CLIPCHILDREN, x, y, width, height, L"", WndProcDraw, anchorX, anchorY);
 	me3->EqualMagnification = equalMagnification;
 	me3->DrawTwice = True;
 	me3->Enter = False;

@@ -32,7 +32,7 @@ Bool SetLogFunc(void(*func_log)(const Char* code, const Char* msg, const Char* s
 		FILE* file_ptr;
 		ASSERT(0 <= lang && lang < LANG_NUM); // 0 = 'Ja', 1 = 'En'.
 		{
-			Char path[MAX_PATH];
+			Char path[KUIN_MAX_PATH];
 			wcscpy(path, sys_dir);
 			wcscat(path, L"msg.knd");
 			file_ptr = _wfopen(path, L"r, ccs=UTF-8");

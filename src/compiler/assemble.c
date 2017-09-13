@@ -1218,7 +1218,7 @@ static const void* InitDlls(const Char* key, const void* value, void* param)
 	}
 	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_CX), ValReg(4, Reg_CX)));
 	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R8), ValReg(4, Reg_R8)));
-	ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_R9), ValImmU(4, 0x10))); // 'MB_ICONERROR'
+	ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_R9), ValImmU(4, 0x10 | 0x00010000))); // 'MB_ICONERROR | MB_SETFOREGROUND'
 	CallAPI(PackAsm->Asms, L"USER32.dll", L"MessageBoxW");
 	ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)param)->Addr, True))));
 	ListAdd(PackAsm->Asms, lbl2);

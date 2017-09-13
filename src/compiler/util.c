@@ -148,7 +148,7 @@ Bool DelDir(const Char* path)
 {
 	Char path2[1024];
 	Char path3[1024];
-	if (wcslen(path) > MAX_PATH)
+	if (wcslen(path) > KUIN_MAX_PATH)
 		return False;
 	wcscpy(path2, path);
 	{

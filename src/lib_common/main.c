@@ -80,9 +80,9 @@ EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
 
 	// Set the current directory.
 	{
-		Char path[MAX_PATH + 1];
+		Char path[KUIN_MAX_PATH + 1];
 		Char* ptr;
-		GetModuleFileName(NULL, path, MAX_PATH);
+		GetModuleFileName(NULL, path, KUIN_MAX_PATH);
 		ptr = wcsrchr(path, L'\\');
 		if (ptr != NULL)
 			*(ptr + 1) = L'\0';
@@ -93,9 +93,9 @@ EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
 		const Char* cur_dir_path = L"./_curdir_.txt";
 		if (PathFileExists(cur_dir_path))
 		{
-			Char path[MAX_PATH + 1];
+			Char path[KUIN_MAX_PATH + 1];
 			FILE* file_ptr = _wfopen(cur_dir_path, L"r, ccs=UTF-8");
-			fgetws(path, MAX_PATH, file_ptr);
+			fgetws(path, KUIN_MAX_PATH, file_ptr);
 			{
 				Char* ptr = path;
 				while (ptr[1] != L'\0')

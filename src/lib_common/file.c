@@ -424,11 +424,11 @@ EXPORT Bool _streamTerm(SClass* me_)
 EXPORT Bool _makeDir(const U8* path)
 {
 	THROWDBG(path == NULL, 0xc0000005);
-	THROWDBG(*(S64*)(path + 0x08) > MAX_PATH, 0xe9170006);
+	THROWDBG(*(S64*)(path + 0x08) > KUIN_MAX_PATH, 0xe9170006);
 	if (!DelDirRecursion((const Char*)(path + 0x10)))
 		return False;
 	{
-		Char path2[MAX_PATH + 2];
+		Char path2[KUIN_MAX_PATH + 2];
 		wcscpy(path2, (const Char*)(path + 0x10));
 		NormPathBackSlash(path2, True);
 		return SHCreateDirectory(NULL, path2) == ERROR_SUCCESS;
@@ -593,7 +593,7 @@ EXPORT void* _tmpFile(void)
 
 EXPORT void* _sysDir(S64 kind)
 {
-	Char path[MAX_PATH + 2];
+	Char path[KUIN_MAX_PATH + 2];
 	if (!SHGetSpecialFolderPath(NULL, path, (int)kind, TRUE))
 		return NULL;
 	NormPath(path, True);
@@ -609,8 +609,8 @@ EXPORT void* _sysDir(S64 kind)
 
 EXPORT void* _exeDir(void)
 {
-	Char path[MAX_PATH + 1];
-	if (!GetModuleFileName(NULL, path, MAX_PATH))
+	Char path[KUIN_MAX_PATH + 1];
+	if (!GetModuleFileName(NULL, path, KUIN_MAX_PATH))
 		return NULL;
 	{
 		size_t len = wcslen(path);
@@ -827,8 +827,8 @@ static void NormPathBackSlash(Char* path, Bool dir)
 
 static Bool ForeachDirRecursion(const Char* path, Bool recursive, void* func)
 {
-	Char path2[MAX_PATH + 1];
-	if (wcslen(path) > MAX_PATH)
+	Char path2[KUIN_MAX_PATH + 1];
+	if (wcslen(path) > KUIN_MAX_PATH)
 		return False;
 	if (!PathFileExists(path))
 		return False;
@@ -871,8 +871,8 @@ static Bool ForeachDirRecursion(const Char* path, Bool recursive, void* func)
 
 static Bool DelDirRecursion(const Char* path)
 {
-	Char path2[MAX_PATH + 1];
-	if (wcslen(path) > MAX_PATH)
+	Char path2[KUIN_MAX_PATH + 1];
+	if (wcslen(path) > KUIN_MAX_PATH)
 		return False;
 	if (!PathFileExists(path))
 		return True;
@@ -916,9 +916,9 @@ static Bool DelDirRecursion(const Char* path)
 
 static Bool CopyDirRecursion(const Char* dst, const Char* src)
 {
-	Char src2[MAX_PATH + 1];
-	Char dst2[MAX_PATH + 1];
-	if (wcslen(src) > MAX_PATH)
+	Char src2[KUIN_MAX_PATH + 1];
+	Char dst2[KUIN_MAX_PATH + 1];
+	if (wcslen(src) > KUIN_MAX_PATH)
 		return False;
 	if (!PathFileExists(src))
 		return False;

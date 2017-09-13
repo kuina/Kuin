@@ -52,7 +52,7 @@ void MakeOption(SOption* option, const Char* path, const Char* output, const Cha
 	}
 
 
-	if (wcslen(path) > MAX_PATH)
+	if (wcslen(path) > KUIN_MAX_PATH)
 	{
 		Err(L"EK0002", NULL, path);
 		return;
@@ -60,7 +60,7 @@ void MakeOption(SOption* option, const Char* path, const Char* output, const Cha
 
 	// Get 'option->Dir' and 'option->SrcName'.
 	{
-		Char path2[MAX_PATH + 1];
+		Char path2[KUIN_MAX_PATH + 1];
 		Char* ptr = path2;
 		Char* ptr2;
 		wcscpy(path2, path);

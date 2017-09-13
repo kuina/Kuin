@@ -29,7 +29,7 @@ EXPORT SClass* _makeProcess(SClass* me_, const U8* path, const U8* cmd_line)
 	THROWDBG(path == NULL, 0xc0000005);
 	SProcess* me2 = (SProcess*)me_;
 	const Char* path2 = (const Char*)(path + 0x10);
-	Char cur_dir[MAX_PATH + 1];
+	Char cur_dir[KUIN_MAX_PATH + 1];
 	Char* cmd_line_buf = NULL;
 	{
 		Char* ptr;
@@ -97,7 +97,7 @@ EXPORT S64 _processRun(SClass* me_, Bool waitUntilExit)
 EXPORT void _taskOpen(const U8* path)
 {
 	const Char* path2 = (const Char*)(path + 0x10);
-	Char cur_dir[MAX_PATH + 1];
+	Char cur_dir[KUIN_MAX_PATH + 1];
 	{
 		Char* ptr;
 		wcscpy(cur_dir, path2);
