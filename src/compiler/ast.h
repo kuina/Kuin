@@ -604,4 +604,4 @@ Bool IsClass(const SAstType* type);
 Bool IsEnum(const SAstType* type);
 Bool IsStr(const SAstType* type);
 void Dump1(const Char* path, const SAst* ast);
-const Char* GetDefinition(int* len, const SAst* ast);
+void GetTypeName(Char* buf, size_t* len, size_t size, const SAstType* ast);

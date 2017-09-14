@@ -71,6 +71,7 @@ static U64 DbgStartAddr;
 static SErrMsg ExcptMsgs[MSG_NUM];
 static Bool MsgLoaded = (Bool)0;
 static SDict* HintAsts = NULL;
+static Char HintBuf[0x08 + HINT_MSG_MAX + 1];
 
 // Assembly functions.
 void* Call0Asm(void* func);
@@ -94,6 +95,7 @@ static const SAst* SearchHintList(const Char* src, int row, int col, SList* list
 static Bool CmpHintPos(const Char* src, int row, int col, const SPos* pos);
 static const SAst* BetterHint(const SAst* a, const SAst* b);
 static void WriteHint(Char* buf, size_t* len, const SAst* ast);
+static void WriteHintDef(Char* buf, size_t* len, const SAst* ast);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -206,7 +208,6 @@ EXPORT void ResetMemAllocator(void)
 EXPORT void* GetHint(const U8* src, S64 row, S64 col)
 {
 	const Char* src2 = (const Char*)(src + 0x10);
-	Char buf[HINT_MSG_MAX + 1];
 	if (HintAsts == NULL)
 		return NULL;
 	const SAst* root = (const SAst*)DictSearch(HintAsts, src2);
@@ -216,14 +217,12 @@ EXPORT void* GetHint(const U8* src, S64 row, S64 col)
 	if (best == NULL)
 		return NULL;
 	size_t len = 0;
-	WriteHint(buf, &len, best);
+	WriteHint(HintBuf + 0x08, &len, best);
 	if (len == 0)
 		return NULL;
-	U8* result = (U8*)Alloc(0x10 + sizeof(Char) * (len + 1));
-	*(S64*)(result + 0x00) = DefaultRefCntFunc + 1;
-	*(S64*)(result + 0x08) = (S64)len;
-	wcscpy((Char*)(result + 0x10), buf);
-	return result;
+	*(S64*)(HintBuf + 0x00) = DefaultRefCntFunc + 1;
+	*(S64*)(HintBuf + 0x04) = (S64)len;
+	return HintBuf;
 }
 
 EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func)
@@ -1065,188 +1064,128 @@ static void WriteHint(Char* buf, size_t* len, const SAst* ast)
 {
 	switch (ast->TypeId)
 	{
-		case AstTypeId_Func:
-		case AstTypeId_FuncRaw:
-			// TODO:
-			break;
-		case AstTypeId_Var:
-			// TODO:
-			break;
-		case AstTypeId_Const:
-			// TODO:
-			break;
-		case AstTypeId_Alias:
-			// TODO:
-			break;
-		case AstTypeId_Class:
-			// TODO:
-			break;
-		case AstTypeId_Enum:
-			// TODO:
-			break;
-		case AstTypeId_Arg:
-			// TODO:
-			break;
-		case AstTypeId_StatFunc:
-			// TODO:
-			break;
-		case AstTypeId_StatVar:
-			// TODO:
-			break;
-		case AstTypeId_StatConst:
-			// TODO:
-			break;
-		case AstTypeId_StatAlias:
-			// TODO:
-			break;
-		case AstTypeId_StatClass:
-			// TODO:
-			break;
-		case AstTypeId_StatEnum:
-			// TODO:
-			break;
-		case AstTypeId_StatIf:
-			// TODO:
-			break;
-		case AstTypeId_StatElIf:
-			// TODO:
-			break;
-		case AstTypeId_StatElse:
-			// TODO:
-			break;
-		case AstTypeId_StatSwitch:
-			// TODO:
-			break;
-		case AstTypeId_StatCase:
-			// TODO:
-			break;
-		case AstTypeId_StatDefault:
-			// TODO:
-			break;
-		case AstTypeId_StatWhile:
-			// TODO:
-			break;
-		case AstTypeId_StatFor:
-			// TODO:
-			break;
-		case AstTypeId_StatTry:
-			// TODO:
-			break;
-		case AstTypeId_StatCatch:
-			// TODO:
-			break;
-		case AstTypeId_StatFinally:
-			// TODO:
-			break;
-		case AstTypeId_StatThrow:
-			// TODO:
-			break;
-		case AstTypeId_StatBlock:
-			// TODO:
-			break;
-		case AstTypeId_StatRet:
-			// TODO:
-			break;
-		case AstTypeId_StatDo:
-			// TODO:
-			break;
 		case AstTypeId_StatBreak:
-			// TODO:
-			break;
 		case AstTypeId_StatSkip:
-			// TODO:
-			break;
-		case AstTypeId_StatAssert:
-			// TODO:
-			break;
-		case AstTypeId_TypeArray:
-			// TODO:
-			break;
-		case AstTypeId_TypeBit:
-			// TODO:
-			break;
-		case AstTypeId_TypeFunc:
-			// TODO:
-			break;
-		case AstTypeId_TypeGen:
-			// TODO:
-			break;
-		case AstTypeId_TypeDict:
-			// TODO:
-			break;
-		case AstTypeId_TypePrim:
-			// TODO:
-			break;
 		case AstTypeId_TypeUser:
-			if (ast->RefItem != NULL && ast->RefItem->Name != NULL)
+		case AstTypeId_ExprRef:
+			if (ast->RefItem != NULL)
 			{
-				*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%s", ast->RefItem->Name);
-				if (ast->RefItem->Pos != NULL)
-					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L" (%s: %d, %d)", ast->RefItem->Pos->SrcName, ast->RefItem->Pos->Row, ast->RefItem->Pos->Col);
+				if (ast->RefItem->Pos != NULL && *len < HINT_MSG_MAX)
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"[%s: %d, %d] ", ast->RefItem->Pos->SrcName, ast->RefItem->Pos->Row, ast->RefItem->Pos->Col);
+				WriteHintDef(buf, len, ast->RefItem);
 			}
 			break;
-		case AstTypeId_Expr1:
-			// TODO:
-			break;
-		case AstTypeId_Expr2:
-			// TODO:
-			break;
-		case AstTypeId_Expr3:
-			// TODO:
-			break;
-		case AstTypeId_ExprNew:
-			// TODO:
-			break;
-		case AstTypeId_ExprNewArray:
-			// TODO:
-			break;
-		case AstTypeId_ExprAs:
-			// TODO:
-			break;
-		case AstTypeId_ExprToBin:
-			// TODO:
-			break;
-		case AstTypeId_ExprFromBin:
-			// TODO:
-			break;
-		case AstTypeId_ExprCall:
-			// TODO:
-			break;
-		case AstTypeId_ExprArray:
-			// TODO:
-			break;
 		case AstTypeId_ExprDot:
-			// TODO:
-			break;
-		case AstTypeId_ExprValue:
 			{
-				const SAstExprValue* ast2 = (const SAstExprValue*)ast;
-				const SAstExpr* ast3 = (const SAstExpr*)ast;
-				if (ast3->VarKind == AstExprVarKind_Value)
+				const SAstExprDot* ast2 = (const SAstExprDot*)ast;
+				if (ast2->ClassItem != NULL && ast2->ClassItem->Def != NULL)
 				{
-					if (IsInt(ast3->Type) || ast->TypeId == AstTypeId_TypeBit)
-						*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%I64d(16#%016I64X)", *(S64*)ast2->Value, *(S64*)ast2->Value);
-					else if (IsBool(ast3->Type))
-						*len += swprintf(buf + *len, HINT_MSG_MAX - *len, *(Bool*)ast2->Value != 0 ? L"true" : L"false");
-					else if (IsChar(ast3->Type))
-						*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"'%c'", *(Char*)ast2->Value);
-					else if (IsFloat(ast3->Type))
-						*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%e", *(double*)ast2->Value);
-					else if (IsStr(ast3->Type))
-						*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"\"%s\"", *(Char**)ast2->Value);
+					const SAst* item = ast2->ClassItem->Def;
+					if (item->Pos != NULL && *len < HINT_MSG_MAX)
+						*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"[%s: %d, %d] ", item->Pos->SrcName, item->Pos->Row, item->Pos->Col);
+					WriteHintDef(buf, len, item);
 				}
 			}
 			break;
-		case AstTypeId_ExprValueArray:
-			// TODO:
-			break;
-		case AstTypeId_ExprRef:
-			if (ast->RefItem != NULL && ast->RefItem->Name != NULL)
+	}
+}
+
+static void WriteHintDef(Char* buf, size_t* len, const SAst* ast)
+{
+	switch (ast->TypeId)
+	{
+		case AstTypeId_Func:
+		case AstTypeId_FuncRaw:
 			{
-				*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%s", ast->RefItem->Name);
-				if (ast->RefItem->Pos != NULL)
-					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L" (%s: %d, %d)", ast->RefItem->Pos->SrcName, ast->RefItem->Pos->Row, ast->RefItem->Pos->Col);
+				const SAstFunc* ast2 = (const SAstFunc*)ast;
+				if (*len < HINT_MSG_MAX)
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"func %s(", ast->Name);
+				SListNode* ptr = ast2->Args->Top;
+				while (ptr != NULL)
+				{
+					if (ptr != ast2->Args->Top && *len < HINT_MSG_MAX)
+						*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L", ");
+					WriteHintDef(buf, len, (const SAst*)ptr->Data);
+					ptr = ptr->Next;
+				}
+				if (ast2->Ret == NULL)
+				{
+					if (*len < HINT_MSG_MAX)
+						*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L")");
+				}
+				else
+				{
+					if (*len < HINT_MSG_MAX)
+						*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"): ");
+					WriteHintDef(buf, len, (const SAst*)ast2->Ret);
+				}
 			}
+			break;
+		case AstTypeId_Var:
+			WriteHintDef(buf, len, (const SAst*)((const SAstVar*)ast)->Var);
+			break;
+		case AstTypeId_Alias:
+			{
+				const SAstAlias* ast2 = (const SAstAlias*)ast;
+				if (*len < HINT_MSG_MAX)
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"alias %s: ", ast->Name);
+				WriteHintDef(buf, len, (const SAst*)ast2->Type);
+			}
+			break;
+		case AstTypeId_Class:
+			if (*len < HINT_MSG_MAX)
+				*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"class %s(%s)", ast->Name, ast->RefName != NULL ? ast->RefName : L"");
+			break;
+		case AstTypeId_Enum:
+			if (*len < HINT_MSG_MAX)
+				*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"enum %s", ast->Name);
+			break;
+		case AstTypeId_Arg:
+			{
+				const SAstArg* ast2 = (const SAstArg*)ast;
+				if (*len < HINT_MSG_MAX)
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%s: %s", ast->Name, ast2->RefVar ? L"&" : L"");
+				WriteHintDef(buf, len, (const SAst*)ast2->Type);
+				if (ast2->Expr != NULL)
+				{
+					if (*len < HINT_MSG_MAX)
+						*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L" :: ");
+					WriteHintDef(buf, len, (const SAst*)ast2->Expr);
+				}
+			}
+			break;
+		case AstTypeId_StatIf:
+			if (*len < HINT_MSG_MAX)
+				*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"if %s()", ast->Name);
+			break;
+		case AstTypeId_StatSwitch:
+			if (*len < HINT_MSG_MAX)
+				*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"switch %s()", ast->Name);
+			break;
+		case AstTypeId_StatWhile:
+			if (*len < HINT_MSG_MAX)
+				*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"while %s()", ast->Name);
+			break;
+		case AstTypeId_StatFor:
+			if (*len < HINT_MSG_MAX)
+				*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"for %s()", ast->Name);
+			break;
+		case AstTypeId_StatTry:
+			if (*len < HINT_MSG_MAX)
+				*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"try %s", ast->Name);
+			break;
+		case AstTypeId_StatBlock:
+			if (*len < HINT_MSG_MAX)
+				*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"block %s", ast->Name);
+			break;
+		case AstTypeId_TypeArray:
+		case AstTypeId_TypeBit:
+		case AstTypeId_TypeFunc:
+		case AstTypeId_TypeGen:
+		case AstTypeId_TypeDict:
+		case AstTypeId_TypePrim:
+		case AstTypeId_TypeUser:
+			GetTypeName(buf, len, HINT_MSG_MAX, (const SAstType*)ast);
 			break;
 	}
 }

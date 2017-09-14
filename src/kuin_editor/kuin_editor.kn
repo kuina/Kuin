@@ -635,7 +635,7 @@ class DocumentSrc(@Document)
 		var srcName: []char :: @srcNameToInternalName(@getDocumentName(@curDocument))
 		if(^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t')
 			if(srcName <>& null)
-				var hint: []char :: ##@getHint(srcName, me.cursorY + 1, x)
+				var hint: []char :: @getHint2(srcName, me.cursorY + 1, x)
 				if(hint =& null)
 					do hint :: ""
 				end if
@@ -1167,7 +1167,7 @@ class DocumentSrc(@Document)
 						switch color(me.src.color[y][x - 1].and(16#7Fb8) $ @CharColor)
 						case %identifier, %global, %reserved
 							do x :- 1
-							var hint: []char :: ##@getHint(srcName, y + 1, x)
+							var hint: []char :: @getHint2(srcName, y + 1, x)
 							if(hint =& null)
 								do hint :: ""
 							end if
@@ -2686,4 +2686,8 @@ func getDocumentName(document: @Document): []char
 		end if
 		ret true
 	end func
+end func
+
+func getHint2(src: []char, row: int, col: int): []char
+	ret ##@getHint(src, row, col)
 end func

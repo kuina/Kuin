@@ -156,36 +156,120 @@ void Dump1(const Char* path, const SAst* ast)
 	fclose(FilePtr);
 }
 
-const Char* GetDefinition(int* len, const SAst* ast)
+void GetTypeName(Char* buf, size_t* len, size_t size, const SAstType* ast)
 {
-	switch (ast->TypeId)
+	switch (((SAst*)ast)->TypeId)
 	{
-		case AstTypeId_Func: return GetDefinitionFunc(len, (const SAstFunc*)ast);
-		case AstTypeId_FuncRaw: return GetDefinitionFunc(len, (const SAstFunc*)ast);
-		case AstTypeId_Alias: return GetDefinitionAlias(len, (const SAstAlias*)ast);
-		case AstTypeId_Class: return GetDefinitionClass(len, (const SAstClass*)ast);
-		case AstTypeId_Enum: return GetDefinitionEnum(len, (const SAstEnum*)ast);
-		case AstTypeId_Arg: return GetDefinitionArg(len, (const SAstArg*)ast);
-		case AstTypeId_StatIf: return GetDefinitionStatIf(len, (const SAstStatIf*)ast);
-		case AstTypeId_StatSwitch: return GetDefinitionStatSwitch(len, (const SAstStatSwitch*)ast);
-		case AstTypeId_StatWhile: return GetDefinitionStatWhile(len, (const SAstStatWhile*)ast);
-		case AstTypeId_StatFor: return GetDefinitionStatFor(len, (const SAstStatFor*)ast);
-		case AstTypeId_StatTry: return GetDefinitionStatTry(len, (const SAstStatTry*)ast);
-		case AstTypeId_StatBlock: return GetDefinitionStatBlock(len, (const SAstStatBlock*)ast);
-		case AstTypeId_TypeArray: return GetDefinitionTypeArray(len, (const SAstTypeArray*)ast);
-		case AstTypeId_TypeBit: return GetDefinitionTypeBit(len, (const SAstTypeBit*)ast);
-		case AstTypeId_TypeFunc: return GetDefinitionTypeFunc(len, (const SAstTypeFunc*)ast);
-		case AstTypeId_TypeGen: return GetDefinitionTypeGen(len, (const SAstTypeGen*)ast);
-		case AstTypeId_TypeDict: return GetDefinitionTypeDict(len, (const SAstTypeDict*)ast);
-		case AstTypeId_TypePrim: return GetDefinitionTypePrim(len, (const SAstTypePrim*)ast);
-		case AstTypeId_TypeUser: return GetDefinitionTypeUser(len, (const SAstTypeUser*)ast);
-		case AstTypeId_ExprValue: return GetDefinitionExprValue(len, (const SAstExprValue*)ast);
-		default:
-			ASSERT(False);
+		case AstTypeId_TypeArray:
+			if (*len < size)
+				*len += swprintf(buf + *len, size - *len, L"[]");
+			GetTypeName(buf, len, size, ((const SAstTypeArray*)ast)->ItemType);
+			break;
+		case AstTypeId_TypeBit:
+			if (*len < size)
+				*len += swprintf(buf + *len, size - *len, L"bit%d", ((const SAstTypeBit*)ast)->Size * 8);
+			break;
+		case AstTypeId_TypeFunc:
+			{
+				const SAstTypeFunc* ast2 = (const SAstTypeFunc*)ast;
+				if (*len < size)
+					*len += swprintf(buf + *len, size - *len, L"func<(");
+				SListNode* ptr = ast2->Args->Top;
+				while (ptr != NULL)
+				{
+					const SAstTypeFuncArg* arg = (const SAstTypeFuncArg*)ptr->Data;
+					if (ptr != ast2->Args->Top && *len < size)
+						*len += swprintf(buf + *len, size - *len, L", ");
+					if (arg->RefVar && *len < size)
+						*len += swprintf(buf + *len, size - *len, L"&");
+					GetTypeName(buf, len, size, arg->Arg);
+					ptr = ptr->Next;
+				}
+				if (ast2->Ret == NULL)
+				{
+					if (*len < size)
+						*len += swprintf(buf + *len, size - *len, L")>");
+				}
+				else
+				{
+					if (*len < size)
+						*len += swprintf(buf + *len, size - *len, L"): ");
+					GetTypeName(buf, len, size, ast2->Ret);
+					if (*len < size)
+						*len += swprintf(buf + *len, size - *len, L">");
+				}
+			}
+			break;
+		case AstTypeId_TypeGen:
+			{
+				const SAstTypeGen* ast2 = (const SAstTypeGen*)ast;
+				if (*len < size)
+				{
+					switch (ast2->Kind)
+					{
+						case AstTypeGenKind_List:
+							*len += swprintf(buf + *len, size - *len, L"list<");
+							break;
+						case AstTypeGenKind_Stack:
+							*len += swprintf(buf + *len, size - *len, L"stack<");
+							break;
+						case AstTypeGenKind_Queue:
+							*len += swprintf(buf + *len, size - *len, L"queue<");
+							break;
+						default:
+							ASSERT(False);
+							break;
+					}
+				}
+				GetTypeName(buf, len, size, ast2->ItemType);
+				if (*len < size)
+					*len += swprintf(buf + *len, size - *len, L">");
+			}
+			break;
+		case AstTypeId_TypeDict:
+			{
+				const SAstTypeDict* ast2 = (const SAstTypeDict*)ast;
+				if (*len < size)
+					*len += swprintf(buf + *len, size - *len, L"dict<");
+				GetTypeName(buf, len, size, ast2->ItemTypeKey);
+				if (*len < size)
+					*len += swprintf(buf + *len, size - *len, L", ");
+				GetTypeName(buf, len, size, ast2->ItemTypeValue);
+				if (*len < size)
+					*len += swprintf(buf + *len, size - *len, L">");
+			}
+			break;
+		case AstTypeId_TypePrim:
+			{
+				const SAstTypePrim* ast2 = (const SAstTypePrim*)ast;
+				if (*len < size)
+				{
+					switch (ast2->Kind)
+					{
+						case AstTypePrimKind_Int:
+							*len += swprintf(buf + *len, size - *len, L"int");
+							break;
+						case AstTypePrimKind_Float:
+							*len += swprintf(buf + *len, size - *len, L"float");
+							break;
+						case AstTypePrimKind_Char:
+							*len += swprintf(buf + *len, size - *len, L"char");
+							break;
+						case AstTypePrimKind_Bool:
+							*len += swprintf(buf + *len, size - *len, L"bool");
+							break;
+						default:
+							ASSERT(False);
+							break;
+					}
+				}
+			}
+			break;
+		case AstTypeId_TypeUser:
+			if (*len < size)
+				*len += swprintf(buf + *len, size - *len, L"%s", ((const SAst*)ast)->RefName);
 			break;
 	}
-	*len = 0;
-	return NULL;
 }
 
 static void PrintAst(const Char* tag, const SAst* ast)
@@ -1348,173 +1432,4 @@ static const void* DumpScopeChildren(const Char* key, const void* value, void* p
 	UNUSED(param);
 	DumpScope(key, (const SAst*)value);
 	return value;
-}
-
-static const Char* GetDefinitionFunc(int* len, const SAstFunc* ast)
-{
-	Bool ref_name = ((const SAst*)ast)->RefName != NULL;
-	const Char* result = NewStr(NULL, L"func %s%s%s(", ref_name ? ((const SAst*)ast)->RefName : L"", ref_name ? L"." : L"", ((const SAst*)ast)->Name);
-	int len2;
-	SListNode* ptr = ref_name ? ast->Args->Top->Next : ast->Args->Top;
-	while (ptr != NULL)
-	{
-		const SAstArg* arg = (const SAstArg*)ptr->Data;
-		result = NewStr(NULL, L"%s%s: %s%s%s", result, ((const SAst*)arg)->Name, arg->RefVar ? L"&" : L"", GetDefinition(&len2, (const SAst*)arg->Type), ptr->Next == NULL ? L"" : L", ");
-		ptr = ptr->Next;
-	}
-	return NewStr(len, L"%s)%s%s", result, ast->Ret == NULL ? L"" : L": ", ast->Ret == NULL ? L"" : GetDefinition(&len2, (const SAst*)ast->Ret));
-}
-
-static const Char* GetDefinitionAlias(int* len, const SAstAlias* ast)
-{
-	int len2;
-	return NewStr(len, L"alias %s: %s", ((const SAst*)ast)->Name, GetDefinition(&len2, (const SAst*)ast->Type));
-}
-
-static const Char* GetDefinitionClass(int* len, const SAstClass* ast)
-{
-	return NewStr(len, L"class %s(%s)", ((const SAst*)ast)->Name, ((const SAst*)ast)->RefName == NULL || wcscmp(((const SAst*)ast)->RefName, L"kuin@Class") == 0 ? L"" : ((const SAst*)ast)->RefName);
-}
-
-static const Char* GetDefinitionEnum(int* len, const SAstEnum* ast)
-{
-	return NewStr(len, L"enum %s", ((const SAst*)ast)->Name);
-}
-
-static const Char* GetDefinitionArg(int* len, const SAstArg* ast)
-{
-	int len2;
-	Bool ref_name = ((const SAst*)ast)->RefName != NULL;
-	Bool expr = ast->Expr != NULL && ast->Expr->VarKind == AstExprVarKind_Value;
-	return NewStr(len, L"%s %s%s%s: %s%s%s%s", ast->Kind == AstArgKind_Const ? L"const" : L"var", ref_name ? ((const SAst*)ast)->RefName : L"", ref_name ? L"." : L"", ((const SAst*)ast)->Name, ast->RefVar ? L"&" : L"", GetDefinition(&len2, (const SAst*)ast->Type), expr ? L" :: " : L"", expr ? GetDefinition(&len2, (const SAst*)ast->Expr) : L"");
-}
-
-static const Char* GetDefinitionStatIf(int* len, const SAstStatIf* ast)
-{
-	return NewStr(len, L"if %s(...)", ((const SAst*)ast)->Name);
-}
-
-static const Char* GetDefinitionStatSwitch(int* len, const SAstStatSwitch* ast)
-{
-	return NewStr(len, L"switch %s(...)", ((const SAst*)ast)->Name);
-}
-
-static const Char* GetDefinitionStatWhile(int* len, const SAstStatWhile* ast)
-{
-	return NewStr(len, L"while %s(...)", ((const SAst*)ast)->Name);
-}
-
-static const Char* GetDefinitionStatFor(int* len, const SAstStatFor* ast)
-{
-	return NewStr(len, L"for %s(...)", ((const SAst*)ast)->Name);
-}
-
-static const Char* GetDefinitionStatTry(int* len, const SAstStatTry* ast)
-{
-	return NewStr(len, L"try %s", ((const SAst*)ast)->Name);
-}
-
-static const Char* GetDefinitionStatBlock(int* len, const SAstStatBlock* ast)
-{
-	return NewStr(len, L"block %s", ((const SAst*)ast)->Name);
-}
-
-static const Char* GetDefinitionTypeArray(int* len, const SAstTypeArray* ast)
-{
-	int len2;
-	return NewStr(len, L"[]%s", GetDefinition(&len2, (const SAst*)ast->ItemType));
-}
-
-static const Char* GetDefinitionTypeBit(int* len, const SAstTypeBit* ast)
-{
-	switch (ast->Size)
-	{
-		case 1: *len = 4; return L"bit8";
-		case 2: *len = 5; return L"bit16";
-		case 4: *len = 5; return L"bit32";
-		case 8: *len = 5; return L"bit64";
-		default:
-			ASSERT(False);
-			break;
-	}
-	*len = 0;
-	return NULL;
-}
-
-static const Char* GetDefinitionTypeFunc(int* len, const SAstTypeFunc* ast)
-{
-	const Char* result = L"func<(";
-	int len2;
-	SListNode* ptr = ast->Args->Top;
-	while (ptr != NULL)
-	{
-		const SAstTypeFuncArg* arg = (const SAstTypeFuncArg*)ptr->Data;
-		result = NewStr(NULL, L"%s%s%s%s", result, arg->RefVar ? L"&" : L"", GetDefinition(&len2, (const SAst*)arg->Arg), ptr->Next == NULL ? L"" : L", ");
-		ptr = ptr->Next;
-	}
-	return NewStr(len, L"%s)%s%s>", result, ast->Ret == NULL ? L"" : L": ", ast->Ret == NULL ? L"" : GetDefinition(&len2, (const SAst*)ast->Ret));
-}
-
-static const Char* GetDefinitionTypeGen(int* len, const SAstTypeGen* ast)
-{
-	int len2;
-	const Char* name = NULL;
-	switch (ast->Kind)
-	{
-		case AstTypeGenKind_List: name = L"list"; break;
-		case AstTypeGenKind_Stack: name = L"stack"; break;
-		case AstTypeGenKind_Queue: name = L"queue"; break;
-		default:
-			ASSERT(False);
-			break;
-	}
-	return NewStr(len, L"%s<%s>", name, GetDefinition(&len2, (const SAst*)ast->ItemType));
-}
-
-static const Char* GetDefinitionTypeDict(int* len, const SAstTypeDict* ast)
-{
-	int len2;
-	return NewStr(len, L"dict<%s, %s>", GetDefinition(&len2, (const SAst*)ast->ItemTypeKey), GetDefinition(&len2, (const SAst*)ast->ItemTypeValue));
-}
-
-static const Char* GetDefinitionTypePrim(int* len, const SAstTypePrim* ast)
-{
-	switch (ast->Kind)
-	{
-		case AstTypePrimKind_Int: *len = 3; return L"int";
-		case AstTypePrimKind_Float: *len = 5; return L"float";
-		case AstTypePrimKind_Char: *len = 4; return L"char";
-		case AstTypePrimKind_Bool: *len = 4; return L"bool";
-		default:
-			ASSERT(False);
-			break;
-	}
-	*len = 0;
-	return NULL;
-}
-
-static const Char* GetDefinitionTypeUser(int* len, const SAstTypeUser* ast)
-{
-	*len = (int)wcslen(((const SAst*)ast)->RefName);
-	return ((const SAst*)ast)->RefName;
-}
-
-static const Char* GetDefinitionExprValue(int* len, const SAstExprValue* ast)
-{
-	ASSERT(((const SAstExpr*)ast)->VarKind == AstExprVarKind_Value);
-	if (IsStr(((const SAstExpr*)ast)->Type))
-		return NewStr(len, L"\"%s\"", (const Char*)*(U64*)ast->Value);
-	if (IsFloat(((const SAstExpr*)ast)->Type))
-		return NewStr(len, L"%g", *(double*)ast->Value);
-	if (IsBool(((const SAstExpr*)ast)->Type))
-	{
-		if (*(S64*)ast->Value != 0)
-		{
-			*len = 4;
-			return L"true";
-		}
-		*len = 5;
-		return L"false";
-	}
-	return NewStr(len, L"%I64d(16#%016I64X)", *(S64*)ast->Value, *(U64*)ast->Value);
 }
