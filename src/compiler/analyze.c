@@ -273,7 +273,6 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 									}
 								}
 							}
-							// TODO: Is there a need to be able to explore beyond members?
 							if ((ast2->TypeId & AstTypeId_Func) == AstTypeId_Func)
 							{
 								if (ast2->RefName == NULL)
@@ -3854,6 +3853,11 @@ static SAstExpr* RebuildExprRef(SAstExpr* ast)
 							((SAstExpr*)ast)->VarKind = AstExprVarKind_LocalVar;
 							break;
 						case AstArgKind_Const:
+							if (arg->Expr == NULL)
+							{
+								LocalErr = True;
+								return (SAstExpr*)DummyPtr;
+							}
 							{
 								SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
 								InitAst((SAst*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
