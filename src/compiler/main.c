@@ -265,7 +265,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 		Bool end = False;
 		DbgStartAddr = 0;
 		ResumeThread(process_info.hThread);
-		Bool excpt_occurred = False;
+		S64 excpt_last_occurred = _time64(NULL) - 1;
 		Char dbg_code = L'\0';
 		while (!end)
 		{
@@ -291,7 +291,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 					*/
 					if ((debug_event.u.Exception.ExceptionRecord.ExceptionCode & 0xc0000000) != 0xc0000000)
 						break;
-					if (excpt_occurred)
+					if (_time64(NULL) - excpt_last_occurred < 2)
 						break;
 					{
 						Char str[EXCPT_MSG_MAX + 1];
@@ -313,7 +313,9 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 						SymInitialize(process_info.hProcess, NULL, TRUE);
 						{
 							DWORD code = debug_event.u.Exception.ExceptionRecord.ExceptionCode;
+#if defined(_DEBUG)
 							PVOID addr = debug_event.u.Exception.ExceptionRecord.ExceptionAddress;
+#endif
 							const Char* text = ExcptMsgs[0].Msg;
 							if (code <= 0x0000ffff)
 								text = ExcptMsgs[1].Msg;
@@ -397,7 +399,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 							}
 							else
 							{
-								Char name[129];
+								Char name[256];
 								SPos* pos = AddrToPos((U64)context.Rip, name);
 								if (pos != NULL)
 								{
@@ -424,7 +426,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 						str[len2] = L'\0';
 						MessageBox(NULL, str, NULL, MB_ICONEXCLAMATION | MB_SETFOREGROUND);
 					}
-					excpt_occurred = True;
+					excpt_last_occurred = _time64(NULL);
 					break;
 				case OUTPUT_DEBUG_STRING_EVENT:
 					{
@@ -737,7 +739,10 @@ static const void* AddrToPosCallback(U64 key, const void* value, void* param)
 	if ((U64)*func->AddrTop + DbgStartAddr <= addr && addr <= (U64)func->AddrBottom + DbgStartAddr)
 	{
 		*result = (SPos*)((SAst*)func)->Pos;
-		wcscpy(name, ((SAst*)func)->Name);
+		if (*result != NULL)
+			swprintf(name, 255, L"%s@%s", (*result)->SrcName, ((SAst*)func)->Name);
+		else
+			wcscpy(name, ((SAst*)func)->Name);
 	}
 	return value;
 }

@@ -89,10 +89,10 @@
 $(SolutionDir)package\kuincl.exe -i $(SolutionDir)src\kuin_editor\kuin_editor.kn -o $(SolutionDir)package\kuin.exe -r
 rd /s /q $(SolutionDir)package\data
 mkdir $(SolutionDir)package\data
-echo F | xcopy /y /r $(SolutionDir)package\sys\dbg\d0000.knd $(SolutionDir)package\data\d0000.knd
-echo F | xcopy /y /r $(SolutionDir)package\sys\dbg\d0001.knd $(SolutionDir)package\data\d0001.knd
+echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d0000.knd $(SolutionDir)package\data\d0000.knd
+echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d0001.knd $(SolutionDir)package\data\d0001.knd
 echo F | xcopy /y /r $(SolutionDir)package\sys\d0917.knd $(SolutionDir)package\data\d0917.knd
-echo F | xcopy /y /r $(SolutionDir)package\sys\dbg\d1001.knd $(SolutionDir)package\data\d1001.knd
+echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d1001.knd $(SolutionDir)package\data\d1001.knd
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

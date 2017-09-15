@@ -249,6 +249,7 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 					{
 						// Search from the current scope toward its parent's scope.
 						const SAst* ast2 = scope;
+						Bool over_method = False;
 						for (; ; )
 						{
 							if (ast2->ScopeParent == NULL)
@@ -263,13 +264,25 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 								const SAst* ast3 = (const SAst*)DictSearch(ast2->ScopeChildren, ptr_name);
 								if (ast3 != NULL)
 								{
-									found_ast = ast3;
-									break;
+									if (over_method && (ast3->TypeId == AstTypeId_Arg || ast3->TypeId == AstTypeId_Func))
+										Err(L"EA0057", ast->Pos, ptr_name);
+									else
+									{
+										found_ast = ast3;
+										break;
+									}
 								}
 							}
 							// TODO: Is there a need to be able to explore beyond members?
-							if ((ast2->TypeId & AstTypeId_Func) == AstTypeId_Func && ast2->RefName == NULL)
-								break; // Not search any more scopes when the search reaches a function that is not a member.
+							if ((ast2->TypeId & AstTypeId_Func) == AstTypeId_Func)
+							{
+								if (ast2->RefName == NULL)
+									break; // Not search any more scopes when the search reaches a function that is not a member.
+								else
+									over_method = True;
+							}
+							if (ast2->TypeId == AstTypeId_Class)
+								break;
 							ast2 = ast2->ScopeParent;
 						}
 					}

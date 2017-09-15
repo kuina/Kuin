@@ -1675,7 +1675,7 @@ func main()
 		var major: int
 		var minor: int
 		var micro: int
-		;do @version(&major, &minor, &micro)
+		do @version(&major, &minor, &micro)
 		do @title :: "Kuin Programming Language \{major}.\{minor}.\{micro}"
 	end block
 

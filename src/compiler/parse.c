@@ -863,6 +863,7 @@ static void AddScopeName(SAst* ast, Bool refuse_reserved)
 		}
 		{
 			const SAst* parent = scope;
+			Bool over_method = False;
 			for (; ; )
 			{
 				if (parent->ScopeParent == NULL)
@@ -872,12 +873,23 @@ static void AddScopeName(SAst* ast, Bool refuse_reserved)
 					Err(L"EP0058", NewPos(SrcName, Row, Col), ast->Name);
 					return;
 				}
-				if (DictSearch(parent->ScopeChildren, ast->Name) != NULL)
+				const SAst* child = (const SAst*)DictSearch(parent->ScopeChildren, ast->Name);
+				if (child != NULL)
 				{
-					Err(L"EP0058", NewPos(SrcName, Row, Col), ast->Name);
-					return;
+					if (!(over_method && (child->TypeId == AstTypeId_Arg || child->TypeId == AstTypeId_Func)))
+					{
+						Err(L"EP0058", NewPos(SrcName, Row, Col), ast->Name);
+						return;
+					}
 				}
-				if ((parent->TypeId & AstTypeId_Func) == AstTypeId_Func && parent->RefName == NULL)
+				if ((parent->TypeId & AstTypeId_Func) == AstTypeId_Func)
+				{
+					if (parent->RefName == NULL)
+						break;
+					else
+						over_method = True;
+				}
+				if (parent->TypeId == AstTypeId_Class)
 					break;
 				parent = parent->ScopeParent;
 			}

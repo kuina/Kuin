@@ -2298,15 +2298,18 @@ static void AssembleWhile(SAstStatWhile* ast)
 
 static void AssembleFor(SAstStatFor* ast)
 {
+	SAstArg* cond = MakeTmpVar(8, NULL);
 	SAsmLabel* lbl1 = AsmLabel();
 	SAsmLabel* lbl2 = AsmLabel();
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
 	AssembleExpr(ast->Start, 0, 0);
 	ToValue(ast->Start, 0, 0);
 	ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValReg(8, RegI[0])));
-	ListAdd(PackAsm->Asms, lbl1);
 	AssembleExpr(ast->Cond, 0, 0);
 	ToValue(ast->Cond, 0, 0);
+	ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(cond), False)), ValReg(8, RegI[0])));
+	ListAdd(PackAsm->Asms, lbl1);
+	ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(cond), False))));
 	ListAdd(PackAsm->Asms, AsmCMP(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False)), ValReg(8, RegI[0])));
 	{
 		S64 n;
