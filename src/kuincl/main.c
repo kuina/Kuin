@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <io.h>
 
-#define LANG (1)
+#define LANG (0)
 
 typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang);
 typedef void(*TypeOfVersion)(int* major, int* minor, int* micro);
