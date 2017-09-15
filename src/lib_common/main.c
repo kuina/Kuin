@@ -152,10 +152,14 @@ EXPORT void _err(S64 excpt)
 			case 0xe9170001: text = L"Class cast failed."; break;
 			case 0xe9170002: text = L"Array index out of range."; break;
 			case 0xe9170003: text = L"Integer overflow."; break;
-			case 0xe9170004: text = L"Invalid call of non inherited 'cmp' method."; break;
+			case 0xe9170004: text = L"Invalid comparison."; break;
 			case 0xe9170005: text = L"Invalid operation on standard library class."; break;
-			// TODO:
-		}
+			case 0xe9170006: text = L"Argument outside the domain."; break;
+			case 0xe9170007: text = L"File reading failed."; break;
+			case 0xe9170008: text = L"Invalid file format."; break;
+			case 0xe9170009: text = L"Device initialization failed."; break;
+			case 0xe917000a: text = L"Inoperable state."; break;
+}
 	}
 	swprintf(str, 1024, L"An exception '0x%08X' occurred.\r\n\r\n> %s", (U32)excpt, text);
 	MessageBox(0, str, NULL, 0);

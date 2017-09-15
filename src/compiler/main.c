@@ -25,11 +25,12 @@
 
 #pragma comment(lib, "DbgHelp.lib")
 
-#define MSG_NUM (6 / 3)
+#define MSG_NUM (57 / 3)
 #define FUNC_NAME_MAX (128)
 #define MSG_MAX (128)
 #define LANG_NUM (2)
 #define HINT_MSG_MAX (1024)
+#define EXCPT_MSG_MAX (4096)
 
 typedef struct SExcptMsg
 {
@@ -243,7 +244,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 	if (cmd_line != NULL)
 	{
 		size_t len = wcslen((const Char*)(cmd_line + 0x10));
-		cmd_line_buf = (Char*)AllocMem(sizeof(Char) * (len + 1));
+		cmd_line_buf = (Char*)malloc(sizeof(Char) * (len + 1));
 		wcscpy(cmd_line_buf, (const Char*)(cmd_line + 0x10));
 	}
 	{
@@ -252,12 +253,12 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 		if (!CreateProcess(path2, cmd_line_buf, NULL, NULL, FALSE, CREATE_SUSPENDED | NORMAL_PRIORITY_CLASS | DEBUG_ONLY_THIS_PROCESS, NULL, cur_dir, &startup_info, &process_info))
 		{
 			if (cmd_line_buf != NULL)
-				FreeMem(cmd_line_buf);
+				free(cmd_line_buf);
 			return False;
 		}
 	}
 	if (cmd_line_buf != NULL)
-		FreeMem(cmd_line_buf);
+		free(cmd_line_buf);
 
 	{
 		DEBUG_EVENT debug_event;
@@ -293,7 +294,8 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 					if (excpt_occurred)
 						break;
 					{
-						Char str[4096] = L"";
+						Char str[EXCPT_MSG_MAX + 1];
+						size_t len2;
 						CONTEXT context;
 						STACKFRAME64 stack;
 						IMAGEHLP_SYMBOL64 symbol;
@@ -336,7 +338,11 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 								if (found != -1)
 									text = ExcptMsgs[found].Msg;
 							}
-							swprintf(str, 1024, L"An exception '0x%08X' occurred at '0x%016I64X'.\r\n\r\n> %s\r\n\r\n", code, (U64)addr, text);
+#if defined(_DEBUG)
+							len2 = swprintf(str, EXCPT_MSG_MAX, L"An exception '0x%08X' occurred at '0x%016I64X'.\r\n\r\n> %s\r\n\r\n", code, (U64)addr, text);
+#else
+							len2 = swprintf(str, EXCPT_MSG_MAX, L"An exception '0x%08X' occurred.\r\n\r\n> %s\r\n\r\n", code, text);
+#endif
 						}
 
 						for (; ; )
@@ -344,36 +350,50 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 							if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process_info.hProcess, process_info.hThread, &stack, &context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL))
 								break;
 
-							{
-								Char str2[1024];
-								swprintf(str2, 1024, L"0x%016I64X: \t", context.Rip);
-								wcscat(str, str2);
-							}
+#if defined(_DEBUG)
+							if (len2 < EXCPT_MSG_MAX)
+								len2 += swprintf(str + len2, EXCPT_MSG_MAX - len2, L"0x%016I64X: \t", context.Rip);
+#endif
 
 							symbol.SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
 							symbol.MaxNameLength = 255;
 							DWORD64 displacement;
 							if (SymGetSymFromAddr64(process_info.hProcess, (DWORD64)stack.AddrPC.Offset, &displacement, &symbol))
 							{
+#if defined(_DEBUG)
 								char name[1024];
 								UnDecorateSymbolName(symbol.Name, (PSTR)name, 1024, UNDNAME_COMPLETE);
 								{
-									Char* dst = str;
 									char* src = name;
-									while (*dst != L'\0')
-										dst++;
+									if (len2 < EXCPT_MSG_MAX)
+									{
+										str[len2] = L'(';
+										len2++;
+									}
 									while (*src != L'\0')
 									{
-										*dst = (Char)*src;
-										dst++;
+										if (len2 < EXCPT_MSG_MAX)
+											str[len2] = (Char)*src;
+										len2++;
 										src++;
 									}
-									*dst = L'\r';
-									dst++;
-									*dst = L'\n';
-									dst++;
-									*dst = L'\0';
+									if (len2 < EXCPT_MSG_MAX)
+									{
+										str[len2] = L')';
+										len2++;
+									}
+									if (len2 < EXCPT_MSG_MAX)
+									{
+										str[len2] = L'\r';
+										len2++;
+									}
+									if (len2 < EXCPT_MSG_MAX)
+									{
+										str[len2] = L'\n';
+										len2++;
+									}
 								}
+#endif
 							}
 							else
 							{
@@ -381,17 +401,28 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 								SPos* pos = AddrToPos((U64)context.Rip, name);
 								if (pos != NULL)
 								{
-									Char str2[1024];
-									swprintf(str2, 1024, L"%s (%s: %d, %d)\r\n", name, pos->SrcName, pos->Row, pos->Col);
-									wcscat(str, str2);
+									if (len2 < EXCPT_MSG_MAX)
+										len2 += swprintf(str + len2, EXCPT_MSG_MAX - len2, L"%s (%s: %d, %d)\r\n", name, pos->SrcName, pos->Row, pos->Col);
 								}
 								else
-									wcscat(str, L"\r\n");
+								{
+									if (len2 < EXCPT_MSG_MAX)
+									{
+										str[len2] = L'\r';
+										len2++;
+									}
+									if (len2 < EXCPT_MSG_MAX)
+									{
+										str[len2] = L'\n';
+										len2++;
+									}
+								}
 							}
 							if (stack.AddrPC.Offset == 0)
 								break;
 						}
-						MessageBox(NULL, str, NULL, MB_SETFOREGROUND);
+						str[len2] = L'\0';
+						MessageBox(NULL, str, NULL, MB_ICONEXCLAMATION | MB_SETFOREGROUND);
 					}
 					excpt_occurred = True;
 					break;
@@ -483,8 +514,7 @@ static void LoadExcptMsg(S64 lang)
 					ExcptMsgs[i].Code = (S64)(U32)_wcstoui64(buf, NULL, 16);
 				}
 #if defined(_DEBUG)
-				if (i != 0)
-					ASSERT(prev_code < ExcptMsgs[i].Code);
+				ASSERT(i <= 1 || prev_code < ExcptMsgs[i].Code);
 				prev_code = ExcptMsgs[i].Code;
 #endif
 				for (j = 0; j < LANG_NUM; j++)
