@@ -16,7 +16,7 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color);
 EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color);
 EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 color);
 EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path);
-EXPORT_CPP SClass* _makeTexEvenRgba(SClass* me_, double r, double g, double b, double a);
+EXPORT_CPP SClass* _makeTexEvenRgba(SClass* me_, double a, double r, double g, double b);
 EXPORT_CPP SClass* _makeTexEvenColor(SClass* me_, S64 color);
 EXPORT_CPP void _texDtor(SClass* me_);
 EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH, S64 color);

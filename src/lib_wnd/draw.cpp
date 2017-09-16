@@ -568,7 +568,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 	return me_;
 }
 
-EXPORT_CPP SClass* _makeTexEvenRgba(SClass* me_, double r, double g, double b, double a)
+EXPORT_CPP SClass* _makeTexEvenRgba(SClass* me_, double a, double r, double g, double b)
 {
 	STex* me2 = reinterpret_cast<STex*>(me_);
 	float img[4] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a) };
@@ -832,6 +832,7 @@ EXPORT_CPP void _fontDtor(SClass* me_)
 
 EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text, S64 color)
 {
+	THROWDBG(text == NULL, 0xc0000005);
 	double r, g, b, a;
 	Draw::ColorToRgba(&r, &g, &b, &a, color);
 	if (a <= 0.04)

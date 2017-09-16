@@ -698,11 +698,6 @@ EXPORT_CPP void _wndBaseGetPos(SClass* me_, S64* x, S64* y, S64* width, S64* hei
 	*height = static_cast<S64>(rect.bottom - rect.top);
 }
 
-EXPORT_CPP void _wndBasePaint(SClass* me_)
-{
-	InvalidateRect(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, FALSE);
-}
-
 EXPORT_CPP void _wndBaseFocus(SClass* me_)
 {
 	SetFocus(reinterpret_cast<SWndBase*>(me_)->WndHandle);
@@ -761,7 +756,7 @@ EXPORT_CPP void _wndSetMenu(SClass* me_, SClass* menu)
 	SetMenu(reinterpret_cast<SWndBase*>(me_)->WndHandle, menu == NULL ? NULL : reinterpret_cast<SMenu*>(menu)->MenuHandle);
 }
 
-EXPORT_CPP Bool _wndActive(SClass* me_)
+EXPORT_CPP Bool _wndGetActive(SClass* me_)
 {
 	return GetActiveWindow() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
 }
@@ -795,6 +790,11 @@ EXPORT_CPP void _drawDtor(SClass* me_)
 	if (me3->DrawBuf != NULL)
 		Draw::FinDrawBuf(me3->DrawBuf);
 	DestroyWindow(me2->WndHandle);
+}
+
+EXPORT_CPP void _drawPaint(SClass* me_)
+{
+	InvalidateRect(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, FALSE);
 }
 
 EXPORT_CPP void _drawShowCaret(SClass* me_, S64 height, SClass* font)

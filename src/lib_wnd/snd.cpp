@@ -216,8 +216,7 @@ EXPORT_CPP void _sndPlay(SClass* me_)
 EXPORT_CPP void _sndPlayLoop(SClass* me_, double loopPos)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	if (!me2->Streaming && loopPos != 0.0 || loopPos < 0.0 || loopPos >= me2->EndPos)
-		THROW(0x1000, L"");
+	THROWDBG(!me2->Streaming && loopPos != 0.0 || loopPos < 0.0 || me2->EndPos <= loopPos, 0xe9170006);
 	me2->LoopPos = static_cast<S64>(loopPos * (double)me2->SizePerSec);
 	me2->SndBuf->Play(0, 0, DSBPLAY_LOOPING);
 }
@@ -238,6 +237,7 @@ EXPORT_CPP Bool _sndPlaying(SClass* me_)
 
 EXPORT_CPP void _sndVolume(SClass* me_, double value)
 {
+	THROWDBG(value < 0.0 || 1.0 < value, 0xe9170006);
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 	me2->Volume = value;
 	value *= MainVolume;
@@ -247,6 +247,7 @@ EXPORT_CPP void _sndVolume(SClass* me_, double value)
 
 EXPORT_CPP void _sndPan(SClass* me_, double value)
 {
+	THROWDBG(value < -1.0 || 1.0 < value, 0xe9170006);
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 	me2->SndBuf->SetPan(static_cast<LONG>(value * 10000.0));
 }
@@ -254,18 +255,22 @@ EXPORT_CPP void _sndPan(SClass* me_, double value)
 EXPORT_CPP void _sndFreq(SClass* me_, double value)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
+	THROWDBG(value < 0.1 || 2.0 < value, 0xe9170006);
 	me2->SndBuf->SetFrequency(static_cast<DWORD>(static_cast<double>(me2->Freq) * value));
 }
 
 EXPORT_CPP void _sndSetPos(SClass* me_, double value)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
+	THROWDBG(me2->Streaming, 0xe917000a);
+	THROWDBG(value < 0.0 || me2->EndPos <= value, 0xe9170006);
 	me2->SndBuf->SetCurrentPosition(static_cast<DWORD>(value * (double)me2->SizePerSec));
 }
 
 EXPORT_CPP double _sndGetPos(SClass* me_)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
+	THROWDBG(me2->Streaming, 0xe917000a);
 	DWORD pos = 0;
 	me2->SndBuf->GetCurrentPosition(&pos, NULL);
 	return (double)pos / (double)me2->SizePerSec;
