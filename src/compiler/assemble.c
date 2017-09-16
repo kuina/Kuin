@@ -3560,6 +3560,11 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 					{
 						ToRef(arg->Arg, RegI[0], RegI[0]);
 						tmp_args[idx] = MakeTmpVar(8, NULL);
+						if (arg->SkipVar != NULL)
+						{
+							int size = GetSize(arg->Arg->Type);
+							ListAdd(PackAsm->Asms, AsmMOV(ValMemS(size, ValReg(8, RegI[0]), NULL, 0x00), ValImmU(size, 0x00)));
+						}
 						ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_args[idx]), False)), ValReg(8, RegI[0])));
 					}
 					else

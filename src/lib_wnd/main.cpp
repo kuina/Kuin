@@ -687,11 +687,13 @@ EXPORT_CPP void _wndBaseDtor(SClass* me_)
 	DestroyWindow(me2->WndHandle);
 }
 
-EXPORT_CPP void _wndBaseGetSize(SClass* me_, S64* width, S64* height)
+EXPORT_CPP void _wndBaseGetPos(SClass* me_, S64* x, S64* y, S64* width, S64* height)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	RECT rect;
 	GetClientRect(me2->WndHandle, &rect);
+	*x = static_cast<S64>(rect.left);
+	*y = static_cast<S64>(rect.top);
 	*width = static_cast<S64>(rect.right - rect.left);
 	*height = static_cast<S64>(rect.bottom - rect.top);
 }

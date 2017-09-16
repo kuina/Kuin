@@ -249,7 +249,7 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 					{
 						// Search from the current scope toward its parent's scope.
 						const SAst* ast2 = scope;
-						Bool over_method = False;
+						Bool over_func = False;
 						for (; ; )
 						{
 							if (ast2->ScopeParent == NULL)
@@ -264,7 +264,7 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 								const SAst* ast3 = (const SAst*)DictSearch(ast2->ScopeChildren, ptr_name);
 								if (ast3 != NULL)
 								{
-									if (over_method && (ast3->TypeId == AstTypeId_Arg || ast3->TypeId == AstTypeId_Func))
+									if (over_func && (ast3->TypeId == AstTypeId_Arg && (((SAstArg*)ast3)->Kind == AstArgKind_Member || ((SAstArg*)ast3)->Kind == AstArgKind_LocalVar || ((SAstArg*)ast3)->Kind == AstArgKind_LocalArg) || ast3->TypeId == AstTypeId_Func))
 										Err(L"EA0057", ast->Pos, ptr_name);
 									else
 									{
@@ -274,14 +274,7 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 								}
 							}
 							if ((ast2->TypeId & AstTypeId_Func) == AstTypeId_Func)
-							{
-								if (ast2->RefName == NULL)
-									break; // Not search any more scopes when the search reaches a function that is not a member.
-								else
-									over_method = True;
-							}
-							if (ast2->TypeId == AstTypeId_Class)
-								break;
+								over_func = True;
 							ast2 = ast2->ScopeParent;
 						}
 					}
@@ -739,6 +732,7 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 					{
 						SAstExprCallArg* excpt = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
 						excpt->RefVar = False;
+						excpt->SkipVar = NULL;
 						{
 							SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
 							InitAstExpr(ref_, AstTypeId_ExprRef, pos);
@@ -1157,6 +1151,7 @@ static void RebuildClass(SAstClass* ast)
 												((SAst*)expr2)->RefItem = (SAst*)arg;
 												expr->Arg = expr2;
 												expr->RefVar = arg->RefVar;
+												expr->SkipVar = NULL;
 											}
 											ListAdd(call->Args, expr);
 										}
@@ -3159,6 +3154,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				SAstExprCallArg* me = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
 				me->Arg = ((SAstExprDot*)ast->Func)->Var;
 				me->RefVar = False;
+				me->SkipVar = NULL;
 				ListIns(ast->Args, ast->Args->Top, me);
 			}
 			if ((type->FuncAttr & FuncAttr_AnyType) != 0)
@@ -3180,6 +3176,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 						return (SAstExpr*)DummyPtr;
 				}
 				me_type->RefVar = False;
+				me_type->SkipVar = NULL;
 				ListIns(ast->Args, ast->Args->Top->Next, me_type);
 			}
 			if ((type->FuncAttr & FuncAttr_TakeKeyValue) != 0)
@@ -3201,6 +3198,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 						return (SAstExpr*)DummyPtr;
 				}
 				value_type->RefVar = False;
+				value_type->SkipVar = NULL;
 				ListIns(ast->Args, ast->Args->Top->Next->Next, value_type);
 			}
 		}
@@ -3226,6 +3224,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 						return (SAstExpr*)DummyPtr;
 				}
 				value_type->RefVar = False;
+				value_type->SkipVar = NULL;
 				ListIns(ast->Args, ast->Args->Top, value_type);
 			}
 			type = (SAstTypeFunc*)ast->Func->Type;
@@ -3244,6 +3243,8 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 			{
 				SAstExprCallArg* arg_expr = (SAstExprCallArg*)ptr_expr->Data;
 				SAstTypeFuncArg* arg_type = (SAstTypeFuncArg*)ptr_type->Data;
+				if (arg_expr->SkipVar != NULL)
+					arg_expr->SkipVar->Type = arg_type->Arg;
 				arg_expr->Arg = RebuildExpr(arg_expr->Arg, False);
 				if (LocalErr)
 					return (SAstExpr*)DummyPtr;

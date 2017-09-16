@@ -29,7 +29,7 @@ end enum
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
-	+func [d0001.knd, _wndBaseGetSize] getSize(width: &int, height: &int)
+	+func [d0001.knd, _wndBaseGetPos] getPos(x: &int, y: &int, width: &int, height: &int)
 	end func
 
 	+func [d0001.knd, _wndBasePaint] paint()

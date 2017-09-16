@@ -430,7 +430,7 @@ class DocumentSrc(@Document)
 				var absoluteX: int :: me.getAbsoluteX()
 				var width: int
 				var height: int
-				do @drawEditor.getSize(&width, &height)
+				do @drawEditor.getPos(&, &, &width, &height)
 				do me.cursorY :- height / @cellHeight
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
@@ -442,7 +442,7 @@ class DocumentSrc(@Document)
 				var absoluteX: int :: me.getAbsoluteX()
 				var width: int
 				var height: int
-				do @drawEditor.getSize(&width, &height)
+				do @drawEditor.getPos(&, &, &width, &height)
 				do me.cursorY :+ height / @cellHeight
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
@@ -741,7 +741,7 @@ class DocumentSrc(@Document)
 	func refreshCursor(moveRight: bool, refreshScroll: bool)
 		var scrWidth: int
 		var scrHeight: int
-		do @drawEditor.getSize(&scrWidth, &scrHeight)
+		do @drawEditor.getPos(&, &, &scrWidth, &scrHeight)
 		do me.lineNumberWidth :: @cellWidth * (log10(^me.src.src) + 1)
 
 		if(me.cursorX < 0)
@@ -1219,7 +1219,7 @@ class DocumentSrc(@Document)
 		const paddingY: int :: 17 / @cellHeight + 1
 		var scrWidth: int
 		var scrHeight: int
-		do @drawEditor.getSize(&scrWidth, &scrHeight)
+		do @drawEditor.getPos(&, &, &scrWidth, &scrHeight)
 		if (me.pageY >= ^me.src.src - scrHeight / @cellHeight + paddingY)
 			do me.pageY :: ^me.src.src - scrHeight / @cellHeight + paddingY
 		end if
@@ -1447,7 +1447,7 @@ class DocumentArBase(@Document)
 	func refreshScroll()
 		var scrWidth: int
 		var scrHeight: int
-		do @drawEditor.getSize(&scrWidth, &scrHeight)
+		do @drawEditor.getPos(&, &, &scrWidth, &scrHeight)
 		do @scrollXSrc.setState(me.obj2dRoot.x, me.obj2dRoot.width + padding, scrWidth, me.pageX)
 		do @scrollYSrc.setState(me.obj2dRoot.y, me.obj2dRoot.height + padding, scrHeight, me.pageY)
 	end func

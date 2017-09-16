@@ -863,7 +863,7 @@ static void AddScopeName(SAst* ast, Bool refuse_reserved)
 		}
 		{
 			const SAst* parent = scope;
-			Bool over_method = False;
+			Bool over_func = False;
 			for (; ; )
 			{
 				if (parent->ScopeParent == NULL)
@@ -876,21 +876,14 @@ static void AddScopeName(SAst* ast, Bool refuse_reserved)
 				const SAst* child = (const SAst*)DictSearch(parent->ScopeChildren, ast->Name);
 				if (child != NULL)
 				{
-					if (!(over_method && (child->TypeId == AstTypeId_Arg || child->TypeId == AstTypeId_Func)))
+					if (!(over_func && (child->TypeId == AstTypeId_Arg && (((SAstArg*)child)->Kind == AstArgKind_Member || ((SAstArg*)child)->Kind == AstArgKind_LocalVar || ((SAstArg*)child)->Kind == AstArgKind_LocalArg) || child->TypeId == AstTypeId_Func)))
 					{
 						Err(L"EP0058", NewPos(SrcName, Row, Col), ast->Name);
 						return;
 					}
 				}
 				if ((parent->TypeId & AstTypeId_Func) == AstTypeId_Func)
-				{
-					if (parent->RefName == NULL)
-						break;
-					else
-						over_method = True;
-				}
-				if (parent->TypeId == AstTypeId_Class)
-					break;
+					over_func = True;
 				parent = parent->ScopeParent;
 			}
 		}
@@ -3221,15 +3214,32 @@ static SAstExpr* ParseExprCall(void)
 							for (; ; )
 							{
 								SAstExprCallArg* arg = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+								Bool skip_var = False;
 								c = ReadChar();
 								if (c == L'&')
+								{
 									arg->RefVar = True;
+									c = ReadChar();
+									if (c == L',' || c == L')')
+										skip_var = True;
+								}
+								else
+									arg->RefVar = False;
+								FileBuf = c;
+								if (skip_var)
+								{
+									SAstExpr* ast3 = (SAstExpr*)Alloc(sizeof(SAstExpr));
+									arg->SkipVar = MakeBlockVar(row, col);
+									InitAstExpr(ast3, AstTypeId_ExprRef, ((SAst*)ast2)->Pos);
+									((SAst*)ast3)->RefName = L"$";
+									((SAst*)ast3)->RefItem = (SAst*)arg->SkipVar;
+									arg->Arg = ast3;
+								}
 								else
 								{
-									arg->RefVar = False;
-									FileBuf = c;
+									arg->SkipVar = NULL;
+									arg->Arg = ParseExpr();
 								}
-								arg->Arg = ParseExpr();
 								if (LocalErr)
 									return (SAstExpr*)DummyPtr;
 								ListAdd(ast2->Args, arg);
