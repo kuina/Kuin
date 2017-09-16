@@ -256,15 +256,20 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 								break; // No more parent scope exists.
 							if (ast2->Name != NULL && wcscmp(ast2->Name, ptr_name) == 0)
 							{
-								// The compiler also looks at the current scope's name.
-								found_ast = ast2;
-								break;
+								if ((ast2->TypeId & AstTypeId_Func) == AstTypeId_Func && ((SAst*)ast2)->RefName != NULL)
+									Err(L"EA0057", ast->Pos, ptr_name);
+								else
+								{
+									// The compiler also looks at the current scope's name.
+									found_ast = ast2;
+									break;
+								}
 							}
 							{
 								const SAst* ast3 = (const SAst*)DictSearch(ast2->ScopeChildren, ptr_name);
 								if (ast3 != NULL)
 								{
-									if (over_func && (ast3->TypeId == AstTypeId_Arg && (((SAstArg*)ast3)->Kind == AstArgKind_Member || ((SAstArg*)ast3)->Kind == AstArgKind_LocalVar || ((SAstArg*)ast3)->Kind == AstArgKind_LocalArg) || ast3->TypeId == AstTypeId_Func))
+									if (over_func && (ast3->TypeId == AstTypeId_Arg && (((SAstArg*)ast3)->Kind == AstArgKind_Member || ((SAstArg*)ast3)->Kind == AstArgKind_LocalVar || ((SAstArg*)ast3)->Kind == AstArgKind_LocalArg)) || (ast3->TypeId & AstTypeId_Func) == AstTypeId_Func && ((SAst*)ast3)->RefName != NULL)
 										Err(L"EA0057", ast->Pos, ptr_name);
 									else
 									{

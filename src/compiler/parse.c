@@ -870,13 +870,16 @@ static void AddScopeName(SAst* ast, Bool refuse_reserved)
 					break;
 				if (parent->Name != NULL && wcscmp(parent->Name, ast->Name) == 0)
 				{
-					Err(L"EP0058", NewPos(SrcName, Row, Col), ast->Name);
-					return;
+					if (!((parent->TypeId & AstTypeId_Func) == AstTypeId_Func && ((SAst*)parent)->RefName != NULL))
+					{
+						Err(L"EP0058", NewPos(SrcName, Row, Col), ast->Name);
+						return;
+					}
 				}
 				const SAst* child = (const SAst*)DictSearch(parent->ScopeChildren, ast->Name);
 				if (child != NULL)
 				{
-					if (!(over_func && (child->TypeId == AstTypeId_Arg && (((SAstArg*)child)->Kind == AstArgKind_Member || ((SAstArg*)child)->Kind == AstArgKind_LocalVar || ((SAstArg*)child)->Kind == AstArgKind_LocalArg) || child->TypeId == AstTypeId_Func)))
+					if (!(over_func && (child->TypeId == AstTypeId_Arg && (((SAstArg*)child)->Kind == AstArgKind_Member || ((SAstArg*)child)->Kind == AstArgKind_LocalVar || ((SAstArg*)child)->Kind == AstArgKind_LocalArg)) || (child->TypeId & AstTypeId_Func) == AstTypeId_Func && ((SAst*)child)->RefName != NULL))
 					{
 						Err(L"EP0058", NewPos(SrcName, Row, Col), ast->Name);
 						return;
