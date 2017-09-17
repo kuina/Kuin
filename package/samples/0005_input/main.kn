@@ -9,7 +9,7 @@ var KeyBuf: []char
 func main()
 	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Input Sample")
 	do wndMain.onActivate :: @wndMainOnActivate {ウインドウのアクティブイベント}
-	do @drawMain :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false)
+	do @drawMain :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %fix, %fix, false)
 	do @drawMain.onMouseMove :: @drawMainOnMouseMove {マウス移動のイベント}
 	do @drawMain.onMouseDownL :: @drawMainOnMouseDownL {マウスボタンを押したときのイベント}
 	do @drawMain.onMouseUpL :: @drawMainOnMouseUpL {マウスボタンを離したときのイベント}

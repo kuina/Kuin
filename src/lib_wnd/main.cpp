@@ -639,7 +639,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 			break;
 		case WndKind_WndAspect:
 			ASSERT(width >= 0 && height >= 0);
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(0, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 			// TODO:
 		default:
@@ -1715,7 +1715,50 @@ static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPA
 		case WM_NOTIFY:
 			CommandAndNotify(wnd, msg, w_param, l_param);
 			return 0;
-			// TODO: Aspect.
+		case WM_SIZING:
+			{
+				RECT* r = reinterpret_cast<RECT*>(l_param);
+				double caption = static_cast<double>(GetSystemMetrics(SM_CYCAPTION));
+				double border = static_cast<double>(GetSystemMetrics(SM_CYFRAME));
+				double w = static_cast<double>(r->right) - static_cast<double>(r->left) - border * 2.0;
+				double h = static_cast<double>(r->bottom) - static_cast<double>(r->top) - caption - border * 2.0;
+				switch (w_param)
+				{
+					case WMSZ_TOP:
+					case WMSZ_BOTTOM:
+						r->right = static_cast<LONG>(static_cast<double>(r->left) + h * static_cast<double>(wnd2->DefaultWidth) / static_cast<double>(wnd2->DefaultHeight) + border * 2.0);
+						return 0;
+					case WMSZ_LEFT:
+					case WMSZ_RIGHT:
+						r->bottom = static_cast<LONG>(static_cast<double>(r->top) + w * static_cast<double>(wnd2->DefaultHeight) / static_cast<double>(wnd2->DefaultWidth) + caption + border * 2.0);
+						return 0;
+					case WMSZ_TOPLEFT:
+						if (w / h < static_cast<double>(wnd2->DefaultWidth) / static_cast<double>(wnd2->DefaultHeight))
+							r->left = static_cast<LONG>(static_cast<double>(r->right) - h * static_cast<double>(wnd2->DefaultWidth) / static_cast<double>(wnd2->DefaultHeight) - border * 2.0);
+						else
+							r->top = static_cast<LONG>(static_cast<double>(r->bottom) - w * static_cast<double>(wnd2->DefaultHeight) / static_cast<double>(wnd2->DefaultWidth) - caption - border * 2.0);
+						return 0;
+					case WMSZ_TOPRIGHT:
+						if (w / h < static_cast<double>(wnd2->DefaultWidth) / static_cast<double>(wnd2->DefaultHeight))
+							r->right = static_cast<LONG>(static_cast<double>(r->left) + h * static_cast<double>(wnd2->DefaultWidth) / static_cast<double>(wnd2->DefaultHeight) + border * 2.0);
+						else
+							r->top = static_cast<LONG>(static_cast<double>(r->bottom) - w * static_cast<double>(wnd2->DefaultHeight) / static_cast<double>(wnd2->DefaultWidth) - caption - border * 2.0);
+						return 0;
+					case WMSZ_BOTTOMLEFT:
+						if (w / h < static_cast<double>(wnd2->DefaultWidth) / static_cast<double>(wnd2->DefaultHeight))
+							r->left = static_cast<LONG>(static_cast<double>(r->right) - h * static_cast<double>(wnd2->DefaultWidth) / static_cast<double>(wnd2->DefaultHeight) - border * 2.0);
+						else
+							r->bottom = static_cast<LONG>(static_cast<double>(r->top) + w * static_cast<double>(wnd2->DefaultHeight) / static_cast<double>(wnd2->DefaultWidth) + caption + border * 2.0);
+						return 0;
+					case WMSZ_BOTTOMRIGHT:
+						if (w / h < static_cast<double>(wnd2->DefaultWidth) / static_cast<double>(wnd2->DefaultHeight))
+							r->right = static_cast<LONG>(static_cast<double>(r->left) + h * static_cast<double>(wnd2->DefaultWidth) / static_cast<double>(wnd2->DefaultHeight) + border * 2.0);
+						else
+							r->bottom = static_cast<LONG>(static_cast<double>(r->top) + w * static_cast<double>(wnd2->DefaultHeight) / static_cast<double>(wnd2->DefaultWidth) + caption + border * 2.0);
+						return 0;
+				}
+			}
+			break;
 	}
 	return DefWindowProc(wnd, msg, w_param, l_param);
 }

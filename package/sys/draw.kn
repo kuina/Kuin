@@ -77,7 +77,7 @@ end class
 +func [d0001.knd, _makeTex, _make_instance] makeTex(me2: @Tex, path: []char): @Tex
 end func
 
-+func [d0001.knd, _makeTexEvenRgba, _make_instance] makeTexEvenRgba(me2: @Tex, a: float, r: float, g: float, b: float): @Tex
++func [d0001.knd, _makeTexEvenArgb, _make_instance] makeTexEvenArgb(me2: @Tex, a: float, r: float, g: float, b: float): @Tex
 end func
 
 +func [d0001.knd, _makeTexEvenColor, _make_instance] makeTexEvenColor(me2: @Tex, color: int): @Tex
@@ -118,7 +118,7 @@ end func
 	*func [d0001.knd, _objDtor, _force] _dtor()
 	end func
 
-	+func [d0001.knd, _objDraw] draw(diffuse: @Tex, specular: @Tex, element: int, frame: float)
+	+func [d0001.knd, _objDraw] draw(diffuse: @Tex, specular: @Tex, normal: @Tex, element: int, frame: float)
 	end func
 
 	+func [d0001.knd, _objMtx] mtx(mtx_: []float, normMtx: []float)
@@ -155,4 +155,10 @@ end func
 end class
 
 +func [d0001.knd, _makeObj, _make_instance] makeObj(me2: @Obj, path: []char): @Obj
+end func
+
++func [d0001.knd, _ambLight] ambLight(topR: float, topG: float, topB: float, bottomR: float, bottomG: float, bottomB: float)
+end func
+
++func [d0001.knd, _dirLight] dirLight(atX: float, atY: float, atZ: float, r: float, g: float, b: float)
 end func

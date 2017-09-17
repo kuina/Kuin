@@ -16,7 +16,7 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color);
 EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color);
 EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 color);
 EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path);
-EXPORT_CPP SClass* _makeTexEvenRgba(SClass* me_, double a, double r, double g, double b);
+EXPORT_CPP SClass* _makeTexEvenArgb(SClass* me_, double a, double r, double g, double b);
 EXPORT_CPP SClass* _makeTexEvenColor(SClass* me_, S64 color);
 EXPORT_CPP void _texDtor(SClass* me_);
 EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH, S64 color);
@@ -30,16 +30,13 @@ EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ,
 EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path);
 EXPORT_CPP void _objDtor(SClass* me_);
 EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, S64 color);
-EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, S64 element, double frame);
+EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass* normal, S64 element, double frame);
 EXPORT_CPP void _objMtx(SClass* me_, const U8* mtx, const U8* normMtx);
 EXPORT_CPP void _objPos(SClass* me_, double scaleX, double scaleY, double scaleZ, double rotX, double rotY, double rotZ, double transX, double transY, double transZ);
 EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, double atY, double atZ, double upX, double upY, double upZ, Bool fixUp);
 EXPORT_CPP void _objLookCamera(SClass* me_, double x, double y, double z, double upX, double upY, double upZ, Bool fixUp);
-
-/*
 EXPORT_CPP void _ambLight(double topR, double topG, double topB, double bottomR, double bottomG, double bottomB);
 EXPORT_CPP void _dirLight(double atX, double atY, double atZ, double r, double g, double b);
-*/
 
 namespace Draw
 {
@@ -79,7 +76,7 @@ namespace Draw
 	void Cross(double out[3], const double a[3], const double b[3]);
 	void SetProjViewMtx(float out[4][4], const double proj[4][4], const double view[4][4]);
 	HFONT ToFontHandle(SClass* font);
-	void ColorToRgba(double* r, double* g, double* b, double* a, S64 color);
+	void ColorToArgb(double* a, double* r, double* g, double* b, S64 color);
 	double Gamma(double value);
 	U8* AdjustTexSize(U8* rgba, int* width, int* height);
 }

@@ -2,7 +2,7 @@
 
 ; main関数は実行直後に呼ばれ、main関数を抜けるとアプリは終了する。
 func main()
-	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Kuinvaders") {ウインドウの生成}
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Kuinvaders") {ウインドウの生成}
 	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
 	; wnd@actはウインドウ操作を処理する関数で、定期的に呼ばないとウインドウが操作できなくなる。またウインドウを閉じたらfalseを返すので、無限ループを抜けて終了するようにする。
 	while(wnd@act())
@@ -35,10 +35,10 @@ func game()
 		var playerY: float :: 800.0 {自機座標Y}
 		var beams: list<Beam> :: #list<Beam> {自機の弾のリスト}
 		var enemies: []int :: #[5 * 6]int {敵を5行6列で作成。値は体力}
-		do enemies.fill(stage) {敵の体力にステージに応じた値を代入}
+		do enemies.fill(1) {敵の体力に1を代入}
 		var enemyX: float :: 200.0 / 2.0 {敵群の座標X}
 		var enemyY: float :: 100.0 {敵群の座標Y}
-		var enemyVeloX: float :: 2.0 + 30.0 / (5.0 * 6.0) {敵群の速度X}
+		var enemyVeloX: float :: 1.0 + stage $ float + 30.0 / (5.0 * 6.0) {敵群の速度X}
 		var enemyTargetY: float :: 0.0 {敵群のY方向の目的座標(下向きに移動するときに使用)}
 		var enemyLeft: int :: 0 {生きている敵の左端。移動を折り返す判定に使用}
 		var enemyRight: int :: 5 {生きている敵の右端。移動を折り返す判定に使用}
@@ -97,12 +97,12 @@ func game()
 					do enemyX :+ enemyVeloX {左右への移動}
 					if(enemyX <= 200.0 / 2.0 - enemyLeft $ float * 100.0) {左端に到達}
 						do enemyX :: 200.0 / 2.0 - enemyLeft $ float * 100.0
-						do enemyVeloX :: 2.0 + 30.0 / enemyNum $ float {残り敵数に応じた速度で右向きに折り返す}
+						do enemyVeloX :: 2.0 + stage $ float + 30.0 / enemyNum $ float {残り敵数に応じた速度で右向きに折り返す}
 						do enemyTargetY :: enemyY + 60.0 {下向きに移動する}
 					end if
 					if(enemyX >= 1600.0 - 200.0 / 2.0 - enemyRight $ float * 100.0)
 						do enemyX :: 1600.0 - 200.0 / 2.0 - enemyRight $ float * 100.0
-						do enemyVeloX :: -2.0 - 30.0 / enemyNum $ float {残り敵数に応じた速度で左向きに折り返す}
+						do enemyVeloX :: -(2.0 + stage $ float + 30.0 / enemyNum $ float) {残り敵数に応じた速度で左向きに折り返す}
 						do enemyTargetY :: enemyY + 60.0 {下向きに移動する}
 					end if
 				end if

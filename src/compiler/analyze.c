@@ -78,6 +78,7 @@ static SAstExprDot* MakeMeDot(SAstClass* class_, SAstArg* arg, const Char* name)
 static void AddDllFunc(const Char* dll_name, const Char* func_name);
 static int GetBuildInFuncType(const Char* name);
 static S64 GetEnumElementValue(SAstExprValue* ast, SAstEnum* enum_);
+static const Char* GetTypeNameNew(const SAstType* type);
 static SAstFunc* Rebuild(const SAstFunc* main_func);
 static const void* RebuildEnumCallback(U64 key, const void* value, void* param);
 static const void* RebuildRootCallback(const Char* key, const void* value, void* param);
@@ -605,6 +606,14 @@ static S64 GetEnumElementValue(SAstExprValue* ast, SAstEnum* enum_)
 		Err(L"EA0059", ((SAst*)ast)->Pos, name);
 	}
 	return 0;
+}
+
+static const Char* GetTypeNameNew(const SAstType* type)
+{
+	Char buf[1024 + 1];
+	size_t len = 0;
+	GetTypeName(buf, &len, 1024, type);
+	return NewStr(NULL, L"%s", buf);
 }
 
 static SAstFunc* Rebuild(const SAstFunc* main_func)
@@ -1710,7 +1719,7 @@ static void RebuildArg(SAstArg* ast)
 			Err(L"EA0014", ((SAst*)ast)->Pos, ((SAst*)ast)->Name);
 		if (ast->Kind == AstArgKind_Const && !(((SAst*)ast->Expr)->TypeId == AstTypeId_ExprValue))
 			Err(L"EA0015", ((SAst*)ast)->Pos, ((SAst*)ast)->Name);
-		if (!CmpType(ast->Expr->Type, ast->Type))
+		if (!CmpType(ast->Type, ast->Expr->Type))
 			Err(L"EA0056", ((SAst*)ast)->Pos);
 		if (((SAst*)ast->Expr->Type)->TypeId == AstTypeId_TypeEnumElement)
 			RebuildEnumElement(ast->Expr, ast->Type);
@@ -3237,13 +3246,14 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 		((SAstExpr*)ast)->Type = type->Ret;
 		if (ast->Args->Len != type->Args->Len)
 		{
-			Err(L"EA0047", ((SAst*)ast)->Pos, type->Args->Len, ast->Args->Len);
+			Err(L"EA0047", ((SAst*)ast)->Pos, type->Args->Len, ast->Args->Len, GetTypeNameNew((const SAstType*)type));
 			LocalErr = True;
 			return (SAstExpr*)DummyPtr;
 		}
 		{
 			SListNode* ptr_expr = ast->Args->Top;
 			SListNode* ptr_type = type->Args->Top;
+			int n = 0;
 			while (ptr_expr != NULL)
 			{
 				SAstExprCallArg* arg_expr = (SAstExprCallArg*)ptr_expr->Data;
@@ -3255,7 +3265,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 					return (SAstExpr*)DummyPtr;
 				if (arg_expr->RefVar != arg_type->RefVar || !CmpType(arg_expr->Arg->Type, arg_type->Arg))
 				{
-					Err(L"EA0048", ((SAst*)ast)->Pos);
+					Err(L"EA0048", ((SAst*)ast)->Pos, n + 1, GetTypeNameNew(arg_type->Arg), GetTypeNameNew(arg_expr->Arg->Type));
 					LocalErr = True;
 					return (SAstExpr*)DummyPtr;
 				}
@@ -3263,6 +3273,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 					RebuildEnumElement(arg_expr->Arg, arg_type->Arg);
 				ptr_expr = ptr_expr->Next;
 				ptr_type = ptr_type->Next;
+				n++;
 			}
 		}
 		((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;

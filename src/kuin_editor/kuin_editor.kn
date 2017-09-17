@@ -114,6 +114,9 @@ class Document()
 	+func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 	end func
 
+	+func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+	end func
+
 	+func keyChar(key: char)
 	end func
 
@@ -434,7 +437,6 @@ class DocumentSrc(@Document)
 				do me.cursorY :- height / @cellHeight
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
 			end if
 		case %pageDown
 			if(shiftCtrl <> %ctrl)
@@ -446,7 +448,6 @@ class DocumentSrc(@Document)
 				do me.cursorY :+ height / @cellHeight
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
 			end if
 		case %end_
 			do me.setArea(shiftCtrl)
@@ -455,7 +456,6 @@ class DocumentSrc(@Document)
 				do me.cursorY :: lib@intMax
 			end if
 			do me.refreshCursor(false, true)
-			do @drawEditor.paint()
 		case %home
 			do me.setArea(shiftCtrl)
 			do me.cursorX :: 0
@@ -463,7 +463,6 @@ class DocumentSrc(@Document)
 				do me.cursorY :: 0
 			end if
 			do me.refreshCursor(false, true)
-			do @drawEditor.paint()
 		case %left
 			if(shiftCtrl = %ctrl)
 				do me.scrollPageX(-1)
@@ -471,7 +470,6 @@ class DocumentSrc(@Document)
 				do me.setArea(shiftCtrl)
 				do me.cursorX :- 1
 				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
 			end if
 		case %up
 			if(shiftCtrl = %ctrl)
@@ -482,7 +480,6 @@ class DocumentSrc(@Document)
 				do me.cursorY :- 1
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
 			end if
 		case %right
 			if(shiftCtrl = %ctrl)
@@ -491,7 +488,6 @@ class DocumentSrc(@Document)
 				do me.setArea(shiftCtrl)
 				do me.cursorX :+ 1
 				do me.refreshCursor(true, true)
-				do @drawEditor.paint()
 			end if
 		case %down
 			if(shiftCtrl = %ctrl)
@@ -502,11 +498,14 @@ class DocumentSrc(@Document)
 				do me.cursorY :+ 1
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
 			end if
 		case %ins
 			; TODO: Insert mode.
 		end switch
+	end func
+
+	+*func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+		do @drawEditor.paint()
 	end func
 
 	+*func keyChar(key: char)
@@ -714,8 +713,12 @@ class DocumentSrc(@Document)
 				do me.areaX :: me.cursorX
 				do me.areaY :: me.cursorY
 			end if
+			do @drawEditor.paint()
 		else
-			do me.areaX :: -1
+			if(me.areaX <> -1)
+				do me.areaX :: -1
+				do @drawEditor.paint()
+			end if
 		end if
 	end func
 
@@ -770,13 +773,16 @@ class DocumentSrc(@Document)
 		end if
 
 		if(refreshScroll)
+			var paint: bool :: false
 			var paddingX: int :: (me.lineNumberWidth + 17) / @cellWidth + 1
 			const paddingY: int :: 17 / @cellHeight + 1
 			if(me.pageY > me.cursorY)
 				do me.pageY :: me.cursorY
+				do paint :: true
 			end if
 			if(me.pageY < me.cursorY - scrHeight / @cellHeight + paddingY)
 				do me.pageY :: me.cursorY - scrHeight / @cellHeight + paddingY
+				do paint :: true
 			end if
 			do @scrollYSrc.setState(0, ^me.src.src - 1 + paddingY, scrHeight / @cellHeight, me.pageY)
 			var maxX: int :: 0
@@ -803,12 +809,17 @@ class DocumentSrc(@Document)
 				end for
 				if(me.pageX > x)
 					do me.pageX :: x
+					do paint :: true
 				end if
 				if(me.pageX < x - scrWidth / @cellWidth + paddingX)
 					do me.pageX :: x - scrWidth / @cellWidth + paddingX
+					do paint :: true
 				end if
 			end block
 			do @scrollXSrc.setState(0, maxX - 1 + paddingX, scrWidth / @cellWidth, me.pageX)
+			if(paint)
+				do @drawEditor.paint()
+			end if
 		end if
 
 		block
@@ -1368,6 +1379,10 @@ class DocumentArBase(@Document)
 		; TODO:
 	end func
 
+	+*func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+		; TODO:
+	end func
+
 	+*func keyChar(key: char)
 		; TODO:
 	end func
@@ -1710,6 +1725,7 @@ func main()
 		do @drawEditor.onMouseMove :: @drawEditorOnMouseMove
 		do @drawEditor.onFocus :: @drawEditorOnFocus
 		do @drawEditor.onKeyDown :: @drawEditorOnKeyDown
+		do @drawEditor.onKeyUp :: @drawEditorOnKeyUp
 		do @drawEditor.onKeyChar :: @drawEditorOnKeyChar
 		do @drawEditor.onScrollX :: @drawEditorOnScrollX
 		do @drawEditor.onScrollY :: @drawEditorOnScrollY
@@ -2231,6 +2247,10 @@ end func
 
 func drawEditorOnKeyDown(wnd: wnd@WndBase, key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 	do @curDocument.keyDown(key, shiftCtrl)
+end func
+
+func drawEditorOnKeyUp(wnd: wnd@WndBase, key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+	do @curDocument.keyUp(key, shiftCtrl)
 end func
 
 func drawEditorOnKeyChar(wnd: wnd@WndBase, key: char)

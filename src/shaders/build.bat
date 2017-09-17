@@ -10,7 +10,9 @@ set fxc_path="C:\Program Files (x86)\Windows Kits\8.1\bin\x64\fxc.exe"
 %fxc_path% tex_rot_vs.fx /T vs_4_0 /Fo tex_rot.vs
 %fxc_path% tex_ps.fx /T ps_4_0 /Fo tex.ps
 %fxc_path% obj_vs.fx /T vs_4_0 /Fo obj.vs
+%fxc_path% obj_vs.fx /T vs_4_0 /Fo obj_dbg.vs /DDBG
 %fxc_path% obj_vs.fx /T vs_4_0 /Fo obj_joint.vs /DJOINT
+%fxc_path% obj_vs.fx /T vs_4_0 /Fo obj_joint_dbg.vs /DJOINT /DDBG
 %fxc_path% obj_ps.fx /T ps_4_0 /Fo obj.ps
 %fxc_path% obj_ps.fx /T ps_4_0 /Fo obj_dbg.ps /DDBG
 pause

@@ -10,8 +10,8 @@ end func
 +enum WndStyle
 	normal
 	fix
-{
 	aspect
+{
 	mdi
 	mdiChild
 	dock

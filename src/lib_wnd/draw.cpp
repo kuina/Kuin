@@ -15,6 +15,7 @@ const int BlendNum = 5;
 const int SamplerNum = 2;
 const int JointMax = 64;
 const int FontBitmapSize = 1024;
+const int TexEvenNum = 3;
 
 struct SWndBuf
 {
@@ -98,6 +99,7 @@ struct SObjVsConstBuf
 	float NormWorld[4][4];
 	float ProjView[4][4];
 	float Eye[4];
+	float Dir[4];
 };
 
 struct SObjJointVsConstBuf
@@ -106,14 +108,16 @@ struct SObjJointVsConstBuf
 	float NormWorld[4][4];
 	float ProjView[4][4];
 	float Eye[4];
+	float Dir[4];
 	float Joint[JointMax][4][4];
 };
 
 struct SObjPsConstBuf
 {
-	float Dir[4];
+	float AmbTopColor[4];
+	float AmbBottomColor[4];
 	float DirColor[4];
-#if defined(DBG)
+#if defined(_DEBUG)
 	int Mode[4];
 #endif
 };
@@ -165,6 +169,8 @@ static SObjPsConstBuf ObjPsConstBuf;
 static int CurZBuf = -1;
 static int CurBlend = -1;
 static int CurSampler = -1;
+ID3D10Texture2D* TexEven[TexEvenNum];
+ID3D10ShaderResourceView* ViewEven[TexEvenNum];
 
 EXPORT_CPP void _render(S64 fps)
 {
@@ -277,7 +283,7 @@ EXPORT_CPP void _sampler(S64 kind)
 EXPORT_CPP void _clearColor(S64 color)
 {
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	CurWndBuf->ClearColor[0] = static_cast<FLOAT>(r);
 	CurWndBuf->ClearColor[1] = static_cast<FLOAT>(g);
 	CurWndBuf->ClearColor[2] = static_cast<FLOAT>(b);
@@ -286,7 +292,7 @@ EXPORT_CPP void _clearColor(S64 color)
 EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
 {
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	if (a <= 0.04)
 		return;
 	{
@@ -317,7 +323,7 @@ EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
 EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, S64 color)
 {
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	if (a <= 0.04)
 		return;
 	if ((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1) < 0.0)
@@ -358,7 +364,7 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 {
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	if (a <= 0.04)
 		return;
 	if (w < 0.0)
@@ -397,7 +403,7 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 {
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	if (a <= 0.04)
 		return;
 	if (w < 0.0)
@@ -438,7 +444,7 @@ EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 color)
 {
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	if (a <= 0.04)
 		return;
 	if (radiusX < 0.0)
@@ -568,7 +574,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 	return me_;
 }
 
-EXPORT_CPP SClass* _makeTexEvenRgba(SClass* me_, double a, double r, double g, double b)
+EXPORT_CPP SClass* _makeTexEvenArgb(SClass* me_, double a, double r, double g, double b)
 {
 	STex* me2 = reinterpret_cast<STex*>(me_);
 	float img[4] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a) };
@@ -608,8 +614,8 @@ EXPORT_CPP SClass* _makeTexEvenRgba(SClass* me_, double a, double r, double g, d
 EXPORT_CPP SClass* _makeTexEvenColor(SClass* me_, S64 color)
 {
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
-	return _makeTexEvenRgba(me_, r, g, b, a);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
+	return _makeTexEvenArgb(me_, a, r, g, b);
 }
 
 EXPORT_CPP void _texDtor(SClass* me_)
@@ -629,7 +635,7 @@ EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, dou
 EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW, double dstH, double srcX, double srcY, double srcW, double srcH, S64 color)
 {
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	if (a <= 0.04)
 		return;
 
@@ -679,7 +685,7 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, double dstH, double srcX, double srcY, double srcW, double srcH, double centerX, double centerY, double angle, S64 color)
 {
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	if (a <= 0.04)
 		return;
 
@@ -834,7 +840,7 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 {
 	THROWDBG(text == NULL, 0xc0000005);
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	if (a <= 0.04)
 		return;
 
@@ -1009,6 +1015,7 @@ EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, doubl
 
 EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ, double farZ)
 {
+	THROWDBG(fovy <= 0.0 || M_PI / 2.0 <= fovy || aspectX <= 0.0 || aspectY <= 0.0 || nearZ <= 0.0 || farZ <= nearZ, 0xe9170006);
 	double tan_theta = tan(fovy / 2.0);
 	ProjMtx[0][0] = -1.0 / ((aspectX / aspectY) * tan_theta);
 	ProjMtx[0][1] = 0.0;
@@ -1049,7 +1056,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 			buf = static_cast<U8*>(LoadFileAll(reinterpret_cast<const Char*>(path + 0x10), &size));
 			if (buf == NULL)
 			{
-				THROW(0x1000, L"");
+				THROW(0xe9170007);
 				return NULL;
 			}
 			if (ptr + sizeof(int) > size)
@@ -1108,16 +1115,16 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 							}
 							int idx_num = *reinterpret_cast<const int*>(buf + ptr);
 							ptr += sizeof(int);
-							vertices = static_cast<U8*>(AllocMem((sizeof(float) * 12 + sizeof(int) * 4) * static_cast<size_t>(idx_num)));
+							vertices = static_cast<U8*>(AllocMem((sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num)));
 							U8* ptr2 = vertices;
-							if (ptr + (sizeof(float) * 12 + sizeof(int) * 4) * static_cast<size_t>(idx_num) > size)
+							if (ptr + (sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num) > size)
 							{
 								correct = False;
 								break;
 							}
 							for (int j = 0; j < idx_num; j++)
 							{
-								for (int k = 0; k < 12; k++)
+								for (int k = 0; k < 18; k++)
 								{
 									*reinterpret_cast<float*>(ptr2) = *reinterpret_cast<const float*>(buf + ptr);
 									ptr += sizeof(float);
@@ -1130,7 +1137,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 									ptr2 += sizeof(int);
 								}
 							}
-							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * 12 + sizeof(int) * 4) * static_cast<size_t>(idx_num), vertices, sizeof(float) * 12 + sizeof(int) * 4, sizeof(U32) * static_cast<size_t>(element->VertexNum), idces);
+							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * 18 + sizeof(int) * 4) * static_cast<size_t>(idx_num), vertices, sizeof(float) * 18 + sizeof(int) * 4, sizeof(U32) * static_cast<size_t>(element->VertexNum), idces);
 							if (ptr + sizeof(int) * 3 > size)
 							{
 								correct = False;
@@ -1182,7 +1189,8 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 		if (!correct)
 		{
 			_objDtor(me_);
-			THROW(0x1000, L"");
+			THROW(0xe9170008);
+			return NULL;
 		}
 	}
 	return me_;
@@ -1219,12 +1227,12 @@ EXPORT_CPP void _objDtor(SClass* me_)
 EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, S64 color)
 {
 	double r, g, b, a;
-	Draw::ColorToRgba(&r, &g, &b, &a, color);
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	// TODO:
 	return NULL;
 }
 
-EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, S64 element, double frame)
+EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass* normal, S64 element, double frame)
 {
 	SObj* me2 = (SObj*)me_;
 	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, 0xe9170006);
@@ -1239,7 +1247,7 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, S64 ele
 
 				memcpy(ObjVsConstBuf.World, me2->Mtx, sizeof(float[4][4]));
 				memcpy(ObjVsConstBuf.NormWorld, me2->NormMtx, sizeof(float[4][4]));
-#if defined(DBG)
+#if defined(_DEBUG)
 				ObjPsConstBuf.Mode[0] = 0;
 #endif
 				if (joint)
@@ -1266,8 +1274,9 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, S64 ele
 				Device->GSSetShader(NULL);
 				Draw::ConstBuf(ObjPs, &ObjPsConstBuf);
 				Draw::VertexBuf(element2->VertexBuf);
-				Device->PSSetShaderResources(0, 1, &reinterpret_cast<STex*>(diffuse)->View);
-				Device->PSSetShaderResources(1, 1, &reinterpret_cast<STex*>(specular)->View);
+				Device->PSSetShaderResources(0, 1, diffuse == NULL ? &ViewEven[0] : &reinterpret_cast<STex*>(diffuse)->View);
+				Device->PSSetShaderResources(1, 1, specular == NULL ? &ViewEven[1] : &reinterpret_cast<STex*>(specular)->View);
+				Device->PSSetShaderResources(2, 1, normal == NULL ? &ViewEven[2] : &reinterpret_cast<STex*>(normal)->View);
 				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
 			}
 			break;
@@ -1277,8 +1286,7 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, S64 ele
 EXPORT_CPP void _objMtx(SClass* me_, const U8* mtx, const U8* normMtx)
 {
 	SObj* me2 = (SObj*)me_;
-	if (*(S64*)(mtx + 0x08) != 16 || *(S64*)(normMtx + 0x08) != 16)
-		THROW(0x1000, L"");
+	THROWDBG(*(S64*)(mtx + 0x08) != 16 || *(S64*)(normMtx + 0x08) != 16, 0xe9170006);
 	{
 		const double* ptr = reinterpret_cast<const double*>(mtx + 0x10);
 		me2->Mtx[0][0] = static_cast<float>(ptr[0]);
@@ -1370,12 +1378,12 @@ EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, 
 	SObj* me2 = (SObj*)me_;
 	double at[3] = { atX - x, atY - y, atZ - z }, up[3] = { upX, upY, upZ }, right[3];
 	if (Draw::Normalize(at) == 0.0)
-		THROW(0x1000, L"");
+		return;
 	if (Draw::Normalize(up) == 0.0)
-		THROW(0x1000, L"");
+		return;
 	Draw::Cross(right, up, at);
 	if (Draw::Normalize(right) == 0.0)
-		THROW(0x1000, L"");
+		return;
 	if (fixUp)
 		Draw::Cross(up, at, right);
 	else
@@ -1417,6 +1425,28 @@ EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, 
 EXPORT_CPP void _objLookCamera(SClass* me_, double x, double y, double z, double upX, double upY, double upZ, Bool fixUp)
 {
 	_objLook(me_, x, y, z, static_cast<double>(ObjVsConstBuf.Eye[0]), static_cast<double>(ObjVsConstBuf.Eye[1]), static_cast<double>(ObjVsConstBuf.Eye[2]), upX, upY, upZ, fixUp);
+}
+
+EXPORT_CPP void _ambLight(double topR, double topG, double topB, double bottomR, double bottomG, double bottomB)
+{
+	ObjPsConstBuf.AmbTopColor[0] = static_cast<float>(topR);
+	ObjPsConstBuf.AmbTopColor[1] = static_cast<float>(topG);
+	ObjPsConstBuf.AmbTopColor[2] = static_cast<float>(topB);
+	ObjPsConstBuf.AmbBottomColor[0] = static_cast<float>(bottomR);
+	ObjPsConstBuf.AmbBottomColor[1] = static_cast<float>(bottomG);
+	ObjPsConstBuf.AmbBottomColor[2] = static_cast<float>(bottomB);
+}
+
+EXPORT_CPP void _dirLight(double atX, double atY, double atZ, double r, double g, double b)
+{
+	double dir[3] = { atX, atY, atZ };
+	Draw::Normalize(dir);
+	ObjVsConstBuf.Dir[0] = -static_cast<float>(dir[0]);
+	ObjVsConstBuf.Dir[1] = -static_cast<float>(dir[1]);
+	ObjVsConstBuf.Dir[2] = -static_cast<float>(dir[2]);
+	ObjPsConstBuf.DirColor[0] = static_cast<float>(r);
+	ObjPsConstBuf.DirColor[1] = static_cast<float>(g);
+	ObjPsConstBuf.DirColor[2] = static_cast<float>(b);
 }
 
 namespace Draw
@@ -1829,22 +1859,75 @@ void Init()
 		}
 	}
 
+	for (int i = 0; i < TexEvenNum; i++)
+	{
+		float img[4];
+		switch (i)
+		{
+			case 0:
+				img[0] = 0.6f; // Diffuse red.
+				img[1] = 0.6f; // Diffuse green.
+				img[2] = 0.6f; // Diffuse blue.
+				img[3] = 0.0f; // Not used.
+				break;
+			case 1:
+				img[0] = 0.7f; // Metallic F(0) red.
+				img[1] = 0.7f; // Metallic F(0) green.
+				img[2] = 0.7f; // Metallic F(0) blue.
+				img[3] = 3.0f; // Glossiness = 2.0 / (Roughness ^ 4) - 2.0
+				break;
+			case 2:
+				img[0] = 0.5f; // Normal x.
+				img[1] = 0.5f; // Normal y.
+				img[2] = 1.0f; // Normal z.
+				img[3] = 0.0f; // Not used.
+				break;
+			default:
+				ASSERT(False);
+				break;
+		}
+		{
+			D3D10_TEXTURE2D_DESC desc;
+			D3D10_SUBRESOURCE_DATA sub;
+			desc.Width = 1;
+			desc.Height = 1;
+			desc.MipLevels = 1;
+			desc.ArraySize = 1;
+			desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
+			desc.Usage = D3D10_USAGE_IMMUTABLE;
+			desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+			desc.CPUAccessFlags = 0;
+			desc.MiscFlags = 0;
+			sub.pSysMem = img;
+			sub.SysMemPitch = static_cast<UINT>(sizeof(img));
+			sub.SysMemSlicePitch = 0;
+			if (FAILED(Device->CreateTexture2D(&desc, &sub, &TexEven[i])))
+				THROW(0xe9170009);
+		}
+		{
+			D3D10_SHADER_RESOURCE_VIEW_DESC desc;
+			memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+			desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+			desc.Texture2D.MostDetailedMip = 0;
+			desc.Texture2D.MipLevels = 1;
+			if (FAILED(Device->CreateShaderResourceView(TexEven[i], &desc, &ViewEven[i])))
+				THROW(0xe9170009);
+		}
+	}
+
 	memset(&ObjVsConstBuf, 0, sizeof(SObjVsConstBuf));
 	memset(&ObjPsConstBuf, 0, sizeof(SObjPsConstBuf));
+	ObjPsConstBuf.AmbTopColor[3] = 0.0f;
+	ObjPsConstBuf.AmbBottomColor[3] = 0.0f;
+	ObjVsConstBuf.Dir[3] = 0.0f;
+	ObjPsConstBuf.DirColor[3] = 0.0f;
 	_camera(0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 	_proj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.01, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
-	{
-		double dir[3] = { 2.0, 5.0, 1.0 };
-		Draw::Normalize(dir);
-		ObjPsConstBuf.Dir[0] = static_cast<float>(dir[0]);
-		ObjPsConstBuf.Dir[1] = static_cast<float>(dir[1]);
-		ObjPsConstBuf.Dir[2] = static_cast<float>(dir[2]);
-		ObjPsConstBuf.Dir[3] = 0.0f;
-	}
-	ObjPsConstBuf.DirColor[0] = 1.5f;
-	ObjPsConstBuf.DirColor[1] = 1.5f;
-	ObjPsConstBuf.DirColor[2] = 1.5f;
-	ObjPsConstBuf.DirColor[3] = 0.0f;
+	_ambLight(0.05, 0.05, 0.08, 0.08, 0.05, 0.05);
+	_dirLight(1.0, -1.0, -1.0, 2.0, 2.0, 2.0);
 
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Device->RSSetState(RasterizerState);
@@ -1855,6 +1938,13 @@ void Init()
 
 void Fin()
 {
+	for (int i = 0; i < TexEvenNum; i++)
+	{
+		if (ViewEven[i] != NULL)
+			ViewEven[i]->Release();
+		if (TexEven[i] != NULL)
+			TexEven[i]->Release();
+	}
 	if (ObjPs != NULL)
 		FinShaderBuf(ObjPs);
 	if (ObjJointVs != NULL)
@@ -2351,7 +2441,7 @@ HFONT ToFontHandle(SClass* font)
 	return reinterpret_cast<SFont*>(font)->Font;
 }
 
-void ColorToRgba(double* r, double* g, double* b, double* a, S64 color)
+void ColorToArgb(double* a, double* r, double* g, double* b, S64 color)
 {
 	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
 	*a = static_cast<double>((color >> 24) & 0xff) / 255.0;
