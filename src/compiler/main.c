@@ -265,7 +265,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 		Bool end = False;
 		DbgStartAddr = 0;
 		ResumeThread(process_info.hThread);
-		S64 excpt_last_occurred = _time64(NULL) - 1;
+		S64 excpt_last_occurred = _time64(NULL) - 2;
 		Char dbg_code = L'\0';
 		while (!end)
 		{
@@ -289,7 +289,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 					if (debug_event.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003)
 						break;
 					*/
-					if ((debug_event.u.Exception.ExceptionRecord.ExceptionCode & 0xc0000000) != 0xc0000000)
+					if ((debug_event.u.Exception.ExceptionRecord.ExceptionCode & 0xffff0000) != 0xc0000000 && (debug_event.u.Exception.ExceptionRecord.ExceptionCode & 0xffff0000) != 0xe9170000)
 						break;
 					if (_time64(NULL) - excpt_last_occurred < 2)
 						break;
