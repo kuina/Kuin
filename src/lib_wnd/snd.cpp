@@ -64,6 +64,8 @@ EXPORT_CPP double _getMainVolume()
 EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 {
 	THROWDBG(path == NULL, 0xc0000005);
+	if (Device == NULL)
+		THROW(0xe9170009);
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 
 	WAVEFORMATEX pcmwf;
@@ -168,7 +170,10 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 		break;
 	}
 	if (!success)
+	{
+		THROW(0xe9170009);
 		return NULL;
+	}
 	return me_;
 }
 
@@ -306,9 +311,15 @@ void Init()
 	Wnd = CreateWindowEx(0, L"KuinSndClass", L"", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
 
 	if (FAILED(DirectSoundCreate8(NULL, &Device, NULL)))
-		THROW(0xe9170009);
+	{
+		Device = NULL;
+		return;
+	}
 	if (FAILED(Device->SetCooperativeLevel(Wnd, DSSCL_PRIORITY)))
-		THROW(0xe9170009);
+	{
+		Device = NULL;
+		return;
+	}
 	ListSndTop = NULL;
 	ListSndBottom = NULL;
 	LoadOgg = NULL;
