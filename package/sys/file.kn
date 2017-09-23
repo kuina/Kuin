@@ -105,6 +105,9 @@ end enum
 +func [d0000.knd, _makeDir] makeDir(path: []char): bool
 end func
 
++func [d0000.knd, _forEachDir] forEach(path: []char, recursive: bool, callback: func<([]char, bool, kuin@Class): bool>, param: kuin@Class): bool
+end func
+
 +func [d0000.knd, _existPath] exist(path: []char): bool
 end func
 

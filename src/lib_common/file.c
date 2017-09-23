@@ -15,9 +15,14 @@ static Char ReadUtf8(SStream* me_, Bool replace_delimiter);
 static void WriteUtf8(SStream* me_, Char data);
 static void NormPath(Char* path, Bool dir);
 static void NormPathBackSlash(Char* path, Bool dir);
-static Bool ForeachDirRecursion(const Char* path, Bool recursive, void* func);
+static Bool ForEachDirRecursion(const Char* path, Bool recursive, void* callback, void* data);
 static Bool DelDirRecursion(const Char* path);
 static Bool CopyDirRecursion(const Char* dst, const Char* src);
+
+void* Call0Asm(void* func);
+void* Call1Asm(void* arg1, void* func);
+void* Call2Asm(void* arg1, void* arg2, void* func);
+void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);
 
 EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 {
@@ -435,10 +440,11 @@ EXPORT Bool _makeDir(const U8* path)
 	}
 }
 
-EXPORT void _foreachDir(const U8* path, Bool recursive, void* func)
+EXPORT Bool _forEachDir(const U8* path, Bool recursive, void* callback, void* data)
 {
-	if (!ForeachDirRecursion((const Char*)(path + 0x10), recursive, func))
-		THROW(0x1000, L""); // TODO:
+	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(callback == NULL, 0xc0000005);
+	return ForEachDirRecursion((const Char*)(path + 0x10), recursive, callback, data);
 }
 
 EXPORT Bool _existPath(const U8* path)
@@ -825,13 +831,29 @@ static void NormPathBackSlash(Char* path, Bool dir)
 	}
 }
 
-static Bool ForeachDirRecursion(const Char* path, Bool recursive, void* func)
+static Bool ForEachDirRecursion(const Char* path, Bool recursive, void* callback, void* data)
 {
 	Char path2[KUIN_MAX_PATH + 1];
 	if (wcslen(path) > KUIN_MAX_PATH)
 		return False;
 	if (!PathFileExists(path))
 		return False;
+	if (recursive)
+	{
+		size_t len = wcslen(path);
+		U8* path3 = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+		((S64*)path3)[0] = 2;
+		((S64*)path3)[1] = len;
+		memcpy(path3 + 0x10, path, sizeof(Char) * (len + 1));
+		if (data != NULL)
+			(*(S64*)data)++;
+		Bool result = (Bool)(S64)Call3Asm((void*)path3, (void*)(S64)True, data, callback);
+		(*(S64*)path3)--;
+		if (*(S64*)path3 == 0)
+			FreeMem(path3);
+		if (!result)
+			return False;
+	}
 	wcscpy(path2, path);
 	wcscat(path2, L"*");
 	{
@@ -851,7 +873,7 @@ static Bool ForeachDirRecursion(const Char* path, Bool recursive, void* func)
 					if (recursive)
 					{
 						wcscat(path2, L"/");
-						if (!ForeachDirRecursion(path2, recursive, func))
+						if (!ForEachDirRecursion(path2, recursive, callback, data))
 						{
 							FindClose(handle);
 							return False;
@@ -860,7 +882,19 @@ static Bool ForeachDirRecursion(const Char* path, Bool recursive, void* func)
 				}
 				else
 				{
-					// TODO: call
+					size_t len = wcslen(path2);
+					U8* path3 = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+					((S64*)path3)[0] = 2;
+					((S64*)path3)[1] = len;
+					memcpy(path3 + 0x10, path2, sizeof(Char) * (len + 1));
+					if (data != NULL)
+						(*(S64*)data)++;
+					Bool result = (Bool)(S64)Call3Asm((void*)path3, (void*)(S64)False, data, callback);
+					(*(S64*)path3)--;
+					if (*(S64*)path3 == 0)
+						FreeMem(path3);
+					if (!result)
+						return False;
 				}
 			}
 		} while (FindNextFile(handle, &find_data));

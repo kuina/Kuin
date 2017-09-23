@@ -2059,6 +2059,7 @@ EXPORT Bool _exist(void* me_, const U8* type, const void* key)
 EXPORT Bool _forEach(void* me_, const U8* type, const void* callback, void* data)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(callback == NULL, 0xc0000005);
 	U8* child1;
 	U8* child2;
 	GetDictTypes(type, &child1, &child2);
