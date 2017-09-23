@@ -838,7 +838,6 @@ static Bool ForEachDirRecursion(const Char* path, Bool recursion, void* callback
 		return False;
 	if (!PathFileExists(path))
 		return False;
-	if (recursion)
 	{
 		size_t len = wcslen(path);
 		U8* path3 = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
