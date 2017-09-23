@@ -657,12 +657,19 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	me2->Children = AllocMem(0x28);
 	*(S64*)me2->Children = 1;
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
+	if (me2->Kind == WndKind_WndAspect)
 	{
 		RECT rect;
 		GetClientRect(me2->WndHandle, &rect);
-		width += width - static_cast<S64>(rect.right - rect.left);
-		height += height - static_cast<S64>(rect.bottom - rect.top);
-		SetWindowPos(me2->WndHandle, NULL, 0, 0, static_cast<int>(width), static_cast<int>(height), SWP_NOMOVE | SWP_NOZORDER);
+		double caption = static_cast<double>(GetSystemMetrics(SM_CYCAPTION));
+		double border = static_cast<double>(GetSystemMetrics(SM_CYFRAME));
+		double w = static_cast<double>(rect.right) - static_cast<double>(rect.left) - border * 2.0;
+		double h = static_cast<double>(rect.bottom) - static_cast<double>(rect.top) - caption - border * 2.0;
+		if (w / h > static_cast<double>(width) / static_cast<double>(height))
+			rect.right = static_cast<LONG>(static_cast<double>(rect.left) + h * static_cast<double>(width) / static_cast<double>(height) + border * 2.0);
+		else
+			rect.bottom = static_cast<LONG>(static_cast<double>(rect.top) + w * static_cast<double>(height) / static_cast<double>(width) + caption + border * 2.0);
+		SetWindowPos(me2->WndHandle, NULL, 0, 0, static_cast<int>(rect.right - rect.left), static_cast<int>(rect.bottom - rect.top), SWP_NOMOVE | SWP_NOZORDER);
 	}
 	SetWindowLongPtr(me2->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me2));
 	{
@@ -1290,33 +1297,11 @@ static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64
 			THROWDBG(True, 0xe9170006);
 			break;
 	}
-	RECT parent_rect;
-	if (parent->Kind < 0x80)
-	{
-		parent_rect.left = 0;
-		parent_rect.top = 0;
-		parent_rect.right = parent->DefaultWidth;
-		parent_rect.bottom = parent->DefaultHeight;
-	}
-	else
-		GetClientRect(parent->WndHandle, &parent_rect);
-	if ((wnd->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorLeft)) != 0)
-		wnd->DefaultX = static_cast<U16>(x);
-	else
-		wnd->DefaultX = static_cast<U16>(static_cast<U64>(parent_rect.right - parent_rect.left) - x);
-	if ((wnd->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorTop)) != 0)
-		wnd->DefaultY = static_cast<U16>(y);
-	else
-		wnd->DefaultY = static_cast<U16>(static_cast<U64>(parent_rect.bottom - parent_rect.top) - y);
-	if ((wnd->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorRight)) != 0)
-		wnd->DefaultWidth = static_cast<U16>(static_cast<U64>(parent_rect.right - parent_rect.left) - x - width);
-	else
-		wnd->DefaultWidth = static_cast<U16>(width);
-	if ((wnd->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorBottom)) != 0)
-		wnd->DefaultHeight = static_cast<U16>(static_cast<U64>(parent_rect.bottom - parent_rect.top) - y - height);
-	else
-		wnd->DefaultHeight = static_cast<U16>(height);
-	ResizeCallback(wnd->WndHandle, 0);
+	wnd->DefaultX = static_cast<U16>(x);
+	wnd->DefaultY = static_cast<U16>(y);
+	wnd->DefaultWidth = static_cast<U16>(width);
+	wnd->DefaultHeight = static_cast<U16>(height);
+	ResizeCallback(wnd->WndHandle, NULL);
 }
 
 static SWndBase* ToWnd(HWND wnd)
@@ -1349,38 +1334,43 @@ static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param)
 	if (wnd2->CtrlFlag == (static_cast<U64>(CtrlFlag_AnchorLeft) | static_cast<U64>(CtrlFlag_AnchorTop)))
 		return TRUE;
 	RECT parent_rect = { 0 };
-	{
-		HWND parent = GetAncestor(wnd, GA_PARENT);
-		Bool first = False;
-		if (l_param == 0)
-		{
-			SWndBase* wnd3 = ToWnd(parent);
-			if (wnd3->Kind < 0x80)
-			{
-				parent_rect.left = wnd3->DefaultX;
-				parent_rect.top = wnd3->DefaultY;
-				parent_rect.right = wnd3->DefaultWidth;
-				parent_rect.bottom = wnd3->DefaultHeight;
-				first = True;
-			}
-		}
-		if (!first)
-			GetClientRect(parent, &parent_rect);
-	}
-	int width = static_cast<int>(parent_rect.right - parent_rect.left);
-	int height = static_cast<int>(parent_rect.bottom - parent_rect.top);
-	int new_x = static_cast<int>(wnd2->DefaultX);
-	int new_y = static_cast<int>(wnd2->DefaultY);
-	int new_width = static_cast<int>(wnd2->DefaultWidth);
-	int new_height = static_cast<int>(wnd2->DefaultHeight);
+	HWND parent_handle = GetAncestor(wnd, GA_PARENT);
+	SWndBase* parent = ToWnd(parent_handle);
+	GetClientRect(parent_handle, &parent_rect);
+	const int parent_width_diff = static_cast<int>(parent_rect.right - parent_rect.left) - static_cast<int>(parent->DefaultWidth);
+	const int parent_height_diff = static_cast<int>(parent_rect.bottom - parent_rect.top) - static_cast<int>(parent->DefaultHeight);
+	int new_x;
+	int new_y;
+	int new_width;
+	int new_height;
 	if ((wnd2->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorLeft)) == 0)
-		new_x = width - new_x;
+	{
+		new_x = static_cast<int>(wnd2->DefaultX) + parent_width_diff;
+		ASSERT((wnd2->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorRight)) != 0);
+		new_width = static_cast<int>(wnd2->DefaultWidth); // move
+	}
+	else
+	{
+		new_x = static_cast<int>(wnd2->DefaultX);
+		if ((wnd2->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorRight)) == 0)
+			new_width = static_cast<int>(wnd2->DefaultWidth); // fix
+		else
+			new_width = static_cast<int>(wnd2->DefaultWidth) + parent_width_diff; // scale
+	}
 	if ((wnd2->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorTop)) == 0)
-		new_y = height - new_y;
-	if ((wnd2->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorRight)) != 0)
-		new_width = width - new_x - new_width;
-	if ((wnd2->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorBottom)) != 0)
-		new_height = height - new_y - new_height;
+	{
+		new_y = static_cast<int>(wnd2->DefaultY) + parent_height_diff;
+		ASSERT((wnd2->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorBottom)) != 0);
+		new_height = static_cast<int>(wnd2->DefaultHeight); // move
+	}
+	else
+	{
+		new_y = static_cast<int>(wnd2->DefaultY);
+		if ((wnd2->CtrlFlag & static_cast<U64>(CtrlFlag_AnchorBottom)) == 0)
+			new_height = static_cast<int>(wnd2->DefaultHeight); // fix
+		else
+			new_height = static_cast<int>(wnd2->DefaultHeight) + parent_height_diff; // scale
+	}
 	SetWindowPos(wnd, NULL, new_x, new_y, new_width, new_height, SWP_NOZORDER);
 	return TRUE;
 }
@@ -1592,7 +1582,7 @@ static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPA
 			}
 			return 0;
 		case WM_SIZE:
-			EnumChildWindows(wnd, ResizeCallback, 1);
+			EnumChildWindows(wnd, ResizeCallback, NULL);
 			return 0;
 		case WM_GETMINMAXINFO:
 			{
@@ -1692,7 +1682,7 @@ static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPA
 			}
 			return 0;
 		case WM_SIZE:
-			EnumChildWindows(wnd, ResizeCallback, 1);
+			EnumChildWindows(wnd, ResizeCallback, NULL);
 			return 0;
 		case WM_GETMINMAXINFO:
 			{
