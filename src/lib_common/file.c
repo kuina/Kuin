@@ -15,7 +15,7 @@ static Char ReadUtf8(SStream* me_, Bool replace_delimiter);
 static void WriteUtf8(SStream* me_, Char data);
 static void NormPath(Char* path, Bool dir);
 static void NormPathBackSlash(Char* path, Bool dir);
-static Bool ForEachDirRecursion(const Char* path, Bool recursive, void* callback, void* data);
+static Bool ForEachDirRecursion(const Char* path, Bool recursion, void* callback, void* data);
 static Bool DelDirRecursion(const Char* path);
 static Bool CopyDirRecursion(const Char* dst, const Char* src);
 
@@ -440,11 +440,11 @@ EXPORT Bool _makeDir(const U8* path)
 	}
 }
 
-EXPORT Bool _forEachDir(const U8* path, Bool recursive, void* callback, void* data)
+EXPORT Bool _forEachDir(const U8* path, Bool recursion, void* callback, void* data)
 {
 	THROWDBG(path == NULL, 0xc0000005);
 	THROWDBG(callback == NULL, 0xc0000005);
-	return ForEachDirRecursion((const Char*)(path + 0x10), recursive, callback, data);
+	return ForEachDirRecursion((const Char*)(path + 0x10), recursion, callback, data);
 }
 
 EXPORT Bool _existPath(const U8* path)
@@ -831,14 +831,14 @@ static void NormPathBackSlash(Char* path, Bool dir)
 	}
 }
 
-static Bool ForEachDirRecursion(const Char* path, Bool recursive, void* callback, void* data)
+static Bool ForEachDirRecursion(const Char* path, Bool recursion, void* callback, void* data)
 {
 	Char path2[KUIN_MAX_PATH + 1];
 	if (wcslen(path) > KUIN_MAX_PATH)
 		return False;
 	if (!PathFileExists(path))
 		return False;
-	if (recursive)
+	if (recursion)
 	{
 		size_t len = wcslen(path);
 		U8* path3 = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
@@ -870,10 +870,10 @@ static Bool ForEachDirRecursion(const Char* path, Bool recursive, void* callback
 				wcscat(path2, find_data.cFileName);
 				if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
 				{
-					if (recursive)
+					if (recursion)
 					{
 						wcscat(path2, L"/");
-						if (!ForEachDirRecursion(path2, recursive, callback, data))
+						if (!ForEachDirRecursion(path2, recursion, callback, data))
 						{
 							FindClose(handle);
 							return False;
