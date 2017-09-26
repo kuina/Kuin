@@ -3265,7 +3265,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 					return (SAstExpr*)DummyPtr;
 				if (arg_expr->RefVar != arg_type->RefVar || !CmpType(arg_expr->Arg->Type, arg_type->Arg))
 				{
-					Err(L"EA0048", ((SAst*)ast)->Pos, n + 1, GetTypeNameNew(arg_type->Arg), GetTypeNameNew(arg_expr->Arg->Type));
+					Err(L"EA0048", ((SAst*)ast)->Pos, n + 1, arg_type->RefVar ? L"&" : L"", GetTypeNameNew(arg_type->Arg), arg_expr->RefVar ? L"&" : L"", GetTypeNameNew(arg_expr->Arg->Type));
 					LocalErr = True;
 					return (SAstExpr*)DummyPtr;
 				}
