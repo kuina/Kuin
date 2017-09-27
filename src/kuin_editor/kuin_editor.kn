@@ -428,27 +428,33 @@ class DocumentSrc(@Document)
 				do @drawEditor.paint()
 			end if
 		case %pageUp
-			if(shiftCtrl <> %ctrl)
-				do me.setArea(shiftCtrl)
-				var absoluteX: int :: me.getAbsoluteX()
-				var width: int
+			block
 				var height: int
-				do @drawEditor.getPos(&, &, &width, &height)
-				do me.cursorY :- height / @cellHeight
-				do me.setAbsoluteX(absoluteX)
-				do me.refreshCursor(false, true)
-			end if
+				do @drawEditor.getPos(&, &, &, &height)
+				if(shiftCtrl = %ctrl)
+					do me.scrollPageY(-height / @cellHeight)
+				else
+					do me.setArea(shiftCtrl)
+					var absoluteX: int :: me.getAbsoluteX()
+					do me.cursorY :- height / @cellHeight
+					do me.setAbsoluteX(absoluteX)
+					do me.refreshCursor(false, true)
+				end if
+			end block
 		case %pageDown
-			if(shiftCtrl <> %ctrl)
-				do me.setArea(shiftCtrl)
-				var absoluteX: int :: me.getAbsoluteX()
-				var width: int
+			block
 				var height: int
-				do @drawEditor.getPos(&, &, &width, &height)
-				do me.cursorY :+ height / @cellHeight
-				do me.setAbsoluteX(absoluteX)
-				do me.refreshCursor(false, true)
-			end if
+				do @drawEditor.getPos(&, &, &, &height)
+				if(shiftCtrl = %ctrl)
+					do me.scrollPageY(height / @cellHeight)
+				else
+					do me.setArea(shiftCtrl)
+					var absoluteX: int :: me.getAbsoluteX()
+					do me.cursorY :+ height / @cellHeight
+					do me.setAbsoluteX(absoluteX)
+					do me.refreshCursor(false, true)
+				end if
+			end block
 		case %end_
 			do me.setArea(shiftCtrl)
 			do me.cursorX :: lib@intMax
@@ -628,6 +634,12 @@ class DocumentSrc(@Document)
 
 	+func showHint()
 		var x: int :: me.cursorX
+		if(^me.src.src[me.cursorY] = x)
+			do x :- 1
+		end if
+		if(x < 0)
+			ret
+		end if
 		while(x > 0 & (me.src.src[me.cursorY][x] = ' ' | me.src.src[me.cursorY][x] = '\t'))
 			do x :- 1
 		end while
@@ -1222,6 +1234,7 @@ class DocumentSrc(@Document)
 			do me.pageX :: 0
 		end if
 		do me.refreshCursor(false, false)
+		do @scrollXSrc.setPos(me.pageX)
 		do @drawEditor.paint()
 	end func
 
@@ -1238,6 +1251,7 @@ class DocumentSrc(@Document)
 			do me.pageY :: 0
 		end if
 		do me.refreshCursor(false, false)
+		do @scrollYSrc.setPos(me.pageY)
 		do @drawEditor.paint()
 	end func
 end class

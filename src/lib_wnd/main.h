@@ -70,7 +70,8 @@ EXPORT_CPP SClass* _makeSplitX(SClass* me_, SClass* parent, S64 x, S64 y, S64 wi
 EXPORT_CPP SClass* _makeSplitY(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeScrollX(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeScrollY(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
-EXPORT_CPP void _scrollSetState(SClass* me_, S64 min, S64 max, S64 page, S64 value);
+EXPORT_CPP void _scrollSetState(SClass* me_, S64 min, S64 max, S64 page, S64 pos);
+EXPORT_CPP void _scrollSetPos(SClass* me_, S64 pos);
 
 EXPORT_CPP SClass* _makeMenu(SClass* me_);
 EXPORT_CPP void _menuDtor(SClass* me_);

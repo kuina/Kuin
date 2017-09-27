@@ -353,7 +353,10 @@ class ScrollBase(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
-	+func [d0001.knd, _scrollSetState] setState(min: int, max: int, page: int, value: int)
+	+func [d0001.knd, _scrollSetState] setState(min: int, max: int, page: int, pos: int)
+	end func
+
+	+func [d0001.knd, _scrollSetPos] setPos(pos: int)
 	end func
 end class
 

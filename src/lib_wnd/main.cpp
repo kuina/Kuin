@@ -1109,23 +1109,36 @@ EXPORT_CPP SClass* _makeScrollY(SClass* me_, SClass* parent, S64 x, S64 y, S64 w
 	return me_;
 }
 
-EXPORT_CPP void _scrollSetState(SClass* me_, S64 min, S64 max, S64 page, S64 value)
+EXPORT_CPP void _scrollSetState(SClass* me_, S64 min, S64 max, S64 page, S64 pos)
 {
 	if (max < min)
 		max = min;
 	if (page < 1)
 		page = 1;
-	if (value < min)
-		value = min;
-	if (value > max)
-		value = max;
+	if (pos < min)
+		pos = min;
+	if (pos > max)
+		pos = max;
 	SCROLLINFO info;
 	info.cbSize = sizeof(SCROLLINFO);
 	info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	info.nMin = static_cast<int>(min);
 	info.nMax = static_cast<int>(max);
 	info.nPage = static_cast<int>(page);
-	info.nPos = static_cast<int>(value);
+	info.nPos = static_cast<int>(pos);
+	info.nTrackPos = 0;
+	SetScrollInfo(reinterpret_cast<SWndBase*>(me_)->WndHandle, SB_CTL, &info, TRUE);
+}
+
+EXPORT_CPP void _scrollSetPos(SClass* me_, S64 pos)
+{
+	SCROLLINFO info;
+	info.cbSize = sizeof(SCROLLINFO);
+	info.fMask = SIF_POS | SIF_DISABLENOSCROLL;
+	info.nMin = 0;
+	info.nMax = 0;
+	info.nPage = 0;
+	info.nPos = static_cast<int>(pos);
 	info.nTrackPos = 0;
 	SetScrollInfo(reinterpret_cast<SWndBase*>(me_)->WndHandle, SB_CTL, &info, TRUE);
 }
