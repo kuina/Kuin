@@ -1,0 +1,29 @@
+func main()
+	do math@init()
+
+	for(1, 3)
+		block
+			var n: int :: 0
+			for i(0, 100)
+				if(math@prime(i))
+					do n :+ 1
+				end if
+			end for
+			do cui@print(n.toStr())
+		end block
+
+		block
+			do cui@print(math@modPow(4, 13, 497).toStr())
+			do cui@print(math@modMul(4, 7, 5).toStr())
+			do cui@print(math@gcd(40, -15).toStr())
+			do cui@print(math@lcm(40, -15).toStr())
+		end block
+
+		block
+			var n: []int :: math@primeFactors(8051)
+			for i(0, ^n - 1)
+				do cui@print(n[i].toStr())
+			end for
+		end block
+	end for
+end func

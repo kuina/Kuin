@@ -932,8 +932,6 @@ static void RebuildFunc(SAstFunc* ast)
 		{
 			if (wcscmp(ast->DllName, L"d0001.knd") == 0)
 				correct = False; // lib_wnd
-			if (wcscmp(ast->DllName, L"d0003.knd") == 0)
-				correct = False; // lib_mfc
 		}
 		if (Option->Env != Env_Cui)
 		{

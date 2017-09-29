@@ -1,0 +1,20 @@
++func [d0003.knd, _init] init()
+end func
+
++func [d0003.knd, _gcd] gcd(a: int, b: int): int
+end func
+
++func [d0003.knd, _lcm] lcm(a: int, b: int): int
+end func
+
++func [d0003.knd, _modPow] modPow(value: int, exponent: int, modulus: int): int
+end func
+
++func [d0003.knd, _modMul] modMul(a: int, b: int, modulus: int): int
+end func
+
++func [d0003.knd, _prime] prime(n: int): bool
+end func
+
++func [d0003.knd, _primeFactors] primeFactors(n: int): []int
+end func

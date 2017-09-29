@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "compiler", "src\compiler\compiler.vcxproj", "{386064E7-EF36-4A2C-BAA1-0085F547AE60}"
 EndProject
@@ -23,6 +23,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kuincl", "src\kuincl\kuincl
 		{A5A772DE-2491-4CD0-9B4B-7E5FE900FED7} = {A5A772DE-2491-4CD0-9B4B-7E5FE900FED7}
 		{386064E7-EF36-4A2C-BAA1-0085F547AE60} = {386064E7-EF36-4A2C-BAA1-0085F547AE60}
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_math", "src\lib_math\lib_math.vcxproj", "{548D74A2-70C8-4DA3-A06A-7818B4C132C8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -63,6 +65,12 @@ Global
 		{AEC661A2-2A3A-4685-B567-48636A07213D}.Release_dbg|x64.ActiveCfg = Release|x64
 		{AEC661A2-2A3A-4685-B567-48636A07213D}.Release_rls|x64.ActiveCfg = Release|x64
 		{AEC661A2-2A3A-4685-B567-48636A07213D}.Release_rls|x64.Build.0 = Release|x64
+		{548D74A2-70C8-4DA3-A06A-7818B4C132C8}.Debug|x64.ActiveCfg = Debug|x64
+		{548D74A2-70C8-4DA3-A06A-7818B4C132C8}.Debug|x64.Build.0 = Debug|x64
+		{548D74A2-70C8-4DA3-A06A-7818B4C132C8}.Release_dbg|x64.ActiveCfg = Release_dbg|x64
+		{548D74A2-70C8-4DA3-A06A-7818B4C132C8}.Release_dbg|x64.Build.0 = Release_dbg|x64
+		{548D74A2-70C8-4DA3-A06A-7818B4C132C8}.Release_rls|x64.ActiveCfg = Release_rls|x64
+		{548D74A2-70C8-4DA3-A06A-7818B4C132C8}.Release_rls|x64.Build.0 = Release_rls|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -91,6 +91,7 @@ U16 SwapEndianU16(U16 n);
 U32 SwapEndianU32(U32 n);
 U64 SwapEndianU64(U64 n);
 Bool IsPowerOf2(U64 n);
+U32 XorShift(U32* seed);
 
 #define THROW(code) ThrowImpl(code)
 #if defined(DBG)

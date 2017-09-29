@@ -195,3 +195,13 @@ Bool IsPowerOf2(U64 n)
 {
 	return (n & (n - 1)) == 0;
 }
+
+U32 XorShift(U32* seed)
+{
+	U32 x = *seed;
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	*seed = x;
+	return x;
+}
