@@ -57,6 +57,12 @@ end func
 func [d0000.knd] _absFloat(me_: float): float
 end func
 
+func [d0000.knd] _signInt(me_: int): int
+end func
+
+func [d0000.knd] _signFloat(me_: float): float
+end func
+
 func [d0000.knd] _clampInt(me_: int, min: int, max: int): int
 end func
 

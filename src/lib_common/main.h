@@ -20,6 +20,8 @@ EXPORT void* _newArray(S64 len, S64* nums, const U8* type);
 EXPORT U8* _toStr(const void* me_, const U8* type);
 EXPORT S64 _absInt(S64 me_);
 EXPORT double _absFloat(double me_);
+EXPORT S64 _signInt(S64 me_);
+EXPORT double _signFloat(double me_);
 EXPORT S64 _clampInt(S64 me_, S64 min, S64 max);
 EXPORT double _clampFloat(double me_, double min, double max);
 EXPORT S64 _clampMinInt(S64 me_, S64 min);

@@ -17,6 +17,8 @@ func main()
 			do cui@print(math@modMul(4, 7, 5).toStr())
 			do cui@print(math@gcd(40, -15).toStr())
 			do cui@print(math@lcm(40, -15).toStr())
+			do cui@print("\{(5).sign()}, \{(-5).sign()}, \{(0).sign()}")
+			do cui@print("\{(1.2).sign()}, \{(-1.2).sign()}, \{(0.0).sign()}")
 		end block
 
 		block

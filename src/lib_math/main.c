@@ -120,7 +120,7 @@ EXPORT Bool _prime(S64 n)
 		return (primes_bin[m / 8] & (1 << (m % 8))) != 0;
 	}
 
-	// Miller-Rabin primality test
+	// Miller-Rabin primality test.
 	U64 enough;
 	if (n < 2047)
 		enough = 1;
@@ -258,6 +258,7 @@ static U64 ModMul(U64 a, U64 b, U64 modulus)
 
 static S64 FindFactor(S64 n, U32 seed)
 {
+	// Pollard's rho algorithm.
 	U64 n2 = (S64)n;
 	for (; ; )
 	{

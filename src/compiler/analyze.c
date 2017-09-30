@@ -41,6 +41,7 @@ static const Char* BuildInFuncs[] =
 	L"shl\0          \x04",
 	L"shr\0          \x04",
 	L"shuffle\0      \x05",
+	L"sign\0         \x0b",
 	L"sort\0         \x05",
 	L"sortDesc\0     \x05",
 	L"split\0        \x06",
@@ -3467,6 +3468,8 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 						member = L"clampMinInt";
 					else if (wcscmp(member, L"clampMax") == 0)
 						member = L"clampMaxInt";
+					else if (wcscmp(member, L"sign") == 0)
+						member = L"signInt";
 					else
 						ASSERT(False);
 				}
@@ -3481,6 +3484,8 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 						member = L"clampMinFloat";
 					else if (wcscmp(member, L"clampMax") == 0)
 						member = L"clampMaxFloat";
+					else if (wcscmp(member, L"sign") == 0)
+						member = L"signFloat";
 					else
 						ASSERT(False);
 				}

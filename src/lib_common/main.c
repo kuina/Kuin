@@ -985,6 +985,16 @@ EXPORT double _absFloat(double me_)
 	return me_ >= 0.0 ? me_ : -me_;
 }
 
+EXPORT S64 _signInt(S64 me_)
+{
+	return me_ > 0 ? 1 : (me_ < 0 ? -1 : 0);
+}
+
+EXPORT double _signFloat(double me_)
+{
+	return me_ > 0.0 ? 1.0 : (me_ < 0.0 ? -1.0 : 0.0);
+}
+
 EXPORT S64 _clampInt(S64 me_, S64 min, S64 max)
 {
 	THROWDBG(min > max, 0xe9170006);
