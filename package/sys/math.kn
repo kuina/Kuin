@@ -38,4 +38,4 @@ end func
 end class
 
 +func [d0003.knd, _makeMat, _make_instance] makeMat(me2: @Mat, row: int, col: int): @Mat
-end class
+end func
