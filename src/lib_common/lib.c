@@ -232,6 +232,16 @@ EXPORT Bool _same(double n1, double n2)
 	return -24 <= diff && diff <= 24;
 }
 
+EXPORT double _toRad(double degree)
+{
+	return degree * M_PI / 180.0;
+}
+
+EXPORT double _toDegree(double rad)
+{
+	return rad * 180.0 / M_PI;
+}
+
 EXPORT S64 _cmp(const U8* s1, const U8* s2)
 {
 	THROWDBG(s1 == NULL, 0xc0000005);

@@ -114,6 +114,12 @@ end func
 +func [d0000.knd, _same] same(n1: float, n2: float): bool
 end func
 
++func [d0000.knd, _toRad] toRad(degree: float): float
+end func
+
++func [d0000.knd, _toDegree] toDegree(rad: float): float
+end func
+
 +func [d0000.knd, _cmp] cmp(s1: []char, s2: []char): int
 end func
 

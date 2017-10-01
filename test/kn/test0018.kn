@@ -27,5 +27,13 @@ func main()
 				do cui@print(n[i].toStr())
 			end for
 		end block
+
+		block
+			do cui@print(lib@toRad(180.0).toStr())
+			do cui@print(lib@toDegree(lib@pi / 4.0).toStr())
+			do cui@print(math@gamma(5.0).toStr())
+			do cui@print(math@fact(5.0).toStr())
+			do cui@print(math@factInt(5).toStr())
+		end block
 	end for
 end func
