@@ -123,6 +123,21 @@ end func
 +func [d0000.knd, _cmp] cmp(s1: []char, s2: []char): int
 end func
 
++class BmSearch(kuin@ResClass)
+	*func [d0000.knd, _bmSearchDtor, _force] _dtor()
+	end func
+
+	+func [d0000.knd, _bmSearchFind] find(text: []char): int
+	end func
+
+	var pattern: int
+	var dists: int
+	var len: int
+end class
+
++func [d0000.knd, _makeBmSearch, _make_instance] makeBmSearch(me2: @BmSearch, pattern: []char): @BmSearch
+end func
+
 +func [d0000.knd, _hash] hash(data: []bit8): []bit8
 end func
 

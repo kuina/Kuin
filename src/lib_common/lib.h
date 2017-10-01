@@ -34,4 +34,7 @@ EXPORT Bool _same(double n1, double n2);
 EXPORT double _toRad(double degree);
 EXPORT double _toDegree(double rad);
 EXPORT S64 _cmp(const U8* s1, const U8* s2);
+EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern);
+EXPORT void _bmSearchDtor(SClass* me_);
+EXPORT S64 _bmSearchFind(SClass* me_, const U8* text);
 void LibInit(void);

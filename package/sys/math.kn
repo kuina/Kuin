@@ -29,7 +29,7 @@ end func
 end func
 
 +class Mat(kuin@ResClass)
-	*func [d0000.knd, _streamDtor, _force] _dtor()
+	*func [d0003.knd, _matDtor, _force] _dtor()
 	end func
 
 	var row: int

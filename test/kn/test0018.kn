@@ -35,5 +35,11 @@ func main()
 			do cui@print(math@fact(5.0).toStr())
 			do cui@print(math@factInt(5).toStr())
 		end block
+
+		block
+			var bm: lib@BmSearch :: lib@makeBmSearch("ababcd")
+			do cui@print(bm.find("cdababababababab").toStr())
+			do cui@print(bm.find("ababababcdababcd").toStr())
+		end block
 	end for
 end func
