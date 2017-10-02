@@ -3539,7 +3539,7 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
 	ASSERT(((SAstExpr*)ast)->VarKind != AstExprVarKind_Unknown);
 	{
-		Bool class_method_call = ((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot && IsClass(((SAstExprDot*)ast->Func)->Var->Type);
+		Bool class_method_call = ((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot && IsClass(((SAstExprDot*)ast->Func)->Var->Type) && ((SAstExprDot*)ast->Func)->ClassItem->Def->TypeId == AstTypeId_Func;
 		STmpVars* tmp = PushRegs(reg_i - 1, reg_f - 1);
 		SAstArg** tmp_args = (SAstArg**)Alloc(sizeof(SAstArg*) * (size_t)ast->Args->Len);
 		{
