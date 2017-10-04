@@ -271,23 +271,22 @@ EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern)
 	{
 		int i, j;
 		me2->Dists = (int*)AllocMem(sizeof(int) * (size_t)me2->PatternLen);
-		for (i = 0; i < me2->PatternLen; i++)
+		for (i = me2->PatternLen - 1; i >= 0; i--)
 		{
 			int dist = me2->PatternLen - i - 1;
 			Bool found = False;
-			for (j = 0; j < i; j++)
+			for (j = me2->PatternLen - 1; j > i; j--)
 			{
-				if (me2->Pattern[j] == me2->Pattern[i])
+				if (me2->Pattern[i] == me2->Pattern[j])
 				{
-					me2->Dists[i] = dist;
-					me2->Dists[j] = dist;
+					me2->Dists[i] = me2->Dists[j];
 					found = True;
 					break;
 				}
 			}
 			if (found)
 				continue;
-			me2->Dists[j] = dist;
+			me2->Dists[i] = dist;
 		}
 	}
 	return me_;
