@@ -1,0 +1,1 @@
+b2.exe install -j2 --prefix=E:\boost toolset=msvc link=static address-model=64

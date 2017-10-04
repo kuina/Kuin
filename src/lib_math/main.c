@@ -47,8 +47,10 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT void init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
+EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
 {
+	if (Heap != NULL)
+		return;
 	Heap = heap;
 	HeapCnt = heap_cnt;
 	AppCode = app_code;
@@ -192,7 +194,6 @@ EXPORT Bool _prime(S64 n)
 
 EXPORT void* _primeFactors(S64 n)
 {
-	THROWDBG(Heap == NULL, 0xe917000a);
 	IntList* top = NULL;
 	IntList* bottom = NULL;
 	int num = 0;

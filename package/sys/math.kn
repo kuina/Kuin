@@ -1,4 +1,4 @@
-+func [d0003.knd, _init] init()
+func [d0003.knd, _init] _init()
 end func
 
 +func [d0003.knd, _gcd] gcd(a: int, b: int): int

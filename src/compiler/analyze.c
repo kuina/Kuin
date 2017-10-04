@@ -80,6 +80,7 @@ static void AddDllFunc(const Char* dll_name, const Char* func_name);
 static int GetBuildInFuncType(const Char* name);
 static S64 GetEnumElementValue(SAstExprValue* ast, SAstEnum* enum_);
 static const Char* GetTypeNameNew(const SAstType* type);
+static const void* AddInitFuncs(const Char* key, const void* value, void* param);
 static SAstFunc* Rebuild(const SAstFunc* main_func);
 static const void* RebuildEnumCallback(U64 key, const void* value, void* param);
 static const void* RebuildRootCallback(const Char* key, const void* value, void* param);
@@ -617,6 +618,20 @@ static const Char* GetTypeNameNew(const SAstType* type)
 	return NewStr(NULL, L"%s", buf);
 }
 
+static const void* AddInitFuncs(const Char* key, const void* value, void* param)
+{
+	if (key[0] == L'\\')
+		return value;
+	SList* funcs = (SList*)param;
+	if (wcscmp(key, L"math") == 0 ||
+		wcscmp(key, L"net") == 0 ||
+		wcscmp(key, L"regex") == 0)
+	{
+		ListAdd(funcs, SearchStdItem(key, L"_init", False));
+	}
+	return value;
+}
+
 static SAstFunc* Rebuild(const SAstFunc* main_func)
 {
 	// Build the entry point.
@@ -673,6 +688,7 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 					break;
 			}
 			ListAdd(funcs, SearchStdItem(L"kuin", L"_initVars", False));
+			DictForEach(Asts, AddInitFuncs, funcs);
 			ListAdd(funcs, main_func);
 			{
 				SListNode* ptr = funcs->Top;

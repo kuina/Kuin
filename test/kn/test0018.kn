@@ -1,6 +1,4 @@
 func main()
-	do math@init()
-
 	for(1, 3)
 		block
 			var n: int :: 0
@@ -40,6 +38,35 @@ func main()
 			var bm: lib@BmSearch :: lib@makeBmSearch("ababcd")
 			do cui@print(bm.find("cdababababababab").toStr())
 			do cui@print(bm.find("ababababcdababcd").toStr())
+		end block
+
+		block
+			var pos: int
+			var s: [][]char
+			do s :: regex@find(&pos, "ab1234c1234d", "c([0-9]+)")
+			do cui@print(pos.toStr())
+			for i(0, ^s - 1)
+				do cui@print(s[i])
+			end for
+			do s :: regex@match(&pos, "ab1234c1234d", "(.+)([0-9]+)c([0-9]+?)(.+)")
+			do cui@print(pos.toStr())
+			for i(0, ^s - 1)
+				do cui@print(s[i])
+			end for
+		end block
+
+		block
+			var pos: []int
+			var s: [][][]char
+			do s :: regex@all(&pos, "abCDefGH", "([A-Z])([A-Z])")
+			do cui@print("^pos = \{^pos}")
+			do cui@print("^s = \{^s}")
+			for i(0, ^s - 1)
+				do cui@print(pos[i].toStr())
+				for j(0, ^s[i] - 1)
+					do cui@print(s[i][j])
+				end for
+			end for
 		end block
 	end for
 end func
