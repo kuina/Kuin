@@ -1,11 +1,21 @@
 func [d1002.knd, _init] _init()
 end func
 
-+func [d1002.knd, _find] find(pos: &int, text: []char, pattern: []char): [][]char
-end func
++class Regex(kuin@ResClass)
+	*func [d1002.knd, _regexDtor, _force] _dtor()
+	end func
 
-+func [d1002.knd, _match] match(pos: &int, text: []char, pattern: []char): [][]char
-end func
+	+func [d1002.knd, _regexFind] find(pos: &int, text: []char): [][]char
+	end func
 
-+func [d1002.knd, _all] all(pos: &[]int, text: []char, pattern: []char): [][][]char
+	+func [d1002.knd, _regexMatch] match(pos: &int, text: []char): [][]char
+	end func
+
+	+func [d1002.knd, _regexAll] all(pos: &[]int, text: []char): [][][]char
+	end func
+
+	var pattern: int
+end class
+
++func [d1002.knd, _makeRegex, _make_instance] makeRegex(me2: @Regex, pattern: []char): @Regex
 end func

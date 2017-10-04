@@ -41,14 +41,16 @@ func main()
 		end block
 
 		block
+			var regex: regex@Regex :: regex@makeRegex("c([0-9]+)")
 			var pos: int
 			var s: [][]char
-			do s :: regex@find(&pos, "ab1234c1234d", "c([0-9]+)")
+			do s :: regex.find(&pos, "ab1234c1234d")
 			do cui@print(pos.toStr())
 			for i(0, ^s - 1)
 				do cui@print(s[i])
 			end for
-			do s :: regex@match(&pos, "ab1234c1234d", "(.+)([0-9]+)c([0-9]+?)(.+)")
+			var regex2: regex@Regex :: regex@makeRegex("(.+)([0-9]+)c([0-9]+?)(.+)")
+			do s :: regex2.match(&pos, "ab1234c1234d")
 			do cui@print(pos.toStr())
 			for i(0, ^s - 1)
 				do cui@print(s[i])
@@ -56,9 +58,10 @@ func main()
 		end block
 
 		block
+			var regex: regex@Regex :: regex@makeRegex("([A-Z])([A-Z])")
 			var pos: []int
 			var s: [][][]char
-			do s :: regex@all(&pos, "abCDefGH", "([A-Z])([A-Z])")
+			do s :: regex.all(&pos, "abCDefGH")
 			do cui@print("^pos = \{^pos}")
 			do cui@print("^s = \{^s}")
 			for i(0, ^s - 1)

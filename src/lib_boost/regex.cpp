@@ -4,21 +4,54 @@
 
 using namespace boost::xpressive;
 
+typedef struct SRegexPattern
+{
+	SClass Class;
+	wsregex* Pattern;
+} SRegexPattern;
+
 static void* ResultsToArray(const wsmatch& results);
 
-EXPORT_CPP void* _find(S64* pos, const U8* text, const U8* pattern)
+EXPORT_CPP SClass* _makeRegex(SClass* me_, const U8* pattern)
+{
+	THROWDBG(pattern == NULL, 0xc0000005);
+	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
+	me2->Pattern = static_cast<wsregex*>(AllocMem(sizeof(wsregex)));
+	new(me2->Pattern)wsregex();
+	try
+	{
+		*me2->Pattern = wsregex::compile(reinterpret_cast<const Char*>(pattern + 0x10));
+	}
+	catch (...)
+	{
+		me2->Pattern = NULL;
+		THROWDBG(True, 0xe9170006);
+		return NULL;
+	}
+	return me_;
+}
+
+EXPORT_CPP void _regexDtor(SClass* me_)
+{
+	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
+	if (me2->Pattern != NULL)
+	{
+		me2->Pattern->~wsregex();
+		FreeMem(me2->Pattern);
+	}
+}
+
+EXPORT_CPP void* _regexFind(SClass* me_, S64* pos, const U8* text)
 {
 	THROWDBG(pos == NULL, 0xc0000005);
 	THROWDBG(text == NULL, 0xc0000005);
-	THROWDBG(pattern == NULL, 0xc0000005);
+	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
-	wsregex pattern2;
 	wsmatch results;
 	Bool found;
 	try
 	{
-		pattern2 = wsregex::compile(reinterpret_cast<const Char*>(pattern + 0x10));
-		found = regex_search(text2, results, pattern2);
+		found = regex_search(text2, results, *me2->Pattern);
 	}
 	catch (...)
 	{
@@ -38,19 +71,17 @@ EXPORT_CPP void* _find(S64* pos, const U8* text, const U8* pattern)
 	}
 }
 
-EXPORT_CPP void* _match(S64* pos, const U8* text, const U8* pattern)
+EXPORT_CPP void* _regexMatch(SClass* me_, S64* pos, const U8* text)
 {
 	THROWDBG(pos == NULL, 0xc0000005);
 	THROWDBG(text == NULL, 0xc0000005);
-	THROWDBG(pattern == NULL, 0xc0000005);
+	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
-	wsregex pattern2;
 	wsmatch results;
 	Bool found;
 	try
 	{
-		pattern2 = wsregex::compile(reinterpret_cast<const Char*>(pattern + 0x10));
-		found = regex_match(text2, results, pattern2);
+		found = regex_match(text2, results, *me2->Pattern);
 	}
 	catch (...)
 	{
@@ -70,19 +101,17 @@ EXPORT_CPP void* _match(S64* pos, const U8* text, const U8* pattern)
 	}
 }
 
-EXPORT_CPP void* _all(U8** pos, const U8* text, const U8* pattern)
+EXPORT_CPP void* _regexAll(SClass* me_, U8** pos, const U8* text)
 {
 	THROWDBG(pos == NULL, 0xc0000005);
 	THROWDBG(text == NULL, 0xc0000005);
-	THROWDBG(pattern == NULL, 0xc0000005);
+	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
-	wsregex pattern2;
 	wsmatch results;
 	Bool found;
 	try
 	{
-		pattern2 = wsregex::compile(reinterpret_cast<const Char*>(pattern + 0x10));
-		wsregex_iterator iter1(text2.begin(), text2.end(), pattern2);
+		wsregex_iterator iter1(text2.begin(), text2.end(), *me2->Pattern);
 		wsregex_iterator iter2;
 		size_t len = static_cast<size_t>(std::distance(iter1, iter2));
 		*pos = static_cast<U8*>(AllocMem(0x10 + sizeof(S64) * len));
