@@ -74,13 +74,13 @@ EXPORT void _processDtor(SClass* me_)
 		CloseHandle(me2->ProcessHandle);
 }
 
-EXPORT S64 _processRun(SClass* me_, Bool waitUntilExit)
+EXPORT S64 _processRun(SClass* me_, Bool wait_until_exit)
 {
 	SProcess* me2 = (SProcess*)me_;
 	DWORD exit_code = 0;
 	if (ResumeThread(me2->ThreadHandle) == (DWORD)-1)
 		THROW(0xe9170009);
-	if (waitUntilExit)
+	if (wait_until_exit)
 	{
 		if (WaitForSingleObject(me2->ProcessHandle, INFINITE) == WAIT_FAILED)
 			THROW(0xe9170009);
