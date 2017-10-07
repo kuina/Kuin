@@ -7,6 +7,10 @@ typedef struct SRnd
 } SRnd;
 
 static S128 RndMask;
+static const int UuidPos[32] =
+{
+	0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 17, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35
+};
 
 static void RndDo(S128* r, S128 a, S128 b, S128 c, const S128* d);
 
@@ -45,6 +49,12 @@ EXPORT U64 _rndRndBit64(SClass* me_)
 {
 	SRnd* me2 = (SRnd*)me_;
 	return RndGetBit64(me2->RndState);
+}
+
+EXPORT void* _rndRndUuid(SClass* me_)
+{
+	SRnd* me2 = (SRnd*)me_;
+	return RndGetUuid(me2->RndState);
 }
 
 void InitRndMask(void)
@@ -165,6 +175,34 @@ U64 RndGetBit64(SRndState* rnd_)
 		rnd_->Idx += 2;
 		return result;
 	}
+}
+
+void* RndGetUuid(SRndState* rnd_)
+{
+	const size_t len = 8 + 1 + 4 + 1 + 4 + 1 + 4 + 1 + 12; // RRRRRRRR-RRRR-4RRR-rRRR-RRRRRRRRRRRR
+	U64 r1 = RndGetBit64(rnd_);
+	U64 r2 = RndGetBit64(rnd_);
+	int i;
+	U8* uuid = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+	Char* uuid2 = (Char*)(uuid + 0x10);
+	((S64*)uuid)[0] = DefaultRefCntFunc;
+	((S64*)uuid)[1] = (S64)len;
+	for (i = 0; i < 32; i++)
+	{
+		int n = ((i / 16 == 0 ? r1 : r2) >> (i % 16 * 4)) & 0x0f;
+		if (i == 12)
+			n = 4;
+		else if (i == 16)
+			n = (n & 0x03) | 0x08;
+		Char c = n <= 9 ? (L'0' + n) : (L'a' + n - 10);
+		uuid2[UuidPos[i]] = c;
+	}
+	uuid2[8] = L'-';
+	uuid2[13] = L'-';
+	uuid2[18] = L'-';
+	uuid2[23] = L'-';
+	uuid2[len] = L'\0';
+	return uuid;
 }
 
 static void RndDo(S128* r, S128 a, S128 b, S128 c, const S128* d)

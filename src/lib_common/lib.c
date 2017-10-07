@@ -55,6 +55,11 @@ EXPORT U64 _rndBit64(void)
 	return RndGetBit64(&GlobalRnd);
 }
 
+EXPORT void* _rndUuid(void)
+{
+	return RndGetUuid(&GlobalRnd);
+}
+
 EXPORT double _cos(double x)
 {
 	return cos(x);

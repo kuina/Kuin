@@ -39,6 +39,8 @@ v.2017.10.17
 
 v.2017.10.17
     - 音が鳴らない環境でKuinエディタの起動に失敗する不具合の修正
+    - 一部の環境やKuinエディタを多重起動したときにexeファイルの生成に失敗する
+      不具合の修正
     - 数学・科学・アルゴリズムライブラリ「math」の追加
     - 正規表現ライブラリ「regex」の追加
     - 解像度の低い環境で大きいウインドウサイズを指定したときに、ウインドウが画面
@@ -50,7 +52,8 @@ v.2017.10.17
         - file@forEach関数の追加
         - 型の不一致のエラーメッセージで参照渡しを表示するように改善
         - int.sign、float.signメソッドの追加
-        - lib@toRad、lib@toDegree、lib@makeBmSearch関数の追加
+        - lib@toRad、lib@toDegree、lib@makeBmSearch、lib@rndUuid関数の追加
+        - lib@Rnd.rndUuidメソッドの追加
     - 細かな不具合の修正
         - 実行直後の例外をKuinエディタで検知できない不具合の修正
         - Windows内部で発生する不明な例外をKuinエディタが検知してしまわないよう

@@ -7,6 +7,7 @@ EXPORT void* _cmdLine(void);
 EXPORT S64 _rnd(S64 min, S64 max);
 EXPORT double _rndFloat(double min, double max);
 EXPORT U64 _rndBit64(void);
+EXPORT void* _rndUuid(void);
 EXPORT double _cos(double x);
 EXPORT double _sin(double x);
 EXPORT double _tan(double x);
