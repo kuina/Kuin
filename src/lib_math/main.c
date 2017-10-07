@@ -5,13 +5,29 @@
 
 #include "main.h"
 
+typedef struct SMat
+{
+	SClass Class;
+	S64 Row;
+	S64 Col;
+	double* Buf;
+} SMat;
+
 typedef struct IntList
 {
 	S64 Value;
 	struct IntList* Next;
 } IntList;
 
-static const S64 primes[] = { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37 };
+static const S64 Primes[] = { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37 };
+static const S64 Facts[21] =
+{
+	1, 1, 2, 6, 24,
+	120, 720, 5040, 40320, 362880,
+	3628800, 39916800, 479001600, 6227020800, 87178291200,
+	1307674368000, 20922789888000, 355687428096000, 6402373705728000, 121645100408832000,
+	2432902008176640000
+};
 
 static U64 ModPow(U64 value, U64 exponent, U64 modulus);
 static U64 ModMul(U64 a, U64 b, U64 modulus);
@@ -31,8 +47,10 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT void init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
+EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
 {
+	if (Heap != NULL)
+		return;
 	Heap = heap;
 	HeapCnt = heap_cnt;
 	AppCode = app_code;
@@ -153,7 +171,7 @@ EXPORT Bool _prime(S64 n)
 		}
 		for (U64 i = 0; i < enough; i++)
 		{
-			U64 x = ModPow(primes[i], d, (U64)n);
+			U64 x = ModPow(Primes[i], d, (U64)n);
 			U64 j;
 			if (x == 1 || x == (U64)n - 1)
 				continue;
@@ -176,7 +194,6 @@ EXPORT Bool _prime(S64 n)
 
 EXPORT void* _primeFactors(S64 n)
 {
-	THROWDBG(Heap == NULL, 0xe917000a);
 	IntList* top = NULL;
 	IntList* bottom = NULL;
 	int num = 0;
@@ -216,6 +233,54 @@ EXPORT void* _primeFactors(S64 n)
 	}
 	qsort((S64*)result + 2, (size_t)num, sizeof(S64), CmpInt);
 	return result;
+}
+
+EXPORT double _gamma(double n)
+{
+	return tgamma(n);
+}
+
+EXPORT double _fact(double n)
+{
+	return tgamma(n + 1.0);
+}
+
+EXPORT S64 _factInt(S64 n)
+{
+	if (n < 0)
+	{
+		THROWDBG(True, 0xe9170006);
+		return 0;
+	}
+	if (n > 20)
+	{
+		THROWDBG(True, 0xe9170003);
+		return 0;
+	}
+	return Facts[n];
+}
+
+EXPORT SClass* _makeMat(SClass* me_, S64 row, S64 col)
+{
+	THROWDBG(row <= 0 || col <= 0, 0xe9170006);
+	SMat* me2 = (SMat*)me_;
+	me2->Row = row;
+	me2->Col = col;
+	me2->Buf = (double*)AllocMem(sizeof(double) * (size_t)row * (size_t)col);
+	S64 i;
+	S64 j;
+	for (i = 0; i < row; i++)
+	{
+		for (j = 0; j < col; j++)
+			me2->Buf[i * col + j] = 0.0;
+	}
+	return me_;
+}
+
+EXPORT void _matDtor(SClass* me_)
+{
+	SMat* me2 = (SMat*)me_;
+	FreeMem(me2->Buf);
 }
 
 static U64 ModPow(U64 value, U64 exponent, U64 modulus)

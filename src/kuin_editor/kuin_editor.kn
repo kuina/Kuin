@@ -1686,6 +1686,7 @@ var srcCharColor: []int
 var font: draw@Font
 var documents: dict<[]char, @Document>
 var curDocument: @Document
+var runningFiles: list<[]char>
 var drag: bool
 var dirtyInterpret: int
 var dirtyInterpretTime: int
@@ -1707,6 +1708,7 @@ func main()
 		do @version(&major, &minor, &micro)
 		do @title :: "Kuin Programming Language \{major}.\{minor}.\{micro}"
 	end block
+	do @runningFiles :: #list<[]char>
 
 	do @initCompiler()
 	do wnd@onKeyPress(@onKeyPress)
@@ -2123,6 +2125,7 @@ func wndMainOnClose(wnd: wnd@WndBase): bool
 		ret false
 	end if
 	if(@chkChanged())
+		do @delRunningFiles()
 		var dir: []char :: file@sysDir(%appData) ~ "Kuin/"
 		try
 			do file@delDir(dir)
@@ -2292,7 +2295,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		ret
 	end if
 	do @lockEditor(true)
-	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/tmp/"
+	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/" ~ @addRunningFileName() ~ "/"
 	var out: []char :: tmp ~ "out.exe"
 	try
 		do file@makeDir(tmp)
@@ -2337,6 +2340,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 				do @updateLog()
 				do wnd@msgBox(@wndMain, @langEn ?("Could not run.", "実行できませんでした。"), @title, %err, %ok)
 			end if
+			do @delRunningFiles()
 		end if
 		do @updateAuxiliary()
 	catch
@@ -2368,7 +2372,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	end if
 	do @lockEditor(true)
 	var fileName: []char :: file@delExt(file@fileName(file))
-	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/rls/" ~ fileName ~ "/"
+	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/" ~ @addRunningFileName() ~ "/" ~ fileName ~ "/"
 	var out: []char :: tmp ~ fileName ~ ".exe"
 	try
 		do file@makeDir(tmp)
@@ -2395,7 +2399,9 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 					do file@copyDir(resDst, resSrc)
 				end if
 			end if
-			if(!zip@zip(file, tmp, -1))
+			if(zip@zip(file, tmp, -1))
+				do wnd@msgBox(@wndMain, @langEn ?("The build succeeded.", "ビルドが成功しました。"), @title, %info, %ok)
+			else
 				var msg: []char
 				if(@langEn)
 					do msg :: "Could not make the archive file. " ~ file
@@ -2405,7 +2411,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 				do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 				ret
 			end if
-			do wnd@msgBox(@wndMain, @langEn ?("The build succeeded.", "ビルドが成功しました。"), @title, %info, %ok)
+			do @delRunningFiles()
 		end if
 		do @updateAuxiliary()
 	catch
@@ -2738,4 +2744,22 @@ func getHint2(src: []char, row: int, col: int): []char
 		do result :: null
 	end try
 	ret result
+end func
+
+func delRunningFiles()
+	do @runningFiles.head()
+	while(!@runningFiles.term())
+		var dir: []char :: file@sysDir(%appData) ~ "Kuin/" ~ @runningFiles.get() ~ "/"
+		try
+			do file@delDir(dir)
+		catch
+		end try
+		do @runningFiles.next()
+	end while
+end func
+
+func addRunningFileName(): []char
+	var uuid: []char :: lib@rndUuid()
+	do @runningFiles.add(uuid)
+	ret uuid
 end func

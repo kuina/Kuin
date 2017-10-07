@@ -1,4 +1,4 @@
-+func [d0003.knd, _init] init()
+func [d0003.knd, _init] _init()
 end func
 
 +func [d0003.knd, _gcd] gcd(a: int, b: int): int
@@ -17,4 +17,25 @@ end func
 end func
 
 +func [d0003.knd, _primeFactors] primeFactors(n: int): []int
+end func
+
++func [d0003.knd, _gamma] gamma(n: float): float
+end func
+
++func [d0003.knd, _fact] fact(n: float): float
+end func
+
++func [d0003.knd, _factInt] factInt(n: int): int
+end func
+
++class Mat(kuin@ResClass)
+	*func [d0003.knd, _matDtor, _force] _dtor()
+	end func
+
+	var row: int
+	var col: int
+	var buf: int
+end class
+
++func [d0003.knd, _makeMat, _make_instance] makeMat(me2: @Mat, row: int, col: int): @Mat
 end func

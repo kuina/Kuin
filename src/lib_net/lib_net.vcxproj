@@ -15,9 +15,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{A5A772DE-2491-4CD0-9B4B-7E5FE900FED7}</ProjectGuid>
+    <ProjectGuid>{804409A7-FFE4-4BBE-8FCF-6FE250BCDC56}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>lib_wnd</RootNamespace>
+    <RootNamespace>lib_net</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -74,8 +74,8 @@
       </PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>DBG;_DEBUG;_WINDOWS;_USRDLL;LIB_WND_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>DBG;_DEBUG;_WINDOWS;_USRDLL;LIB_NET_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsC</CompileAs>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -83,12 +83,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)test\output\data\d0001.knd</Command>
+      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)test\output\data\d0004.knd</Command>
     </PostBuildEvent>
-    <CustomBuild>
-      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp /Zi /Zd %(Filename).asm</Command>
-      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
-    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_rls|x64'">
     <ClCompile>
@@ -98,8 +94,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;LIB_WND_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;LIB_NET_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsC</CompileAs>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -109,12 +105,8 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\rls\d0001.knd</Command>
+      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\rls\d0004.knd</Command>
     </PostBuildEvent>
-    <CustomBuild>
-      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp %(Filename).asm</Command>
-      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
-    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_dbg|x64'">
     <ClCompile>
@@ -124,8 +116,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>DBG;NDEBUG;_WINDOWS;_USRDLL;LIB_WND_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>DBG;NDEBUG;_WINDOWS;_USRDLL;LIB_NET_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsC</CompileAs>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -135,51 +127,16 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\dbg\d0001.knd</Command>
+      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\dbg\d0004.knd</Command>
     </PostBuildEvent>
-    <CustomBuild>
-      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp %(Filename).asm</Command>
-      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
-    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\common.c" />
-    <ClCompile Include="bc_decoder.cpp" />
-    <ClCompile Include="circle_ps.c" />
-    <ClCompile Include="circle_vs.c" />
-    <ClCompile Include="draw.cpp" />
-    <ClCompile Include="font_ps.c" />
-    <ClCompile Include="input.cpp" />
-    <ClCompile Include="jpg_decoder.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="obj_joint_vs.c" />
-    <ClCompile Include="obj_ps.c" />
-    <ClCompile Include="obj_vs.c" />
-    <ClCompile Include="png_decoder.cpp" />
-    <ClCompile Include="rect_vs.c" />
-    <ClCompile Include="snd.cpp" />
-    <ClCompile Include="tex_ps.c" />
-    <ClCompile Include="tex_rot_vs.c" />
-    <ClCompile Include="tex_vs.c" />
-    <ClCompile Include="tri_ps.c" />
-    <ClCompile Include="tri_vs.c" />
-    <ClCompile Include="wav.cpp" />
+    <ClCompile Include="main.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common.h" />
-    <ClInclude Include="bc_decoder.h" />
-    <ClInclude Include="draw.h" />
-    <ClInclude Include="input.h" />
-    <ClInclude Include="jpg_decoder.h" />
     <ClInclude Include="main.h" />
-    <ClInclude Include="png_decoder.h" />
-    <ClInclude Include="snd.h" />
-    <ClInclude Include="wav.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="low_level.asm">
-      <FileType>Document</FileType>
-    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

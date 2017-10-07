@@ -2,6 +2,14 @@
 
 #include "rnd.h"
 
+typedef struct SBmSearch
+{
+	SClass Class;
+	Char* Pattern;
+	int* Dists;
+	int PatternLen;
+} SBmSearch;
+
 static SRndState GlobalRnd;
 
 EXPORT void* _cmdLine(void)
@@ -45,6 +53,11 @@ EXPORT double _rndFloat(double min, double max)
 EXPORT U64 _rndBit64(void)
 {
 	return RndGetBit64(&GlobalRnd);
+}
+
+EXPORT void* _rndUuid(void)
+{
+	return RndGetUuid(&GlobalRnd);
 }
 
 EXPORT double _cos(double x)
@@ -232,12 +245,91 @@ EXPORT Bool _same(double n1, double n2)
 	return -24 <= diff && diff <= 24;
 }
 
+EXPORT double _toRad(double degree)
+{
+	return degree * M_PI / 180.0;
+}
+
+EXPORT double _toDegree(double rad)
+{
+	return rad * 180.0 / M_PI;
+}
+
 EXPORT S64 _cmp(const U8* s1, const U8* s2)
 {
 	THROWDBG(s1 == NULL, 0xc0000005);
 	THROWDBG(s2 == NULL, 0xc0000005);
 	S64 result = (S64)wcscmp((Char*)(s1 + 0x10), (Char*)(s2 + 0x10));
 	return result > 0 ? 1 : (result < 0 ? -1 : 0);
+}
+
+EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern)
+{
+	THROWDBG(pattern == NULL, 0xc0000005);
+	SBmSearch* me2 = (SBmSearch*)me_;
+	{
+		size_t len = (size_t)((S64*)pattern)[1];
+		me2->PatternLen = (int)len;
+		me2->Pattern = (Char*)AllocMem(sizeof(Char) * (len + 1));
+		memcpy(me2->Pattern, pattern + 0x10, sizeof(Char) * (len + 1));
+	}
+	{
+		int i, j;
+		me2->Dists = (int*)AllocMem(sizeof(int) * (size_t)me2->PatternLen);
+		for (i = me2->PatternLen - 1; i >= 0; i--)
+		{
+			int dist = me2->PatternLen - i - 1;
+			Bool found = False;
+			for (j = me2->PatternLen - 1; j > i; j--)
+			{
+				if (me2->Pattern[i] == me2->Pattern[j])
+				{
+					me2->Dists[i] = me2->Dists[j];
+					found = True;
+					break;
+				}
+			}
+			if (found)
+				continue;
+			me2->Dists[i] = dist;
+		}
+	}
+	return me_;
+}
+
+EXPORT void _bmSearchDtor(SClass* me_)
+{
+	SBmSearch* me2 = (SBmSearch*)me_;
+	FreeMem(me2->Pattern);
+	FreeMem(me2->Dists);
+}
+
+EXPORT S64 _bmSearchFind(SClass* me_, const U8* text)
+{
+	int text_len = (int)((S64*)text)[1];
+	const Char* text2 = (const Char*)(text + 0x10);
+	SBmSearch* me2 = (SBmSearch*)me_;
+	int i = me2->PatternLen - 1;
+	while (i < text_len)
+	{
+		int p = me2->PatternLen - 1;
+		while (p >= 0 && i < text_len)
+		{
+			if (text2[i] == me2->Pattern[p])
+			{
+				i--;
+				p--;
+			}
+			else
+				break;
+		}
+		if (p < 0)
+			return i + 1;
+		int shift1 = me2->Dists[p];
+		int shift2 = me2->PatternLen - p;
+		i += shift1 > shift2 ? shift1 : shift2;
+	}
+	return -1;
 }
 
 void LibInit(void)
