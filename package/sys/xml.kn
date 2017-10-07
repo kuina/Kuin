@@ -1,0 +1,49 @@
+func [d1002.knd, _init] _init()
+end func
+
++class Xml(kuin@ResClass)
+	*func [d1002.knd, _xmlDtor, _force] _dtor()
+	end func
+
+	+func [d1002.knd, _xmlSave] save(path: []char): bool
+	end func
+
+	+func [d1002.knd, _xmlHead] head()
+	end func
+
+	+func [d1002.knd, _xmlTerm] term(): bool
+	end func
+
+	+func [d1002.knd, _xmlNextOffset] nextOffset(elementPath: []char)
+	end func
+
+	+func [d1002.knd, _xmlGet] get(): []char
+	end func
+
+	+func [d1002.knd, _xmlGetOffset] getOffset(elementPath: []char): []char
+	end func
+
+	+func [d1002.knd, _xmlSet] set(value: []char)
+	end func
+
+	+func [d1002.knd, _xmlSetOffset] setOffset(elementPath: []char, value: []char)
+	end func
+
+	+func [d1002.knd, _xmlAdd] add(elementPath: []char, value: []char)
+	end func
+
+	+func [d1002.knd, _xmlLen] len(): int
+	end func
+
+	+func [d1002.knd, _xmlForEach] forEach(callback: func<(int, []char, kuin@Class): bool>, data: kuin@Class): bool
+	end func
+
+	var tree: int
+	var ptr: int
+end class
+
++func [d1002.knd, _makeXml, _make_instance] makeXml(me2: @Xml, path: []char): @Xml
+end func
+
++func [d1002.knd, _makeXmlEmpty, _make_instance] makeXmlEmpty(me2: @Xml): @Xml
+end func
