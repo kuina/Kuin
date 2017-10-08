@@ -148,6 +148,12 @@ class Document()
 	+func cmdSelAll()
 	end func
 
+	+func findPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+	end func
+
+	+func findNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+	end func
+
 	+func undo()
 		if(me.undoBuf[me.undoPtrPrev(me.undoPtr)] =& null)
 			ret
@@ -625,6 +631,14 @@ class DocumentSrc(@Document)
 		do me.cursorY :: lib@intMax
 		do me.refreshCursor(false, true)
 		do @drawEditor.paint()
+	end func
+
+	+*func findPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+		; TODO:
+	end func
+
+	+*func findNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+		; TODO:
 	end func
 
 	+func showHint()
@@ -1440,6 +1454,14 @@ class DocumentArBase(@Document)
 
 	+*func cmdSelAll()
 		; TODO:
+	end func
+
+	+*func findPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+		ret false
+	end func
+
+	+*func findNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+		ret false
 	end func
 
 	const padding: int :: 32
@@ -2809,8 +2831,10 @@ func showFind(replace: bool)
 		do @wndFindTabFind :: wnd@makeTab(@wndFind, 12, 12, 356, 308, %scale, %scale)
 		do @wndFindTabFind.add("検索")
 		do @wndFindTabFind.add("置換")
+		do @wndFindTabFind.onSel :: wndFindTabFindOnSel
 		do wnd@makeLabel(@wndFindTabFind, 6, 28, 324, 12, %fix, %fix, @langEn ?("Find what:", "検索する文字列:"))
 		do @wndFindEditPattern :: wnd@makeEdit(@wndFindTabFind, 6, 46, 344, 19, %scale, %fix)
+		do @wndFindEditPattern.onChange :: wndFindEditPatternOnChange
 		do wnd@makeLabel(@wndFindTabFind, 6, 71, 324, 12, %fix, %fix, @langEn ?("Replace with:", "置換後の文字列:"))
 		do @wndFindEditReplace :: wnd@makeEdit(@wndFindTabFind, 6, 89, 344, 19, %scale, %fix)
 		var groupTarget: wnd@Group :: wnd@makeGroup(@wndFindTabFind, 6, 114, 344, 84, %scale, %fix, @langEn ?("Look in", "検索対象"))
@@ -2818,8 +2842,11 @@ func showFind(replace: bool)
 		do @wndFindRadioAll :: wnd@makeRadio(groupTarget, 6, 40, 312, 16, %fix, %fix, @langEn ?("All documents", "すべてのドキュメント"))
 		do @wndFindRadioSelection :: wnd@makeRadio(groupTarget, 6, 62, 312, 16, %fix, %fix, @langEn ?("Selection", "選択範囲"))
 		do @wndFindChkDistinguishCase :: wnd@makeChk(@wndFindTabFind, 6, 204, 166, 16, %fix, %fix, @langEn ?("Match case", "大文字と小文字を区別する"))
+		do @wndFindChkDistinguishCase.onPush :: wndFindChkDistinguishCaseOnPush
 		do @wndFindChkOnlyWord :: wnd@makeChk(@wndFindTabFind, 6, 226, 166, 16, %fix, %fix, @langEn ?("Match whole word", "単語単位"))
+		do @wndFindChkOnlyWord.onPush :: wndFindChkOnlyWordOnPush
 		do @wndFindChkRegularExpression :: wnd@makeChk(@wndFindTabFind, 6, 248, 166, 16, %fix, %fix, @langEn ?("Use Regular Expressions", "正規表現を使用する"))
+		do @wndFindChkRegularExpression.onPush :: wndFindChkRegularExpressionOnPush
 		do @wndFindBtnPrev :: wnd@makeBtn(@wndFindTabFind, 178, 212, 75, 23, %fix, %fix, @langEn ?("Find Previous", "前を検索"))
 		do @wndFindBtnPrev.onPush :: wndFindBtnPrevOnPush
 		do @wndFindBtnNext :: wnd@makeBtn(@wndFindTabFind, 178, 241, 75, 23, %fix, %fix, @langEn ?("Find Next", "次を検索"))
@@ -2848,15 +2875,14 @@ func showFind(replace: bool)
 	else
 		do @wndFind.setActive()
 	end if
+	do @wndFindTabFind.setSel(replace ?(1, 0))
 	do @wndFindEditReplace.enable(replace)
 	do @wndFindBtnReplace.enable(replace)
 	do @wndFindBtnReplaceAll.enable(replace)
 	
 	; TODO:
-	do @wndFindBtnPrev.enable(false)
-	do @wndFindBtnNext.enable(false)
-	do @wndFindBtnReplace.enable(false)
-	do @wndFindBtnReplaceAll.enable(false)
+	do @wndFindRadioAll.enable(false)
+	do @wndFindRadioSelection.enable(false)
 
 	func wndFindOnClose(wnd: wnd@Wnd): bool
 		do @wndFindEditPatternLast :: @wndFindEditPattern.getText()
@@ -2889,10 +2915,39 @@ func showFind(replace: bool)
 		ret true
 	end func
 
+	func wndFindTabFindOnSel(wnd: wnd@Tab)
+		var sel: int :: @wndFindTabFind.getSel()
+		if(sel = -1)
+			ret
+		end if
+		var replace: bool :: sel = 1
+		do @wndFindEditReplace.enable(replace)
+		do @wndFindBtnReplace.enable(replace)
+		do @wndFindBtnReplaceAll.enable(replace)
+	end func
+
+	func wndFindEditPatternOnChange(wnd: wnd@Edit)
+		do @wndFindEditPatternLast :: @wndFindEditPattern.getText()
+	end func
+
+	func wndFindChkDistinguishCaseOnPush(wnd: wnd@Chk)
+		do @wndFindChkDistinguishCaseLast :: @wndFindChkDistinguishCase.getChk()
+	end func
+
+	func wndFindChkOnlyWordOnPush(wnd: wnd@Chk)
+		do @wndFindChkOnlyWordLast :: @wndFindChkOnlyWord.getChk()
+	end func
+
+	func wndFindChkRegularExpressionOnPush(wnd: wnd@Chk)
+		do @wndFindChkRegularExpressionLast :: @wndFindChkRegularExpression.getChk()
+	end func
+	
 	func wndFindBtnPrevOnPush(wnd: wnd@Btn)
+		do @curDocument.findPrev(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
 
 	func wndFindBtnNextOnPush(wnd: wnd@Btn)
+		do @curDocument.findNext(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
 
 	func wndFindBtnReplaceOnPush(wnd: wnd@Btn)

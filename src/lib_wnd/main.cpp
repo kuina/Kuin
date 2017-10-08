@@ -121,16 +121,19 @@ struct SBtn
 struct SChk
 {
 	SWndBase WndBase;
+	void* OnPush;
 };
 
 struct SRadio
 {
 	SWndBase WndBase;
+	void* OnPush;
 };
 
 struct SEdit
 {
 	SWndBase WndBase;
+	void* OnChange;
 };
 
 struct SEditMulti
@@ -212,6 +215,7 @@ struct SPager
 struct STab
 {
 	SWndBase WndBase;
+	void* OnSel;
 };
 
 struct STree
@@ -859,7 +863,7 @@ EXPORT_CPP void _drawMoveCaret(SClass* me_, S64 x, S64 y)
 EXPORT_CPP SClass* _makeBtn(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
 	SBtn* me2 = reinterpret_cast<SBtn*>(me_);
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Btn, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_NOTIFY, x, y, width, height, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WndProcBtn, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Btn, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP, x, y, width, height, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WndProcBtn, anchorX, anchorY);
 	me2->OnPush = NULL;
 	return me_;
 }
@@ -1078,18 +1082,36 @@ EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 wid
 
 EXPORT_CPP SClass* _makeTab(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tab, WC_TABCONTROL, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | TCS_BUTTONS | TCS_FLATBUTTONS, x, y, width, height, L"", WndProcTab, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tab, WC_TABCONTROL, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_CLIPCHILDREN | TCS_BUTTONS | TCS_FLATBUTTONS, x, y, width, height, L"", WndProcTab, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP void _tabAdd(SClass* me_, const U8* text)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
-	int cnt = static_cast<int>(SendMessage(me2->WndHandle, TCM_GETITEMCOUNT, 0, 0));
+	S64 cnt = _tabLen(me_);
 	TC_ITEM item = { 0 };
 	item.mask = TCIF_TEXT;
 	item.pszText = text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10);
 	SendMessage(me2->WndHandle, TCM_INSERTITEM, static_cast<WPARAM>(cnt), reinterpret_cast<LPARAM>(&item));
+}
+
+EXPORT_CPP S64 _tabLen(SClass* me_)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	return static_cast<S64>(SendMessage(me2->WndHandle, TCM_GETITEMCOUNT, 0, 0));
+}
+
+EXPORT_CPP void _tabSetSel(SClass* me_, S64 idx)
+{
+#if defined(DBG)
+	{
+		S64 len = _tabLen(me_);
+		if (idx < -1 || len <= idx)
+			THROW(0x1000, L"");
+	}
+#endif
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, TCM_SETCURSEL, static_cast<WPARAM>(idx), 0);
 }
 
 EXPORT_CPP S64 _tabGetSel(SClass* me_)
@@ -1464,12 +1486,38 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 					}
 				}
 				break;
+			case WndKind_Chk:
+				{
+					SChk* chk = reinterpret_cast<SChk*>(wnd_ctrl2);
+					switch (HIWORD(w_param))
+					{
+						case BN_CLICKED:
+							if (chk->OnPush != NULL)
+								Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), chk->OnPush);
+							break;
+					}
+				}
+				break;
+			case WndKind_Radio:
+				{
+					SRadio* radio = reinterpret_cast<SRadio*>(wnd_ctrl2);
+					switch (HIWORD(w_param))
+					{
+						case BN_CLICKED:
+							if (radio->OnPush != NULL)
+								Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), radio->OnPush);
+							break;
+					}
+				}
+				break;
 			case WndKind_Edit:
 				{
 					SEdit* edit = reinterpret_cast<SEdit*>(wnd_ctrl2);
 					switch (HIWORD(w_param))
 					{
 						case EN_CHANGE:
+							if (edit->OnChange != NULL)
+								Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), edit->OnChange);
 							// TODO:
 							break;
 						case EN_HSCROLL:
@@ -1547,7 +1595,8 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 								// TODO:
 								break;
 							case TCN_SELCHANGE:
-								// TODO:
+								if (tab->OnSel != NULL)
+									Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), tab->OnSel);
 								break;
 							case TCN_SELCHANGING:
 								// TODO:
@@ -2225,7 +2274,10 @@ static LRESULT CALLBACK WndProcTab(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_
 	ASSERT(wnd2->Kind == WndKind_Tab);
 	switch (msg)
 	{
-		// TODO:
+		case WM_COMMAND:
+		case WM_NOTIFY:
+			CommandAndNotify(wnd, msg, w_param, l_param);
+			return 0;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }

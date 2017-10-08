@@ -169,6 +169,8 @@ end class
 
 	+func [d0001.knd, _btnGetChk] getChk(): bool
 	end func
+
+	+var onPush: func<(@WndBase)>
 end class
 
 +class Radio(@WndBase)
@@ -186,6 +188,8 @@ end class
 
 	+func [d0001.knd, _btnGetChk] getChk(): bool
 	end func
+
+	+var onPush: func<(@WndBase)>
 end class
 
 +class Edit(@WndBase)
@@ -200,6 +204,8 @@ end class
 
 	+func [d0001.knd, _wndReadonly] readonly(flag: bool)
 	end func
+
+	+var onChange: func<(@WndBase)>
 end class
 
 +class EditMulti(@WndBase)
@@ -334,11 +340,19 @@ end class
 	+func [d0001.knd, _tabAdd] add(text: []char)
 	end func
 
+	+func [d0001.knd, _tabLen] len(): int
+	end func
+
+	+func [d0001.knd, _tabSetSel] setSel(idx: int)
+	end func
+
 	+func [d0001.knd, _tabGetSel] getSel(): int
 	end func
 
 	+func [d0001.knd, _tabGetPosInner] getPosInner(x: &int, y: &int, width: &int, height: &int)
 	end func
+
+	+var onSel: func<(@WndBase)>
 end class
 
 +class Tree(@WndBase)

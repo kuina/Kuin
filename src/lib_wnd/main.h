@@ -67,6 +67,8 @@ EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 
 EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeTab(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP void _tabAdd(SClass* me_, const U8* text);
+EXPORT_CPP S64 _tabLen(SClass* me_);
+EXPORT_CPP void _tabSetSel(SClass* me_, S64 idx);
 EXPORT_CPP S64 _tabGetSel(SClass* me_);
 EXPORT_CPP void _tabGetPosInner(SClass* me_, S64* x, S64* y, S64* width, S64* height);
 EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
