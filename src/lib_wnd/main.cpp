@@ -763,6 +763,11 @@ EXPORT_CPP void _wndSetMenu(SClass* me_, SClass* menu)
 	SetMenu(reinterpret_cast<SWndBase*>(me_)->WndHandle, menu == NULL ? NULL : reinterpret_cast<SMenu*>(menu)->MenuHandle);
 }
 
+EXPORT_CPP void _wndSetActive(SClass* me_)
+{
+	SetActiveWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle);
+}
+
 EXPORT_CPP Bool _wndGetActive(SClass* me_)
 {
 	return GetActiveWindow() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
@@ -885,19 +890,19 @@ EXPORT_CPP SClass* _makeRadio(SClass* me_, SClass* parent, S64 x, S64 y, S64 wid
 
 EXPORT_CPP SClass* _makeEdit(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Edit, WC_EDIT, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, x, y, width, height, L"", WndProcEdit, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Edit, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, x, y, width, height, L"", WndProcEdit, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_EditMulti, WC_EDIT, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN, x, y, width, height, L"", WndProcEditMulti, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_EditMulti, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN, x, y, width, height, L"", WndProcEditMulti, anchorX, anchorY);
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_List, WC_LISTBOX, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_DISABLENOSCROLL | LBS_NOTIFY, x, y, width, height, L"", WndProcList, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_List, WC_LISTBOX, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_DISABLENOSCROLL | LBS_NOTIFY, x, y, width, height, L"", WndProcList, anchorX, anchorY);
 	return me_;
 }
 
@@ -1073,13 +1078,41 @@ EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 wid
 
 EXPORT_CPP SClass* _makeTab(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tab, WC_TABCONTROL, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, x, y, width, height, L"", WndProcTab, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tab, WC_TABCONTROL, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | TCS_BUTTONS | TCS_FLATBUTTONS, x, y, width, height, L"", WndProcTab, anchorX, anchorY);
 	return me_;
+}
+
+EXPORT_CPP void _tabAdd(SClass* me_, const U8* text)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	int cnt = static_cast<int>(SendMessage(me2->WndHandle, TCM_GETITEMCOUNT, 0, 0));
+	TC_ITEM item = { 0 };
+	item.mask = TCIF_TEXT;
+	item.pszText = text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10);
+	SendMessage(me2->WndHandle, TCM_INSERTITEM, static_cast<WPARAM>(cnt), reinterpret_cast<LPARAM>(&item));
+}
+
+EXPORT_CPP S64 _tabGetSel(SClass* me_)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	return static_cast<S64>(SendMessage(me2->WndHandle, TCM_GETCURSEL, 0, 0));
+}
+
+EXPORT_CPP void _tabGetPosInner(SClass* me_, S64* x, S64* y, S64* width, S64* height)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	RECT rect;
+	GetClientRect(me2->WndHandle, &rect);
+	SendMessage(me2->WndHandle, TCM_ADJUSTRECT, 0, reinterpret_cast<LPARAM>(&rect));
+	*x = static_cast<S64>(rect.left);
+	*y = static_cast<S64>(rect.top);
+	*width = static_cast<S64>(rect.right - rect.left);
+	*height = static_cast<S64>(rect.bottom - rect.top);
 }
 
 EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, 0, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
 	return me_;
 }
 
@@ -1656,6 +1689,8 @@ static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 			if (wnd3->OnActivate)
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(w_param) != 0)), reinterpret_cast<void*>(static_cast<S64>(HIWORD(w_param) != 0)), wnd3->OnActivate);
 			return 0;
+		case WM_DRAWITEM:
+		break;
 		case WM_COMMAND:
 		case WM_NOTIFY:
 			CommandAndNotify(wnd, msg, w_param, l_param);

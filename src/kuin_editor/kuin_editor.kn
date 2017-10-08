@@ -48,11 +48,6 @@ var popupMainEdit: wnd@Popup
 var popupMainFile: wnd@Popup
 var popupMainBuild: wnd@Popup
 var popupMainHelp: wnd@Popup
-var wndDlg: wnd@Wnd
-var wndDlgResultFile: []char
-var wndDlgResultType: int
-var wndDlgEditFile: wnd@Edit
-var wndDlgListType: wnd@List
 
 class Undo()
 end class
@@ -1787,6 +1782,9 @@ func main()
 		do @popupMainEdit.add(16#0036, @langEn ?("&Paste\tCtrl+V", "貼り付け(&P)\tCtrl+V"))
 		do @popupMainEdit.add(16#0037, @langEn ?("&Delete\tDel", "削除(&D)\tDel"))
 		do @popupMainEdit.add(16#0038, @langEn ?("Select &All\tCtrl+A", "すべて選択(&A)\tCtrl+A"))
+		do @popupMainEdit.addLine()
+		do @popupMainEdit.add(16#0039, @langEn ?("&Find\tCtrl+F", "検索(&F)\tCtrl+F"))
+		do @popupMainEdit.add(16#003A, @langEn ?("&Replace\tCtrl+H", "置換(&R)\tCtrl+H"))
 		do @menuMain.addPopup(@langEn ?("&Edit", "編集(&E)"), @popupMainEdit)
 		do @popupMainBuild :: wnd@makePopup()
 		do @popupMainBuild.add(16#0020, @langEn ?("&Compile && Run\tF5", "コンパイル＆実行(&C)\tF5"))
@@ -1885,6 +1883,12 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			ret true
 		case %c
 			do @wndMainOnPushMenu(@wndMain, 16#0035)
+			ret true
+		case %f
+			do @wndMainOnPushMenu(@wndMain, 16#0039)
+			ret true
+		case %h
+			do @wndMainOnPushMenu(@wndMain, 16#003A)
 			ret true
 		case %n
 			do @wndMainOnPushMenu(@wndMain, 16#0001)
@@ -2217,6 +2221,10 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		do @curDocument.cmdDel()
 	case 16#0038
 		do @curDocument.cmdSelAll()
+	case 16#0039
+		do @showFind(false)
+	case 16#003A
+		do @showFind(true)
 	end switch
 end func
 
@@ -2629,55 +2637,61 @@ func updateUi()
 	end func
 end func
 
+var wndAddFile: wnd@Wnd
+var wndAddFileResuiltFile: []char
+var wndAddFileResuiltType: int
+var wndAddFileEditFile: wnd@Edit
+var wndAddFileListType: wnd@List
+
 func addNewFile()
 	if(@mainSrcDir = "")
 		do wnd@msgBox(@wndMain, @langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), @title, %err, %ok)
 		ret
 	end if
-	do @wndDlg :: wnd@makeWnd(@wndMain, %fix, 640, 480, @langEn?("Add New File", "新しいファイルを追加"))
-	do @wndDlgResultFile :: null
-	do @wndDlgResultType :: 0
-	do @wndDlgListType :: wnd@makeList(@wndDlg, 12, 12, 616, 100, %fix, %scale)
-	do @wndDlgListType.add(@langEn?("Source Code", "ソースコード"))
-	; TODO: do @wndDlgListType.add(@langEn?("Window", "ウインドウ"))
-	do @wndDlgListType.setSel(0)
-	do @wndDlgEditFile :: wnd@makeEdit(@wndDlg, 12, 118, 510, 19, %fix, %fix)
-	var btnFile: wnd@Btn :: wnd@makeBtn(@wndDlg, 528, 118, 100, 23, %fix, %fix, @langEn ?("Browse...", "参照..."))
+	do @wndAddFile :: wnd@makeWnd(@wndMain, %fix, 640, 480, @langEn?("Add New File", "新しいファイルを追加"))
+	do @wndAddFileResuiltFile :: null
+	do @wndAddFileResuiltType :: 0
+	do @wndAddFileListType :: wnd@makeList(@wndAddFile, 12, 12, 616, 100, %fix, %scale)
+	do @wndAddFileListType.add(@langEn?("Source Code", "ソースコード"))
+	; TODO: do @wndAddFileListType.add(@langEn?("Window", "ウインドウ"))
+	do @wndAddFileListType.setSel(0)
+	do @wndAddFileEditFile :: wnd@makeEdit(@wndAddFile, 12, 118, 510, 19, %fix, %fix)
+	var btnFile: wnd@Btn :: wnd@makeBtn(@wndAddFile, 528, 118, 100, 23, %fix, %fix, @langEn ?("Browse...", "参照..."))
 	do btnFile.onPush :: btnFileOnPush
-	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndDlg, 12, 143, 100, 23, %fix, %fix, @langEn ?("Add", "追加"))
+	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndAddFile, 12, 143, 100, 23, %fix, %fix, @langEn ?("Add", "追加"))
 	do btnAdd.onPush :: btnAddOnPush
-	do @wndDlg.modal()
-	if(@wndDlgResultFile <>& null & @wndDlgResultFile <> "")
+	do @wndAddFile.modal()
+	if(@wndAddFileResuiltFile <>& null & @wndAddFileResuiltFile <> "")
 		var document: @Document
-		switch(@wndDlgResultType)
+		switch(@wndAddFileResuiltType)
 		case 0
 			do document :: #@DocumentSrc
 		case 1
 			do document :: #@DocumentArWnd
 		end switch
 		do document.init(null)
-		if(@saveSrc(@wndDlgResultFile, document.getSrc()))
-			do @add(@wndDlgResultFile)
+		if(@saveSrc(@wndAddFileResuiltFile, document.getSrc()))
+			do @add(@wndAddFileResuiltFile)
 			do @updateUi()
 			; TODO: Exchange the files.
 		end if
 	end if
-	do @wndDlg :: null
-	do @wndDlgResultFile :: null
-	do @wndDlgEditFile :: null
-	do @wndDlgListType :: null
+	do @wndAddFile :: null
+	do @wndAddFileResuiltFile :: null
+	do @wndAddFileEditFile :: null
+	do @wndAddFileListType :: null
 
 	func btnFileOnPush(wnd: wnd@WndBase)
-		var path: []char :: wnd@saveFileDialog(@wndDlg, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
+		var path: []char :: wnd@saveFileDialog(@wndAddFile, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
 		if(path <>& null)
-			do @wndDlgEditFile.setText(path)
+			do @wndAddFileEditFile.setText(path)
 		end if
 	end func
 
 	func btnAddOnPush(wnd: wnd@WndBase)
-		do @wndDlgResultFile :: @wndDlgEditFile.getText().replace("\\", "/")
-		do @wndDlgResultType :: @wndDlgListType.getSel()
-		do @wndDlg.close()
+		do @wndAddFileResuiltFile :: @wndAddFileEditFile.getText().replace("\\", "/")
+		do @wndAddFileResuiltType :: @wndAddFileListType.getSel()
+		do @wndAddFile.close()
 	end func
 end func
 
@@ -2748,10 +2762,13 @@ end func
 
 func delRunningFiles()
 	do @runningFiles.head()
-	while(!@runningFiles.term())
+	while loop(!@runningFiles.term())
 		var dir: []char :: file@sysDir(%appData) ~ "Kuin/" ~ @runningFiles.get() ~ "/"
 		try
-			do file@delDir(dir)
+			if(file@delDir(dir))
+				do @runningFiles.del()
+				skip loop
+			end if
 		catch
 		end try
 		do @runningFiles.next()
@@ -2762,4 +2779,125 @@ func addRunningFileName(): []char
 	var uuid: []char :: lib@rndUuid()
 	do @runningFiles.add(uuid)
 	ret uuid
+end func
+
+var wndFind: wnd@Wnd
+var wndFindTabFind: wnd@Tab
+var wndFindEditPattern: wnd@Edit
+var wndFindEditReplace: wnd@Edit
+var wndFindRadioDocument: wnd@Radio
+var wndFindRadioAll: wnd@Radio
+var wndFindRadioSelection: wnd@Radio
+var wndFindChkDistinguishCase: wnd@Chk
+var wndFindChkOnlyWord: wnd@Chk
+var wndFindChkRegularExpression: wnd@Chk
+var wndFindBtnPrev: wnd@Btn
+var wndFindBtnNext: wnd@Btn
+var wndFindBtnReplace: wnd@Btn
+var wndFindBtnReplaceAll: wnd@Btn
+var wndFindEditPatternLast: []char
+var wndFindEditReplaceLast: []char
+var wndFindRadioLast: int
+var wndFindChkDistinguishCaseLast: bool
+var wndFindChkOnlyWordLast: bool
+var wndFindChkRegularExpressionLast: bool
+
+func showFind(replace: bool)
+	if(@wndFind =& null)
+		do @wndFind :: wnd@makeWnd(@wndMain, %fix, 380, 332, @langEn ?("Find and Replace", "検索と置換"))
+		do @wndFind.onClose :: wndFindOnClose
+		do @wndFindTabFind :: wnd@makeTab(@wndFind, 12, 12, 356, 308, %scale, %scale)
+		do @wndFindTabFind.add("検索")
+		do @wndFindTabFind.add("置換")
+		do wnd@makeLabel(@wndFindTabFind, 6, 28, 324, 12, %fix, %fix, @langEn ?("Find what:", "検索する文字列:"))
+		do @wndFindEditPattern :: wnd@makeEdit(@wndFindTabFind, 6, 46, 344, 19, %scale, %fix)
+		do wnd@makeLabel(@wndFindTabFind, 6, 71, 324, 12, %fix, %fix, @langEn ?("Replace with:", "置換後の文字列:"))
+		do @wndFindEditReplace :: wnd@makeEdit(@wndFindTabFind, 6, 89, 344, 19, %scale, %fix)
+		var groupTarget: wnd@Group :: wnd@makeGroup(@wndFindTabFind, 6, 114, 344, 84, %scale, %fix, @langEn ?("Look in", "検索対象"))
+		do @wndFindRadioDocument :: wnd@makeRadio(groupTarget, 6, 18, 312, 16, %fix, %fix, @langEn ?("Current document", "現在のドキュメント"))
+		do @wndFindRadioAll :: wnd@makeRadio(groupTarget, 6, 40, 312, 16, %fix, %fix, @langEn ?("All documents", "すべてのドキュメント"))
+		do @wndFindRadioSelection :: wnd@makeRadio(groupTarget, 6, 62, 312, 16, %fix, %fix, @langEn ?("Selection", "選択範囲"))
+		do @wndFindChkDistinguishCase :: wnd@makeChk(@wndFindTabFind, 6, 204, 166, 16, %fix, %fix, @langEn ?("Match case", "大文字と小文字を区別する"))
+		do @wndFindChkOnlyWord :: wnd@makeChk(@wndFindTabFind, 6, 226, 166, 16, %fix, %fix, @langEn ?("Match whole word", "単語単位"))
+		do @wndFindChkRegularExpression :: wnd@makeChk(@wndFindTabFind, 6, 248, 166, 16, %fix, %fix, @langEn ?("Use Regular Expressions", "正規表現を使用する"))
+		do @wndFindBtnPrev :: wnd@makeBtn(@wndFindTabFind, 178, 212, 75, 23, %fix, %fix, @langEn ?("Find Previous", "前を検索"))
+		do @wndFindBtnPrev.onPush :: wndFindBtnPrevOnPush
+		do @wndFindBtnNext :: wnd@makeBtn(@wndFindTabFind, 178, 241, 75, 23, %fix, %fix, @langEn ?("Find Next", "次を検索"))
+		do @wndFindBtnNext.onPush :: wndFindBtnNextOnPush
+		do @wndFindBtnReplace :: wnd@makeBtn(@wndFindTabFind, 259, 212, 75, 23, %fix, %fix, @langEn ?("Replace", "置換"))
+		do @wndFindBtnReplace.onPush :: wndFindBtnReplaceOnPush
+		do @wndFindBtnReplaceAll :: wnd@makeBtn(@wndFindTabFind, 259, 241, 75, 23, %fix, %fix, @langEn ?("Replace All", "すべて置換"))
+		do @wndFindBtnReplaceAll.onPush :: wndFindBtnReplaceAllOnPush
+		if(@wndFindEditPatternLast <>& null)
+			do @wndFindEditPattern.setText(@wndFindEditPatternLast)
+		end if
+		if(@wndFindEditReplaceLast <>& null)
+			do @wndFindEditReplace.setText(@wndFindEditReplaceLast)
+		end if
+		switch(@wndFindRadioLast)
+		case 1
+			do @wndFindRadioAll.setChk(true)
+		case 2
+			do @wndFindRadioSelection.setChk(true)
+		default
+			do @wndFindRadioDocument.setChk(true)
+		end switch
+		do @wndFindChkDistinguishCase.setChk(@wndFindChkDistinguishCaseLast)
+		do @wndFindChkOnlyWord.setChk(@wndFindChkOnlyWordLast)
+		do @wndFindChkRegularExpression.setChk(@wndFindChkRegularExpressionLast)
+	else
+		do @wndFind.setActive()
+	end if
+	do @wndFindEditReplace.enable(replace)
+	do @wndFindBtnReplace.enable(replace)
+	do @wndFindBtnReplaceAll.enable(replace)
+	
+	; TODO:
+	do @wndFindBtnPrev.enable(false)
+	do @wndFindBtnNext.enable(false)
+	do @wndFindBtnReplace.enable(false)
+	do @wndFindBtnReplaceAll.enable(false)
+
+	func wndFindOnClose(wnd: wnd@Wnd): bool
+		do @wndFindEditPatternLast :: @wndFindEditPattern.getText()
+		do @wndFindEditReplaceLast :: @wndFindEditReplace.getText()
+		if(@wndFindRadioAll.getChk())
+			do @wndFindRadioLast :: 1
+		elif(@wndFindRadioSelection.getChk())
+			do @wndFindRadioLast :: 2
+		else
+			do @wndFindRadioLast :: 0
+		end if
+		do @wndFindChkDistinguishCaseLast :: @wndFindChkDistinguishCase.getChk()
+		do @wndFindChkOnlyWordLast :: @wndFindChkOnlyWord.getChk()
+		do @wndFindChkRegularExpressionLast :: @wndFindChkRegularExpression.getChk()
+
+		do @wndFind :: null
+		do @wndFindTabFind :: null
+		do @wndFindEditPattern :: null
+		do @wndFindEditReplace :: null
+		do @wndFindRadioDocument :: null
+		do @wndFindRadioAll :: null
+		do @wndFindRadioSelection :: null
+		do @wndFindChkDistinguishCase :: null
+		do @wndFindChkOnlyWord :: null
+		do @wndFindChkRegularExpression :: null
+		do @wndFindBtnPrev :: null
+		do @wndFindBtnNext :: null
+		do @wndFindBtnReplace :: null
+		do @wndFindBtnReplaceAll :: null
+		ret true
+	end func
+
+	func wndFindBtnPrevOnPush(wnd: wnd@Btn)
+	end func
+
+	func wndFindBtnNextOnPush(wnd: wnd@Btn)
+	end func
+
+	func wndFindBtnReplaceOnPush(wnd: wnd@Btn)
+	end func
+
+	func wndFindBtnReplaceAllOnPush(wnd: wnd@Btn)
+	end func
 end func

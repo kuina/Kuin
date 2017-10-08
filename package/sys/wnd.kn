@@ -75,6 +75,9 @@ end class
 		end if
 	end func
 
+	+func [d0001.knd, _wndSetActive] setActive()
+	end func
+
 	+func [d0001.knd, _wndGetActive] getActive(): bool
 	end func
 
@@ -326,6 +329,15 @@ end class
 
 +class Tab(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _tabAdd] add(text: []char)
+	end func
+
+	+func [d0001.knd, _tabGetSel] getSel(): int
+	end func
+
+	+func [d0001.knd, _tabGetPosInner] getPosInner(x: &int, y: &int, width: &int, height: &int)
 	end func
 end class
 

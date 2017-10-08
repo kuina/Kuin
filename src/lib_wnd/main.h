@@ -26,6 +26,7 @@ EXPORT_CPP void _wndSetText(SClass* me_, const U8* text);
 EXPORT_CPP const U8* _wndGetText(SClass* me_);
 EXPORT_CPP void _wndReadonly(SClass* me_, Bool flag);
 EXPORT_CPP void _wndSetMenu(SClass* me_, SClass* menu);
+EXPORT_CPP void _wndSetActive(SClass* me_);
 EXPORT_CPP Bool _wndGetActive(SClass* me_);
 EXPORT_CPP void _wndSetModalLock(SClass* me_);
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification);
@@ -65,6 +66,9 @@ EXPORT_CPP SClass* _makeLabelLink(SClass* me_, SClass* parent, S64 x, S64 y, S64
 EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeTab(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
+EXPORT_CPP void _tabAdd(SClass* me_, const U8* text);
+EXPORT_CPP S64 _tabGetSel(SClass* me_);
+EXPORT_CPP void _tabGetPosInner(SClass* me_, S64* x, S64* y, S64* width, S64* height);
 EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeSplitX(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeSplitY(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
