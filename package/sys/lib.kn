@@ -129,6 +129,18 @@ end func
 +func [d0000.knd, _cmp] cmp(s1: []char, s2: []char): int
 end func
 
++func [d0000.knd, _cmpEx] cmpEx(s1: []char, s2: []char, len: int, ignoreCase: bool): int
+end func
+
++func [d0000.knd, _findStr] findStr(text: []char, pattern: []char): int
+end func
+
++func [d0000.knd, _findStrLast] findStrLast(text: []char, pattern: []char): int
+end func
+
++func [d0000.knd, _findStrEx] findStrEx(text: []char, pattern: []char, start: int, fromLast: bool, ignoreCase: bool, wholeWord: bool): int
+end func
+
 +class BmSearch(kuin@ResClass)
 	*func [d0000.knd, _bmSearchDtor, _force] _dtor()
 	end func
