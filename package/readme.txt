@@ -54,8 +54,10 @@ v.2017.10.17
         - file@forEach関数の追加
         - 型の不一致のエラーメッセージで参照渡しを表示するように改善
         - int.sign、float.signメソッドの追加
-        - lib@toRad、lib@toDegree、lib@makeBmSearch、lib@rndUuid関数の追加
-        - lib@Rnd.rndUuidメソッドの追加
+        - lib@toRad、lib@toDegree、lib@makeBmSearch、lib@rndUuid、
+          lib@cmpEx関数の追加
+        - lib@Rnd.rndUuid、[]char.findStr、[]char.findStrLast、
+          []char.findStrExメソッドの追加
     - 細かな不具合の修正
         - 実行直後の例外をKuinエディタで検知できない不具合の修正
         - Windows内部で発生する不明な例外をKuinエディタが検知してしまわないよう

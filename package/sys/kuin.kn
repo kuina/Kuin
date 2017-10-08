@@ -165,6 +165,15 @@ end func
 func [d0000.knd] _replace(me_: []char, old: []char, new: []char): []char
 end func
 
+func [d0000.knd] _findStr(me_: []char, pattern: []char): int
+end func
+
+func [d0000.knd] _findStrLast(me_: []char, pattern: []char): int
+end func
+
+func [d0000.knd] _findStrEx(me_: []char, pattern: []char, start: int, fromLast: bool, ignoreCase: bool, wholeWord: bool): int
+end func
+
 func [d0000.knd, _any_type, _take_child] _addList(me_: []bit8, type: int, item: []bit8)
 end func
 

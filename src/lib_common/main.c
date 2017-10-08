@@ -1664,6 +1664,99 @@ EXPORT void* _replace(const U8* me_, const U8* old, const U8* new_)
 	return result;
 }
 
+EXPORT S64 _findStr(const U8* me_, const U8* pattern)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(pattern == NULL, 0xc0000005);
+	const Char* result = wcsstr((const Char*)(me_ + 0x10), (const Char*)(pattern + 0x10));
+	return result == NULL ? -1 : (S64)(result - (const Char*)(me_ + 0x10));
+}
+
+EXPORT S64 _findStrLast(const U8* me_, const U8* pattern)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(pattern == NULL, 0xc0000005);
+	S64 len1 = ((const S64*)me_)[1];
+	S64 len2 = ((const S64*)pattern)[1];
+	const Char* ptr1 = (const Char*)(me_ + 0x10);
+	const Char* ptr2 = (const Char*)(pattern + 0x10);
+	S64 i;
+	for (i = len1 - len2; i >= 0; i--)
+	{
+		if (wcsncmp(ptr1 + i, ptr2, (size_t)len2) == 0)
+			return i;
+	}
+	return -1;
+}
+
+EXPORT S64 _findStrEx(const U8* me_, const U8* pattern, S64 start, Bool fromLast, Bool ignoreCase, Bool wholeWord)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	THROWDBG(pattern == NULL, 0xc0000005);
+	S64 len1 = ((const S64*)me_)[1];
+	S64 len2 = ((const S64*)pattern)[1];
+	const Char* ptr1 = (const Char*)(me_ + 0x10);
+	const Char* ptr2 = (const Char*)(pattern + 0x10);
+	S64 i;
+	int(*func)(const Char*, const Char*, size_t) = ignoreCase ? _wcsnicmp : wcsncmp;
+	THROWDBG(start < -1 || len1 <= start, 0xe9170006);
+	if (fromLast)
+	{
+		if (start == -1 || start > len1 - len2)
+			start = len1 - len2;
+		for (i = start; i >= 0; i--)
+		{
+			if (func(ptr1 + i, ptr2, (size_t)len2) == 0)
+			{
+				if (wholeWord)
+				{
+					if (i > 0)
+					{
+						Char c = ptr1[i - 1];
+						if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || L'0' <= c && c <= L'9' || c == L'_')
+							continue;
+					}
+					if (i + len2 < len1)
+					{
+						Char c = ptr1[i + len2];
+						if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || L'0' <= c && c <= L'9' || c == L'_')
+							continue;
+					}
+				}
+				return i;
+			}
+		}
+	}
+	else
+	{
+		if (start == -1)
+			start = 0;
+		for (i = start; i <= len1 - len2; i++)
+		{
+			if (func(ptr1 + i, ptr2, (size_t)len2) == 0)
+			{
+				if (wholeWord)
+				{
+					if (i > 0)
+					{
+						Char c = ptr1[i - 1];
+						if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || L'0' <= c && c <= L'9' || c == L'_')
+							continue;
+					}
+					if (i + len2 < len1)
+					{
+						Char c = ptr1[i + len2];
+						if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || L'0' <= c && c <= L'9' || c == L'_')
+							continue;
+					}
+				}
+				return i;
+			}
+		}
+	}
+	return -1;
+}
+
 EXPORT void _addList(void* me_, const U8* type, const void* item)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
