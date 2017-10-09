@@ -136,7 +136,7 @@ end func
 	*func [d0000.knd, _bmSearchDtor, _force] _dtor()
 	end func
 
-	+func [d0000.knd, _bmSearchFind] find(text: []char): int
+	+func [d0000.knd, _bmSearchFind] find(text: []char, start: int): int
 	end func
 
 	var pattern: int

@@ -38,5 +38,5 @@ EXPORT S64 _cmp(const U8* s1, const U8* s2);
 EXPORT S64 _cmpEx(const U8* s1, const U8* s2, S64 len, Bool ignoreCase);
 EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern);
 EXPORT void _bmSearchDtor(SClass* me_);
-EXPORT S64 _bmSearchFind(SClass* me_, const U8* text);
+EXPORT S64 _bmSearchFind(SClass* me_, const U8* text, S64 start);
 void LibInit(void);

@@ -316,12 +316,15 @@ EXPORT void _bmSearchDtor(SClass* me_)
 	FreeMem(me2->Dists);
 }
 
-EXPORT S64 _bmSearchFind(SClass* me_, const U8* text)
+EXPORT S64 _bmSearchFind(SClass* me_, const U8* text, S64 start)
 {
-	int text_len = (int)((S64*)text)[1];
+	S64 text_len = (S64)((S64*)text)[1];
 	const Char* text2 = (const Char*)(text + 0x10);
 	SBmSearch* me2 = (SBmSearch*)me_;
-	int i = me2->PatternLen - 1;
+	THROWDBG(start < -1 || text_len <= start, 0xe9170006);
+	if (start == -1)
+		start = 0;
+	S64 i = start + (S64)me2->PatternLen - 1;
 	while (i < text_len)
 	{
 		int p = me2->PatternLen - 1;

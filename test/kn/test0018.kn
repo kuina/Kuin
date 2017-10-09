@@ -36,8 +36,15 @@ func main()
 
 		block
 			var bm: lib@BmSearch :: lib@makeBmSearch("ababcd")
-			do cui@print(bm.find("cdababababababab").toStr())
-			do cui@print(bm.find("ababababcdababcd").toStr())
+			do cui@print(bm.find("cdababababababab", -1).toStr())
+			var p: int :: -1
+			while(p <> -1, skip)
+				do p :: bm.find("ababababcdababcd", p)
+				do cui@print(p.toStr())
+				if (p <> -1)
+					do p :+ 1
+				end if
+			end while
 		end block
 
 		block
@@ -70,6 +77,28 @@ func main()
 					do cui@print(s[i][j])
 				end for
 			end for
+		end block
+
+		block
+			var p: int :: -1
+			while(p <> -1, skip)
+				do p :: "abcdabcabc".findStr("abc", p)
+				do cui@print(p.toStr())
+				if(p <> -1)
+					do p :+ 1
+				end if
+			end while
+		end block
+
+		block
+			var p: int :: -1
+			while(p <> -1, skip)
+				do p :: "abcdabcabc".findStrLast("abc", p)
+				do cui@print(p.toStr())
+				if(p <> -1)
+					do p :- 1
+				end if
+			end while
 		end block
 	end for
 end func

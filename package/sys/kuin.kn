@@ -123,10 +123,10 @@ end func
 func [d0000.knd, _any_type] _sortDesc(me_: []bit8, type: int)
 end func
 
-func [d0000.knd, _any_type, _take_child] _find(me_: []bit8, type: int, item: []bit8): int
+func [d0000.knd, _any_type, _take_child] _find(me_: []bit8, type: int, item: []bit8, start: int): int
 end func
 
-func [d0000.knd, _any_type, _take_child] _findLast(me_: []bit8, type: int, item: []bit8): int
+func [d0000.knd, _any_type, _take_child] _findLast(me_: []bit8, type: int, item: []bit8, start: int): int
 end func
 
 func [d0000.knd, _any_type, _take_child] _findBin(me_: []bit8, type: int, item: []bit8): int
@@ -165,10 +165,10 @@ end func
 func [d0000.knd] _replace(me_: []char, old: []char, new: []char): []char
 end func
 
-func [d0000.knd] _findStr(me_: []char, pattern: []char): int
+func [d0000.knd] _findStr(me_: []char, pattern: []char, start: int): int
 end func
 
-func [d0000.knd] _findStrLast(me_: []char, pattern: []char): int
+func [d0000.knd] _findStrLast(me_: []char, pattern: []char, start: int): int
 end func
 
 func [d0000.knd] _findStrEx(me_: []char, pattern: []char, start: int, fromLast: bool, ignoreCase: bool, wholeWord: bool): int

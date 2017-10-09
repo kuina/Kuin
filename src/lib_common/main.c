@@ -1243,50 +1243,52 @@ EXPORT void _sortDesc(void* me_, const U8* type)
 	MergeSort(me_, type, False);
 }
 
-EXPORT S64 _find(const void* me_, const U8* type, const void* item)
+EXPORT S64 _find(const void* me_, const U8* type, const void* item, S64 start)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
 		THROW(0xe9170004);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	U8* ptr = (U8*)me_ + 0x10;
+	S64 i;
+	THROWDBG(start < -1 || len <= start, 0xe9170006);
+	if (start == -1)
+		start = 0;
+	for (i = start; i < len; i++)
 	{
-		S64 len = *(S64*)((U8*)me_ + 0x08);
-		U8* ptr = (U8*)me_ + 0x10;
-		S64 i;
-		for (i = 0; i < len; i++)
-		{
-			void* value = NULL;
-			memcpy(&value, ptr, size);
-			if (cmp(value, item) == 0)
-				return i;
-			ptr += size;
-		}
+		void* value = NULL;
+		memcpy(&value, ptr, size);
+		if (cmp(value, item) == 0)
+			return i;
+		ptr += size;
 	}
 	return -1;
 }
 
-EXPORT S64 _findLast(const void* me_, const U8* type, const void* item)
+EXPORT S64 _findLast(const void* me_, const U8* type, const void* item, S64 start)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
 	if (cmp == NULL)
 		THROW(0xe9170004);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	U8* ptr = (U8*)me_ + 0x10 + size * (size_t)(len - 1);
+	S64 i;
+	THROWDBG(start < -1 || len <= start, 0xe9170006);
+	if (start == -1)
+		start = len - 1;
+	for (i = start; i >= 0; i--)
 	{
-		S64 len = *(S64*)((U8*)me_ + 0x08);
-		U8* ptr = (U8*)me_ + 0x10 + size * (size_t)(len - 1);
-		S64 i;
-		for (i = len - 1; i >= 0; i--)
-		{
-			void* value = NULL;
-			memcpy(&value, ptr, size);
-			if (cmp(value, item) == 0)
-				return i;
-			ptr -= size;
-		}
-		return -1;
+		void* value = NULL;
+		memcpy(&value, ptr, size);
+		if (cmp(value, item) == 0)
+			return i;
+		ptr -= size;
 	}
+	return -1;
 }
 
 EXPORT S64 _findBin(const void* me_, const U8* type, const void* item)
@@ -1664,15 +1666,19 @@ EXPORT void* _replace(const U8* me_, const U8* old, const U8* new_)
 	return result;
 }
 
-EXPORT S64 _findStr(const U8* me_, const U8* pattern)
+EXPORT S64 _findStr(const U8* me_, const U8* pattern, S64 start)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
 	THROWDBG(pattern == NULL, 0xc0000005);
-	const Char* result = wcsstr((const Char*)(me_ + 0x10), (const Char*)(pattern + 0x10));
+	S64 len1 = ((const S64*)me_)[1];
+	THROWDBG(start < -1 || len1 <= start, 0xe9170006);
+	if (start == -1)
+		start = 0;
+	const Char* result = wcsstr((const Char*)(me_ + 0x10) + start, (const Char*)(pattern + 0x10));
 	return result == NULL ? -1 : (S64)(result - (const Char*)(me_ + 0x10));
 }
 
-EXPORT S64 _findStrLast(const U8* me_, const U8* pattern)
+EXPORT S64 _findStrLast(const U8* me_, const U8* pattern, S64 start)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
 	THROWDBG(pattern == NULL, 0xc0000005);
@@ -1681,7 +1687,10 @@ EXPORT S64 _findStrLast(const U8* me_, const U8* pattern)
 	const Char* ptr1 = (const Char*)(me_ + 0x10);
 	const Char* ptr2 = (const Char*)(pattern + 0x10);
 	S64 i;
-	for (i = len1 - len2; i >= 0; i--)
+	THROWDBG(start < -1 || len1 <= start, 0xe9170006);
+	if (start == -1 || start > len1 - len2)
+		start = len1 - len2;
+	for (i = start; i >= 0; i--)
 	{
 		if (wcsncmp(ptr1 + i, ptr2, (size_t)len2) == 0)
 			return i;
