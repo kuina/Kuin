@@ -11,7 +11,10 @@ end func
 	+func [d1002.knd, _regexMatch] match(pos: &int, text: []char): [][]char
 	end func
 
-	+func [d1002.knd, _regexAll] all(pos: &[]int, text: []char): [][][]char
+	+func [d1002.knd, _regexFindAll] findAll(pos: &[]int, text: []char): [][][]char
+	end func
+
+	+func [d1002.knd, _regexReplace] replace(text: []char, newText: []char): []char
 	end func
 
 	var pattern: int

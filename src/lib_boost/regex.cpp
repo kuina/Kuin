@@ -101,7 +101,7 @@ EXPORT_CPP void* _regexMatch(SClass* me_, S64* pos, const U8* text)
 	}
 }
 
-EXPORT_CPP void* _regexAll(SClass* me_, U8** pos, const U8* text)
+EXPORT_CPP void* _regexFindAll(SClass* me_, U8** pos, const U8* text)
 {
 	THROWDBG(pos == NULL, 0xc0000005);
 	THROWDBG(text == NULL, 0xc0000005);
@@ -140,6 +140,32 @@ EXPORT_CPP void* _regexAll(SClass* me_, U8** pos, const U8* text)
 		*pos = NULL;
 		return NULL;
 	}
+}
+
+EXPORT_CPP void* _regexReplace(SClass* me_, const U8* text, const U8* newText)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(newText == NULL, 0xc0000005);
+	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
+	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
+	std::wstring new_text2 = reinterpret_cast<const Char*>(newText + 0x10);
+	std::wstring result;
+	Bool found;
+	try
+	{
+		result = regex_replace(text2, *me2->Pattern, new_text2);
+	}
+	catch (...)
+	{
+		THROWDBG(True, 0xe9170006);
+		return NULL;
+	}
+	size_t len = result.size();
+	U8* result2 = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * (len + 1)));
+	(reinterpret_cast<S64*>(result2))[0] = DefaultRefCntFunc;
+	(reinterpret_cast<S64*>(result2))[1] = static_cast<S64>(len);
+	memcpy(result2 + 0x10, result.c_str(), sizeof(Char) * (len + 1));
+	return result2;
 }
 
 static void* ResultsToArray(const wsmatch& results)
