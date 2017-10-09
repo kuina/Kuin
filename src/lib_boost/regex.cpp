@@ -142,7 +142,7 @@ EXPORT_CPP void* _regexFindAll(SClass* me_, U8** pos, const U8* text)
 	}
 }
 
-EXPORT_CPP void* _regexReplace(SClass* me_, const U8* text, const U8* newText)
+EXPORT_CPP void* _regexReplace(SClass* me_, const U8* text, const U8* newText, Bool all)
 {
 	THROWDBG(text == NULL, 0xc0000005);
 	THROWDBG(newText == NULL, 0xc0000005);
@@ -153,7 +153,7 @@ EXPORT_CPP void* _regexReplace(SClass* me_, const U8* text, const U8* newText)
 	Bool found;
 	try
 	{
-		result = regex_replace(text2, *me2->Pattern, new_text2);
+		result = regex_replace(text2, *me2->Pattern, new_text2, all ? regex_constants::format_all : regex_constants::format_first_only);
 	}
 	catch (...)
 	{

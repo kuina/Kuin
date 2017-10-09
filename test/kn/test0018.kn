@@ -81,9 +81,8 @@ func main()
 
 		block
 			var regex: regex@Regex :: regex@makeRegex("c([0-9]+)")
-			var s: []char
-			do s :: regex.replace("abc1234c1234d", "<$1>")
-			do cui@print(s)
+			do cui@print(regex.replace("abc1234c1234d", "<$1>", false))
+			do cui@print(regex.replace("abc1234c1234d", "<$1>", true))
 		end block
 
 		block

@@ -14,7 +14,7 @@ end func
 	+func [d1002.knd, _regexFindAll] findAll(pos: &[]int, text: []char): [][][]char
 	end func
 
-	+func [d1002.knd, _regexReplace] replace(text: []char, newText: []char): []char
+	+func [d1002.knd, _regexReplace] replace(text: []char, newText: []char, all: bool): []char
 	end func
 
 	var pattern: int
