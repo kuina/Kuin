@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <WinSock2.h>
 #include <Windows.h>
 #include <crtdbg.h>
 #include <time.h>

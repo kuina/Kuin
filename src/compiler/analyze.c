@@ -84,6 +84,7 @@ static int GetBuildInFuncType(const Char* name);
 static S64 GetEnumElementValue(SAstExprValue* ast, SAstEnum* enum_);
 static const Char* GetTypeNameNew(const SAstType* type);
 static const void* AddInitFuncs(const Char* key, const void* value, void* param);
+static const void* AddFinFuncs(const Char* key, const void* value, void* param);
 static SAstFunc* Rebuild(const SAstFunc* main_func);
 static const void* RebuildEnumCallback(U64 key, const void* value, void* param);
 static const void* RebuildRootCallback(const Char* key, const void* value, void* param);
@@ -636,6 +637,16 @@ static const void* AddInitFuncs(const Char* key, const void* value, void* param)
 	return value;
 }
 
+static const void* AddFinFuncs(const Char* key, const void* value, void* param)
+{
+	if (key[0] == L'\\')
+		return value;
+	SList* funcs = (SList*)param;
+	if (wcscmp(key, L"net") == 0)
+		ListAdd(funcs, SearchStdItem(key, L"_fin", False));
+	return value;
+}
+
 static SAstFunc* Rebuild(const SAstFunc* main_func)
 {
 	// Build the entry point.
@@ -691,8 +702,8 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 					ASSERT(False);
 					break;
 			}
-			ListAdd(funcs, SearchStdItem(L"kuin", L"_initVars", False));
 			DictForEach(Asts, AddInitFuncs, funcs);
+			ListAdd(funcs, SearchStdItem(L"kuin", L"_initVars", False));
 			ListAdd(funcs, main_func);
 			{
 				SListNode* ptr = funcs->Top;
@@ -786,17 +797,18 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 			// Make the program to call 'fin'.
 			SList* funcs = ListNew();
 			ListAdd(funcs, SearchStdItem(L"kuin", L"_finVars", False));
+			DictForEach(Asts, AddFinFuncs, funcs);
 			switch (Option->Env)
 			{
-			case Env_Wnd:
-				ListAdd(funcs, SearchStdItem(L"wnd", L"_fin", False));
-				break;
-			case Env_Cui:
-				ListAdd(funcs, SearchStdItem(L"cui", L"_fin", False));
-				break;
-			default:
-				ASSERT(False);
-				break;
+				case Env_Wnd:
+					ListAdd(funcs, SearchStdItem(L"wnd", L"_fin", False));
+					break;
+				case Env_Cui:
+					ListAdd(funcs, SearchStdItem(L"cui", L"_fin", False));
+					break;
+				default:
+					ASSERT(False);
+					break;
 			}
 			ListAdd(funcs, SearchStdItem(L"kuin", L"_fin", False));
 			{

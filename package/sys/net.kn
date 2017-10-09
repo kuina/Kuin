@@ -1,2 +1,12 @@
 func [d0004.knd, _init] _init()
 end func
+
++class Tcp(kuin@ResClass)
+	*func [d0004.knd, _tcpDtor, _force] _dtor()
+	end func
+
+	var socket: int
+	var threadHandle: int
+	var mutex: int
+	var data: int
+end class
