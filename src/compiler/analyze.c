@@ -275,7 +275,7 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 								const SAst* ast3 = (const SAst*)DictSearch(ast2->ScopeChildren, ptr_name);
 								if (ast3 != NULL)
 								{
-									if (over_func && (ast3->TypeId == AstTypeId_Arg && (((SAstArg*)ast3)->Kind == AstArgKind_Member || ((SAstArg*)ast3)->Kind == AstArgKind_LocalVar || ((SAstArg*)ast3)->Kind == AstArgKind_LocalArg)) || (ast3->TypeId & AstTypeId_Func) == AstTypeId_Func && ((SAst*)ast3)->RefName != NULL)
+									if (over_func && (ast3->TypeId == AstTypeId_Arg && (((SAstArg*)ast3)->Kind == AstArgKind_Member || ((SAstArg*)ast3)->Kind == AstArgKind_LocalVar || ((SAstArg*)ast3)->Kind == AstArgKind_LocalArg) || (ast3->TypeId | AstTypeId_StatBreakable) != 0) || (ast3->TypeId & AstTypeId_Func) == AstTypeId_Func && ((SAst*)ast3)->RefName != NULL)
 										Err(L"EA0057", ast->Pos, ptr_name);
 									else
 									{
