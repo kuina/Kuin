@@ -1,10 +1,10 @@
 ; Input Sample (C)Kuina-chan
 
 var drawMain: wnd@Draw
-var MouseX: int
-var MouseY: int
-var MouseDownL: bool
-var KeyBuf: []char
+var mouseX: int
+var mouseY: int
+var mouseDownL: bool
+var keyBuf: []char
 
 func main()
 	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Input Sample")
@@ -17,7 +17,7 @@ func main()
 	do @drawMain.onMouseLeave :: @drawMainOnMouseLeave {マウスが離脱したときのイベント}
 	do @drawMain.onKeyChar :: @drawMainOnKeyChar {文字が入力されたときのイベント}
 	var font: draw@Font :: draw@makeFont(null, 28, false, false, false, 22.0)
-	do @KeyBuf :: "                    "
+	do @keyBuf :: "                    "
 	do @drawMain.focus() {キーを受け取るためにフォーカスさせる}
 	while(wnd@act())
 		do font.draw(100.0, 50.0, "'A' button ('Z' key): " ~ input@pad(0, %a).toStr(), draw@white)
@@ -36,8 +36,8 @@ func main()
 		do font.draw(100.0, 700.0, "'Right' button ('Right' key): " ~ input@pad(0, %right).toStr(), draw@white)
 		do font.draw(100.0, 750.0, "'Up' button    ('Up' key):    " ~ input@pad(0, %up).toStr(), draw@white)
 		do font.draw(100.0, 800.0, "'Down' button  ('Down' key):  " ~ input@pad(0, %down).toStr(), draw@white)
-		do draw@circle(@MouseX $ float, @MouseY $ float, 20.0, 20.0, @MouseDownL ?(16#FF0000FF, 16#FFFFFF00))
-		do font.draw(800.0, 50.0, "Key: " ~ @KeyBuf, draw@white)
+		do draw@circle(@mouseX $ float, @mouseY $ float, 20.0, 20.0, @mouseDownL ?(16#FF0000FF, 16#FFFFFF00))
+		do font.draw(800.0, 50.0, "Key: " ~ @keyBuf, draw@white)
 		do draw@render(60)
 	end while
 end func
@@ -50,20 +50,20 @@ end func
 
 func drawMainOnMouseMove(wnd: wnd@Draw, x: int, y: int)
 	; マウスが動いたら追跡する
-	do @MouseX :: x
-	do @MouseY :: y
+	do @mouseX :: x
+	do @mouseY :: y
 end func
 
 func drawMainOnMouseDownL(wnd: wnd@Draw, x: int, y: int)
-	do @MouseDownL :: true {左ボタンが押された}
+	do @mouseDownL :: true {左ボタンが押された}
 end func
 
 func drawMainOnMouseUpL(wnd: wnd@Draw, x: int, y: int)
-	do @MouseDownL :: false {左ボタンが離された}
+	do @mouseDownL :: false {左ボタンが離された}
 end func
 
 func drawMainOnMouseEnter(wnd: wnd@Draw, x: int, y: int)
-	do @MouseDownL :: wnd@key(%mouseL) {左ボタンを押したままウインドウ外に出て入りなおす場合の対処}
+	do @mouseDownL :: wnd@key(%mouseL) {左ボタンを押したままウインドウ外に出て入りなおす場合の対処}
 	do draw@clearColor(16#FFFF9999) {ウインドウ内に入ったら背景色をピンクにする}
 end func
 
@@ -72,5 +72,5 @@ func drawMainOnMouseLeave(wnd: wnd@Draw)
 end func
 
 func drawMainOnKeyChar(wnd: wnd@Draw, key: char)
-	do @KeyBuf :: (@KeyBuf ~ key.toStr()).sub(1, 20)
+	do @keyBuf :: (@keyBuf ~ key.toStr()).sub(1, 20)
 end func
