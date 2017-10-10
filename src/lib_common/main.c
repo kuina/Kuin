@@ -1253,7 +1253,8 @@ EXPORT S64 _find(const void* me_, const U8* type, const void* item, S64 start)
 	S64 len = *(S64*)((U8*)me_ + 0x08);
 	U8* ptr = (U8*)me_ + 0x10;
 	S64 i;
-	THROWDBG(start < -1 || len <= start, 0xe9170006);
+	if (start < -1 || len <= start)
+		return -1;
 	if (start == -1)
 		start = 0;
 	for (i = start; i < len; i++)
@@ -1277,7 +1278,8 @@ EXPORT S64 _findLast(const void* me_, const U8* type, const void* item, S64 star
 	S64 len = *(S64*)((U8*)me_ + 0x08);
 	U8* ptr = (U8*)me_ + 0x10 + size * (size_t)(len - 1);
 	S64 i;
-	THROWDBG(start < -1 || len <= start, 0xe9170006);
+	if (start < -1 || len <= start)
+		return -1;
 	if (start == -1)
 		start = len - 1;
 	for (i = start; i >= 0; i--)
@@ -1671,7 +1673,8 @@ EXPORT S64 _findStr(const U8* me_, const U8* pattern, S64 start)
 	THROWDBG(me_ == NULL, 0xc0000005);
 	THROWDBG(pattern == NULL, 0xc0000005);
 	S64 len1 = ((const S64*)me_)[1];
-	THROWDBG(start < -1 || len1 <= start, 0xe9170006);
+	if (start < -1 || len1 <= start)
+		return -1;
 	if (start == -1)
 		start = 0;
 	const Char* result = wcsstr((const Char*)(me_ + 0x10) + start, (const Char*)(pattern + 0x10));
@@ -1687,7 +1690,8 @@ EXPORT S64 _findStrLast(const U8* me_, const U8* pattern, S64 start)
 	const Char* ptr1 = (const Char*)(me_ + 0x10);
 	const Char* ptr2 = (const Char*)(pattern + 0x10);
 	S64 i;
-	THROWDBG(start < -1 || len1 <= start, 0xe9170006);
+	if (start < -1 || len1 <= start)
+		return -1;
 	if (start == -1 || start > len1 - len2)
 		start = len1 - len2;
 	for (i = start; i >= 0; i--)
@@ -1708,7 +1712,8 @@ EXPORT S64 _findStrEx(const U8* me_, const U8* pattern, S64 start, Bool fromLast
 	const Char* ptr2 = (const Char*)(pattern + 0x10);
 	S64 i;
 	int(*func)(const Char*, const Char*, size_t) = ignoreCase ? _wcsnicmp : wcsncmp;
-	THROWDBG(start < -1 || len1 <= start, 0xe9170006);
+	if (start < -1 || len1 <= start)
+		return -1;
 	if (fromLast)
 	{
 		if (start == -1 || start > len1 - len2)

@@ -321,7 +321,8 @@ EXPORT S64 _bmSearchFind(SClass* me_, const U8* text, S64 start)
 	S64 text_len = (S64)((S64*)text)[1];
 	const Char* text2 = (const Char*)(text + 0x10);
 	SBmSearch* me2 = (SBmSearch*)me_;
-	THROWDBG(start < -1 || text_len <= start, 0xe9170006);
+	if (start < -1 || text_len <= start)
+		return -1;
 	if (start == -1)
 		start = 0;
 	S64 i = start + (S64)me2->PatternLen - 1;
