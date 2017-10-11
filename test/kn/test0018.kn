@@ -51,7 +51,7 @@ func main()
 			var regex: regex@Regex :: regex@makeRegex("c([0-9]+)")
 			var pos: int
 			var s: [][]char
-			do s :: regex.find(&pos, "ab1234c1234d")
+			do s :: regex.find(&pos, "ab1234c1234d", -1)
 			do cui@print(pos.toStr())
 			for i(0, ^s - 1)
 				do cui@print(s[i])

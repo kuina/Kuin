@@ -634,11 +634,81 @@ class DocumentSrc(@Document)
 	end func
 
 	+*func findPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
-		; TODO:
+		var findBeginX: int :: (me.areaX <> -1 & me.areaX < me.cursorX ?(me.areaX, me.cursorX))
+		var findBeginY: int :: me.cursorY
+		var pos: int
+		var patternLen: int
+		var regex: regex@Regex :: null
+		if(regularExpression)
+			do regex :: regex@makeRegex(pattern)
+			if(regex =& null)
+				ret false
+			end if
+		end if
+		for i(findBeginY, 0, -1)
+			do pos :: @findStr(&patternLen, me.src.src[i], true, 0, i = findBeginY ?(findBeginX - 1, ^me.src.src[i] - 1), pattern, distinguishCase, onlyWord, regex)
+			if(pos <> -1)
+				do me.areaX :: pos
+				do me.areaY :: i
+				do me.cursorX :: pos + patternLen
+				do me.cursorY :: i
+				do me.refreshCursor(false, true)
+				do @drawEditor.paint()
+				ret true
+			end if
+		end for
+		for i(^me.src.src - 1, findBeginY, -1)
+			do pos :: @findStr(&patternLen, me.src.src[i], true, i = findBeginY ?(findBeginX, 0), ^me.src.src[i] - 1, pattern, distinguishCase, onlyWord, regex)
+			if(pos <> -1)
+				do me.areaX :: pos
+				do me.areaY :: i
+				do me.cursorX :: pos + patternLen
+				do me.cursorY :: i
+				do me.refreshCursor(false, true)
+				do @drawEditor.paint()
+				ret true
+			end if
+		end for
+		ret false
 	end func
 
 	+*func findNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
-		; TODO:
+		var findBeginX: int :: (me.areaX <> -1 & me.areaX > me.cursorX ?(me.areaX, me.cursorX))
+		var findBeginY: int :: me.cursorY
+		var pos: int
+		var patternLen: int
+		var regex: regex@Regex :: null
+		if(regularExpression)
+			do regex :: regex@makeRegex(pattern)
+			if(regex =& null)
+				ret false
+			end if
+		end if
+		for i(findBeginY, ^me.src.src - 1)
+			do pos :: @findStr(&patternLen, me.src.src[i], false, i = findBeginY ?(findBeginX, 0), ^me.src.src[i] - 1, pattern, distinguishCase, onlyWord, regex)
+			if(pos <> -1)
+				do me.areaX :: pos
+				do me.areaY :: i
+				do me.cursorX :: pos + patternLen
+				do me.cursorY :: i
+				do me.refreshCursor(false, true)
+				do @drawEditor.paint()
+				ret true
+			end if
+		end for
+		for i(0, findBeginY)
+			do pos :: @findStr(&patternLen, me.src.src[i], false, 0, i = findBeginY ?(findBeginX - 1, ^me.src.src[i] - 1), pattern, distinguishCase, onlyWord, regex)
+			if(pos <> -1)
+				do me.areaX :: pos
+				do me.areaY :: i
+				do me.cursorX :: pos + patternLen
+				do me.cursorY :: i
+				do me.refreshCursor(false, true)
+				do @drawEditor.paint()
+				ret true
+			end if
+		end for
+		ret false
 	end func
 
 	+func showHint()
@@ -1726,6 +1796,7 @@ func main()
 		do @title :: "Kuin Programming Language \{major}.\{minor}.\{micro}"
 	end block
 	do @runningFiles :: #list<[]char>
+	do @wndFindChkDistinguishCaseLast :: true
 
 	do @initCompiler()
 	do wnd@onKeyPress(@onKeyPress)
@@ -2879,7 +2950,8 @@ func showFind(replace: bool)
 	do @wndFindEditReplace.enable(replace)
 	do @wndFindBtnReplace.enable(replace)
 	do @wndFindBtnReplaceAll.enable(replace)
-	
+	do @wndFindEditPattern.focus()
+
 	; TODO:
 	do @wndFindRadioAll.enable(false)
 	do @wndFindRadioSelection.enable(false)
@@ -2940,14 +3012,16 @@ func showFind(replace: bool)
 
 	func wndFindChkRegularExpressionOnPush(wnd: wnd@Chk)
 		do @wndFindChkRegularExpressionLast :: @wndFindChkRegularExpression.getChk()
+		do @wndFindChkDistinguishCase.enable(!@wndFindChkRegularExpressionLast)
+		do @wndFindChkOnlyWord.enable(!@wndFindChkRegularExpressionLast)
 	end func
 	
 	func wndFindBtnPrevOnPush(wnd: wnd@Btn)
-		do @curDocument.findPrev(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+		do @findBtnPrev(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
 
 	func wndFindBtnNextOnPush(wnd: wnd@Btn)
-		do @curDocument.findNext(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+		do @findBtnNext(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
 
 	func wndFindBtnReplaceOnPush(wnd: wnd@Btn)
@@ -2955,4 +3029,40 @@ func showFind(replace: bool)
 
 	func wndFindBtnReplaceAllOnPush(wnd: wnd@Btn)
 	end func
+end func
+
+func findBtnPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	if(!@curDocument.findPrev(pattern, distinguishCase, onlyWord, regularExpression))
+		do wnd@msgBox(@wndFind, @langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), @title, %info, %ok)
+	end if
+end func
+
+func findBtnNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	if(!@curDocument.findNext(pattern, distinguishCase, onlyWord, regularExpression))
+		do wnd@msgBox(@wndFind, @langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), @title, %info, %ok)
+	end if
+end func
+
+func findStr(len: &int, text: []char, fromLast: bool, first: int, last: int, pattern: []char, distinguishCase: bool, onlyWord: bool, regex: regex@Regex): int
+	var pos: int
+	if(regex =& null)
+		do pos :: text.findStrEx(pattern, fromLast ?(last, first), fromLast, !distinguishCase, onlyWord)
+		if(pos < first | last < pos)
+			do pos :: -1
+		end if
+		do len :: ^pattern
+		ret pos
+	else
+		var word: [][]char
+		if(fromLast)
+			do word :: regex.findLast(&pos, text, last)
+		else
+			do word :: regex.find(&pos, text, first)
+		end if
+		if(pos <> -1)
+			do len :: ^word[0]
+		end if
+		ret pos
+	end if
+	ret -1
 end func

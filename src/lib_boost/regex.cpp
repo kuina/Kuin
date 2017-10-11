@@ -24,8 +24,8 @@ EXPORT_CPP SClass* _makeRegex(SClass* me_, const U8* pattern)
 	}
 	catch (...)
 	{
-		me2->Pattern = NULL;
-		THROWDBG(True, 0xe9170006);
+		me2->Pattern->~wsregex();
+		FreeMem(me2->Pattern);
 		return NULL;
 	}
 	return me_;
@@ -41,30 +41,77 @@ EXPORT_CPP void _regexDtor(SClass* me_)
 	}
 }
 
-EXPORT_CPP void* _regexFind(SClass* me_, S64* pos, const U8* text)
+EXPORT_CPP void* _regexFind(SClass* me_, S64* pos, const U8* text, S64 start)
 {
 	THROWDBG(pos == NULL, 0xc0000005);
 	THROWDBG(text == NULL, 0xc0000005);
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
 	wsmatch results;
-	Bool found;
-	try
+	if (start < -1 || (S64)text2.size() <= start)
 	{
-		found = regex_search(text2, results, *me2->Pattern);
-	}
-	catch (...)
-	{
-		THROWDBG(True, 0xe9170006);
 		*pos = -1;
 		return NULL;
 	}
-	if (found)
+	if (start == -1)
+		start = 0;
+	try
 	{
-		*pos = static_cast<S64>(results.position(0));
-		return ResultsToArray(results);
+		const std::wstring& text3 = text2.substr(start);
+		if (regex_search(text3, results, *me2->Pattern))
+		{
+			*pos = start + static_cast<S64>(results.position(0));
+			return ResultsToArray(results);
+		}
+		else
+		{
+			*pos = -1;
+			return NULL;
+		}
 	}
-	else
+	catch (...)
+	{
+		*pos = -1;
+		return NULL;
+	}
+}
+
+EXPORT_CPP void* _regexFindLast(SClass* me_, S64* pos, const U8* text, S64 start)
+{
+	THROWDBG(pos == NULL, 0xc0000005);
+	THROWDBG(text == NULL, 0xc0000005);
+	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
+	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
+	{
+		S64 size = (S64)text2.size();
+		if (start < -1 || size <= start)
+		{
+			*pos = -1;
+			return NULL;
+		}
+		if (start == -1)
+			start = size - 1;
+	}
+	try
+	{
+		const std::wstring& text3 = text2.substr(0, start + 1);
+		wsregex_iterator iter1(text3.begin(), text3.end(), *me2->Pattern);
+		wsregex_iterator iter2;
+		if (iter1 == iter2)
+		{
+			*pos = -1;
+			return NULL;
+		}
+		wsregex_iterator iter = iter1;
+		while (iter1 != iter2)
+		{
+			iter = iter1;
+			iter1++;
+		}
+		*pos = static_cast<S64>(iter->position(0));
+		return ResultsToArray(*iter);
+	}
+	catch (...)
 	{
 		*pos = -1;
 		return NULL;
@@ -78,23 +125,20 @@ EXPORT_CPP void* _regexMatch(SClass* me_, S64* pos, const U8* text)
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
 	wsmatch results;
-	Bool found;
 	try
 	{
-		found = regex_match(text2, results, *me2->Pattern);
+		if (regex_match(text2, results, *me2->Pattern))
+		{
+			*pos = static_cast<S64>(results.position(0));
+			return ResultsToArray(results);
+		}
+		else
+		{
+			*pos = -1;
+			return NULL;
+		}
 	}
 	catch (...)
-	{
-		THROWDBG(True, 0xe9170006);
-		*pos = -1;
-		return NULL;
-	}
-	if (found)
-	{
-		*pos = static_cast<S64>(results.position(0));
-		return ResultsToArray(results);
-	}
-	else
 	{
 		*pos = -1;
 		return NULL;
@@ -107,12 +151,16 @@ EXPORT_CPP void* _regexFindAll(SClass* me_, U8** pos, const U8* text)
 	THROWDBG(text == NULL, 0xc0000005);
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
-	wsmatch results;
 	Bool found;
 	try
 	{
 		wsregex_iterator iter1(text2.begin(), text2.end(), *me2->Pattern);
 		wsregex_iterator iter2;
+		if (iter1 == iter2)
+		{
+			*pos = NULL;
+			return NULL;
+		}
 		size_t len = static_cast<size_t>(std::distance(iter1, iter2));
 		*pos = static_cast<U8*>(AllocMem(0x10 + sizeof(S64) * len));
 		(reinterpret_cast<S64*>(*pos))[0] = 1;
@@ -136,7 +184,6 @@ EXPORT_CPP void* _regexFindAll(SClass* me_, U8** pos, const U8* text)
 	}
 	catch (...)
 	{
-		THROWDBG(True, 0xe9170006);
 		*pos = NULL;
 		return NULL;
 	}
@@ -150,15 +197,13 @@ EXPORT_CPP void* _regexReplace(SClass* me_, const U8* text, const U8* newText, B
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
 	std::wstring new_text2 = reinterpret_cast<const Char*>(newText + 0x10);
 	std::wstring result;
-	Bool found;
 	try
 	{
 		result = regex_replace(text2, *me2->Pattern, new_text2, all ? regex_constants::format_all : regex_constants::format_first_only);
 	}
 	catch (...)
 	{
-		THROWDBG(True, 0xe9170006);
-		return NULL;
+		result = text2;
 	}
 	size_t len = result.size();
 	U8* result2 = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * (len + 1)));

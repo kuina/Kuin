@@ -5,7 +5,10 @@ end func
 	*func [d1002.knd, _regexDtor, _force] _dtor()
 	end func
 
-	+func [d1002.knd, _regexFind] find(pos: &int, text: []char): [][]char
+	+func [d1002.knd, _regexFind] find(pos: &int, text: []char, start: int): [][]char
+	end func
+
+	+func [d1002.knd, _regexFindLast] findLast(pos: &int, text: []char, start: int): [][]char
 	end func
 
 	+func [d1002.knd, _regexMatch] match(pos: &int, text: []char): [][]char
