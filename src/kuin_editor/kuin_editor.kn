@@ -49,9 +49,6 @@ var popupMainFile: wnd@Popup
 var popupMainBuild: wnd@Popup
 var popupMainHelp: wnd@Popup
 
-class Undo()
-end class
-
 class Pos()
 	+var src: []char
 	+var row: int
@@ -81,6 +78,10 @@ end class
 
 class DocumentsClass()
 	+var documents: dict<[]char, @Document>
+end class
+
+class UndoCmd(undo@Cmd)
+	+var document: @Document
 end class
 
 class Document()
@@ -154,76 +155,22 @@ class Document()
 	+func findNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
 	end func
 
-	+func undo()
-		if(me.undoBuf[me.undoPtrPrev(me.undoPtr)] =& null)
-			ret
-		end if
-		while(true)
-			do me.undoPtr :: me.undoPtrPrev(me.undoPtr)
-			if(me.undoBuf[me.undoPtr] =& null)
-				ret
-			end if
-			do me.undoImpl(me.undoBuf[me.undoPtr])
-		end while
+	+func replaceOne(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
 	end func
 
-	+func redo()
-		if(me.redoBuf[me.undoPtrNext(me.undoPtr)] =& null)
-			ret
-		end if
-		while(true)
-			do me.undoPtr :: me.undoPtrNext(me.undoPtr)
-			if(me.redoBuf[me.undoPtr] =& null)
-				ret
-			end if
-			do me.undoImpl(me.redoBuf[me.undoPtr])
-		end while
+	+func replaceAll(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
 	end func
 
-	const undoBufSize: int :: 1024
+	+func undoImpl(undo2: @UndoCmd)
+	end func
 
-	var undoBuf: []@Undo
-	var redoBuf: []@Undo
-	var undoPtr: int
 	+var changed: bool
+	var undo: undo@Undo
 
 	func initVars()
-		do me.undoBuf :: #[undoBufSize]@Undo
-		do me.redoBuf :: #[undoBufSize]@Undo
-		do me.undoPtr :: 0
+		do me.undo :: #undo@Undo
+		do me.undo.init(1024)
 		do me.changed :: false
-	end func
-
-	func incUndoPtr()
-		do me.undoPtr :: me.undoPtrNext(me.undoPtr)
-	end func
-
-	func addUndo(undo2: @Undo)
-		do me.undoBuf[me.undoPtr] :: undo2
-	end func
-
-	func addRedo(redo2: @Undo)
-		do me.redoBuf[me.undoPtr] :: redo2
-	end func
-
-	func addUndoMark()
-		do me.undoPtr :: me.undoPtrNext(me.undoPtr)
-		var next: int :: me.undoPtrNext(me.undoPtr)
-		do me.undoBuf[me.undoPtr] :: null
-		do me.undoBuf[next] :: null
-		do me.redoBuf[me.undoPtr] :: null
-		do me.redoBuf[next] :: null
-	end func
-
-	func undoPtrPrev(ptr: int): int
-		ret ptr = 0 ?(undoBufSize - 1, ptr - 1)
-	end func
-
-	func undoPtrNext(ptr: int): int
-		ret ptr = undoBufSize - 1 ?(0, ptr + 1)
-	end func
-
-	func undoImpl(undo2: @Undo)
 	end func
 end class
 
@@ -370,12 +317,13 @@ class DocumentSrc(@Document)
 				ret
 			end if
 			if(shiftCtrl = %none)
+				do me.undo.beginRecord()
 				if(me.areaSelected())
 					do me.delAreaStr()
 				else
 					do me.bs(me.cursorX, me.cursorY, 1, true)
 				end if
-				do me.addUndoMark()
+				do me.undo.endRecord()
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
 			end if
@@ -386,8 +334,9 @@ class DocumentSrc(@Document)
 					ret
 				end if
 				if(!me.areaSelected())
+					do me.undo.beginRecord()
 					do me.ins(me.cursorX, me.cursorY, "\t", true)
-					do me.addUndoMark()
+					do me.undo.endRecord()
 					do me.refreshCursor(false, true)
 					do @drawEditor.paint()
 				else
@@ -410,6 +359,7 @@ class DocumentSrc(@Document)
 				ret
 			end if
 			if(shiftCtrl = %none)
+				do me.undo.beginRecord()
 				if(me.areaSelected())
 					do me.delAreaStr()
 				end if
@@ -424,7 +374,7 @@ class DocumentSrc(@Document)
 					end for
 					do me.ins(me.cursorX, me.cursorY, str, true)
 				end block
-				do me.addUndoMark()
+				do me.undo.endRecord()
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
 			end if
@@ -522,11 +472,12 @@ class DocumentSrc(@Document)
 		if(key = '\t' | me.charWidth(key, 0) = 0)
 			ret
 		end if
+		do me.undo.beginRecord()
 		if(me.areaSelected())
 			do me.delAreaStr()
 		end if
 		do me.ins(me.cursorX, me.cursorY, [key], true)
-		do me.addUndoMark()
+		do me.undo.endRecord()
 		do me.refreshCursor(false, true)
 		do @drawEditor.paint()
 	end func
@@ -558,7 +509,7 @@ class DocumentSrc(@Document)
 		if(me.areaSelected())
 			do me.areaX :: -1
 		end if
-		do me.undo()
+		do me.undo.undo()
 		do me.refreshCursor(false, true)
 		do @drawEditor.paint()
 	end func
@@ -570,7 +521,7 @@ class DocumentSrc(@Document)
 		if(me.areaSelected())
 			do me.areaX :: -1
 		end if
-		do me.redo()
+		do me.undo.redo()
 		do me.refreshCursor(false, true)
 		do @drawEditor.paint()
 	end func
@@ -581,8 +532,9 @@ class DocumentSrc(@Document)
 		end if
 		if(me.areaSelected())
 			do me.copyAreaStr()
+			do me.undo.beginRecord()
 			do me.delAreaStr()
-			do me.addUndoMark()
+			do me.undo.endRecord()
 			do me.refreshCursor(false, true)
 			do @drawEditor.paint()
 		end if
@@ -600,11 +552,12 @@ class DocumentSrc(@Document)
 		end if
 		var str: []char :: wnd@getClipboardStr()
 		if(str <>& null)
+			do me.undo.beginRecord()
 			if(me.areaSelected())
 				do me.delAreaStr()
 			end if
 			do me.ins(me.cursorX, me.cursorY, str, true)
-			do me.addUndoMark()
+			do me.undo.endRecord()
 			do me.refreshCursor(false, true)
 			do @drawEditor.paint()
 		end if
@@ -614,12 +567,13 @@ class DocumentSrc(@Document)
 		if (@lockingEditor)
 			ret
 		end if
+		do me.undo.beginRecord()
 		if(me.areaSelected())
 			do me.delAreaStr()
 		else
 			do me.del(me.cursorX, me.cursorY, 1, true)
 		end if
-		do me.addUndoMark()
+		do me.undo.endRecord()
 		do me.refreshCursor(false, true)
 		do @drawEditor.paint()
 	end func
@@ -711,6 +665,58 @@ class DocumentSrc(@Document)
 		ret false
 	end func
 
+	+*func replaceOne(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+		if(!me.areaSelected() | me.areaY <> me.cursorY)
+			ret
+		end if
+		var x1: int :: me.areaX
+		var x2: int :: me.cursorX
+		if(x1 > x2)
+			do x1 :$ x2
+		end if
+		var regex: regex@Regex :: null
+		if(regularExpression)
+			do regex :: regex@makeRegex(pattern)
+			if(regex =& null)
+				ret
+			end if
+		end if
+		var patternLen: int
+		var pos: int :: @findStr(&patternLen, me.src.src[me.cursorY], false, x1, x1, pattern, distinguishCase, onlyWord, regex)
+		if(patternLen = x2 - x1)
+			do wnd@msgBox(null, "ok", null, %none, %ok)
+		end if
+	end func
+
+	+*func replaceAll(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+	end func
+
+	+*func undoImpl(undo2: @UndoCmd)
+		var undo3: UndoSrc :: undo2 $ UndoSrc
+		switch(undo3.kind)
+		case %ins
+			do me.ins(undo3.x, undo3.y, undo3.str, false)
+		case %bs
+			block
+				var n: int
+				do undo3.str.toInt(&n)
+				do me.bs(undo3.x, undo3.y, n, false)
+			end block
+		case %del
+			block
+				var n: int
+				do undo3.str.toInt(&n)
+				do me.del(undo3.x, undo3.y, n, false)
+			end block
+		case %replace
+			; TODO:
+		case %replaceInv
+			; TODO:
+		default
+			assert false
+		end switch
+	end func
+
 	+func showHint()
 		var x: int :: me.cursorX
 		if(^me.src.src[me.cursorY] = x)
@@ -762,9 +768,15 @@ class DocumentSrc(@Document)
 		ins
 		bs
 		del
+		replace
+		replaceInv
 	end enum
 
-	class UndoSrc(@Undo)
+	class UndoSrc(@UndoCmd)
+		+*func cmd()
+			do me.document.undoImpl(me)
+		end func
+
 		+var kind: UndoKind
 		+var x: int
 		+var y: int
@@ -1031,7 +1043,6 @@ class DocumentSrc(@Document)
 		var y1: int :: me.areaY
 		var x2: int :: me.cursorX
 		var y2: int :: me.cursorY
-		var dirty: bool :: false
 		if(y1 > y2 | y1 = y2 & x1 > x2)
 			do x1 :$ x2
 			do y1 :$ y2
@@ -1039,6 +1050,7 @@ class DocumentSrc(@Document)
 		if(x2 = 0)
 			do y2 :- 1
 		end if
+		do me.undo.beginRecord()
 		for i(y1, y2)
 			if(^me.src.src[i] <> 0)
 				if(i = oldAreaY)
@@ -1048,12 +1060,9 @@ class DocumentSrc(@Document)
 					do oldCursorX :+ 1
 				end if
 				do me.ins(0, i, "\t", true)
-				do dirty :: true
 			end if
 		end for
-		if(dirty)
-			do me.addUndoMark()
-		end if
+		do me.undo.endRecord()
 		do me.areaX :: oldAreaX
 		do me.areaY :: oldAreaY
 		do me.cursorX :: oldCursorX
@@ -1070,7 +1079,6 @@ class DocumentSrc(@Document)
 		var y1: int :: me.areaY
 		var x2: int :: me.cursorX
 		var y2: int :: me.cursorY
-		var dirty: bool :: false
 		if(y1 > y2 | y1 = y2 & x1 > x2)
 			do x1 :$ x2
 			do y1 :$ y2
@@ -1078,6 +1086,7 @@ class DocumentSrc(@Document)
 		if(x2 = 0)
 			do y2 :- 1
 		end if
+		do me.undo.beginRecord()
 		for i(y1, y2)
 			if(^me.src.src[i] > 0 & me.src.src[i][0] = '\t')
 				if(i = oldAreaY & oldAreaX > 0 & me.src.src[i][oldAreaX] <> '\t')
@@ -1087,12 +1096,9 @@ class DocumentSrc(@Document)
 					do oldCursorX :- 1
 				end if
 				do me.del(0, i, 1, true)
-				do dirty :: true
 			end if
 		end for
-		if(dirty)
-			do me.addUndoMark()
-		end if
+		do me.undo.endRecord()
 		do me.areaX :: oldAreaX
 		do me.areaY :: oldAreaY
 		do me.cursorX :: oldCursorX
@@ -1100,14 +1106,14 @@ class DocumentSrc(@Document)
 	end func
 
 	func ins(x: int, y: int, str: []char, recordUndo: bool)
+		var redo: UndoSrc
 		if(recordUndo)
-			do me.incUndoPtr()
-			var redo: UndoSrc :: #UndoSrc
+			do redo :: #UndoSrc
+			do redo.document :: me
 			do redo.kind :: %ins
 			do redo.x :: x
 			do redo.y :: y
 			do redo.str :: str
-			do me.addRedo(redo)
 		end if
 		for i(0, ^str - 1)
 			if(str[i] = '\n')
@@ -1126,11 +1132,12 @@ class DocumentSrc(@Document)
 		end for
 		if(recordUndo)
 			var undo: UndoSrc :: #UndoSrc
+			do undo.document :: me
 			do undo.kind :: %bs
 			do undo.x :: x
 			do undo.y :: y
 			do undo.str :: (^str).toStr()
-			do me.addUndo(undo)
+			do me.undo.add(undo, redo)
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
@@ -1139,14 +1146,14 @@ class DocumentSrc(@Document)
 	end func
 
 	func bs(x: int, y: int, len: int, recordUndo: bool)
+		var redo: UndoSrc
 		if(recordUndo)
-			do me.incUndoPtr()
-			var redo: UndoSrc :: #UndoSrc
+			do redo :: #UndoSrc
+			do redo.document :: me
 			do redo.kind :: %bs
 			do redo.x :: x
 			do redo.y :: y
 			do redo.str :: len.toStr()
-			do me.addRedo(redo)
 		end if
 		var undoStr: []char :: ""
 		for(1, len)
@@ -1170,11 +1177,12 @@ class DocumentSrc(@Document)
 		end for
 		if(recordUndo)
 			var undo: UndoSrc :: #UndoSrc
+			do undo.document :: me
 			do undo.kind :: %ins
 			do undo.x :: x
 			do undo.y :: y
 			do undo.str :: undoStr
-			do me.addUndo(undo)
+			do me.undo.add(undo, redo)
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
@@ -1183,14 +1191,14 @@ class DocumentSrc(@Document)
 	end func
 
 	func del(x: int, y: int, len: int, recordUndo: bool)
+		var redo: UndoSrc
 		if(recordUndo)
-			do me.incUndoPtr()
-			var redo: UndoSrc :: #UndoSrc
+			do redo :: #UndoSrc
+			do redo.document :: me
 			do redo.kind :: %del
 			do redo.x :: x
 			do redo.y :: y
 			do redo.str :: len.toStr()
-			do me.addRedo(redo)
 		end if
 		var undoStr: []char :: ""
 		for(1, len)
@@ -1210,38 +1218,17 @@ class DocumentSrc(@Document)
 		end for
 		if(recordUndo)
 			var undo: UndoSrc :: #UndoSrc
+			do undo.document :: me
 			do undo.kind :: %ins
 			do undo.x :: x
 			do undo.y :: y
 			do undo.str :: undoStr
-			do me.addUndo(undo)
+			do me.undo.add(undo, redo)
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
 		do @setDirtyInterpret()
 		do me.changed :: true
-	end func
-
-	*func undoImpl(undo2: @Undo)
-		var undo3: UndoSrc :: undo2 $ UndoSrc
-		switch(undo3.kind)
-		case %ins
-			do me.ins(undo3.x, undo3.y, undo3.str, false)
-		case %bs
-			block
-				var n: int
-				do undo3.str.toInt(&n)
-				do me.bs(undo3.x, undo3.y, n, false)
-			end block
-		case %del
-			block
-				var n: int
-				do undo3.str.toInt(&n)
-				do me.del(undo3.x, undo3.y, n, false)
-			end block
-		default
-			assert false
-		end switch
 	end func
 
 	func getFuncHint(srcName: []char, x: int, y: int)
@@ -1534,6 +1521,16 @@ class DocumentArBase(@Document)
 		ret false
 	end func
 
+	+*func replaceOne(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	end func
+
+	+*func replaceAll(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+	end func
+
+	+*func undoImpl(undo2: @UndoCmd)
+		; TODO:
+	end func
+
 	const padding: int :: 32
 	const minSize: int :: 50
 
@@ -1549,10 +1546,6 @@ class DocumentArBase(@Document)
 	var pageY: int
 	var mode: Mode
 	var hold: @Obj2d
-
-	*func undoImpl(undo2: @Undo)
-		; TODO:
-	end func
 
 	func initFromMeta(src2: []char, ptr: &int)
 	end func
@@ -1868,7 +1861,7 @@ func main()
 		do @popupMainEdit.add(16#0031, @langEn ?("Add Existin&g File", "既存のファイルを追加(&G)"))
 		do @popupMainEdit.addLine()
 		do @popupMainEdit.add(16#0032, @langEn ?("&Undo\tCtrl+Z", "元に戻す(&U)\tCtrl+Z"))
-		do @popupMainEdit.add(16#0033, @langEn ?("&Redo\tCtrl+Shift+Z", "やり直し(&R)\tCtrl+Shift+Z"))
+		do @popupMainEdit.add(16#0033, @langEn ?("&Redo\tCtrl+Shift+Z, Ctrl+Y", "やり直し(&R)\tCtrl+Shift+Z, Ctrl+Y"))
 		do @popupMainEdit.addLine()
 		do @popupMainEdit.add(16#0034, @langEn ?("Cu&t\tCtrl+X", "切り取り(&T)\tCtrl+X"))
 		do @popupMainEdit.add(16#0035, @langEn ?("&Copy\tCtrl+C", "コピー(&C)\tCtrl+C"))
@@ -2000,6 +1993,9 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			ret true
 		case %x
 			do @wndMainOnPushMenu(@wndMain, 16#0034)
+			ret true
+		case %y
+			do @wndMainOnPushMenu(@wndMain, 16#0033)
 			ret true
 		case %z
 			do @wndMainOnPushMenu(@wndMain, 16#0032)
@@ -3017,29 +3013,52 @@ func showFind(replace: bool)
 	end func
 	
 	func wndFindBtnPrevOnPush(wnd: wnd@Btn)
-		do @findBtnPrev(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+		do @findPrev(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
 
 	func wndFindBtnNextOnPush(wnd: wnd@Btn)
-		do @findBtnNext(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+		do @findNext(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
 
 	func wndFindBtnReplaceOnPush(wnd: wnd@Btn)
+		do @replaceOne(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
 
 	func wndFindBtnReplaceAllOnPush(wnd: wnd@Btn)
+		do @replaceAll(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
 end func
 
-func findBtnPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+func findPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
 	if(!@curDocument.findPrev(pattern, distinguishCase, onlyWord, regularExpression))
 		do wnd@msgBox(@wndFind, @langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), @title, %info, %ok)
 	end if
 end func
 
-func findBtnNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+func findNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
 	if(!@curDocument.findNext(pattern, distinguishCase, onlyWord, regularExpression))
 		do wnd@msgBox(@wndFind, @langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), @title, %info, %ok)
+	end if
+end func
+
+func replaceOne(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	do @curDocument.replaceOne(pattern, distinguishCase, onlyWord, regularExpression)
+	if(!@curDocument.findNext(pattern, distinguishCase, onlyWord, regularExpression))
+		do wnd@msgBox(@wndFind, @langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), @title, %info, %ok)
+	end if
+end func
+
+func replaceAll(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	var msg: []char
+	if(@langEn)
+		do msg :: "Do you want to replace them all?"
+	else
+		do msg :: "すべて置換しますか？"
+	end if
+	if(wnd@msgBox(@wndFind, msg, @title, %warn, %yesNoCancel) = %yes)
+		if(!@curDocument.replaceAll(pattern, distinguishCase, onlyWord, regularExpression))
+			do wnd@msgBox(@wndFind, @langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), @title, %info, %ok)
+		end if
 	end if
 end func
 

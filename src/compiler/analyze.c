@@ -3192,9 +3192,8 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 		return (SAstExpr*)DummyPtr;
 	{
 		SAstTypeFunc* type = (SAstTypeFunc*)ast->Func->Type;
-		if (((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot)
+		if (((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot && ((SAst*)ast->Func->Type)->TypeId == AstTypeId_TypeFunc)
 		{
-			ASSERT(((SAst*)ast->Func->Type)->TypeId == AstTypeId_TypeFunc);
 			{
 				SAstExprCallArg* me = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
 				me->Arg = ((SAstExprDot*)ast->Func)->Var;
