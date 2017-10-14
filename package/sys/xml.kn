@@ -1,3 +1,4 @@
+{
 func [d1003.knd, _init] _init()
 end func
 
@@ -8,13 +9,10 @@ end func
 	+func [d1003.knd, _xmlSave] save(path: []char): bool
 	end func
 
-	+func [d1003.knd, _xmlHead] head()
+	+func [d1003.knd, _xmlRoot] root()
 	end func
 
 	+func [d1003.knd, _xmlTerm] term(): bool
-	end func
-
-	+func [d1003.knd, _xmlNextOffset] nextOffset(elementPath: []char)
 	end func
 
 	+func [d1003.knd, _xmlGet] get(): []char
@@ -47,3 +45,4 @@ end func
 
 +func [d1003.knd, _makeXmlEmpty, _make_instance] makeXmlEmpty(me2: @Xml): @Xml
 end func
+}
