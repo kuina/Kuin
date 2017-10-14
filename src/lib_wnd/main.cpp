@@ -805,7 +805,7 @@ EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	me3->Enter = False;
 	me3->WheelX = 0;
 	me3->WheelY = 0;
-	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), me2->WndHandle);
+	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), static_cast<int>(width), static_cast<int>(height), me2->WndHandle);
 	return me_;
 }
 
@@ -2005,11 +2005,13 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 			{
 				int width = static_cast<int>(LOWORD(l_param));
 				int height = static_cast<int>(HIWORD(l_param));
-				if (wnd3->EqualMagnification && width > 0 && height > 0)
+				if (width > 0 && height > 0)
 				{
 					if (wnd3->DrawBuf != NULL)
 						Draw::FinDrawBuf(wnd3->DrawBuf);
-					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, wnd2->WndHandle);
+					int scr_width = wnd3->EqualMagnification ? width : wnd2->DefaultWidth;
+					int scr_height = wnd3->EqualMagnification ? height : wnd2->DefaultHeight;
+					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, scr_width, scr_height, wnd2->WndHandle);
 					wnd3->DrawTwice = True;
 				}
 			}
