@@ -252,7 +252,7 @@ static HFONT FontCtrl;
 
 static const U8* NToRN(const Char* str);
 static const U8* RNToN(const Char* str);
-static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64 anchor_y, S64 x, S64 y, S64 width, S64 height);
+static void ParseAnchor(SWndBase* wnd, S64 anchor_x, S64 anchor_y, S64 x, S64 y, S64 width, S64 height);
 static SWndBase* ToWnd(HWND wnd);
 static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const Char* ctrl, DWORD style_ex, DWORD style, S64 x, S64 y, S64 width, S64 height, const Char* text, WNDPROC wnd_proc, S64 anchor_x, S64 anchor_y);
 static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param);
@@ -673,6 +673,18 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
 	if (width != -1 && height != -1)
 		SetWindowPos(me2->WndHandle, NULL, 0, 0, static_cast<int>(width) + border_x, static_cast<int>(height) + border_y, SWP_NOMOVE | SWP_NOZORDER);
+	if (me2->Kind == WndKind_WndAspect)
+	{
+		RECT rect;
+		GetClientRect(me2->WndHandle, &rect);
+		double w = static_cast<double>(rect.right) - static_cast<double>(rect.left);
+		double h = static_cast<double>(rect.bottom) - static_cast<double>(rect.top);
+		if (w / h > static_cast<double>(width) / static_cast<double>(height))
+			w = h * static_cast<double>(width) / static_cast<double>(height);
+		else
+			h = w * static_cast<double>(height) / static_cast<double>(width);
+		SetWindowPos(me2->WndHandle, NULL, 0, 0, static_cast<int>(w) + border_x, static_cast<int>(h) + border_y, SWP_NOMOVE | SWP_NOZORDER);
+	}
 	SetWindowLongPtr(me2->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me2));
 	{
 		SWnd* me3 = reinterpret_cast<SWnd*>(me_);
@@ -1327,7 +1339,7 @@ static const U8* RNToN(const Char* str)
 	return buf;
 }
 
-static void ParseAnchor(SWndBase* wnd, const SWndBase* parent, S64 anchor_x, S64 anchor_y, S64 x, S64 y, S64 width, S64 height)
+static void ParseAnchor(SWndBase* wnd, S64 anchor_x, S64 anchor_y, S64 x, S64 y, S64 width, S64 height)
 {
 	THROWDBG(x != static_cast<S64>(static_cast<U16>(x)) || y != static_cast<S64>(static_cast<U16>(y)) || width != static_cast<S64>(static_cast<U16>(width)) || height != static_cast<S64>(static_cast<U16>(height)), 0xe9170006);
 	wnd->CtrlFlag = 0;
@@ -1389,7 +1401,7 @@ static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const C
 	*(S64*)wnd->Children = 1;
 	memset((U8*)wnd->Children + 0x08, 0x00, 0x20);
 	SetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(wnd_proc));
-	ParseAnchor(wnd, parent, anchor_x, anchor_y, x, y, width, height);
+	ParseAnchor(wnd, anchor_x, anchor_y, x, y, width, height);
 	SendMessage(wnd->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
 }
 

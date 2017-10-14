@@ -194,7 +194,7 @@ void* RndGetUuid(SRndState* rnd_)
 			n = 4;
 		else if (i == 16)
 			n = (n & 0x03) | 0x08;
-		Char c = n <= 9 ? (L'0' + n) : (L'a' + n - 10);
+		Char c = (Char)(n <= 9 ? (L'0' + n) : (L'a' + n - 10));
 		uuid2[UuidPos[i]] = c;
 	}
 	uuid2[8] = L'-';
