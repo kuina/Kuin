@@ -93,6 +93,7 @@ echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d0000.knd $(SolutionDir)packa
 echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d0001.knd $(SolutionDir)package\data\d0001.knd
 echo F | xcopy /y /r $(SolutionDir)package\sys\d0917.knd $(SolutionDir)package\data\d0917.knd
 echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d1001.knd $(SolutionDir)package\data\d1001.knd
+echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d1002.knd $(SolutionDir)package\data\d1002.knd
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

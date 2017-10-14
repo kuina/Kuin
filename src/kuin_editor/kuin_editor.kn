@@ -155,10 +155,10 @@ class Document()
 	+func findNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
 	end func
 
-	+func replaceOne(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	+func replaceOne(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
 	end func
 
-	+func replaceAll(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+	+func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): int
 	end func
 
 	+func undoImpl(undo2: @UndoCmd)
@@ -317,13 +317,13 @@ class DocumentSrc(@Document)
 				ret
 			end if
 			if(shiftCtrl = %none)
-				do me.undo.beginRecord()
+				do me.undo.recordBegin()
 				if(me.areaSelected())
 					do me.delAreaStr()
 				else
 					do me.bs(me.cursorX, me.cursorY, 1, true)
 				end if
-				do me.undo.endRecord()
+				do me.undo.recordEnd()
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
 			end if
@@ -334,9 +334,9 @@ class DocumentSrc(@Document)
 					ret
 				end if
 				if(!me.areaSelected())
-					do me.undo.beginRecord()
+					do me.undo.recordBegin()
 					do me.ins(me.cursorX, me.cursorY, "\t", true)
-					do me.undo.endRecord()
+					do me.undo.recordEnd()
 					do me.refreshCursor(false, true)
 					do @drawEditor.paint()
 				else
@@ -359,7 +359,7 @@ class DocumentSrc(@Document)
 				ret
 			end if
 			if(shiftCtrl = %none)
-				do me.undo.beginRecord()
+				do me.undo.recordBegin()
 				if(me.areaSelected())
 					do me.delAreaStr()
 				end if
@@ -374,7 +374,7 @@ class DocumentSrc(@Document)
 					end for
 					do me.ins(me.cursorX, me.cursorY, str, true)
 				end block
-				do me.undo.endRecord()
+				do me.undo.recordEnd()
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
 			end if
@@ -472,12 +472,12 @@ class DocumentSrc(@Document)
 		if(key = '\t' | me.charWidth(key, 0) = 0)
 			ret
 		end if
-		do me.undo.beginRecord()
+		do me.undo.recordBegin()
 		if(me.areaSelected())
 			do me.delAreaStr()
 		end if
 		do me.ins(me.cursorX, me.cursorY, [key], true)
-		do me.undo.endRecord()
+		do me.undo.recordEnd()
 		do me.refreshCursor(false, true)
 		do @drawEditor.paint()
 	end func
@@ -532,9 +532,9 @@ class DocumentSrc(@Document)
 		end if
 		if(me.areaSelected())
 			do me.copyAreaStr()
-			do me.undo.beginRecord()
+			do me.undo.recordBegin()
 			do me.delAreaStr()
-			do me.undo.endRecord()
+			do me.undo.recordEnd()
 			do me.refreshCursor(false, true)
 			do @drawEditor.paint()
 		end if
@@ -552,12 +552,12 @@ class DocumentSrc(@Document)
 		end if
 		var str: []char :: wnd@getClipboardStr()
 		if(str <>& null)
-			do me.undo.beginRecord()
+			do me.undo.recordBegin()
 			if(me.areaSelected())
 				do me.delAreaStr()
 			end if
 			do me.ins(me.cursorX, me.cursorY, str, true)
-			do me.undo.endRecord()
+			do me.undo.recordEnd()
 			do me.refreshCursor(false, true)
 			do @drawEditor.paint()
 		end if
@@ -567,13 +567,13 @@ class DocumentSrc(@Document)
 		if (@lockingEditor)
 			ret
 		end if
-		do me.undo.beginRecord()
+		do me.undo.recordBegin()
 		if(me.areaSelected())
 			do me.delAreaStr()
 		else
 			do me.del(me.cursorX, me.cursorY, 1, true)
 		end if
-		do me.undo.endRecord()
+		do me.undo.recordEnd()
 		do me.refreshCursor(false, true)
 		do @drawEditor.paint()
 	end func
@@ -665,7 +665,7 @@ class DocumentSrc(@Document)
 		ret false
 	end func
 
-	+*func replaceOne(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	+*func replaceOne(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
 		if(!me.areaSelected() | me.areaY <> me.cursorY)
 			ret
 		end if
@@ -684,37 +684,57 @@ class DocumentSrc(@Document)
 		var patternLen: int
 		var pos: int :: @findStr(&patternLen, me.src.src[me.cursorY], false, x1, x1, pattern, distinguishCase, onlyWord, regex)
 		if(patternLen = x2 - x1)
-			do wnd@msgBox(null, "ok", null, %none, %ok)
+			do me.undo.recordBegin()
+			do me.del(x1, me.cursorY, patternLen, true)
+			do me.ins(x1, me.cursorY, replaceStr, true)
+			do me.undo.recordEnd()
 		end if
 	end func
 
-	+*func replaceAll(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+	+*func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): int
+		do me.cursorX :: 0
+		do me.cursorY :: 0
+		do me.areaX :: -1
+		do me.areaY :: -1
+		var cnt: int :: 0
+		while loop(true)
+			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
+			var oldY: int :: me.cursorY
+			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
+				break loop
+			end if
+			var newX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
+			var newY: int :: me.cursorY
+			if(newY < oldY | newY = oldY & newX <= oldX)
+				break loop
+			end if
+			do me.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+			do cnt :+ 1
+		end while
+		ret cnt
 	end func
 
 	+*func undoImpl(undo2: @UndoCmd)
-		var undo3: UndoSrc :: undo2 $ UndoSrc
-		switch(undo3.kind)
-		case %ins
-			do me.ins(undo3.x, undo3.y, undo3.str, false)
-		case %bs
+		if(undo2 =$ UndoSrcIns)
 			block
-				var n: int
-				do undo3.str.toInt(&n)
-				do me.bs(undo3.x, undo3.y, n, false)
+				var undo3: UndoSrcIns :: undo2 $ UndoSrcIns
+				do me.ins(undo3.x, undo3.y, undo3.str, false)
 			end block
-		case %del
+		elif(undo2 =$ UndoSrcBsDel)
 			block
-				var n: int
-				do undo3.str.toInt(&n)
-				do me.del(undo3.x, undo3.y, n, false)
+				var undo3: UndoSrcBsDel :: undo2 $ UndoSrcBsDel
+				switch(undo3.kind)
+				case 0
+					do me.bs(undo3.x, undo3.y, undo3.len, false)
+				case 1
+					do me.del(undo3.x, undo3.y, undo3.len, false)
+				default
+					assert false
+				end switch
 			end block
-		case %replace
-			; TODO:
-		case %replaceInv
-			; TODO:
-		default
+		else
 			assert false
-		end switch
+		end if
 	end func
 
 	+func showHint()
@@ -764,23 +784,30 @@ class DocumentSrc(@Document)
 		+var color: [][]bit8
 	end class
 
-	enum UndoKind
-		ins
-		bs
-		del
-		replace
-		replaceInv
-	end enum
-
 	class UndoSrc(@UndoCmd)
 		+*func cmd()
 			do me.document.undoImpl(me)
 		end func
+	end class
 
-		+var kind: UndoKind
+	class UndoSrcIns(UndoSrc)
 		+var x: int
 		+var y: int
 		+var str: []char
+	end class
+
+	class UndoSrcBsDel(UndoSrc)
+		+var kind: int {0=bs, 1=del}
+		+var x: int
+		+var y: int
+		+var len: int
+	end class
+
+	class UndoSrcReplaceAll(UndoSrc)
+		+var x: []int
+		+var y: []int
+		+var len: []int
+		+var str: [][]char
 	end class
 
 	+var src: Src
@@ -1050,7 +1077,7 @@ class DocumentSrc(@Document)
 		if(x2 = 0)
 			do y2 :- 1
 		end if
-		do me.undo.beginRecord()
+		do me.undo.recordBegin()
 		for i(y1, y2)
 			if(^me.src.src[i] <> 0)
 				if(i = oldAreaY)
@@ -1062,7 +1089,7 @@ class DocumentSrc(@Document)
 				do me.ins(0, i, "\t", true)
 			end if
 		end for
-		do me.undo.endRecord()
+		do me.undo.recordEnd()
 		do me.areaX :: oldAreaX
 		do me.areaY :: oldAreaY
 		do me.cursorX :: oldCursorX
@@ -1086,7 +1113,7 @@ class DocumentSrc(@Document)
 		if(x2 = 0)
 			do y2 :- 1
 		end if
-		do me.undo.beginRecord()
+		do me.undo.recordBegin()
 		for i(y1, y2)
 			if(^me.src.src[i] > 0 & me.src.src[i][0] = '\t')
 				if(i = oldAreaY & oldAreaX > 0 & me.src.src[i][oldAreaX] <> '\t')
@@ -1098,7 +1125,7 @@ class DocumentSrc(@Document)
 				do me.del(0, i, 1, true)
 			end if
 		end for
-		do me.undo.endRecord()
+		do me.undo.recordEnd()
 		do me.areaX :: oldAreaX
 		do me.areaY :: oldAreaY
 		do me.cursorX :: oldCursorX
@@ -1106,11 +1133,10 @@ class DocumentSrc(@Document)
 	end func
 
 	func ins(x: int, y: int, str: []char, recordUndo: bool)
-		var redo: UndoSrc
+		var redo: UndoSrcIns
 		if(recordUndo)
-			do redo :: #UndoSrc
+			do redo :: #UndoSrcIns
 			do redo.document :: me
-			do redo.kind :: %ins
 			do redo.x :: x
 			do redo.y :: y
 			do redo.str :: str
@@ -1131,12 +1157,12 @@ class DocumentSrc(@Document)
 			end if
 		end for
 		if(recordUndo)
-			var undo: UndoSrc :: #UndoSrc
+			var undo: UndoSrcBsDel :: #UndoSrcBsDel
 			do undo.document :: me
-			do undo.kind :: %bs
+			do undo.kind :: 0
 			do undo.x :: x
 			do undo.y :: y
-			do undo.str :: (^str).toStr()
+			do undo.len :: ^str
 			do me.undo.add(undo, redo)
 		end if
 		do me.cursorX :: x
@@ -1146,14 +1172,14 @@ class DocumentSrc(@Document)
 	end func
 
 	func bs(x: int, y: int, len: int, recordUndo: bool)
-		var redo: UndoSrc
+		var redo: UndoSrcBsDel
 		if(recordUndo)
-			do redo :: #UndoSrc
+			do redo :: #UndoSrcBsDel
 			do redo.document :: me
-			do redo.kind :: %bs
+			do redo.kind :: 0
 			do redo.x :: x
 			do redo.y :: y
-			do redo.str :: len.toStr()
+			do redo.len :: len
 		end if
 		var undoStr: []char :: ""
 		for(1, len)
@@ -1176,9 +1202,8 @@ class DocumentSrc(@Document)
 			end if
 		end for
 		if(recordUndo)
-			var undo: UndoSrc :: #UndoSrc
+			var undo: UndoSrcIns :: #UndoSrcIns
 			do undo.document :: me
-			do undo.kind :: %ins
 			do undo.x :: x
 			do undo.y :: y
 			do undo.str :: undoStr
@@ -1191,14 +1216,14 @@ class DocumentSrc(@Document)
 	end func
 
 	func del(x: int, y: int, len: int, recordUndo: bool)
-		var redo: UndoSrc
+		var redo: UndoSrcBsDel
 		if(recordUndo)
-			do redo :: #UndoSrc
+			do redo :: #UndoSrcBsDel
 			do redo.document :: me
-			do redo.kind :: %del
+			do redo.kind :: 1
 			do redo.x :: x
 			do redo.y :: y
-			do redo.str :: len.toStr()
+			do redo.len :: len
 		end if
 		var undoStr: []char :: ""
 		for(1, len)
@@ -1217,9 +1242,8 @@ class DocumentSrc(@Document)
 			end if
 		end for
 		if(recordUndo)
-			var undo: UndoSrc :: #UndoSrc
+			var undo: UndoSrcIns :: #UndoSrcIns
 			do undo.document :: me
-			do undo.kind :: %ins
 			do undo.x :: x
 			do undo.y :: y
 			do undo.str :: undoStr
@@ -1521,10 +1545,10 @@ class DocumentArBase(@Document)
 		ret false
 	end func
 
-	+*func replaceOne(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	+*func replaceOne(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
 	end func
 
-	+*func replaceAll(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+	+*func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): int
 	end func
 
 	+*func undoImpl(undo2: @UndoCmd)
@@ -1789,6 +1813,8 @@ func main()
 		do @title :: "Kuin Programming Language \{major}.\{minor}.\{micro}"
 	end block
 	do @runningFiles :: #list<[]char>
+	do @wndFindEditPatternLast :: ""
+	do @wndFindEditReplaceLast :: ""
 	do @wndFindChkDistinguishCaseLast :: true
 
 	do @initCompiler()
@@ -2904,6 +2930,7 @@ func showFind(replace: bool)
 		do @wndFindEditPattern.onChange :: wndFindEditPatternOnChange
 		do wnd@makeLabel(@wndFindTabFind, 6, 71, 324, 12, %fix, %fix, @langEn ?("Replace with:", "置換後の文字列:"))
 		do @wndFindEditReplace :: wnd@makeEdit(@wndFindTabFind, 6, 89, 344, 19, %scale, %fix)
+		do @wndFindEditReplace.onChange :: wndFindEditReplaceOnChange
 		var groupTarget: wnd@Group :: wnd@makeGroup(@wndFindTabFind, 6, 114, 344, 84, %scale, %fix, @langEn ?("Look in", "検索対象"))
 		do @wndFindRadioDocument :: wnd@makeRadio(groupTarget, 6, 18, 312, 16, %fix, %fix, @langEn ?("Current document", "現在のドキュメント"))
 		do @wndFindRadioAll :: wnd@makeRadio(groupTarget, 6, 40, 312, 16, %fix, %fix, @langEn ?("All documents", "すべてのドキュメント"))
@@ -2998,6 +3025,10 @@ func showFind(replace: bool)
 		do @wndFindEditPatternLast :: @wndFindEditPattern.getText()
 	end func
 
+	func wndFindEditReplaceOnChange(wnd: wnd@Edit)
+		do @wndFindEditReplaceLast :: @wndFindEditReplace.getText()
+	end func
+
 	func wndFindChkDistinguishCaseOnPush(wnd: wnd@Chk)
 		do @wndFindChkDistinguishCaseLast :: @wndFindChkDistinguishCase.getChk()
 	end func
@@ -3021,11 +3052,11 @@ func showFind(replace: bool)
 	end func
 
 	func wndFindBtnReplaceOnPush(wnd: wnd@Btn)
-		do @replaceOne(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+		do @replaceOne(@wndFindEditPatternLast, @wndFindEditReplaceLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
 
 	func wndFindBtnReplaceAllOnPush(wnd: wnd@Btn)
-		do @replaceAll(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+		do @replaceAll(@wndFindEditPatternLast, @wndFindEditReplaceLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
 end func
 
@@ -3041,24 +3072,28 @@ func findNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExp
 	end if
 end func
 
-func replaceOne(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
-	do @curDocument.replaceOne(pattern, distinguishCase, onlyWord, regularExpression)
+func replaceOne(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	do @curDocument.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
 	if(!@curDocument.findNext(pattern, distinguishCase, onlyWord, regularExpression))
 		do wnd@msgBox(@wndFind, @langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), @title, %info, %ok)
 	end if
 end func
 
-func replaceAll(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
 	var msg: []char
 	if(@langEn)
-		do msg :: "Do you want to replace them all?"
+		do msg :: "Do you want to replace all \"" ~ pattern ~ "\" with \"" ~ replaceStr ~ "\" in the current document?"
 	else
-		do msg :: "すべて置換しますか？"
+		do msg :: "現在のドキュメントの「" ~ pattern ~ "」を「" ~ replaceStr ~ "」に、すべて置換しますか？"
 	end if
 	if(wnd@msgBox(@wndFind, msg, @title, %warn, %yesNoCancel) = %yes)
-		if(!@curDocument.replaceAll(pattern, distinguishCase, onlyWord, regularExpression))
-			do wnd@msgBox(@wndFind, @langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), @title, %info, %ok)
+		var cnt: int :: @curDocument.replaceAll(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+		if(@langEn)
+			do msg :: cnt.toStr() ~ " string(s) have been replaced."
+		else
+			do msg :: cnt.toStr() ~ "個の文字列を置換しました。"
 		end if
+		do wnd@msgBox(@wndFind, msg, @title, %info, %ok)
 	end if
 end func
 

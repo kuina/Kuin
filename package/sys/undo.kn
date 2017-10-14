@@ -11,7 +11,7 @@ end class
 		do me.state :: 0
 	end func
 
-	+func beginRecord()
+	+func recordBegin()
 		if(dbg & me.state <> 0)
 			throw 16#E917000A
 		end if
@@ -28,7 +28,7 @@ end class
 		do me.state :: 2
 	end func
 
-	+func endRecord()
+	+func recordEnd()
 		if(dbg & me.state = 0)
 			throw 16#E917000A
 		end if
