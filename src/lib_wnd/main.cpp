@@ -638,11 +638,11 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 			me2->WndHandle = CreateWindowEx(0, L"KuinWndNormalClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndFix:
-			ASSERT(width >= 0 && height >= 0);
+			THROWDBG(width == -1 || height == -1, 0xe9170006);
 			me2->WndHandle = CreateWindowEx(0, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndAspect:
-			ASSERT(width >= 0 && height >= 0);
+			THROWDBG(width == -1 || height == -1, 0xe9170006);
 			me2->WndHandle = CreateWindowEx(0, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 			// TODO:
@@ -652,6 +652,16 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	}
 	if (me2->WndHandle == NULL)
 		THROW(0xe9170009);
+	int border_x;
+	int border_y;
+	{
+		RECT window;
+		RECT client;
+		GetWindowRect(me2->WndHandle, &window);
+		GetClientRect(me2->WndHandle, &client);
+		border_x = static_cast<int>((window.right - window.left) - (client.right - client.left));
+		border_y = static_cast<int>((window.bottom - window.top) - (client.bottom - client.top));
+	}
 	me2->DefaultWndProc = NULL;
 	me2->CtrlFlag = static_cast<U64>(CtrlFlag_AnchorLeft) | static_cast<U64>(CtrlFlag_AnchorTop);
 	me2->DefaultX = 0;
@@ -661,20 +671,8 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	me2->Children = AllocMem(0x28);
 	*(S64*)me2->Children = 1;
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
-	if (me2->Kind == WndKind_WndAspect)
-	{
-		RECT rect;
-		GetClientRect(me2->WndHandle, &rect);
-		double caption = static_cast<double>(GetSystemMetrics(SM_CYCAPTION));
-		double border = static_cast<double>(GetSystemMetrics(SM_CYFRAME));
-		double w = static_cast<double>(rect.right) - static_cast<double>(rect.left) - border * 2.0;
-		double h = static_cast<double>(rect.bottom) - static_cast<double>(rect.top) - caption - border * 2.0;
-		if (w / h > static_cast<double>(width) / static_cast<double>(height))
-			rect.right = static_cast<LONG>(static_cast<double>(rect.left) + h * static_cast<double>(width) / static_cast<double>(height) + border * 2.0);
-		else
-			rect.bottom = static_cast<LONG>(static_cast<double>(rect.top) + w * static_cast<double>(height) / static_cast<double>(width) + caption + border * 2.0);
-		SetWindowPos(me2->WndHandle, NULL, 0, 0, static_cast<int>(rect.right - rect.left), static_cast<int>(rect.bottom - rect.top), SWP_NOMOVE | SWP_NOZORDER);
-	}
+	if (width != -1 && height != -1)
+		SetWindowPos(me2->WndHandle, NULL, 0, 0, static_cast<int>(width) + border_x, static_cast<int>(height) + border_y, SWP_NOMOVE | SWP_NOZORDER);
 	SetWindowLongPtr(me2->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me2));
 	{
 		SWnd* me3 = reinterpret_cast<SWnd*>(me_);
