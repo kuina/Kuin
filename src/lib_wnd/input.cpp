@@ -65,7 +65,7 @@ EXPORT_CPP void _setCfgKey(S64 idx, S64 btn, const U8* keys)
 	THROWDBG(idx < 0 || PadNum <= idx, 0xe9170006);
 	THROWDBG(btn < 0 || PadBtnNum <= btn, 0xe9170006);
 	int n = static_cast<int>(*reinterpret_cast<const S64*>(keys + 0x08));
-	THROWDBG(n < 0 || PadKeyNum <= n, 0xe9170006);
+	THROWDBG(n < 0 || PadKeyNum < n, 0xe9170006);
 	for (int i = 0; i < PadKeyNum; i++)
 	{
 		if (i >= n)

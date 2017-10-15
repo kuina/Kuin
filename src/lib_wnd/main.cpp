@@ -628,9 +628,9 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	me2->Kind = static_cast<EWndKind>(static_cast<S64>(WndKind_WndNormal) + style);
-	THROWDBG(width < -1 || height < -1, 0xe9170006);
-	int width2 = width == -1 ? CW_USEDEFAULT : static_cast<int>(width);
-	int height2 = height == -1 ? CW_USEDEFAULT : static_cast<int>(height);
+	THROWDBG(width <= 0 || height <= 0, 0xe9170006);
+	int width2 = static_cast<int>(width);
+	int height2 = static_cast<int>(height);
 	HWND parent2 = parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle;
 	switch (me2->Kind)
 	{
@@ -671,8 +671,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	me2->Children = AllocMem(0x28);
 	*(S64*)me2->Children = 1;
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
-	if (width != -1 && height != -1)
-		SetWindowPos(me2->WndHandle, NULL, 0, 0, static_cast<int>(width) + border_x, static_cast<int>(height) + border_y, SWP_NOMOVE | SWP_NOZORDER);
+	SetWindowPos(me2->WndHandle, NULL, 0, 0, static_cast<int>(width) + border_x, static_cast<int>(height) + border_y, SWP_NOMOVE | SWP_NOZORDER);
 	if (me2->Kind == WndKind_WndAspect)
 	{
 		RECT rect;

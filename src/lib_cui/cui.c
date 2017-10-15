@@ -23,7 +23,7 @@ EXPORT void* _input(void)
 	{
 		size_t len = wcslen(buf);
 		U8* result;
-		if (len > 1 && buf[len - 1] == L'\n')
+		if (len > 0 && buf[len - 1] == L'\n')
 		{
 			buf[len - 1] = L'\0';
 			len--;

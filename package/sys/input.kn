@@ -17,6 +17,121 @@
 	down
 end enum
 
++enum Key
+	esc :: 16#01
+	_1
+	_2
+	_3
+	_4
+	_5
+	_6
+	_7
+	_8
+	_9
+	_0
+	minus
+	equal
+	bs
+	tab
+	q
+	w
+	e
+	r
+	t
+	y
+	u
+	i
+	o
+	p
+	bracketL
+	bracketR
+	enter
+	ctrlL
+	a
+	s
+	d
+	f
+	g
+	h
+	j
+	k
+	l
+	semicolon
+	apos
+	grave
+	shiftL
+	backslash
+	z
+	x
+	c
+	v
+	b
+	n
+	m
+	comma
+	period
+	slash
+	shiftR
+	mul
+	altL
+	space
+	capsLock
+	f1
+	f2
+	f3
+	f4
+	f5
+	f6
+	f7
+	f8
+	f9
+	f10
+	numLock
+	scrollLock
+	num7
+	num8
+	num9
+	numMinus
+	num4
+	num5
+	num6
+	numPlus
+	num1
+	num2
+	num3
+	num0
+	numPeriod
+	f11 :: 16#57
+	f12
+	kana :: 16#70
+	convert :: 16#79
+	noConvert :: 16#7B
+	yen :: 16#7D
+	circumflex :: 16#90
+	kanji :: 16#94
+	numEnter :: 16#9C
+	ctrlR
+	numSlash :: 16#B5
+	sysRq :: 16#B7
+	altR
+	pause :: 16#C5
+	home :: 16#C7
+	up
+	pageUp
+	left :: 16#CB
+	right :: 16#CD
+	end_ :: 16#CF
+	down
+	pageDown
+	ins
+	del
+	winL :: 16#DB
+	winR
+	menu
+	power
+	sleep
+end enum
+
 +func [d0001.knd, _pad] pad(idx: int, btn: @PadBtn): int
 end func
 
@@ -29,5 +144,5 @@ end func
 +func [d0001.knd, _enableCfgKey] enableCfgKey(enabled: bool)
 end func
 
-+func [d0001.knd, _setCfgKey] setCfgKey(idx: int, btn: @PadBtn, keys: []wnd@Key)
++func [d0001.knd, _setCfgKey] setCfgKey(idx: int, btn: @PadBtn, keys: []@Key)
 end func
