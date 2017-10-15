@@ -183,9 +183,9 @@ EXPORT S64 _streamReadInt(SClass* me_)
 	buf[ptr] = L'\0';
 	{
 		S64 result;
-		errno = 0;
-		result = _wtoi64(buf);
-		if (errno != 0)
+		Char* ptr2;
+		result = wcstoll(buf, &ptr2, 10);
+		if (*ptr2 != L'\0')
 			THROW(0xe9170008);
 		return result;
 	}
@@ -234,9 +234,9 @@ EXPORT double _streamReadFloat(SClass* me_)
 	buf[ptr] = L'\0';
 	{
 		double result;
-		errno = 0;
-		result = _wtof(buf);
-		if (errno != 0)
+		Char* ptr2;
+		result = wcstod(buf, &ptr2);
+		if (*ptr2 != L'\0')
 			THROW(0xe9170008);
 		return result;
 	}
