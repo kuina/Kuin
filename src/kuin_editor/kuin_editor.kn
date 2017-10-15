@@ -3061,7 +3061,7 @@ func showFind(replace: bool)
 		do @wndFindChkDistinguishCase.enable(!@wndFindChkRegularExpressionLast)
 		do @wndFindChkOnlyWord.enable(!@wndFindChkRegularExpressionLast)
 	end func
-	
+
 	func wndFindBtnPrevOnPush(wnd: wnd@Btn)
 		do @findPrev(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	end func
