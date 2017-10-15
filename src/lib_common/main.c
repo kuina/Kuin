@@ -1361,18 +1361,18 @@ EXPORT void _fill(void* me_, const U8* type, const void* value)
 
 EXPORT Bool _toInt(const U8* me_, S64* value)
 {
+	Char* ptr;
 	THROWDBG(me_ == NULL, 0xc0000005);
-	errno = 0;
-	*value = _wtoi64((const Char*)(me_ + 0x10));
-	return errno == 0;
+	*value = wcstoll((const Char*)(me_ + 0x10), &ptr, 10);
+	return *ptr == L'\0';
 }
 
 EXPORT Bool _toFloat(const U8* me_, double* value)
 {
+	Char* ptr;
 	THROWDBG(me_ == NULL, 0xc0000005);
-	errno = 0;
-	*value = _wtof((const Char*)(me_ + 0x10));
-	return errno == 0;
+	*value = wcstod((const Char*)(me_ + 0x10), &ptr);
+	return *ptr == L'\0';
 }
 
 EXPORT void* _lower(const U8* me_)
