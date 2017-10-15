@@ -314,6 +314,7 @@ class DocumentSrc(@Document)
 		switch(key)
 		case %bs
 			if (@lockingEditor)
+				do @showMsgRunning()
 				ret
 			end if
 			if(shiftCtrl = %none)
@@ -331,6 +332,7 @@ class DocumentSrc(@Document)
 			switch(shiftCtrl)
 			case %none
 				if (@lockingEditor)
+					do @showMsgRunning()
 					ret
 				end if
 				if(!me.areaSelected())
@@ -346,6 +348,7 @@ class DocumentSrc(@Document)
 				end if
 			case %shift
 				if (@lockingEditor)
+					do @showMsgRunning()
 					ret
 				end if
 				if(me.areaSelected())
@@ -356,6 +359,7 @@ class DocumentSrc(@Document)
 			end switch
 		case %enter
 			if (@lockingEditor)
+				do @showMsgRunning()
 				ret
 			end if
 			if(shiftCtrl = %none)
@@ -467,6 +471,7 @@ class DocumentSrc(@Document)
 
 	+*func keyChar(key: char)
 		if (@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		if(key = '\t' | me.charWidth(key, 0) = 0)
@@ -504,6 +509,7 @@ class DocumentSrc(@Document)
 
 	+*func cmdUndo()
 		if (@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		if(me.areaSelected())
@@ -516,6 +522,7 @@ class DocumentSrc(@Document)
 
 	+*func cmdRedo()
 		if (@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		if(me.areaSelected())
@@ -528,6 +535,7 @@ class DocumentSrc(@Document)
 
 	+*func cmdCut()
 		if (@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		if(me.areaSelected())
@@ -548,6 +556,7 @@ class DocumentSrc(@Document)
 
 	+*func cmdPaste()
 		if (@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		var str: []char :: wnd@getClipboardStr()
@@ -565,6 +574,7 @@ class DocumentSrc(@Document)
 
 	+*func cmdDel()
 		if (@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		do me.undo.recordBegin()
@@ -1418,6 +1428,7 @@ class DocumentArBase(@Document)
 			end if
 		else
 			if (@lockingEditor)
+				do @showMsgRunning()
 				ret
 			end if
 			var name: []char :: @listInfo.getText(sel)
@@ -1454,6 +1465,7 @@ class DocumentArBase(@Document)
 		switch(me.mode)
 		case %put
 			if (@lockingEditor)
+				do @showMsgRunning()
 				ret
 			end if
 			do me.moveObj2d(x, y)
@@ -1466,6 +1478,7 @@ class DocumentArBase(@Document)
 		switch(me.mode)
 		case %put
 			if (@lockingEditor)
+				do @showMsgRunning()
 				ret
 			end if
 			do me.moveObj2d(x, y)
@@ -2240,7 +2253,7 @@ var chkCloseChanged: bool
 
 func wndMainOnClose(wnd: wnd@WndBase): bool
 	if(@lockingEditor)
-		do wnd@msgBox(@wndMain, @langEn ?("It is running.", "実行中です。"), @title, %err, %ok)
+		do @showMsgRunning()
 		ret false
 	end if
 	if(@chkChanged())
@@ -2547,10 +2560,13 @@ end func
 func listFileOnSel(wnd: wnd@WndBase)
 	var sel: int :: @listFile.getSel()
 	if(sel <> -1)
-		var src: []char :: @internalNameToSrcName(removePrefix(@listFile.getText(sel)))
-		var document: @Document :: @documents.get(src)
-		if(document <>& null)
-			do @setCurSrc(document)
+		var internalName: []char :: removePrefix(@listFile.getText(sel))
+		if(^internalName > 0 & internalName[0] = '\\')
+			var src: []char :: @internalNameToSrcName(internalName)
+			var document: @Document :: @documents.get(src)
+			if(document <>& null)
+				do @setCurSrc(document)
+			end if
 		end if
 	end if
 	do @updateUi()
@@ -2748,6 +2764,9 @@ func updateUi()
 			do prefix :~ "*"
 		end if
 		do @listFile.add(prefix ~ internalName)
+		if(document =& @curDocument)
+			do @listFile.setSel(@listFile.len() - 1)
+		end if
 		ret true
 	end func
 end func
@@ -3119,4 +3138,8 @@ func findStr(len: &int, text: []char, fromLast: bool, first: int, last: int, pat
 		ret pos
 	end if
 	ret -1
+end func
+
+func showMsgRunning()
+	do wnd@msgBox(@wndMain, @langEn ?("The program is running.", "プログラムが実行中です。"), @title, %err, %ok)
 end func
