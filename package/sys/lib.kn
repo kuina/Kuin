@@ -132,6 +132,18 @@ end func
 +func [d0000.knd, _cmpEx] cmpEx(s1: []char, s2: []char, len: int, ignoreCase: bool): int
 end func
 
++func [d0000.knd, _minInt] min(n1: int, n2: int): int
+end func
+
++func [d0000.knd, _minFloat] minFloat(n1: float, n2: float): float
+end func
+
++func [d0000.knd, _maxInt] max(n1: int, n2: int): int
+end func
+
++func [d0000.knd, _maxFloat] maxFloat(n1: float, n2: float): float
+end func
+
 +class BmSearch(kuin@ResClass)
 	*func [d0000.knd, _bmSearchDtor, _force] _dtor()
 	end func

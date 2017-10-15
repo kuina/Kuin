@@ -1,0 +1,15 @@
+Begin: ../../test/output/output0019.exe
+Excpt: 80000003
+> 3
+> 5
+> -5
+> -3
+> 3
+> 5
+> -5
+> -3
+> 3
+> 5
+> -5
+> -3
+end: ../../test/output/output0019.exe

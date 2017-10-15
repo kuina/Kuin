@@ -275,6 +275,26 @@ EXPORT S64 _cmpEx(const U8* s1, const U8* s2, S64 len, Bool ignoreCase)
 	return result > 0 ? 1 : (result < 0 ? -1 : 0);
 }
 
+EXPORT S64 _minInt(S64 n1, S64 n2)
+{
+	return n1 < n2 ? n1 : n2;
+}
+
+EXPORT double _minFloat(double n1, double n2)
+{
+	return n1 < n2 ? n1 : n2;
+}
+
+EXPORT S64 _maxInt(S64 n1, S64 n2)
+{
+	return n1 > n2 ? n1 : n2;
+}
+
+EXPORT double _maxFloat(double n1, double n2)
+{
+	return n1 > n2 ? n1 : n2;
+}
+
 EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern)
 {
 	THROWDBG(pattern == NULL, 0xc0000005);

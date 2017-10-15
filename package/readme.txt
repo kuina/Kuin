@@ -56,7 +56,7 @@ v.2017.10.17
         - 型の不一致のエラーメッセージで参照渡しを表示するように改善
         - int.sign、float.signメソッドの追加
         - lib@toRad、lib@toDegree、lib@makeBmSearch、lib@rndUuid、
-          lib@cmpEx関数の追加
+          lib@cmpEx、lib@min、lib@minFloat、lib@max、lib@maxFloat関数の追加
         - lib@Rnd.rndUuid、[]char.findStr、[]char.findStrLast、
           []char.findStrExメソッドの追加
         - 「excpt@」以下に例外コードの定数を追加
