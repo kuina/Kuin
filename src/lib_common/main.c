@@ -156,7 +156,7 @@ EXPORT void _err(S64 excpt)
 			case 0xe9170005: text = L"Invalid operation on standard library class."; break;
 			case 0xe9170006: text = L"Argument outside the domain."; break;
 			case 0xe9170007: text = L"File reading failed."; break;
-			case 0xe9170008: text = L"Invalid file format."; break;
+			case 0xe9170008: text = L"Invalid data format."; break;
 			case 0xe9170009: text = L"Device initialization failed."; break;
 			case 0xe917000a: text = L"Inoperable state."; break;
 }

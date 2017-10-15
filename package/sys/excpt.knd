@@ -48,7 +48,7 @@ e9170007
 File reading failed.
 e9170008
 ファイルやデータの形式が不正です。
-Invalid file format.
+Invalid data format.
 e9170009
 デバイスやウインドウの初期化に失敗しました。
 Device initialization failed.
