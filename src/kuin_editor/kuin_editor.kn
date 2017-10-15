@@ -2278,6 +2278,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	switch(id)
 	case 16#0001
 		if(@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		if (@chkChanged())
@@ -2285,6 +2286,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		end if
 	case 16#0002
 		if(@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		if (@chkChanged())
@@ -2294,14 +2296,8 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			end if
 		end if
 	case 16#0003
-		if(@lockingEditor)
-			ret
-		end if
 		do @saveAll()
 	case 16#0004
-		if(@lockingEditor)
-			ret
-		end if
 		do @save()
 	case 16#0005
 		do @wndMain.close()
@@ -2317,21 +2313,25 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		end block
 	case 16#0020
 		if(@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		do @btnCompileOnPush(@btnCompile)
 	case 16#0021
 		if(@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		do @btnRlsOnPush(@btnRls)
 	case 16#0030
 		if(@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		do @addNewFile()
 	case 16#0031
 		if(@lockingEditor)
+			do @showMsgRunning()
 			ret
 		end if
 		do @addExistingFile()
@@ -2428,6 +2428,7 @@ end func
 
 func btnCompileOnPush(wnd: wnd@WndBase)
 	if(@lockingEditor)
+		do @showMsgRunning()
 		ret
 	end if
 	do @lockEditor(true)
@@ -2500,6 +2501,7 @@ end func
 
 func btnRlsOnPush(wnd: wnd@WndBase)
 	if(@lockingEditor)
+		do @showMsgRunning()
 		ret
 	end if
 	var file: []char :: wnd@saveFileDialog(@wndMain, [@langEn ?("Archive file (*.zip)", "アーカイブファイル (*.zip)"), "*.zip"], 0, "zip")
