@@ -75,6 +75,11 @@ EXPORT_CPP void _setCfgKey(S64 idx, S64 btn, const U8* keys)
 	}
 }
 
+EXPORT_CPP Bool _inputKey(S64 key)
+{
+	return (KeyboardState[key] & 0x80) != 0;
+}
+
 namespace Input
 {
 

@@ -146,3 +146,6 @@ end func
 
 +func [d0001.knd, _setCfgKey] setCfgKey(idx: int, btn: @PadBtn, keys: []@Key)
 end func
+
++func [d0001.knd, _inputKey] key(key_: @Key): bool
+end func
