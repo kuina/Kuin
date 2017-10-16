@@ -10,5 +10,11 @@ func main()
 			do cui@print("\{lib@minFloat(x, y)}")
 			do cui@print("\{lib@maxFloat(x, y)}")
 		end block
+
+		block
+			do cui@print(["cc", "bb", "aa", "ee", "dd"].min())
+			do cui@print(["cc", "bb", "aa", "ee", "dd"].max())
+			do cui@print("ab".repeat(3).join("c"))
+		end block
 	end for
 end func

@@ -31,6 +31,8 @@ static const Char* BuildInFuncs[] =
 	L"ins\0          \x09",
 	L"join\0         \x0c",
 	L"lower\0        \x06",
+	L"max\0          \x05",
+	L"min\0          \x05",
 	L"moveOffset\0   \x09",
 	L"next\0         \x09",
 	L"not\0          \x02",
@@ -38,6 +40,7 @@ static const Char* BuildInFuncs[] =
 	L"or\0           \x02",
 	L"peek\0         \x0a",
 	L"prev\0         \x09",
+	L"repeat\0       \x0e",
 	L"replace\0      \x06",
 	L"reverse\0      \x05",
 	L"sar\0          \x04",
@@ -3529,6 +3532,9 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 				if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
 					correct = True;
 				break;
+			case 0x000e:
+				correct = True;
+				break;
 		}
 		if (correct)
 		{
@@ -3682,6 +3688,17 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
 						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
 						type->ItemType = ((SAstTypeGen*)var_type)->ItemType;
+						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
+					}
+				}
+				if ((func->FuncAttr & FuncAttr_RetArrayOfMe) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT(IsInt(func->Ret));
+					{
+						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+						type->ItemType = var_type;
 						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
 					}
 				}

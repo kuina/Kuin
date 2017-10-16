@@ -1359,6 +1359,76 @@ EXPORT void _fill(void* me_, const U8* type, const void* value)
 	}
 }
 
+EXPORT void* _min(const void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	size_t size = GetSize(type[1]);
+	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
+	if (cmp == NULL)
+		THROW(0xe9170004);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	U8* ptr = (U8*)me_ + 0x10;
+	void* item = NULL;
+	S64 i;
+	for (i = 0; i < len; i++)
+	{
+		void* value = NULL;
+		memcpy(&value, ptr, size);
+		if (i == 0 || cmp(item, value) > 0)
+			item = value;
+		ptr += size;
+	}
+	void* result = NULL;
+	Copy(&result, type[1], &item);
+	return result;
+}
+
+EXPORT void* _max(const void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	size_t size = GetSize(type[1]);
+	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
+	if (cmp == NULL)
+		THROW(0xe9170004);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	U8* ptr = (U8*)me_ + 0x10;
+	void* item = NULL;
+	S64 i;
+	for (i = 0; i < len; i++)
+	{
+		void* value = NULL;
+		memcpy(&value, ptr, size);
+		if (i == 0 || cmp(item, value) < 0)
+			item = value;
+		ptr += size;
+	}
+	void* result = NULL;
+	Copy(&result, type[1], &item);
+	return result;
+}
+
+EXPORT void* _repeat(const void* me_, const U8* type, S64 len)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	size_t size = GetSize(*type);
+	Bool is_str = *type == TypeId_Char;
+	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
+	((S64*)result)[0] = DefaultRefCntOpe;
+	((S64*)result)[1] = len;
+	if (is_str)
+		((Char*)(result + 0x10))[len] = L'\0';
+	U8* ptr = result + 0x10;
+	S64 i;
+	if (IsRef(*type))
+		*(S64*)me_ += len;
+	for (i = 0; i < len; i++)
+	{
+		memcpy(ptr, &me_, size);
+		ptr += size;
+	}
+	return result;
+}
+
 EXPORT Bool _toInt(const U8* me_, S64* value)
 {
 	Char* ptr;

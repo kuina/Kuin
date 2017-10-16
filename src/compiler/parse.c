@@ -1135,30 +1135,33 @@ static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** 
 					ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Callback);
 				else if (func_attr[0] == L'_')
 				{
-					if (wcscmp(func_attr, L"_any_type") == 0 && (ast->FuncAttr & FuncAttr_AnyType) == 0)
+					const Char* func_attr2 = func_attr + 1;
+					if (wcscmp(func_attr2, L"any_type") == 0 && (ast->FuncAttr & FuncAttr_AnyType) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_AnyType);
-					else if (wcscmp(func_attr, L"_init") == 0 && (ast->FuncAttr & FuncAttr_Init) == 0)
+					else if (wcscmp(func_attr2, L"init") == 0 && (ast->FuncAttr & FuncAttr_Init) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Init);
-					else if (wcscmp(func_attr, L"_take_me") == 0 && (ast->FuncAttr & FuncAttr_TakeMe) == 0)
+					else if (wcscmp(func_attr2, L"take_me") == 0 && (ast->FuncAttr & FuncAttr_TakeMe) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeMe);
-					else if (wcscmp(func_attr, L"_ret_me") == 0 && (ast->FuncAttr & FuncAttr_RetMe) == 0)
+					else if (wcscmp(func_attr2, L"ret_me") == 0 && (ast->FuncAttr & FuncAttr_RetMe) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetMe);
-					else if (wcscmp(func_attr, L"_take_child") == 0 && (ast->FuncAttr & FuncAttr_TakeChild) == 0)
+					else if (wcscmp(func_attr2, L"take_child") == 0 && (ast->FuncAttr & FuncAttr_TakeChild) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeChild);
-					else if (wcscmp(func_attr, L"_ret_child") == 0 && (ast->FuncAttr & FuncAttr_RetChild) == 0)
+					else if (wcscmp(func_attr2, L"ret_child") == 0 && (ast->FuncAttr & FuncAttr_RetChild) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetChild);
-					else if (wcscmp(func_attr, L"_take_key_value") == 0 && (ast->FuncAttr & FuncAttr_TakeKeyValue) == 0)
+					else if (wcscmp(func_attr2, L"take_key_value") == 0 && (ast->FuncAttr & FuncAttr_TakeKeyValue) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeKeyValue);
-					else if (wcscmp(func_attr, L"_ret_array_of_list_child") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfListChild) == 0)
+					else if (wcscmp(func_attr2, L"ret_array_of_list_child") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfListChild) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfListChild);
-					else if (wcscmp(func_attr, L"_make_instance") == 0 && (ast->FuncAttr & FuncAttr_MakeInstance) == 0)
+					else if (wcscmp(func_attr2, L"make_instance") == 0 && (ast->FuncAttr & FuncAttr_MakeInstance) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_MakeInstance);
-					else if (wcscmp(func_attr, L"_force") == 0 && (ast->FuncAttr & FuncAttr_Force) == 0)
+					else if (wcscmp(func_attr2, L"force") == 0 && (ast->FuncAttr & FuncAttr_Force) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_Force);
-					else if (wcscmp(func_attr, L"_exit_code") == 0 && (ast->FuncAttr & FuncAttr_ExitCode) == 0)
+					else if (wcscmp(func_attr2, L"exit_code") == 0 && (ast->FuncAttr & FuncAttr_ExitCode) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_ExitCode);
-					else if (wcscmp(func_attr, L"_take_key_value_func") == 0 && (ast->FuncAttr & FuncAttr_TakeKeyValueFunc) == 0)
+					else if (wcscmp(func_attr2, L"take_key_value_func") == 0 && (ast->FuncAttr & FuncAttr_TakeKeyValueFunc) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeKeyValueFunc);
+					else if (wcscmp(func_attr2, L"ret_array_of_me") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfMe) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfMe);
 					else if (ast->DllName == NULL)
 						ast->DllName = func_attr;
 					else if (ast->DllFuncName == NULL)
