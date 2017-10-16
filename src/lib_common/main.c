@@ -1410,21 +1410,35 @@ EXPORT void* _max(const void* me_, const U8* type)
 EXPORT void* _repeat(const void* me_, const U8* type, S64 len)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
-	size_t size = GetSize(*type);
-	Bool is_str = *type == TypeId_Char;
-	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
+	size_t size = GetSize(type[1]);
+	Bool is_str = type[1] == TypeId_Char;
+	size_t len2 = ((const S64*)me_)[1];
+	U8* result = (U8*)AllocMem(0x10 + size * (len2 * (size_t)len + (is_str ? 1 : 0)));
 	((S64*)result)[0] = DefaultRefCntOpe;
-	((S64*)result)[1] = len;
+	((S64*)result)[1] = (S64)len2 * len;
 	if (is_str)
-		((Char*)(result + 0x10))[len] = L'\0';
+		((Char*)(result + 0x10))[(S64)len2 * len] = L'\0';
 	U8* ptr = result + 0x10;
 	S64 i;
-	if (IsRef(*type))
-		*(S64*)me_ += len;
+	size_t j;
+	if (IsRef(type[1]))
+	{
+		void** ptr2 = (void**)((const U8*)me_ + 0x10);
+		for (j = 0; j < len2; j++)
+		{
+			*(S64*)*ptr2 += len;
+			ptr2++;
+		}
+	}
 	for (i = 0; i < len; i++)
 	{
-		memcpy(ptr, &me_, size);
-		ptr += size;
+		U8* ptr2 = (U8*)((const U8*)me_ + 0x10);
+		for (j = 0; j < len2; j++)
+		{
+			memcpy(ptr, ptr2, size);
+			ptr += size;
+			ptr2 += size;
+		}
 	}
 	return result;
 }

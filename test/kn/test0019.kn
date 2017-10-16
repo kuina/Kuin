@@ -14,7 +14,7 @@ func main()
 		block
 			do cui@print(["cc", "bb", "aa", "ee", "dd"].min())
 			do cui@print(["cc", "bb", "aa", "ee", "dd"].max())
-			do cui@print("ab".repeat(3).join("c"))
+			do cui@print(["ab", "cd"].repeat(3).join("|"))
 		end block
 	end for
 end func

@@ -141,7 +141,7 @@ end func
 func [d0000.knd, _any_type, _ret_child] _max(me_: []bit8, type: int): int
 end func
 
-func [d0000.knd, _any_type, _ret_array_of_me] _repeat(me_: []bit8, type: int, len: int): int
+func [d0000.knd, _any_type, _ret_me] _repeat(me_: []bit8, type: int, len: int): int
 end func
 
 func [d0000.knd] _toInt(me_: []char, value: &int): bool
