@@ -128,8 +128,6 @@ end enum
 	winL :: 16#DB
 	winR
 	menu
-	power
-	sleep
 end enum
 
 +func [d0001.knd, _pad] pad(idx: int, btn: @PadBtn): int

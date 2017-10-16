@@ -601,7 +601,7 @@ class DocumentSrc(@Document)
 		var findBeginX: int :: (me.areaX <> -1 & me.areaX < me.cursorX ?(me.areaX, me.cursorX))
 		var findBeginY: int :: me.cursorY
 		var pos: int
-		var patternLen: int
+		var found: []char
 		var regex: regex@Regex :: null
 		if(regularExpression)
 			do regex :: regex@makeRegex(pattern)
@@ -610,11 +610,11 @@ class DocumentSrc(@Document)
 			end if
 		end if
 		for i(findBeginY, 0, -1)
-			do pos :: @findStr(&patternLen, me.src.src[i], true, 0, i = findBeginY ?(findBeginX - 1, ^me.src.src[i] - 1), pattern, distinguishCase, onlyWord, regex)
+			do pos :: @findStr(&found, me.src.src[i], true, 0, i = findBeginY ?(findBeginX - 1, ^me.src.src[i] - 1), pattern, distinguishCase, onlyWord, regex)
 			if(pos <> -1)
 				do me.areaX :: pos
 				do me.areaY :: i
-				do me.cursorX :: pos + patternLen
+				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
@@ -622,11 +622,11 @@ class DocumentSrc(@Document)
 			end if
 		end for
 		for i(^me.src.src - 1, findBeginY, -1)
-			do pos :: @findStr(&patternLen, me.src.src[i], true, i = findBeginY ?(findBeginX, 0), ^me.src.src[i] - 1, pattern, distinguishCase, onlyWord, regex)
+			do pos :: @findStr(&found, me.src.src[i], true, i = findBeginY ?(findBeginX, 0), ^me.src.src[i] - 1, pattern, distinguishCase, onlyWord, regex)
 			if(pos <> -1)
 				do me.areaX :: pos
 				do me.areaY :: i
-				do me.cursorX :: pos + patternLen
+				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
@@ -640,7 +640,7 @@ class DocumentSrc(@Document)
 		var findBeginX: int :: (me.areaX <> -1 & me.areaX > me.cursorX ?(me.areaX, me.cursorX))
 		var findBeginY: int :: me.cursorY
 		var pos: int
-		var patternLen: int
+		var found: []char
 		var regex: regex@Regex :: null
 		if(regularExpression)
 			do regex :: regex@makeRegex(pattern)
@@ -649,11 +649,11 @@ class DocumentSrc(@Document)
 			end if
 		end if
 		for i(findBeginY, ^me.src.src - 1)
-			do pos :: @findStr(&patternLen, me.src.src[i], false, i = findBeginY ?(findBeginX, 0), ^me.src.src[i] - 1, pattern, distinguishCase, onlyWord, regex)
+			do pos :: @findStr(&found, me.src.src[i], false, i = findBeginY ?(findBeginX, 0), ^me.src.src[i] - 1, pattern, distinguishCase, onlyWord, regex)
 			if(pos <> -1)
 				do me.areaX :: pos
 				do me.areaY :: i
-				do me.cursorX :: pos + patternLen
+				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
@@ -661,11 +661,11 @@ class DocumentSrc(@Document)
 			end if
 		end for
 		for i(0, findBeginY)
-			do pos :: @findStr(&patternLen, me.src.src[i], false, 0, i = findBeginY ?(findBeginX - 1, ^me.src.src[i] - 1), pattern, distinguishCase, onlyWord, regex)
+			do pos :: @findStr(&found, me.src.src[i], false, 0, i = findBeginY ?(findBeginX - 1, ^me.src.src[i] - 1), pattern, distinguishCase, onlyWord, regex)
 			if(pos <> -1)
 				do me.areaX :: pos
 				do me.areaY :: i
-				do me.cursorX :: pos + patternLen
+				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
@@ -691,11 +691,14 @@ class DocumentSrc(@Document)
 				ret
 			end if
 		end if
-		var patternLen: int
-		var pos: int :: @findStr(&patternLen, me.src.src[me.cursorY], false, x1, x1, pattern, distinguishCase, onlyWord, regex)
-		if(patternLen = x2 - x1)
+		var found: []char
+		var pos: int :: @findStr(&found, me.src.src[me.cursorY], false, x1, x1, pattern, distinguishCase, onlyWord, regex)
+		if(pos = x1)
+			if(regex <>& null)
+				do replaceStr :: regex.replace(found, replaceStr, false)
+			end if
 			do me.undo.recordBegin()
-			do me.del(x1, me.cursorY, patternLen, true)
+			do me.del(x1, me.cursorY, ^found, true)
 			do me.ins(x1, me.cursorY, replaceStr, true)
 			do me.undo.recordEnd()
 		end if
@@ -3118,14 +3121,14 @@ func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, only
 	end if
 end func
 
-func findStr(len: &int, text: []char, fromLast: bool, first: int, last: int, pattern: []char, distinguishCase: bool, onlyWord: bool, regex: regex@Regex): int
+func findStr(found: &[]char, text: []char, fromLast: bool, first: int, last: int, pattern: []char, distinguishCase: bool, onlyWord: bool, regex: regex@Regex): int
 	var pos: int
 	if(regex =& null)
 		do pos :: text.findStrEx(pattern, fromLast ?(last, first), fromLast, !distinguishCase, onlyWord)
 		if(pos < first | last < pos)
 			do pos :: -1
 		end if
-		do len :: ^pattern
+		do found :: pattern
 		ret pos
 	else
 		var word: [][]char
@@ -3135,7 +3138,7 @@ func findStr(len: &int, text: []char, fromLast: bool, first: int, last: int, pat
 			do word :: regex.find(&pos, text, first)
 		end if
 		if(pos <> -1)
-			do len :: ^word[0]
+			do found :: word[0]
 		end if
 		ret pos
 	end if
