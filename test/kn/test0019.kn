@@ -16,5 +16,16 @@ func main()
 			do cui@print(["cc", "bb", "aa", "ee", "dd"].max())
 			do cui@print(["ab", "cd"].repeat(3).join("|"))
 		end block
+
+		block
+			class C()
+				+*func toStr(): []char
+					ret "test"
+				end func
+			end class
+
+			var c: C :: #C
+			do cui@print("\{c}")
+		end block
 	end for
 end func

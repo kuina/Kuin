@@ -17,6 +17,10 @@
 
 	func _fromBin(bin: []bit8, idx: &int): @Class
 	end func
+
+	+func toStr(): []char
+		ret null
+	end func
 end class
 
 +class ResClass()

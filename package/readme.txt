@@ -60,6 +60,7 @@ v.2017.10.17
         - lib@Rnd.rndUuid、[]char.findStr、[]char.findStrLast、
           []char.findStrEx、[].min、[].max、[].repeatメソッドの追加
         - 「excpt@」以下に例外コードの定数を追加
+        - kuin@ClassにtoStrメソッドを定義
     - 細かな不具合の修正
         - 実行直後の例外をKuinエディタで検知できない不具合の修正
         - Windows内部で発生する不明な例外をKuinエディタが検知してしまわないよう
