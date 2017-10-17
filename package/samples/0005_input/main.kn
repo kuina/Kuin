@@ -7,9 +7,9 @@ var mouseDownL: bool
 var keyBuf: []char
 
 func main()
-	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1600, 900, "Input Sample")
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Input Sample")
 	do wndMain.onActivate :: @wndMainOnActivate {ウインドウのアクティブイベント}
-	do @drawMain :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %fix, %fix, false)
+	do @drawMain :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false)
 	do @drawMain.onMouseMove :: @drawMainOnMouseMove {マウス移動のイベント}
 	do @drawMain.onMouseDownL :: @drawMainOnMouseDownL {マウスボタンを押したときのイベント}
 	do @drawMain.onMouseUpL :: @drawMainOnMouseUpL {マウスボタンを離したときのイベント}
@@ -50,8 +50,11 @@ end func
 
 func drawMainOnMouseMove(wnd: wnd@Draw, x: int, y: int)
 	; マウスが動いたら追跡する
-	do @mouseX :: x
-	do @mouseY :: y
+	var width: int
+	var height: int
+	do wnd.getPos(&, &, &width, &height)
+	do @mouseX :: x * 1600 / width
+	do @mouseY :: y * 900 / height
 end func
 
 func drawMainOnMouseDownL(wnd: wnd@Draw, x: int, y: int)
