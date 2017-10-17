@@ -923,8 +923,8 @@ class DocumentSrc(@Document)
 				do me.pageY :: me.cursorY
 				do paint :: true
 			end if
-			if(me.pageY < me.cursorY - scrHeight / @cellHeight + paddingY)
-				do me.pageY :: me.cursorY - scrHeight / @cellHeight + paddingY
+			if(me.pageY < me.cursorY - scrHeight / @cellHeight + paddingY + 1)
+				do me.pageY :: me.cursorY - scrHeight / @cellHeight + paddingY + 1
 				do paint :: true
 			end if
 			do @scrollYSrc.setState(0, ^me.src.src - 1 + paddingY, scrHeight / @cellHeight, me.pageY)
@@ -954,8 +954,8 @@ class DocumentSrc(@Document)
 					do me.pageX :: x
 					do paint :: true
 				end if
-				if(me.pageX < x - scrWidth / @cellWidth + paddingX)
-					do me.pageX :: x - scrWidth / @cellWidth + paddingX
+				if(me.pageX < x - scrWidth / @cellWidth + paddingX + 1)
+					do me.pageX :: x - scrWidth / @cellWidth + paddingX + 1
 					do paint :: true
 				end if
 			end block
