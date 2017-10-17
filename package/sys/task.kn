@@ -29,8 +29,10 @@ end func
 	var begin: bool
 end class
 
+{
 +func [d0000.knd, _makeThread, _make_instance] makeThread(me2: @Thread, threadFunc: func<()>): @Thread
 end func
+}
 
 +class Mutex(kuin@ResClass)
 	*func [d0000.knd, _mutexDtor, _force] _dtor()
@@ -48,5 +50,7 @@ end func
 	var criticalSection: int
 end class
 
+{
 +func [d0000.knd, _makeMutex, _make_instance] makeMutex(me2: @Mutex): @Mutex
 end func
+}

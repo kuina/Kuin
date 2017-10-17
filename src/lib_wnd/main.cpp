@@ -718,6 +718,17 @@ EXPORT_CPP void _wndBaseGetPos(SClass* me_, S64* x, S64* y, S64* width, S64* hei
 	*height = static_cast<S64>(rect.bottom - rect.top);
 }
 
+EXPORT_CPP void _wndBaseGetPosScr(SClass* me_, S64* x, S64* y, S64* width, S64* height)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	RECT rect;
+	GetWindowRect(me2->WndHandle, &rect);
+	*x = static_cast<S64>(rect.left);
+	*y = static_cast<S64>(rect.top);
+	*width = static_cast<S64>(rect.right - rect.left);
+	*height = static_cast<S64>(rect.bottom - rect.top);
+}
+
 EXPORT_CPP void _wndBaseFocus(SClass* me_)
 {
 	SetFocus(reinterpret_cast<SWndBase*>(me_)->WndHandle);

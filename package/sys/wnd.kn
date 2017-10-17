@@ -32,6 +32,9 @@ end enum
 	+func [d0001.knd, _wndBaseGetPos] getPos(x: &int, y: &int, width: &int, height: &int)
 	end func
 
+	+func [d0001.knd, _wndBaseGetPosScr] getPosScr(x: &int, y: &int, width: &int, height: &int)
+	end func
+
 	+func [d0001.knd, _wndBaseFocus] focus()
 	end func
 

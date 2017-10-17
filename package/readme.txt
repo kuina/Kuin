@@ -54,11 +54,11 @@ v.2017.10.17
     - 細かな機能追加
         - file@forEach関数の追加
         - 型の不一致のエラーメッセージで参照渡しを表示するように改善
-        - int.sign、float.signメソッドの追加
         - lib@toRad、lib@toDegree、lib@makeBmSearch、lib@rndUuid、
           lib@cmpEx、lib@min、lib@minFloat、lib@max、lib@maxFloat関数の追加
-        - lib@Rnd.rndUuid、[]char.findStr、[]char.findStrLast、
-          []char.findStrEx、[].min、[].max、[].repeatメソッドの追加
+        - int.sign、float.sign、lib@Rnd.rndUuid、[]char.findStr、
+          []char.findStrLast、[]char.findStrEx、[].min、[].max、[].repeat、
+          wnd@WndBase.getPosScrメソッドの追加
         - 「excpt@」以下に例外コードの定数を追加
         - kuin@ClassにtoStrメソッドを定義
     - 細かな不具合の修正
