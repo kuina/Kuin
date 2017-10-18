@@ -760,7 +760,7 @@ EXPORT_CPP void _wndExit(SClass* me_)
 
 EXPORT_CPP void _wndSetText(SClass* me_, const U8* text)
 {
-	const U8* text2 = NToRN(reinterpret_cast<const Char*>(text + 0x10));
+	const U8* text2 = NToRN(text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10));
 	SetWindowText(reinterpret_cast<SWndBase*>(me_)->WndHandle, reinterpret_cast<const Char*>(text2 + 0x10));
 	FreeMem(const_cast<U8*>(text2));
 }
@@ -1016,7 +1016,7 @@ EXPORT_CPP void _listSetText(SClass* me_, S64 idx, const U8* text)
 #endif
 	{
 		int sel = static_cast<int>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETCURSEL, 0, 0));
-		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), text == NULL ? reinterpret_cast<LPARAM>(L"") : reinterpret_cast<LPARAM>(text + 0x10));
 		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_DELETESTRING, static_cast<WPARAM>(idx + 1), 0);
 		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_SETCURSEL, static_cast<WPARAM>(sel), 0);
 	}
