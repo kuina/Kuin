@@ -253,6 +253,12 @@ end func
 func [d0000.knd, _any_type, _ret_array_of_list_child] _toArray(me_: []bit8, type: int): int
 end func
 
+func [d0000.knd, _any_type, _ret_array_of_dict_key] _toArrayKey(me_: []bit8, type: int): int
+end func
+
+func [d0000.knd, _any_type, _ret_array_of_dict_value] _toArrayValue(me_: []bit8, type: int): int
+end func
+
 func [d0000.knd, _any_type, _ret_child] _peek(me_: []bit8, type: int): int
 end func
 

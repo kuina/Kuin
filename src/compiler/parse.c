@@ -1160,6 +1160,10 @@ static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** 
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_ExitCode);
 					else if (wcscmp(func_attr2, L"take_key_value_func") == 0 && (ast->FuncAttr & FuncAttr_TakeKeyValueFunc) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeKeyValueFunc);
+					else if (wcscmp(func_attr2, L"ret_array_of_dict_key") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfDictKey) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfDictKey);
+					else if (wcscmp(func_attr2, L"ret_array_of_dict_value") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfDictValue) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfDictValue);
 					else if (ast->DllName == NULL)
 						ast->DllName = func_attr;
 					else if (ast->DllFuncName == NULL)

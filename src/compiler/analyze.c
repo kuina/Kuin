@@ -56,6 +56,8 @@ static const Char* BuildInFuncs[] =
 	L"term\0         \x09",
 	L"termOffset\0   \x09",
 	L"toArray\0      \x09",
+	L"toArrayKey\0   \x0d",
+	L"toArrayValue\0 \x0d",
 	L"toFloat\0      \x06",
 	L"toInt\0        \x06",
 	L"toStr\0        \x01",
@@ -3707,6 +3709,30 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
 						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
 						type->ItemType = ((SAstTypeGen*)var_type)->ItemType;
+						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
+					}
+				}
+				if ((func->FuncAttr & FuncAttr_RetArrayOfDictKey) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT(IsInt(func->Ret));
+					ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
+					{
+						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+						type->ItemType = ((SAstTypeDict*)var_type)->ItemTypeKey;
+						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
+					}
+				}
+				if ((func->FuncAttr & FuncAttr_RetArrayOfDictValue) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT(IsInt(func->Ret));
+					ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
+					{
+						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+						type->ItemType = ((SAstTypeDict*)var_type)->ItemTypeValue;
 						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
 					}
 				}

@@ -49,6 +49,8 @@ static void* AddDictRecursion(void* node, const void* key, const void* item, int
 static void* CopyDictRecursion(void* node, U8* key_type, U8* item_type);
 static void ToBinDictRecursion(void*** buf, void* node, U8* key_type, U8* item_type);
 static void* FromBinDictRecursion(const U8* key_type, const U8* item_type, const U8* bin, S64* idx, const void* type_class);
+static void ToArrayKeyDictRecursion(U8** buf, size_t key_size, void* node);
+static void ToArrayValueDictRecursion(U8** buf, size_t value_size, void* node);
 static int(*GetCmpFunc(const U8* type))(const void* a, const void* b);
 static int CmpInt(const void* a, const void* b);
 static int CmpFloat(const void* a, const void* b);
@@ -2236,6 +2238,70 @@ EXPORT void* _toArray(void* me_, const U8* type)
 	return result;
 }
 
+EXPORT void* _toArrayKey(void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	U8* child1;
+	U8* child2;
+	GetDictTypes(type, &child1, &child2);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	Bool is_str = *child1 == TypeId_Char;
+	size_t size = GetSize(*child1);
+	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
+	((S64*)result)[0] = 1;
+	((S64*)result)[1] = len;
+	if (len != 0)
+	{
+		U8* ptr = result + 0x10;
+		ToArrayKeyDictRecursion(&ptr, size, *(void**)((U8*)me_ + 0x10));
+	}
+	if (IsRef(*child1))
+	{
+		S64 i;
+		void** ptr = (void**)(result + 0x10);
+		for (i = 0; i < len; i++)
+		{
+			if (ptr[i] != NULL)
+				(*(S64*)ptr[i])++;
+		}
+	}
+	if (is_str)
+		((Char*)(0x10 + result))[len] = L'\0';
+	return result;
+}
+
+EXPORT void* _toArrayValue(void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	U8* child1;
+	U8* child2;
+	GetDictTypes(type, &child1, &child2);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	Bool is_str = *child2 == TypeId_Char;
+	size_t size = GetSize(*child2);
+	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
+	((S64*)result)[0] = 1;
+	((S64*)result)[1] = len;
+	if (len != 0)
+	{
+		U8* ptr = result + 0x10;
+		ToArrayValueDictRecursion(&ptr, size, *(void**)((U8*)me_ + 0x10));
+	}
+	if (IsRef(*child2))
+	{
+		S64 i;
+		void** ptr = (void**)(result + 0x10);
+		for (i = 0; i < len; i++)
+		{
+			if (ptr[i] != NULL)
+				(*(S64*)ptr[i])++;
+		}
+	}
+	if (is_str)
+		((Char*)(0x10 + result))[len] = L'\0';
+	return result;
+}
+
 EXPORT void* _peek(void* me_, const U8* type)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
@@ -2616,6 +2682,26 @@ static void* FromBinDictRecursion(const U8* key_type, const U8* item_type, const
 		*(S64*)(node + 0x10) = (info & 0x04) != 0 ? 1 : 0;
 	}
 	return node;
+}
+
+static void ToArrayKeyDictRecursion(U8** buf, size_t key_size, void* node)
+{
+	if (*(void**)node != NULL)
+		ToArrayKeyDictRecursion(buf, key_size, *(void**)node);
+	memcpy(*buf, (U8*)node + 0x18, key_size);
+	(*buf) += key_size;
+	if (*(void**)((U8*)node + 0x08) != NULL)
+		ToArrayKeyDictRecursion(buf, key_size, *(void**)((U8*)node + 0x08));
+}
+
+static void ToArrayValueDictRecursion(U8** buf, size_t value_size, void* node)
+{
+	if (*(void**)node != NULL)
+		ToArrayValueDictRecursion(buf, value_size, *(void**)node);
+	memcpy(*buf, (U8*)node + 0x20, value_size);
+	(*buf) += value_size;
+	if (*(void**)((U8*)node + 0x08) != NULL)
+		ToArrayValueDictRecursion(buf, value_size, *(void**)((U8*)node + 0x08));
 }
 
 static int(*GetCmpFunc(const U8* type))(const void* a, const void* b)
