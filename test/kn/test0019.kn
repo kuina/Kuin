@@ -27,5 +27,27 @@ func main()
 			var c: C :: #C
 			do cui@print("\{c}")
 		end block
+
+		block
+			var l: list<char> :: #list<char>
+			do l.add('c')
+			do l.add('a')
+			do l.add('d')
+			do l.add('b')
+			do l.add('e')
+			do l.sort()
+			do cui@print(l.toArray())
+		end block
+
+		block
+			var l: list<char> :: #list<char>
+			do l.add('c')
+			do l.add('a')
+			do l.add('d')
+			do l.add('b')
+			do l.add('e')
+			do l.sortDesc()
+			do cui@print(l.toArray())
+		end block
 	end for
 end func

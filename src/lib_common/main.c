@@ -59,7 +59,8 @@ static int CmpBit32(const void* a, const void* b);
 static int CmpBit64(const void* a, const void* b);
 static int CmpStr(const void* a, const void* b);
 static void* CatBin(int num, void** bins);
-static void MergeSort(void* me_, const U8* type, Bool asc);
+static void MergeSortArray(void* me_, const U8* type, Bool asc);
+static void MergeSortList(void* me_, const U8* type, Bool asc);
 static Bool ForEachRecursion(void* ptr, const U8* child1, const U8* child2, const void* callback, void* data);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
@@ -1231,16 +1232,28 @@ EXPORT void _shuffle(void* me_, const U8* type)
 	}
 }
 
-EXPORT void _sort(void* me_, const U8* type)
+EXPORT void _sortArray(void* me_, const U8* type)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
-	MergeSort(me_, type, True);
+	MergeSortArray(me_, type, True);
 }
 
-EXPORT void _sortDesc(void* me_, const U8* type)
+EXPORT void _sortDescArray(void* me_, const U8* type)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
-	MergeSort(me_, type, False);
+	MergeSortArray(me_, type, False);
+}
+
+EXPORT void _sortList(void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	MergeSortList(me_, type, True);
+}
+
+EXPORT void _sortDescList(void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	MergeSortList(me_, type, False);
 }
 
 EXPORT S64 _find(const void* me_, const U8* type, const void* item, S64 start)
@@ -2203,7 +2216,7 @@ EXPORT void* _toArray(void* me_, const U8* type)
 	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
-	Bool is_str = IsStr(type);
+	Bool is_str = type[1] == TypeId_Char;
 	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
 	((S64*)result)[0] = 1;
 	((S64*)result)[1] = len;
@@ -2219,7 +2232,7 @@ EXPORT void* _toArray(void* me_, const U8* type)
 		}
 	}
 	if (is_str)
-		((Char*)result)[len] = L'\0';
+		((Char*)(0x10 + result))[len] = L'\0';
 	return result;
 }
 
@@ -2710,7 +2723,7 @@ static void* CatBin(int num, void** bins)
 	}
 }
 
-static void MergeSort(void* me_, const U8* type, Bool asc)
+static void MergeSortArray(void* me_, const U8* type, Bool asc)
 {
 	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
@@ -2776,6 +2789,93 @@ static void MergeSort(void* me_, const U8* type, Bool asc)
 	}
 	if (a != a2)
 		memcpy(a, b, (size_t)len * size);
+	FreeMem(b);
+}
+
+static void MergeSortList(void* me_, const U8* type, Bool asc)
+{
+	size_t size = GetSize(type[1]);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	void** a = (void**)AllocMem((size_t)len * 8);
+	void** b = (void**)AllocMem((size_t)len * 8);
+	void** a2 = a;
+	void** b2 = b;
+	S64 n = 1;
+	S64 i, j;
+	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
+	if (cmp == NULL)
+		THROW(0xe9170004);
+	{
+		void* ptr = *(void**)((U8*)me_ + 0x10);
+		for (i = 0; i < len; i++)
+		{
+			a[i] = (U8*)ptr + 0x10;
+			b[i] = NULL;
+			ptr = *(void**)((U8*)ptr + 0x08);
+		}
+	}
+	while (n < len)
+	{
+		for (i = 0; i < len; i += n * 2)
+		{
+			S64 p = i;
+			S64 q = i + n;
+			for (j = i; j < i + n * 2; j++)
+			{
+				if (p >= i + n || p >= len)
+				{
+					if (q >= len)
+						break;
+					b2[j] = a2[q];
+					q++;
+				}
+				else if (q >= i + n * 2 || q >= len)
+				{
+					b2[j] = a2[p];
+					p++;
+				}
+				else
+				{
+					int cmp_result;
+					void* value_p = NULL;
+					void* value_q = NULL;
+					memcpy(&value_p, a2[p], size);
+					memcpy(&value_q, a2[q], size);
+					if (asc)
+						cmp_result = cmp(value_p, value_q);
+					else
+						cmp_result = -cmp(value_p, value_q);
+					if (cmp_result <= 0)
+					{
+						b2[j] = a2[p];
+						p++;
+					}
+					else
+					{
+						b2[j] = a2[q];
+						q++;
+					}
+				}
+			}
+		}
+		{
+			void** tmp = a2;
+			a2 = b2;
+			b2 = tmp;
+		}
+		n *= 2;
+	}
+	{
+		void* ptr = *(void**)((U8*)me_ + 0x10);
+		for (i = 0; i < len; i++)
+			memcpy(b2 + i, a2[i], size);
+		for (i = 0; i < len; i++)
+		{
+			memcpy((U8*)ptr + 0x10, b2 + i, size);
+			ptr = *(void**)((U8*)ptr + 0x08);
+		}
+	}
+	FreeMem(a);
 	FreeMem(b);
 }
 

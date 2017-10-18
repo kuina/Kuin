@@ -121,10 +121,16 @@ end func
 func [d0000.knd, _any_type] _shuffle(me_: []bit8, type: int)
 end func
 
-func [d0000.knd, _any_type] _sort(me_: []bit8, type: int)
+func [d0000.knd, _any_type] _sortArray(me_: []bit8, type: int)
 end func
 
-func [d0000.knd, _any_type] _sortDesc(me_: []bit8, type: int)
+func [d0000.knd, _any_type] _sortDescArray(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _sortList(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _sortDescList(me_: []bit8, type: int)
 end func
 
 func [d0000.knd, _any_type, _take_child] _find(me_: []bit8, type: int, item: []bit8, start: int): int

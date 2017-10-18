@@ -48,8 +48,8 @@ static const Char* BuildInFuncs[] =
 	L"shr\0          \x04",
 	L"shuffle\0      \x05",
 	L"sign\0         \x0b",
-	L"sort\0         \x05",
-	L"sortDesc\0     \x05",
+	L"sort\0         \x0e",
+	L"sortDesc\0     \x0e",
 	L"split\0        \x06",
 	L"sub\0          \x05",
 	L"tail\0         \x09",
@@ -3531,6 +3531,28 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 			case 0x000d:
 				if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
 					correct = True;
+				break;
+			case 0x000e:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeArray)
+				{
+					correct = True;
+					if (wcscmp(member, L"sort") == 0)
+						member = L"sortArray";
+					else if (wcscmp(member, L"sortDesc") == 0)
+						member = L"sortDescArray";
+					else
+						ASSERT(False);
+				}
+				else if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
+				{
+					correct = True;
+					if (wcscmp(member, L"sort") == 0)
+						member = L"sortList";
+					else if (wcscmp(member, L"sortDesc") == 0)
+						member = L"sortDescList";
+					else
+						ASSERT(False);
+				}
 				break;
 		}
 		if (correct)
