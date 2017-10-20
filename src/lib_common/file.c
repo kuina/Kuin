@@ -520,7 +520,7 @@ EXPORT void* _dir(const U8* path)
 		str = (Char*)(result + 0x10);
 		for (i = 0; i < len2; i++)
 			str[i] = path2[i] == L'\\' ? L'/' : path2[i];
-		str[i] = L'\0';
+		str[len2] = L'\0';
 	}
 	return result;
 }
@@ -545,7 +545,7 @@ EXPORT void* _fileName(const U8* path)
 		return (void*)path;
 	ptr++;
 	{
-		size_t len2 = ptr2 + 1 - ptr;
+		size_t len2 = ptr2 - ptr;
 		size_t i;
 		Char* str;
 		result = (U8*)AllocMem(0x10 + sizeof(Char) * (len2 + 1));
@@ -554,7 +554,7 @@ EXPORT void* _fileName(const U8* path)
 		str = (Char*)(result + 0x10);
 		for (i = 0; i < len2; i++)
 			str[i] = ptr[i];
-		str[i] = L'\0';
+		str[len2] = L'\0';
 	}
 	return result;
 }
@@ -586,7 +586,7 @@ EXPORT void* _delExt(const U8* path)
 		str = (Char*)(result + 0x10);
 		for (i = 0; i < len2; i++)
 			str[i] = path2[i] == L'\\' ? L'/' : path2[i];
-		str[i] = L'\0';
+		str[len2] = L'\0';
 	}
 	return result;
 }
@@ -636,7 +636,7 @@ EXPORT void* _exeDir(void)
 			str = (Char*)(result + 0x10);
 			for (i = 0; i < len2; i++)
 				str[i] = path[i] == L'\\' ? L'/' : path[i];
-			str[i] = L'\0';
+			str[len] = L'\0';
 		}
 		return result;
 	}
