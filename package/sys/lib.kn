@@ -144,6 +144,9 @@ end func
 +func [d0000.knd, _maxFloat] maxFloat(n1: float, n2: float): float
 end func
 
++func [d0000.knd, _levenshtein] levenshtein(s1: []char, s2: []char): int
+end func
+
 +class BmSearch(kuin@ResClass)
 	*func [d0000.knd, _bmSearchDtor, _force] _dtor()
 	end func

@@ -295,6 +295,42 @@ EXPORT double _maxFloat(double n1, double n2)
 	return n1 > n2 ? n1 : n2;
 }
 
+EXPORT S64 _levenshtein(const U8* s1, const U8* s2)
+{
+	THROWDBG(s1 == NULL, 0xc0000005);
+	THROWDBG(s2 == NULL, 0xc0000005);
+	S64 len1 = ((S64*)s1)[1];
+	S64 len2 = ((S64*)s2)[1];
+	const Char* str1 = (const Char*)(s1 + 0x10);
+	const Char* str2 = (const Char*)(s2 + 0x10);
+	S64* buf = (S64*)AllocMem(sizeof(S64) * (size_t)(len1 + 1) * (size_t)(len2 + 1));
+	S64 min_value;
+	S64 value;
+	S64 i;
+	S64 j;
+	for (i = 0; i < len1 + 1; i++)
+		buf[i * (len2 + 1)] = i;
+	for (i = 1; i < len2 + 1; i++)
+		buf[i] = i;
+	for (i = 1; i < len1 + 1; i++)
+	{
+		for (j = 1; j < len2 + 1; j++)
+		{
+			min_value = buf[(i - 1) * (len2 + 1) + j] + 1;
+			value = buf[i * (len2 + 1) + (j - 1)] + 1;
+			if (min_value > value)
+				min_value = value;
+			value = buf[(i - 1) * (len2 + 1) + (j - 1)] + (str1[i - 1] == str2[j - 1] ? 0 : 1);
+			if (min_value > value)
+				min_value = value;
+			buf[i * (len2 + 1) + j] = min_value;
+		}
+	}
+	value = buf[len1 * (len2 + 1) + len2];
+	FreeMem(buf);
+	return value;
+}
+
 EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern)
 {
 	THROWDBG(pattern == NULL, 0xc0000005);

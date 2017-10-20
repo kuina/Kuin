@@ -45,6 +45,7 @@ v.2017.10.17
 
 v.2017.11.17
     - 細かな機能追加
+        - lib@levenshtein関数の追加
         - list.sort、list.sortDesc、dict.toArrayKey、
           dict.toArrayValueメソッドの追加
     - 細かな不具合の修正
