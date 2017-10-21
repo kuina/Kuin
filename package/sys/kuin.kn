@@ -19,7 +19,7 @@
 	end func
 
 	+func toStr(): []char
-		ret null
+		ret ""
 	end func
 end class
 
