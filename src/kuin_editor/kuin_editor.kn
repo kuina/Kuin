@@ -2997,6 +2997,7 @@ func showFind(replace: bool)
 	do @wndFindEditReplace.enable(replace)
 	do @wndFindBtnReplace.enable(replace)
 	do @wndFindBtnReplaceAll.enable(replace)
+	do wndFindChkRegularExpressionOnPush(null)
 	do @wndFindEditPattern.focus()
 
 	; TODO:
