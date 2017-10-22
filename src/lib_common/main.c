@@ -1097,7 +1097,7 @@ EXPORT U8* _toStrFmtFloat(double me_, const U8* fmt)
 				return NULL;
 			src_ptr++;
 		}
-		if (!(src_ptr < src_len && L'1' <= fmt2[src_ptr] && fmt2[src_ptr] <= L'9'))
+		if (!(src_ptr < src_len && L'0' <= fmt2[src_ptr] && fmt2[src_ptr] <= L'9'))
 			return NULL;
 		dst[dst_ptr] = fmt2[src_ptr];
 		dst_ptr++;
