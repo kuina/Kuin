@@ -2002,11 +2002,25 @@ void Fin()
 		Device->Release();
 }
 
-void* MakeDrawBuf(int tex_width, int tex_height, int scr_width, int scr_height, HWND wnd)
+void* MakeDrawBuf(int tex_width, int tex_height, int scr_width, int scr_height, HWND wnd, void* old)
 {
+	SWndBuf* old2 = static_cast<SWndBuf*>(old);
+	FLOAT clear_color[4];
+	if (old == NULL)
+	{
+		clear_color[0] = 0.0f;
+		clear_color[1] = 0.0f;
+		clear_color[2] = 0.0f;
+		clear_color[3] = 1.0f;
+	}
+	else
+	{
+		memcpy(clear_color, old2->ClearColor, sizeof(FLOAT) * 4);
+		Draw::FinDrawBuf(old2);
+	}
 	SWndBuf* wnd_buf = static_cast<SWndBuf*>(AllocMem(sizeof(SWndBuf)));
 	memset(wnd_buf, 0, sizeof(SWndBuf));
-	wnd_buf->ClearColor[4] = 1.0f;
+	memcpy(wnd_buf->ClearColor, clear_color, sizeof(FLOAT) * 4);
 	wnd_buf->TexWidth = tex_width;
 	wnd_buf->TexHeight = tex_height;
 	wnd_buf->ScrWidth = scr_width;
