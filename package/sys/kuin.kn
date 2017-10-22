@@ -55,6 +55,12 @@ end func
 func [d0000.knd, _any_type] _toStr(me_: []bit8, type: int): []char
 end func
 
+func [d0000.knd] _toStrFmtInt(me_: int, fmt: []char): []char
+end func
+
+func [d0000.knd] _toStrFmtFloat(me_: float, fmt: []char): []char
+end func
+
 func [d0000.knd] _absInt(me_: int): int
 end func
 

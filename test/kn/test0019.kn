@@ -60,5 +60,10 @@ func main()
 			do cui@print(d.toArrayKey())
 			do cui@print(d.toArrayValue().join(""))
 		end block
+
+		block
+			do cui@print((65535).toStrFmt("016x"))
+			do cui@print(lib@pi.toStrFmt("032.12f"))
+		end block
 	end for
 end func

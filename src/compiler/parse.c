@@ -3621,14 +3621,14 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 		Char buf[1025];
 		int len = 0;
 		int base = 10;
-		Bool chg_base = False;
+		Bool change_base = False;
 		Bool float_type = False;
 		int bit_size = 0; // The size for bit types.
 		for (; ; )
 		{
 			if (c == L'#')
 			{
-				if (chg_base || float_type)
+				if (change_base || float_type)
 				{
 					Err(L"EP0016", NewPos(SrcName, row, col));
 					LocalErr = True;
@@ -3649,11 +3649,11 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 					}
 				}
 				len = 0;
-				chg_base = True;
+				change_base = True;
 			}
 			else if (c == L'.')
 			{
-				if (chg_base || float_type)
+				if (change_base || float_type)
 				{
 					Err(L"EP0017", NewPos(SrcName, row, col));
 					LocalErr = True;

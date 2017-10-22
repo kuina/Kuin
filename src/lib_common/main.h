@@ -18,6 +18,8 @@ EXPORT void* _newArray(S64 len, S64* nums, const U8* type);
 
 // Built-in methods.
 EXPORT U8* _toStr(const void* me_, const U8* type);
+EXPORT U8* _toStrFmtInt(S64 me_, const U8* fmt);
+EXPORT U8* _toStrFmtFloat(double me_, const U8* fmt);
 EXPORT S64 _absInt(S64 me_);
 EXPORT double _absFloat(double me_);
 EXPORT S64 _signInt(S64 me_);

@@ -47,7 +47,7 @@ v.2017.11.17
     - 細かな機能追加
         - lib@levenshtein関数の追加
         - list.sort、list.sortDesc、dict.toArrayKey、
-          dict.toArrayValueメソッドの追加
+          dict.toArrayValue、int.toStrFmt、float.toStrFmtメソッドの追加
     - 細かな不具合の修正
         - listの要素がcharの場合、toArrayの戻り値の末端に不正な文字が付加される
           不具合の修正

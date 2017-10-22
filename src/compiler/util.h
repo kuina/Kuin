@@ -3,7 +3,7 @@
 #include "..\common.h"
 
 int BinSearch(const Char** hay_stack, int num, const Char* needle);
-const Char* NewStr(int* len, const Char* format, ...);
+const Char* NewStr(int* len, const Char* fmt, ...);
 const Char* SubStr(const Char* str, int start, int len);
 S64* NewAddr(void);
 U8* StrToBin(const Char* str, int* size);
