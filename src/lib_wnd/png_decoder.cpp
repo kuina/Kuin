@@ -1,6 +1,6 @@
 #include "png_decoder.h"
 
-#define IdatMax (32)
+#define IdatMax (256)
 
 struct SPngData
 {
