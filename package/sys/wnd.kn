@@ -208,6 +208,9 @@ end class
 	+func [d0001.knd, _wndReadonly] readonly(flag: bool)
 	end func
 
+	+func [d0001.knd, _editSetSel] setSel(start: int, len: int)
+	end func
+
 	+var onChange: func<(@WndBase)>
 end class
 

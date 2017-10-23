@@ -918,6 +918,33 @@ EXPORT_CPP SClass* _makeEdit(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	return me_;
 }
 
+EXPORT_CPP void _editSetSel(SClass* me_, S64 start, S64 len)
+{
+	THROWDBG(!(len == -1 && (start == -1 || start == 0) || 0 <= start && 0 <= len), 0xe9170006);
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	S64 first;
+	S64 last;
+	if (len == -1)
+	{
+		if (start == -1)
+		{
+			first = -1;
+			last = -1;
+		}
+		else
+		{
+			first = 0;
+			last = -1;
+		}
+	}
+	else
+	{
+		first = start;
+		last = start + len;
+	}
+	SendMessage(me2->WndHandle, EM_SETSEL, static_cast<WPARAM>(first), static_cast<LPARAM>(last));
+}
+
 EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_EditMulti, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN, x, y, width, height, L"", WndProcEditMulti, anchorX, anchorY);
