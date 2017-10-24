@@ -1991,6 +1991,10 @@ end func
 
 func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 	if(@wndFind <>& null & @wndFind.getActive())
+		if(key = %esc)
+			do @wndFind.close()
+			ret true
+		end if
 		if(@tabOrderFind <>& null & @tabOrderFind.chk(key, shiftCtrl))
 			ret true
 		end if
