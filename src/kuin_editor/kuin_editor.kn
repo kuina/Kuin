@@ -1844,6 +1844,19 @@ func main()
 		do @new(null, null)
 	end if
 
+	do @drawEditor.onPaint :: @drawEditorOnPaint
+	do @drawEditor.onMouseDownL :: @drawEditorOnMouseDownL
+	do @drawEditor.onMouseUpL :: @drawEditorOnMouseUpL
+	do @drawEditor.onMouseMove :: @drawEditorOnMouseMove
+	do @drawEditor.onFocus :: @drawEditorOnFocus
+	do @drawEditor.onKeyDown :: @drawEditorOnKeyDown
+	do @drawEditor.onKeyUp :: @drawEditorOnKeyUp
+	do @drawEditor.onKeyChar :: @drawEditorOnKeyChar
+	do @drawEditor.onScrollX :: @drawEditorOnScrollX
+	do @drawEditor.onScrollY :: @drawEditorOnScrollY
+	do @drawEditor.onMouseWheelX :: @drawEditorOnMouseWheelX
+	do @drawEditor.onMouseWheelY :: @drawEditorOnMouseWheelY
+
 	do mainLoop()
 
 	func makeWnd()
@@ -1858,18 +1871,6 @@ func main()
 		do @editFile :: wnd@makeEdit(@wndMain, 262, 12, 759, 15, %scale, %fix)
 		do @editFile.readonly(true)
 		do @drawEditor :: wnd@makeDraw(@wndMain, 262, 33, 759, 582, %scale, %scale, true)
-		do @drawEditor.onPaint :: @drawEditorOnPaint
-		do @drawEditor.onMouseDownL :: @drawEditorOnMouseDownL
-		do @drawEditor.onMouseUpL :: @drawEditorOnMouseUpL
-		do @drawEditor.onMouseMove :: @drawEditorOnMouseMove
-		do @drawEditor.onFocus :: @drawEditorOnFocus
-		do @drawEditor.onKeyDown :: @drawEditorOnKeyDown
-		do @drawEditor.onKeyUp :: @drawEditorOnKeyUp
-		do @drawEditor.onKeyChar :: @drawEditorOnKeyChar
-		do @drawEditor.onScrollX :: @drawEditorOnScrollX
-		do @drawEditor.onScrollY :: @drawEditorOnScrollY
-		do @drawEditor.onMouseWheelX :: @drawEditorOnMouseWheelX
-		do @drawEditor.onMouseWheelY :: @drawEditorOnMouseWheelY
 		do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 565, 742, 17, %scale, %move)
 		do @scrollXSrc.setState(0, 0, 1, 0)
 		do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 742, 0, 17, 565, %move, %scale)
@@ -2272,7 +2273,7 @@ func wndMainOnClose(wnd: wnd@WndBase): bool
 end func
 
 func wndMainOnActivate(wnd: wnd@WndBase, active: bool, minimized: bool)
-	if(active & !minimized)
+	if(active & !minimized & @drawEditor <>& null)
 		do @drawEditor.focus()
 	end if
 end func
