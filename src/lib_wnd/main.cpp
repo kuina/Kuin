@@ -245,6 +245,12 @@ struct SMenu
 	void* Children;
 };
 
+struct STabOrder
+{
+	SClass Class;
+	void* Ctrls;
+};
+
 static void* OnKeyPress;
 static int WndCnt;
 static Bool ExitAct;
@@ -794,7 +800,20 @@ EXPORT_CPP void _wndSetActive(SClass* me_)
 
 EXPORT_CPP Bool _wndGetActive(SClass* me_)
 {
-	return GetActiveWindow() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	HWND wnd = GetFocus();
+	if (wnd == NULL)
+		return False;
+	SWndBase* wnd2 = ToWnd(wnd);
+	while (wnd2 != NULL && static_cast<int>(wnd2->Kind) >= 0x80)
+	{
+		wnd = GetParent(wnd);
+		if (wnd == NULL)
+			return False;
+		wnd2 = ToWnd(wnd);
+	}
+	if (wnd2 == NULL)
+		return False;
+	return wnd == reinterpret_cast<SWndBase*>(me_)->WndHandle;
 }
 
 EXPORT_CPP void _wndSetModalLock(SClass* me_)
@@ -1291,6 +1310,67 @@ EXPORT_CPP SClass* _makePopup(SClass* me_)
 	*(S64*)me2->Children = 1;
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
 	return me_;
+}
+
+EXPORT_CPP SClass* _makeTabOrder(SClass* me_, U8* ctrls)
+{
+	STabOrder* me2 = reinterpret_cast<STabOrder*>(me_);
+	THROWDBG(ctrls == NULL, 0xc0000005);
+	S64 len = *reinterpret_cast<S64*>(ctrls + 0x08);
+	void** ptr = reinterpret_cast<void**>(ctrls + 0x10);
+	void* result = AllocMem(0x10 + sizeof(void*) * static_cast<size_t>(len));
+	static_cast<S64*>(result)[0] = 1;
+	static_cast<S64*>(result)[1] = len;
+	void** result2 = reinterpret_cast<void**>(static_cast<U8*>(result) + 0x10);
+	for (S64 i = 0; i < len; i++)
+	{
+		if (ptr[i] == NULL)
+			result2[i] = NULL;
+		else
+		{
+			(*static_cast<S64*>(ptr[i]))++;
+			result2[i] = ptr[i];
+		}
+	}
+	me2->Ctrls = result;
+	return me_;
+}
+
+EXPORT_CPP Bool _tabOrderChk(SClass* me_, S64 key, S64 shiftCtrl)
+{
+	if (key != VK_TAB || (shiftCtrl & 0x02) != 0)
+		return False;
+	STabOrder* me2 = reinterpret_cast<STabOrder*>(me_);
+	U8* ctrls = static_cast<U8*>(me2->Ctrls);
+	S64 len = *reinterpret_cast<S64*>(ctrls + 0x08);
+	if (len == 0)
+		return False;
+	HWND wnd = GetFocus();
+	void** ptr = reinterpret_cast<void**>(ctrls + 0x10);
+	for (S64 i = 0; i < len; i++)
+	{
+		SWndBase* wnd2 = static_cast<SWndBase*>(ptr[i]);
+		if (wnd2->WndHandle == wnd)
+		{
+			S64 step = shiftCtrl == 0 ? 1 : len - 1;
+			S64 idx = (i + step) % len;
+			while (idx != i)
+			{
+				if (ptr[idx] != NULL)
+				{
+					SWndBase* wnd3 = static_cast<SWndBase*>(ptr[idx]);
+					if (IsWindowEnabled(wnd3->WndHandle))
+					{
+						SetFocus(wnd3->WndHandle);
+						return True;
+					}
+				}
+				idx = (idx + step) % len;
+			}
+			break;
+		}
+	}
+	return False;
 }
 
 static const U8* NToRN(const Char* str)

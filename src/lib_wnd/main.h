@@ -88,6 +88,9 @@ EXPORT_CPP void _menuAddLine(SClass* me_);
 EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup);
 EXPORT_CPP SClass* _makePopup(SClass* me_);
 
+EXPORT_CPP SClass* _makeTabOrder(SClass* me_, U8* ctrls);
+EXPORT_CPP Bool _tabOrderChk(SClass* me_, S64 key, S64 shiftCtrl);
+
 // Assembly functions.
 extern "C" void* Call0Asm(void* func);
 extern "C" void* Call1Asm(void* arg1, void* func);

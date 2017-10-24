@@ -46,6 +46,7 @@ v.2017.10.17
 v.2017.11.17
     - ヘッダ情報が多すぎる.pngファイルの読み込みに失敗する不具合の修正
     - 細かな機能追加
+        - Kuinエディタの検索ダイアログの操作感の改善
         - lib@levenshtein関数の追加
         - list.sort、list.sortDesc、dict.toArrayKey、
           dict.toArrayValue、int.toStrFmt、float.toStrFmtメソッドの追加

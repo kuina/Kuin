@@ -646,6 +646,16 @@ end func
 +func [d0001.knd, _makePopup, _make_instance] makePopup(me2: @Popup): @Popup
 end func
 
++class TabOrder(kuin@ResClass)
+	+func [d0001.knd, _tabOrderChk] chk(key: @Key, shiftCtrl: @ShiftCtrl): bool
+	end func
+
+	var ctrls: []@WndBase
+end class
+
++func [d0001.knd, _makeTabOrder, _make_instance] makeTabOrder(me2: @TabOrder, ctrls: []@WndBase): @TabOrder
+end func
+
 +func [d0001.knd, _key] key(key_: @Key): bool
 end func
 

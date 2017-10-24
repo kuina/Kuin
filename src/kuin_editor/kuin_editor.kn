@@ -48,6 +48,7 @@ var popupMainEdit: wnd@Popup
 var popupMainFile: wnd@Popup
 var popupMainBuild: wnd@Popup
 var popupMainHelp: wnd@Popup
+var tabOrderFind: wnd@TabOrder
 
 class Pos()
 	+var src: []char
@@ -1989,76 +1990,82 @@ func main()
 end func
 
 func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
-	switch(shiftCtrl)
-	case %none
-		switch(key)
-		case %del
-			do @wndMainOnPushMenu(@wndMain, 16#0037)
+	if(@wndFind <>& null & @wndFind.getActive())
+		if(@tabOrderFind <>& null & @tabOrderFind.chk(key, shiftCtrl))
 			ret true
-		case %f1
-			do @wndMainOnPushMenu(@wndMain, 16#0010)
-			ret true
-		case %f5
-			do @wndMainOnPushMenu(@wndMain, 16#0020)
-			ret true
+		end if
+	elif(@wndMain.getActive())
+		switch(shiftCtrl)
+		case %none
+			switch(key)
+			case %del
+				do @wndMainOnPushMenu(@wndMain, 16#0037)
+				ret true
+			case %f1
+				do @wndMainOnPushMenu(@wndMain, 16#0010)
+				ret true
+			case %f5
+				do @wndMainOnPushMenu(@wndMain, 16#0020)
+				ret true
+			end switch
+		case %shift
+			switch(key)
+			end switch
+		case %ctrl
+			switch(key)
+			case %a
+				do @wndMainOnPushMenu(@wndMain, 16#0038)
+				ret true
+			case %c
+				do @wndMainOnPushMenu(@wndMain, 16#0035)
+				ret true
+			case %f
+				do @wndMainOnPushMenu(@wndMain, 16#0039)
+				ret true
+			case %h
+				do @wndMainOnPushMenu(@wndMain, 16#003A)
+				ret true
+			case %n
+				do @wndMainOnPushMenu(@wndMain, 16#0001)
+				ret true
+			case %o
+				do @wndMainOnPushMenu(@wndMain, 16#0002)
+				ret true
+			case %s
+				do @wndMainOnPushMenu(@wndMain, 16#0003)
+				ret true
+			case %q
+				do @wndMainOnPushMenu(@wndMain, 16#0005)
+				ret true
+			case %v
+				do @wndMainOnPushMenu(@wndMain, 16#0036)
+				ret true
+			case %x
+				do @wndMainOnPushMenu(@wndMain, 16#0034)
+				ret true
+			case %y
+				do @wndMainOnPushMenu(@wndMain, 16#0033)
+				ret true
+			case %z
+				do @wndMainOnPushMenu(@wndMain, 16#0032)
+				ret true
+			end switch
+		case (%shift $ wnd@ShiftCtrl).or(%ctrl)
+			switch(key)
+			case %a
+				do @wndMainOnPushMenu(@wndMain, 16#0030)
+			case %b
+				do @wndMainOnPushMenu(@wndMain, 16#0021)
+				ret true
+			case %s
+				do @wndMainOnPushMenu(@wndMain, 16#0004)
+				ret true
+			case %z
+				do @wndMainOnPushMenu(@wndMain, 16#0033)
+				ret true
+			end switch
 		end switch
-	case %shift
-		switch(key)
-		end switch
-	case %ctrl
-		switch(key)
-		case %a
-			do @wndMainOnPushMenu(@wndMain, 16#0038)
-			ret true
-		case %c
-			do @wndMainOnPushMenu(@wndMain, 16#0035)
-			ret true
-		case %f
-			do @wndMainOnPushMenu(@wndMain, 16#0039)
-			ret true
-		case %h
-			do @wndMainOnPushMenu(@wndMain, 16#003A)
-			ret true
-		case %n
-			do @wndMainOnPushMenu(@wndMain, 16#0001)
-			ret true
-		case %o
-			do @wndMainOnPushMenu(@wndMain, 16#0002)
-			ret true
-		case %s
-			do @wndMainOnPushMenu(@wndMain, 16#0003)
-			ret true
-		case %q
-			do @wndMainOnPushMenu(@wndMain, 16#0005)
-			ret true
-		case %v
-			do @wndMainOnPushMenu(@wndMain, 16#0036)
-			ret true
-		case %x
-			do @wndMainOnPushMenu(@wndMain, 16#0034)
-			ret true
-		case %y
-			do @wndMainOnPushMenu(@wndMain, 16#0033)
-			ret true
-		case %z
-			do @wndMainOnPushMenu(@wndMain, 16#0032)
-			ret true
-		end switch
-	case (%shift $ wnd@ShiftCtrl).or(%ctrl)
-		switch(key)
-		case %a
-			do @wndMainOnPushMenu(@wndMain, 16#0030)
-		case %b
-			do @wndMainOnPushMenu(@wndMain, 16#0021)
-			ret true
-		case %s
-			do @wndMainOnPushMenu(@wndMain, 16#0004)
-			ret true
-		case %z
-			do @wndMainOnPushMenu(@wndMain, 16#0033)
-			ret true
-		end switch
-	end switch
+	end if
 	ret false
 end func
 
@@ -2991,6 +2998,8 @@ func showFind(replace: bool)
 		do @wndFindChkDistinguishCase.setChk(@wndFindChkDistinguishCaseLast)
 		do @wndFindChkOnlyWord.setChk(@wndFindChkOnlyWordLast)
 		do @wndFindChkRegularExpression.setChk(@wndFindChkRegularExpressionLast)
+
+		do @tabOrderFind :: wnd@makeTabOrder([@wndFindEditPattern $ wnd@WndBase, @wndFindEditReplace, @wndFindBtnPrev, @wndFindBtnNext, @wndFindBtnReplace, @wndFindBtnReplaceAll])
 	else
 		do @wndFind.setActive()
 	end if
@@ -3007,6 +3016,8 @@ func showFind(replace: bool)
 	do @wndFindRadioSelection.enable(false)
 
 	func wndFindOnClose(wnd: wnd@Wnd): bool
+		do @tabOrderFind :: null
+
 		do @wndFindEditPatternLast :: @wndFindEditPattern.getText()
 		do @wndFindEditReplaceLast :: @wndFindEditReplace.getText()
 		if(@wndFindRadioAll.getChk())
