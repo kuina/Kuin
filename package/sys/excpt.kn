@@ -14,6 +14,6 @@
 +const libClassInvalidOperation: int :: 16#E9170005
 +const dbgArgOutDomain: int :: 16#E9170006
 +const fileReadFailed: int :: 16#E9170007
-+const invalidDataFormat: int :: 16#E9170008
++const invalidDataFmt: int :: 16#E9170008
 +const deviceInitFailed: int :: 16#E9170009
 +const dbgInoperableState: int :: 16#E917000A
