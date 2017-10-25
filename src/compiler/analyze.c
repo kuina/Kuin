@@ -75,7 +75,7 @@ static SDict* Dlls;
 static Bool LocalErr;
 
 static SAstFunc* SearchMain(void);
-static const void* ResolveIdentifier(const Char* key, const void* value, void* param);
+static const void* ResolveIdentifierCallback(const Char* key, const void* value, void* param);
 static void ResolveIdentifierRecursion(const Char* src, const SAst* scope);
 static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos);
 static SList* RefreshStats(SList* stats, SAstType* ret_type);
@@ -161,7 +161,7 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 			Err(L"EA0058", NULL);
 			return NULL;
 		}
-		DictForEach(Asts, ResolveIdentifier, NULL);
+		ResolveIdentifier(Asts);
 		if (!ErrOccurred())
 			result = Rebuild(main_func);
 #if defined(_DEBUG)
@@ -186,6 +186,12 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 	return result;
 }
 
+void ResolveIdentifier(SDict* asts)
+{
+	Asts = asts;
+	DictForEach(Asts, ResolveIdentifierCallback, NULL);
+}
+
 static SAstFunc* SearchMain(void)
 {
 	const SAst* ast = (const SAst*)DictSearch(Asts, NewStr(NULL, L"\\%s", Option->SrcName));
@@ -200,7 +206,7 @@ static SAstFunc* SearchMain(void)
 	return NULL;
 }
 
-static const void* ResolveIdentifier(const Char* key, const void* value, void* param)
+static const void* ResolveIdentifierCallback(const Char* key, const void* value, void* param)
 {
 	if (param != NULL)
 	{
@@ -309,7 +315,7 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 			ptr = ptr->Next;
 		}
 	}
-	DictForEach(scope->ScopeChildren, ResolveIdentifier, (void*)src);
+	DictForEach(scope->ScopeChildren, ResolveIdentifierCallback, (void*)src);
 }
 
 static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos)

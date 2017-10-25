@@ -1,7 +1,7 @@
 ; Kuin Editor
 ; (C)Kuina-chan
 
-func [d0917.knd, InitCompiler] initCompiler()
+func [d0917.knd, InitCompiler] initCompiler(memNum: int, lang: int)
 end func
 
 func [d0917.knd, FinCompiler] finCompiler()
@@ -16,10 +16,13 @@ end func
 func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>, lang: int)
 end func
 
+func [d0917.knd, Interpret3] interpret3(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char)
+end func
+
 func [d0917.knd, Version] version(major: &int, minor: &int, micro: &int)
 end func
 
-func [d0917.knd, ResetMemAllocator] resetMemAllocator()
+func [d0917.knd, ResetMemAllocator] resetMemAllocator(memIdx: int)
 end func
 
 func [d0917.knd, GetHint] getHint(src: []char, row: int, col: int): []char
@@ -1834,7 +1837,7 @@ func main()
 	do @wndFindEditReplaceLast :: ""
 	do @wndFindChkDistinguishCaseLast :: true
 
-	do @initCompiler()
+	do @initCompiler(2, @langEn ?(1, 0))
 	do wnd@onKeyPress(@onKeyPress)
 	do makeWnd()
 	do initEditor()
@@ -1857,6 +1860,8 @@ func main()
 	do @drawEditor.onScrollY :: @drawEditorOnScrollY
 	do @drawEditor.onMouseWheelX :: @drawEditorOnMouseWheelX
 	do @drawEditor.onMouseWheelY :: @drawEditorOnMouseWheelY
+	do @wndMain.focus()
+	do @drawEditor.focus()
 
 	do mainLoop()
 
@@ -1965,8 +1970,13 @@ func main()
 					end if
 				case 1
 					if(lib@sysTime() - @dirtyInterpretTime > 1200)
-						do @resetMemAllocator()
 						do @resetAuxiliary()
+						do @resetMemAllocator(1)
+						try
+							do @interpret3(@mainSrcName, @getSrc, null, @getEnv())
+						catch
+						end try
+						do @resetMemAllocator(0)
 						try
 							do @interpret2(@mainSrcName, @getSrc, null, @getEnv(), @logForInterpret, @langEn ?(1, 0))
 						catch
@@ -1990,7 +2000,7 @@ func main()
 end func
 
 func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
-	if(@wndFind <>& null & @wndFind.getActive())
+	if(@wndFind <>& null & @wndFind.focusedWnd())
 		if(key = %esc)
 			do @wndFind.close()
 			ret true
@@ -1998,7 +2008,7 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		if(@tabOrderFind <>& null & @tabOrderFind.chk(key, shiftCtrl))
 			ret true
 		end if
-	elif(@wndMain.getActive())
+	elif(@wndMain.focusedWnd())
 		switch(shiftCtrl)
 		case %none
 			switch(key)
@@ -2461,7 +2471,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret
 	end try
-	do @resetMemAllocator()
+	do @resetMemAllocator(0)
 	do @textLog :: ""
 	do @updateLog()
 	var cmd: []char
@@ -2539,7 +2549,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret
 	end try
-	do @resetMemAllocator()
+	do @resetMemAllocator(0)
 	do @textLog :: ""
 	do @updateLog()
 	try

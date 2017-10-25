@@ -106,9 +106,9 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT void InitCompiler(S64 lang)
+EXPORT void InitCompiler(S64 mem_num, S64 lang)
 {
-	InitAllocator();
+	InitAllocator(mem_num);
 	if (lang >= 0)
 		LoadExcptMsg(lang);
 }
@@ -138,7 +138,7 @@ EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output,
 {
 	// This function is for 'kuincl'.
 	Bool result;
-	InitAllocator();
+	InitAllocator(1);
 	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log, lang);
 	FinAllocator();
 	return result;
@@ -178,9 +178,48 @@ EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 		{
 			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
 			if (!ErrOccurred())
-			{
-				HintAsts = asts;
 				Analyze(asts, &option, &dlls);
+		}
+	}
+
+	FuncGetSrc = NULL;
+	FuncLog = NULL;
+	DecSrc();
+	Src = NULL;
+	SrcLine = NULL;
+	SrcChar = NULL;
+}
+
+EXPORT void Interpret3(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env)
+{
+	const Char* sys_dir2 = sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10);
+
+	FuncGetSrc = func_get_src;
+	FuncLog = NULL;
+
+	// Set the system directory.
+	if (sys_dir2 == NULL)
+	{
+		Char sys_dir3[1024 + 1];
+		GetModuleFileName(NULL, sys_dir3, 1024 + 1);
+		sys_dir2 = GetDir(sys_dir3, False, L"sys/");
+	}
+	else
+		sys_dir2 = GetDir(sys_dir2, True, NULL);
+
+	SetLogFunc(NULL, 0, sys_dir2);
+
+	{
+		SOption option;
+		SDict* asts;
+		MakeOption(&option, (const Char*)(path + 0x10), NULL, sys_dir2, NULL, False, env == NULL ? NULL : (const Char*)(env + 0x10));
+		if (!ErrOccurred())
+		{
+			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
+			if (!ErrOccurred())
+			{
+				ResolveIdentifier(asts);
+				HintAsts = asts;
 			}
 		}
 	}
@@ -200,10 +239,9 @@ EXPORT void Version(S64* major, S64* minor, S64* micro)
 	*micro = 17;
 }
 
-EXPORT void ResetMemAllocator(void)
+EXPORT void ResetMemAllocator(S64 mem_idx)
 {
-	ResetAllocator();
-	HintAsts = NULL;
+	ResetAllocator(mem_idx);
 }
 
 EXPORT void* GetHint(const U8* src, S64 row, S64 col)

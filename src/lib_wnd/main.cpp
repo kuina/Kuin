@@ -740,6 +740,11 @@ EXPORT_CPP void _wndBaseFocus(SClass* me_)
 	SetFocus(reinterpret_cast<SWndBase*>(me_)->WndHandle);
 }
 
+EXPORT_CPP Bool _wndBaseFocused(SClass* me_)
+{
+	return GetFocus() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
+}
+
 EXPORT_CPP void _wndBaseEnable(SClass* me_, Bool is_enabled)
 {
 	EnableWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_enabled ? TRUE : FALSE);
@@ -799,6 +804,11 @@ EXPORT_CPP void _wndSetActive(SClass* me_)
 }
 
 EXPORT_CPP Bool _wndGetActive(SClass* me_)
+{
+	return GetActiveWindow() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
+}
+
+EXPORT_CPP Bool _wndFocusedWnd(SClass* me_)
 {
 	HWND wnd = GetFocus();
 	if (wnd == NULL)

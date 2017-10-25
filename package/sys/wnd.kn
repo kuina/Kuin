@@ -38,6 +38,9 @@ end enum
 	+func [d0001.knd, _wndBaseFocus] focus()
 	end func
 
+	+func [d0001.knd, _wndBaseFocused] focused(): bool
+	end func
+
 	+func [d0001.knd, _wndBaseEnable] enable(isEnabled: bool)
 	end func
 
@@ -82,6 +85,9 @@ end class
 	end func
 
 	+func [d0001.knd, _wndGetActive] getActive(): bool
+	end func
+
+	+func [d0001.knd, _wndFocusedWnd] focusedWnd(): bool
 	end func
 
 	+func modal()
