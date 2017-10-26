@@ -329,8 +329,6 @@ static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos)
 	ast->RefName = NULL;
 	ast->RefItem = NULL;
 	ast->AnalyzedCache = NULL;
-	ast->ScopeRowBegin = NULL;
-	ast->ScopeRowEnd = NULL;
 	ast->Public = False;
 }
 

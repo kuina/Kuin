@@ -44,8 +44,6 @@ typedef struct SIdentifier
 	Char* Hint;
 	int Row;
 	int Col;
-	int ScopeRowBegin;
-	int ScopeRowEnd;
 } SIdentifier;
 
 typedef struct SIdentifierSet
@@ -91,9 +89,11 @@ static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int 
 static size_t BuildFileGetSize(FILE* file_ptr);
 static SPos* AddrToPos(U64 addr, Char* name);
 static const void* AddrToPosCallback(U64 key, const void* value, void* param);
+static const SAst* SearchScope(const Char* src, int row, int col, const SAst* ast);
+static const void* SearchScopeCallback(const Char* key, const void* value, void* param);
+static Bool CmpPos(const Char* src, int row, int col, const SPos* pos);
 static const SAst* SearchHint(const Char* src, int row, int col, const SAst* ast);
 static const SAst* SearchHintList(const Char* src, int row, int col, SList* list);
-static Bool CmpHintPos(const Char* src, int row, int col, const SPos* pos);
 static const SAst* BetterHint(const SAst* a, const SAst* b);
 static void WriteHint(Char* buf, size_t* len, const SAst* ast);
 static void WriteHintDef(Char* buf, size_t* len, const SAst* ast);
@@ -785,6 +785,48 @@ static const void* AddrToPosCallback(U64 key, const void* value, void* param)
 	return value;
 }
 
+static const SAst* SearchScope(const Char* src, int row, int col, const SAst* ast)
+{
+	if (ast == NULL || ast->ScopeChildren == NULL)
+		return NULL;
+	const void* params[2];
+	SPos pos;
+	pos.SrcName = src;
+	pos.Row = row;
+	pos.Col = col;
+	params[0] = &pos;
+	params[1] = NULL;
+	DictForEach(ast->ScopeChildren, SearchScopeCallback, (void*)params);
+	return (const SAst*)params[1];
+}
+
+static const void* SearchScopeCallback(const Char* key, const void* value, void* param)
+{
+	UNUSED(key);
+	const SAst* ast = (const SAst*)value;
+	const void** params = (void**)param;
+	const SPos* pos = (const SPos*)params[0];
+	if (CmpPos(pos->SrcName, pos->Row, pos->Col, ast->Pos))
+	{
+		params[1] = ast;
+		if (ast->ScopeChildren != NULL)
+		{
+			const void* params2[2];
+			params2[0] = params[0];
+			params2[1] = NULL;
+			DictForEach(ast->ScopeChildren, SearchScopeCallback, (void*)params2);
+			if (params2[1] != NULL)
+				params[1] = params2[1];
+		}
+	}
+	return value;
+}
+
+static Bool CmpPos(const Char* src, int row, int col, const SPos* pos)
+{
+	return pos != NULL && (pos->Row < row || pos->Row == row && pos->Col <= col) && wcscmp(pos->SrcName, src) == 0;
+}
+
 static const SAst* SearchHint(const Char* src, int row, int col, const SAst* ast)
 {
 	if (ast == NULL)
@@ -821,7 +863,7 @@ static const SAst* SearchHint(const Char* src, int row, int col, const SAst* ast
 				while (ptr != NULL)
 				{
 					const SAst* data = ((const SAstClassItem*)ptr->Data)->Def;
-					if (CmpHintPos(src, row, col, data->Pos))
+					if (CmpPos(src, row, col, data->Pos))
 					{
 						found = data;
 						break;
@@ -892,12 +934,12 @@ static const SAst* SearchHint(const Char* src, int row, int col, const SAst* ast
 				while (ptr != NULL)
 				{
 					const SAstExpr** exprs = (const SAstExpr**)ptr->Data;
-					if (CmpHintPos(src, row, col, ((const SAst*)exprs[0])->Pos))
+					if (CmpPos(src, row, col, ((const SAst*)exprs[0])->Pos))
 					{
 						found = (const SAst*)exprs[0];
 						break;
 					}
-					if (exprs[1] != NULL && CmpHintPos(src, row, col, ((const SAst*)exprs[1])->Pos))
+					if (exprs[1] != NULL && CmpPos(src, row, col, ((const SAst*)exprs[1])->Pos))
 					{
 						found = (const SAst*)exprs[1];
 						break;
@@ -941,12 +983,12 @@ static const SAst* SearchHint(const Char* src, int row, int col, const SAst* ast
 				while (ptr != NULL)
 				{
 					const SAstExpr** exprs = (const SAstExpr**)ptr->Data;
-					if (CmpHintPos(src, row, col, ((const SAst*)exprs[0])->Pos))
+					if (CmpPos(src, row, col, ((const SAst*)exprs[0])->Pos))
 					{
 						found = (const SAst*)exprs[0];
 						break;
 					}
-					if (exprs[1] != NULL && CmpHintPos(src, row, col, ((const SAst*)exprs[1])->Pos))
+					if (exprs[1] != NULL && CmpPos(src, row, col, ((const SAst*)exprs[1])->Pos))
 					{
 						found = (const SAst*)exprs[1];
 						break;
@@ -984,7 +1026,7 @@ static const SAst* SearchHint(const Char* src, int row, int col, const SAst* ast
 				while (ptr != NULL)
 				{
 					const SAstTypeFuncArg* arg = (const SAstTypeFuncArg*)ptr->Data;
-					if (CmpHintPos(src, row, col, ((const SAst*)arg->Arg)->Pos))
+					if (CmpPos(src, row, col, ((const SAst*)arg->Arg)->Pos))
 					{
 						found = (const SAst*)arg->Arg;
 						break;
@@ -1064,7 +1106,7 @@ static const SAst* SearchHint(const Char* src, int row, int col, const SAst* ast
 				while (ptr != NULL)
 				{
 					const SAstExprCallArg* arg = (const SAstExprCallArg*)ptr->Data;
-					if (CmpHintPos(src, row, col, ((const SAst*)arg->Arg)->Pos))
+					if (CmpPos(src, row, col, ((const SAst*)arg->Arg)->Pos))
 					{
 						found = (const SAst*)arg->Arg;
 						break;
@@ -1105,7 +1147,7 @@ static const SAst* SearchHintList(const Char* src, int row, int col, SList* list
 	while (ptr != NULL)
 	{
 		const SAst* data = (const SAst*)ptr->Data;
-		if (CmpHintPos(src, row, col, data->Pos))
+		if (CmpPos(src, row, col, data->Pos))
 		{
 			found = data;
 			break;
@@ -1115,11 +1157,6 @@ static const SAst* SearchHintList(const Char* src, int row, int col, SList* list
 	if (found == NULL)
 		return NULL;
 	return SearchHint(src, row, col, found);
-}
-
-static Bool CmpHintPos(const Char* src, int row, int col, const SPos* pos)
-{
-	return pos != NULL && (pos->Row < row || pos->Row == row && pos->Col <= col) && wcscmp(pos->SrcName, src) == 0;
 }
 
 static const SAst* BetterHint(const SAst* a, const SAst* b)
