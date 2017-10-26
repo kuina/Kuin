@@ -1872,9 +1872,9 @@ EXPORT void* _replace(const U8* me_, const U8* old, const U8* new_)
 	{
 		const Char* ptr2 = ptr;
 		ptr = wcsstr(ptr, old2);
-		if (ptr == NULL || ptr == ptr2)
+		if (ptr == NULL || old_len == 0)
 		{
-			ptr = str + wcslen(str);
+			ptr = str + str_len;
 			end_flag = True;
 		}
 		{
