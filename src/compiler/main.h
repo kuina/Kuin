@@ -11,5 +11,5 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 EXPORT void Version(S64* major, S64* minor, S64* micro);
 EXPORT void ResetMemAllocator(S64 mem_idx);
 EXPORT void ResetHint(void);
-EXPORT void* GetHint(const U8* src, S64 row, S64 col);
+EXPORT void* GetHint(const U8* src, S64 row, S64 col, const U8* keyword);
 EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func);

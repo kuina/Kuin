@@ -25,7 +25,7 @@ end func
 func [d0917.knd, ResetHint] resetHint()
 end func
 
-func [d0917.knd, GetHint] getHint(src: []char, row: int, col: int): []char
+func [d0917.knd, GetHint] getHint(src: []char, row: int, col: int, keyword: []char): []char
 end func
 
 func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>): bool
@@ -768,7 +768,17 @@ class DocumentSrc(@Document)
 		var srcName: []char :: @srcNameToInternalName(@getDocumentName(@curDocument))
 		if(^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t')
 			if(srcName <>& null)
-				var hint: []char :: @getHint2(srcName, me.cursorY + 1, x)
+				var color: @CharColor :: me.src.color[me.cursorY][x - 1].and(16#7Fb8) $ @CharColor
+				var last: int :: x
+				while(x > 0 & me.src.color[me.cursorY][x - 1].and(16#7Fb8) = color $ bit8)
+					do x :- 1
+				end while
+				var last2: int :: last
+				while(last2 < ^me.src.color[me.cursorY] - 1 & me.src.color[me.cursorY][last2 + 1].and(16#7Fb8) = color $ bit8)
+					do last2 :+ 1
+				end while
+				var word: []char :: me.src.src[me.cursorY].sub(x, last2 - x).trim()
+				var hint: []char :: @getHint2(srcName, me.cursorY + 1, last, word)
 				if(hint =& null)
 					do hint :: ""
 				end if
@@ -1297,7 +1307,16 @@ class DocumentSrc(@Document)
 						switch color(me.src.color[y][x - 1].and(16#7Fb8) $ @CharColor)
 						case %identifier, %global, %reserved
 							do x :- 1
-							var hint: []char :: @getHint2(srcName, y + 1, x)
+							var last: int :: x
+							while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
+								do x :- 1
+							end while
+							var last2: int :: last
+							while(last2 < ^me.src.color[me.cursorY] - 1 & me.src.color[me.cursorY][last2 + 1].and(16#7Fb8) = color $ bit8)
+								do last2 :+ 1
+							end while
+							var word: []char :: me.src.src[y].sub(x, last2 - x).trim()
+							var hint: []char :: @getHint2(srcName, y + 1, last, word)
 							if(hint =& null)
 								do hint :: ""
 							end if
@@ -2909,10 +2928,10 @@ func getDocumentName(document: @Document): []char
 	end func
 end func
 
-func getHint2(src: []char, row: int, col: int): []char
+func getHint2(src: []char, row: int, col: int, keyword: []char): []char
 	var result: []char
 	try
-		do result :: ##@getHint(src, row, col)
+		do result :: ##@getHint(src, row, col, keyword)
 	catch
 		do result :: null
 	end try

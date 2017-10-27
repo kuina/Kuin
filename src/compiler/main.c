@@ -93,9 +93,9 @@ static Bool CmpPos(const Char* src, int row, int col, const SPos* pos);
 static const SAst* BetterAst(const SAst* a, const SAst* b);
 static void WriteHint(Char* buf, size_t* len, const SAst* ast);
 static void WriteHintDef(Char* buf, size_t* len, const SAst* ast);
-static const SAst* SearchAst(const Char* src, int row, int col);
-static const SAst* SearchAstRecursion(const Char* src, int row, int col, const SAst* ast);
-static const SAst* SearchAstListRecursion(const Char* src, int row, int col, SList* list);
+static const SAst* SearchAst(const Char* src, int row, int col, const Char* keyword);
+static const SAst* SearchAstRecursion(const Char* src, int row, int col, const SAst* ast, const Char* keyword);
+static const SAst* SearchAstListRecursion(const Char* src, int row, int col, SList* list, const Char* keyword);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -217,10 +217,9 @@ EXPORT void ResetHint(void)
 	HintAsts = NULL;
 }
 
-EXPORT void* GetHint(const U8* src, S64 row, S64 col)
+EXPORT void* GetHint(const U8* src, S64 row, S64 col, const U8* keyword)
 {
-	const Char* src2 = (const Char*)(src + 0x10);
-	const SAst* ast = SearchAst(src2, (int)row, (int)col);
+	const SAst* ast = SearchAst((const Char*)(src + 0x10), (int)row, (int)col, (const Char*)(keyword + 0x10));
 	if (ast == NULL)
 		return NULL;
 	size_t len = 0;
@@ -899,17 +898,17 @@ static void WriteHintDef(Char* buf, size_t* len, const SAst* ast)
 	}
 }
 
-static const SAst* SearchAst(const Char* src, int row, int col)
+static const SAst* SearchAst(const Char* src, int row, int col, const Char* keyword)
 {
 	if (HintAsts == NULL)
 		return NULL;
 	const SAst* root = (const SAst*)DictSearch(HintAsts, src);
 	if (root == NULL)
 		return NULL;
-	return SearchAstRecursion(src, (int)row, (int)col, root);
+	return SearchAstRecursion(src, (int)row, (int)col, root, keyword);
 }
 
-static const SAst* SearchAstRecursion(const Char* src, int row, int col, const SAst* ast)
+static const SAst* SearchAstRecursion(const Char* src, int row, int col, const SAst* ast, const Char* keyword)
 {
 	if (ast == NULL)
 		return NULL;
@@ -917,25 +916,25 @@ static const SAst* SearchAstRecursion(const Char* src, int row, int col, const S
 	switch (ast->TypeId)
 	{
 		case AstTypeId_Root:
-			best = SearchAstListRecursion(src, row, col, ((const SAstRoot*)ast)->Items);
+			best = SearchAstListRecursion(src, row, col, ((const SAstRoot*)ast)->Items, keyword);
 			break;
 		case AstTypeId_Func:
 		case AstTypeId_FuncRaw:
 			{
 				const SAstFunc* ast2 = (const SAstFunc*)ast;
-				best = SearchAstListRecursion(src, row, col, ast2->Args);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Ret));
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+				best = SearchAstListRecursion(src, row, col, ast2->Args, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Ret, keyword));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats, keyword));
 			}
 		break;
 		case AstTypeId_Var:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstVar*)ast)->Var);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstVar*)ast)->Var, keyword);
 			break;
 		case AstTypeId_Const:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstConst*)ast)->Var);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstConst*)ast)->Var, keyword);
 			break;
 		case AstTypeId_Alias:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstAlias*)ast)->Type);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstAlias*)ast)->Type, keyword);
 			break;
 		case AstTypeId_Class:
 			{
@@ -953,59 +952,59 @@ static const SAst* SearchAstRecursion(const Char* src, int row, int col, const S
 					ptr = ptr->Prev;
 				}
 				if (found != NULL)
-					best = SearchAstRecursion(src, row, col, found);
+					best = SearchAstRecursion(src, row, col, found, keyword);
 			}
 		break;
 		case AstTypeId_Enum:
-			best = SearchAstListRecursion(src, row, col, ((const SAstEnum*)ast)->Items);
+			best = SearchAstListRecursion(src, row, col, ((const SAstEnum*)ast)->Items, keyword);
 			break;
 		case AstTypeId_Arg:
 			{
 				const SAstArg* ast2 = (const SAstArg*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Type);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Expr));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Type, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Expr, keyword));
 			}
 			break;
 		case AstTypeId_StatFunc:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatFunc*)ast)->Def);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatFunc*)ast)->Def, keyword);
 			break;
 		case AstTypeId_StatVar:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatVar*)ast)->Def);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatVar*)ast)->Def, keyword);
 			break;
 		case AstTypeId_StatConst:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatConst*)ast)->Def);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatConst*)ast)->Def, keyword);
 			break;
 		case AstTypeId_StatAlias:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatAlias*)ast)->Def);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatAlias*)ast)->Def, keyword);
 			break;
 		case AstTypeId_StatClass:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatClass*)ast)->Def);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatClass*)ast)->Def, keyword);
 			break;
 		case AstTypeId_StatEnum:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatEnum*)ast)->Def);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatEnum*)ast)->Def, keyword);
 			break;
 		case AstTypeId_StatIf:
 			{
 				const SAstStatIf* ast2 = (const SAstStatIf*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond);
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->ElIfs));
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->ElseStats));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond, keyword);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats, keyword));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->ElIfs, keyword));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->ElseStats, keyword));
 			}
 			break;
 		case AstTypeId_StatElIf:
 			{
 				const SAstStatElIf* ast2 = (const SAstStatElIf*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond);
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond, keyword);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats, keyword));
 			}
 			break;
 		case AstTypeId_StatSwitch:
 			{
 				const SAstStatSwitch* ast2 = (const SAstStatSwitch*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond);
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Cases));
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->DefaultStats));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond, keyword);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Cases, keyword));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->DefaultStats, keyword));
 			}
 			break;
 		case AstTypeId_StatCase:
@@ -1029,32 +1028,32 @@ static const SAst* SearchAstRecursion(const Char* src, int row, int col, const S
 					ptr = ptr->Prev;
 				}
 				if (found != NULL)
-					best = SearchAstRecursion(src, row, col, found);
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+					best = SearchAstRecursion(src, row, col, found, keyword);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats, keyword));
 			}
 			break;
 		case AstTypeId_StatWhile:
 			{
 				const SAstStatWhile* ast2 = (const SAstStatWhile*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond);
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond, keyword);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats, keyword));
 			}
 			break;
 		case AstTypeId_StatFor:
 			{
 				const SAstStatFor* ast2 = (const SAstStatFor*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Start);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond));
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Step));
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Start, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond, keyword));
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Step, keyword));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats, keyword));
 			}
 			break;
 		case AstTypeId_StatTry:
 			{
 				const SAstStatTry* ast2 = (const SAstStatTry*)ast;
-				best = SearchAstListRecursion(src, row, col, ast2->Stats);
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Catches));
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->FinallyStats));
+				best = SearchAstListRecursion(src, row, col, ast2->Stats, keyword);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Catches, keyword));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->FinallyStats, keyword));
 			}
 			break;
 		case AstTypeId_StatCatch:
@@ -1078,27 +1077,27 @@ static const SAst* SearchAstRecursion(const Char* src, int row, int col, const S
 					ptr = ptr->Prev;
 				}
 				if (found != NULL)
-					best = SearchAstRecursion(src, row, col, found);
-				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+					best = SearchAstRecursion(src, row, col, found, keyword);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats, keyword));
 			}
 			break;
 		case AstTypeId_StatThrow:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatThrow*)ast)->Code);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatThrow*)ast)->Code, keyword);
 			break;
 		case AstTypeId_StatBlock:
-			best = SearchAstListRecursion(src, row, col, ((const SAstStatBlock*)ast)->Stats);
+			best = SearchAstListRecursion(src, row, col, ((const SAstStatBlock*)ast)->Stats, keyword);
 			break;
 		case AstTypeId_StatRet:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatRet*)ast)->Value);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatRet*)ast)->Value, keyword);
 			break;
 		case AstTypeId_StatDo:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatDo*)ast)->Expr);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatDo*)ast)->Expr, keyword);
 			break;
 		case AstTypeId_StatAssert:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatAssert*)ast)->Cond);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatAssert*)ast)->Cond, keyword);
 			break;
 		case AstTypeId_TypeArray:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstTypeArray*)ast)->ItemType);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstTypeArray*)ast)->ItemType, keyword);
 			break;
 		case AstTypeId_TypeFunc:
 			{
@@ -1116,68 +1115,68 @@ static const SAst* SearchAstRecursion(const Char* src, int row, int col, const S
 					ptr = ptr->Prev;
 				}
 				if (found != NULL)
-					best = SearchAstRecursion(src, row, col, found);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Ret));
+					best = SearchAstRecursion(src, row, col, found, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Ret, keyword));
 			}
 			break;
 		case AstTypeId_TypeGen:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstTypeGen*)ast)->ItemType);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstTypeGen*)ast)->ItemType, keyword);
 			break;
 		case AstTypeId_TypeDict:
 			{
 				const SAstTypeDict* ast2 = (const SAstTypeDict*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->ItemTypeKey);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ItemTypeValue));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->ItemTypeKey, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ItemTypeValue, keyword));
 			}
 			break;
 		case AstTypeId_Expr1:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstExpr1*)ast)->Child);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstExpr1*)ast)->Child, keyword);
 			break;
 		case AstTypeId_Expr2:
 			{
 				const SAstExpr2* ast2 = (const SAstExpr2*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[0]);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[1]));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[0], keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[1], keyword));
 			}
 			break;
 		case AstTypeId_Expr3:
 			{
 				const SAstExpr3* ast2 = (const SAstExpr3*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[0]);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[1]));
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[2]));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[0], keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[1], keyword));
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[2], keyword));
 			}
 			break;
 		case AstTypeId_ExprNew:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstExprNew*)ast)->ItemType);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstExprNew*)ast)->ItemType, keyword);
 			break;
 		case AstTypeId_ExprNewArray:
 			{
 				const SAstExprNewArray* ast2 = (const SAstExprNewArray*)ast;
-				best = SearchAstListRecursion(src, row, col, ast2->Idces);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ItemType));
+				best = SearchAstListRecursion(src, row, col, ast2->Idces, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ItemType, keyword));
 			}
 			break;
 		case AstTypeId_ExprAs:
 			{
 				const SAstExprAs* ast2 = (const SAstExprAs*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Child);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ChildType));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Child, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ChildType, keyword));
 			}
 			break;
 		case AstTypeId_ExprToBin:
 			{
 				const SAstExprToBin* ast2 = (const SAstExprToBin*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Child);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ChildType));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Child, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ChildType, keyword));
 			}
 			break;
 		case AstTypeId_ExprFromBin:
 			{
 				const SAstExprFromBin* ast2 = (const SAstExprFromBin*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Child);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ChildType));
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Offset));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Child, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ChildType, keyword));
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Offset, keyword));
 			}
 			break;
 		case AstTypeId_ExprCall:
@@ -1196,22 +1195,22 @@ static const SAst* SearchAstRecursion(const Char* src, int row, int col, const S
 					ptr = ptr->Prev;
 				}
 				if (found != NULL)
-					best = SearchAstRecursion(src, row, col, found);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Func));
+					best = SearchAstRecursion(src, row, col, found, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Func, keyword));
 			}
 			break;
 		case AstTypeId_ExprArray:
 			{
 				const SAstExprArray* ast2 = (const SAstExprArray*)ast;
-				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Var);
-				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Idx));
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Var, keyword);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Idx, keyword));
 			}
 			break;
 		case AstTypeId_ExprDot:
-			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstExprDot*)ast)->Var);
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstExprDot*)ast)->Var, keyword);
 			break;
 		case AstTypeId_ExprValueArray:
-			best = SearchAstListRecursion(src, row, col, ((const SAstExprValueArray*)ast)->Values);
+			best = SearchAstListRecursion(src, row, col, ((const SAstExprValueArray*)ast)->Values, keyword);
 			break;
 	}
 	if (ast->Pos != NULL && ast->Pos->Row == row && ast->Pos->Col <= col && wcscmp(ast->Pos->SrcName, src) == 0)
@@ -1222,7 +1221,7 @@ static const SAst* SearchAstRecursion(const Char* src, int row, int col, const S
 	return best;
 }
 
-static const SAst* SearchAstListRecursion(const Char* src, int row, int col, SList* list)
+static const SAst* SearchAstListRecursion(const Char* src, int row, int col, SList* list, const Char* keyword)
 {
 	SListNode* ptr = list->Bottom;
 	const SAst* found = NULL;
@@ -1238,5 +1237,5 @@ static const SAst* SearchAstListRecursion(const Char* src, int row, int col, SLi
 	}
 	if (found == NULL)
 		return NULL;
-	return SearchAstRecursion(src, row, col, found);
+	return SearchAstRecursion(src, row, col, found, keyword);
 }
