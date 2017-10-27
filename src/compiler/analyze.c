@@ -161,7 +161,7 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 			Err(L"EA0058", NULL);
 			return NULL;
 		}
-		ResolveIdentifier(Asts);
+		DictForEach(Asts, ResolveIdentifierCallback, NULL);
 		if (!ErrOccurred())
 			result = Rebuild(main_func);
 #if defined(_DEBUG)
@@ -184,12 +184,6 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 	}
 	*dlls = Dlls;
 	return result;
-}
-
-void ResolveIdentifier(SDict* asts)
-{
-	Asts = asts;
-	DictForEach(Asts, ResolveIdentifierCallback, NULL);
 }
 
 static SAstFunc* SearchMain(void)

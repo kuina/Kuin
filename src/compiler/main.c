@@ -89,14 +89,13 @@ static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int 
 static size_t BuildFileGetSize(FILE* file_ptr);
 static SPos* AddrToPos(U64 addr, Char* name);
 static const void* AddrToPosCallback(U64 key, const void* value, void* param);
-static const SAst* SearchScope(const Char* src, int row, int col, const SAst* ast);
-static const void* SearchScopeCallback(const Char* key, const void* value, void* param);
 static Bool CmpPos(const Char* src, int row, int col, const SPos* pos);
-static const SAst* SearchHint(const Char* src, int row, int col, const SAst* ast);
-static const SAst* SearchHintList(const Char* src, int row, int col, SList* list);
-static const SAst* BetterHint(const SAst* a, const SAst* b);
+static const SAst* BetterAst(const SAst* a, const SAst* b);
 static void WriteHint(Char* buf, size_t* len, const SAst* ast);
 static void WriteHintDef(Char* buf, size_t* len, const SAst* ast);
+static const SAst* SearchAst(const Char* src, int row, int col);
+static const SAst* SearchAstRecursion(const Char* src, int row, int col, const SAst* ast);
+static const SAst* SearchAstListRecursion(const Char* src, int row, int col, SList* list);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -149,12 +148,15 @@ EXPORT void Interpret1(const void* src, const void* color)
 	InterpretImpl1(src, color);
 }
 
-EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang)
+EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang, S64 blank_mem)
 {
+	Bool result = False;
 	const Char* sys_dir2 = sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10);
 
 	FuncGetSrc = func_get_src;
 	FuncLog = func_log;
+
+	ResetAllocator(blank_mem);
 
 	// Set the system directory.
 	if (sys_dir2 == NULL)
@@ -178,48 +180,13 @@ EXPORT void Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 		{
 			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
 			if (!ErrOccurred())
-				Analyze(asts, &option, &dlls);
-		}
-	}
-
-	FuncGetSrc = NULL;
-	FuncLog = NULL;
-	DecSrc();
-	Src = NULL;
-	SrcLine = NULL;
-	SrcChar = NULL;
-}
-
-EXPORT void Interpret3(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env)
-{
-	const Char* sys_dir2 = sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10);
-
-	FuncGetSrc = func_get_src;
-	FuncLog = NULL;
-
-	// Set the system directory.
-	if (sys_dir2 == NULL)
-	{
-		Char sys_dir3[1024 + 1];
-		GetModuleFileName(NULL, sys_dir3, 1024 + 1);
-		sys_dir2 = GetDir(sys_dir3, False, L"sys/");
-	}
-	else
-		sys_dir2 = GetDir(sys_dir2, True, NULL);
-
-	SetLogFunc(NULL, 0, sys_dir2);
-
-	{
-		SOption option;
-		SDict* asts;
-		MakeOption(&option, (const Char*)(path + 0x10), NULL, sys_dir2, NULL, False, env == NULL ? NULL : (const Char*)(env + 0x10));
-		if (!ErrOccurred())
-		{
-			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
-			if (!ErrOccurred())
 			{
-				ResolveIdentifier(asts);
-				HintAsts = asts;
+				Analyze(asts, &option, &dlls);
+				if (!ErrOccurred())
+				{
+					HintAsts = asts;
+					result = True;
+				}
 			}
 		}
 	}
@@ -230,6 +197,7 @@ EXPORT void Interpret3(const U8* path, const void*(*func_get_src)(const U8*), co
 	Src = NULL;
 	SrcLine = NULL;
 	SrcChar = NULL;
+	return result;
 }
 
 EXPORT void Version(S64* major, S64* minor, S64* micro)
@@ -244,19 +212,19 @@ EXPORT void ResetMemAllocator(S64 mem_idx)
 	ResetAllocator(mem_idx);
 }
 
+EXPORT void ResetHint(void)
+{
+	HintAsts = NULL;
+}
+
 EXPORT void* GetHint(const U8* src, S64 row, S64 col)
 {
 	const Char* src2 = (const Char*)(src + 0x10);
-	if (HintAsts == NULL)
-		return NULL;
-	const SAst* root = (const SAst*)DictSearch(HintAsts, src2);
-	if (root == NULL)
-		return NULL;
-	const SAst* best = SearchHint(src2, (int)row, (int)col, root);
-	if (best == NULL)
+	const SAst* ast = SearchAst(src2, (int)row, (int)col);
+	if (ast == NULL)
 		return NULL;
 	size_t len = 0;
-	WriteHint(HintBuf + 0x08, &len, best);
+	WriteHint(HintBuf + 0x08, &len, ast);
 	if (len == 0)
 		return NULL;
 	*(S64*)(HintBuf + 0x00) = DefaultRefCntFunc + 1;
@@ -785,381 +753,12 @@ static const void* AddrToPosCallback(U64 key, const void* value, void* param)
 	return value;
 }
 
-static const SAst* SearchScope(const Char* src, int row, int col, const SAst* ast)
-{
-	if (ast == NULL || ast->ScopeChildren == NULL)
-		return NULL;
-	const void* params[2];
-	SPos pos;
-	pos.SrcName = src;
-	pos.Row = row;
-	pos.Col = col;
-	params[0] = &pos;
-	params[1] = NULL;
-	DictForEach(ast->ScopeChildren, SearchScopeCallback, (void*)params);
-	return (const SAst*)params[1];
-}
-
-static const void* SearchScopeCallback(const Char* key, const void* value, void* param)
-{
-	UNUSED(key);
-	const SAst* ast = (const SAst*)value;
-	const void** params = (void**)param;
-	const SPos* pos = (const SPos*)params[0];
-	if (CmpPos(pos->SrcName, pos->Row, pos->Col, ast->Pos))
-	{
-		params[1] = ast;
-		if (ast->ScopeChildren != NULL)
-		{
-			const void* params2[2];
-			params2[0] = params[0];
-			params2[1] = NULL;
-			DictForEach(ast->ScopeChildren, SearchScopeCallback, (void*)params2);
-			if (params2[1] != NULL)
-				params[1] = params2[1];
-		}
-	}
-	return value;
-}
-
 static Bool CmpPos(const Char* src, int row, int col, const SPos* pos)
 {
 	return pos != NULL && (pos->Row < row || pos->Row == row && pos->Col <= col) && wcscmp(pos->SrcName, src) == 0;
 }
 
-static const SAst* SearchHint(const Char* src, int row, int col, const SAst* ast)
-{
-	if (ast == NULL)
-		return NULL;
-	const SAst* best = NULL;
-	switch (ast->TypeId)
-	{
-		case AstTypeId_Root:
-			best = SearchHintList(src, row, col, ((const SAstRoot*)ast)->Items);
-			break;
-		case AstTypeId_Func:
-		case AstTypeId_FuncRaw:
-			{
-				const SAstFunc* ast2 = (const SAstFunc*)ast;
-				best = SearchHintList(src, row, col, ast2->Args);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Ret));
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->Stats));
-			}
-			break;
-		case AstTypeId_Var:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstVar*)ast)->Var);
-			break;
-		case AstTypeId_Const:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstConst*)ast)->Var);
-			break;
-		case AstTypeId_Alias:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstAlias*)ast)->Type);
-			break;
-		case AstTypeId_Class:
-			{
-				const SAstClass* ast2 = (const SAstClass*)ast;
-				SListNode* ptr = ast2->Items->Bottom;
-				const SAst* found = NULL;
-				while (ptr != NULL)
-				{
-					const SAst* data = ((const SAstClassItem*)ptr->Data)->Def;
-					if (CmpPos(src, row, col, data->Pos))
-					{
-						found = data;
-						break;
-					}
-					ptr = ptr->Prev;
-				}
-				if (found != NULL)
-					best = SearchHint(src, row, col, found);
-			}
-			break;
-		case AstTypeId_Enum:
-			best = SearchHintList(src, row, col, ((const SAstEnum*)ast)->Items);
-			break;
-		case AstTypeId_Arg:
-			{
-				const SAstArg* ast2 = (const SAstArg*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Type);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Expr));
-			}
-			break;
-		case AstTypeId_StatFunc:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstStatFunc*)ast)->Def);
-			break;
-		case AstTypeId_StatVar:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstStatVar*)ast)->Def);
-			break;
-		case AstTypeId_StatConst:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstStatConst*)ast)->Def);
-			break;
-		case AstTypeId_StatAlias:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstStatAlias*)ast)->Def);
-			break;
-		case AstTypeId_StatClass:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstStatClass*)ast)->Def);
-			break;
-		case AstTypeId_StatEnum:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstStatEnum*)ast)->Def);
-			break;
-		case AstTypeId_StatIf:
-			{
-				const SAstStatIf* ast2 = (const SAstStatIf*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Cond);
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->Stats));
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->ElIfs));
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->ElseStats));
-			}
-			break;
-		case AstTypeId_StatElIf:
-			{
-				const SAstStatElIf* ast2 = (const SAstStatElIf*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Cond);
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->Stats));
-			}
-			break;
-		case AstTypeId_StatSwitch:
-			{
-				const SAstStatSwitch* ast2 = (const SAstStatSwitch*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Cond);
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->Cases));
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->DefaultStats));
-			}
-			break;
-		case AstTypeId_StatCase:
-			{
-				const SAstStatCase* ast2 = (const SAstStatCase*)ast;
-				const SAst* found = NULL;
-				SListNode* ptr = ast2->Conds->Bottom;
-				while (ptr != NULL)
-				{
-					const SAstExpr** exprs = (const SAstExpr**)ptr->Data;
-					if (CmpPos(src, row, col, ((const SAst*)exprs[0])->Pos))
-					{
-						found = (const SAst*)exprs[0];
-						break;
-					}
-					if (exprs[1] != NULL && CmpPos(src, row, col, ((const SAst*)exprs[1])->Pos))
-					{
-						found = (const SAst*)exprs[1];
-						break;
-					}
-					ptr = ptr->Prev;
-				}
-				if (found != NULL)
-					best = SearchHint(src, row, col, found);
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->Stats));
-			}
-			break;
-		case AstTypeId_StatWhile:
-			{
-				const SAstStatWhile* ast2 = (const SAstStatWhile*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Cond);
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->Stats));
-			}
-			break;
-		case AstTypeId_StatFor:
-			{
-				const SAstStatFor* ast2 = (const SAstStatFor*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Start);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Cond));
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Step));
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->Stats));
-			}
-			break;
-		case AstTypeId_StatTry:
-			{
-				const SAstStatTry* ast2 = (const SAstStatTry*)ast;
-				best = SearchHintList(src, row, col, ast2->Stats);
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->Catches));
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->FinallyStats));
-			}
-			break;
-		case AstTypeId_StatCatch:
-			{
-				const SAstStatCatch* ast2 = (const SAstStatCatch*)ast;
-				const SAst* found = NULL;
-				SListNode* ptr = ast2->Conds->Bottom;
-				while (ptr != NULL)
-				{
-					const SAstExpr** exprs = (const SAstExpr**)ptr->Data;
-					if (CmpPos(src, row, col, ((const SAst*)exprs[0])->Pos))
-					{
-						found = (const SAst*)exprs[0];
-						break;
-					}
-					if (exprs[1] != NULL && CmpPos(src, row, col, ((const SAst*)exprs[1])->Pos))
-					{
-						found = (const SAst*)exprs[1];
-						break;
-					}
-					ptr = ptr->Prev;
-				}
-				if (found != NULL)
-					best = SearchHint(src, row, col, found);
-				best = BetterHint(best, SearchHintList(src, row, col, ast2->Stats));
-			}
-			break;
-		case AstTypeId_StatThrow:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstStatThrow*)ast)->Code);
-			break;
-		case AstTypeId_StatBlock:
-			best = SearchHintList(src, row, col, ((const SAstStatBlock*)ast)->Stats);
-			break;
-		case AstTypeId_StatRet:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstStatRet*)ast)->Value);
-			break;
-		case AstTypeId_StatDo:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstStatDo*)ast)->Expr);
-			break;
-		case AstTypeId_StatAssert:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstStatAssert*)ast)->Cond);
-			break;
-		case AstTypeId_TypeArray:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstTypeArray*)ast)->ItemType);
-			break;
-		case AstTypeId_TypeFunc:
-			{
-				const SAstTypeFunc* ast2 = (const SAstTypeFunc*)ast;
-				const SAst* found = NULL;
-				SListNode* ptr = ast2->Args->Bottom;
-				while (ptr != NULL)
-				{
-					const SAstTypeFuncArg* arg = (const SAstTypeFuncArg*)ptr->Data;
-					if (CmpPos(src, row, col, ((const SAst*)arg->Arg)->Pos))
-					{
-						found = (const SAst*)arg->Arg;
-						break;
-					}
-					ptr = ptr->Prev;
-				}
-				if (found != NULL)
-					best = SearchHint(src, row, col, found);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Ret));
-			}
-			break;
-		case AstTypeId_TypeGen:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstTypeGen*)ast)->ItemType);
-			break;
-		case AstTypeId_TypeDict:
-			{
-				const SAstTypeDict* ast2 = (const SAstTypeDict*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->ItemTypeKey);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->ItemTypeValue));
-			}
-			break;
-		case AstTypeId_Expr1:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstExpr1*)ast)->Child);
-			break;
-		case AstTypeId_Expr2:
-			{
-				const SAstExpr2* ast2 = (const SAstExpr2*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Children[0]);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Children[1]));
-			}
-			break;
-		case AstTypeId_Expr3:
-			{
-				const SAstExpr3* ast2 = (const SAstExpr3*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Children[0]);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Children[1]));
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Children[2]));
-			}
-			break;
-		case AstTypeId_ExprNew:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstExprNew*)ast)->ItemType);
-			break;
-		case AstTypeId_ExprNewArray:
-			{
-				const SAstExprNewArray* ast2 = (const SAstExprNewArray*)ast;
-				best = SearchHintList(src, row, col, ast2->Idces);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->ItemType));
-			}
-			break;
-		case AstTypeId_ExprAs:
-			{
-				const SAstExprAs* ast2 = (const SAstExprAs*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Child);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->ChildType));
-			}
-			break;
-		case AstTypeId_ExprToBin:
-			{
-				const SAstExprToBin* ast2 = (const SAstExprToBin*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Child);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->ChildType));
-			}
-			break;
-		case AstTypeId_ExprFromBin:
-			{
-				const SAstExprFromBin* ast2 = (const SAstExprFromBin*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Child);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->ChildType));
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Offset));
-			}
-			break;
-		case AstTypeId_ExprCall:
-			{
-				const SAstExprCall* ast2 = (const SAstExprCall*)ast;
-				const SAst* found = NULL;
-				SListNode* ptr = ast2->Args->Bottom;
-				while (ptr != NULL)
-				{
-					const SAstExprCallArg* arg = (const SAstExprCallArg*)ptr->Data;
-					if (CmpPos(src, row, col, ((const SAst*)arg->Arg)->Pos))
-					{
-						found = (const SAst*)arg->Arg;
-						break;
-					}
-					ptr = ptr->Prev;
-				}
-				if (found != NULL)
-					best = SearchHint(src, row, col, found);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Func));
-			}
-			break;
-		case AstTypeId_ExprArray:
-			{
-				const SAstExprArray* ast2 = (const SAstExprArray*)ast;
-				best = SearchHint(src, row, col, (const SAst*)ast2->Var);
-				best = BetterHint(best, SearchHint(src, row, col, (const SAst*)ast2->Idx));
-			}
-			break;
-		case AstTypeId_ExprDot:
-			best = SearchHint(src, row, col, (const SAst*)((const SAstExprDot*)ast)->Var);
-			break;
-		case AstTypeId_ExprValueArray:
-			best = SearchHintList(src, row, col, ((const SAstExprValueArray*)ast)->Values);
-			break;
-	}
-	if (ast->Pos != NULL && ast->Pos->Row == row && ast->Pos->Col <= col && wcscmp(ast->Pos->SrcName, src) == 0)
-	{
-		if (best == NULL || best->Pos->Col < ast->Pos->Col)
-			best = ast;
-	}
-	return best;
-}
-
-static const SAst* SearchHintList(const Char* src, int row, int col, SList* list)
-{
-	SListNode* ptr = list->Bottom;
-	const SAst* found = NULL;
-	while (ptr != NULL)
-	{
-		const SAst* data = (const SAst*)ptr->Data;
-		if (CmpPos(src, row, col, data->Pos))
-		{
-			found = data;
-			break;
-		}
-		ptr = ptr->Prev;
-	}
-	if (found == NULL)
-		return NULL;
-	return SearchHint(src, row, col, found);
-}
-
-static const SAst* BetterHint(const SAst* a, const SAst* b)
+static const SAst* BetterAst(const SAst* a, const SAst* b)
 {
 	if (a == NULL)
 		return b;
@@ -1298,4 +897,346 @@ static void WriteHintDef(Char* buf, size_t* len, const SAst* ast)
 			GetTypeName(buf, len, HINT_MSG_MAX, (const SAstType*)ast);
 			break;
 	}
+}
+
+static const SAst* SearchAst(const Char* src, int row, int col)
+{
+	if (HintAsts == NULL)
+		return NULL;
+	const SAst* root = (const SAst*)DictSearch(HintAsts, src);
+	if (root == NULL)
+		return NULL;
+	return SearchAstRecursion(src, (int)row, (int)col, root);
+}
+
+static const SAst* SearchAstRecursion(const Char* src, int row, int col, const SAst* ast)
+{
+	if (ast == NULL)
+		return NULL;
+	const SAst* best = NULL;
+	switch (ast->TypeId)
+	{
+		case AstTypeId_Root:
+			best = SearchAstListRecursion(src, row, col, ((const SAstRoot*)ast)->Items);
+			break;
+		case AstTypeId_Func:
+		case AstTypeId_FuncRaw:
+			{
+				const SAstFunc* ast2 = (const SAstFunc*)ast;
+				best = SearchAstListRecursion(src, row, col, ast2->Args);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Ret));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+			}
+		break;
+		case AstTypeId_Var:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstVar*)ast)->Var);
+			break;
+		case AstTypeId_Const:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstConst*)ast)->Var);
+			break;
+		case AstTypeId_Alias:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstAlias*)ast)->Type);
+			break;
+		case AstTypeId_Class:
+			{
+				const SAstClass* ast2 = (const SAstClass*)ast;
+				SListNode* ptr = ast2->Items->Bottom;
+				const SAst* found = NULL;
+				while (ptr != NULL)
+				{
+					const SAst* data = ((const SAstClassItem*)ptr->Data)->Def;
+					if (CmpPos(src, row, col, data->Pos))
+					{
+						found = data;
+						break;
+					}
+					ptr = ptr->Prev;
+				}
+				if (found != NULL)
+					best = SearchAstRecursion(src, row, col, found);
+			}
+		break;
+		case AstTypeId_Enum:
+			best = SearchAstListRecursion(src, row, col, ((const SAstEnum*)ast)->Items);
+			break;
+		case AstTypeId_Arg:
+			{
+				const SAstArg* ast2 = (const SAstArg*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Type);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Expr));
+			}
+			break;
+		case AstTypeId_StatFunc:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatFunc*)ast)->Def);
+			break;
+		case AstTypeId_StatVar:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatVar*)ast)->Def);
+			break;
+		case AstTypeId_StatConst:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatConst*)ast)->Def);
+			break;
+		case AstTypeId_StatAlias:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatAlias*)ast)->Def);
+			break;
+		case AstTypeId_StatClass:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatClass*)ast)->Def);
+			break;
+		case AstTypeId_StatEnum:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatEnum*)ast)->Def);
+			break;
+		case AstTypeId_StatIf:
+			{
+				const SAstStatIf* ast2 = (const SAstStatIf*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->ElIfs));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->ElseStats));
+			}
+			break;
+		case AstTypeId_StatElIf:
+			{
+				const SAstStatElIf* ast2 = (const SAstStatElIf*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+			}
+			break;
+		case AstTypeId_StatSwitch:
+			{
+				const SAstStatSwitch* ast2 = (const SAstStatSwitch*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Cases));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->DefaultStats));
+			}
+			break;
+		case AstTypeId_StatCase:
+			{
+				const SAstStatCase* ast2 = (const SAstStatCase*)ast;
+				const SAst* found = NULL;
+				SListNode* ptr = ast2->Conds->Bottom;
+				while (ptr != NULL)
+				{
+					const SAstExpr** exprs = (const SAstExpr**)ptr->Data;
+					if (CmpPos(src, row, col, ((const SAst*)exprs[0])->Pos))
+					{
+						found = (const SAst*)exprs[0];
+						break;
+					}
+					if (exprs[1] != NULL && CmpPos(src, row, col, ((const SAst*)exprs[1])->Pos))
+					{
+						found = (const SAst*)exprs[1];
+						break;
+					}
+					ptr = ptr->Prev;
+				}
+				if (found != NULL)
+					best = SearchAstRecursion(src, row, col, found);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+			}
+			break;
+		case AstTypeId_StatWhile:
+			{
+				const SAstStatWhile* ast2 = (const SAstStatWhile*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+			}
+			break;
+		case AstTypeId_StatFor:
+			{
+				const SAstStatFor* ast2 = (const SAstStatFor*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Start);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Cond));
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Step));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+			}
+			break;
+		case AstTypeId_StatTry:
+			{
+				const SAstStatTry* ast2 = (const SAstStatTry*)ast;
+				best = SearchAstListRecursion(src, row, col, ast2->Stats);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Catches));
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->FinallyStats));
+			}
+			break;
+		case AstTypeId_StatCatch:
+			{
+				const SAstStatCatch* ast2 = (const SAstStatCatch*)ast;
+				const SAst* found = NULL;
+				SListNode* ptr = ast2->Conds->Bottom;
+				while (ptr != NULL)
+				{
+					const SAstExpr** exprs = (const SAstExpr**)ptr->Data;
+					if (CmpPos(src, row, col, ((const SAst*)exprs[0])->Pos))
+					{
+						found = (const SAst*)exprs[0];
+						break;
+					}
+					if (exprs[1] != NULL && CmpPos(src, row, col, ((const SAst*)exprs[1])->Pos))
+					{
+						found = (const SAst*)exprs[1];
+						break;
+					}
+					ptr = ptr->Prev;
+				}
+				if (found != NULL)
+					best = SearchAstRecursion(src, row, col, found);
+				best = BetterAst(best, SearchAstListRecursion(src, row, col, ast2->Stats));
+			}
+			break;
+		case AstTypeId_StatThrow:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatThrow*)ast)->Code);
+			break;
+		case AstTypeId_StatBlock:
+			best = SearchAstListRecursion(src, row, col, ((const SAstStatBlock*)ast)->Stats);
+			break;
+		case AstTypeId_StatRet:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatRet*)ast)->Value);
+			break;
+		case AstTypeId_StatDo:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatDo*)ast)->Expr);
+			break;
+		case AstTypeId_StatAssert:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstStatAssert*)ast)->Cond);
+			break;
+		case AstTypeId_TypeArray:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstTypeArray*)ast)->ItemType);
+			break;
+		case AstTypeId_TypeFunc:
+			{
+				const SAstTypeFunc* ast2 = (const SAstTypeFunc*)ast;
+				const SAst* found = NULL;
+				SListNode* ptr = ast2->Args->Bottom;
+				while (ptr != NULL)
+				{
+					const SAstTypeFuncArg* arg = (const SAstTypeFuncArg*)ptr->Data;
+					if (CmpPos(src, row, col, ((const SAst*)arg->Arg)->Pos))
+					{
+						found = (const SAst*)arg->Arg;
+						break;
+					}
+					ptr = ptr->Prev;
+				}
+				if (found != NULL)
+					best = SearchAstRecursion(src, row, col, found);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Ret));
+			}
+			break;
+		case AstTypeId_TypeGen:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstTypeGen*)ast)->ItemType);
+			break;
+		case AstTypeId_TypeDict:
+			{
+				const SAstTypeDict* ast2 = (const SAstTypeDict*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->ItemTypeKey);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ItemTypeValue));
+			}
+			break;
+		case AstTypeId_Expr1:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstExpr1*)ast)->Child);
+			break;
+		case AstTypeId_Expr2:
+			{
+				const SAstExpr2* ast2 = (const SAstExpr2*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[0]);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[1]));
+			}
+			break;
+		case AstTypeId_Expr3:
+			{
+				const SAstExpr3* ast2 = (const SAstExpr3*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[0]);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[1]));
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Children[2]));
+			}
+			break;
+		case AstTypeId_ExprNew:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstExprNew*)ast)->ItemType);
+			break;
+		case AstTypeId_ExprNewArray:
+			{
+				const SAstExprNewArray* ast2 = (const SAstExprNewArray*)ast;
+				best = SearchAstListRecursion(src, row, col, ast2->Idces);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ItemType));
+			}
+			break;
+		case AstTypeId_ExprAs:
+			{
+				const SAstExprAs* ast2 = (const SAstExprAs*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Child);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ChildType));
+			}
+			break;
+		case AstTypeId_ExprToBin:
+			{
+				const SAstExprToBin* ast2 = (const SAstExprToBin*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Child);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ChildType));
+			}
+			break;
+		case AstTypeId_ExprFromBin:
+			{
+				const SAstExprFromBin* ast2 = (const SAstExprFromBin*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Child);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->ChildType));
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Offset));
+			}
+			break;
+		case AstTypeId_ExprCall:
+			{
+				const SAstExprCall* ast2 = (const SAstExprCall*)ast;
+				const SAst* found = NULL;
+				SListNode* ptr = ast2->Args->Bottom;
+				while (ptr != NULL)
+				{
+					const SAstExprCallArg* arg = (const SAstExprCallArg*)ptr->Data;
+					if (CmpPos(src, row, col, ((const SAst*)arg->Arg)->Pos))
+					{
+						found = (const SAst*)arg->Arg;
+						break;
+					}
+					ptr = ptr->Prev;
+				}
+				if (found != NULL)
+					best = SearchAstRecursion(src, row, col, found);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Func));
+			}
+			break;
+		case AstTypeId_ExprArray:
+			{
+				const SAstExprArray* ast2 = (const SAstExprArray*)ast;
+				best = SearchAstRecursion(src, row, col, (const SAst*)ast2->Var);
+				best = BetterAst(best, SearchAstRecursion(src, row, col, (const SAst*)ast2->Idx));
+			}
+			break;
+		case AstTypeId_ExprDot:
+			best = SearchAstRecursion(src, row, col, (const SAst*)((const SAstExprDot*)ast)->Var);
+			break;
+		case AstTypeId_ExprValueArray:
+			best = SearchAstListRecursion(src, row, col, ((const SAstExprValueArray*)ast)->Values);
+			break;
+	}
+	if (ast->Pos != NULL && ast->Pos->Row == row && ast->Pos->Col <= col && wcscmp(ast->Pos->SrcName, src) == 0)
+	{
+		if (best == NULL || best->Pos->Col < ast->Pos->Col)
+			best = ast;
+	}
+	return best;
+}
+
+static const SAst* SearchAstListRecursion(const Char* src, int row, int col, SList* list)
+{
+	SListNode* ptr = list->Bottom;
+	const SAst* found = NULL;
+	while (ptr != NULL)
+	{
+		const SAst* data = (const SAst*)ptr->Data;
+		if (CmpPos(src, row, col, data->Pos))
+		{
+			found = data;
+			break;
+		}
+		ptr = ptr->Prev;
+	}
+	if (found == NULL)
+		return NULL;
+	return SearchAstRecursion(src, row, col, found);
 }

@@ -7,4 +7,3 @@
 #include "option.h"
 
 SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls);
-void ResolveIdentifier(SDict* asts);

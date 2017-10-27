@@ -13,16 +13,16 @@ end func
 func [d0917.knd, Interpret1] interpret1(src: [][]char, color: [][]bit8)
 end func
 
-func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>, lang: int)
-end func
-
-func [d0917.knd, Interpret3] interpret3(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char)
+func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>, lang: int, blankMem: int): bool
 end func
 
 func [d0917.knd, Version] version(major: &int, minor: &int, micro: &int)
 end func
 
 func [d0917.knd, ResetMemAllocator] resetMemAllocator(memIdx: int)
+end func
+
+func [d0917.knd, ResetHint] resetHint()
 end func
 
 func [d0917.knd, GetHint] getHint(src: []char, row: int, col: int): []char
@@ -1815,7 +1815,8 @@ var drag: bool
 var dirtyInterpret: int
 var dirtyInterpretTime: int
 var dirtyHint: bool
-var dirtyHintTime : int
+var dirtyHintTime: int
+var blankMem: int
 var listInfoItem: list<@ListInfoItem>
 var auxiliaryErr: dict<@Pos, []char>
 var lockingEditor: bool
@@ -1971,14 +1972,10 @@ func main()
 				case 1
 					if(lib@sysTime() - @dirtyInterpretTime > 1200)
 						do @resetAuxiliary()
-						do @resetMemAllocator(1)
 						try
-							do @interpret3(@mainSrcName, @getSrc, null, @getEnv())
-						catch
-						end try
-						do @resetMemAllocator(0)
-						try
-							do @interpret2(@mainSrcName, @getSrc, null, @getEnv(), @logForInterpret, @langEn ?(1, 0))
+							if(@interpret2(@mainSrcName, @getSrc, null, @getEnv(), @logForInterpret, @langEn ?(1, 0), @blankMem))
+								do @blankMem :: 1 - @blankMem
+							end if
 						catch
 						end try
 						do @updateAuxiliary()
@@ -2112,11 +2109,12 @@ func new(srcName: []char, src: [][]char)
 	do @documents.add(@mainSrcName, @curDocument)
 	do @setDirtyInterpret()
 	do @setDirtyHint()
+	do @blankMem :: 0
 	do @resetAuxiliary()
 	do @updateUi()
+	do @resetHint()
 	do @drawEditor.paint()
 	do @drawEditor.focus()
-	; TODO:
 end func
 
 func save(): bool
@@ -2471,7 +2469,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret
 	end try
-	do @resetMemAllocator(0)
+	do @resetMemAllocator(@blankMem)
 	do @textLog :: ""
 	do @updateLog()
 	var cmd: []char
@@ -2549,7 +2547,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
 		ret
 	end try
-	do @resetMemAllocator(0)
+	do @resetMemAllocator(@blankMem)
 	do @textLog :: ""
 	do @updateLog()
 	try
