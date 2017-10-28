@@ -210,13 +210,10 @@ class DocumentSrc(@Document)
 		do draw@rect(0.0, 0.0, width $ float, height $ float, @colorBack)
 		var lineX: float :: (me.lineNumberWidth - 2) $ float
 		do draw@line(lineX, 0.0, lineX, height $ float, colorLineNumber)
-		for i(0, ^me.src.src - 1)
+		for i(0, ^me.src.src - 1 - me.pageY)
 			var y: float :: (i * @cellHeight) $ float
 			if(y < -@cellHeight $ float | y >= (height + @cellHeight) $ float)
 				skip i
-			end if
-			if(me.pageY + i + 1 > ^me.src.src)
-				break i
 			end if
 			var str: []char :: (me.pageY + i + 1).toStr()
 			do @font.draw((me.lineNumberWidth - (^str + 1) * @cellWidth + @cellWidth / 2) $ float, y, str, colorLineNumber)
