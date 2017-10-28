@@ -210,7 +210,7 @@ class DocumentSrc(@Document)
 		do draw@rect(0.0, 0.0, width $ float, height $ float, @colorBack)
 		var lineX: float :: (me.lineNumberWidth - 2) $ float
 		do draw@line(lineX, 0.0, lineX, height $ float, colorLineNumber)
-		for i(0, ^me.src.src - 1)
+		for i(0, ^me.src.src - 1 - me.pageY)
 			var y: float :: (i * @cellHeight) $ float
 			if(y < -@cellHeight $ float | y >= (height + @cellHeight) $ float)
 				skip i
