@@ -22,10 +22,10 @@ end func
 func [d0917.knd, ResetMemAllocator] resetMemAllocator(memIdx: int)
 end func
 
-func [d0917.knd, ResetHint] resetHint()
+func [d0917.knd, ResetKeywords] resetKeywords()
 end func
 
-func [d0917.knd, GetHint] getHint(src: []char, row: int, col: int, keyword: []char): []char
+func [d0917.knd, GetHint] getHint(src: []char, row: int, keyword: []char): []char
 end func
 
 func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>): bool
@@ -769,16 +769,9 @@ class DocumentSrc(@Document)
 		if(^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t')
 			if(srcName <>& null)
 				var color: @CharColor :: me.src.color[me.cursorY][x - 1].and(16#7Fb8) $ @CharColor
-				var last: int :: x
-				while(x > 0 & me.src.color[me.cursorY][x - 1].and(16#7Fb8) = color $ bit8)
-					do x :- 1
-				end while
-				var last2: int :: last
-				while(last2 < ^me.src.color[me.cursorY] - 1 & me.src.color[me.cursorY][last2 + 1].and(16#7Fb8) = color $ bit8)
-					do last2 :+ 1
-				end while
-				var word: []char :: me.src.src[me.cursorY].sub(x, last2 - x).trim()
-				var hint: []char :: @getHint2(srcName, me.cursorY + 1, last, word)
+				var srcName2: []char
+				var word: []char :: me.getWord(&srcName2, x, me.cursorY, color, srcName)
+				var hint: []char :: @getHint2(srcName2, me.cursorY + 1, word)
 				if(hint =& null)
 					do hint :: ""
 				end if
@@ -1307,16 +1300,9 @@ class DocumentSrc(@Document)
 						switch color(me.src.color[y][x - 1].and(16#7Fb8) $ @CharColor)
 						case %identifier, %global, %reserved
 							do x :- 1
-							var last: int :: x
-							while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
-								do x :- 1
-							end while
-							var last2: int :: last
-							while(last2 < ^me.src.color[me.cursorY] - 1 & me.src.color[me.cursorY][last2 + 1].and(16#7Fb8) = color $ bit8)
-								do last2 :+ 1
-							end while
-							var word: []char :: me.src.src[y].sub(x, last2 - x).trim()
-							var hint: []char :: @getHint2(srcName, y + 1, last, word)
+							var srcName2: []char
+							var word: []char :: me.getWord(&srcName2, x, y, color, srcName)
+							var hint: []char :: @getHint2(srcName2, y + 1, word)
 							if(hint =& null)
 								do hint :: ""
 							end if
@@ -1351,6 +1337,25 @@ class DocumentSrc(@Document)
 			do @textFunc :: ""
 			do @updateLog()
 		end if
+	end func
+
+	func getWord(srcName2: &[]char, x: int, y: int, color: @CharColor, srcName: []char): []char
+		var last: int :: x
+		while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
+			do x :- 1
+		end while
+		var last2: int :: last
+		while(last2 < ^me.src.color[y] - 1 & me.src.color[y][last2 + 1].and(16#7Fb8) = color $ bit8)
+			do last2 :+ 1
+		end while
+		var word: []char :: me.src.src[y].sub(x, last2 - x + 1).trim()
+		do srcName2 :: srcName
+		var pos: int :: word.find('@', -1)
+		if(pos > 0)
+			do srcName2 :: word.sub(0, pos)
+			do word :: word.sub(pos, -1)
+		end if
+		ret word
 	end func
 
 	func scrollPageX(wheel: int)
@@ -2131,7 +2136,7 @@ func new(srcName: []char, src: [][]char)
 	do @blankMem :: 0
 	do @resetAuxiliary()
 	do @updateUi()
-	do @resetHint()
+	do @resetKeywords()
 	do @drawEditor.paint()
 	do @drawEditor.focus()
 end func
@@ -2928,10 +2933,10 @@ func getDocumentName(document: @Document): []char
 	end func
 end func
 
-func getHint2(src: []char, row: int, col: int, keyword: []char): []char
+func getHint2(src: []char, row: int, keyword: []char): []char
 	var result: []char
 	try
-		do result :: ##@getHint(src, row, col, keyword)
+		do result :: ##@getHint(src, row, keyword)
 	catch
 		do result :: null
 	end try
