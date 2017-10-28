@@ -768,7 +768,7 @@ class DocumentSrc(@Document)
 		var srcName: []char :: @srcNameToInternalName(@getDocumentName(@curDocument))
 		if(^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t')
 			if(srcName <>& null)
-				var color: @CharColor :: me.src.color[me.cursorY][x - 1].and(16#7Fb8) $ @CharColor
+				var color: @CharColor :: me.src.color[me.cursorY][x].and(16#7Fb8) $ @CharColor
 				var last: int :: x
 				while(x > 0 & me.src.color[me.cursorY][x - 1].and(16#7Fb8) = color $ bit8)
 					do x :- 1
