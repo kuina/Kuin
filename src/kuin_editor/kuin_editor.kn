@@ -215,6 +215,9 @@ class DocumentSrc(@Document)
 			if(y < -@cellHeight $ float | y >= (height + @cellHeight) $ float)
 				skip i
 			end if
+			if(me.pageY + i + 1 > ^me.src.src)
+				break i
+			end if
 			var str: []char :: (me.pageY + i + 1).toStr()
 			do @font.draw((me.lineNumberWidth - (^str + 1) * @cellWidth + @cellWidth / 2) $ float, y, str, colorLineNumber)
 		end for
