@@ -767,11 +767,14 @@ class DocumentSrc(@Document)
 		end while
 		var srcName: []char :: @srcNameToInternalName(@getDocumentName(@curDocument))
 		if(^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t')
+			var color: @CharColor :: me.src.color[me.cursorY][x].and(16#7Fb8) $ @CharColor
 			if(srcName <>& null)
-				var color: @CharColor :: me.src.color[me.cursorY][x].and(16#7Fb8) $ @CharColor
 				var srcName2: []char
 				var word: []char :: me.getWord(&srcName2, x, me.cursorY, color, srcName)
-				var hint: []char :: @getHint2(srcName2, me.cursorY + 1, word)
+				var hint: []char :: null
+				if(color = %identifier | color = %global | color = %reserved)
+					do hint :: @getHint2(srcName2, me.cursorY + 1, word)
+				end if
 				if(hint =& null)
 					do hint :: ""
 				end if
@@ -1344,6 +1347,9 @@ class DocumentSrc(@Document)
 		while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
 			do x :- 1
 		end while
+		if(x > 0 & (me.src.src[y][x - 1] = '%' | me.src.src[y][x - 1] = '.'))
+			do x :- 1
+		end if
 		var last2: int :: last
 		while(last2 < ^me.src.color[y] - 1 & me.src.color[y][last2 + 1].and(16#7Fb8) = color $ bit8)
 			do last2 :+ 1

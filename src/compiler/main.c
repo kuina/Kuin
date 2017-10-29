@@ -62,6 +62,7 @@ typedef struct SDbgInfoSet
 
 typedef struct SKeyword
 {
+	const Char* SrcName;
 	const Char* Name;
 	const SAst* Ast;
 	int* First;
@@ -245,11 +246,11 @@ EXPORT void* GetHint(const U8* src, S64 row, const U8* keyword)
 	const Char* keyword2 = (const Char*)(keyword + 0x10);
 	int first;
 	int last;
-	SearchAst(&first, &last, (const Char*)(src + 0x10), keyword2);
+	SearchAst(&first, &last, (keyword2[0] == L'%' || keyword2[0] == L'.') ? L"" : (const Char*)(src + 0x10), keyword2);
 	if (first == -1)
 		return NULL;
 	const SAst* ast;
-	if (keyword2[0] == L'@')
+	if (keyword2[0] == L'@' || keyword2[0] == L'%' || keyword2[0] == L'.')
 		ast = Keywords[first]->Ast;
 	else
 	{
@@ -633,7 +634,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 		fwprintf(fp, L"%d\n", KeywordNum);
 		int i;
 		for (i = 0; i < KeywordNum; i++)
-			fwprintf(fp, L"%s(%s) = %s: %d, %d - %d\n", Keywords[i]->Name, Keywords[i]->Ast->RefName == NULL ? L"" : Keywords[i]->Ast->RefName, Keywords[i]->Ast->Pos->SrcName, Keywords[i]->Ast->Pos->Row, *Keywords[i]->First, *Keywords[i]->Last);
+			fwprintf(fp, L"%s(%s) = %s: %d, %d - %d\n", Keywords[i]->Name, Keywords[i]->Ast->RefName == NULL ? L"" : Keywords[i]->Ast->RefName, Keywords[i]->SrcName, Keywords[i]->Ast->Pos->Row, *Keywords[i]->First, *Keywords[i]->Last);
 		fclose(fp);
 	}
 #endif
@@ -905,6 +906,15 @@ static void WriteHintDef(Char* buf, size_t* len, const SAst* ast)
 		case AstTypeId_TypeUser:
 			GetTypeName(buf, len, HINT_MSG_MAX, (const SAstType*)ast);
 			break;
+		case AstTypeId_ExprValue:
+			if (*len < HINT_MSG_MAX)
+			{
+				if (ast->Name == NULL)
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%I64d", *(S64*)((SAstExprValue*)ast)->Value);
+				else
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%%%s :: %I64d", ast->Name, *(S64*)((SAstExprValue*)ast)->Value);
+			}
+			break;
 	}
 }
 
@@ -968,6 +978,7 @@ static void MakeKeywordsRecursion(SKeywordCallbackParam* param, const SAst* ast)
 		{
 			SKeywordList* node = (SKeywordList*)Alloc(sizeof(SKeywordList));
 			SKeyword* keyword = (SKeyword*)Alloc(sizeof(SKeyword));
+			keyword->SrcName = ast->Pos->SrcName;
 			keyword->Name = ast->Name;
 			switch (param->Type)
 			{
@@ -975,11 +986,15 @@ static void MakeKeywordsRecursion(SKeywordCallbackParam* param, const SAst* ast)
 					keyword->Name = NewStr(NULL, L"@%s", ast->Name);
 					break;
 				case AstTypeId_Enum:
+					keyword->SrcName = L"";
 					keyword->Name = NewStr(NULL, L"%%%s", ast->Name);
 					break;
 				case AstTypeId_Class:
 					if (ast->TypeId == AstTypeId_Arg || ast->TypeId == AstTypeId_Func)
+					{
+						keyword->SrcName = L"";
 						keyword->Name = NewStr(NULL, L".%s", ast->Name);
+					}
 					break;
 			}
 			keyword->Ast = ast;
@@ -1014,7 +1029,7 @@ static int CmpKeyword(const void* a, const void* b)
 	const SKeyword* a2 = *(const SKeyword**)a;
 	const SKeyword* b2 = *(const SKeyword**)b;
 	int cmp;
-	cmp = wcscmp(a2->Ast->Pos->SrcName, b2->Ast->Pos->SrcName);
+	cmp = wcscmp(a2->SrcName, b2->SrcName);
 	if (cmp != 0)
 		return cmp;
 	cmp = wcscmp(a2->Name, b2->Name);
@@ -1028,7 +1043,7 @@ static void SearchAst(int* first, int* last, const Char* src, const Char* keywor
 	while (min <= max)
 	{
 		int mid = (min + max) / 2;
-		int cmp = wcscmp(src, Keywords[mid]->Ast->Pos->SrcName);
+		int cmp = wcscmp(src, Keywords[mid]->SrcName);
 		if (cmp == 0)
 			cmp = wcscmp(keyword, Keywords[mid]->Name);
 		if (cmp < 0)
