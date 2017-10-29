@@ -106,6 +106,7 @@ static void AssertNextChar(Char c, Bool skip_spaces);
 static void NextCharErr(Char c, Char c2);
 static void AddScopeRefeds(SAst* ast);
 static void PushDummyScope(SAst* ast);
+static void AddEndPosScope(void);
 static SAstArg* MakeBlockVar(int row, int col);
 static void ObtainBlockName(SAst* ast);
 static SAstExprValue* ObtainPrimValue(const SPos* pos, EAstTypePrimKind kind, const void* value);
@@ -925,6 +926,16 @@ static void PushDummyScope(SAst* ast)
 	ast->ScopeParent = dummy;
 }
 
+static void AddEndPosScope(void)
+{
+	SAst* dummy = (SAst*)Alloc(sizeof(SAst));
+	InitAst(dummy, AstTypeId_Ast, NewPos(SrcName, Row - 1, 0), NULL, True, True);
+	((SAst*)StackPeek(Scope))->ScopeChildren = DictAdd(((SAst*)StackPeek(Scope))->ScopeChildren, NewStr(NULL, L"$%u", UniqueCnt), dummy);
+	UniqueCnt++;
+	Scope = StackPush(Scope, dummy);
+	Scope = StackPop(Scope);
+}
+
 static SAstArg* MakeBlockVar(int row, int col)
 {
 	SAstArg* result = (SAstArg*)Alloc(sizeof(SAstArg));
@@ -1106,6 +1117,7 @@ static SAstRoot* ParseRoot(void)
 			ListAdd(ast->Items, child);
 		}
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
 }
@@ -1283,6 +1295,7 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 		}
 		ListAdd(ast->Stats, stat);
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
 }
@@ -1448,6 +1461,7 @@ static SAstClass* ParseClass(void)
 			ListAdd(ast->Items, item);
 		}
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
 }
@@ -1511,6 +1525,7 @@ static SAstEnum* ParseEnum(void)
 			AddScopeName((SAst*)item, True);
 		}
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
 }
@@ -1835,6 +1850,7 @@ static SAstStat* ParseStatIf(void)
 			scope_new[1] = (SAst*)stat;
 		}
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
@@ -1948,6 +1964,7 @@ static SAstStat* ParseStatSwitch(int row, int col)
 		scope_new[0] = (SAst*)ast;
 		scope_new[1] = (SAst*)stat;
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
@@ -2078,6 +2095,7 @@ static SAstStat* ParseStatWhile(void)
 		}
 		ListAdd(ast->Stats, stat);
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
@@ -2148,6 +2166,7 @@ static SAstStat* ParseStatFor(int row, int col)
 		}
 		ListAdd(ast->Stats, stat);
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
@@ -2233,6 +2252,7 @@ static SAstStat* ParseStatTry(int row, int col)
 		scope_new[0] = (SAst*)ast;
 		scope_new[1] = (SAst*)stat;
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
@@ -2378,6 +2398,7 @@ static SAstStat* ParseStatBlock(void)
 		}
 		ListAdd(ast->Stats, stat);
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
