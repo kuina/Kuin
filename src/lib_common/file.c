@@ -636,7 +636,7 @@ EXPORT void* _exeDir(void)
 			str = (Char*)(result + 0x10);
 			for (i = 0; i < len2; i++)
 				str[i] = path[i] == L'\\' ? L'/' : path[i];
-			str[len] = L'\0';
+			str[len2] = L'\0';
 		}
 		return result;
 	}
