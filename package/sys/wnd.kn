@@ -148,6 +148,7 @@ end enum
 	+var onKeyChar: func<(@WndBase, char)>
 	+var onScrollX: func<(@WndBase, int)>
 	+var onScrollY: func<(@WndBase, int)>
+	+var onSetMouseImg: func<(@WndBase): @MouseImg>
 end class
 
 +class Btn(@WndBase)
@@ -736,4 +737,21 @@ end func
 	f10
 	f11
 	f12
+end enum
+
++enum MouseImg
+	arrow :: 32512
+	ibeam
+	wait
+	cross
+	upArrow
+	resizeLTRD :: 32642
+	resizeRTLD
+	resizeH
+	resizeV
+	move
+	no :: 32648
+	link
+	arrowWait
+	arrowHelp
 end enum

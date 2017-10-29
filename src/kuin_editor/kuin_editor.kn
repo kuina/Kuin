@@ -768,7 +768,7 @@ class DocumentSrc(@Document)
 		var srcName: []char :: @srcNameToInternalName(@getDocumentName(@curDocument))
 		if(^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t')
 			if(srcName <>& null)
-				var color: @CharColor :: me.src.color[me.cursorY][x - 1].and(16#7Fb8) $ @CharColor
+				var color: @CharColor :: me.src.color[me.cursorY][x].and(16#7Fb8) $ @CharColor
 				var last: int :: x
 				while(x > 0 & me.src.color[me.cursorY][x - 1].and(16#7Fb8) = color $ bit8)
 					do x :- 1
@@ -1880,6 +1880,7 @@ func main()
 	do @drawEditor.onScrollY :: @drawEditorOnScrollY
 	do @drawEditor.onMouseWheelX :: @drawEditorOnMouseWheelX
 	do @drawEditor.onMouseWheelY :: @drawEditorOnMouseWheelY
+	do @drawEditor.onSetMouseImg :: @drawEditorOnSetMouseImg
 	do @wndMain.focus()
 	do @drawEditor.focus()
 
@@ -2466,6 +2467,10 @@ end func
 
 func drawEditorOnMouseWheelY(wnd: wnd@WndBase, wheel: int)
 	do @curDocument.wheelY(wheel)
+end func
+
+func drawEditorOnSetMouseImg(wnd: wnd@WndBase): wnd@MouseImg
+	ret %ibeam
 end func
 
 func btnCompileOnPush(wnd: wnd@WndBase)

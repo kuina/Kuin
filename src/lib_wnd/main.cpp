@@ -110,6 +110,7 @@ struct SDraw
 	void* OnKeyChar;
 	void* OnScrollX;
 	void* OnScrollY;
+	void* OnSetMouseImg;
 };
 
 struct SBtn
@@ -697,8 +698,6 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 		me3->MinHeight = 128;
 		me3->MaxWidth = static_cast<U16>(-1);
 		me3->MaxHeight = static_cast<U16>(-1);
-		me3->OnClose = NULL;
-		me3->OnPushMenu = NULL;
 		me3->ModalLock = False;
 	}
 	SendMessage(me2->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
@@ -1875,8 +1874,6 @@ static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 			if (wnd3->OnActivate)
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(w_param) != 0)), reinterpret_cast<void*>(static_cast<S64>(HIWORD(w_param) != 0)), wnd3->OnActivate);
 			return 0;
-		case WM_DRAWITEM:
-		break;
 		case WM_COMMAND:
 		case WM_NOTIFY:
 			CommandAndNotify(wnd, msg, w_param, l_param);
@@ -2192,6 +2189,15 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				}
 			}
 			return 0;
+		case WM_SETCURSOR:
+			if (wnd3->OnSetMouseImg)
+			{
+				S64 img = (S64)Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnSetMouseImg);
+				if (img != 32512)
+					SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(img)));
+				return 0;
+			}
+			break;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }
