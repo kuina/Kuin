@@ -166,6 +166,7 @@ EXPORT Bool _zip(const U8* out_path, const U8* path, S64 compression_level)
 				{
 					fclose(file_ptr);
 					free(zip_header);
+					free(central_dir_header);
 					for (i = 0; i < file_num; i++)
 						free(file_names[i]);
 					free(file_names);
@@ -229,6 +230,7 @@ EXPORT Bool _zip(const U8* out_path, const U8* path, S64 compression_level)
 		fclose(file_ptr);
 	}
 	free(zip_header);
+	free(central_dir_header);
 	for (i = 0; i < file_num; i++)
 		free(file_names[i]);
 	free(file_names);
