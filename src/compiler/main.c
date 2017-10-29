@@ -82,7 +82,7 @@ typedef struct SKeywordCallbackParam
 	int* Cnt;
 	int* First;
 	int* Last;
-	Bool Global;
+	EAstTypeId Type;
 } SKeywordCallbackParam;
 
 static const void*(*FuncGetSrc)(const U8*) = NULL;
@@ -633,7 +633,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 		fwprintf(fp, L"%d\n", KeywordNum);
 		int i;
 		for (i = 0; i < KeywordNum; i++)
-			fwprintf(fp, L"%s = %s: %d, %d - %d\n", Keywords[i]->Name, Keywords[i]->Ast->Pos->SrcName, Keywords[i]->Ast->Pos->Row, *Keywords[i]->First, *Keywords[i]->Last);
+			fwprintf(fp, L"%s(%s) = %s: %d, %d - %d\n", Keywords[i]->Name, Keywords[i]->Ast->RefName == NULL ? L"" : Keywords[i]->Ast->RefName, Keywords[i]->Ast->Pos->SrcName, Keywords[i]->Ast->Pos->Row, *Keywords[i]->First, *Keywords[i]->Last);
 		fclose(fp);
 	}
 #endif
@@ -924,7 +924,7 @@ static void MakeKeywords(SDict* asts)
 	*last = INT_MIN;
 	param.First = first;
 	param.Last = last;
-	param.Global = False;
+	param.Type = AstTypeId_Ast;
 	DictForEach(asts, MakeKeywordsCallback, &param);
 	Keywords = (SKeyword**)Alloc(sizeof(SKeyword*) * (size_t)cnt);
 	{
@@ -955,7 +955,8 @@ static const void* MakeKeywordsCallback(const Char* key, const void* value, void
 
 static void MakeKeywordsRecursion(SKeywordCallbackParam* param, const SAst* ast)
 {
-	if (ast->Pos != NULL && wcscmp(ast->Pos->SrcName, param->Src) == 0 && ast->Pos->Row != -1 && !(ast->Pos->SrcName[0] != L'\\' && !param->Global))
+	if (ast->Pos != NULL && wcscmp(ast->Pos->SrcName, param->Src) == 0 && ast->Pos->Row != -1 &&
+		(ast->Pos->SrcName[0] == L'\\' || param->Type == AstTypeId_Root || param->Type == AstTypeId_Enum || param->Type == AstTypeId_Class))
 	{
 		const int row = ast->Pos->Row;
 		if (*param->First > row)
@@ -967,7 +968,20 @@ static void MakeKeywordsRecursion(SKeywordCallbackParam* param, const SAst* ast)
 		{
 			SKeywordList* node = (SKeywordList*)Alloc(sizeof(SKeywordList));
 			SKeyword* keyword = (SKeyword*)Alloc(sizeof(SKeyword));
-			keyword->Name = param->Global ? NewStr(NULL, L"@%s", ast->Name) : ast->Name;
+			keyword->Name = ast->Name;
+			switch (param->Type)
+			{
+				case AstTypeId_Root:
+					keyword->Name = NewStr(NULL, L"@%s", ast->Name);
+					break;
+				case AstTypeId_Enum:
+					keyword->Name = NewStr(NULL, L"%%%s", ast->Name);
+					break;
+				case AstTypeId_Class:
+					if (ast->TypeId == AstTypeId_Arg || ast->TypeId == AstTypeId_Func)
+						keyword->Name = NewStr(NULL, L".%s", ast->Name);
+					break;
+			}
 			keyword->Ast = ast;
 			keyword->First = param->First;
 			keyword->Last = param->Last;
@@ -990,7 +1004,7 @@ static void MakeKeywordsRecursion(SKeywordCallbackParam* param, const SAst* ast)
 		*last = INT_MIN;
 		param2.First = first;
 		param2.Last = last;
-		param2.Global = ast->TypeId == AstTypeId_Root;
+		param2.Type = ast->TypeId;
 		DictForEach(ast->ScopeChildren, MakeKeywordsCallback, &param2);
 	}
 }
