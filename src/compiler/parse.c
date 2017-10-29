@@ -444,6 +444,16 @@ void InterpretImpl1(const void* src, void* color)
 	}
 }
 
+int GetReservedNum(void)
+{
+	return (int)(sizeof(Reserved) / sizeof(Char*));
+}
+
+const Char** GetReserved(void)
+{
+	return Reserved;
+}
+
 static Bool IsReserved(const Char* word)
 {
 	return BinSearch(Reserved, (int)(sizeof(Reserved) / sizeof(Char*)), word) != -1;

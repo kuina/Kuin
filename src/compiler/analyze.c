@@ -186,6 +186,16 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 	return result;
 }
 
+int GetBuildInFuncsNum(void)
+{
+	return (int)(sizeof(BuildInFuncs) / sizeof(Char*));
+}
+
+const Char** GetBuildInFuncs(void)
+{
+	return BuildInFuncs;
+}
+
 static SAstFunc* SearchMain(void)
 {
 	const SAst* ast = (const SAst*)DictSearch(Asts, NewStr(NULL, L"\\%s", Option->SrcName));

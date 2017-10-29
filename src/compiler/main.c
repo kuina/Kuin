@@ -29,7 +29,7 @@
 #define FUNC_NAME_MAX (128)
 #define MSG_MAX (128)
 #define LANG_NUM (2)
-#define HINT_MSG_MAX (1024)
+#define HINT_MSG_MAX (4096)
 #define EXCPT_MSG_MAX (4096)
 
 typedef struct SExcptMsg
@@ -246,16 +246,35 @@ EXPORT void* GetHint(const U8* src, S64 row, const U8* keyword)
 	const Char* keyword2 = (const Char*)(keyword + 0x10);
 	int first;
 	int last;
-	SearchAst(&first, &last, (keyword2[0] == L'%' || keyword2[0] == L'.') ? L"" : (const Char*)(src + 0x10), keyword2);
+	SearchAst(&first, &last, (keyword2[0] == L'%' || keyword2[0] == L'.' || keyword2[0] == L'#') ? L"" : (const Char*)(src + 0x10), keyword2);
 	if (first == -1)
 		return NULL;
-	const SAst* ast;
+	size_t len = 0;
 	if (keyword2[0] == L'@' || keyword2[0] == L'%' || keyword2[0] == L'.')
-		ast = Keywords[first]->Ast;
+	{
+		int i;
+		for (i = first; i <= last; i++)
+		{
+			if (Keywords[i]->Ast == NULL)
+				len += swprintf(HintBuf + 0x08 + len, HINT_MSG_MAX - len, L"%s", keyword2 + 1);
+			else
+				WriteHintDef(HintBuf + 0x08, &len, Keywords[i]->Ast);
+			if (i != last)
+			{
+				if (len < HINT_MSG_MAX)
+				{
+					HintBuf[0x08 + len] = L'\n';
+					len++;
+				}
+			}
+		}
+	}
+	else if (keyword2[0] == L'#')
+		len += swprintf(HintBuf + 0x08 + len, HINT_MSG_MAX - len, L"%s", keyword2 + 1);
 	else
 	{
 		int i;
-		ast = NULL;
+		const SAst* ast = NULL;
 		const int row2 = (int)row;
 		for (i = first; i <= last; i++)
 		{
@@ -267,9 +286,8 @@ EXPORT void* GetHint(const U8* src, S64 row, const U8* keyword)
 		}
 		if (ast == NULL)
 			return NULL;
+		WriteHintDef(HintBuf + 0x08, &len, ast);
 	}
-	size_t len = 0;
-	WriteHintDef(HintBuf + 0x08, &len, ast);
 	if (len == 0)
 		return NULL;
 	*(S64*)(HintBuf + 0x00) = DefaultRefCntFunc + 1;
@@ -634,7 +652,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 		fwprintf(fp, L"%d\n", KeywordNum);
 		int i;
 		for (i = 0; i < KeywordNum; i++)
-			fwprintf(fp, L"%s(%s) = %s: %d, %d - %d\n", Keywords[i]->Name, Keywords[i]->Ast->RefName == NULL ? L"" : Keywords[i]->Ast->RefName, Keywords[i]->SrcName, Keywords[i]->Ast->Pos->Row, *Keywords[i]->First, *Keywords[i]->Last);
+			fwprintf(fp, L"%s(%s) = %s: %d, %d - %d\n", Keywords[i]->Name, (Keywords[i]->Ast == NULL || Keywords[i]->Ast->RefName == NULL) ? L"" : Keywords[i]->Ast->RefName, Keywords[i]->SrcName, Keywords[i]->Ast == NULL ? -1 : Keywords[i]->Ast->Pos->Row, Keywords[i]->First == NULL ? -1 : *Keywords[i]->First, Keywords[i]->Last == NULL ? -1 : *Keywords[i]->Last);
 		fclose(fp);
 	}
 #endif
@@ -936,6 +954,9 @@ static void MakeKeywords(SDict* asts)
 	param.Last = last;
 	param.Type = AstTypeId_Ast;
 	DictForEach(asts, MakeKeywordsCallback, &param);
+	int reserved_num = GetReservedNum();
+	int build_in_funcs_num = GetBuildInFuncsNum();
+	cnt += reserved_num + build_in_funcs_num;
 	Keywords = (SKeyword**)Alloc(sizeof(SKeyword*) * (size_t)cnt);
 	{
 		int idx = 0;
@@ -945,6 +966,36 @@ static void MakeKeywords(SDict* asts)
 			Keywords[idx] = ptr->Keyword;
 			idx++;
 			ptr = ptr->Next;
+		}
+		{
+			const Char** reserved = GetReserved();
+			int i;
+			for (i = 0; i < reserved_num; i++)
+			{
+				SKeyword* keyword = (SKeyword*)Alloc(sizeof(SKeyword));
+				keyword->SrcName = L"";
+				keyword->Name = NewStr(NULL, L"#%s", reserved[i]);
+				keyword->Ast = NULL;
+				keyword->First = NULL;
+				keyword->Last = NULL;
+				Keywords[idx] = keyword;
+				idx++;
+			}
+		}
+		{
+			const Char** build_in_funcs = GetBuildInFuncs();
+			int i;
+			for (i = 0; i < build_in_funcs_num; i++)
+			{
+				SKeyword* keyword = (SKeyword*)Alloc(sizeof(SKeyword));
+				keyword->SrcName = L"";
+				keyword->Name = NewStr(NULL, L".%s", build_in_funcs[i]);
+				keyword->Ast = NULL;
+				keyword->First = NULL;
+				keyword->Last = NULL;
+				Keywords[idx] = keyword;
+				idx++;
+			}
 		}
 		ASSERT(idx == cnt);
 		KeywordNum = cnt;
@@ -1053,10 +1104,10 @@ static void SearchAst(int* first, int* last, const Char* src, const Char* keywor
 		else
 		{
 			*first = mid;
-			while (*first > 0 && wcscmp(Keywords[*first - 1]->Ast->Pos->SrcName, src) == 0 && wcscmp(Keywords[*first - 1]->Name, keyword) == 0)
+			while (*first > 0 && wcscmp(Keywords[*first - 1]->SrcName, src) == 0 && wcscmp(Keywords[*first - 1]->Name, keyword) == 0)
 				(*first)--;
 			*last = mid;
-			while (*last < KeywordNum - 1 && wcscmp(Keywords[*last + 1]->Ast->Pos->SrcName, src) == 0 && wcscmp(Keywords[*last + 1]->Name, keyword) == 0)
+			while (*last < KeywordNum - 1 && wcscmp(Keywords[*last + 1]->SrcName, src) == 0 && wcscmp(Keywords[*last + 1]->Name, keyword) == 0)
 				(*last)++;
 			return;
 		}

@@ -7,3 +7,5 @@
 #include "option.h"
 
 SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls);
+int GetBuildInFuncsNum(void);
+const Char** GetBuildInFuncs(void);

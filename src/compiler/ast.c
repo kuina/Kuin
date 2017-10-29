@@ -267,7 +267,7 @@ void GetTypeName(Char* buf, size_t* len, size_t size, const SAstType* ast)
 			break;
 		case AstTypeId_TypeUser:
 			if (*len < size)
-				*len += swprintf(buf + *len, size - *len, L"%s", ((const SAst*)ast)->RefName);
+				*len += swprintf(buf + *len, size - *len, L"%s%s", ((const SAst*)ast)->RefName[0] == L'@' ? ((const SAst*)ast)->Pos->SrcName : L"", ((const SAst*)ast)->RefName);
 			break;
 	}
 }

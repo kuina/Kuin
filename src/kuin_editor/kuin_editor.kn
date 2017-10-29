@@ -1355,6 +1355,9 @@ class DocumentSrc(@Document)
 			do last2 :+ 1
 		end while
 		var word: []char :: me.src.src[y].sub(x, last2 - x + 1).trim()
+		if(color = %reserved)
+			do word :: "#" ~ word
+		end if
 		do srcName2 :: srcName
 		var pos: int :: word.find('@', -1)
 		if(pos > 0)
