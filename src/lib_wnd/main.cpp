@@ -544,10 +544,10 @@ EXPORT_CPP void _setClipboardStr(const U8* str)
 			if (*ptr == L'\n')
 			{
 				*buf = L'\r';
-				*buf++;
+				buf++;
 			}
 			*buf = *ptr;
-			*buf++;
+			buf++;
 			ptr++;
 		}
 		*buf = L'\0';

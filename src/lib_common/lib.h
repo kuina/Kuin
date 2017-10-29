@@ -23,7 +23,7 @@ EXPORT double _atanh(double x);
 EXPORT double _sqrt(double x);
 EXPORT double _exp(double x);
 EXPORT double _ln(double x);
-EXPORT double _log(double x, double base);
+EXPORT double _log(double base, double x);
 EXPORT double _floor(double x);
 EXPORT double _ceil(double x);
 EXPORT double _round(double x, S64 precision);
