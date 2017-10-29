@@ -632,6 +632,7 @@ static const Char* GetTypeNameNew(const SAstType* type)
 {
 	Char buf[1024 + 1];
 	size_t len = 0;
+	buf[0] = L'\0';
 	GetTypeName(buf, &len, 1024, type);
 	return NewStr(NULL, L"%s", buf);
 }
