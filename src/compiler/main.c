@@ -119,7 +119,7 @@ static size_t BuildFileGetSize(FILE* file_ptr);
 static SPos* AddrToPos(U64 addr, Char* name);
 static const void* AddrToPosCallback(U64 key, const void* value, void* param);
 static void WriteHintDef(Char* buf, size_t* len, const SAst* ast);
-static void MakeKeywords(SDict* asts);
+static void MakeKeywords(SDict* asts, const U8** srcs);
 static const void* MakeKeywordsCallback(const Char* key, const void* value, void* param);
 static void MakeKeywordsRecursion(SKeywordCallbackParam* param, const SAst* ast);
 static int CmpKeyword(const void* a, const void* b);
@@ -176,7 +176,7 @@ EXPORT void Interpret1(const void* src, const void* color)
 	InterpretImpl1(src, color);
 }
 
-EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang, S64 blank_mem)
+EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang, S64 blank_mem, const U8** srcs)
 {
 	Bool result = False;
 	const Char* sys_dir2 = sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10);
@@ -209,7 +209,7 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
 			if (!ErrOccurred())
 			{
-				MakeKeywords(asts);
+				MakeKeywords(asts, srcs);
 				ResetAllocator(1 - blank_mem);
 				Analyze(asts, &option, &dlls);
 				result = True;
@@ -715,7 +715,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 		goto ERR;
 	Err(L"IK0001", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
 #if defined(_DEBUG)
-	MakeKeywords(asts);
+	MakeKeywords(asts, NULL);
 	{
 		FILE* fp = _wfopen(NewStr(NULL, L"%s_keywords.txt", option.OutputFile), L"w, ccs=UTF-8");
 		fwprintf(fp, L"%d\n", KeywordNum);
@@ -1005,7 +1005,7 @@ static void WriteHintDef(Char* buf, size_t* len, const SAst* ast)
 	}
 }
 
-static void MakeKeywords(SDict* asts)
+static void MakeKeywords(SDict* asts, const U8** srcs)
 {
 	SKeywordCallbackParam param;
 	param.Src = NULL;
@@ -1025,7 +1025,8 @@ static void MakeKeywords(SDict* asts)
 	DictForEach(asts, MakeKeywordsCallback, &param);
 	int reserved_num = GetReservedNum();
 	int build_in_funcs_num = GetBuildInFuncsNum();
-	cnt += reserved_num + build_in_funcs_num;
+	int srcs_num = srcs == NULL ? 0 : (int)((S64*)srcs)[1];
+	cnt += reserved_num + build_in_funcs_num + srcs_num;
 	Keywords = (SKeyword**)Alloc(sizeof(SKeyword*) * (size_t)cnt);
 	{
 		int idx = 0;
@@ -1063,6 +1064,23 @@ static void MakeKeywords(SDict* asts)
 				keyword->First = NULL;
 				keyword->Last = NULL;
 				Keywords[idx] = keyword;
+				idx++;
+			}
+		}
+		if (srcs != NULL)
+		{
+			const U8** ptr2 = (const U8**)((const U8*)srcs + 0x10);
+			int i;
+			for (i = 0; i < srcs_num; i++)
+			{
+				SKeyword* keyword = (SKeyword*)Alloc(sizeof(SKeyword));
+				keyword->SrcName = L"";
+				keyword->Name = NewStr(NULL, L"%s@", (const Char*)(*ptr2 + 0x10));
+				keyword->Ast = NULL;
+				keyword->First = NULL;
+				keyword->Last = NULL;
+				Keywords[idx] = keyword;
+				ptr2++;
 				idx++;
 			}
 		}

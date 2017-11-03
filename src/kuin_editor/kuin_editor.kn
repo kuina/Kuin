@@ -13,7 +13,7 @@ end func
 func [d0917.knd, Interpret1] interpret1(src: [][]char, color: [][]bit8)
 end func
 
-func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>, lang: int, blankMem: int): bool
+func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>, lang: int, blankMem: int, srcs: [][]char): bool
 end func
 
 func [d0917.knd, Version] version(major: &int, minor: &int, micro: &int)
@@ -1453,7 +1453,9 @@ class DocumentSrc(@Document)
 			do @drawEditor.paint()
 		end if
 		do @closeCompletion()
-		do @dirtyHint :: false
+		if(replaceStr[^replaceStr - 1] <> '@')
+			do @dirtyHint :: false
+		end if
 		ret true
 	end func
 
@@ -2097,8 +2099,12 @@ func main()
 				case 1
 					if(lib@sysTime() - @dirtyInterpretTime > 1200)
 						do @resetAuxiliary()
+						var srcs: [][]char :: @documents.toArrayKey()
+						for i(0, ^srcs - 1)
+							do srcs[i] :: @srcNameToInternalName(srcs[i])
+						end for
 						try
-							if(@interpret2(@mainSrcName, @getSrc, null, @getEnv(), @logForInterpret, @langEn ?(1, 0), @blankMem))
+							if(@interpret2(@mainSrcName, @getSrc, null, @getEnv(), @logForInterpret, @langEn ?(1, 0), @blankMem, srcs))
 								do @blankMem :: 1 - @blankMem
 							end if
 						catch
