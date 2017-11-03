@@ -2147,6 +2147,7 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			case %enter
 				if(@wndCompletion <>& null)
 					do @curDocument.keyDown(key, %none)
+					ret true
 				end if
 			case %esc
 				if(@wndCompletion <>& null)
@@ -2257,6 +2258,7 @@ func new(srcName: []char, src: [][]char)
 	do @documents.add(@mainSrcName, @curDocument)
 	do @setDirtyInterpret()
 	do @setDirtyHint()
+	do @dirtyHint :: false
 	do @blankMem :: 0
 	do @resetAuxiliary()
 	do @updateUi()
@@ -2731,7 +2733,7 @@ end func
 func listFileOnSel(wnd: wnd@WndBase)
 	var sel: int :: @listFile.getSel()
 	if(sel <> -1)
-		var internalName: []char :: removePrefix(@listFile.getText(sel))
+		var internalName: []char :: @removePrefix(@listFile.getText(sel))
 		if(^internalName > 0 & internalName[0] = '\\')
 			var src: []char :: @internalNameToSrcName(internalName)
 			var document: @Document :: @documents.get(src)
@@ -2741,23 +2743,23 @@ func listFileOnSel(wnd: wnd@WndBase)
 		end if
 	end if
 	do @updateUi()
+end func
 
-	func removePrefix(src: []char): []char
-		var begin: int :: 0
-		while loop(begin < ^src)
-			switch(src[begin])
-			case '*', '>'
-				do begin :+ 1
-			default
-				break loop
-			end switch
-		end while
-		if(begin = 0)
-			ret src
-		else
-			ret src.sub(begin, -1)
-		end if
-	end func
+func removePrefix(src: []char): []char
+	var begin: int :: 0
+	while loop(begin < ^src)
+		switch(src[begin])
+		case '*', '>'
+			do begin :+ 1
+		default
+			break loop
+		end switch
+	end while
+	if(begin = 0)
+		ret src
+	else
+		ret src.sub(begin, -1)
+	end if
 end func
 
 func getSrc(path: []char): [][]char
@@ -3397,6 +3399,9 @@ func wndCompletionListKeywordsOnSel(wnd: wnd@List)
 end func
 
 func jumpSrc(pos: @Pos): bool
+	if(pos.src[0] <> '\\')
+		ret false
+	end if
 	var src: []char :: @internalNameToSrcName(pos.src)
 	if(src =& null)
 		ret false
@@ -3406,12 +3411,25 @@ func jumpSrc(pos: @Pos): bool
 		ret false
 	end if
 	if(document =$ @DocumentSrc)
-		if(document =& @curDocument)
-			do (@curDocument $ @DocumentSrc).move(pos.col - 1, pos.row - 1)
-			do @drawEditor.paint()
-			do @drawEditor.focus()
-			ret true
+		if(document <>& @curDocument)
+			var sel: int :: -1
+			for i(0, @listFile.len() - 1)
+				var internalName: []char :: @removePrefix(@listFile.getText(i))
+				if(internalName = pos.src)
+					do sel :: i
+					break i
+				end if
+			end for
+			if(sel = -1)
+				ret false
+			end if
+			do @listFile.setSel(sel)
+			do @listFileOnSel(@listFile)
 		end if
+		do (@curDocument $ @DocumentSrc).move(pos.col - 1, pos.row - 1)
+		do @drawEditor.paint()
+		do @drawEditor.focus()
+		ret true
 	end if
 	ret false
 end func
