@@ -1784,8 +1784,11 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 
 		if (((SAst*)ast)->TypeId != AstTypeId_FuncRaw)
 		{
-			if (ast->Ret != NULL && IsRef(ast->Ret))
-				GcInc(0);
+			if (ast->Ret != NULL)
+			{
+				if (IsRef(ast->Ret))
+					GcInc(0);
+			}
 			{
 				scope_gc_dec->Begin = table->Begin;
 				scope_gc_dec->End = AsmLabel();
@@ -3392,7 +3395,7 @@ static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f)
 							ListAdd(PackAsm->Asms, AsmSUBSD(ValReg(4, RegF[reg_f]), ValReg(4, Reg_XMM14)));
 							ListAdd(PackAsm->Asms, AsmCOMISD(ValReg(4, RegF[reg_f]), ValReg(4, Reg_XMM14)));
 							ListAdd(PackAsm->Asms, AsmJAE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-							// TODO: Note: mov rax, rbx?
+							ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValImmU(8, 0x0000000000000080)));
 							ListAdd(PackAsm->Asms, lbl1);
 							ListAdd(PackAsm->Asms, AsmCVTSD2SI(ValReg(8, RegI[reg_i]), ValReg(8, RegF[reg_f])));
 							ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValReg(8, Reg_SI)));
@@ -3652,7 +3655,16 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 			{
 				int size = GetSize(type);
 				if (IsFloat(type))
-					ListAdd(PackAsm->Asms, AsmMOVSD(ValReg(4, RegF[reg_f]), ValReg(4, Reg_XMM14)));
+				{
+					if ((((SAstTypeFunc*)ast->Func->Type)->FuncAttr & FuncAttr_RetChild) != 0)
+					{
+						SAstArg* tmp_i_to_f = MakeTmpVar(8, NULL);
+						ListAdd(PackAsm->Asms, AsmMOV(ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_i_to_f), False)), ValReg(8, Reg_SI)));
+						ListAdd(PackAsm->Asms, AsmMOVSD(ValReg(4, RegF[reg_f]), ValMem(4, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(tmp_i_to_f), False))));
+					}
+					else
+						ListAdd(PackAsm->Asms, AsmMOVSD(ValReg(4, RegF[reg_f]), ValReg(4, Reg_XMM14)));
+				}
 				else
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(size, RegI[reg_i]), ValReg(size, Reg_SI)));
 			}
