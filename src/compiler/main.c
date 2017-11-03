@@ -29,6 +29,7 @@
 #define FUNC_NAME_MAX (128)
 #define MSG_MAX (128)
 #define LANG_NUM (2)
+#define HINT_MSG_NUM (2)
 #define HINT_MSG_MAX (4096)
 #define EXCPT_MSG_MAX (4096)
 
@@ -95,7 +96,8 @@ static SPackAsm PackAsm;
 static U64 DbgStartAddr;
 static SErrMsg ExcptMsgs[MSG_NUM];
 static Bool MsgLoaded = (Bool)0;
-static Char HintBuf[0x08 + HINT_MSG_MAX + 1];
+static Char HintBuf[HINT_MSG_NUM][0x08 + HINT_MSG_MAX + 1];
+static Char HintSrcBuf[0x08 + KUIN_MAX_PATH + 1];
 static int KeywordNum = 0;
 static const SKeyword** Keywords = NULL;
 
@@ -241,36 +243,44 @@ EXPORT void ResetKeywords(void)
 	Keywords = NULL;
 }
 
-EXPORT void* GetHint(const U8* src, S64 row, const U8* keyword)
+EXPORT void* GetHint(S64 buf_idx, const U8* src, S64 row, const U8* keyword, void** hint_src, S64* hint_row, S64* hint_col)
 {
+	ASSERT(0 <= buf_idx && buf_idx < HINT_MSG_NUM);
 	const Char* keyword2 = (const Char*)(keyword + 0x10);
 	int first;
 	int last;
-	SearchAst(&first, &last, (keyword2[0] == L'%' || keyword2[0] == L'.' || keyword2[0] == L'#') ? L"" : (const Char*)(src + 0x10), keyword2);
+	Bool global = keyword2[0] == L'%' || keyword2[0] == L'.' || IsReserved(keyword2);
+	SearchAst(&first, &last, global ? L"" : (const Char*)(src + 0x10), keyword2);
 	if (first == -1)
 		return NULL;
 	size_t len = 0;
+	const SAst* hint_ast = NULL;
+	*hint_src = NULL;
 	if (keyword2[0] == L'@' || keyword2[0] == L'%' || keyword2[0] == L'.')
 	{
 		int i;
 		for (i = first; i <= last; i++)
 		{
 			if (Keywords[i]->Ast == NULL)
-				len += swprintf(HintBuf + 0x08 + len, HINT_MSG_MAX - len, L"%s", keyword2 + 1);
+				len += swprintf(HintBuf[buf_idx] + 0x08 + len, HINT_MSG_MAX - len, L"%s", keyword2 + 1);
 			else
-				WriteHintDef(HintBuf + 0x08, &len, Keywords[i]->Ast);
+			{
+				WriteHintDef(HintBuf[buf_idx] + 0x08, &len, Keywords[i]->Ast);
+				if (hint_ast == NULL)
+					hint_ast = Keywords[i]->Ast;
+			}
 			if (i != last)
 			{
 				if (len < HINT_MSG_MAX)
 				{
-					HintBuf[0x08 + len] = L'\n';
+					HintBuf[buf_idx][0x08 + len] = L'\n';
 					len++;
 				}
 			}
 		}
 	}
-	else if (keyword2[0] == L'#')
-		len += swprintf(HintBuf + 0x08 + len, HINT_MSG_MAX - len, L"%s", keyword2 + 1);
+	else if (global) // Reserved.
+		len += swprintf(HintBuf[buf_idx] + 0x08 + len, HINT_MSG_MAX - len, L"%s", keyword2);
 	else
 	{
 		int i;
@@ -286,13 +296,72 @@ EXPORT void* GetHint(const U8* src, S64 row, const U8* keyword)
 		}
 		if (ast == NULL)
 			return NULL;
-		WriteHintDef(HintBuf + 0x08, &len, ast);
+		WriteHintDef(HintBuf[buf_idx] + 0x08, &len, ast);
+		hint_ast = ast;
 	}
 	if (len == 0)
 		return NULL;
-	*(S64*)(HintBuf + 0x00) = DefaultRefCntFunc + 1;
-	*(S64*)(HintBuf + 0x04) = (S64)len;
-	return HintBuf;
+	if (buf_idx == 0 && hint_ast != NULL && hint_ast->Pos != NULL)
+	{
+		size_t len2 = wcslen(hint_ast->Pos->SrcName);
+		if (len2 <= KUIN_MAX_PATH)
+		{
+			*(S64*)(HintSrcBuf + 0x00) = 2;
+			*(S64*)(HintSrcBuf + 0x04) = (S64)len2;
+			wcscpy(HintSrcBuf + 0x08, hint_ast->Pos->SrcName);
+			*hint_src = (U8*)HintSrcBuf;
+			*hint_row = (S64)hint_ast->Pos->Row;
+			*hint_col = (S64)hint_ast->Pos->Col;
+		}
+	}
+	*(S64*)(HintBuf[buf_idx] + 0x00) = DefaultRefCntFunc + 1;
+	*(S64*)(HintBuf[buf_idx] + 0x04) = (S64)len;
+	return HintBuf[buf_idx];
+}
+
+EXPORT S64 GetKeywords(const U8* src, S64 row, const U8* keyword, void* callback)
+{
+	const Char* src2 = (const Char*)(src + 0x10);
+	const Char* keyword2 = (const Char*)(keyword + 0x10);
+	int i;
+	Char buf[0x08 + 4096];
+	S64 best = -1;
+	S64 idx = 0;
+	const Char* old = NULL;
+	for (i = 0; i < KeywordNum; i++)
+	{
+		const Char* name = Keywords[i]->Name;
+		if (keyword2[0] == L'@')
+		{
+			if (name[0] != L'@')
+				continue;
+			if (wcscmp(Keywords[i]->SrcName, src2) != 0)
+				continue;
+		}
+		else if (keyword2[0] == L'%' || keyword2[0] == L'.')
+		{
+			if (name[0] != keyword2[0])
+				continue;
+		}
+		else // Reserved or local identifier.
+		{
+			if (name[0] == L'@' || name[0] == L'%' || name[0] == L'.')
+				continue;
+			if (Keywords[i]->SrcName[0] != L'\0' && !(wcscmp(Keywords[i]->SrcName, src2) == 0 && *Keywords[i]->First <= (int)row && (int)row <= *Keywords[i]->Last))
+				continue;
+		}
+		if (old != NULL && wcscmp(old, name) == 0)
+			continue;
+		old = name;
+		size_t len = (size_t)swprintf(buf + 0x08, 4096, L"%s", name);
+		((S64*)buf)[0] = 2;
+		((S64*)buf)[1] = (S64)len;
+		Call1Asm(buf, callback);
+		if (best == -1 && wcsstr(buf + 0x08, keyword2) == buf + 0x08)
+			best = idx;
+		idx++;
+	}
+	return best;
 }
 
 EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func)
@@ -974,7 +1043,7 @@ static void MakeKeywords(SDict* asts)
 			{
 				SKeyword* keyword = (SKeyword*)Alloc(sizeof(SKeyword));
 				keyword->SrcName = L"";
-				keyword->Name = NewStr(NULL, L"#%s", reserved[i]);
+				keyword->Name = reserved[i];
 				keyword->Ast = NULL;
 				keyword->First = NULL;
 				keyword->Last = NULL;
@@ -1080,10 +1149,20 @@ static int CmpKeyword(const void* a, const void* b)
 	const SKeyword* a2 = *(const SKeyword**)a;
 	const SKeyword* b2 = *(const SKeyword**)b;
 	int cmp;
+	cmp = wcscmp(a2->Name, b2->Name);
+	if (cmp != 0)
+		return cmp;
 	cmp = wcscmp(a2->SrcName, b2->SrcName);
 	if (cmp != 0)
 		return cmp;
-	cmp = wcscmp(a2->Name, b2->Name);
+	if (a2->First != NULL && b2->First != NULL)
+	{
+		cmp = *a2->First - *b2->First;
+		if (cmp != 0)
+			return cmp;
+		if (a2->Last != NULL && b2->Last != NULL)
+			cmp = *b2->Last - *a2->Last;
+	}
 	return cmp;
 }
 
@@ -1094,9 +1173,9 @@ static void SearchAst(int* first, int* last, const Char* src, const Char* keywor
 	while (min <= max)
 	{
 		int mid = (min + max) / 2;
-		int cmp = wcscmp(src, Keywords[mid]->SrcName);
+		int cmp = wcscmp(keyword, Keywords[mid]->Name);
 		if (cmp == 0)
-			cmp = wcscmp(keyword, Keywords[mid]->Name);
+			cmp = wcscmp(src, Keywords[mid]->SrcName);
 		if (cmp < 0)
 			max = mid - 1;
 		else if (cmp > 0)

@@ -12,6 +12,7 @@ EXPORT_CPP void* _openFileDialogMulti(SClass* parent, const U8* filter, S64 defa
 EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFilter, const U8* defaultExt);
 EXPORT_CPP void _setClipboardStr(const U8* str);
 EXPORT_CPP void* _getClipboardStr();
+EXPORT_CPP void _getCaretPos(S64* x, S64* y);
 EXPORT_CPP void _target(SClass* draw_ctrl);
 EXPORT_CPP Bool _key(S64 key);
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text);
@@ -21,6 +22,7 @@ EXPORT_CPP void _wndBaseGetPosScr(SClass* me_, S64* x, S64* y, S64* width, S64* 
 EXPORT_CPP void _wndBaseFocus(SClass* me_);
 EXPORT_CPP Bool _wndBaseFocused(SClass* me_);
 EXPORT_CPP void _wndBaseEnable(SClass* me_, Bool is_enabled);
+EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height);
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight);
 EXPORT_CPP void _wndClose(SClass* me_);
 EXPORT_CPP void _wndExit(SClass* me_);
@@ -81,7 +83,7 @@ EXPORT_CPP SClass* _makeSplitY(SClass* me_, SClass* parent, S64 x, S64 y, S64 wi
 EXPORT_CPP SClass* _makeScrollX(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeScrollY(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP void _scrollSetState(SClass* me_, S64 min, S64 max, S64 page, S64 pos);
-EXPORT_CPP void _scrollSetPos(SClass* me_, S64 pos);
+EXPORT_CPP void _scrollSetScrollPos(SClass* me_, S64 pos);
 
 EXPORT_CPP SClass* _makeMenu(SClass* me_);
 EXPORT_CPP void _menuDtor(SClass* me_);

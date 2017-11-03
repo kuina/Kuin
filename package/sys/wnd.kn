@@ -11,6 +11,7 @@ end func
 	normal
 	fix
 	aspect
+	popup
 {
 	mdi
 	mdiChild
@@ -42,6 +43,9 @@ end enum
 	end func
 
 	+func [d0001.knd, _wndBaseEnable] enable(isEnabled: bool)
+	end func
+
+	+func [d0001.knd, _wndBaseSetPos] setPos(x: int, y: int, width: int, height: int)
 	end func
 
 	+func addChild(child: kuin@Class)
@@ -395,7 +399,7 @@ class ScrollBase(@WndBase)
 	+func [d0001.knd, _scrollSetState] setState(min: int, max: int, page: int, pos: int)
 	end func
 
-	+func [d0001.knd, _scrollSetPos] setPos(pos: int)
+	+func [d0001.knd, _scrollSetScrollPos] setScrollPos(pos: int)
 	end func
 end class
 
@@ -455,6 +459,9 @@ end func
 end func
 
 +func [d0001.knd, _getClipboardStr] getClipboardStr(): []char
+end func
+
++func [d0001.knd, _getCaretPos] getCaretPos(x: &int, y: &int)
 end func
 
 +func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, parent: @Wnd, style: @WndStyle, width: int, height: int, text: []char): @Wnd

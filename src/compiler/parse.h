@@ -9,3 +9,4 @@ SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FI
 void InterpretImpl1(const void* src, const void* color);
 int GetReservedNum(void);
 const Char** GetReserved(void);
+Bool IsReserved(const Char* word);

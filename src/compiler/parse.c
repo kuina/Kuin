@@ -89,7 +89,6 @@ static SStack* Scope;
 static U32 UniqueCnt;
 static Bool LocalErr;
 
-static Bool IsReserved(const Char* word);
 static const void* ParseSrc(const Char* src_name, const void* ast, void* param);
 static Char ReadBuf(void);
 static Char Read(void);
@@ -454,7 +453,7 @@ const Char** GetReserved(void)
 	return Reserved;
 }
 
-static Bool IsReserved(const Char* word)
+Bool IsReserved(const Char* word)
 {
 	return BinSearch(Reserved, (int)(sizeof(Reserved) / sizeof(Char*)), word) != -1;
 }

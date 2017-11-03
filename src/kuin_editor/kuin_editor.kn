@@ -25,7 +25,10 @@ end func
 func [d0917.knd, ResetKeywords] resetKeywords()
 end func
 
-func [d0917.knd, GetHint] getHint(src: []char, row: int, keyword: []char): []char
+func [d0917.knd, GetHint] getHint(bufIdx: int, src: []char, row: int, keyword: []char, hintSrc: &[]char, hintRow: &int, hintCol: &int): []char
+end func
+
+func [d0917.knd, GetKeywords] getKeywords(src: []char, row: int, keyword: []char, callback: func<([]char)>): int
 end func
 
 func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>): bool
@@ -115,6 +118,9 @@ class Document()
 	end func
 
 	+func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+	end func
+
+	+func keyDownAlt(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 	end func
 
 	+func keyChar(key: char)
@@ -367,24 +373,26 @@ class DocumentSrc(@Document)
 				ret
 			end if
 			if(shiftCtrl = %none)
-				do me.undo.recordBegin()
-				if(me.areaSelected())
-					do me.delAreaStr()
+				if(!me.complement())
+					do me.undo.recordBegin()
+					if(me.areaSelected())
+						do me.delAreaStr()
+					end if
+					block
+						var str: []char :: "\n"
+						for i(0, ^me.src.src[me.cursorY] - 1)
+							if(me.src.src[me.cursorY][i] = '\t')
+								do str :~ "\t"
+							else
+								break i
+							end if
+						end for
+						do me.ins(me.cursorX, me.cursorY, str, true)
+					end block
+					do me.undo.recordEnd()
+					do me.refreshCursor(false, true)
+					do @drawEditor.paint()
 				end if
-				block
-					var str: []char :: "\n"
-					for i(0, ^me.src.src[me.cursorY] - 1)
-						if(me.src.src[me.cursorY][i] = '\t')
-							do str :~ "\t"
-						else
-							break i
-						end if
-					end for
-					do me.ins(me.cursorX, me.cursorY, str, true)
-				end block
-				do me.undo.recordEnd()
-				do me.refreshCursor(false, true)
-				do @drawEditor.paint()
 			end if
 		case %pageUp
 			block
@@ -473,6 +481,43 @@ class DocumentSrc(@Document)
 		do @drawEditor.paint()
 	end func
 
+	+*func keyDownAlt(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+		switch(key)
+		case %up
+			if(@wndCompletion <>& null)
+				var sel: int :: @wndCompletionListKeywords.getSel()
+				if(sel = -1)
+					do sel :: @wndCompletionCursor
+				else
+					do sel :- 1
+					if(sel < 0)
+						do sel :: 0
+					end if
+				end if
+				do @wndCompletionListKeywords.setSel(sel)
+				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+				ret true
+			end if
+		case %down
+			if(@wndCompletion <>& null)
+				var sel: int :: @wndCompletionListKeywords.getSel()
+				if(sel = -1)
+					do sel :: @wndCompletionCursor
+				else
+					do sel :+ 1
+					var len: int :: @wndCompletionListKeywords.len()
+					if(sel >= len)
+						do sel :: len - 1
+					end if
+				end if
+				do @wndCompletionListKeywords.setSel(sel)
+				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+				ret true
+			end if
+		end switch
+		ret false
+	end func
+
 	+*func keyChar(key: char)
 		if (@lockingEditor)
 			do @showMsgRunning()
@@ -480,6 +525,9 @@ class DocumentSrc(@Document)
 		end if
 		if(key = '\t' | me.charWidth(key, 0) = 0)
 			ret
+		end if
+		if(@wndCompletion <>& null & !('a' <= key & key <= 'z' | 'A' <= key & key <= 'Z' | '0' <= key & key <= '9' | key = '_' | key = '@' | key = '\\'))
+			do me.complement()
 		end if
 		do me.undo.recordBegin()
 		if(me.areaSelected())
@@ -760,6 +808,9 @@ class DocumentSrc(@Document)
 			do x :- 1
 		end if
 		if(x < 0)
+			if(@wndCompletion <>& null)
+				do @closeCompletion()
+			end if
 			ret
 		end if
 		while(x > 0 & (me.src.src[me.cursorY][x] = ' ' | me.src.src[me.cursorY][x] = '\t'))
@@ -769,32 +820,27 @@ class DocumentSrc(@Document)
 		if(^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t')
 			var color: @CharColor :: me.src.color[me.cursorY][x].and(16#7Fb8) $ @CharColor
 			if(srcName <>& null)
-				var srcName2: []char
-				var word: []char :: me.getWord(&srcName2, x, me.cursorY, color, srcName)
-				var hint: []char :: null
 				if(color = %identifier | color = %global | color = %reserved)
-					do hint :: @getHint2(srcName2, me.cursorY + 1, word)
-				end if
-				if(hint =& null)
-					do hint :: ""
-				end if
-				if(@textHint <> hint)
-					do @textHint :: hint
-					do @updateLog()
+					var srcName2: []char
+					var word: []char :: me.getWord(&srcName2, x, me.cursorY, color, srcName)
+					var funcHint: []char :: me.getFuncHint(srcName, x, me.cursorY)
+					do @showCompletion(srcName2, me.cursorY + 1, word, funcHint)
+				elif(@wndCompletion <>& null)
+					do @closeCompletion()
 				end if
 			end if
 		else
-			if(@textHint <> "")
-				do @textHint :: ""
-				do @updateLog()
+			if(@wndCompletion <>& null)
+				do @closeCompletion()
 			end if
 		end if
-		do me.getFuncHint(srcName, x, me.cursorY)
 	end func
 
 	+func move(col: int, row: int)
 		do me.cursorX :: col
 		do me.cursorY :: row
+		do me.areaX :: -1
+		do me.areaY :: -1
 		do me.refreshCursor(false, true)
 	end func
 
@@ -1278,7 +1324,7 @@ class DocumentSrc(@Document)
 		do me.changed :: true
 	end func
 
-	func getFuncHint(srcName: []char, x: int, y: int)
+	func getFuncHint(srcName: []char, x: int, y: int): []char
 		var charColor: bit8 :: me.src.color[y][x]
 		if(x > 0)
 			do x :- 1
@@ -1301,19 +1347,17 @@ class DocumentSrc(@Document)
 					end while
 					if(x > 0)
 						switch color(me.src.color[y][x - 1].and(16#7Fb8) $ @CharColor)
-						case %identifier, %global, %reserved
+						case %identifier, %global
 							do x :- 1
 							var srcName2: []char
 							var word: []char :: me.getWord(&srcName2, x, y, color, srcName)
-							var hint: []char :: @getHint2(srcName2, y + 1, word)
+							var hint: []char :: @getHint(1, srcName2, y + 1, word, &, &, &)
 							if(hint =& null)
 								do hint :: ""
 							end if
-							if(@textFunc <> hint)
-								do @textFunc :: hint
-								do @updateLog()
-							end if
-							ret
+							ret hint
+						case %reserved
+							ret ""
 						default
 							do parenthesisNum :: 0
 							do commaNum :: 0
@@ -1336,10 +1380,7 @@ class DocumentSrc(@Document)
 			end switch
 			do x :- 1
 		end while
-		if(@textFunc <> "")
-			do @textFunc :: ""
-			do @updateLog()
-		end if
+		ret ""
 	end func
 
 	func getWord(srcName2: &[]char, x: int, y: int, color: @CharColor, srcName: []char): []char
@@ -1355,9 +1396,6 @@ class DocumentSrc(@Document)
 			do last2 :+ 1
 		end while
 		var word: []char :: me.src.src[y].sub(x, last2 - x + 1).trim()
-		if(color = %reserved)
-			do word :: "#" ~ word
-		end if
 		do srcName2 :: srcName
 		var pos: int :: word.find('@', -1)
 		if(pos > 0)
@@ -1367,6 +1405,58 @@ class DocumentSrc(@Document)
 		ret word
 	end func
 
+	func complement(): bool
+		if(@wndCompletion =& null)
+			ret false
+		end if
+		var sel: int :: @wndCompletionListKeywords.getSel()
+		if(sel = -1)
+			ret false
+		end if
+		var replaceStr: []char :: @wndCompletionListKeywords.getText(sel)
+		if(replaceStr[0] = '@' & @documents.get(@internalNameToSrcName(@wndCompletionSrc)) <>& me)
+			do replaceStr :: @wndCompletionSrc ~ replaceStr
+		end if
+		var x: int :: me.cursorX
+		if(^me.src.src[me.cursorY] = x)
+			do x :- 1
+		end if
+		assert x >= 0
+		while(x > 0 & (me.src.src[me.cursorY][x] = ' ' | me.src.src[me.cursorY][x] = '\t'))
+			do x :- 1
+		end while
+		assert ^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t'
+		var color: @CharColor :: me.src.color[me.cursorY][x].and(16#7Fb8) $ @CharColor
+		assert color = %identifier | color = %global | color = %reserved
+
+		var last: int :: x
+		while(x > 0 & me.src.color[me.cursorY][x - 1].and(16#7Fb8) = color $ bit8)
+			do x :- 1
+		end while
+		if(x > 0 & (me.src.src[me.cursorY][x - 1] = '%' | me.src.src[me.cursorY][x - 1] = '.'))
+			do x :- 1
+		end if
+		var last2: int :: last
+		while(last2 < ^me.src.color[me.cursorY] - 1 & me.src.color[me.cursorY][last2 + 1].and(16#7Fb8) = color $ bit8)
+			do last2 :+ 1
+		end while
+		var word: []char :: me.src.src[me.cursorY].sub(x, last2 - x + 1).trim()
+		if(word <> replaceStr)
+			do me.cursorX :: x
+			do me.areaX :: last2 + 1
+			do me.areaY :: me.cursorY
+			do me.replaceOne(word, replaceStr, true, false, false)
+			do me.cursorX :: x + ^replaceStr
+			do me.areaX :: -1
+			do me.areaY :: -1
+			do me.refreshCursor(false, true)
+			do @drawEditor.paint()
+		end if
+		do @closeCompletion()
+		do @dirtyHint :: false
+		ret true
+	end func
+
 	func scrollPageX(wheel: int)
 		do me.pageX :+ wheel
 		; TODO: me.pageX >= ?
@@ -1374,7 +1464,7 @@ class DocumentSrc(@Document)
 			do me.pageX :: 0
 		end if
 		do me.refreshCursor(false, false)
-		do @scrollXSrc.setPos(me.pageX)
+		do @scrollXSrc.setScrollPos(me.pageX)
 		do @drawEditor.paint()
 	end func
 
@@ -1391,7 +1481,7 @@ class DocumentSrc(@Document)
 			do me.pageY :: 0
 		end if
 		do me.refreshCursor(false, false)
-		do @scrollYSrc.setPos(me.pageY)
+		do @scrollYSrc.setScrollPos(me.pageY)
 		do @drawEditor.paint()
 	end func
 end class
@@ -1538,6 +1628,11 @@ class DocumentArBase(@Document)
 
 	+*func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 		; TODO:
+	end func
+
+	+*func keyDownAlt(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+		; TODO:
+		ret false
 	end func
 
 	+*func keyChar(key: char)
@@ -1854,8 +1949,6 @@ var listInfoItem: list<@ListInfoItem>
 var auxiliaryErr: dict<@Pos, []char>
 var lockingEditor: bool
 var textErr: []char
-var textHint: []char
-var textFunc: []char
 var textLog: []char
 
 func main()
@@ -1986,8 +2079,6 @@ func main()
 		do @drag :: false
 		do @lockingEditor :: false
 		do @textErr :: ""
-		do @textHint :: ""
-		do @textFunc :: ""
 		do @textLog :: ""
 	end func
 
@@ -2018,7 +2109,11 @@ func main()
 					end if
 				end switch
 				if(@dirtyHint)
-					if(lib@sysTime() - @dirtyHintTime > 100 & @dirtyInterpret >= 1)
+					var diff: int :: lib@sysTime() - @dirtyHintTime
+					if(diff > 50 & @wndCompletion <>& null)
+						do @closeCompletion()
+					end if
+					if(diff > 400 & @dirtyInterpret >= 1)
 						do document.showHint()
 						do @dirtyHint :: false
 					end if
@@ -2039,19 +2134,38 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		if(@tabOrderFind <>& null & @tabOrderFind.chk(key, shiftCtrl))
 			ret true
 		end if
-	elif(@wndMain.focusedWnd())
+	elif(@wndMain.focusedWnd() | @wndCompletion <>& null & @wndCompletion.focusedWnd())
+		if(wnd@key(%alt))
+			ret @curDocument.keyDownAlt(key, %none)
+		end if
 		switch(shiftCtrl)
 		case %none
 			switch(key)
 			case %del
 				do @wndMainOnPushMenu(@wndMain, 16#0037)
 				ret true
+			case %enter
+				if(@wndCompletion <>& null)
+					do @curDocument.keyDown(key, %none)
+				end if
+			case %esc
+				if(@wndCompletion <>& null)
+					do @closeCompletion()
+					do @dirtyHint :: false
+					ret true
+				end if
 			case %f1
 				do @wndMainOnPushMenu(@wndMain, 16#0010)
 				ret true
 			case %f5
 				do @wndMainOnPushMenu(@wndMain, 16#0020)
 				ret true
+			case %f12
+				if(@wndCompletionHintPos <>& null)
+					if(@jumpSrc(@wndCompletionHintPos))
+						ret true
+					end if
+				end if
 			end switch
 		case %shift
 			switch(key)
@@ -2414,21 +2528,15 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 end func
 
 func listInfoOnSel(wnd: wnd@WndBase)
-	if(@curDocument =$ @DocumentSrc)
-		var sel: int :: @listInfo.getSel()
-		if(sel <> -1 & sel < ^@listInfoItem)
-			do @listInfoItem.head()
-			var item: @ListInfoItem :: @listInfoItem.getOffset(sel)
-			if(item.pos.src = @srcNameToInternalName(@mainSrcName))
-				do (@curDocument $ @DocumentSrc).move(item.pos.col - 1, item.pos.row - 1)
-				do @drawEditor.paint()
-				do @drawEditor.focus()
-			end if
+	var sel: int :: @listInfo.getSel()
+	if(sel <> -1 & sel < ^@listInfoItem)
+		do @listInfoItem.head()
+		var item: @ListInfoItem :: @listInfoItem.getOffset(sel)
+		if(@jumpSrc(item.pos))
 			do @textErr :: item.text
 			do @updateLog()
 			do @dirtyHint :: false
 		end if
-	elif(@curDocument =$ @DocumentArBase)
 	end if
 end func
 
@@ -2802,7 +2910,7 @@ func updateUi()
 	do @editFile.setText("")
 	do @listInfo.clear()
 	if(@curDocument =$ @DocumentSrc)
-		; TODO: do @listInfoItem.sort()
+		do @listInfoItem.sort()
 		do @listInfoItem.head()
 		while(!@listInfoItem.term())
 			do @listInfo.add(@listInfoItem.get().text)
@@ -2922,7 +3030,7 @@ func lockEditor(lock: bool)
 end func
 
 func updateLog()
-	do @editHint.setText(@textErr ~ (@textErr =& null ?("", "\n\n")) ~ @textHint ~ (@textHint =& null ?("", "\n\n")) ~ @textFunc)
+	do @editHint.setText(@textErr)
 	do @editLog.setText(@textLog)
 end func
 
@@ -2945,16 +3053,6 @@ func getDocumentName(document: @Document): []char
 		end if
 		ret true
 	end func
-end func
-
-func getHint2(src: []char, row: int, keyword: []char): []char
-	var result: []char
-	try
-		do result :: ##@getHint(src, row, keyword)
-	catch
-		do result :: null
-	end try
-	ret result
 end func
 
 func delRunningFiles()
@@ -3211,4 +3309,109 @@ end func
 
 func showMsgRunning()
 	do wnd@msgBox(@wndMain, @langEn ?("The program is running.", "プログラムが実行中です。"), @title, %err, %ok)
+end func
+
+var wndCompletion: wnd@Wnd
+var wndCompletionEditHint: wnd@EditMulti
+var wndCompletionListKeywords: wnd@List
+var wndCompletionEditFunc: wnd@EditMulti
+var wndCompletionSrc: []char
+var wndCompletionRow: int
+var wndCompletionCursor: int
+var wndCompletionHintPos: @Pos
+
+func showCompletion(src: []char, row: int, hint: []char, funcHint: []char)
+	if(@wndCompletion <>& null)
+		do @closeCompletion()
+		assert @wndCompletion =& null
+	end if
+	var x: int
+	var y: int
+	do wnd@getCaretPos(&x, &y)
+	if(x < 0 | y < 0)
+		ret
+	end if
+	var x2: int
+	var y2: int
+	do @drawEditor.getPosScr(&x2, &y2, &, &)
+
+	do @wndCompletionSrc :: src
+	do @wndCompletionRow :: row
+	do @wndCompletion :: wnd@makeWnd(@wndMain, %popup, 300, 152, null)
+	do @wndCompletion.setPos(x + x2, y + y2 + @cellHeight, 300, 152)
+	do @wndCompletion.onClose :: wndCompletionOnClose
+	do @wndCompletionEditHint :: wnd@makeEditMulti(@wndCompletion, 0, 0, 300, 38, %fix, %fix)
+	do @wndCompletionEditHint.readonly(true)
+	do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 38, 300, 76, %fix, %fix)
+	do @wndCompletionListKeywords.onSel :: @wndCompletionListKeywordsOnSel
+	var best: int :: @getKeywords(src, row, hint, getKeywordsCallback)
+	do @wndCompletionListKeywords.setSel(@wndCompletionListKeywords.len() - 1)
+	do @wndCompletionListKeywords.setSel(best)
+	do @wndCompletionCursor :: best
+	do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+	do @wndCompletionListKeywords.setSel(-1)
+	do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 114, 300, 38, %fix, %fix)
+	do @wndCompletionEditFunc.readonly(true)
+	if(^funcHint = 0)
+		do @wndCompletionEditFunc.setText(@langEn ?("Select...Alt+Up/Alt+Down, To Definition...F12\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Alt+Up/Alt+Down, 定義元へ...F12\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
+	else
+		do @wndCompletionEditFunc.setText(funcHint)
+	end if
+
+	do @drawEditor.focus()
+
+	func wndCompletionOnClose(wnd: wnd@Wnd): bool
+		do @wndCompletion :: null
+		do @wndCompletionSrc :: null
+		do @wndCompletionRow :: 0
+		do @wndCompletionCursor :: -1
+		ret true
+	end func
+
+	func getKeywordsCallback(keyword: []char)
+		do @wndCompletionListKeywords.add(keyword)
+	end func
+end func
+
+func closeCompletion()
+	do @wndCompletion.close()
+end func
+
+func wndCompletionListKeywordsOnSel(wnd: wnd@List)
+	var sel: int :: wnd.getSel()
+	if(sel = -1)
+		do @wndCompletionEditHint.setText("")
+	else
+		do @wndCompletionHintPos :: #@Pos
+		var hintSrc: []char
+		var wordHint: []char :: @getHint(0, @wndCompletionSrc, @wndCompletionRow, @wndCompletionListKeywords.getText(sel), &hintSrc, &@wndCompletionHintPos.row, &@wndCompletionHintPos.col)
+		if(hintSrc =& null)
+			do @wndCompletionHintPos :: null
+		else
+			do @wndCompletionHintPos.src :: ##hintSrc
+		end if
+		if(wordHint <>& null)
+			do @wndCompletionEditHint.setText(wordHint)
+		end if
+	end if
+end func
+
+func jumpSrc(pos: @Pos): bool
+	var src: []char :: @internalNameToSrcName(pos.src)
+	if(src =& null)
+		ret false
+	end if
+	var document: @Document :: @documents.get(src)
+	if(document =& null)
+		ret false
+	end if
+	if(document =$ @DocumentSrc)
+		if(document =& @curDocument)
+			do (@curDocument $ @DocumentSrc).move(pos.col - 1, pos.row - 1)
+			do @drawEditor.paint()
+			do @drawEditor.focus()
+			ret true
+		end if
+	end if
+	ret false
 end func

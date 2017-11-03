@@ -16,6 +16,7 @@ enum EWndKind
 	WndKind_WndNormal = 0x00,
 	WndKind_WndFix,
 	WndKind_WndAspect,
+	WndKind_WndPopup,
 	WndKind_WndMdi,
 	WndKind_WndMdiChild,
 	WndKind_WndDock,
@@ -620,6 +621,21 @@ EXPORT_CPP void* _getClipboardStr()
 	return result;
 }
 
+EXPORT_CPP void _getCaretPos(S64* x, S64* y)
+{
+	POINT point;
+	if (!GetCaretPos(&point))
+	{
+		*x = -1;
+		*y = -1;
+	}
+	else
+	{
+		*x = static_cast<S64>(point.x);
+		*y = static_cast<S64>(point.y);
+	}
+}
+
 EXPORT_CPP void _target(SClass* draw_ctrl)
 {
 	SDraw* draw_ctrl2 = reinterpret_cast<SDraw*>(draw_ctrl);
@@ -645,14 +661,14 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 			me2->WndHandle = CreateWindowEx(0, L"KuinWndNormalClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndFix:
-			THROWDBG(width == -1 || height == -1, 0xe9170006);
 			me2->WndHandle = CreateWindowEx(0, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndAspect:
-			THROWDBG(width == -1 || height == -1, 0xe9170006);
 			me2->WndHandle = CreateWindowEx(0, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
-			// TODO:
+		case WndKind_WndPopup:
+			me2->WndHandle = CreateWindowEx(0, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_POPUP | WS_BORDER | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			break;
 		default:
 			THROWDBG(True, 0xe9170006);
 			break;
@@ -747,6 +763,11 @@ EXPORT_CPP Bool _wndBaseFocused(SClass* me_)
 EXPORT_CPP void _wndBaseEnable(SClass* me_, Bool is_enabled)
 {
 	EnableWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_enabled ? TRUE : FALSE);
+}
+
+EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height)
+{
+	SetWindowPos(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, (int)x, (int)y, (int)width, (int)height, SWP_NOZORDER);
 }
 
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
@@ -1260,7 +1281,7 @@ EXPORT_CPP void _scrollSetState(SClass* me_, S64 min, S64 max, S64 page, S64 pos
 	SetScrollInfo(reinterpret_cast<SWndBase*>(me_)->WndHandle, SB_CTL, &info, TRUE);
 }
 
-EXPORT_CPP void _scrollSetPos(SClass* me_, S64 pos)
+EXPORT_CPP void _scrollSetScrollPos(SClass* me_, S64 pos)
 {
 	SCROLLINFO info;
 	info.cbSize = sizeof(SCROLLINFO);
@@ -1846,7 +1867,7 @@ static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 	SWnd* wnd3 = reinterpret_cast<SWnd*>(wnd2);
 	if (wnd2 == NULL)
 		return DefWindowProc(wnd, msg, w_param, l_param);
-	ASSERT(wnd2->Kind == WndKind_WndFix);
+	ASSERT(wnd2->Kind == WndKind_WndFix || wnd2->Kind == WndKind_WndPopup);
 	switch (msg)
 	{
 		case WM_CLOSE:
