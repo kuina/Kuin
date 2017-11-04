@@ -658,16 +658,16 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	switch (me2->Kind)
 	{
 		case WndKind_WndNormal:
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndNormalClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndNormalClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndFix:
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndAspect:
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndPopup:
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_POPUP | WS_BORDER | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_POPUP | WS_BORDER | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		default:
 			THROWDBG(True, 0xe9170006);
@@ -675,6 +675,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	}
 	if (me2->WndHandle == NULL)
 		THROW(0xe9170009);
+	SetLayeredWindowAttributes(me2->WndHandle, NULL, 255, LWA_ALPHA);
 	int border_x;
 	int border_y;
 	{
@@ -844,6 +845,19 @@ EXPORT_CPP Bool _wndFocusedWnd(SClass* me_)
 	if (wnd2 == NULL)
 		return False;
 	return wnd == reinterpret_cast<SWndBase*>(me_)->WndHandle;
+}
+
+EXPORT_CPP void _wndSetAlpha(SClass* me_, S64 alpha)
+{
+	THROWDBG(alpha < 0 || 255 < alpha, 0xe9170006);
+	SetLayeredWindowAttributes(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, static_cast<BYTE>(alpha), LWA_ALPHA);
+}
+
+EXPORT_CPP S64 _wndGetAlpha(SClass* me_)
+{
+	BYTE alpha;
+	GetLayeredWindowAttributes(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, &alpha, NULL);
+	return static_cast<S64>(alpha);
 }
 
 EXPORT_CPP void _wndSetModalLock(SClass* me_)

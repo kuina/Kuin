@@ -114,7 +114,7 @@ class Document()
 	+func focus(isFocus: bool)
 	end func
 
-	+func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+	+func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 	end func
 
 	+func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
@@ -320,12 +320,17 @@ class DocumentSrc(@Document)
 		end if
 	end func
 
-	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		switch(key)
+		case %ctrl
+			if(@wndCompletion <>& null)
+				do @wndCompletion.setAlpha(25)
+			end if
+			ret true
 		case %bs
 			if (@lockingEditor)
 				do @showMsgRunning()
-				ret
+				ret true
 			end if
 			if(shiftCtrl = %none)
 				do me.undo.recordBegin()
@@ -337,13 +342,14 @@ class DocumentSrc(@Document)
 				do me.undo.recordEnd()
 				do me.refreshCursor(false, true)
 				do @drawEditor.paint()
+				ret true
 			end if
 		case %tab
 			switch(shiftCtrl)
 			case %none
 				if (@lockingEditor)
 					do @showMsgRunning()
-					ret
+					ret true
 				end if
 				if(!me.areaSelected())
 					do me.undo.recordBegin()
@@ -356,21 +362,23 @@ class DocumentSrc(@Document)
 					do me.refreshCursor(false, true)
 					do @drawEditor.paint()
 				end if
+				ret true
 			case %shift
 				if (@lockingEditor)
 					do @showMsgRunning()
-					ret
+					ret true
 				end if
 				if(me.areaSelected())
 					do me.unindentAreaStr()
 					do me.refreshCursor(false, true)
 					do @drawEditor.paint()
 				end if
+				ret true
 			end switch
 		case %enter
 			if (@lockingEditor)
 				do @showMsgRunning()
-				ret
+				ret true
 			end if
 			if(shiftCtrl = %none)
 				if(!me.complement())
@@ -393,6 +401,7 @@ class DocumentSrc(@Document)
 					do me.refreshCursor(false, true)
 					do @drawEditor.paint()
 				end if
+				ret true
 			end if
 		case %pageUp
 			block
@@ -407,6 +416,7 @@ class DocumentSrc(@Document)
 					do me.setAbsoluteX(absoluteX)
 					do me.refreshCursor(false, true)
 				end if
+				ret true
 			end block
 		case %pageDown
 			block
@@ -421,6 +431,7 @@ class DocumentSrc(@Document)
 					do me.setAbsoluteX(absoluteX)
 					do me.refreshCursor(false, true)
 				end if
+				ret true
 			end block
 		case %end_
 			do me.setArea(shiftCtrl)
@@ -429,6 +440,7 @@ class DocumentSrc(@Document)
 				do me.cursorY :: lib@intMax
 			end if
 			do me.refreshCursor(false, true)
+			ret true
 		case %home
 			do me.setArea(shiftCtrl)
 			do me.cursorX :: 0
@@ -436,6 +448,7 @@ class DocumentSrc(@Document)
 				do me.cursorY :: 0
 			end if
 			do me.refreshCursor(false, true)
+			ret true
 		case %left
 			if(shiftCtrl = %ctrl)
 				do me.scrollPageX(-1)
@@ -444,6 +457,7 @@ class DocumentSrc(@Document)
 				do me.cursorX :- 1
 				do me.refreshCursor(false, true)
 			end if
+			ret true
 		case %up
 			if(shiftCtrl = %ctrl)
 				do me.scrollPageY(-1)
@@ -454,6 +468,7 @@ class DocumentSrc(@Document)
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
 			end if
+			ret true
 		case %right
 			if(shiftCtrl = %ctrl)
 				do me.scrollPageX(1)
@@ -462,6 +477,7 @@ class DocumentSrc(@Document)
 				do me.cursorX :+ 1
 				do me.refreshCursor(true, true)
 			end if
+			ret true
 		case %down
 			if(shiftCtrl = %ctrl)
 				do me.scrollPageY(1)
@@ -472,12 +488,20 @@ class DocumentSrc(@Document)
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
 			end if
+			ret true
 		case %ins
 			; TODO: Insert mode.
 		end switch
+		ret false
 	end func
 
 	+*func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+		switch(key)
+		case %ctrl
+			if(@wndCompletion <>& null)
+				do @wndCompletion.setAlpha(230)
+			end if
+		end switch
 		do @drawEditor.paint()
 	end func
 
@@ -1624,7 +1648,7 @@ class DocumentArBase(@Document)
 		end if
 	end func
 
-	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		; TODO:
 	end func
 
@@ -2050,6 +2074,8 @@ func main()
 		do @popupMainEdit.addLine()
 		do @popupMainEdit.add(16#0039, @langEn ?("&Find\tCtrl+F", "検索(&F)\tCtrl+F"))
 		do @popupMainEdit.add(16#003A, @langEn ?("&Replace\tCtrl+H", "置換(&R)\tCtrl+H"))
+		do @popupMainEdit.add(16#003B, @langEn ?("Find Pre&vious\tShift+F3", "前を検索(&V)\tShift+F3"))
+		do @popupMainEdit.add(16#003C, @langEn ?("Find &Next\tF3", "次を検索(&N)\tF3"))
 		do @menuMain.addPopup(@langEn ?("&Edit", "編集(&E)"), @popupMainEdit)
 		do @popupMainBuild :: wnd@makePopup()
 		do @popupMainBuild.add(16#0020, @langEn ?("&Compile && Run\tF5", "コンパイル＆実行(&C)\tF5"))
@@ -2133,10 +2159,35 @@ end func
 
 func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 	if(@wndFind <>& null & @wndFind.focusedWnd())
-		if(key = %esc)
-			do @wndFind.close()
-			ret true
-		end if
+		switch(shiftCtrl)
+		case %none
+			switch(key)
+			case %enter
+				do @wndFindBtnNextOnPush(@wndFindBtnNext)
+				ret true
+			case %esc
+				do @wndFind.close()
+				ret true
+			case %f3
+				do @wndMainOnPushMenu(@wndMain, 16#003C)
+				ret true
+			end switch
+		case %shift
+			switch(key)
+			case %f3
+				do @wndMainOnPushMenu(@wndMain, 16#003B)
+				ret true
+			end switch
+		case %ctrl
+			switch(key)
+			case %f
+				do @wndMainOnPushMenu(@wndMain, 16#0039)
+				ret true
+			case %h
+				do @wndMainOnPushMenu(@wndMain, 16#003A)
+				ret true
+			end switch
+		end switch
 		if(@tabOrderFind <>& null & @tabOrderFind.chk(key, shiftCtrl))
 			ret true
 		end if
@@ -2150,19 +2201,20 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			case %del
 				do @wndMainOnPushMenu(@wndMain, 16#0037)
 				ret true
-			case %enter
-				if(@wndCompletion <>& null)
-					do @curDocument.keyDown(key, %none)
-					ret true
-				end if
 			case %esc
 				if(@wndCompletion <>& null)
 					do @closeCompletion()
 					do @dirtyHint :: false
 					ret true
+				elif(@wndFind <>& null)
+					do @wndFind.close()
+					ret true
 				end if
 			case %f1
 				do @wndMainOnPushMenu(@wndMain, 16#0010)
+				ret true
+			case %f3
+				do @wndMainOnPushMenu(@wndMain, 16#003C)
 				ret true
 			case %f5
 				do @wndMainOnPushMenu(@wndMain, 16#0020)
@@ -2176,6 +2228,9 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			end switch
 		case %shift
 			switch(key)
+			case %f3
+				do @wndMainOnPushMenu(@wndMain, 16#003B)
+				ret true
 			end switch
 		case %ctrl
 			switch(key)
@@ -2231,6 +2286,9 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 				ret true
 			end switch
 		end switch
+		if(@wndCompletion <>& null & key <> %ctrl)
+			ret @curDocument.keyDown(key, shiftCtrl)
+		end if
 	end if
 	ret false
 end func
@@ -2532,6 +2590,14 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		do @showFind(false)
 	case 16#003A
 		do @showFind(true)
+	case 16#003B
+		if(@wndFindEditPatternLast <>& null)
+			do @wndFindBtnPrevOnPush(null)
+		end if
+	case 16#003C
+		if(@wndFindEditPatternLast <>& null)
+			do @wndFindBtnNextOnPush(null)
+		end if
 	end switch
 end func
 
@@ -3106,8 +3172,13 @@ var wndFindChkOnlyWordLast: bool
 var wndFindChkRegularExpressionLast: bool
 
 func showFind(replace: bool)
+	var x: int
+	var y: int
+	var w: int
+	do @drawEditor.getPosScr(&x, &y, &w, &)
 	if(@wndFind =& null)
 		do @wndFind :: wnd@makeWnd(@wndMain, %fix, 380, 332, @langEn ?("Find and Replace", "検索と置換"))
+		do @wndFind.setPos(x + w - 380 - 17, y, 380, 332)
 		do @wndFind.onClose :: wndFindOnClose
 		do @wndFindTabFind :: wnd@makeTab(@wndFind, 12, 12, 356, 308, %scale, %scale)
 		do @wndFindTabFind.add("検索")
@@ -3130,9 +3201,9 @@ func showFind(replace: bool)
 		do @wndFindChkRegularExpression :: wnd@makeChk(@wndFindTabFind, 6, 248, 166, 16, %fix, %fix, @langEn ?("Use Regular Expressions", "正規表現を使用する"))
 		do @wndFindChkRegularExpression.onPush :: wndFindChkRegularExpressionOnPush
 		do @wndFindBtnPrev :: wnd@makeBtn(@wndFindTabFind, 178, 212, 75, 23, %fix, %fix, @langEn ?("Find Previous", "前を検索"))
-		do @wndFindBtnPrev.onPush :: wndFindBtnPrevOnPush
+		do @wndFindBtnPrev.onPush :: @wndFindBtnPrevOnPush
 		do @wndFindBtnNext :: wnd@makeBtn(@wndFindTabFind, 178, 241, 75, 23, %fix, %fix, @langEn ?("Find Next", "次を検索"))
-		do @wndFindBtnNext.onPush :: wndFindBtnNextOnPush
+		do @wndFindBtnNext.onPush :: @wndFindBtnNextOnPush
 		do @wndFindBtnReplace :: wnd@makeBtn(@wndFindTabFind, 259, 212, 75, 23, %fix, %fix, @langEn ?("Replace", "置換"))
 		do @wndFindBtnReplace.onPush :: wndFindBtnReplaceOnPush
 		do @wndFindBtnReplaceAll :: wnd@makeBtn(@wndFindTabFind, 259, 241, 75, 23, %fix, %fix, @langEn ?("Replace All", "すべて置換"))
@@ -3157,6 +3228,7 @@ func showFind(replace: bool)
 
 		do @tabOrderFind :: wnd@makeTabOrder([@wndFindEditPattern $ wnd@WndBase, @wndFindEditReplace, @wndFindBtnPrev, @wndFindBtnNext, @wndFindBtnReplace, @wndFindBtnReplaceAll])
 	else
+		do @wndFind.setPos(x + w - 380 - 17, y, 380, 332)
 		do @wndFind.setActive()
 	end if
 	do @wndFindTabFind.setSel(replace ?(1, 0))
@@ -3237,21 +3309,29 @@ func showFind(replace: bool)
 		do @wndFindChkOnlyWord.enable(!@wndFindChkRegularExpressionLast)
 	end func
 
-	func wndFindBtnPrevOnPush(wnd: wnd@Btn)
-		do @findPrev(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
-	end func
-
-	func wndFindBtnNextOnPush(wnd: wnd@Btn)
-		do @findNext(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
-	end func
-
 	func wndFindBtnReplaceOnPush(wnd: wnd@Btn)
 		do @replaceOne(@wndFindEditPatternLast, @wndFindEditReplaceLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+		do @drawEditor.focus()
+		do @dirtyHint :: false
 	end func
 
 	func wndFindBtnReplaceAllOnPush(wnd: wnd@Btn)
 		do @replaceAll(@wndFindEditPatternLast, @wndFindEditReplaceLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+		do @drawEditor.focus()
+		do @dirtyHint :: false
 	end func
+end func
+
+func wndFindBtnNextOnPush(wnd: wnd@Btn)
+	do @findNext(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+	do @drawEditor.focus()
+	do @dirtyHint :: false
+end func
+
+func wndFindBtnPrevOnPush(wnd: wnd@Btn)
+	do @findPrev(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+	do @drawEditor.focus()
+	do @dirtyHint :: false
 end func
 
 func findPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
@@ -3347,6 +3427,7 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char)
 	do @wndCompletionRow :: row
 	do @wndCompletion :: wnd@makeWnd(@wndMain, %popup, 300, 152, null)
 	do @wndCompletion.setPos(x + x2, y + y2 + @cellHeight, 300, 152)
+	do @wndCompletion.setAlpha(230)
 	do @wndCompletion.onClose :: wndCompletionOnClose
 	do @wndCompletionEditHint :: wnd@makeEditMulti(@wndCompletion, 0, 0, 300, 38, %fix, %fix)
 	do @wndCompletionEditHint.readonly(true)

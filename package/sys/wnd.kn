@@ -94,6 +94,12 @@ end class
 	+func [d0001.knd, _wndFocusedWnd] focusedWnd(): bool
 	end func
 
+	+func [d0001.knd, _wndSetAlpha] setAlpha(alpha: int)
+	end func
+
+	+func [d0001.knd, _wndGetAlpha] getAlpha(): int
+	end func
+
 	+func modal()
 		do me.setModalLock()
 		while(@act() & me.modalLock)
