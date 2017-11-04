@@ -618,7 +618,8 @@ static S64 GetEnumElementValue(SAstExprValue* ast, SAstEnum* enum_)
 			SAstExpr* item = (SAstExpr*)ptr->Data;
 			if (wcscmp(name, ((SAst*)item)->Name) == 0)
 			{
-				ASSERT(((SAst*)item)->TypeId == AstTypeId_ExprValue);
+				if (((SAst*)item)->TypeId != AstTypeId_ExprValue)
+					return 0;
 				return *(S64*)((SAstExprValue*)item)->Value;
 			}
 			ptr = ptr->Next;
@@ -1698,13 +1699,13 @@ static void RebuildEnum(SAstEnum* ast)
 				SAstExpr* item = (SAstExpr*)ptr->Data;
 				const Char* item_name = ((SAst*)item)->Name;
 				item = RebuildExpr(item, item->Type == NULL);
-				((SAst*)item)->Name = item_name;
 				if (LocalErr)
 				{
 					LocalErr = False;
 					ptr = ptr->Next;
 					continue;
 				}
+				((SAst*)item)->Name = item_name;
 				ptr->Data = item;
 				if (((SAst*)item)->TypeId != AstTypeId_ExprValue || (item->Type != NULL && !IsInt(item->Type)))
 					Err(L"EA0011", ((SAst*)ast)->Pos, ((SAst*)ast)->Name, ((SAst*)item)->Name);
