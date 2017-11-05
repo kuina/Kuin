@@ -1768,7 +1768,7 @@ static void RebuildArg(SAstArg* ast)
 			Err(L"EA0015", ((SAst*)ast)->Pos, ((SAst*)ast)->Name);
 		if (!CmpType(ast->Type, ast->Expr->Type))
 			Err(L"EA0056", ((SAst*)ast)->Pos);
-		if (((SAst*)ast->Expr->Type)->TypeId == AstTypeId_TypeEnumElement)
+		else if (((SAst*)ast->Expr->Type)->TypeId == AstTypeId_TypeEnumElement)
 			RebuildEnumElement(ast->Expr, ast->Type);
 	}
 }
@@ -2105,7 +2105,7 @@ static SAstStat* RebuildRet(SAstStatRet* ast, SAstType* ret_type)
 		}
 		if (ret_type == NULL || !CmpType(ast->Value->Type, ret_type))
 			Err(L"EA0031", ((SAst*)ast)->Pos);
-		if (((SAst*)ast->Value->Type)->TypeId == AstTypeId_TypeEnumElement)
+		else if (((SAst*)ast->Value->Type)->TypeId == AstTypeId_TypeEnumElement)
 			RebuildEnumElement(ast->Value, ret_type);
 	}
 	return (SAstStat*)ast;
