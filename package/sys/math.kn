@@ -28,8 +28,20 @@ end func
 +func [d0003.knd, _factInt] factInt(n: int): int
 end func
 
-+class Mat(kuin@ResClass)
++class Mat()
 	*func [d0003.knd, _matDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
 	end func
 
 	var row: int

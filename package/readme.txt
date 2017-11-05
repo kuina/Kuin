@@ -47,6 +47,7 @@ v.2017.11.17
     - ヘッダ情報が多すぎる.pngファイルの読み込みに失敗する不具合の修正
     - Kuinエディタに補完機能を追加
     - 「excpt@invalidDataFormat」を「excpt@invalidDataFmt」に改名
+    - 「wnd@Wnd.setActive」を「wnd@Wnd.activate」に改名
     - 細かな機能追加
         - Kuinエディタの検索ダイアログの操作感の改善
         - lib@levenshtein関数の追加

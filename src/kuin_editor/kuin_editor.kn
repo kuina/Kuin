@@ -3229,7 +3229,7 @@ func showFind(replace: bool)
 		do @tabOrderFind :: wnd@makeTabOrder([@wndFindEditPattern $ wnd@WndBase, @wndFindEditReplace, @wndFindBtnPrev, @wndFindBtnNext, @wndFindBtnReplace, @wndFindBtnReplaceAll])
 	else
 		do @wndFind.setPos(x + w - 380 - 17, y, 380, 332)
-		do @wndFind.setActive()
+		do @wndFind.activate()
 	end if
 	do @wndFindTabFind.setSel(replace ?(1, 0))
 	do @wndFindEditReplace.enable(replace)

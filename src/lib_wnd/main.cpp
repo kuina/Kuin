@@ -773,6 +773,7 @@ EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height)
 
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
 {
+	THROWDBG(minWidth <= 0 || minHeight <= 0 || maxWidth < minWidth || maxHeight < minHeight, 0xe9170006);
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
 	me2->MinWidth = static_cast<U16>(minWidth);
 	me2->MinHeight = static_cast<U16>(minHeight);
@@ -819,12 +820,12 @@ EXPORT_CPP void _wndSetMenu(SClass* me_, SClass* menu)
 	SetMenu(reinterpret_cast<SWndBase*>(me_)->WndHandle, menu == NULL ? NULL : reinterpret_cast<SMenu*>(menu)->MenuHandle);
 }
 
-EXPORT_CPP void _wndSetActive(SClass* me_)
+EXPORT_CPP void _wndActivate(SClass* me_)
 {
 	SetActiveWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle);
 }
 
-EXPORT_CPP Bool _wndGetActive(SClass* me_)
+EXPORT_CPP Bool _wndActivated(SClass* me_)
 {
 	return GetActiveWindow() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
 }
@@ -1328,7 +1329,7 @@ EXPORT_CPP void _menuDtor(SClass* me_)
 EXPORT_CPP void _menuAdd(SClass* me_, S64 id, const U8* text)
 {
 	THROWDBG(id < 0x0001 || 0xffff < id, 0xe9170006);
-	THROWDBG(text == NULL, 0xe9170006);
+	THROWDBG(text == NULL, 0xc0000005);
 	AppendMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, MF_ENABLED | MF_STRING, static_cast<UINT_PTR>(id), reinterpret_cast<const Char*>(text + 0x10));
 }
 
@@ -1339,8 +1340,8 @@ EXPORT_CPP void _menuAddLine(SClass* me_)
 
 EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup)
 {
-	THROWDBG(text == NULL, 0xe9170006);
-	THROWDBG(popup == NULL, 0xe9170006);
+	THROWDBG(popup == NULL, 0xc0000005);
+	THROWDBG(text == NULL, 0xc0000005);
 	AppendMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, MF_ENABLED | MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), reinterpret_cast<const Char*>(text + 0x10));
 }
 

@@ -56,8 +56,20 @@ end func
 +func [d0001.knd, _circle] circle(x: float, y: float, radiusX: float, radiusY: float, color: int)
 end func
 
-+class Tex(kuin@ResClass)
++class Tex()
 	*func [d0001.knd, _texDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
 	end func
 
 	+func [d0001.knd, _texDraw] draw(dstX: float, dstY: float, srcX: float, srcY: float, srcW: float, srcH: float, color: int)
@@ -83,8 +95,20 @@ end func
 +func [d0001.knd, _makeTexEvenColor, _make_instance] makeTexEvenColor(me2: @Tex, color: int): @Tex
 end func
 
-+class Font(kuin@ResClass)
++class Font()
 	*func [d0001.knd, _fontDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
 	end func
 
 	+func [d0001.knd, _fontDraw] draw(dstX: float, dstY: float, text: []char, color: int)
@@ -114,8 +138,20 @@ end func
 +func [d0001.knd, _proj] proj(fovy: float, aspectX: float, aspectY: float, nearZ: float, farZ: float)
 end func
 
-+class Obj(kuin@ResClass)
++class Obj()
 	*func [d0001.knd, _objDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
 	end func
 
 	+func [d0001.knd, _objDraw] draw(diffuse: @Tex, specular: @Tex, normal: @Tex, element: int, frame: float)
