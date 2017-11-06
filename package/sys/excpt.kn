@@ -1,7 +1,7 @@
 +const userMin: int :: 16#00000000
 +const userMax: int :: 16#0000FFFF
 +const accessViolation: int :: 16#C0000005
-+const noMemory: int :: 16#C0000017
++const noMem: int :: 16#C0000017
 +const floatInvalidOperation: int :: 16#C0000090
 +const intDivideByZero: int :: 16#C0000094
 +const stackOverflow: int :: 16#C00000FD

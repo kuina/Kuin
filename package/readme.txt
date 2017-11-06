@@ -47,6 +47,7 @@ v.2017.11.17
     - ヘッダ情報が多すぎる.pngファイルの読み込みに失敗する不具合の修正
     - Kuinエディタに補完機能を追加
     - 「excpt@invalidDataFormat」を「excpt@invalidDataFmt」に改名
+    - 「excpt@noMemory」を「excpt@noMem」に改名
     - 「wnd@Wnd.setActive」を「wnd@Wnd.activate」に改名
     - 細かな機能追加
         - Kuinエディタの検索ダイアログの操作感の改善
@@ -64,6 +65,8 @@ v.2017.11.17
           不具合の修正
         - float型を要素に持つ配列、list、stack、queueの組み込みメソッドのうち、
           戻り値がfloatのメソッドが正しく動作しない不具合の修正
+        - ダブルクリック時にwnd@Draw.onMouseDownLイベントが発生しない不具合の
+          修正
 
 v.2017.10.17
     - 音が鳴らない環境でKuinエディタの起動に失敗する不具合の修正
