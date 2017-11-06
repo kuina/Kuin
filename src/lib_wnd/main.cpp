@@ -809,12 +809,6 @@ EXPORT_CPP const U8* _wndGetText(SClass* me_)
 	return result;
 }
 
-EXPORT_CPP void _wndReadonly(SClass* me_, Bool flag)
-{
-	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
-	SendMessage(wnd, EM_SETREADONLY, flag ? TRUE : FALSE, 0);
-}
-
 EXPORT_CPP void _wndSetMenu(SClass* me_, SClass* menu)
 {
 	SetMenu(reinterpret_cast<SWndBase*>(me_)->WndHandle, menu == NULL ? NULL : reinterpret_cast<SMenu*>(menu)->MenuHandle);
@@ -980,6 +974,12 @@ EXPORT_CPP SClass* _makeEdit(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 {
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Edit, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, x, y, width, height, L"", WndProcEdit, anchorX, anchorY);
 	return me_;
+}
+
+EXPORT_CPP void _editReadonly(SClass* me_, Bool enabled)
+{
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	SendMessage(wnd, EM_SETREADONLY, enabled ? TRUE : FALSE, 0);
 }
 
 EXPORT_CPP void _editSetSel(SClass* me_, S64 start, S64 len)

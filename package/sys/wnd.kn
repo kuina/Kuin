@@ -224,7 +224,7 @@ end class
 	+var onPush: func<(@WndBase)>
 end class
 
-+class Edit(@WndBase)
++class EditBase(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
@@ -234,7 +234,7 @@ end class
 	+func [d0001.knd, _wndGetText] getText(): []char
 	end func
 
-	+func [d0001.knd, _wndReadonly] readonly(flag: bool)
+	+func [d0001.knd, _editReadonly] readonly(enabled: bool)
 	end func
 
 	+func [d0001.knd, _editSetSel] setSel(start: int, len: int)
@@ -243,17 +243,13 @@ end class
 	+var onChange: func<(@WndBase)>
 end class
 
-+class EditMulti(@WndBase)
++class Edit(@EditBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+end class
 
-	+func [d0001.knd, _wndSetText] setText(text: []char)
-	end func
-
-	+func [d0001.knd, _wndGetText] getText(): []char
-	end func
-
-	+func [d0001.knd, _wndReadonly] readonly(flag: bool)
++class EditMulti(@EditBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
