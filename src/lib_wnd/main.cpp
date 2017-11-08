@@ -1028,17 +1028,16 @@ EXPORT_CPP void _listClear(SClass* me_)
 
 EXPORT_CPP void _listAdd(SClass* me_, const U8* text)
 {
+	THROWDBG(text == NULL, 0xc0000005);
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text + 0x10));
 }
 
 EXPORT_CPP void _listIns(SClass* me_, S64 idx, const U8* text)
 {
+	THROWDBG(text == NULL, 0xc0000005);
 #if defined(DBG)
-	{
-		S64 len = _listLen(me_);
-		if (idx < 0 || len <= idx)
-			THROW(0x1000, L"");
-	}
+	S64 len = _listLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
 }
@@ -1046,11 +1045,8 @@ EXPORT_CPP void _listIns(SClass* me_, S64 idx, const U8* text)
 EXPORT_CPP void _listDel(SClass* me_, S64 idx)
 {
 #if defined(DBG)
-	{
-		S64 len = _listLen(me_);
-		if (idx < 0 || len <= idx)
-			THROW(0x1000, L"");
-	}
+	S64 len = _listLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_DELETESTRING, static_cast<WPARAM>(idx), 0);
 }
@@ -1063,11 +1059,8 @@ EXPORT_CPP S64 _listLen(SClass* me_)
 EXPORT_CPP void _listSetSel(SClass* me_, S64 idx)
 {
 #if defined(DBG)
-	{
-		S64 len = _listLen(me_);
-		if (idx < -1 || len <= idx)
-			THROW(0x1000, L"");
-	}
+	S64 len = _listLen(me_);
+	THROWDBG(idx < -1 || len <= idx, 0xe9170006);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_SETCURSEL, static_cast<WPARAM>(idx), 0);
 }
@@ -1082,8 +1075,7 @@ EXPORT_CPP void* _listGetText(SClass* me_, S64 idx)
 #if defined(DBG)
 	{
 		S64 len = _listLen(me_);
-		if (idx < 0 || len <= idx)
-			THROW(0x1000, L"");
+		THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 	}
 #endif
 	{
@@ -1098,16 +1090,14 @@ EXPORT_CPP void* _listGetText(SClass* me_, S64 idx)
 
 EXPORT_CPP void _listSetText(SClass* me_, S64 idx, const U8* text)
 {
+	THROWDBG(text == NULL, 0xc0000005);
 #if defined(DBG)
-	{
-		S64 len = _listLen(me_);
-		if (idx < 0 || len <= idx)
-			THROW(0x1000, L"");
-	}
+	S64 len = _listLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 #endif
 	{
 		int sel = static_cast<int>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETCURSEL, 0, 0));
-		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), text == NULL ? reinterpret_cast<LPARAM>(L"") : reinterpret_cast<LPARAM>(text + 0x10));
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
 		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_DELETESTRING, static_cast<WPARAM>(idx + 1), 0);
 		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_SETCURSEL, static_cast<WPARAM>(sel), 0);
 	}
@@ -1218,8 +1208,7 @@ EXPORT_CPP void _tabSetSel(SClass* me_, S64 idx)
 #if defined(DBG)
 	{
 		S64 len = _tabLen(me_);
-		if (idx < -1 || len <= idx)
-			THROW(0x1000, L"");
+		THROWDBG(idx < -1 || len <= idx, 0xe9170006);
 	}
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, TCM_SETCURSEL, static_cast<WPARAM>(idx), 0);
