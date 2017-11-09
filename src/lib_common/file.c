@@ -11,7 +11,7 @@ typedef struct SStream
 
 static const U8 Newline[2] = { 0x0d, 0x0a };
 
-static Char ReadUtf8(SStream* me_, Bool replace_delimiter);
+static Char ReadUtf8(SStream* me_, Bool replace_delimiter, int* char_cnt);
 static void WriteUtf8(SStream* me_, Char data);
 static void NormPath(Char* path, Bool dir);
 static void NormPathBackSlash(Char* path, Bool dir);
@@ -134,7 +134,7 @@ EXPORT void* _streamRead(SClass* me_, S64 size)
 
 EXPORT Char _streamReadLetter(SClass* me_)
 {
-	Char result = ReadUtf8((SStream*)me_, False);
+	Char result = ReadUtf8((SStream*)me_, False, NULL);
 	if (result == WEOF)
 		THROW(0xe9170008);
 	return result;
@@ -147,7 +147,7 @@ EXPORT S64 _streamReadInt(SClass* me_)
 	buf[0] = L'\0';
 	for (; ; )
 	{
-		Char c = ReadUtf8((SStream*)me_, True);
+		Char c = ReadUtf8((SStream*)me_, True, NULL);
 		if (c == L'\r')
 			continue;
 		if (c == WEOF)
@@ -169,14 +169,15 @@ EXPORT S64 _streamReadInt(SClass* me_)
 	}
 	for (; ; )
 	{
-		Char c = ReadUtf8((SStream*)me_, True);
+		int char_len;
+		Char c = ReadUtf8((SStream*)me_, True, &char_len);
 		if (c == L'\r')
 			continue;
 		if (c == WEOF)
 			break;
 		if (c != L'\0')
 		{
-			_fseeki64(((SStream*)me_)->Handle, -1, SEEK_CUR);
+			_fseeki64(((SStream*)me_)->Handle, (S64)-char_len, SEEK_CUR);
 			break;
 		}
 	}
@@ -198,7 +199,7 @@ EXPORT double _streamReadFloat(SClass* me_)
 	buf[0] = L'\0';
 	for (; ; )
 	{
-		Char c = ReadUtf8((SStream*)me_, True);
+		Char c = ReadUtf8((SStream*)me_, True, NULL);
 		if (c == L'\r')
 			continue;
 		if (c == WEOF)
@@ -220,14 +221,15 @@ EXPORT double _streamReadFloat(SClass* me_)
 	}
 	for (; ; )
 	{
-		Char c = ReadUtf8((SStream*)me_, True);
+		int char_len;
+		Char c = ReadUtf8((SStream*)me_, True, &char_len);
 		if (c == L'\r')
 			continue;
 		if (c == WEOF)
 			break;
 		if (c != L'\0')
 		{
-			_fseeki64(((SStream*)me_)->Handle, -1, SEEK_CUR);
+			_fseeki64(((SStream*)me_)->Handle, (S64)-char_len, SEEK_CUR);
 			break;
 		}
 	}
@@ -247,7 +249,7 @@ EXPORT Char _streamReadChar(SClass* me_)
 	Char c = L'\0';
 	for (; ; )
 	{
-		c = ReadUtf8((SStream*)me_, True);
+		c = ReadUtf8((SStream*)me_, True, NULL);
 		if (c == L'\r')
 			continue;
 		if (c == WEOF)
@@ -257,14 +259,15 @@ EXPORT Char _streamReadChar(SClass* me_)
 	}
 	for (; ; )
 	{
-		Char c2 = ReadUtf8((SStream*)me_, True);
+		int char_len;
+		Char c2 = ReadUtf8((SStream*)me_, True, &char_len);
 		if (c2 == L'\r')
 			continue;
 		if (c2 == WEOF)
 			break;
 		if (c2 != L'\0')
 		{
-			_fseeki64(((SStream*)me_)->Handle, -1, SEEK_CUR);
+			_fseeki64(((SStream*)me_)->Handle, (S64)-char_len, SEEK_CUR);
 			break;
 		}
 	}
@@ -278,7 +281,7 @@ EXPORT void* _streamReadStr(SClass* me_)
 	buf[0] = L'\0';
 	for (; ; )
 	{
-		Char c = ReadUtf8((SStream*)me_, True);
+		Char c = ReadUtf8((SStream*)me_, True, NULL);
 		if (c == L'\r')
 			continue;
 		if (c == WEOF)
@@ -300,14 +303,15 @@ EXPORT void* _streamReadStr(SClass* me_)
 	}
 	for (; ; )
 	{
-		Char c = ReadUtf8((SStream*)me_, True);
+		int char_len;
+		Char c = ReadUtf8((SStream*)me_, True, &char_len);
 		if (c == L'\r')
 			continue;
 		if (c == WEOF)
 			break;
 		if (c != L'\0')
 		{
-			_fseeki64(((SStream*)me_)->Handle, -1, SEEK_CUR);
+			_fseeki64(((SStream*)me_)->Handle, (S64)-char_len, SEEK_CUR);
 			break;
 		}
 	}
@@ -328,7 +332,7 @@ EXPORT void* _streamReadLine(SClass* me_)
 	buf[0] = L'\0';
 	for (; ; )
 	{
-		Char c = ReadUtf8((SStream*)me_, False);
+		Char c = ReadUtf8((SStream*)me_, False, NULL);
 		if (c == L'\r')
 			continue;
 		if (c == WEOF)
@@ -655,7 +659,7 @@ EXPORT S64 _fileSize(const U8* path)
 	return result;
 }
 
-static Char ReadUtf8(SStream* me_, Bool replace_delimiter)
+static Char ReadUtf8(SStream* me_, Bool replace_delimiter, int* char_cnt)
 {
 	U8 c;
 	int len;
@@ -665,7 +669,11 @@ static Char ReadUtf8(SStream* me_, Bool replace_delimiter)
 	{
 		int c2 = fgetc(me_->Handle);
 		if (c2 == EOF)
+		{
+			if (char_cnt != NULL)
+				*char_cnt = 0;
 			return WEOF;
+		}
 		c = (U8)c2;
 		if ((c & 0xc0) == 0x80)
 			continue;
@@ -710,6 +718,8 @@ static Char ReadUtf8(SStream* me_, Bool replace_delimiter)
 			u = (u << 6) | (c & 0x3f);
 		}
 	}
+	if (char_cnt != NULL)
+		*char_cnt = 1 + len;
 	if (0x00010000 <= u && u <= 0x0010ffff)
 		u = 0x20;
 	u2 = (Char)u;
