@@ -773,7 +773,7 @@ EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height)
 
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
 {
-	THROWDBG(minWidth <= 0 || minHeight <= 0 || maxWidth < minWidth || maxHeight < minHeight, 0xe9170006);
+	THROWDBG(minWidth != -1 && minWidth <= 0 || minHeight != -1 && minHeight <= 0 || maxWidth != -1 && maxWidth < minWidth || maxHeight != -1 && maxHeight < minHeight, 0xe9170006);
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
 	me2->MinWidth = static_cast<U16>(minWidth);
 	me2->MinHeight = static_cast<U16>(minHeight);
