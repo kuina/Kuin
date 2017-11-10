@@ -199,7 +199,7 @@ EXPORT_CPP void* _regexReplace(SClass* me_, const U8* text, const U8* newText, B
 	std::wstring result;
 	try
 	{
-		result = regex_replace(text2, *me2->Pattern, new_text2, all ? regex_constants::format_all : regex_constants::format_first_only);
+		result = regex_replace(text2, *me2->Pattern, new_text2, regex_constants::format_perl | (all ? regex_constants::format_default : regex_constants::format_first_only));
 	}
 	catch (...)
 	{
