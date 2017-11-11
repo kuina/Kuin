@@ -291,7 +291,7 @@ class DocumentSrc(@Document)
 	+*func mouseDownL(x: int, y: int)
 		do me.setArea(wnd@key(%shift) ?(%shift $ wnd@ShiftCtrl, %none))
 		do me.mousePosToCharPos(x, y)
-		do me.refreshCursor(false, true)
+		do me.refreshCursor(false, true, 0)
 		if(!me.areaSelected())
 			do me.areaX :: me.cursorX
 			do me.areaY :: me.cursorY
@@ -300,13 +300,13 @@ class DocumentSrc(@Document)
 	end func
 
 	+*func mouseUpL(x: int, y: int)
-		do me.refreshCursor(false, true)
+		do me.refreshCursor(false, true, 2)
 	end func
 
 	+*func mouseMove(x: int, y: int)
 		if(@drag)
 			do me.mousePosToCharPos(x, y)
-			do me.refreshCursor(false, true)
+			do me.refreshCursor(false, true, 0)
 			do @drawEditor.paint()
 		end if
 	end func
@@ -314,7 +314,7 @@ class DocumentSrc(@Document)
 	+*func focus(isFocus: bool)
 		if(isFocus)
 			do @drawEditor.showCaret(@cellHeight, @font)
-			do me.refreshCursor(false, true)
+			do me.refreshCursor(false, true, 2)
 		else
 			do @drawEditor.hideCaret()
 		end if
@@ -340,7 +340,7 @@ class DocumentSrc(@Document)
 					do me.bs(me.cursorX, me.cursorY, 1, true)
 				end if
 				do me.undo.recordEnd()
-				do me.refreshCursor(false, true)
+				do me.refreshCursor(false, true, 1)
 				do @drawEditor.paint()
 				ret true
 			end if
@@ -355,11 +355,11 @@ class DocumentSrc(@Document)
 					do me.undo.recordBegin()
 					do me.ins(me.cursorX, me.cursorY, "\t", true)
 					do me.undo.recordEnd()
-					do me.refreshCursor(false, true)
+					do me.refreshCursor(false, true, 0)
 					do @drawEditor.paint()
 				else
 					do me.indentAreaStr()
-					do me.refreshCursor(false, true)
+					do me.refreshCursor(false, true, 0)
 					do @drawEditor.paint()
 				end if
 				ret true
@@ -370,7 +370,7 @@ class DocumentSrc(@Document)
 				end if
 				if(me.areaSelected())
 					do me.unindentAreaStr()
-					do me.refreshCursor(false, true)
+					do me.refreshCursor(false, true, 0)
 					do @drawEditor.paint()
 				end if
 				ret true
@@ -398,7 +398,7 @@ class DocumentSrc(@Document)
 						do me.ins(me.cursorX, me.cursorY, str, true)
 					end block
 					do me.undo.recordEnd()
-					do me.refreshCursor(false, true)
+					do me.refreshCursor(false, true, 1)
 					do @drawEditor.paint()
 				end if
 				ret true
@@ -414,7 +414,7 @@ class DocumentSrc(@Document)
 					var absoluteX: int :: me.getAbsoluteX()
 					do me.cursorY :- height / @cellHeight
 					do me.setAbsoluteX(absoluteX)
-					do me.refreshCursor(false, true)
+					do me.refreshCursor(false, true, 2)
 				end if
 				ret true
 			end block
@@ -429,7 +429,7 @@ class DocumentSrc(@Document)
 					var absoluteX: int :: me.getAbsoluteX()
 					do me.cursorY :+ height / @cellHeight
 					do me.setAbsoluteX(absoluteX)
-					do me.refreshCursor(false, true)
+					do me.refreshCursor(false, true, 2)
 				end if
 				ret true
 			end block
@@ -439,7 +439,7 @@ class DocumentSrc(@Document)
 			if(shiftCtrl.and(%ctrl) <> %none)
 				do me.cursorY :: lib@intMax
 			end if
-			do me.refreshCursor(false, true)
+			do me.refreshCursor(false, true, 2)
 			ret true
 		case %home
 			do me.setArea(shiftCtrl)
@@ -447,7 +447,7 @@ class DocumentSrc(@Document)
 			if(shiftCtrl.and(%ctrl) <> %none)
 				do me.cursorY :: 0
 			end if
-			do me.refreshCursor(false, true)
+			do me.refreshCursor(false, true, 2)
 			ret true
 		case %left
 			if(shiftCtrl = %ctrl)
@@ -455,7 +455,7 @@ class DocumentSrc(@Document)
 			else
 				do me.setArea(shiftCtrl)
 				do me.cursorX :- 1
-				do me.refreshCursor(false, true)
+				do me.refreshCursor(false, true, 2)
 			end if
 			ret true
 		case %up
@@ -466,7 +466,7 @@ class DocumentSrc(@Document)
 				var absoluteX: int :: me.getAbsoluteX()
 				do me.cursorY :- 1
 				do me.setAbsoluteX(absoluteX)
-				do me.refreshCursor(false, true)
+				do me.refreshCursor(false, true, 2)
 			end if
 			ret true
 		case %right
@@ -475,7 +475,7 @@ class DocumentSrc(@Document)
 			else
 				do me.setArea(shiftCtrl)
 				do me.cursorX :+ 1
-				do me.refreshCursor(true, true)
+				do me.refreshCursor(true, true, 2)
 			end if
 			ret true
 		case %down
@@ -486,7 +486,7 @@ class DocumentSrc(@Document)
 				var absoluteX: int :: me.getAbsoluteX()
 				do me.cursorY :+ 1
 				do me.setAbsoluteX(absoluteX)
-				do me.refreshCursor(false, true)
+				do me.refreshCursor(false, true, 2)
 			end if
 			ret true
 		case %ins
@@ -559,19 +559,19 @@ class DocumentSrc(@Document)
 		end if
 		do me.ins(me.cursorX, me.cursorY, [key], true)
 		do me.undo.recordEnd()
-		do me.refreshCursor(false, true)
+		do me.refreshCursor(false, true, 1)
 		do @drawEditor.paint()
 	end func
 
 	+*func scrollX(pos: int)
 		do me.pageX :: pos
-		do me.refreshCursor(false, false)
+		do me.refreshCursor(false, false, 0)
 		do @drawEditor.paint()
 	end func
 
 	+*func scrollY(pos: int)
 		do me.pageY :: pos
-		do me.refreshCursor(false, false)
+		do me.refreshCursor(false, false, 0)
 		do @drawEditor.paint()
 	end func
 
@@ -592,7 +592,7 @@ class DocumentSrc(@Document)
 			do me.areaX :: -1
 		end if
 		do me.undo.undo()
-		do me.refreshCursor(false, true)
+		do me.refreshCursor(false, true, 0)
 		do @drawEditor.paint()
 	end func
 
@@ -605,7 +605,7 @@ class DocumentSrc(@Document)
 			do me.areaX :: -1
 		end if
 		do me.undo.redo()
-		do me.refreshCursor(false, true)
+		do me.refreshCursor(false, true, 0)
 		do @drawEditor.paint()
 	end func
 
@@ -619,7 +619,7 @@ class DocumentSrc(@Document)
 			do me.undo.recordBegin()
 			do me.delAreaStr()
 			do me.undo.recordEnd()
-			do me.refreshCursor(false, true)
+			do me.refreshCursor(false, true, 0)
 			do @drawEditor.paint()
 		end if
 	end func
@@ -643,7 +643,7 @@ class DocumentSrc(@Document)
 			end if
 			do me.ins(me.cursorX, me.cursorY, str, true)
 			do me.undo.recordEnd()
-			do me.refreshCursor(false, true)
+			do me.refreshCursor(false, true, 0)
 			do @drawEditor.paint()
 		end if
 	end func
@@ -660,7 +660,7 @@ class DocumentSrc(@Document)
 			do me.del(me.cursorX, me.cursorY, 1, true)
 		end if
 		do me.undo.recordEnd()
-		do me.refreshCursor(false, true)
+		do me.refreshCursor(false, true, 2)
 		do @drawEditor.paint()
 	end func
 
@@ -669,7 +669,7 @@ class DocumentSrc(@Document)
 		do me.areaY :: 0
 		do me.cursorX :: lib@intMax
 		do me.cursorY :: lib@intMax
-		do me.refreshCursor(false, true)
+		do me.refreshCursor(false, true, 0)
 		do @drawEditor.paint()
 	end func
 
@@ -692,7 +692,7 @@ class DocumentSrc(@Document)
 				do me.areaY :: i
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
-				do me.refreshCursor(false, true)
+				do me.refreshCursor(false, true, 0)
 				do @drawEditor.paint()
 				ret true
 			end if
@@ -704,7 +704,7 @@ class DocumentSrc(@Document)
 				do me.areaY :: i
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
-				do me.refreshCursor(false, true)
+				do me.refreshCursor(false, true, 0)
 				do @drawEditor.paint()
 				ret true
 			end if
@@ -731,7 +731,7 @@ class DocumentSrc(@Document)
 				do me.areaY :: i
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
-				do me.refreshCursor(false, true)
+				do me.refreshCursor(false, true, 0)
 				do @drawEditor.paint()
 				ret true
 			end if
@@ -743,7 +743,7 @@ class DocumentSrc(@Document)
 				do me.areaY :: i
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
-				do me.refreshCursor(false, true)
+				do me.refreshCursor(false, true, 0)
 				do @drawEditor.paint()
 				ret true
 			end if
@@ -865,7 +865,7 @@ class DocumentSrc(@Document)
 		do me.cursorY :: row
 		do me.areaX :: -1
 		do me.areaY :: -1
-		do me.refreshCursor(false, true)
+		do me.refreshCursor(false, true, 2)
 	end func
 
 	const colorLineNumber: int :: 16#FFFF7F7F
@@ -964,7 +964,7 @@ class DocumentSrc(@Document)
 		do me.cursorX :: ^me.src.src[me.cursorY]
 	end func
 
-	func refreshCursor(moveRight: bool, refreshScroll: bool)
+	func refreshCursor(moveRight: bool, refreshScroll: bool, dirtyHint: int)
 		var scrWidth: int
 		var scrHeight: int
 		do @drawEditor.getPos(&, &, &scrWidth, &scrHeight)
@@ -1060,7 +1060,11 @@ class DocumentSrc(@Document)
 			end if
 		end block
 
-		do @setDirtyHint()
+		if(dirtyHint <> 0)
+			do @setDirtyHint(dirtyHint = 1)
+		elif(@wndCompletion <>& null)
+			do @closeCompletion()
+		end if
 
 		func log10(n: int): int
 			var result: int :: 0
@@ -1473,7 +1477,7 @@ class DocumentSrc(@Document)
 			do me.cursorX :: x + ^replaceStr
 			do me.areaX :: -1
 			do me.areaY :: -1
-			do me.refreshCursor(false, true)
+			do me.refreshCursor(false, true, 1)
 			do @drawEditor.paint()
 		end if
 		do @closeCompletion()
@@ -1489,7 +1493,7 @@ class DocumentSrc(@Document)
 		if(me.pageX < 0)
 			do me.pageX :: 0
 		end if
-		do me.refreshCursor(false, false)
+		do me.refreshCursor(false, false, 0)
 		do @scrollXSrc.setScrollPos(me.pageX)
 		do @drawEditor.paint()
 	end func
@@ -1506,7 +1510,7 @@ class DocumentSrc(@Document)
 		if (me.pageY < 0)
 			do me.pageY :: 0
 		end if
-		do me.refreshCursor(false, false)
+		do me.refreshCursor(false, false, 0)
 		do @scrollYSrc.setScrollPos(me.pageY)
 		do @drawEditor.paint()
 	end func
@@ -1970,6 +1974,7 @@ var dirtyInterpret: int
 var dirtyInterpretTime: int
 var dirtyHint: bool
 var dirtyHintTime: int
+var dirtyHintFast: bool
 var blankMem: int
 var listInfoItem: list<@ListInfoItem>
 var auxiliaryErr: dict<@Pos, []char>
@@ -2145,9 +2150,10 @@ func main()
 					if(diff > 50 & @wndCompletion <>& null)
 						do @closeCompletion()
 					end if
-					if(diff > 400 & @dirtyInterpret >= 1)
+					if(diff > (@dirtyHintFast ?(400, 800)) & @dirtyInterpret >= 1)
 						do document.showHint()
 						do @dirtyHint :: false
+						do @dirtyHintFast :: false
 					end if
 				end if
 			end if
@@ -2321,8 +2327,11 @@ func new(srcName: []char, src: [][]char)
 	do @mainSrcDir :: srcName =& null ?("", file@dir(srcName))
 	do @documents.add(@mainSrcName, @curDocument)
 	do @setDirtyInterpret()
-	do @setDirtyHint()
+	if(@wndCompletion <>& null)
+		do @closeCompletion()
+	end if
 	do @dirtyHint :: false
+	do @dirtyHintFast :: false
 	do @blankMem :: 0
 	do @resetAuxiliary()
 	do @updateUi()
@@ -2884,9 +2893,12 @@ func setDirtyInterpret()
 	do @dirtyInterpretTime :: lib@sysTime()
 end func
 
-func setDirtyHint()
+func setDirtyHint(fast: bool)
 	do @dirtyHint :: true
 	do @dirtyHintTime :: lib@sysTime()
+	if(fast)
+		do @dirtyHintFast :: true
+	end if
 end func
 
 func resetAuxiliary()
