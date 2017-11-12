@@ -93,6 +93,8 @@ U32 SwapEndianU32(U32 n);
 U64 SwapEndianU64(U64 n);
 Bool IsPowerOf2(U64 n);
 U32 XorShift(U32* seed);
+char* Utf16ToUtf8(const U8* str);
+U8* Utf8ToUtf16(const char* str);
 
 #define THROW(code) ThrowImpl(code)
 #if defined(DBG)

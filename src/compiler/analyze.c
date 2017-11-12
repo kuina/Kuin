@@ -3208,6 +3208,23 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 		return (SAstExpr*)DummyPtr;
 	{
 		SAstTypeFunc* type = (SAstTypeFunc*)ast->Func->Type;
+		if ((type->FuncAttr & FuncAttr_MakeInstance) != 0)
+		{
+			// Make an instance and add it to the second argument when '_make_instance' is specified.
+			SAstExprCallArg* value_type = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+			ASSERT(type->Ret != NULL);
+			{
+				SAstExprNew* expr = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
+				InitAstExpr((SAstExpr*)expr, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
+				expr->ItemType = type->Ret;
+				value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
+				if (LocalErr)
+					return (SAstExpr*)DummyPtr;
+			}
+			value_type->RefVar = False;
+			value_type->SkipVar = NULL;
+			ListIns(ast->Args, ast->Args->Top, value_type);
+		}
 		if (((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot && ((SAst*)ast->Func->Type)->TypeId == AstTypeId_TypeFunc)
 		{
 			{
@@ -3269,23 +3286,6 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				Err(L"EA0046", ((SAst*)ast)->Pos);
 				LocalErr = True;
 				return (SAstExpr*)DummyPtr;
-			}
-			if ((type->FuncAttr & FuncAttr_MakeInstance) != 0)
-			{
-				// Make an instance and add it to the second argument when '_make_instance' is specified.
-				SAstExprCallArg* value_type = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
-				ASSERT(type->Ret != NULL);
-				{
-					SAstExprNew* expr = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
-					InitAstExpr((SAstExpr*)expr, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
-					expr->ItemType = type->Ret;
-					value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
-					if (LocalErr)
-						return (SAstExpr*)DummyPtr;
-				}
-				value_type->RefVar = False;
-				value_type->SkipVar = NULL;
-				ListIns(ast->Args, ast->Args->Top, value_type);
 			}
 			type = (SAstTypeFunc*)ast->Func->Type;
 		}

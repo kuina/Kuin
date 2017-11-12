@@ -11,8 +11,13 @@ typedef struct SXml
 {
 	SClass Class;
 	tinyxml2::XMLDocument* Tree;
-	tinyxml2::XMLNode* Ptr;
 } SXml;
+
+typedef struct SXmlNode
+{
+	SClass Class;
+	tinyxml2::XMLNode* Node;
+} SXmlNode;
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -42,8 +47,7 @@ EXPORT_CPP SClass* _makeXml(SClass* me_, const U8* path)
 	if (file_ptr == NULL)
 		return NULL;
 	me2->Tree = static_cast<tinyxml2::XMLDocument*>(AllocMem(sizeof(tinyxml2::XMLDocument)));
-	new(me2->Tree)tinyxml2::XMLDocument();
-	me2->Ptr = NULL;
+	new(me2->Tree)tinyxml2::XMLDocument(true, tinyxml2::COLLAPSE_WHITESPACE);
 	tinyxml2::XMLError result = me2->Tree->LoadFile(file_ptr);
 	fclose(file_ptr);
 	if (result != tinyxml2::XML_SUCCESS)
@@ -52,6 +56,7 @@ EXPORT_CPP SClass* _makeXml(SClass* me_, const U8* path)
 		FreeMem(me2->Tree);
 		return NULL;
 	}
+	ASSERT(me2->Tree->FirstChild() != NULL);
 	return me_;
 }
 
@@ -59,8 +64,7 @@ EXPORT_CPP SClass* _makeXmlEmpty(SClass* me_)
 {
 	SXml* me2 = reinterpret_cast<SXml*>(me_);
 	me2->Tree = static_cast<tinyxml2::XMLDocument*>(AllocMem(sizeof(tinyxml2::XMLDocument)));
-	new(me2->Tree)tinyxml2::XMLDocument();
-	me2->Ptr = NULL;
+	new(me2->Tree)tinyxml2::XMLDocument(true, tinyxml2::COLLAPSE_WHITESPACE);
 	me2->Tree->InsertEndChild(me2->Tree->NewDeclaration());
 	return me_;
 }
@@ -75,7 +79,7 @@ EXPORT_CPP void _xmlDtor(SClass* me_)
 	}
 }
 
-EXPORT_CPP Bool _xmlSave(SClass* me_, const U8* path)
+EXPORT_CPP Bool _xmlSave(SClass* me_, const U8* path, Bool compact)
 {
 	THROWDBG(path == NULL, 0xc0000005);
 	SXml* me2 = reinterpret_cast<SXml*>(me_);
@@ -83,38 +87,194 @@ EXPORT_CPP Bool _xmlSave(SClass* me_, const U8* path)
 	FILE* file_ptr = _wfopen(path2, L"wb");
 	if (file_ptr == NULL)
 		return False;
-	tinyxml2::XMLError result = me2->Tree->SaveFile(file_ptr);
+	tinyxml2::XMLError result = me2->Tree->SaveFile(file_ptr, compact != False);
 	fclose(file_ptr);
 	return result == tinyxml2::XML_SUCCESS;
 }
 
-EXPORT_CPP void _xmlRoot(SClass* me_)
+EXPORT_CPP SClass* _xmlAddNode(SClass* me_, SClass* me2, const U8* name)
 {
-	SXml* me2 = reinterpret_cast<SXml*>(me_);
-	me2->Ptr = me2->Tree->FirstChild();
-}
-
-EXPORT_CPP Bool _xmlTerm(SClass* me_)
-{
-	SXml* me2 = reinterpret_cast<SXml*>(me_);
-	return me2->Ptr == NULL;
-}
-
-EXPORT_CPP void* _xmlGet(SClass* me_)
-{
-	SXml* me2 = reinterpret_cast<SXml*>(me_);
-	THROWDBG(me2->Ptr == NULL, 0xc0000005);
-	const char* str = me2->Ptr->ToElement()->GetText();
-	int len_str = static_cast<int>(strlen(str));
-	size_t len = static_cast<size_t>(MultiByteToWideChar(CP_UTF8, 0, str, len_str, NULL, 0));
-	U8* result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * (len + 1)));
-	((S64*)result)[0] = DefaultRefCntFunc;
-	((S64*)result)[1] = static_cast<S64>(len);
-	if (MultiByteToWideChar(CP_UTF8, 0, str, len_str, reinterpret_cast<Char*>(result + 0x10), static_cast<int>(len)) != static_cast<int>(len))
+	SXml* me3 = reinterpret_cast<SXml*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	THROWDBG(name == NULL, 0xc0000005);
+	char* buf = Utf16ToUtf8(name);
+	if (buf == NULL)
 	{
-		FreeMem(result);
+		THROWDBG(True, 0xe9170006);
 		return NULL;
 	}
-	reinterpret_cast<Char*>(result + 0x10)[len] = L'\0';
-	return result;
+	me4->Node = me3->Tree->InsertEndChild(me3->Tree->NewElement(buf));
+	FreeMem(buf);
+	return me2;
+}
+
+EXPORT_CPP SClass* _xmlRoot(SClass* me_, SClass* me2)
+{
+	SXml* me3 = reinterpret_cast<SXml*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	me4->Node = me3->Tree->FirstChild()->NextSibling();
+	if (me4->Node == NULL)
+		return NULL;
+	return me2;
+}
+
+EXPORT_CPP void _xmlNodeDtor(SClass* me_)
+{
+	// Do nothing.
+	UNUSED(me_);
+}
+
+EXPORT_CPP void* _xmlNodeName(SClass* me_)
+{
+	SXmlNode* me2 = reinterpret_cast<SXmlNode*>(me_);
+	return Utf8ToUtf16(me2->Node->ToElement()->Name());
+}
+
+EXPORT_CPP void* _xmlNodeValue(SClass* me_)
+{
+	SXmlNode* me2 = reinterpret_cast<SXmlNode*>(me_);
+	return Utf8ToUtf16(me2->Node->ToElement()->GetText());
+}
+
+EXPORT_CPP SClass* _xmlNodeNext(SClass* me_, SClass* me2)
+{
+	SXmlNode* me3 = reinterpret_cast<SXmlNode*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	me4->Node = me3->Node->NextSibling();
+	if (me4->Node == NULL)
+		return NULL;
+	return me2;
+}
+
+EXPORT_CPP SClass* _xmlNodePrev(SClass* me_, SClass* me2)
+{
+	SXmlNode* me3 = reinterpret_cast<SXmlNode*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	me4->Node = me3->Node->PreviousSibling();
+	if (me4->Node == NULL)
+		return NULL;
+	return me2;
+}
+
+EXPORT_CPP SClass* _xmlNodeParent(SClass* me_, SClass* me2)
+{
+	SXmlNode* me3 = reinterpret_cast<SXmlNode*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	me4->Node = me3->Node->Parent();
+	if (me4->Node == NULL)
+		return NULL;
+	return me2;
+}
+
+EXPORT_CPP SClass* _xmlNodeChild(SClass* me_, SClass* me2)
+{
+	SXmlNode* me3 = reinterpret_cast<SXmlNode*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	me4->Node = me3->Node->FirstChild();
+	if (me4->Node == NULL)
+		return NULL;
+	return me2;
+}
+
+EXPORT_CPP SClass* _xmlNodeAddNode(SClass* me_, SClass* me2, const U8* name)
+{
+	SXmlNode* me3 = reinterpret_cast<SXmlNode*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	THROWDBG(name == NULL, 0xc0000005);
+	char* buf = Utf16ToUtf8(name);
+	if (buf == NULL)
+	{
+		THROWDBG(True, 0xe9170006);
+		return NULL;
+	}
+	me4->Node = me3->Node->InsertEndChild(me3->Node->GetDocument()->NewElement(buf));
+	FreeMem(buf);
+	return me2;
+}
+
+EXPORT_CPP SClass* _xmlNodeAddValue(SClass* me_, SClass* me2, const U8* value)
+{
+	SXmlNode* me3 = reinterpret_cast<SXmlNode*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	THROWDBG(value == NULL, 0xc0000005);
+	char* buf = Utf16ToUtf8(value);
+	if (buf == NULL)
+	{
+		THROWDBG(True, 0xe9170006);
+		return NULL;
+	}
+	me4->Node = me3->Node->InsertEndChild(me3->Node->GetDocument()->NewText(buf));
+	FreeMem(buf);
+	return me2;
+}
+
+EXPORT_CPP void _xmlNodeSetAttr(SClass* me_, const U8* attr_name, const U8* attr_value)
+{
+	SXmlNode* me2 = reinterpret_cast<SXmlNode*>(me_);
+	THROWDBG(attr_name == NULL, 0xc0000005);
+	char* buf_name = Utf16ToUtf8(attr_name);
+	if (buf_name == NULL)
+		THROWDBG(True, 0xe9170006);
+	char* buf_value = Utf16ToUtf8(attr_value);
+	me2->Node->ToElement()->SetAttribute(buf_name, buf_value);
+	FreeMem(buf_name);
+	if (buf_value != NULL)
+		FreeMem(buf_value);
+}
+
+EXPORT_CPP void* _xmlNodeGetAttr(SClass* me_, const U8* attr_name)
+{
+	SXmlNode* me2 = reinterpret_cast<SXmlNode*>(me_);
+	THROWDBG(attr_name == NULL, 0xc0000005);
+	char* buf = Utf16ToUtf8(attr_name);
+	if (buf == NULL)
+		THROWDBG(True, 0xe9170006);
+	const char* str = me2->Node->ToElement()->Attribute(buf);
+	FreeMem(buf);
+	return Utf8ToUtf16(str);
+}
+
+EXPORT_CPP SClass* _xmlNodeNextFind(SClass* me_, SClass* me2, const U8* name)
+{
+	SXmlNode* me3 = reinterpret_cast<SXmlNode*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	THROWDBG(name == NULL, 0xc0000005);
+	char* buf = Utf16ToUtf8(name);
+	if (buf == NULL)
+		THROWDBG(True, 0xe9170006);
+	me4->Node = me3->Node->NextSiblingElement(buf);
+	FreeMem(buf);
+	if (me4->Node == NULL)
+		return NULL;
+	return me2;
+}
+
+EXPORT_CPP SClass* _xmlNodePrevFind(SClass* me_, SClass* me2, const U8* name)
+{
+	SXmlNode* me3 = reinterpret_cast<SXmlNode*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	THROWDBG(name == NULL, 0xc0000005);
+	char* buf = Utf16ToUtf8(name);
+	if (buf == NULL)
+		THROWDBG(True, 0xe9170006);
+	me4->Node = me3->Node->PreviousSiblingElement(buf);
+	FreeMem(buf);
+	if (me4->Node == NULL)
+		return NULL;
+	return me2;
+}
+
+EXPORT_CPP SClass* _xmlNodeChildFind(SClass* me_, SClass* me2, const U8* name)
+{
+	SXmlNode* me3 = reinterpret_cast<SXmlNode*>(me_);
+	SXmlNode* me4 = reinterpret_cast<SXmlNode*>(me2);
+	THROWDBG(name == NULL, 0xc0000005);
+	char* buf = Utf16ToUtf8(name);
+	if (buf == NULL)
+		THROWDBG(True, 0xe9170006);
+	me4->Node = me3->Node->FirstChildElement(buf);
+	FreeMem(buf);
+	if (me4->Node == NULL)
+		return NULL;
+	return me2;
 }
