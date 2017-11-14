@@ -46,6 +46,8 @@ v.2017.10.17
 v.2017.11.17
     - ヘッダ情報が多すぎる.pngファイルの読み込みに失敗する不具合の修正
     - Kuinエディタに補完機能を追加
+    - XMLライブラリ「xml」の追加
+    - ネットワークライブラリ「net」の追加
     - 「excpt@invalidDataFormat」を「excpt@invalidDataFmt」に改名
     - 「excpt@noMemory」を「excpt@noMem」に改名
     - 「wnd@Wnd.setActive」を「wnd@Wnd.activate」に改名
@@ -63,8 +65,8 @@ v.2017.11.17
         - kuin@Class.toStr()の戻り値をnullではなく空文字列が返るように修正
         - ドローコントロールのサイズを変更するとクリアカラーがリセットされる
           不具合の修正
-        - float型を要素に持つ配列、list、stack、queueの組み込みメソッドのうち、
-          戻り値がfloatのメソッドが正しく動作しない不具合の修正
+        - float型を要素に持つ配列、list、stack、queue、dictの組み込みメソッドの
+          うち、戻り値がfloatのメソッドが正しく動作しない不具合の修正
         - ダブルクリック時にwnd@Draw.onMouseDownLイベントが発生しない不具合の
           修正
         - file@Readerのファイル読み込みメソッドで2byte以上の文字が正しく読み込め

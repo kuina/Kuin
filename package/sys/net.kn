@@ -1,6 +1,42 @@
 func [d0004.knd, _init] _init()
 end func
 
+func [d0004.knd, _fin] _fin()
+end func
+
++class TcpServer()
+	*func [d0004.knd, _tcpServerDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
+	end func
+
+	+func [d0004.knd, _tcpServerFin] fin()
+	end func
+
+	+func [d0004.knd, _tcpServerGet, _make_instance] get(me2: @Tcp): @Tcp
+	end func
+
+	var socket: int
+	var threadExit: int
+	var connectTop: int
+	var connectBottom: int
+	var mutex: int
+	var threadHandle: int
+end class
+
++func [d0004.knd, _makeTcpServer, _make_instance] makeTcpServer(me2: @TcpServer, port: int): @TcpServer
+end func
+
 +class Tcp()
 	*func [d0004.knd, _tcpDtor, _force] _dtor()
 	end func
@@ -17,8 +53,22 @@ end func
 		throw 16#E9170005
 	end func
 
+	+func [d0004.knd, _tcpFin] fin()
+	end func
+
+	+func [d0004.knd, _tcpSend] send(data: []bit8)
+	end func
+
+	+func [d0004.knd, _tcpReceive] receive(size: int): []bit8
+	end func
+
 	var socket: int
-	var threadHandle: int
-	var mutex: int
+	var threadExit: int
 	var data: int
+	var dataTopBottom: int
+	var mutex: int
+	var threadHandle: int
 end class
+
++func [d0004.knd, _makeTcpClient, _make_instance] makeTcpClient(me2: @Tcp, host: []char, port: int): @Tcp
+end func

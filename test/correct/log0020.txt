@@ -1,0 +1,9 @@
+Begin: ../../test/output/output0020.exe
+Excpt: 80000003
+> abcd
+> efgi
+> abcd
+> efgi
+> abcd
+> efgi
+end: ../../test/output/output0020.exe
