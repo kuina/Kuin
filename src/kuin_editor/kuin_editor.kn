@@ -387,15 +387,35 @@ class DocumentSrc(@Document)
 						do me.delAreaStr()
 					end if
 					block
-						var str: []char :: "\n"
-						for i(0, ^me.src.src[me.cursorY] - 1)
-							if(me.src.src[me.cursorY][i] = '\t')
-								do str :~ "\t"
-							else
-								break i
+						var regexInc: regex@Regex :: regex@makeRegex("^\\s*(?:if|elif|else|switch|case|default|while|for|try|catch|finally|block|\\+?\\*?\\*?func|\\+?class|\\+?enum)\\b")
+						if(me.cursorY > 0)
+							var regexDec: regex@Regex :: regex@makeRegex("^\\s*(?:end|elif|else|case|default|catch|finally)\\b")
+							if(regexDec.find(&, me.src.src[me.cursorY].sub(0, me.cursorX), 0) <>& null)
+								var prevIncFlag: bool :: regexInc.find(&, me.src.src[me.cursorY - 1], 0) <>& null
+								var prevIndent: int :: cntIndent(me.src.src[me.cursorY - 1])
+								var curIndent: int :: prevIndent - ((!prevIncFlag & prevIndent > 0) ?(1, 0))
+								var str: []char :: me.src.src[me.cursorY].sub(0, me.cursorX)
+								do me.del(0, me.cursorY, ^str, true)
+								var regex: regex@Regex :: regex@makeRegex("^\\s*")
+								do str :: regex.replace(str, "\t".repeat(curIndent), false)
+								do me.ins(0, me.cursorY, str, true)
 							end if
-						end for
-						do me.ins(me.cursorX, me.cursorY, str, true)
+						end if
+						var curIncFlag: bool :: regexInc.find(&, me.src.src[me.cursorY].sub(0, me.cursorX), 0) <>& null
+						var nextIndent: int :: cntIndent(me.src.src[me.cursorY].sub(0, me.cursorX)) + (curIncFlag ?(1, 0))
+						do me.ins(me.cursorX, me.cursorY, "\n" ~ "\t".repeat(nextIndent), true)
+
+						func cntIndent(str: []char): int
+							var cnt: int :: 0
+							for i(0, ^str - 1)
+								if(str[i] = '\t')
+									do cnt :+ 1
+								else
+									break i
+								end if
+							end for
+							ret cnt
+						end func
 					end block
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true, 1)
