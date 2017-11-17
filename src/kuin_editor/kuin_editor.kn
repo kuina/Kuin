@@ -391,12 +391,17 @@ class DocumentSrc(@Document)
 						if(me.cursorY > 0)
 							var regexDec: regex@Regex :: regex@makeRegex("^\\s*(?:end|elif|else|case|default|catch|finally)\\b")
 							if(regexDec.find(&, me.src.src[me.cursorY].sub(0, me.cursorX), 0) <>& null)
-								var prevIncFlag: bool :: regexInc.find(&, me.src.src[me.cursorY - 1], 0) <>& null
-								var prevIndent: int :: cntIndent(me.src.src[me.cursorY - 1])
+								var regex: regex@Regex :: regex@makeRegex("^\\s*$")
+								var prevY: int :: me.cursorY - 1
+								while(prevY > 0 & regex.find(&, me.src.src[prevY], -1) <>& null)
+									do prevY :- 1
+								end while
+								var prevIncFlag: bool :: regexInc.find(&, me.src.src[prevY], 0) <>& null
+								var prevIndent: int :: cntIndent(me.src.src[prevY])
 								var curIndent: int :: prevIndent - ((!prevIncFlag & prevIndent > 0) ?(1, 0))
 								var str: []char :: me.src.src[me.cursorY].sub(0, me.cursorX)
 								do me.del(0, me.cursorY, ^str, true)
-								var regex: regex@Regex :: regex@makeRegex("^\\s*")
+								do regex :: regex@makeRegex("^\\s*")
 								do str :: regex.replace(str, "\t".repeat(curIndent), false)
 								do me.ins(0, me.cursorY, str, true)
 							end if
