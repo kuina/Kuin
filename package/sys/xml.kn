@@ -20,9 +20,6 @@ end func
 	+func [d1003.knd, _xmlSave] save(path: []char, compact: bool): bool
 	end func
 
-	+func [d1003.knd, _xmlAddNode] addNode(me2: @XmlNode, name: []char): @XmlNode
-	end func
-
 	+func [d1003.knd, _xmlRoot, _make_instance] root(me2: @XmlNode): @XmlNode
 	end func
 
@@ -39,10 +36,34 @@ end func
 	*func [d1003.knd, _xmlNodeDtor, _force] _dtor()
 	end func
 
-	+func [d1003.knd, _xmlNodeName] name(): []char
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
 	end func
 
-	+func [d1003.knd, _xmlNodeValue] value(): []char
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
+	end func
+
+	+func [d1003.knd, _xmlNodeSetName] setName(name: []char)
+	end func
+
+	+func [d1003.knd, _xmlNodeGetName] getName(): []char
+	end func
+
+	+func [d1003.knd, _xmlNodeSetValue] setValue(value: []char)
+	end func
+
+	+func [d1003.knd, _xmlNodeGetValue] getValue(): []char
+	end func
+
+	+func [d1003.knd, _xmlNodeFirstChild, _make_instance] firstChild(me2: @XmlNode): @XmlNode
+	end func
+
+	+func [d1003.knd, _xmlNodeLastChild, _make_instance] lastChild(me2: @XmlNode): @XmlNode
 	end func
 
 	+func [d1003.knd, _xmlNodeNext, _make_instance] next(me2: @XmlNode): @XmlNode
@@ -54,13 +75,25 @@ end func
 	+func [d1003.knd, _xmlNodeParent, _make_instance] parent(me2: @XmlNode): @XmlNode
 	end func
 
-	+func [d1003.knd, _xmlNodeChild, _make_instance] child(me2: @XmlNode): @XmlNode
+	+func [d1003.knd, _xmlNodeFindNext, _make_instance] findNext(me2: @XmlNode, name: []char): @XmlNode
 	end func
 
-	+func [d1003.knd, _xmlNodeAddNode, _make_instance] addNode(me2: @XmlNode, name: []char): @XmlNode
+	+func [d1003.knd, _xmlNodeFindPrev, _make_instance] findPrev(me2: @XmlNode, name: []char): @XmlNode
 	end func
 
-	+func [d1003.knd, _xmlNodeAddValue, _make_instance] addValue(me2: @XmlNode, value: []char): @XmlNode
+	+func [d1003.knd, _xmlNodeFindChild, _make_instance] findChild(me2: @XmlNode, name: []char): @XmlNode
+	end func
+
+	+func [d1003.knd, _xmlNodeFindChildLast, _make_instance] findChildLast(me2: @XmlNode, name: []char): @XmlNode
+	end func
+
+	+func [d1003.knd, _xmlNodeAddChild, _make_instance] addChild(me2: @XmlNode, name: []char): @XmlNode
+	end func
+
+	+func [d1003.knd, _xmlNodeInsChild, _make_instance] insChild(me2: @XmlNode, node: @XmlNode, name: []char): @XmlNode
+	end func
+
+	+func [d1003.knd, _xmlNodeDelChild] delChild(node: @XmlNode)
 	end func
 
 	+func [d1003.knd, _xmlNodeSetAttr] setAttr(attrName: []char, attrValue: []char)
@@ -69,14 +102,6 @@ end func
 	+func [d1003.knd, _xmlNodeGetAttr] getAttr(attrName: []char): []char
 	end func
 
-	+func [d1003.knd, _xmlNodeNextFind, _make_instance] nextFind(me2: @XmlNode, name: []char): @XmlNode
-	end func
-
-	+func [d1003.knd, _xmlNodePrevFind, _make_instance] prevFind(me2: @XmlNode, name: []char): @XmlNode
-	end func
-
-	+func [d1003.knd, _xmlNodeChildFind, _make_instance] childFind(me2: @XmlNode, name: []char): @XmlNode
-	end func
-
+	var root: int
 	var node: int
 end class
