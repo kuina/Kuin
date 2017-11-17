@@ -246,6 +246,7 @@ class DocumentSrc(@Document)
 				if(x2 >= width)
 					break j
 				end if
+				var charWidth: int :: me.charWidth(str[j], x)
 				if(x2 >= me.lineNumberWidth)
 					var inArea: bool :: false
 					if(me.areaSelected())
@@ -270,19 +271,30 @@ class DocumentSrc(@Document)
 						if(inArea)
 							do draw@rect(textX, textY, @cellWidth $ float, @cellHeight $ float, colorAreaBack)
 						end if
-						; TODO: Return mark.
-					elif(inArea)
-						do draw@rect(textX, textY, @cellWidth $ float, @cellHeight $ float, colorAreaBack)
-						do @font.draw(textX, textY, str[j].toStr(), draw@white)
-					elif(me.src.color[me.pageY + i][j].and(16#80b8) <> 0 $ @CharColor $ bit8)
-						do draw@rect(textX, textY, @cellWidth $ float, @cellHeight $ float, colorErrBack)
-						do @font.draw(textX, textY, str[j].toStr(), draw@white)
+						do @tex.draw(textX, textY, me.pageY + i = ^me.src.src - 1 ?(18.0, 0.0), 0.0, 9.0, 18.0, draw@white)
 					else
-						do @font.draw(textX, textY, str[j].toStr(), @srcCharColor[me.src.color[me.pageY + i][j].and(16#7Fb8) $ int])
+						var color: int
+						if(inArea)
+							do draw@rect(textX, textY, (@cellWidth * (charWidth <= 0 ?(1, charWidth))) $ float, @cellHeight $ float, colorAreaBack)
+							do color :: draw@white
+						elif(me.src.color[me.pageY + i][j].and(16#80b8) <> 0 $ @CharColor $ bit8)
+							do draw@rect(textX, textY, (@cellWidth * (charWidth <= 0 ?(1, charWidth))) $ float, @cellHeight $ float, colorErrBack)
+							do color :: draw@white
+						else
+							do color :: @srcCharColor[me.src.color[me.pageY + i][j].and(16#7Fb8) $ int]
+						end if
+						switch(str[j])
+						case '\t'
+							do @tex.draw(textX, textY, 9.0, 0.0, 9.0, 18.0, draw@white)
+						case '　'
+							do @tex.draw(textX, textY, 27.0, 0.0, 18.0, 18.0, draw@white)
+						default
+							do @font.draw(textX, textY, str[j].toStr(), color)
+						end switch
 					end if
 				end if
 				if(j <> ^str)
-					do x :+ me.charWidth(str[j], x)
+					do x :+ charWidth
 				end if
 			end for
 		end for
@@ -381,7 +393,7 @@ class DocumentSrc(@Document)
 				ret true
 			end if
 			if(shiftCtrl = %none)
-				if(!me.complement())
+				if(!me.complementImpl())
 					do me.undo.recordBegin()
 					if(me.areaSelected())
 						do me.delAreaStr()
@@ -551,7 +563,7 @@ class DocumentSrc(@Document)
 			ret
 		end if
 		if(@wndCompletion <>& null & !('a' <= key & key <= 'z' | 'A' <= key & key <= 'Z' | '0' <= key & key <= '9' | key = '_' | key = '@' | key = '\\'))
-			do me.complement()
+			do me.complementImpl()
 		end if
 		do me.undo.recordBegin()
 		if(me.areaSelected())
@@ -868,6 +880,10 @@ class DocumentSrc(@Document)
 		do me.refreshCursor(false, true, 2)
 	end func
 
+	+func complement(): bool
+		ret me.complementImpl()
+	end func
+
 	const colorLineNumber: int :: 16#FFFF7F7F
 	const colorAreaBack: int :: 16#FF808080
 	const colorErrBack: int :: 16#FFFF3333
@@ -1060,7 +1076,7 @@ class DocumentSrc(@Document)
 			end if
 		end block
 
-		if(dirtyHint <> 0)
+		if(dirtyHint <> 0 & !me.areaSelected())
 			do @setDirtyHint(dirtyHint = 1)
 		elif(@wndCompletion <>& null)
 			do @closeCompletion()
@@ -1433,7 +1449,7 @@ class DocumentSrc(@Document)
 		ret word
 	end func
 
-	func complement(): bool
+	func complementImpl(): bool
 		if(@wndCompletion =& null)
 			ret false
 		end if
@@ -1966,6 +1982,7 @@ var mainSrcDir: []char
 var sysDir: []char
 var srcCharColor: []int
 var font: draw@Font
+var tex: draw@Tex
 var documents: dict<[]char, @Document>
 var curDocument: @Document
 var runningFiles: list<[]char>
@@ -2109,6 +2126,7 @@ func main()
 		do @srcCharColor[%comment $ @CharColor $ int] :: 16#FF1EB000
 		do @srcCharColor[%symbol $ @CharColor $ int] :: 16#FF666666
 		do @font :: draw@makeFont("Consolas", @fontSize, false, false, false, @cellWidth $ float)
+		do @tex :: draw@makeTex("res/tex.png")
 		do @drag :: false
 		do @lockingEditor :: false
 		do @textErr :: ""
@@ -3445,10 +3463,11 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char)
 	do @wndCompletionEditHint.readonly(true)
 	do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 38, 300, 76, %fix, %fix)
 	do @wndCompletionListKeywords.onSel :: @wndCompletionListKeywordsOnSel
+	do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
 	var best: int :: @getKeywords(src, row, hint, getKeywordsCallback)
 	do @wndCompletionListKeywords.setSel(@wndCompletionListKeywords.len() - 1)
 	do @wndCompletionListKeywords.setSel(best)
-	do @wndCompletionCursor :: best
+	do @wndCompletionCursor :: best = -1 ?(0, best)
 	do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 	do @wndCompletionListKeywords.setSel(-1)
 	do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 114, 300, 38, %fix, %fix)
@@ -3493,6 +3512,14 @@ func wndCompletionListKeywordsOnSel(wnd: wnd@List)
 		end if
 		if(wordHint <>& null)
 			do @wndCompletionEditHint.setText(wordHint)
+		end if
+	end if
+end func
+
+func wndCompletionListKeywordsOnMouseDoubleClick(wnd: wnd@List, x: int, y: int)
+	if(@curDocument =$ @DocumentSrc)
+		if((@curDocument $ @DocumentSrc).complement())
+			do @dirtyHint :: false
 		end if
 	end if
 end func

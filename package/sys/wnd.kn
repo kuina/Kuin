@@ -156,6 +156,7 @@ end enum
 	+var onMouseDownL: func<(@WndBase, int, int)>
 	+var onMouseDownR: func<(@WndBase, int, int)>
 	+var onMouseDownM: func<(@WndBase, int, int)>
+	+var onMouseDoubleClick: func<(@WndBase, int, int)>
 	+var onMouseUpL: func<(@WndBase, int, int)>
 	+var onMouseUpR: func<(@WndBase, int, int)>
 	+var onMouseUpM: func<(@WndBase, int, int)>
@@ -285,6 +286,7 @@ end class
 	end func
 
 	+var onSel: func<(@WndBase)>
+	+var onMouseDoubleClick: func<(@WndBase, int, int)>
 end class
 
 +class Combo(@WndBase)

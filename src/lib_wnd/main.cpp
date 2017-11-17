@@ -97,6 +97,7 @@ struct SDraw
 	void* OnMouseDownL;
 	void* OnMouseDownR;
 	void* OnMouseDownM;
+	void* OnMouseDoubleClick;
 	void* OnMouseUpL;
 	void* OnMouseUpR;
 	void* OnMouseUpM;
@@ -147,6 +148,7 @@ struct SList
 {
 	SWndBase WndBase;
 	void* OnSel;
+	void* OnMouseDoubleClick;
 };
 
 struct SCombo
@@ -2035,10 +2037,16 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 			}
 			break;
 		case WM_LBUTTONDOWN:
+			SetFocus(wnd);
+			if (wnd3->OnMouseDownL != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownL);
+			return 0;
 		case WM_LBUTTONDBLCLK:
 			SetFocus(wnd);
 			if (wnd3->OnMouseDownL != NULL)
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownL);
+			if (wnd3->OnMouseDoubleClick != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDoubleClick);
 			return 0;
 		case WM_LBUTTONUP:
 			if (wnd3->OnMouseUpL != NULL)
@@ -2288,10 +2296,15 @@ static LRESULT CALLBACK WndProcEditMulti(HWND wnd, UINT msg, WPARAM w_param, LPA
 static LRESULT CALLBACK WndProcList(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
+	SList* wnd3 = reinterpret_cast<SList*>(wnd2);
 	ASSERT(wnd2->Kind == WndKind_List);
 	switch (msg)
 	{
-		// TODO:
+		case WM_LBUTTONDBLCLK:
+			SetFocus(wnd);
+			if (wnd3->OnMouseDoubleClick != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDoubleClick);
+			return 0;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }
