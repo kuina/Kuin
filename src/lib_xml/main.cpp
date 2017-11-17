@@ -168,6 +168,7 @@ EXPORT_CPP SClass* _xmlNodeFirstChild(SClass* me_, SClass* me2)
 		me4->Node = static_cast<tinyxml2::XMLNode*>(me3->Node)->FirstChild();
 	if (me4->Node == NULL)
 		return NULL;
+	me4->Root = False;
 	return me2;
 }
 
@@ -181,6 +182,7 @@ EXPORT_CPP SClass* _xmlNodeLastChild(SClass* me_, SClass* me2)
 		me4->Node = static_cast<tinyxml2::XMLNode*>(me3->Node)->LastChild();
 	if (me4->Node == NULL)
 		return NULL;
+	me4->Root = False;
 	return me2;
 }
 
@@ -193,6 +195,7 @@ EXPORT_CPP SClass* _xmlNodeNext(SClass* me_, SClass* me2)
 	me4->Node = static_cast<tinyxml2::XMLNode*>(me3->Node)->NextSibling();
 	if (me4->Node == NULL)
 		return NULL;
+	me4->Root = False;
 	return me2;
 }
 
@@ -205,6 +208,7 @@ EXPORT_CPP SClass* _xmlNodePrev(SClass* me_, SClass* me2)
 	me4->Node = static_cast<tinyxml2::XMLNode*>(me3->Node)->PreviousSibling();
 	if (me4->Node == NULL)
 		return NULL;
+	me4->Root = False;
 	return me2;
 }
 
@@ -215,8 +219,13 @@ EXPORT_CPP SClass* _xmlNodeParent(SClass* me_, SClass* me2)
 	if (me3->Root)
 		return NULL;
 	me4->Node = static_cast<tinyxml2::XMLNode*>(me3->Node)->Parent();
-	if (me4->Node == NULL)
-		return NULL;
+	if (me4->Node == NULL || static_cast<tinyxml2::XMLNode*>(me4->Node)->Parent() == NULL)
+	{
+		me4->Node = static_cast<tinyxml2::XMLNode*>(me3->Node)->ToDocument();
+		me4->Root = True;
+	}
+	else
+		me4->Root = False;
 	return me2;
 }
 
@@ -234,6 +243,7 @@ EXPORT_CPP SClass* _xmlNodeFindNext(SClass* me_, SClass* me2, const U8* name)
 	FreeMem(buf);
 	if (me4->Node == NULL)
 		return NULL;
+	me4->Root = False;
 	return me2;
 }
 
@@ -251,6 +261,7 @@ EXPORT_CPP SClass* _xmlNodeFindPrev(SClass* me_, SClass* me2, const U8* name)
 	FreeMem(buf);
 	if (me4->Node == NULL)
 		return NULL;
+	me4->Root = False;
 	return me2;
 }
 
@@ -269,6 +280,7 @@ EXPORT_CPP SClass* _xmlNodeFindChild(SClass* me_, SClass* me2, const U8* name)
 	FreeMem(buf);
 	if (me4->Node == NULL)
 		return NULL;
+	me4->Root = False;
 	return me2;
 }
 
@@ -287,6 +299,7 @@ EXPORT_CPP SClass* _xmlNodeFindChildLast(SClass* me_, SClass* me2, const U8* nam
 	FreeMem(buf);
 	if (me4->Node == NULL)
 		return NULL;
+	me4->Root = False;
 	return me2;
 }
 
@@ -309,6 +322,7 @@ EXPORT_CPP SClass* _xmlNodeAddChild(SClass* me_, SClass* me2, const U8* name)
 		me4->Node = node->InsertEndChild(node->GetDocument()->NewElement(buf));
 	}
 	FreeMem(buf);
+	me4->Root = False;
 	return me2;
 }
 
@@ -349,6 +363,7 @@ EXPORT_CPP SClass* _xmlNodeInsChild(SClass* me_, SClass* me2, SClass* node, cons
 		}
 	}
 	FreeMem(buf);
+	me4->Root = False;
 	return me2;
 }
 
