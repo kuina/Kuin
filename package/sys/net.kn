@@ -62,6 +62,9 @@ end func
 	+func [d0004.knd, _tcpReceive] receive(size: int): []bit8
 	end func
 
+	+func [d0004.knd, _tcpConnecting] connecting(): bool
+	end func
+
 	var socket: int
 	var threadExit: int
 	var data: int

@@ -14,3 +14,4 @@ EXPORT void _tcpDtor(SClass* me_);
 EXPORT void _tcpFin(SClass* me_);
 EXPORT void _tcpSend(SClass* me_, const U8* data);
 EXPORT void* _tcpReceive(SClass* me_, S64 size);
+EXPORT Bool _tcpConnecting(SClass* me_);

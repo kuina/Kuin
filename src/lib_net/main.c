@@ -84,6 +84,7 @@ EXPORT void _fin(void)
 
 EXPORT SClass* _makeTcpServer(SClass* me_, S64 port)
 {
+	THROWDBG(port < 0 || 49152 < port, 0xe9170006);
 	STcpServer* me2 = (STcpServer*)me_;
 	SOCKET socket2 = socket(AF_INET, SOCK_STREAM, 0);
 	if (socket2 == INVALID_SOCKET)
@@ -92,7 +93,7 @@ EXPORT SClass* _makeTcpServer(SClass* me_, S64 port)
 		SOCKADDR_IN addr;
 		memset(&addr, 0, sizeof(addr));
 		addr.sin_family = AF_INET;
-		addr.sin_port = htons((u_short)port);
+		addr.sin_port = htons((u_short)(U64)port);
 		addr.sin_addr.S_un.S_addr = INADDR_ANY;
 		BOOL yes = 1;
 		setsockopt(socket2, SOL_SOCKET, SO_REUSEADDR, (const char*)&yes, sizeof(BOOL));
@@ -119,8 +120,7 @@ EXPORT SClass* _makeTcpServer(SClass* me_, S64 port)
 EXPORT void _tcpServerDtor(SClass* me_)
 {
 	STcpServer* me2 = (STcpServer*)me_;
-	if (!me2->ThreadExit)
-		_tcpServerFin(me_);
+	_tcpServerFin(me_);
 }
 
 EXPORT void _tcpServerFin(SClass* me_)
@@ -129,11 +129,6 @@ EXPORT void _tcpServerFin(SClass* me_)
 	if (me2->Mutex == NULL)
 		return;
 	EnterCriticalSection(me2->Mutex);
-	if (me2->ThreadExit)
-	{
-		LeaveCriticalSection(me2->Mutex);
-		return;
-	}
 	me2->ThreadExit = True;
 	LeaveCriticalSection(me2->Mutex);
 	WaitForSingleObject(me2->ThreadHandle, INFINITE);
@@ -162,6 +157,9 @@ EXPORT SClass* _tcpServerGet(SClass* me_, SClass* me2)
 {
 	STcpServer* me3 = (STcpServer*)me_;
 	STcp* me4 = (STcp*)me2;
+	if (me3->ThreadExit)
+		return NULL;
+
 	EnterCriticalSection(me3->Mutex);
 	if (me3->ConnectTop == NULL)
 	{
@@ -194,6 +192,8 @@ EXPORT SClass* _tcpServerGet(SClass* me_, SClass* me2)
 
 EXPORT SClass* _makeTcpClient(SClass* me_, const U8* host, S64 port)
 {
+	THROWDBG(host == NULL, 0xc0000005);
+	THROWDBG(port < 0 || 65535 < port, 0xe9170006);
 	STcp* me2 = (STcp*)me_;
 
 	char host_name[KUIN_MAX_PATH];
@@ -265,8 +265,7 @@ EXPORT SClass* _makeTcpClient(SClass* me_, const U8* host, S64 port)
 EXPORT void _tcpDtor(SClass* me_)
 {
 	STcp* me2 = (STcp*)me_;
-	if (!me2->ThreadExit)
-		_tcpFin(me_);
+	_tcpFin(me_);
 }
 
 EXPORT void _tcpFin(SClass* me_)
@@ -275,11 +274,6 @@ EXPORT void _tcpFin(SClass* me_)
 	if (me2->Mutex == NULL)
 		return;
 	EnterCriticalSection(me2->Mutex);
-	if (me2->ThreadExit)
-	{
-		LeaveCriticalSection(me2->Mutex);
-		return;
-	}
 	me2->ThreadExit = True;
 	LeaveCriticalSection(me2->Mutex);
 	WaitForSingleObject(me2->ThreadHandle, INFINITE);
@@ -302,7 +296,10 @@ EXPORT void _tcpFin(SClass* me_)
 
 EXPORT void _tcpSend(SClass* me_, const U8* data)
 {
+	THROWDBG(data == NULL, 0xc0000005);
 	STcp* me2 = (STcp*)me_;
+	if (me2->ThreadExit)
+		return;
 	int total = (int)*(S64*)(data + 0x08);
 	const U8* ptr = data + 0x10;
 	while (total > 0)
@@ -318,9 +315,9 @@ EXPORT void _tcpSend(SClass* me_, const U8* data)
 EXPORT void* _tcpReceive(SClass* me_, S64 size)
 {
 	THROWDBG(size < 0 || DATA_SIZE < size, 0xe9170006);
-	if (size == 0)
-		return NULL;
 	STcp* me2 = (STcp*)me_;
+	if (me2->ThreadExit)
+		return NULL;
 
 	U8* result;
 	if (size == 0)
@@ -369,6 +366,12 @@ EXPORT void* _tcpReceive(SClass* me_, S64 size)
 		LeaveCriticalSection(me2->Mutex);
 	}
 	return result;
+}
+
+EXPORT Bool _tcpConnecting(SClass* me_)
+{
+	STcp* me2 = (STcp*)me_;
+	return !me2->ThreadExit;
 }
 
 static DWORD WINAPI ServerThread(LPVOID param)
@@ -454,6 +457,7 @@ static DWORD WINAPI ConnectThread(LPVOID param)
 		// Disconnected
 		if (received == 0)
 		{
+			param2->ThreadExit = True;
 			param2->DataFull = False;
 			param2->DataTop = 0;
 			param2->DataBottom = 0;
