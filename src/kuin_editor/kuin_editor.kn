@@ -3012,6 +3012,7 @@ end func
 
 func updateUi()
 	do @editFile.setText("")
+	do @listInfo.setRedraw(false)
 	do @listInfo.clear()
 	if(@curDocument =$ @DocumentSrc)
 		do @listInfoItem.sort()
@@ -3024,9 +3025,12 @@ func updateUi()
 		do @listInfo.add(@langEn ?("None", "なし"))
 		do @listInfo.add("Button")
 	end if
+	do @listInfo.setRedraw(true)
 
+	do @listFile.setRedraw(false)
 	do @listFile.clear()
 	do @documents.forEach(callback, null)
+	do @listFile.setRedraw(true)
 
 	func callback(src: []char, document: @Document, data: kuin@Class): bool
 		var prefix: []char :: ""
@@ -3464,7 +3468,9 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char)
 	do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 38, 300, 76, %fix, %fix)
 	do @wndCompletionListKeywords.onSel :: @wndCompletionListKeywordsOnSel
 	do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
+	do @wndCompletionListKeywords.setRedraw(false)
 	var best: int :: @getKeywords(src, row, hint, getKeywordsCallback)
+	do @wndCompletionListKeywords.setRedraw(true)
 	do @wndCompletionListKeywords.setSel(@wndCompletionListKeywords.len() - 1)
 	do @wndCompletionListKeywords.setSel(best)
 	do @wndCompletionCursor :: best = -1 ?(0, best)

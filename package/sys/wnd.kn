@@ -60,6 +60,9 @@ end enum
 	+func [d0001.knd, _wndBaseSetPos] setPos(x: int, y: int, width: int, height: int)
 	end func
 
+	+func [d0001.knd, _wndBaseSetRedraw] setRedraw(isEnabled: bool)
+	end func
+
 	+func addChild(child: kuin@Class)
 		do me.children.add(child)
 	end func

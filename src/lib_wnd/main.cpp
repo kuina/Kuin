@@ -773,6 +773,18 @@ EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height)
 	SetWindowPos(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, (int)x, (int)y, (int)width, (int)height, SWP_NOZORDER);
 }
 
+EXPORT_CPP void _wndBaseSetRedraw(SClass* me_, Bool is_enabled)
+{
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	if (is_enabled)
+	{
+		SendMessage(wnd, WM_SETREDRAW, TRUE, 0);
+		InvalidateRect(wnd, NULL, TRUE);
+	}
+	else
+		SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
+}
+
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
 {
 	THROWDBG(minWidth != -1 && minWidth <= 0 || minHeight != -1 && minHeight <= 0 || maxWidth != -1 && maxWidth < minWidth || maxHeight != -1 && maxHeight < minHeight, 0xe9170006);

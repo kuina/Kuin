@@ -23,6 +23,7 @@ EXPORT_CPP void _wndBaseFocus(SClass* me_);
 EXPORT_CPP Bool _wndBaseFocused(SClass* me_);
 EXPORT_CPP void _wndBaseEnable(SClass* me_, Bool is_enabled);
 EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height);
+EXPORT_CPP void _wndBaseSetRedraw(SClass* me_, Bool is_enabled);
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight);
 EXPORT_CPP void _wndClose(SClass* me_);
 EXPORT_CPP void _wndExit(SClass* me_);
