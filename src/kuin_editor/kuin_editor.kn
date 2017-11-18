@@ -246,7 +246,7 @@ class DocumentSrc(@Document)
 				if(x2 >= width)
 					break j
 				end if
-				var charWidth: int :: me.charWidth(str[j], x)
+				var charWidth: int :: j < ^str ?(me.charWidth(str[j], x), 0)
 				if(x2 >= me.lineNumberWidth)
 					var inArea: bool :: false
 					if(me.areaSelected())
