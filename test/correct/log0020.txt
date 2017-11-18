@@ -1,0 +1,11 @@
+Begin: ../../test/output/output0020.exe
+Excpt: 80000003
+> true, true
+> abcd
+> efgi
+> abcd
+> efgi
+> abcd
+> efgi
+> false, false
+end: ../../test/output/output0020.exe

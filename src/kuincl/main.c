@@ -12,7 +12,7 @@
 
 typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang);
 typedef void(*TypeOfVersion)(int* major, int* minor, int* micro);
-typedef void(*TypeOfInitCompiler)(S64 lang);
+typedef void(*TypeOfInitCompiler)(S64 mem_num, S64 lang);
 typedef void(*TypeOfFinCompiler)(void);
 
 static Bool Quiet;
@@ -161,7 +161,7 @@ int wmain(int argc, Char** argv)
 				wprintf(L"Usage: kuincl [-i input.kn] [-o output.kn] [-s 'sys' directory] [-c icon.ico] [-e environment] [-r] [-h] [-v] [-q]\n");
 				return 0;
 			}
-			func_init_compiler(-1);
+			func_init_compiler(1, -1);
 			if (func_build(input, sys_dir, output, icon, rls, env, Log, LANG))
 			{
 				if (!Quiet)

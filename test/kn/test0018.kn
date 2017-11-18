@@ -48,41 +48,7 @@ func main()
 		end block
 
 		block
-			var regex: regex@Regex :: regex@makeRegex("c([0-9]+)")
-			var pos: int
-			var s: [][]char
-			do s :: regex.find(&pos, "ab1234c1234d", -1)
-			do cui@print(pos.toStr())
-			for i(0, ^s - 1)
-				do cui@print(s[i])
-			end for
-			var regex2: regex@Regex :: regex@makeRegex("(.+)([0-9]+)c([0-9]+?)(.+)")
-			do s :: regex2.match(&pos, "ab1234c1234d")
-			do cui@print(pos.toStr())
-			for i(0, ^s - 1)
-				do cui@print(s[i])
-			end for
-		end block
-
-		block
-			var regex: regex@Regex :: regex@makeRegex("([A-Z])([A-Z])")
-			var pos: []int
-			var s: [][][]char
-			do s :: regex.findAll(&pos, "abCDefGH")
-			do cui@print("^pos = \{^pos}")
-			do cui@print("^s = \{^s}")
-			for i(0, ^s - 1)
-				do cui@print(pos[i].toStr())
-				for j(0, ^s[i] - 1)
-					do cui@print(s[i][j])
-				end for
-			end for
-		end block
-
-		block
-			var regex: regex@Regex :: regex@makeRegex("c([0-9]+)")
-			do cui@print(regex.replace("abc1234c1234d", "<$1>", false))
-			do cui@print(regex.replace("abc1234c1234d", "<$1>", true))
+			do cui@print(lib@levenshtein("abce", "bacd").toStr())
 		end block
 
 		block

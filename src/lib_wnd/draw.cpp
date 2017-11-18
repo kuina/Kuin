@@ -485,7 +485,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 	void* bin = NULL;
 	void* img = NULL;
 	Bool img_ref = False; // Set to true when 'img' should not be released.
-	DXGI_FORMAT format;
+	DXGI_FORMAT fmt;
 	int width;
 	int height;
 	{
@@ -500,14 +500,14 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 		if (StrCmpIgnoreCase(path2 + path_len - 4, L".png"))
 		{
 			img = DecodePng(size, bin, &width, &height);
-			format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			fmt = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
 				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
 		}
 		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".jpg"))
 		{
 			img = DecodeJpg(size, bin, &width, &height);
-			format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			fmt = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
 				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
 		}
@@ -515,14 +515,14 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 		{
 			img = DecodeBc(size, bin, &width, &height);
 			img_ref = True;
-			format = DXGI_FORMAT_BC3_UNORM_SRGB;
+			fmt = DXGI_FORMAT_BC3_UNORM_SRGB;
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
 				THROW(0xe9170008);
 		}
 		else
 		{
 			THROWDBG(True, 0xe9170006);
-			format = DXGI_FORMAT_UNKNOWN;
+			fmt = DXGI_FORMAT_UNKNOWN;
 			width = 0;
 			height = 0;
 		}
@@ -540,7 +540,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 				desc.Height = static_cast<UINT>(me2->Height);
 				desc.MipLevels = 1;
 				desc.ArraySize = 1;
-				desc.Format = format;
+				desc.Format = fmt;
 				desc.SampleDesc.Count = 1;
 				desc.SampleDesc.Quality = 0;
 				desc.Usage = D3D10_USAGE_IMMUTABLE;
@@ -556,7 +556,7 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 			{
 				D3D10_SHADER_RESOURCE_VIEW_DESC desc;
 				memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-				desc.Format = format;
+				desc.Format = fmt;
 				desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
 				desc.Texture2D.MostDetailedMip = 0;
 				desc.Texture2D.MipLevels = 1;
@@ -2002,11 +2002,25 @@ void Fin()
 		Device->Release();
 }
 
-void* MakeDrawBuf(int tex_width, int tex_height, int scr_width, int scr_height, HWND wnd)
+void* MakeDrawBuf(int tex_width, int tex_height, int scr_width, int scr_height, HWND wnd, void* old)
 {
+	SWndBuf* old2 = static_cast<SWndBuf*>(old);
+	FLOAT clear_color[4];
+	if (old == NULL)
+	{
+		clear_color[0] = 0.0f;
+		clear_color[1] = 0.0f;
+		clear_color[2] = 0.0f;
+		clear_color[3] = 1.0f;
+	}
+	else
+	{
+		memcpy(clear_color, old2->ClearColor, sizeof(FLOAT) * 4);
+		Draw::FinDrawBuf(old2);
+	}
 	SWndBuf* wnd_buf = static_cast<SWndBuf*>(AllocMem(sizeof(SWndBuf)));
 	memset(wnd_buf, 0, sizeof(SWndBuf));
-	wnd_buf->ClearColor[4] = 1.0f;
+	memcpy(wnd_buf->ClearColor, clear_color, sizeof(FLOAT) * 4);
 	wnd_buf->TexWidth = tex_width;
 	wnd_buf->TexHeight = tex_height;
 	wnd_buf->ScrWidth = scr_width;
@@ -2180,36 +2194,36 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 				descs[i].SemanticIndex = 0;
 			}
 			{
-				DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+				DXGI_FORMAT fmt = DXGI_FORMAT_UNKNOWN;
 				size_t size2;
 				switch (layout_types[i])
 				{
 					case LayoutType_Int1:
-						format = DXGI_FORMAT_R8_SINT;
+						fmt = DXGI_FORMAT_R8_SINT;
 						size2 = sizeof(int);
 						break;
 					case LayoutType_Int2:
-						format = DXGI_FORMAT_R8G8_SINT;
+						fmt = DXGI_FORMAT_R8G8_SINT;
 						size2 = sizeof(int) * 2;
 						break;
 					case LayoutType_Int4:
-						format = DXGI_FORMAT_R8G8B8A8_SINT;
+						fmt = DXGI_FORMAT_R8G8B8A8_SINT;
 						size2 = sizeof(int) * 4;
 						break;
 					case LayoutType_Float1:
-						format = DXGI_FORMAT_R32_FLOAT;
+						fmt = DXGI_FORMAT_R32_FLOAT;
 						size2 = sizeof(float);
 						break;
 					case LayoutType_Float2:
-						format = DXGI_FORMAT_R32G32_FLOAT;
+						fmt = DXGI_FORMAT_R32G32_FLOAT;
 						size2 = sizeof(float) * 2;
 						break;
 					case LayoutType_Float3:
-						format = DXGI_FORMAT_R32G32B32_FLOAT;
+						fmt = DXGI_FORMAT_R32G32B32_FLOAT;
 						size2 = sizeof(float) * 3;
 						break;
 					case LayoutType_Float4:
-						format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+						fmt = DXGI_FORMAT_R32G32B32A32_FLOAT;
 						size2 = sizeof(float) * 4;
 						break;
 					default:
@@ -2217,7 +2231,7 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 						size2 = 0;
 						break;
 				}
-				descs[i].Format = format;
+				descs[i].Format = fmt;
 				descs[i].InputSlot = 0;
 				descs[i].AlignedByteOffset = static_cast<UINT>(offset);
 				descs[i].InputSlotClass = D3D10_INPUT_PER_VERTEX_DATA;

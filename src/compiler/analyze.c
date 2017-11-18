@@ -48,17 +48,20 @@ static const Char* BuildInFuncs[] =
 	L"shr\0          \x04",
 	L"shuffle\0      \x05",
 	L"sign\0         \x0b",
-	L"sort\0         \x05",
-	L"sortDesc\0     \x05",
+	L"sort\0         \x0e",
+	L"sortDesc\0     \x0e",
 	L"split\0        \x06",
 	L"sub\0          \x05",
 	L"tail\0         \x09",
 	L"term\0         \x09",
 	L"termOffset\0   \x09",
 	L"toArray\0      \x09",
+	L"toArrayKey\0   \x0d",
+	L"toArrayValue\0 \x0d",
 	L"toFloat\0      \x06",
 	L"toInt\0        \x06",
 	L"toStr\0        \x01",
+	L"toStrFmt\0     \x0b",
 	L"trim\0         \x06",
 	L"trimLeft\0     \x06",
 	L"trimRight\0    \x06",
@@ -72,7 +75,7 @@ static SDict* Dlls;
 static Bool LocalErr;
 
 static SAstFunc* SearchMain(void);
-static const void* ResolveIdentifier(const Char* key, const void* value, void* param);
+static const void* ResolveIdentifierCallback(const Char* key, const void* value, void* param);
 static void ResolveIdentifierRecursion(const Char* src, const SAst* scope);
 static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos);
 static SList* RefreshStats(SList* stats, SAstType* ret_type);
@@ -158,7 +161,7 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 			Err(L"EA0058", NULL);
 			return NULL;
 		}
-		DictForEach(Asts, ResolveIdentifier, NULL);
+		DictForEach(Asts, ResolveIdentifierCallback, NULL);
 		if (!ErrOccurred())
 			result = Rebuild(main_func);
 #if defined(_DEBUG)
@@ -183,6 +186,16 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 	return result;
 }
 
+int GetBuildInFuncsNum(void)
+{
+	return (int)(sizeof(BuildInFuncs) / sizeof(Char*));
+}
+
+const Char** GetBuildInFuncs(void)
+{
+	return BuildInFuncs;
+}
+
 static SAstFunc* SearchMain(void)
 {
 	const SAst* ast = (const SAst*)DictSearch(Asts, NewStr(NULL, L"\\%s", Option->SrcName));
@@ -197,7 +210,7 @@ static SAstFunc* SearchMain(void)
 	return NULL;
 }
 
-static const void* ResolveIdentifier(const Char* key, const void* value, void* param)
+static const void* ResolveIdentifierCallback(const Char* key, const void* value, void* param)
 {
 	if (param != NULL)
 	{
@@ -306,7 +319,7 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 			ptr = ptr->Next;
 		}
 	}
-	DictForEach(scope->ScopeChildren, ResolveIdentifier, (void*)src);
+	DictForEach(scope->ScopeChildren, ResolveIdentifierCallback, (void*)src);
 }
 
 static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos)
@@ -320,8 +333,6 @@ static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos)
 	ast->RefName = NULL;
 	ast->RefItem = NULL;
 	ast->AnalyzedCache = NULL;
-	ast->ScopeRowBegin = NULL;
-	ast->ScopeRowEnd = NULL;
 	ast->Public = False;
 }
 
@@ -607,7 +618,8 @@ static S64 GetEnumElementValue(SAstExprValue* ast, SAstEnum* enum_)
 			SAstExpr* item = (SAstExpr*)ptr->Data;
 			if (wcscmp(name, ((SAst*)item)->Name) == 0)
 			{
-				ASSERT(((SAst*)item)->TypeId == AstTypeId_ExprValue);
+				if (((SAst*)item)->TypeId != AstTypeId_ExprValue)
+					return 0;
 				return *(S64*)((SAstExprValue*)item)->Value;
 			}
 			ptr = ptr->Next;
@@ -621,6 +633,7 @@ static const Char* GetTypeNameNew(const SAstType* type)
 {
 	Char buf[1024 + 1];
 	size_t len = 0;
+	buf[0] = L'\0';
 	GetTypeName(buf, &len, 1024, type);
 	return NewStr(NULL, L"%s", buf);
 }
@@ -1686,13 +1699,13 @@ static void RebuildEnum(SAstEnum* ast)
 				SAstExpr* item = (SAstExpr*)ptr->Data;
 				const Char* item_name = ((SAst*)item)->Name;
 				item = RebuildExpr(item, item->Type == NULL);
-				((SAst*)item)->Name = item_name;
 				if (LocalErr)
 				{
 					LocalErr = False;
 					ptr = ptr->Next;
 					continue;
 				}
+				((SAst*)item)->Name = item_name;
 				ptr->Data = item;
 				if (((SAst*)item)->TypeId != AstTypeId_ExprValue || (item->Type != NULL && !IsInt(item->Type)))
 					Err(L"EA0011", ((SAst*)ast)->Pos, ((SAst*)ast)->Name, ((SAst*)item)->Name);
@@ -1755,7 +1768,7 @@ static void RebuildArg(SAstArg* ast)
 			Err(L"EA0015", ((SAst*)ast)->Pos, ((SAst*)ast)->Name);
 		if (!CmpType(ast->Type, ast->Expr->Type))
 			Err(L"EA0056", ((SAst*)ast)->Pos);
-		if (((SAst*)ast->Expr->Type)->TypeId == AstTypeId_TypeEnumElement)
+		else if (((SAst*)ast->Expr->Type)->TypeId == AstTypeId_TypeEnumElement)
 			RebuildEnumElement(ast->Expr, ast->Type);
 	}
 }
@@ -2092,7 +2105,7 @@ static SAstStat* RebuildRet(SAstStatRet* ast, SAstType* ret_type)
 		}
 		if (ret_type == NULL || !CmpType(ast->Value->Type, ret_type))
 			Err(L"EA0031", ((SAst*)ast)->Pos);
-		if (((SAst*)ast->Value->Type)->TypeId == AstTypeId_TypeEnumElement)
+		else if (((SAst*)ast->Value->Type)->TypeId == AstTypeId_TypeEnumElement)
 			RebuildEnumElement(ast->Value, ret_type);
 	}
 	return (SAstStat*)ast;
@@ -3195,6 +3208,23 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 		return (SAstExpr*)DummyPtr;
 	{
 		SAstTypeFunc* type = (SAstTypeFunc*)ast->Func->Type;
+		if ((type->FuncAttr & FuncAttr_MakeInstance) != 0)
+		{
+			// Make an instance and add it to the second argument when '_make_instance' is specified.
+			SAstExprCallArg* value_type = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
+			ASSERT(type->Ret != NULL);
+			{
+				SAstExprNew* expr = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
+				InitAstExpr((SAstExpr*)expr, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
+				expr->ItemType = type->Ret;
+				value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
+				if (LocalErr)
+					return (SAstExpr*)DummyPtr;
+			}
+			value_type->RefVar = False;
+			value_type->SkipVar = NULL;
+			ListIns(ast->Args, ast->Args->Top, value_type);
+		}
 		if (((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot && ((SAst*)ast->Func->Type)->TypeId == AstTypeId_TypeFunc)
 		{
 			{
@@ -3256,23 +3286,6 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				Err(L"EA0046", ((SAst*)ast)->Pos);
 				LocalErr = True;
 				return (SAstExpr*)DummyPtr;
-			}
-			if ((type->FuncAttr & FuncAttr_MakeInstance) != 0)
-			{
-				// Make an instance and add it to the second argument when '_make_instance' is specified.
-				SAstExprCallArg* value_type = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
-				ASSERT(type->Ret != NULL);
-				{
-					SAstExprNew* expr = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
-					InitAstExpr((SAstExpr*)expr, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
-					expr->ItemType = type->Ret;
-					value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
-					if (LocalErr)
-						return (SAstExpr*)DummyPtr;
-				}
-				value_type->RefVar = False;
-				value_type->SkipVar = NULL;
-				ListIns(ast->Args, ast->Args->Top, value_type);
 			}
 			type = (SAstTypeFunc*)ast->Func->Type;
 		}
@@ -3504,6 +3517,8 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 						member = L"clampMaxInt";
 					else if (wcscmp(member, L"sign") == 0)
 						member = L"signInt";
+					else if (wcscmp(member, L"toStrFmt") == 0)
+						member = L"toStrFmtInt";
 					else
 						ASSERT(False);
 				}
@@ -3520,6 +3535,8 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 						member = L"clampMaxFloat";
 					else if (wcscmp(member, L"sign") == 0)
 						member = L"signFloat";
+					else if (wcscmp(member, L"toStrFmt") == 0)
+						member = L"toStrFmtFloat";
 					else
 						ASSERT(False);
 				}
@@ -3531,6 +3548,28 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 			case 0x000d:
 				if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
 					correct = True;
+				break;
+			case 0x000e:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeArray)
+				{
+					correct = True;
+					if (wcscmp(member, L"sort") == 0)
+						member = L"sortArray";
+					else if (wcscmp(member, L"sortDesc") == 0)
+						member = L"sortDescArray";
+					else
+						ASSERT(False);
+				}
+				else if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
+				{
+					correct = True;
+					if (wcscmp(member, L"sort") == 0)
+						member = L"sortList";
+					else if (wcscmp(member, L"sortDesc") == 0)
+						member = L"sortDescList";
+					else
+						ASSERT(False);
+				}
 				break;
 		}
 		if (correct)
@@ -3685,6 +3724,30 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
 						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
 						type->ItemType = ((SAstTypeGen*)var_type)->ItemType;
+						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
+					}
+				}
+				if ((func->FuncAttr & FuncAttr_RetArrayOfDictKey) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT(IsInt(func->Ret));
+					ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
+					{
+						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+						type->ItemType = ((SAstTypeDict*)var_type)->ItemTypeKey;
+						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
+					}
+				}
+				if ((func->FuncAttr & FuncAttr_RetArrayOfDictValue) != 0)
+				{
+					ASSERT((func->FuncAttr & FuncAttr_AnyType) != 0);
+					ASSERT(IsInt(func->Ret));
+					ASSERT(((SAst*)var_type)->TypeId == AstTypeId_TypeDict);
+					{
+						SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
+						InitAst((SAst*)type, AstTypeId_TypeArray, ((SAst*)ast)->Pos);
+						type->ItemType = ((SAstTypeDict*)var_type)->ItemTypeValue;
 						((SAstTypeFunc*)expr->Type)->Ret = (SAstType*)type;
 					}
 				}

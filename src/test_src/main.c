@@ -10,13 +10,11 @@
 #include <conio.h>
 
 #define LANG (0)
-#define TEST_NUM (20)
+#define TEST_NUM (21)
 
 #pragma comment(lib, "compiler.lib")
 
 Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang);
-
-static size_t UsedMem;
 
 static void Log(const Char* code, const Char* msg, const Char* src, int row, int col);
 static Bool Compare(const Char* path1, const Char* path2);
@@ -44,10 +42,8 @@ int wmain(void)
 			swprintf(output_path, KUIN_MAX_PATH, L"../../test/output/output%04d.exe", i);
 			swprintf(log_path, KUIN_MAX_PATH, L"../../test/output/log%04d.txt", i);
 			wprintf(L"%s\n", output_path);
-			UsedMem = 0;
 			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Log, 1))
 				goto Failure;
-			wprintf(L"Mem: %I64u[byte]\n", UsedMem);
 			wprintf(L"Compile[S]");
 			{
 				STARTUPINFO startup_info = { 0 };
@@ -129,13 +125,11 @@ int wmain(void)
 	}
 	else if (type == -1)
 	{
-		UsedMem = 0;
 		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Log, LANG))
 			goto Failure;
 	}
 	else if (type == -2)
 	{
-		UsedMem = 0;
 		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Log, LANG))
 			goto Failure;
 	}

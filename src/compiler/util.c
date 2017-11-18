@@ -20,15 +20,15 @@ int BinSearch(const Char** hay_stack, int num, const Char* needle)
 	return -1;
 }
 
-const Char* NewStr(int* len, const Char* format, ...)
+const Char* NewStr(int* len, const Char* fmt, ...)
 {
 	int size;
 	Char* buf;
 	va_list arg;
-	va_start(arg, format);
-	size = _vscwprintf(format, arg);
+	va_start(arg, fmt);
+	size = _vscwprintf(fmt, arg);
 	buf = (Char*)Alloc(sizeof(Char) * (size_t)(size + 1));
-	vswprintf(buf, size + 1, format, arg);
+	vswprintf(buf, size + 1, fmt, arg);
 	va_end(arg);
 	if (len != NULL)
 		*len = size;

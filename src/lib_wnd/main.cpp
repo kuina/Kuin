@@ -16,6 +16,7 @@ enum EWndKind
 	WndKind_WndNormal = 0x00,
 	WndKind_WndFix,
 	WndKind_WndAspect,
+	WndKind_WndPopup,
 	WndKind_WndMdi,
 	WndKind_WndMdiChild,
 	WndKind_WndDock,
@@ -96,6 +97,7 @@ struct SDraw
 	void* OnMouseDownL;
 	void* OnMouseDownR;
 	void* OnMouseDownM;
+	void* OnMouseDoubleClick;
 	void* OnMouseUpL;
 	void* OnMouseUpR;
 	void* OnMouseUpM;
@@ -110,6 +112,7 @@ struct SDraw
 	void* OnKeyChar;
 	void* OnScrollX;
 	void* OnScrollY;
+	void* OnSetMouseImg;
 };
 
 struct SBtn
@@ -145,6 +148,7 @@ struct SList
 {
 	SWndBase WndBase;
 	void* OnSel;
+	void* OnMouseDoubleClick;
 };
 
 struct SCombo
@@ -243,6 +247,12 @@ struct SMenu
 	SClass Class;
 	HMENU MenuHandle;
 	void* Children;
+};
+
+struct STabOrder
+{
+	SClass Class;
+	void* Ctrls;
 };
 
 static void* OnKeyPress;
@@ -537,10 +547,10 @@ EXPORT_CPP void _setClipboardStr(const U8* str)
 			if (*ptr == L'\n')
 			{
 				*buf = L'\r';
-				*buf++;
+				buf++;
 			}
 			*buf = *ptr;
-			*buf++;
+			buf++;
 			ptr++;
 		}
 		*buf = L'\0';
@@ -613,6 +623,21 @@ EXPORT_CPP void* _getClipboardStr()
 	return result;
 }
 
+EXPORT_CPP void _getCaretPos(S64* x, S64* y)
+{
+	POINT point;
+	if (!GetCaretPos(&point))
+	{
+		*x = -1;
+		*y = -1;
+	}
+	else
+	{
+		*x = static_cast<S64>(point.x);
+		*y = static_cast<S64>(point.y);
+	}
+}
+
 EXPORT_CPP void _target(SClass* draw_ctrl)
 {
 	SDraw* draw_ctrl2 = reinterpret_cast<SDraw*>(draw_ctrl);
@@ -635,23 +660,24 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	switch (me2->Kind)
 	{
 		case WndKind_WndNormal:
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndNormalClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndNormalClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndFix:
-			THROWDBG(width == -1 || height == -1, 0xe9170006);
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndAspect:
-			THROWDBG(width == -1 || height == -1, 0xe9170006);
-			me2->WndHandle = CreateWindowEx(0, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
-			// TODO:
+		case WndKind_WndPopup:
+			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_POPUP | WS_BORDER | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			break;
 		default:
 			THROWDBG(True, 0xe9170006);
 			break;
 	}
 	if (me2->WndHandle == NULL)
 		THROW(0xe9170009);
+	SetLayeredWindowAttributes(me2->WndHandle, NULL, 255, LWA_ALPHA);
 	int border_x;
 	int border_y;
 	{
@@ -691,8 +717,6 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 		me3->MinHeight = 128;
 		me3->MaxWidth = static_cast<U16>(-1);
 		me3->MaxHeight = static_cast<U16>(-1);
-		me3->OnClose = NULL;
-		me3->OnPushMenu = NULL;
 		me3->ModalLock = False;
 	}
 	SendMessage(me2->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
@@ -734,13 +758,24 @@ EXPORT_CPP void _wndBaseFocus(SClass* me_)
 	SetFocus(reinterpret_cast<SWndBase*>(me_)->WndHandle);
 }
 
+EXPORT_CPP Bool _wndBaseFocused(SClass* me_)
+{
+	return GetFocus() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
+}
+
 EXPORT_CPP void _wndBaseEnable(SClass* me_, Bool is_enabled)
 {
 	EnableWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_enabled ? TRUE : FALSE);
 }
 
+EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height)
+{
+	SetWindowPos(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, (int)x, (int)y, (int)width, (int)height, SWP_NOZORDER);
+}
+
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
 {
+	THROWDBG(minWidth != -1 && minWidth <= 0 || minHeight != -1 && minHeight <= 0 || maxWidth != -1 && maxWidth < minWidth || maxHeight != -1 && maxHeight < minHeight, 0xe9170006);
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
 	me2->MinWidth = static_cast<U16>(minWidth);
 	me2->MinHeight = static_cast<U16>(minHeight);
@@ -760,7 +795,7 @@ EXPORT_CPP void _wndExit(SClass* me_)
 
 EXPORT_CPP void _wndSetText(SClass* me_, const U8* text)
 {
-	const U8* text2 = NToRN(reinterpret_cast<const Char*>(text + 0x10));
+	const U8* text2 = NToRN(text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10));
 	SetWindowText(reinterpret_cast<SWndBase*>(me_)->WndHandle, reinterpret_cast<const Char*>(text2 + 0x10));
 	FreeMem(const_cast<U8*>(text2));
 }
@@ -776,25 +811,50 @@ EXPORT_CPP const U8* _wndGetText(SClass* me_)
 	return result;
 }
 
-EXPORT_CPP void _wndReadonly(SClass* me_, Bool flag)
-{
-	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
-	SendMessage(wnd, EM_SETREADONLY, flag ? TRUE : FALSE, 0);
-}
-
 EXPORT_CPP void _wndSetMenu(SClass* me_, SClass* menu)
 {
 	SetMenu(reinterpret_cast<SWndBase*>(me_)->WndHandle, menu == NULL ? NULL : reinterpret_cast<SMenu*>(menu)->MenuHandle);
 }
 
-EXPORT_CPP void _wndSetActive(SClass* me_)
+EXPORT_CPP void _wndActivate(SClass* me_)
 {
 	SetActiveWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle);
 }
 
-EXPORT_CPP Bool _wndGetActive(SClass* me_)
+EXPORT_CPP Bool _wndActivated(SClass* me_)
 {
 	return GetActiveWindow() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
+}
+
+EXPORT_CPP Bool _wndFocusedWnd(SClass* me_)
+{
+	HWND wnd = GetFocus();
+	if (wnd == NULL)
+		return False;
+	SWndBase* wnd2 = ToWnd(wnd);
+	while (wnd2 != NULL && static_cast<int>(wnd2->Kind) >= 0x80)
+	{
+		wnd = GetParent(wnd);
+		if (wnd == NULL)
+			return False;
+		wnd2 = ToWnd(wnd);
+	}
+	if (wnd2 == NULL)
+		return False;
+	return wnd == reinterpret_cast<SWndBase*>(me_)->WndHandle;
+}
+
+EXPORT_CPP void _wndSetAlpha(SClass* me_, S64 alpha)
+{
+	THROWDBG(alpha < 0 || 255 < alpha, 0xe9170006);
+	SetLayeredWindowAttributes(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, static_cast<BYTE>(alpha), LWA_ALPHA);
+}
+
+EXPORT_CPP S64 _wndGetAlpha(SClass* me_)
+{
+	BYTE alpha;
+	GetLayeredWindowAttributes(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, &alpha, NULL);
+	return static_cast<S64>(alpha);
 }
 
 EXPORT_CPP void _wndSetModalLock(SClass* me_)
@@ -815,7 +875,7 @@ EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	me3->Enter = False;
 	me3->WheelX = 0;
 	me3->WheelY = 0;
-	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), static_cast<int>(width), static_cast<int>(height), me2->WndHandle);
+	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), static_cast<int>(width), static_cast<int>(height), me2->WndHandle, NULL);
 	return me_;
 }
 
@@ -918,6 +978,39 @@ EXPORT_CPP SClass* _makeEdit(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	return me_;
 }
 
+EXPORT_CPP void _editReadonly(SClass* me_, Bool enabled)
+{
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	SendMessage(wnd, EM_SETREADONLY, enabled ? TRUE : FALSE, 0);
+}
+
+EXPORT_CPP void _editSetSel(SClass* me_, S64 start, S64 len)
+{
+	THROWDBG(!(len == -1 && (start == -1 || start == 0) || 0 <= start && 0 <= len), 0xe9170006);
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	S64 first;
+	S64 last;
+	if (len == -1)
+	{
+		if (start == -1)
+		{
+			first = -1;
+			last = -1;
+		}
+		else
+		{
+			first = 0;
+			last = -1;
+		}
+	}
+	else
+	{
+		first = start;
+		last = start + len;
+	}
+	SendMessage(me2->WndHandle, EM_SETSEL, static_cast<WPARAM>(first), static_cast<LPARAM>(last));
+}
+
 EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_EditMulti, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN, x, y, width, height, L"", WndProcEditMulti, anchorX, anchorY);
@@ -937,17 +1030,16 @@ EXPORT_CPP void _listClear(SClass* me_)
 
 EXPORT_CPP void _listAdd(SClass* me_, const U8* text)
 {
+	THROWDBG(text == NULL, 0xc0000005);
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text + 0x10));
 }
 
 EXPORT_CPP void _listIns(SClass* me_, S64 idx, const U8* text)
 {
+	THROWDBG(text == NULL, 0xc0000005);
 #if defined(DBG)
-	{
-		S64 len = _listLen(me_);
-		if (idx < 0 || len <= idx)
-			THROW(0x1000, L"");
-	}
+	S64 len = _listLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
 }
@@ -955,11 +1047,8 @@ EXPORT_CPP void _listIns(SClass* me_, S64 idx, const U8* text)
 EXPORT_CPP void _listDel(SClass* me_, S64 idx)
 {
 #if defined(DBG)
-	{
-		S64 len = _listLen(me_);
-		if (idx < 0 || len <= idx)
-			THROW(0x1000, L"");
-	}
+	S64 len = _listLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_DELETESTRING, static_cast<WPARAM>(idx), 0);
 }
@@ -972,11 +1061,8 @@ EXPORT_CPP S64 _listLen(SClass* me_)
 EXPORT_CPP void _listSetSel(SClass* me_, S64 idx)
 {
 #if defined(DBG)
-	{
-		S64 len = _listLen(me_);
-		if (idx < -1 || len <= idx)
-			THROW(0x1000, L"");
-	}
+	S64 len = _listLen(me_);
+	THROWDBG(idx < -1 || len <= idx, 0xe9170006);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_SETCURSEL, static_cast<WPARAM>(idx), 0);
 }
@@ -991,8 +1077,7 @@ EXPORT_CPP void* _listGetText(SClass* me_, S64 idx)
 #if defined(DBG)
 	{
 		S64 len = _listLen(me_);
-		if (idx < 0 || len <= idx)
-			THROW(0x1000, L"");
+		THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 	}
 #endif
 	{
@@ -1007,12 +1092,10 @@ EXPORT_CPP void* _listGetText(SClass* me_, S64 idx)
 
 EXPORT_CPP void _listSetText(SClass* me_, S64 idx, const U8* text)
 {
+	THROWDBG(text == NULL, 0xc0000005);
 #if defined(DBG)
-	{
-		S64 len = _listLen(me_);
-		if (idx < 0 || len <= idx)
-			THROW(0x1000, L"");
-	}
+	S64 len = _listLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 #endif
 	{
 		int sel = static_cast<int>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETCURSEL, 0, 0));
@@ -1127,8 +1210,7 @@ EXPORT_CPP void _tabSetSel(SClass* me_, S64 idx)
 #if defined(DBG)
 	{
 		S64 len = _tabLen(me_);
-		if (idx < -1 || len <= idx)
-			THROW(0x1000, L"");
+		THROWDBG(idx < -1 || len <= idx, 0xe9170006);
 	}
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, TCM_SETCURSEL, static_cast<WPARAM>(idx), 0);
@@ -1205,7 +1287,7 @@ EXPORT_CPP void _scrollSetState(SClass* me_, S64 min, S64 max, S64 page, S64 pos
 	SetScrollInfo(reinterpret_cast<SWndBase*>(me_)->WndHandle, SB_CTL, &info, TRUE);
 }
 
-EXPORT_CPP void _scrollSetPos(SClass* me_, S64 pos)
+EXPORT_CPP void _scrollSetScrollPos(SClass* me_, S64 pos)
 {
 	SCROLLINFO info;
 	info.cbSize = sizeof(SCROLLINFO);
@@ -1238,7 +1320,7 @@ EXPORT_CPP void _menuDtor(SClass* me_)
 EXPORT_CPP void _menuAdd(SClass* me_, S64 id, const U8* text)
 {
 	THROWDBG(id < 0x0001 || 0xffff < id, 0xe9170006);
-	THROWDBG(text == NULL, 0xe9170006);
+	THROWDBG(text == NULL, 0xc0000005);
 	AppendMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, MF_ENABLED | MF_STRING, static_cast<UINT_PTR>(id), reinterpret_cast<const Char*>(text + 0x10));
 }
 
@@ -1249,8 +1331,8 @@ EXPORT_CPP void _menuAddLine(SClass* me_)
 
 EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup)
 {
-	THROWDBG(text == NULL, 0xe9170006);
-	THROWDBG(popup == NULL, 0xe9170006);
+	THROWDBG(popup == NULL, 0xc0000005);
+	THROWDBG(text == NULL, 0xc0000005);
 	AppendMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, MF_ENABLED | MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), reinterpret_cast<const Char*>(text + 0x10));
 }
 
@@ -1264,6 +1346,67 @@ EXPORT_CPP SClass* _makePopup(SClass* me_)
 	*(S64*)me2->Children = 1;
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
 	return me_;
+}
+
+EXPORT_CPP SClass* _makeTabOrder(SClass* me_, U8* ctrls)
+{
+	STabOrder* me2 = reinterpret_cast<STabOrder*>(me_);
+	THROWDBG(ctrls == NULL, 0xc0000005);
+	S64 len = *reinterpret_cast<S64*>(ctrls + 0x08);
+	void** ptr = reinterpret_cast<void**>(ctrls + 0x10);
+	void* result = AllocMem(0x10 + sizeof(void*) * static_cast<size_t>(len));
+	static_cast<S64*>(result)[0] = 1;
+	static_cast<S64*>(result)[1] = len;
+	void** result2 = reinterpret_cast<void**>(static_cast<U8*>(result) + 0x10);
+	for (S64 i = 0; i < len; i++)
+	{
+		if (ptr[i] == NULL)
+			result2[i] = NULL;
+		else
+		{
+			(*static_cast<S64*>(ptr[i]))++;
+			result2[i] = ptr[i];
+		}
+	}
+	me2->Ctrls = result;
+	return me_;
+}
+
+EXPORT_CPP Bool _tabOrderChk(SClass* me_, S64 key, S64 shiftCtrl)
+{
+	if (key != VK_TAB || (shiftCtrl & 0x02) != 0)
+		return False;
+	STabOrder* me2 = reinterpret_cast<STabOrder*>(me_);
+	U8* ctrls = static_cast<U8*>(me2->Ctrls);
+	S64 len = *reinterpret_cast<S64*>(ctrls + 0x08);
+	if (len == 0)
+		return False;
+	HWND wnd = GetFocus();
+	void** ptr = reinterpret_cast<void**>(ctrls + 0x10);
+	for (S64 i = 0; i < len; i++)
+	{
+		SWndBase* wnd2 = static_cast<SWndBase*>(ptr[i]);
+		if (wnd2->WndHandle == wnd)
+		{
+			S64 step = shiftCtrl == 0 ? 1 : len - 1;
+			S64 idx = (i + step) % len;
+			while (idx != i)
+			{
+				if (ptr[idx] != NULL)
+				{
+					SWndBase* wnd3 = static_cast<SWndBase*>(ptr[idx]);
+					if (IsWindowEnabled(wnd3->WndHandle))
+					{
+						SetFocus(wnd3->WndHandle);
+						return True;
+					}
+				}
+				idx = (idx + step) % len;
+			}
+			break;
+		}
+	}
+	return False;
 }
 
 static const U8* NToRN(const Char* str)
@@ -1730,7 +1873,7 @@ static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 	SWnd* wnd3 = reinterpret_cast<SWnd*>(wnd2);
 	if (wnd2 == NULL)
 		return DefWindowProc(wnd, msg, w_param, l_param);
-	ASSERT(wnd2->Kind == WndKind_WndFix);
+	ASSERT(wnd2->Kind == WndKind_WndFix || wnd2->Kind == WndKind_WndPopup);
 	switch (msg)
 	{
 		case WM_CLOSE:
@@ -1758,8 +1901,6 @@ static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 			if (wnd3->OnActivate)
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(w_param) != 0)), reinterpret_cast<void*>(static_cast<S64>(HIWORD(w_param) != 0)), wnd3->OnActivate);
 			return 0;
-		case WM_DRAWITEM:
-		break;
 		case WM_COMMAND:
 		case WM_NOTIFY:
 			CommandAndNotify(wnd, msg, w_param, l_param);
@@ -1900,11 +2041,19 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 			if (wnd3->OnMouseDownL != NULL)
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownL);
 			return 0;
+		case WM_LBUTTONDBLCLK:
+			SetFocus(wnd);
+			if (wnd3->OnMouseDownL != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownL);
+			if (wnd3->OnMouseDoubleClick != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDoubleClick);
+			return 0;
 		case WM_LBUTTONUP:
 			if (wnd3->OnMouseUpL != NULL)
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseUpL);
 			return 0;
 		case WM_RBUTTONDOWN:
+		case WM_RBUTTONDBLCLK:
 			if (wnd3->OnMouseDownR != NULL)
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownR);
 			return 0;
@@ -1913,6 +2062,7 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseUpR);
 			return 0;
 		case WM_MBUTTONDOWN:
+		case WM_MBUTTONDBLCLK:
 			if (wnd3->OnMouseDownM != NULL)
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownM);
 			return 0;
@@ -2017,11 +2167,9 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				int height = static_cast<int>(HIWORD(l_param));
 				if (width > 0 && height > 0)
 				{
-					if (wnd3->DrawBuf != NULL)
-						Draw::FinDrawBuf(wnd3->DrawBuf);
 					int scr_width = wnd3->EqualMagnification ? width : wnd2->DefaultWidth;
 					int scr_height = wnd3->EqualMagnification ? height : wnd2->DefaultHeight;
-					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, scr_width, scr_height, wnd2->WndHandle);
+					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, scr_width, scr_height, wnd2->WndHandle, wnd3->DrawBuf);
 					wnd3->DrawTwice = True;
 				}
 			}
@@ -2077,6 +2225,15 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				}
 			}
 			return 0;
+		case WM_SETCURSOR:
+			if (wnd3->OnSetMouseImg)
+			{
+				S64 img = (S64)Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnSetMouseImg);
+				if (img != 32512)
+					SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(img)));
+				return 0;
+			}
+			break;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }
@@ -2139,10 +2296,15 @@ static LRESULT CALLBACK WndProcEditMulti(HWND wnd, UINT msg, WPARAM w_param, LPA
 static LRESULT CALLBACK WndProcList(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
+	SList* wnd3 = reinterpret_cast<SList*>(wnd2);
 	ASSERT(wnd2->Kind == WndKind_List);
 	switch (msg)
 	{
-		// TODO:
+		case WM_LBUTTONDBLCLK:
+			SetFocus(wnd);
+			if (wnd3->OnMouseDoubleClick != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDoubleClick);
+			return 0;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }

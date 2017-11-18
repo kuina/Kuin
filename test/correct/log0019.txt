@@ -8,6 +8,12 @@ Excpt: 80000003
 > ee
 > ab|cd|ab|cd|ab|cd
 > test
+> abcde
+> edcba
+> abcde
+> AABBCCDDEE
+> 000000000000ffff
+> 0000000000000000003.141592653590
 > 3
 > 5
 > -5
@@ -16,6 +22,12 @@ Excpt: 80000003
 > ee
 > ab|cd|ab|cd|ab|cd
 > test
+> abcde
+> edcba
+> abcde
+> AABBCCDDEE
+> 000000000000ffff
+> 0000000000000000003.141592653590
 > 3
 > 5
 > -5
@@ -24,4 +36,10 @@ Excpt: 80000003
 > ee
 > ab|cd|ab|cd|ab|cd
 > test
+> abcde
+> edcba
+> abcde
+> AABBCCDDEE
+> 000000000000ffff
+> 0000000000000000003.141592653590
 end: ../../test/output/output0019.exe

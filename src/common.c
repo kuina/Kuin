@@ -205,3 +205,38 @@ U32 XorShift(U32* seed)
 	*seed = x;
 	return x;
 }
+
+char* Utf16ToUtf8(const U8* str)
+{
+	if (str == NULL)
+		return NULL;
+	const Char* str2 = (const Char*)(str + 0x10);
+	int len_str = (int)((S64*)str)[1];
+	size_t len = (size_t)(WideCharToMultiByte(CP_UTF8, 0, str2, len_str, NULL, 0, NULL, NULL));
+	char* buf = (char*)(AllocMem(len + 1));
+	if (WideCharToMultiByte(CP_UTF8, 0, str2, len_str, buf, (int)len, NULL, NULL) != (int)len)
+	{
+		FreeMem(buf);
+		return NULL;
+	}
+	buf[len] = L'\0';
+	return buf;
+}
+
+U8* Utf8ToUtf16(const char* str)
+{
+	if (str == NULL)
+		return NULL;
+	int len_str = (int)strlen(str);
+	size_t len = (size_t)MultiByteToWideChar(CP_UTF8, 0, str, len_str, NULL, 0);
+	U8* buf = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+	((S64*)buf)[0] = DefaultRefCntFunc;
+	((S64*)buf)[1] = (S64)len;
+	if (MultiByteToWideChar(CP_UTF8, 0, str, len_str, (Char*)(buf + 0x10), (int)len) != (int)len)
+	{
+		FreeMem(buf);
+		return NULL;
+	}
+	((Char*)(buf + 0x10))[len] = L'\0';
+	return buf;
+}

@@ -104,6 +104,8 @@ Bool SetLogFunc(void(*func_log)(const Char* code, const Char* msg, const Char* s
 
 void Err(const Char* code, const SPos* pos, ...)
 {
+	if (LogFunc == NULL)
+		return;
 	if (ErrCnt == 100)
 		return; // Stop error detection at 100 pieces.
 	if (code[0] != L'I' && pos != NULL && wcscmp(pos->SrcName, LastErrSrc) == 0 && pos->Row == LastErrRow)

@@ -89,7 +89,6 @@ static SStack* Scope;
 static U32 UniqueCnt;
 static Bool LocalErr;
 
-static Bool IsReserved(const Char* word);
 static const void* ParseSrc(const Char* src_name, const void* ast, void* param);
 static Char ReadBuf(void);
 static Char Read(void);
@@ -99,13 +98,14 @@ static Char ReadStrict(void);
 static const Char* ReadIdentifier(Bool skip_spaces, Bool ref);
 static const Char* ReadFuncAttr(void);
 static void ReadUntilRet(void);
-static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos, const Char* name, Bool set_parent, Bool init_refeds, SAst** scope_row_begin, SAst** scope_row_end);
+static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos, const Char* name, Bool set_parent, Bool init_refeds);
 static void InitAstExpr(SAstExpr* ast, EAstTypeId type_id, const SPos* pos);
 static void AddScopeName(SAst* ast, Bool refuse_reserved);
 static void AssertNextChar(Char c, Bool skip_spaces);
 static void NextCharErr(Char c, Char c2);
 static void AddScopeRefeds(SAst* ast);
 static void PushDummyScope(SAst* ast);
+static void AddEndPosScope(void);
 static SAstArg* MakeBlockVar(int row, int col);
 static void ObtainBlockName(SAst* ast);
 static SAstExprValue* ObtainPrimValue(const SPos* pos, EAstTypePrimKind kind, const void* value);
@@ -113,34 +113,34 @@ static SAstExprValue* ObtainStrValue(const SPos* pos, const Char* value);
 static Char EscChar(Char c);
 static Bool IsCorrectSrcName(const Char* name);
 static SAstRoot* ParseRoot(void);
-static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** scope_end);
-static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class, SAst** scope_begin, SAst** scope_end);
-static SAstConst* ParseConst(SAst** scope_begin, SAst** scope_end);
-static SAstAlias* ParseAlias(SAst** scope_begin, SAst** scope_end);
-static SAstClass* ParseClass(SAst** scope_begin, SAst** scope_end);
-static SAstEnum* ParseEnum(SAst** scope_begin, SAst** scope_end);
-static SAstArg* ParseArg(EAstArgKind kind, const Char* parent_class, SAst** scope_begin, SAst** scope_end);
-static SAstStat* ParseStat(SAst* block, SAst** scope_begin, SAst** scope_end);
+static SAstFunc* ParseFunc(const Char* parent_class);
+static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class);
+static SAstConst* ParseConst(void);
+static SAstAlias* ParseAlias(void);
+static SAstClass* ParseClass(void);
+static SAstEnum* ParseEnum(void);
+static SAstArg* ParseArg(EAstArgKind kind, const Char* parent_class);
+static SAstStat* ParseStat(SAst* block);
 static SAstStat* ParseStatEnd(int row, int col, SAst* block);
-static SAstStat* ParseStatFunc(SAst** scope_begin, SAst** scope_end);
-static SAstStat* ParseStatVar(SAst** scope_begin, SAst** scope_end);
-static SAstStat* ParseStatConst(SAst** scope_begin, SAst** scope_end);
-static SAstStat* ParseStatAlias(SAst** scope_begin, SAst** scope_end);
-static SAstStat* ParseStatClass(SAst** scope_begin, SAst** scope_end);
-static SAstStat* ParseStatEnum(SAst** scope_begin, SAst** scope_end);
-static SAstStat* ParseStatIf(SAst** scope_begin, SAst** scope_end);
+static SAstStat* ParseStatFunc(void);
+static SAstStat* ParseStatVar(void);
+static SAstStat* ParseStatConst(void);
+static SAstStat* ParseStatAlias(void);
+static SAstStat* ParseStatClass(void);
+static SAstStat* ParseStatEnum(void);
+static SAstStat* ParseStatIf(void);
 static SAstStat* ParseStatElIf(int row, int col, const SAst* block);
 static SAstStat* ParseStatElse(int row, int col, const SAst* block);
-static SAstStat* ParseStatSwitch(int row, int col, SAst** scope_begin, SAst** scope_end);
+static SAstStat* ParseStatSwitch(int row, int col);
 static SAstStat* ParseStatCase(int row, int col, const SAst* block);
 static SAstStat* ParseStatDefault(int row, int col, const SAst* block);
-static SAstStat* ParseStatWhile(SAst** scope_begin, SAst** scope_end);
-static SAstStat* ParseStatFor(int row, int col, SAst** scope_begin, SAst** scope_end);
-static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope_end);
+static SAstStat* ParseStatWhile(void);
+static SAstStat* ParseStatFor(int row, int col);
+static SAstStat* ParseStatTry(int row, int col);
 static SAstStat* ParseStatCatch(int row, int col, const SAst* block);
 static SAstStat* ParseStatFinally(int row, int col, const SAst* block);
 static SAstStat* ParseStatThrow(void);
-static SAstStat* ParseStatBlock(SAst** scope_begin, SAst** scope_end);
+static SAstStat* ParseStatBlock(void);
 static SAstStat* ParseStatRet(void);
 static SAstStat* ParseStatDo(void);
 static SAstStat* ParseStatBreak(void);
@@ -443,7 +443,17 @@ void InterpretImpl1(const void* src, void* color)
 	}
 }
 
-static Bool IsReserved(const Char* word)
+int GetReservedNum(void)
+{
+	return (int)(sizeof(Reserved) / sizeof(Char*));
+}
+
+const Char** GetReserved(void)
+{
+	return Reserved;
+}
+
+Bool IsReserved(const Char* word)
 {
 	return BinSearch(Reserved, (int)(sizeof(Reserved) / sizeof(Char*)), word) != -1;
 }
@@ -814,7 +824,7 @@ static void ReadUntilRet(void)
 	FileBuf = c;
 }
 
-static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos, const Char* name, Bool set_parent, Bool init_refeds, SAst** scope_row_begin, SAst** scope_row_end)
+static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos, const Char* name, Bool set_parent, Bool init_refeds)
 {
 	ast->TypeId = type_id;
 	ast->Pos = pos;
@@ -825,10 +835,6 @@ static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos, const Char* 
 	ast->RefName = NULL;
 	ast->RefItem = NULL;
 	ast->AnalyzedCache = NULL;
-	ast->ScopeRowBegin = NULL;
-	ast->ScopeRowEnd = NULL;
-	ast->ScopeRowBegin = scope_row_begin;
-	ast->ScopeRowEnd = scope_row_end;
 	ast->Public = False;
 
 	if (ast->Name != NULL)
@@ -841,7 +847,7 @@ static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos, const Char* 
 
 static void InitAstExpr(SAstExpr* ast, EAstTypeId type_id, const SPos* pos)
 {
-	InitAst((SAst*)ast, type_id, pos, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, type_id, pos, NULL, False, False);
 	ast->VarKind = AstExprVarKind_Unknown;
 	ast->Type = NULL;
 }
@@ -922,17 +928,27 @@ static void AddScopeRefeds(SAst* ast)
 static void PushDummyScope(SAst* ast)
 {
 	SAst* dummy = (SAst*)Alloc(sizeof(SAst));
-	InitAst(dummy, AstTypeId_Ast, NULL, NULL, True, True, NULL, NULL);
+	InitAst(dummy, AstTypeId_Ast, NULL, NULL, True, True);
 	((SAst*)StackPeek(Scope))->ScopeChildren = DictAdd(((SAst*)StackPeek(Scope))->ScopeChildren, NewStr(NULL, L"$%u", UniqueCnt), dummy);
 	UniqueCnt++;
 	Scope = StackPush(Scope, dummy);
 	ast->ScopeParent = dummy;
 }
 
+static void AddEndPosScope(void)
+{
+	SAst* dummy = (SAst*)Alloc(sizeof(SAst));
+	InitAst(dummy, AstTypeId_Ast, NewPos(SrcName, Row - 1, 0), NULL, True, True);
+	((SAst*)StackPeek(Scope))->ScopeChildren = DictAdd(((SAst*)StackPeek(Scope))->ScopeChildren, NewStr(NULL, L"$%u", UniqueCnt), dummy);
+	UniqueCnt++;
+	Scope = StackPush(Scope, dummy);
+	Scope = StackPop(Scope);
+}
+
 static SAstArg* MakeBlockVar(int row, int col)
 {
 	SAstArg* result = (SAstArg*)Alloc(sizeof(SAstArg));
-	InitAst((SAst*)result, AstTypeId_Arg, NewPos(SrcName, row, col), NULL, False, False, NULL, NULL);
+	InitAst((SAst*)result, AstTypeId_Arg, NewPos(SrcName, row, col), NULL, False, False);
 	result->Addr = NewAddr();
 	result->Kind = AstArgKind_LocalVar;
 	result->RefVar = False;
@@ -961,7 +977,7 @@ static SAstExprValue* ObtainPrimValue(const SPos* pos, EAstTypePrimKind kind, co
 	InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, pos);
 	{
 		SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
-		InitAst((SAst*)type, AstTypeId_TypePrim, pos, NULL, False, False, NULL, NULL);
+		InitAst((SAst*)type, AstTypeId_TypePrim, pos, NULL, False, False);
 		type->Kind = kind;
 		((SAstExpr*)expr)->Type = (SAstType*)type;
 	}
@@ -975,10 +991,10 @@ static SAstExprValue* ObtainStrValue(const SPos* pos, const Char* value)
 	InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, pos);
 	{
 		SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
-		InitAst((SAst*)type, AstTypeId_TypeArray, pos, NULL, False, False, NULL, NULL);
+		InitAst((SAst*)type, AstTypeId_TypeArray, pos, NULL, False, False);
 		{
 			SAstTypePrim* type2 = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
-			InitAst((SAst*)type2, AstTypeId_TypePrim, pos, NULL, False, False, NULL, NULL);
+			InitAst((SAst*)type2, AstTypeId_TypePrim, pos, NULL, False, False);
 			type2->Kind = AstTypePrimKind_Char;
 			type->ItemType = (SAstType*)type2;
 		}
@@ -998,7 +1014,6 @@ static Char EscChar(Char c)
 		case L'0': return L'\0';
 		case L'n': return L'\n';
 		case L't': return L'\t';
-		case L'w': return L'\u3000';
 		case L'u':
 			{
 				Char buf[5];
@@ -1055,7 +1070,7 @@ static Bool IsCorrectSrcName(const Char* name)
 static SAstRoot* ParseRoot(void)
 {
 	SAstRoot* ast = (SAstRoot*)Alloc(sizeof(SAstRoot));
-	InitAst((SAst*)ast, AstTypeId_Root, NewPos(SrcName, 1, 1), NULL, False, True, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_Root, NewPos(SrcName, 1, 1), NULL, False, True);
 	ast->Items = ListNew();
 	Scope = StackPush(Scope, ast);
 	{
@@ -1082,17 +1097,17 @@ static SAstRoot* ParseRoot(void)
 				int col = Col;
 				const Char* id = ReadIdentifier(True, False);
 				if (wcscmp(id, L"func") == 0)
-					child = (SAst*)ParseFunc(NULL, NULL, NULL);
+					child = (SAst*)ParseFunc(NULL);
 				else if (wcscmp(id, L"var") == 0)
-					child = (SAst*)ParseVar(AstArgKind_Global, NULL, NULL, NULL);
+					child = (SAst*)ParseVar(AstArgKind_Global, NULL);
 				else if (wcscmp(id, L"const") == 0)
-					child = (SAst*)ParseConst(NULL, NULL);
+					child = (SAst*)ParseConst();
 				else if (wcscmp(id, L"alias") == 0)
-					child = (SAst*)ParseAlias(NULL, NULL);
+					child = (SAst*)ParseAlias();
 				else if (wcscmp(id, L"class") == 0)
-					child = (SAst*)ParseClass(NULL, NULL);
+					child = (SAst*)ParseClass();
 				else if (wcscmp(id, L"enum") == 0)
-					child = (SAst*)ParseEnum(NULL, NULL);
+					child = (SAst*)ParseEnum();
 				else
 				{
 					Err(L"EP0025", NewPos(SrcName, row, col), id);
@@ -1111,11 +1126,12 @@ static SAstRoot* ParseRoot(void)
 			ListAdd(ast->Items, child);
 		}
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
 }
 
-static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** scope_end)
+static SAstFunc* ParseFunc(const Char* parent_class)
 {
 	SAstFunc* ast = (SAstFunc*)Alloc(sizeof(SAstFunc));
 	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
@@ -1160,6 +1176,10 @@ static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** 
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_ExitCode);
 					else if (wcscmp(func_attr2, L"take_key_value_func") == 0 && (ast->FuncAttr & FuncAttr_TakeKeyValueFunc) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_TakeKeyValueFunc);
+					else if (wcscmp(func_attr2, L"ret_array_of_dict_key") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfDictKey) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfDictKey);
+					else if (wcscmp(func_attr2, L"ret_array_of_dict_value") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfDictValue) == 0)
+						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfDictValue);
 					else if (ast->DllName == NULL)
 						ast->DllName = func_attr;
 					else if (ast->DllFuncName == NULL)
@@ -1189,7 +1209,7 @@ static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** 
 		else
 			FileBuf = c;
 	}
-	InitAst((SAst*)ast, AstTypeId_Func, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, True, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_Func, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, True);
 	ast->AddrTop = NewAddr();
 	ast->AddrBottom = -1;
 	ast->Args = ListNew();
@@ -1206,7 +1226,7 @@ static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** 
 	if (parent_class != NULL)
 	{
 		SAstArg* arg = (SAstArg*)Alloc(sizeof(SAstArg));
-		InitAst((SAst*)arg, AstTypeId_Arg, ((SAst*)ast)->Pos, NULL, False, False, &scope_new[0], &scope_new[1]);
+		InitAst((SAst*)arg, AstTypeId_Arg, ((SAst*)ast)->Pos, NULL, False, False);
 		((SAst*)arg)->Name = L"me";
 		arg->Addr = NewAddr();
 		arg->Expr = NULL;
@@ -1215,7 +1235,7 @@ static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** 
 		AddScopeName((SAst*)arg, False);
 		{
 			SAstTypeUser* type = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
-			InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)ast)->Pos, NULL, False, False, NULL, NULL);
+			InitAst((SAst*)type, AstTypeId_TypeUser, ((SAst*)ast)->Pos, NULL, False, False);
 			((SAst*)type)->RefName = parent_class;
 			AddScopeRefeds((SAst*)type);
 			arg->Type = (SAstType*)type;
@@ -1229,7 +1249,7 @@ static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** 
 			FileBuf = c;
 			for (; ; )
 			{
-				ListAdd(ast->Args, ParseArg(AstArgKind_LocalArg, NULL, &scope_new[0], &scope_new[1]));
+				ListAdd(ast->Args, ParseArg(AstArgKind_LocalArg, NULL));
 				if (LocalErr)
 				{
 					LocalErr = False;
@@ -1273,7 +1293,7 @@ static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** 
 	}
 	for (; ; )
 	{
-		SAstStat* stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+		SAstStat* stat = ParseStat((SAst*)ast);
 		if (stat == (SAstStat*)DummyPtr)
 			break;
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
@@ -1284,15 +1304,16 @@ static SAstFunc* ParseFunc(const Char* parent_class, SAst** scope_begin, SAst** 
 		}
 		ListAdd(ast->Stats, stat);
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
 }
 
-static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class, SAst** scope_begin, SAst** scope_end)
+static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class)
 {
 	SAstVar* ast = (SAstVar*)Alloc(sizeof(SAstVar));
-	InitAst((SAst*)ast, AstTypeId_Var, NewPos(SrcName, Row, Col), NULL, False, False, NULL, NULL);
-	ast->Var = ParseArg(kind, parent_class, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_Var, NewPos(SrcName, Row, Col), NULL, False, False);
+	ast->Var = ParseArg(kind, parent_class);
 	if (LocalErr)
 	{
 		LocalErr = False;
@@ -1304,11 +1325,11 @@ static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class, SAst** scop
 	return ast;
 }
 
-static SAstConst* ParseConst(SAst** scope_begin, SAst** scope_end)
+static SAstConst* ParseConst(void)
 {
 	SAstConst* ast = (SAstConst*)Alloc(sizeof(SAstConst));
-	InitAst((SAst*)ast, AstTypeId_Const, NewPos(SrcName, Row, Col), NULL, False, False, NULL, NULL);
-	ast->Var = ParseArg(AstArgKind_Const, NULL, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_Const, NewPos(SrcName, Row, Col), NULL, False, False);
+	ast->Var = ParseArg(AstArgKind_Const, NULL);
 	if (LocalErr)
 	{
 		LocalErr = False;
@@ -1320,10 +1341,10 @@ static SAstConst* ParseConst(SAst** scope_begin, SAst** scope_end)
 	return ast;
 }
 
-static SAstAlias* ParseAlias(SAst** scope_begin, SAst** scope_end)
+static SAstAlias* ParseAlias(void)
 {
 	SAstAlias* ast = (SAstAlias*)Alloc(sizeof(SAstAlias));
-	InitAst((SAst*)ast, AstTypeId_Alias, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, False, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_Alias, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, False);
 	AssertNextChar(L':', True);
 	ast->Type = ParseType();
 	if (LocalErr)
@@ -1336,11 +1357,11 @@ static SAstAlias* ParseAlias(SAst** scope_begin, SAst** scope_end)
 	return ast;
 }
 
-static SAstClass* ParseClass(SAst** scope_begin, SAst** scope_end)
+static SAstClass* ParseClass(void)
 {
 	SAstClass* ast = (SAstClass*)Alloc(sizeof(SAstClass));
 	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
-	InitAst((SAst*)ast, AstTypeId_Class, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, True, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_Class, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, True);
 	ast->Addr = NewAddr();
 	ast->VarSize = 0;
 	ast->FuncSize = 0;
@@ -1403,12 +1424,12 @@ static SAstClass* ParseClass(SAst** scope_begin, SAst** scope_end)
 				const Char* s = ReadIdentifier(True, False);
 				const Char* class_name = ((SAst*)ast)->ScopeParent->TypeId == AstTypeId_Root ? NewStr(NULL, L"@%s", ((SAst*)ast)->Name) : ((SAst*)ast)->Name;
 				if (wcscmp(s, L"func") == 0)
-					item->Def = (SAst*)ParseFunc(class_name, &scope_new[0], &scope_new[1]);
+					item->Def = (SAst*)ParseFunc(class_name);
 				else if (wcscmp(s, L"var") == 0)
 				{
 					if (item->Override != 0)
 						Err(L"EP0028", NewPos(SrcName, row, col), s);
-					item->Def = (SAst*)ParseVar(AstArgKind_Member, class_name, &scope_new[0], &scope_new[1]);
+					item->Def = (SAst*)ParseVar(AstArgKind_Member, class_name);
 				}
 				else
 				{
@@ -1424,20 +1445,20 @@ static SAstClass* ParseClass(SAst** scope_begin, SAst** scope_end)
 						scope_new[0] = (SAst*)ast;
 						{
 							SAst* ast2 = (SAst*)Alloc(sizeof(SAst)); // 'end class'.
-							InitAst((SAst*)ast2, AstTypeId_Ast, NewPos(SrcName, row, col), NULL, False, False, NULL, NULL);
+							InitAst((SAst*)ast2, AstTypeId_Ast, NewPos(SrcName, row, col), NULL, False, False);
 							scope_new[1] = ast2;
 						}
 						AssertNextChar(L'\n', True);
 						break;
 					}
 					else if (wcscmp(s, L"const") == 0)
-						item->Def = (SAst*)ParseConst(&scope_new[0], &scope_new[1]);
+						item->Def = (SAst*)ParseConst();
 					else if (wcscmp(s, L"alias") == 0)
-						item->Def = (SAst*)ParseAlias(&scope_new[0], &scope_new[1]);
+						item->Def = (SAst*)ParseAlias();
 					else if (wcscmp(s, L"class") == 0)
-						item->Def = (SAst*)ParseClass(&scope_new[0], &scope_new[1]);
+						item->Def = (SAst*)ParseClass();
 					else if (wcscmp(s, L"enum") == 0)
-						item->Def = (SAst*)ParseEnum(&scope_new[0], &scope_new[1]);
+						item->Def = (SAst*)ParseEnum();
 					else
 					{
 						Err(L"EP0031", NewPos(SrcName, row, col), s);
@@ -1449,14 +1470,15 @@ static SAstClass* ParseClass(SAst** scope_begin, SAst** scope_end)
 			ListAdd(ast->Items, item);
 		}
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
 }
 
-static SAstEnum* ParseEnum(SAst** scope_begin, SAst** scope_end)
+static SAstEnum* ParseEnum(void)
 {
 	SAstEnum* ast = (SAstEnum*)Alloc(sizeof(SAstEnum));
-	InitAst((SAst*)ast, AstTypeId_Enum, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, True, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_Enum, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, True);
 	ast->Items = ListNew();
 	AssertNextChar(L'\n', True);
 	Scope = StackPush(Scope, ast);
@@ -1512,14 +1534,15 @@ static SAstEnum* ParseEnum(SAst** scope_begin, SAst** scope_end)
 			AddScopeName((SAst*)item, True);
 		}
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
 }
 
-static SAstArg* ParseArg(EAstArgKind kind, const Char* parent_class, SAst** scope_begin, SAst** scope_end)
+static SAstArg* ParseArg(EAstArgKind kind, const Char* parent_class)
 {
 	SAstArg* ast = (SAstArg*)Alloc(sizeof(SAstArg));
-	InitAst((SAst*)ast, AstTypeId_Arg, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), False, False, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_Arg, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), False, False);
 	ast->Addr = NewAddr();
 	ast->Kind = kind;
 	ast->RefVar = False;
@@ -1578,7 +1601,7 @@ static SAstArg* ParseArg(EAstArgKind kind, const Char* parent_class, SAst** scop
 	return ast;
 }
 
-static SAstStat* ParseStat(SAst* block, SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStat(SAst* block)
 {
 	SAstStat* ast;
 	{
@@ -1601,35 +1624,35 @@ static SAstStat* ParseStat(SAst* block, SAst** scope_begin, SAst** scope_end)
 		if (wcscmp(s, L"end") == 0)
 			ast = ParseStatEnd(row, col, block);
 		else if (wcscmp(s, L"func") == 0)
-			ast = ParseStatFunc(scope_begin, scope_end);
+			ast = ParseStatFunc();
 		else if (wcscmp(s, L"var") == 0)
-			ast = ParseStatVar(scope_begin, scope_end);
+			ast = ParseStatVar();
 		else if (wcscmp(s, L"const") == 0)
-			ast = ParseStatConst(scope_begin, scope_end);
+			ast = ParseStatConst();
 		else if (wcscmp(s, L"alias") == 0)
-			ast = ParseStatAlias(scope_begin, scope_end);
+			ast = ParseStatAlias();
 		else if (wcscmp(s, L"class") == 0)
-			ast = ParseStatClass(scope_begin, scope_end);
+			ast = ParseStatClass();
 		else if (wcscmp(s, L"enum") == 0)
-			ast = ParseStatEnum(scope_begin, scope_end);
+			ast = ParseStatEnum();
 		else if (wcscmp(s, L"if") == 0)
-			ast = ParseStatIf(scope_begin, scope_end);
+			ast = ParseStatIf();
 		else if (wcscmp(s, L"elif") == 0)
 			ast = ParseStatElIf(row, col, block);
 		else if (wcscmp(s, L"else") == 0)
 			ast = ParseStatElse(row, col, block);
 		else if (wcscmp(s, L"switch") == 0)
-			ast = ParseStatSwitch(row, col, scope_begin, scope_end);
+			ast = ParseStatSwitch(row, col);
 		else if (wcscmp(s, L"case") == 0)
 			ast = ParseStatCase(row, col, block);
 		else if (wcscmp(s, L"default") == 0)
 			ast = ParseStatDefault(row, col, block);
 		else if (wcscmp(s, L"while") == 0)
-			ast = ParseStatWhile(scope_begin, scope_end);
+			ast = ParseStatWhile();
 		else if (wcscmp(s, L"for") == 0)
-			ast = ParseStatFor(row, col, scope_begin, scope_end);
+			ast = ParseStatFor(row, col);
 		else if (wcscmp(s, L"try") == 0)
-			ast = ParseStatTry(row, col, scope_begin, scope_end);
+			ast = ParseStatTry(row, col);
 		else if (wcscmp(s, L"catch") == 0)
 			ast = ParseStatCatch(row, col, block);
 		else if (wcscmp(s, L"finally") == 0)
@@ -1637,7 +1660,7 @@ static SAstStat* ParseStat(SAst* block, SAst** scope_begin, SAst** scope_end)
 		else if (wcscmp(s, L"throw") == 0)
 			ast = ParseStatThrow();
 		else if (wcscmp(s, L"block") == 0)
-			ast = ParseStatBlock(scope_begin, scope_end);
+			ast = ParseStatBlock();
 		else if (wcscmp(s, L"ret") == 0)
 			ast = ParseStatRet();
 		else if (wcscmp(s, L"do") == 0)
@@ -1664,7 +1687,7 @@ static SAstStat* ParseStat(SAst* block, SAst** scope_begin, SAst** scope_end)
 static SAstStat* ParseStatEnd(int row, int col, SAst* block)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
-	InitAst((SAst*)ast, AstTypeId_StatEnd, NewPos(SrcName, row, col), NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatEnd, NewPos(SrcName, row, col), NULL, False, False);
 	{
 		const Char* s = ReadIdentifier(True, False);
 		Bool err = False;
@@ -1712,59 +1735,59 @@ static SAstStat* ParseStatEnd(int row, int col, SAst* block)
 	return ast;
 }
 
-static SAstStat* ParseStatFunc(SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatFunc(void)
 {
 	SAstStatFunc* ast = (SAstStatFunc*)Alloc(sizeof(SAstStatFunc));
-	InitAst((SAst*)ast, AstTypeId_StatFunc, NULL, NULL, False, False, NULL, NULL);
-	ast->Def = ParseFunc(NULL, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatFunc, NULL, NULL, False, False);
+	ast->Def = ParseFunc(NULL);
 	return (SAstStat*)ast;
 }
 
-static SAstStat* ParseStatVar(SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatVar(void)
 {
 	SAstStatVar* ast = (SAstStatVar*)Alloc(sizeof(SAstStatVar));
-	InitAst((SAst*)ast, AstTypeId_StatVar, NULL, NULL, False, False, NULL, NULL);
-	ast->Def = ParseVar(AstArgKind_LocalVar, NULL, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatVar, NULL, NULL, False, False);
+	ast->Def = ParseVar(AstArgKind_LocalVar, NULL);
 	return (SAstStat*)ast;
 }
 
-static SAstStat* ParseStatConst(SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatConst(void)
 {
 	SAstStatConst* ast = (SAstStatConst*)Alloc(sizeof(SAstStatConst));
-	InitAst((SAst*)ast, AstTypeId_StatConst, NULL, NULL, False, False, NULL, NULL);
-	ast->Def = ParseConst(scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatConst, NULL, NULL, False, False);
+	ast->Def = ParseConst();
 	return (SAstStat*)ast;
 }
 
-static SAstStat* ParseStatAlias(SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatAlias(void)
 {
 	SAstStatAlias* ast = (SAstStatAlias*)Alloc(sizeof(SAstStatAlias));
-	InitAst((SAst*)ast, AstTypeId_StatAlias, NULL, NULL, False, False, NULL, NULL);
-	ast->Def = ParseAlias(scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatAlias, NULL, NULL, False, False);
+	ast->Def = ParseAlias();
 	return (SAstStat*)ast;
 }
 
-static SAstStat* ParseStatClass(SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatClass(void)
 {
 	SAstStatClass* ast = (SAstStatClass*)Alloc(sizeof(SAstStatClass));
-	InitAst((SAst*)ast, AstTypeId_StatClass, NULL, NULL, False, False, NULL, NULL);
-	ast->Def = ParseClass(scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatClass, NULL, NULL, False, False);
+	ast->Def = ParseClass();
 	return (SAstStat*)ast;
 }
 
-static SAstStat* ParseStatEnum(SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatEnum(void)
 {
 	SAstStatEnum* ast = (SAstStatEnum*)Alloc(sizeof(SAstStatEnum));
-	InitAst((SAst*)ast, AstTypeId_StatEnum, NULL, NULL, False, False, NULL, NULL);
-	ast->Def = ParseEnum(scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatEnum, NULL, NULL, False, False);
+	ast->Def = ParseEnum();
 	return (SAstStat*)ast;
 }
 
-static SAstStat* ParseStatIf(SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatIf(void)
 {
 	SAstStatIf* ast = (SAstStatIf*)Alloc(sizeof(SAstStatIf));
 	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
-	InitAst((SAst*)ast, AstTypeId_StatIf, NULL, NULL, False, True, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatIf, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->Stats = ListNew();
@@ -1788,7 +1811,7 @@ static SAstStat* ParseStatIf(SAst** scope_begin, SAst** scope_end)
 		EAstTypeId type_id;
 		for (; ; )
 		{
-			stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+			stat = ParseStat((SAst*)ast);
 			if (stat == (SAstStat*)DummyPtr)
 				return (SAstStat*)DummyPtr;
 			type_id = ((SAst*)stat)->TypeId;
@@ -1802,7 +1825,7 @@ static SAstStat* ParseStatIf(SAst** scope_begin, SAst** scope_end)
 			elif->Stats = ListNew();
 			for (; ; )
 			{
-				stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+				stat = ParseStat((SAst*)ast);
 				if (stat == (SAstStat*)DummyPtr)
 					return (SAstStat*)DummyPtr;
 				type_id = ((SAst*)stat)->TypeId;
@@ -1816,7 +1839,7 @@ static SAstStat* ParseStatIf(SAst** scope_begin, SAst** scope_end)
 		{
 			for (; ; )
 			{
-				stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+				stat = ParseStat((SAst*)ast);
 				if (stat == (SAstStat*)DummyPtr)
 					return (SAstStat*)DummyPtr;
 				type_id = ((SAst*)stat)->TypeId;
@@ -1836,6 +1859,7 @@ static SAstStat* ParseStatIf(SAst** scope_begin, SAst** scope_end)
 			scope_new[1] = (SAst*)stat;
 		}
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
@@ -1843,7 +1867,7 @@ static SAstStat* ParseStatIf(SAst** scope_begin, SAst** scope_end)
 static SAstStat* ParseStatElIf(int row, int col, const SAst* block)
 {
 	SAstStatElIf* ast = (SAstStatElIf*)Alloc(sizeof(SAstStatElIf));
-	InitAst((SAst*)ast, AstTypeId_StatElIf, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatElIf, NULL, NULL, False, False);
 	ast->Stats = NULL;
 	if (block->TypeId != AstTypeId_StatIf)
 	{
@@ -1869,7 +1893,7 @@ static SAstStat* ParseStatElIf(int row, int col, const SAst* block)
 static SAstStat* ParseStatElse(int row, int col, const SAst* block)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
-	InitAst((SAst*)ast, AstTypeId_StatElse, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatElse, NULL, NULL, False, False);
 	if (block->TypeId != AstTypeId_StatIf)
 	{
 		Err(L"EP0043", NewPos(SrcName, row, col));
@@ -1880,11 +1904,11 @@ static SAstStat* ParseStatElse(int row, int col, const SAst* block)
 	return ast;
 }
 
-static SAstStat* ParseStatSwitch(int row, int col, SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatSwitch(int row, int col)
 {
 	SAstStatSwitch* ast = (SAstStatSwitch*)Alloc(sizeof(SAstStatSwitch));
 	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
-	InitAst((SAst*)ast, AstTypeId_StatSwitch, NULL, NULL, False, True, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatSwitch, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->Cases = ListNew();
@@ -1905,7 +1929,7 @@ static SAstStat* ParseStatSwitch(int row, int col, SAst** scope_begin, SAst** sc
 	{
 		SAstStat* stat;
 		EAstTypeId type_id;
-		stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+		stat = ParseStat((SAst*)ast);
 		if (stat == (SAstStat*)DummyPtr)
 			return (SAstStat*)DummyPtr;
 		type_id = ((SAst*)stat)->TypeId;
@@ -1917,7 +1941,7 @@ static SAstStat* ParseStatSwitch(int row, int col, SAst** scope_begin, SAst** sc
 			case_->Stats = ListNew();
 			for (; ; )
 			{
-				stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+				stat = ParseStat((SAst*)ast);
 				if (stat == (SAstStat*)DummyPtr)
 					return (SAstStat*)DummyPtr;
 				type_id = ((SAst*)stat)->TypeId;
@@ -1931,7 +1955,7 @@ static SAstStat* ParseStatSwitch(int row, int col, SAst** scope_begin, SAst** sc
 		{
 			for (; ; )
 			{
-				stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+				stat = ParseStat((SAst*)ast);
 				if (stat == (SAstStat*)DummyPtr)
 					return (SAstStat*)DummyPtr;
 				type_id = ((SAst*)stat)->TypeId;
@@ -1949,6 +1973,7 @@ static SAstStat* ParseStatSwitch(int row, int col, SAst** scope_begin, SAst** sc
 		scope_new[0] = (SAst*)ast;
 		scope_new[1] = (SAst*)stat;
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
@@ -1956,7 +1981,7 @@ static SAstStat* ParseStatSwitch(int row, int col, SAst** scope_begin, SAst** sc
 static SAstStat* ParseStatCase(int row, int col, const SAst* block)
 {
 	SAstStatCase* ast = (SAstStatCase*)Alloc(sizeof(SAstStatCase));
-	InitAst((SAst*)ast, AstTypeId_StatCase, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatCase, NULL, NULL, False, False);
 	ast->Conds = ListNew();
 	ast->Stats = NULL;
 	if (block->TypeId != AstTypeId_StatSwitch)
@@ -2022,7 +2047,7 @@ static SAstStat* ParseStatCase(int row, int col, const SAst* block)
 static SAstStat* ParseStatDefault(int row, int col, const SAst* block)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
-	InitAst((SAst*)ast, AstTypeId_StatDefault, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatDefault, NULL, NULL, False, False);
 	if (block->TypeId != AstTypeId_StatSwitch)
 	{
 		Err(L"EP0048", NewPos(SrcName, row, col));
@@ -2033,11 +2058,11 @@ static SAstStat* ParseStatDefault(int row, int col, const SAst* block)
 	return ast;
 }
 
-static SAstStat* ParseStatWhile(SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatWhile(void)
 {
 	SAstStatWhile* ast = (SAstStatWhile*)Alloc(sizeof(SAstStatWhile));
 	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
-	InitAst((SAst*)ast, AstTypeId_StatWhile, NULL, NULL, False, True, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatWhile, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	((SAstStatSkipable*)ast)->SkipPoint = AsmLabel();
@@ -2068,7 +2093,7 @@ static SAstStat* ParseStatWhile(SAst** scope_begin, SAst** scope_end)
 	}
 	for (; ; )
 	{
-		SAstStat* stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+		SAstStat* stat = ParseStat((SAst*)ast);
 		if (stat == (SAstStat*)DummyPtr)
 			return (SAstStat*)DummyPtr;
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
@@ -2079,15 +2104,16 @@ static SAstStat* ParseStatWhile(SAst** scope_begin, SAst** scope_end)
 		}
 		ListAdd(ast->Stats, stat);
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
 
-static SAstStat* ParseStatFor(int row, int col, SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatFor(int row, int col)
 {
 	SAstStatFor* ast = (SAstStatFor*)Alloc(sizeof(SAstStatFor));
 	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
-	InitAst((SAst*)ast, AstTypeId_StatFor, NULL, NULL, False, True, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatFor, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	((SAstStatSkipable*)ast)->SkipPoint = AsmLabel();
@@ -2138,7 +2164,7 @@ static SAstStat* ParseStatFor(int row, int col, SAst** scope_begin, SAst** scope
 	}
 	for (; ; )
 	{
-		SAstStat* stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+		SAstStat* stat = ParseStat((SAst*)ast);
 		if (stat == (SAstStat*)DummyPtr)
 			return (SAstStat*)DummyPtr;
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
@@ -2149,15 +2175,16 @@ static SAstStat* ParseStatFor(int row, int col, SAst** scope_begin, SAst** scope
 		}
 		ListAdd(ast->Stats, stat);
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
 
-static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatTry(int row, int col)
 {
 	SAstStatTry* ast = (SAstStatTry*)Alloc(sizeof(SAstStatTry));
 	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
-	InitAst((SAst*)ast, AstTypeId_StatTry, NULL, NULL, False, True, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatTry, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->Stats = ListNew();
@@ -2178,7 +2205,7 @@ static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope
 	}
 	{
 		SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
-		InitAst((SAst*)type, AstTypeId_TypePrim, NewPos(SrcName, row, col), NULL, False, False, NULL, NULL);
+		InitAst((SAst*)type, AstTypeId_TypePrim, NewPos(SrcName, row, col), NULL, False, False);
 		type->Kind = AstTypePrimKind_Int;
 		((SAstStatBreakable*)ast)->BlockVar->Type = (SAstType*)type;
 	}
@@ -2187,7 +2214,7 @@ static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope
 		EAstTypeId type_id;
 		for (; ; )
 		{
-			stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+			stat = ParseStat((SAst*)ast);
 			if (stat == (SAstStat*)DummyPtr)
 				return (SAstStat*)DummyPtr;
 			type_id = ((SAst*)stat)->TypeId;
@@ -2201,7 +2228,7 @@ static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope
 			catch_->Stats = ListNew();
 			for (; ; )
 			{
-				stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+				stat = ParseStat((SAst*)ast);
 				if (stat == (SAstStat*)DummyPtr)
 					return (SAstStat*)DummyPtr;
 				type_id = ((SAst*)stat)->TypeId;
@@ -2216,7 +2243,7 @@ static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope
 			ast->FinallyStats = ListNew();
 			for (; ; )
 			{
-				stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+				stat = ParseStat((SAst*)ast);
 				if (stat == (SAstStat*)DummyPtr)
 					return (SAstStat*)DummyPtr;
 				type_id = ((SAst*)stat)->TypeId;
@@ -2234,6 +2261,7 @@ static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope
 		scope_new[0] = (SAst*)ast;
 		scope_new[1] = (SAst*)stat;
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
@@ -2241,7 +2269,7 @@ static SAstStat* ParseStatTry(int row, int col, SAst** scope_begin, SAst** scope
 static SAstStat* ParseStatCatch(int row, int col, const SAst* block)
 {
 	SAstStatCatch* ast = (SAstStatCatch*)Alloc(sizeof(SAstStatCatch));
-	InitAst((SAst*)ast, AstTypeId_StatCatch, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatCatch, NULL, NULL, False, False);
 	ast->Conds = ListNew();
 	ast->Stats = NULL;
 	if (block->TypeId != AstTypeId_StatTry)
@@ -2319,7 +2347,7 @@ static SAstStat* ParseStatCatch(int row, int col, const SAst* block)
 static SAstStat* ParseStatFinally(int row, int col, const SAst* block)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
-	InitAst((SAst*)ast, AstTypeId_StatFinally, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatFinally, NULL, NULL, False, False);
 	if (block->TypeId != AstTypeId_StatTry)
 	{
 		Err(L"EP0052", NewPos(SrcName, row, col));
@@ -2333,7 +2361,7 @@ static SAstStat* ParseStatFinally(int row, int col, const SAst* block)
 static SAstStat* ParseStatThrow(void)
 {
 	SAstStatThrow* ast = (SAstStatThrow*)Alloc(sizeof(SAstStatThrow));
-	InitAst((SAst*)ast, AstTypeId_StatThrow, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatThrow, NULL, NULL, False, False);
 	ast->Code = ParseExpr();
 	if (LocalErr)
 	{
@@ -2345,11 +2373,11 @@ static SAstStat* ParseStatThrow(void)
 	return (SAstStat*)ast;
 }
 
-static SAstStat* ParseStatBlock(SAst** scope_begin, SAst** scope_end)
+static SAstStat* ParseStatBlock(void)
 {
 	SAstStatBlock* ast = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
 	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
-	InitAst((SAst*)ast, AstTypeId_StatBlock, NULL, NULL, False, True, scope_begin, scope_end);
+	InitAst((SAst*)ast, AstTypeId_StatBlock, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->Stats = ListNew();
@@ -2368,7 +2396,7 @@ static SAstStat* ParseStatBlock(SAst** scope_begin, SAst** scope_end)
 	}
 	for (; ; )
 	{
-		SAstStat* stat = ParseStat((SAst*)ast, &scope_new[0], &scope_new[1]);
+		SAstStat* stat = ParseStat((SAst*)ast);
 		if (stat == (SAstStat*)DummyPtr)
 			return (SAstStat*)DummyPtr;
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
@@ -2379,6 +2407,7 @@ static SAstStat* ParseStatBlock(SAst** scope_begin, SAst** scope_end)
 		}
 		ListAdd(ast->Stats, stat);
 	}
+	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
 }
@@ -2386,7 +2415,7 @@ static SAstStat* ParseStatBlock(SAst** scope_begin, SAst** scope_end)
 static SAstStat* ParseStatRet(void)
 {
 	SAstStatRet* ast = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
-	InitAst((SAst*)ast, AstTypeId_StatRet, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatRet, NULL, NULL, False, False);
 	{
 		Char c = ReadChar();
 		if (c != L'\n')
@@ -2410,7 +2439,7 @@ static SAstStat* ParseStatRet(void)
 static SAstStat* ParseStatDo(void)
 {
 	SAstStatDo* ast = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
-	InitAst((SAst*)ast, AstTypeId_StatDo, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatDo, NULL, NULL, False, False);
 	ast->Expr = ParseExpr();
 	if (LocalErr)
 	{
@@ -2425,7 +2454,7 @@ static SAstStat* ParseStatDo(void)
 static SAstStat* ParseStatBreak(void)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
-	InitAst((SAst*)ast, AstTypeId_StatBreak, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatBreak, NULL, NULL, False, False);
 	((SAst*)ast)->RefName = ReadIdentifier(True, False);
 	AddScopeRefeds((SAst*)ast);
 	AssertNextChar(L'\n', True);
@@ -2435,7 +2464,7 @@ static SAstStat* ParseStatBreak(void)
 static SAstStat* ParseStatSkip(void)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
-	InitAst((SAst*)ast, AstTypeId_StatSkip, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatSkip, NULL, NULL, False, False);
 	((SAst*)ast)->RefName = ReadIdentifier(True, False);
 	AddScopeRefeds((SAst*)ast);
 	AssertNextChar(L'\n', True);
@@ -2445,7 +2474,7 @@ static SAstStat* ParseStatSkip(void)
 static SAstStat* ParseStatAssert(void)
 {
 	SAstStatAssert* ast = (SAstStatAssert*)Alloc(sizeof(SAstStatAssert));
-	InitAst((SAst*)ast, AstTypeId_StatAssert, NULL, NULL, False, False, NULL, NULL);
+	InitAst((SAst*)ast, AstTypeId_StatAssert, NULL, NULL, False, False);
 	ast->Cond = ParseExpr();
 	if (LocalErr)
 	{
@@ -2467,7 +2496,7 @@ static SAstType* ParseType(void)
 		AssertNextChar(L']', True);
 		{
 			SAstTypeArray* ast2 = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
-			InitAst((SAst*)ast2, AstTypeId_TypeArray, pos, NULL, False, False, NULL, NULL);
+			InitAst((SAst*)ast2, AstTypeId_TypeArray, pos, NULL, False, False);
 			ast2->ItemType = ParseType();
 			if (LocalErr)
 				return (SAstType*)DummyPtr;
@@ -2485,7 +2514,7 @@ static SAstType* ParseType(void)
 			if (wcscmp(size, L"8") == 0 || wcscmp(size, L"16") == 0 || wcscmp(size, L"32") == 0 || wcscmp(size, L"64") == 0)
 			{
 				SAstTypeBit* ast2 = (SAstTypeBit*)Alloc(sizeof(SAstTypeBit));
-				InitAst((SAst*)ast2, AstTypeId_TypeBit, pos, NULL, False, False, NULL, NULL);
+				InitAst((SAst*)ast2, AstTypeId_TypeBit, pos, NULL, False, False);
 				ast2->Size = _wtoi(size) / 8;
 				ast = (SAstType*)ast2;
 			}
@@ -2498,7 +2527,7 @@ static SAstType* ParseType(void)
 				AssertNextChar(L'(', True);
 				{
 					SAstTypeFunc* ast2 = (SAstTypeFunc*)Alloc(sizeof(SAstTypeFunc));
-					InitAst((SAst*)ast2, AstTypeId_TypeFunc, pos, NULL, False, False, NULL, NULL);
+					InitAst((SAst*)ast2, AstTypeId_TypeFunc, pos, NULL, False, False);
 					ast2->FuncAttr = FuncAttr_None;
 					ast2->Args = ListNew();
 					ast2->Ret = NULL;
@@ -2548,7 +2577,7 @@ static SAstType* ParseType(void)
 				AssertNextChar(L'<', True);
 				{
 					SAstTypeGen* ast2 = (SAstTypeGen*)Alloc(sizeof(SAstTypeGen));
-					InitAst((SAst*)ast2, AstTypeId_TypeGen, pos, NULL, False, False, NULL, NULL);
+					InitAst((SAst*)ast2, AstTypeId_TypeGen, pos, NULL, False, False);
 					ast2->Kind = AstTypeGenKind_List;
 					ast2->ItemType = ParseType();
 					if (LocalErr)
@@ -2562,7 +2591,7 @@ static SAstType* ParseType(void)
 				AssertNextChar(L'<', True);
 				{
 					SAstTypeGen* ast2 = (SAstTypeGen*)Alloc(sizeof(SAstTypeGen));
-					InitAst((SAst*)ast2, AstTypeId_TypeGen, pos, NULL, False, False, NULL, NULL);
+					InitAst((SAst*)ast2, AstTypeId_TypeGen, pos, NULL, False, False);
 					ast2->Kind = AstTypeGenKind_Stack;
 					ast2->ItemType = ParseType();
 					if (LocalErr)
@@ -2576,7 +2605,7 @@ static SAstType* ParseType(void)
 				AssertNextChar(L'<', True);
 				{
 					SAstTypeGen* ast2 = (SAstTypeGen*)Alloc(sizeof(SAstTypeGen));
-					InitAst((SAst*)ast2, AstTypeId_TypeGen, pos, NULL, False, False, NULL, NULL);
+					InitAst((SAst*)ast2, AstTypeId_TypeGen, pos, NULL, False, False);
 					ast2->Kind = AstTypeGenKind_Queue;
 					ast2->ItemType = ParseType();
 					if (LocalErr)
@@ -2590,7 +2619,7 @@ static SAstType* ParseType(void)
 				AssertNextChar(L'<', True);
 				{
 					SAstTypeDict* ast2 = (SAstTypeDict*)Alloc(sizeof(SAstTypeDict));
-					InitAst((SAst*)ast2, AstTypeId_TypeDict, pos, NULL, False, False, NULL, NULL);
+					InitAst((SAst*)ast2, AstTypeId_TypeDict, pos, NULL, False, False);
 					ast2->ItemTypeKey = ParseType();
 					if (LocalErr)
 						return (SAstType*)DummyPtr;
@@ -2605,35 +2634,35 @@ static SAstType* ParseType(void)
 			else if (wcscmp(s, L"int") == 0)
 			{
 				SAstTypePrim* ast2 = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
-				InitAst((SAst*)ast2, AstTypeId_TypePrim, pos, NULL, False, False, NULL, NULL);
+				InitAst((SAst*)ast2, AstTypeId_TypePrim, pos, NULL, False, False);
 				ast2->Kind = AstTypePrimKind_Int;
 				ast = (SAstType*)ast2;
 			}
 			else if (wcscmp(s, L"float") == 0)
 			{
 				SAstTypePrim* ast2 = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
-				InitAst((SAst*)ast2, AstTypeId_TypePrim, pos, NULL, False, False, NULL, NULL);
+				InitAst((SAst*)ast2, AstTypeId_TypePrim, pos, NULL, False, False);
 				ast2->Kind = AstTypePrimKind_Float;
 				ast = (SAstType*)ast2;
 			}
 			else if (wcscmp(s, L"char") == 0)
 			{
 				SAstTypePrim* ast2 = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
-				InitAst((SAst*)ast2, AstTypeId_TypePrim, pos, NULL, False, False, NULL, NULL);
+				InitAst((SAst*)ast2, AstTypeId_TypePrim, pos, NULL, False, False);
 				ast2->Kind = AstTypePrimKind_Char;
 				ast = (SAstType*)ast2;
 			}
 			else if (wcscmp(s, L"bool") == 0)
 			{
 				SAstTypePrim* ast2 = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
-				InitAst((SAst*)ast2, AstTypeId_TypePrim, pos, NULL, False, False, NULL, NULL);
+				InitAst((SAst*)ast2, AstTypeId_TypePrim, pos, NULL, False, False);
 				ast2->Kind = AstTypePrimKind_Bool;
 				ast = (SAstType*)ast2;
 			}
 			else
 			{
 				SAstTypeUser* ast2 = (SAstTypeUser*)Alloc(sizeof(SAstTypeUser));
-				InitAst((SAst*)ast2, AstTypeId_TypeUser, pos, NULL, False, False, NULL, NULL);
+				InitAst((SAst*)ast2, AstTypeId_TypeUser, pos, NULL, False, False);
 				((SAst*)ast2)->RefName = s;
 				AddScopeRefeds((SAst*)ast2);
 				ast = (SAstType*)ast2;
@@ -3542,7 +3571,7 @@ static SAstExpr* ParseExprValue(void)
 				InitAstExpr((SAstExpr*)expr, AstTypeId_ExprValue, pos);
 				{
 					SAstTypeEnumElement* type = (SAstTypeEnumElement*)Alloc(sizeof(SAstTypeEnumElement));
-					InitAst((SAst*)type, AstTypeId_TypeEnumElement, pos, NULL, False, False, NULL, NULL);
+					InitAst((SAst*)type, AstTypeId_TypeEnumElement, pos, NULL, False, False);
 					((SAstExpr*)expr)->Type = (SAstType*)type;
 				}
 				*(const Char**)expr->Value = s;
@@ -3583,7 +3612,7 @@ static SAstExpr* ParseExprValue(void)
 						InitAstExpr((SAstExpr*)ast, AstTypeId_ExprValue, pos);
 						{
 							SAstTypeNull* type = (SAstTypeNull*)Alloc(sizeof(SAstTypeNull));
-							InitAst((SAst*)type, AstTypeId_TypeNull, pos, NULL, False, False, NULL, NULL);
+							InitAst((SAst*)type, AstTypeId_TypeNull, pos, NULL, False, False);
 							((SAstExpr*)ast)->Type = (SAstType*)type;
 						}
 						*(U64*)ast->Value = 0;
@@ -3617,14 +3646,14 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 		Char buf[1025];
 		int len = 0;
 		int base = 10;
-		Bool chg_base = False;
+		Bool change_base = False;
 		Bool float_type = False;
 		int bit_size = 0; // The size for bit types.
 		for (; ; )
 		{
 			if (c == L'#')
 			{
-				if (chg_base || float_type)
+				if (change_base || float_type)
 				{
 					Err(L"EP0016", NewPos(SrcName, row, col));
 					LocalErr = True;
@@ -3645,11 +3674,11 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 					}
 				}
 				len = 0;
-				chg_base = True;
+				change_base = True;
 			}
 			else if (c == L'.')
 			{
-				if (chg_base || float_type)
+				if (change_base || float_type)
 				{
 					Err(L"EP0017", NewPos(SrcName, row, col));
 					LocalErr = True;
@@ -3827,7 +3856,7 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 		if (bit_size == 0)
 		{
 			SAstTypePrim* type = (SAstTypePrim*)Alloc(sizeof(SAstTypePrim));
-			InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos, NULL, False, False, NULL, NULL);
+			InitAst((SAst*)type, AstTypeId_TypePrim, ((SAst*)ast)->Pos, NULL, False, False);
 			if (float_type)
 				type->Kind = AstTypePrimKind_Float;
 			else
@@ -3837,7 +3866,7 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 		else
 		{
 			SAstTypeBit* type = (SAstTypeBit*)Alloc(sizeof(SAstTypeBit));
-			InitAst((SAst*)type, AstTypeId_TypeBit, ((SAst*)ast)->Pos, NULL, False, False, NULL, NULL);
+			InitAst((SAst*)type, AstTypeId_TypeBit, ((SAst*)ast)->Pos, NULL, False, False);
 			type->Size = bit_size;
 			((SAstExpr*)ast)->Type = (SAstType*)type;
 		}

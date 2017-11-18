@@ -49,6 +49,8 @@ static void* AddDictRecursion(void* node, const void* key, const void* item, int
 static void* CopyDictRecursion(void* node, U8* key_type, U8* item_type);
 static void ToBinDictRecursion(void*** buf, void* node, U8* key_type, U8* item_type);
 static void* FromBinDictRecursion(const U8* key_type, const U8* item_type, const U8* bin, S64* idx, const void* type_class);
+static void ToArrayKeyDictRecursion(U8** buf, size_t key_size, void* node);
+static void ToArrayValueDictRecursion(U8** buf, size_t value_size, void* node);
 static int(*GetCmpFunc(const U8* type))(const void* a, const void* b);
 static int CmpInt(const void* a, const void* b);
 static int CmpFloat(const void* a, const void* b);
@@ -59,7 +61,8 @@ static int CmpBit32(const void* a, const void* b);
 static int CmpBit64(const void* a, const void* b);
 static int CmpStr(const void* a, const void* b);
 static void* CatBin(int num, void** bins);
-static void MergeSort(void* me_, const U8* type, Bool asc);
+static void MergeSortArray(void* me_, const U8* type, Bool asc);
+static void MergeSortList(void* me_, const U8* type, Bool asc);
 static Bool ForEachRecursion(void* ptr, const U8* child1, const U8* child2, const void* callback, void* data);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
@@ -325,11 +328,11 @@ EXPORT void* _copy(const void* me_, const U8* type)
 				((S64*)result)[4] = 0;
 				{
 					void* src = *(void**)((U8*)me_ + 0x10);
-					void* ptr_current = *(void**)((U8*)me_ + 0x20);
+					void* ptr_cur = *(void**)((U8*)me_ + 0x20);
 					while (src != NULL)
 					{
 						U8* node = (U8*)AllocMem(0x10 + size);
-						if (ptr_current == src)
+						if (ptr_cur == src)
 							((void**)result)[4] = node;
 						if (is_ref)
 						{
@@ -552,7 +555,7 @@ EXPORT void* _toBin(const void* me_, const U8* type)
 				void** bins = (void**)AllocMem(sizeof(void*) * (size_t)(len + 1));
 				size_t size = GetSize(type[1]);
 				void* ptr = *(void**)((U8*)me_ + 0x10);
-				void* ptr_current = *(void**)((U8*)me_ + 0x20);
+				void* ptr_cur = *(void**)((U8*)me_ + 0x20);
 				S64 idx = -1;
 				S64 i;
 				for (i = 0; i < len; i++)
@@ -560,7 +563,7 @@ EXPORT void* _toBin(const void* me_, const U8* type)
 					void* value = NULL;
 					memcpy(&value, (U8*)ptr + 0x10, size);
 					bins[i + 1] = _toBin(value, type + 1);
-					if (ptr_current == ptr)
+					if (ptr_cur == ptr)
 						idx = i;
 					ptr = *(void**)((U8*)ptr + 0x08);
 				}
@@ -699,10 +702,10 @@ EXPORT void* _fromBin(const U8* me_, const void** type, S64* idx)
 			break;
 		case TypeId_List:
 			{
-				S64 idx_current;
+				S64 idx_cur;
 				S64 len = *(S64*)(me_ + 0x10 + *idx) - 1;
 				*idx += 8;
-				idx_current = *(S64*)(me_ + 0x10 + *idx);
+				idx_cur = *(S64*)(me_ + 0x10 + *idx);
 				*idx += 8;
 				{
 					size_t size = GetSize(type2[1]);
@@ -719,7 +722,7 @@ EXPORT void* _fromBin(const U8* me_, const void** type, S64* idx)
 							U8* node = (U8*)AllocMem(0x10 + size);
 							const void* type3[2];
 							void* value;
-							if (idx_current == i)
+							if (idx_cur == i)
 								((void**)result)[4] = node;
 							type3[0] = type2 + 1;
 							type3[1] = type[1];
@@ -966,6 +969,161 @@ EXPORT U8* _toStr(const void* me_, const U8* type)
 			break;
 	}
 	ASSERT(len < 33);
+	{
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (size_t)(len + 1));
+		((S64*)result)[0] = DefaultRefCntFunc;
+		((S64*)result)[1] = (S64)len;
+		memcpy(result + 0x10, str, sizeof(Char) * (size_t)(len + 1));
+		return result;
+	}
+}
+
+EXPORT U8* _toStrFmtInt(S64 me_, const U8* fmt)
+{
+	THROWDBG(fmt == NULL, 0xc0000005);
+	const Char* fmt2 = (const Char*)(fmt + 0x10);
+	int src_len = (int)((S64*)fmt)[1];
+	Char dst[33];
+	int dst_ptr = 0;
+	int src_ptr = 0;
+
+	dst[dst_ptr] = L'%';
+	dst_ptr++;
+	if (src_ptr < src_len && (fmt2[src_ptr] == L'+' || fmt2[src_ptr] == L' '))
+	{
+		dst[dst_ptr] = fmt2[src_ptr];
+		dst_ptr++;
+		if (dst_ptr + 4 >= 33)
+			return NULL;
+		src_ptr++;
+	}
+	if (src_ptr < src_len && (fmt2[src_ptr] == L'-' || fmt2[src_ptr] == L'0'))
+	{
+		dst[dst_ptr] = fmt2[src_ptr];
+		dst_ptr++;
+		if (dst_ptr + 4 >= 33)
+			return NULL;
+		src_ptr++;
+	}
+	if (src_ptr < src_len && L'1' <= fmt2[src_ptr] && fmt2[src_ptr] <= L'9')
+	{
+		dst[dst_ptr] = fmt2[src_ptr];
+		dst_ptr++;
+		if (dst_ptr + 4 >= 33)
+			return NULL;
+		src_ptr++;
+		while (src_ptr < src_len && L'0' <= fmt2[src_ptr] && fmt2[src_ptr] <= L'9')
+		{
+			dst[dst_ptr] = fmt2[src_ptr];
+			dst_ptr++;
+			if (dst_ptr + 4 >= 33)
+				return NULL;
+			src_ptr++;
+		}
+	}
+	if (!(src_ptr < src_len && (fmt2[src_ptr] == L'd' || fmt2[src_ptr] == L'x' || fmt2[src_ptr] == L'X')))
+		return NULL;
+	dst[dst_ptr] = L'I';
+	dst_ptr++;
+	dst[dst_ptr] = L'6';
+	dst_ptr++;
+	dst[dst_ptr] = L'4';
+	dst_ptr++;
+	dst[dst_ptr] = fmt2[src_ptr];
+	dst_ptr++;
+	dst[dst_ptr] = L'\0';
+	dst_ptr++;
+	ASSERT(src_ptr + 1 == src_len);
+
+	Char str[65];
+	int len = swprintf(str, 65, dst, me_);
+	ASSERT(len < 65);
+	{
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (size_t)(len + 1));
+		((S64*)result)[0] = DefaultRefCntFunc;
+		((S64*)result)[1] = (S64)len;
+		memcpy(result + 0x10, str, sizeof(Char) * (size_t)(len + 1));
+		return result;
+	}
+}
+
+EXPORT U8* _toStrFmtFloat(double me_, const U8* fmt)
+{
+	THROWDBG(fmt == NULL, 0xc0000005);
+	const Char* fmt2 = (const Char*)(fmt + 0x10);
+	int src_len = (int)((S64*)fmt)[1];
+	Char dst[33];
+	int dst_ptr = 0;
+	int src_ptr = 0;
+
+	dst[dst_ptr] = L'%';
+	dst_ptr++;
+	if (src_ptr < src_len && (fmt2[src_ptr] == L'+' || fmt2[src_ptr] == L' '))
+	{
+		dst[dst_ptr] = fmt2[src_ptr];
+		dst_ptr++;
+		if (dst_ptr + 1 >= 33)
+			return NULL;
+		src_ptr++;
+	}
+	if (src_ptr < src_len && (fmt2[src_ptr] == L'-' || fmt2[src_ptr] == L'0'))
+	{
+		dst[dst_ptr] = fmt2[src_ptr];
+		dst_ptr++;
+		if (dst_ptr + 1 >= 33)
+			return NULL;
+		src_ptr++;
+	}
+	if (src_ptr < src_len && L'1' <= fmt2[src_ptr] && fmt2[src_ptr] <= L'9')
+	{
+		dst[dst_ptr] = fmt2[src_ptr];
+		dst_ptr++;
+		if (dst_ptr + 1 >= 33)
+			return NULL;
+		src_ptr++;
+		while (src_ptr < src_len && L'0' <= fmt2[src_ptr] && fmt2[src_ptr] <= L'9')
+		{
+			dst[dst_ptr] = fmt2[src_ptr];
+			dst_ptr++;
+			if (dst_ptr + 1 >= 33)
+				return NULL;
+			src_ptr++;
+		}
+		if (src_ptr < src_len && fmt2[src_ptr] == L'.')
+		{
+			dst[dst_ptr] = fmt2[src_ptr];
+			dst_ptr++;
+			if (dst_ptr + 1 >= 33)
+				return NULL;
+			src_ptr++;
+		}
+		if (!(src_ptr < src_len && L'0' <= fmt2[src_ptr] && fmt2[src_ptr] <= L'9'))
+			return NULL;
+		dst[dst_ptr] = fmt2[src_ptr];
+		dst_ptr++;
+		if (dst_ptr + 1 >= 33)
+			return NULL;
+		src_ptr++;
+		while (src_ptr < src_len && L'0' <= fmt2[src_ptr] && fmt2[src_ptr] <= L'9')
+		{
+			dst[dst_ptr] = fmt2[src_ptr];
+			dst_ptr++;
+			if (dst_ptr + 1 >= 33)
+				return NULL;
+			src_ptr++;
+		}
+	}
+	if (!(src_ptr < src_len && (fmt2[src_ptr] == L'f' || fmt2[src_ptr] == L'e' || fmt2[src_ptr] == L'g')))
+		return NULL;
+	dst[dst_ptr] = fmt2[src_ptr];
+	dst_ptr++;
+	dst[dst_ptr] = L'\0';
+	dst_ptr++;
+	ASSERT(src_ptr + 1 == src_len);
+
+	Char str[65];
+	int len = swprintf(str, 65, dst, me_);
+	ASSERT(len < 65);
 	{
 		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (size_t)(len + 1));
 		((S64*)result)[0] = DefaultRefCntFunc;
@@ -1231,16 +1389,28 @@ EXPORT void _shuffle(void* me_, const U8* type)
 	}
 }
 
-EXPORT void _sort(void* me_, const U8* type)
+EXPORT void _sortArray(void* me_, const U8* type)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
-	MergeSort(me_, type, True);
+	MergeSortArray(me_, type, True);
 }
 
-EXPORT void _sortDesc(void* me_, const U8* type)
+EXPORT void _sortDescArray(void* me_, const U8* type)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
-	MergeSort(me_, type, False);
+	MergeSortArray(me_, type, False);
+}
+
+EXPORT void _sortList(void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	MergeSortList(me_, type, True);
+}
+
+EXPORT void _sortDescList(void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	MergeSortList(me_, type, False);
 }
 
 EXPORT S64 _find(const void* me_, const U8* type, const void* item, S64 start)
@@ -1700,10 +1870,11 @@ EXPORT void* _replace(const U8* me_, const U8* old, const U8* new_)
 	U8* result;
 	while (!end_flag)
 	{
+		const Char* ptr2 = ptr;
 		ptr = wcsstr(ptr, old2);
-		if (ptr == NULL)
+		if (ptr == NULL || old_len == 0)
 		{
-			ptr = str + wcslen(str);
+			ptr = str + str_len;
 			end_flag = True;
 		}
 		{
@@ -2203,7 +2374,7 @@ EXPORT void* _toArray(void* me_, const U8* type)
 	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
-	Bool is_str = IsStr(type);
+	Bool is_str = type[1] == TypeId_Char;
 	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
 	((S64*)result)[0] = 1;
 	((S64*)result)[1] = len;
@@ -2219,7 +2390,71 @@ EXPORT void* _toArray(void* me_, const U8* type)
 		}
 	}
 	if (is_str)
-		((Char*)result)[len] = L'\0';
+		((Char*)(0x10 + result))[len] = L'\0';
+	return result;
+}
+
+EXPORT void* _toArrayKey(void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	U8* child1;
+	U8* child2;
+	GetDictTypes(type, &child1, &child2);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	Bool is_str = *child1 == TypeId_Char;
+	size_t size = GetSize(*child1);
+	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
+	((S64*)result)[0] = 1;
+	((S64*)result)[1] = len;
+	if (len != 0)
+	{
+		U8* ptr = result + 0x10;
+		ToArrayKeyDictRecursion(&ptr, size, *(void**)((U8*)me_ + 0x10));
+	}
+	if (IsRef(*child1))
+	{
+		S64 i;
+		void** ptr = (void**)(result + 0x10);
+		for (i = 0; i < len; i++)
+		{
+			if (ptr[i] != NULL)
+				(*(S64*)ptr[i])++;
+		}
+	}
+	if (is_str)
+		((Char*)(0x10 + result))[len] = L'\0';
+	return result;
+}
+
+EXPORT void* _toArrayValue(void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	U8* child1;
+	U8* child2;
+	GetDictTypes(type, &child1, &child2);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	Bool is_str = *child2 == TypeId_Char;
+	size_t size = GetSize(*child2);
+	U8* result = (U8*)AllocMem(0x10 + size * (size_t)(len + (is_str ? 1 : 0)));
+	((S64*)result)[0] = 1;
+	((S64*)result)[1] = len;
+	if (len != 0)
+	{
+		U8* ptr = result + 0x10;
+		ToArrayValueDictRecursion(&ptr, size, *(void**)((U8*)me_ + 0x10));
+	}
+	if (IsRef(*child2))
+	{
+		S64 i;
+		void** ptr = (void**)(result + 0x10);
+		for (i = 0; i < len; i++)
+		{
+			if (ptr[i] != NULL)
+				(*(S64*)ptr[i])++;
+		}
+	}
+	if (is_str)
+		((Char*)(0x10 + result))[len] = L'\0';
 	return result;
 }
 
@@ -2605,6 +2840,26 @@ static void* FromBinDictRecursion(const U8* key_type, const U8* item_type, const
 	return node;
 }
 
+static void ToArrayKeyDictRecursion(U8** buf, size_t key_size, void* node)
+{
+	if (*(void**)node != NULL)
+		ToArrayKeyDictRecursion(buf, key_size, *(void**)node);
+	memcpy(*buf, (U8*)node + 0x18, key_size);
+	(*buf) += key_size;
+	if (*(void**)((U8*)node + 0x08) != NULL)
+		ToArrayKeyDictRecursion(buf, key_size, *(void**)((U8*)node + 0x08));
+}
+
+static void ToArrayValueDictRecursion(U8** buf, size_t value_size, void* node)
+{
+	if (*(void**)node != NULL)
+		ToArrayValueDictRecursion(buf, value_size, *(void**)node);
+	memcpy(*buf, (U8*)node + 0x20, value_size);
+	(*buf) += value_size;
+	if (*(void**)((U8*)node + 0x08) != NULL)
+		ToArrayValueDictRecursion(buf, value_size, *(void**)((U8*)node + 0x08));
+}
+
 static int(*GetCmpFunc(const U8* type))(const void* a, const void* b)
 {
 	switch (*type)
@@ -2710,7 +2965,7 @@ static void* CatBin(int num, void** bins)
 	}
 }
 
-static void MergeSort(void* me_, const U8* type, Bool asc)
+static void MergeSortArray(void* me_, const U8* type, Bool asc)
 {
 	size_t size = GetSize(type[1]);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
@@ -2776,6 +3031,93 @@ static void MergeSort(void* me_, const U8* type, Bool asc)
 	}
 	if (a != a2)
 		memcpy(a, b, (size_t)len * size);
+	FreeMem(b);
+}
+
+static void MergeSortList(void* me_, const U8* type, Bool asc)
+{
+	size_t size = GetSize(type[1]);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	void** a = (void**)AllocMem((size_t)len * 8);
+	void** b = (void**)AllocMem((size_t)len * 8);
+	void** a2 = a;
+	void** b2 = b;
+	S64 n = 1;
+	S64 i, j;
+	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
+	if (cmp == NULL)
+		THROW(0xe9170004);
+	{
+		void* ptr = *(void**)((U8*)me_ + 0x10);
+		for (i = 0; i < len; i++)
+		{
+			a[i] = (U8*)ptr + 0x10;
+			b[i] = NULL;
+			ptr = *(void**)((U8*)ptr + 0x08);
+		}
+	}
+	while (n < len)
+	{
+		for (i = 0; i < len; i += n * 2)
+		{
+			S64 p = i;
+			S64 q = i + n;
+			for (j = i; j < i + n * 2; j++)
+			{
+				if (p >= i + n || p >= len)
+				{
+					if (q >= len)
+						break;
+					b2[j] = a2[q];
+					q++;
+				}
+				else if (q >= i + n * 2 || q >= len)
+				{
+					b2[j] = a2[p];
+					p++;
+				}
+				else
+				{
+					int cmp_result;
+					void* value_p = NULL;
+					void* value_q = NULL;
+					memcpy(&value_p, a2[p], size);
+					memcpy(&value_q, a2[q], size);
+					if (asc)
+						cmp_result = cmp(value_p, value_q);
+					else
+						cmp_result = -cmp(value_p, value_q);
+					if (cmp_result <= 0)
+					{
+						b2[j] = a2[p];
+						p++;
+					}
+					else
+					{
+						b2[j] = a2[q];
+						q++;
+					}
+				}
+			}
+		}
+		{
+			void** tmp = a2;
+			a2 = b2;
+			b2 = tmp;
+		}
+		n *= 2;
+	}
+	{
+		void* ptr = *(void**)((U8*)me_ + 0x10);
+		for (i = 0; i < len; i++)
+			memcpy(b2 + i, a2[i], size);
+		for (i = 0; i < len; i++)
+		{
+			memcpy((U8*)ptr + 0x10, b2 + i, size);
+			ptr = *(void**)((U8*)ptr + 0x08);
+		}
+	}
+	FreeMem(a);
 	FreeMem(b);
 }
 

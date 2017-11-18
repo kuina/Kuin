@@ -1,43 +1,29 @@
-{
 func [d1003.knd, _init] _init()
 end func
 
-+class Xml(kuin@ResClass)
++class Xml()
 	*func [d1003.knd, _xmlDtor, _force] _dtor()
 	end func
 
-	+func [d1003.knd, _xmlSave] save(path: []char): bool
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
 	end func
 
-	+func [d1003.knd, _xmlRoot] root()
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
 	end func
 
-	+func [d1003.knd, _xmlTerm] term(): bool
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
 	end func
 
-	+func [d1003.knd, _xmlGet] get(): []char
+	+func [d1003.knd, _xmlSave] save(path: []char, compact: bool): bool
 	end func
 
-	+func [d1003.knd, _xmlGetOffset] getOffset(elementPath: []char): []char
-	end func
-
-	+func [d1003.knd, _xmlSet] set(value: []char)
-	end func
-
-	+func [d1003.knd, _xmlSetOffset] setOffset(elementPath: []char, value: []char)
-	end func
-
-	+func [d1003.knd, _xmlAdd] add(elementPath: []char, value: []char)
-	end func
-
-	+func [d1003.knd, _xmlLen] len(): int
-	end func
-
-	+func [d1003.knd, _xmlForEach] forEach(callback: func<(int, []char, kuin@Class): bool>, data: kuin@Class): bool
+	+func [d1003.knd, _xmlRoot, _make_instance] root(me2: @Node): @Node
 	end func
 
 	var tree: int
-	var ptr: int
 end class
 
 +func [d1003.knd, _makeXml, _make_instance] makeXml(me2: @Xml, path: []char): @Xml
@@ -45,4 +31,77 @@ end func
 
 +func [d1003.knd, _makeXmlEmpty, _make_instance] makeXmlEmpty(me2: @Xml): @Xml
 end func
-}
+
++class Node()
+	*func [d1003.knd, _xmlNodeDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
+	end func
+
+	+func [d1003.knd, _xmlNodeSetName] setName(name: []char)
+	end func
+
+	+func [d1003.knd, _xmlNodeGetName] getName(): []char
+	end func
+
+	+func [d1003.knd, _xmlNodeSetValue] setValue(value: []char)
+	end func
+
+	+func [d1003.knd, _xmlNodeGetValue] getValue(): []char
+	end func
+
+	+func [d1003.knd, _xmlNodeFirstChild, _make_instance] firstChild(me2: @Node): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodeLastChild, _make_instance] lastChild(me2: @Node): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodeNext, _make_instance] next(me2: @Node): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodePrev, _make_instance] prev(me2: @Node): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodeParent, _make_instance] parent(me2: @Node): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodeFindNext, _make_instance] findNext(me2: @Node, name: []char): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodeFindPrev, _make_instance] findPrev(me2: @Node, name: []char): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodeFindChild, _make_instance] findChild(me2: @Node, name: []char): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodeFindChildLast, _make_instance] findChildLast(me2: @Node, name: []char): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodeAddChild, _make_instance] addChild(me2: @Node, name: []char): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodeInsChild, _make_instance] insChild(me2: @Node, node: @Node, name: []char): @Node
+	end func
+
+	+func [d1003.knd, _xmlNodeDelChild] delChild(node: @Node)
+	end func
+
+	+func [d1003.knd, _xmlNodeSetAttr] setAttr(attrName: []char, attrValue: []char)
+	end func
+
+	+func [d1003.knd, _xmlNodeGetAttr] getAttr(attrName: []char): []char
+	end func
+
+	var root: int
+	var node: int
+end class

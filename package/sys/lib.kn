@@ -14,8 +14,20 @@ end func
 	end if
 end func
 
-+class Rnd(kuin@ResClass)
++class Rnd()
 	*func [d0000.knd, _rndDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
 	end func
 
 	+func [d0000.knd, _rndRnd] rnd(min: int, max: int): int
@@ -144,8 +156,23 @@ end func
 +func [d0000.knd, _maxFloat] maxFloat(n1: float, n2: float): float
 end func
 
-+class BmSearch(kuin@ResClass)
++func [d0000.knd, _levenshtein] levenshtein(s1: []char, s2: []char): int
+end func
+
++class BmSearch()
 	*func [d0000.knd, _bmSearchDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
 	end func
 
 	+func [d0000.knd, _bmSearchFind] find(text: []char, start: int): int
@@ -188,3 +215,39 @@ end func
 
 +func [d0000.knd] sleep(ms: int)
 end func
+
++class Int()
+	+*func cmp(t: @Int): int
+		ret (me.value - t.value).sign()
+	end func
+
+	+*func toStr(): []char
+		ret me.value.toStr()
+	end func
+
+	+var value: int
+end class
+
++class Float()
+	+*func cmp(t: @Int): int
+		ret (me.value - t.value).sign() $ int
+	end func
+
+	+*func toStr(): []char
+		ret me.value.toStr()
+	end func
+
+	+var value: float
+end class
+
++class Str()
+	+*func cmp(t: @Int): int
+		ret me.value.cmp(t.value)
+	end func
+
+	+*func toStr(): []char
+		ret me.value
+	end func
+
+	+var value: []char
+end class

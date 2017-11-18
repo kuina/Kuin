@@ -19,21 +19,7 @@
 	end func
 
 	+func toStr(): []char
-		ret null
-	end func
-end class
-
-+class ResClass()
-	*func [_force] _copy(): @Class
-		throw 16#E9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): @Class
-		throw 16#E9170005
+		ret ""
 	end func
 end class
 
@@ -53,6 +39,12 @@ func _finVars()
 end func
 
 func [d0000.knd, _any_type] _toStr(me_: []bit8, type: int): []char
+end func
+
+func [d0000.knd] _toStrFmtInt(me_: int, fmt: []char): []char
+end func
+
+func [d0000.knd] _toStrFmtFloat(me_: float, fmt: []char): []char
 end func
 
 func [d0000.knd] _absInt(me_: int): int
@@ -121,10 +113,16 @@ end func
 func [d0000.knd, _any_type] _shuffle(me_: []bit8, type: int)
 end func
 
-func [d0000.knd, _any_type] _sort(me_: []bit8, type: int)
+func [d0000.knd, _any_type] _sortArray(me_: []bit8, type: int)
 end func
 
-func [d0000.knd, _any_type] _sortDesc(me_: []bit8, type: int)
+func [d0000.knd, _any_type] _sortDescArray(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _sortList(me_: []bit8, type: int)
+end func
+
+func [d0000.knd, _any_type] _sortDescList(me_: []bit8, type: int)
 end func
 
 func [d0000.knd, _any_type, _take_child] _find(me_: []bit8, type: int, item: []bit8, start: int): int
@@ -245,6 +243,12 @@ func [d0000.knd, _any_type, _take_child] _ins(me_: []bit8, type: int, item: []bi
 end func
 
 func [d0000.knd, _any_type, _ret_array_of_list_child] _toArray(me_: []bit8, type: int): int
+end func
+
+func [d0000.knd, _any_type, _ret_array_of_dict_key] _toArrayKey(me_: []bit8, type: int): int
+end func
+
+func [d0000.knd, _any_type, _ret_array_of_dict_value] _toArrayValue(me_: []bit8, type: int): int
 end func
 
 func [d0000.knd, _any_type, _ret_child] _peek(me_: []bit8, type: int): int

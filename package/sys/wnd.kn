@@ -11,6 +11,7 @@ end func
 	normal
 	fix
 	aspect
+	popup
 {
 	mdi
 	mdiChild
@@ -25,8 +26,20 @@ end enum
 	scale
 end enum
 
-+class WndBase(kuin@ResClass)
++class WndBase()
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
 	end func
 
 	+func [d0001.knd, _wndBaseGetPos] getPos(x: &int, y: &int, width: &int, height: &int)
@@ -38,7 +51,13 @@ end enum
 	+func [d0001.knd, _wndBaseFocus] focus()
 	end func
 
+	+func [d0001.knd, _wndBaseFocused] focused(): bool
+	end func
+
 	+func [d0001.knd, _wndBaseEnable] enable(isEnabled: bool)
+	end func
+
+	+func [d0001.knd, _wndBaseSetPos] setPos(x: int, y: int, width: int, height: int)
 	end func
 
 	+func addChild(child: kuin@Class)
@@ -78,10 +97,19 @@ end class
 		end if
 	end func
 
-	+func [d0001.knd, _wndSetActive] setActive()
+	+func [d0001.knd, _wndActivate] activate()
 	end func
 
-	+func [d0001.knd, _wndGetActive] getActive(): bool
+	+func [d0001.knd, _wndActivated] activated(): bool
+	end func
+
+	+func [d0001.knd, _wndFocusedWnd] focusedWnd(): bool
+	end func
+
+	+func [d0001.knd, _wndSetAlpha] setAlpha(alpha: int)
+	end func
+
+	+func [d0001.knd, _wndGetAlpha] getAlpha(): int
 	end func
 
 	+func modal()
@@ -128,6 +156,7 @@ end enum
 	+var onMouseDownL: func<(@WndBase, int, int)>
 	+var onMouseDownR: func<(@WndBase, int, int)>
 	+var onMouseDownM: func<(@WndBase, int, int)>
+	+var onMouseDoubleClick: func<(@WndBase, int, int)>
 	+var onMouseUpL: func<(@WndBase, int, int)>
 	+var onMouseUpR: func<(@WndBase, int, int)>
 	+var onMouseUpM: func<(@WndBase, int, int)>
@@ -142,6 +171,7 @@ end enum
 	+var onKeyChar: func<(@WndBase, char)>
 	+var onScrollX: func<(@WndBase, int)>
 	+var onScrollY: func<(@WndBase, int)>
+	+var onSetMouseImg: func<(@WndBase): @MouseImg>
 end class
 
 +class Btn(@WndBase)
@@ -195,7 +225,7 @@ end class
 	+var onPush: func<(@WndBase)>
 end class
 
-+class Edit(@WndBase)
++class EditBase(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
@@ -205,23 +235,22 @@ end class
 	+func [d0001.knd, _wndGetText] getText(): []char
 	end func
 
-	+func [d0001.knd, _wndReadonly] readonly(flag: bool)
+	+func [d0001.knd, _editReadonly] readonly(enabled: bool)
+	end func
+
+	+func [d0001.knd, _editSetSel] setSel(start: int, len: int)
 	end func
 
 	+var onChange: func<(@WndBase)>
 end class
 
-+class EditMulti(@WndBase)
++class Edit(@EditBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+end class
 
-	+func [d0001.knd, _wndSetText] setText(text: []char)
-	end func
-
-	+func [d0001.knd, _wndGetText] getText(): []char
-	end func
-
-	+func [d0001.knd, _wndReadonly] readonly(flag: bool)
++class EditMulti(@EditBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 end class
 
@@ -257,6 +286,7 @@ end class
 	end func
 
 	+var onSel: func<(@WndBase)>
+	+var onMouseDoubleClick: func<(@WndBase, int, int)>
 end class
 
 +class Combo(@WndBase)
@@ -385,7 +415,7 @@ class ScrollBase(@WndBase)
 	+func [d0001.knd, _scrollSetState] setState(min: int, max: int, page: int, pos: int)
 	end func
 
-	+func [d0001.knd, _scrollSetPos] setPos(pos: int)
+	+func [d0001.knd, _scrollSetScrollPos] setScrollPos(pos: int)
 	end func
 end class
 
@@ -445,6 +475,9 @@ end func
 end func
 
 +func [d0001.knd, _getClipboardStr] getClipboardStr(): []char
+end func
+
++func [d0001.knd, _getCaretPos] getCaretPos(x: &int, y: &int)
 end func
 
 +func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, parent: @Wnd, style: @WndStyle, width: int, height: int, text: []char): @Wnd
@@ -609,8 +642,20 @@ end func
 	end if
 end func
 
-+class MenuBase(kuin@ResClass)
++class MenuBase()
 	*func [d0001.knd, _menuDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
 	end func
 
 	+func [d0001.knd, _menuAdd] add(id: int, text: []char)
@@ -641,6 +686,28 @@ end class
 end func
 
 +func [d0001.knd, _makePopup, _make_instance] makePopup(me2: @Popup): @Popup
+end func
+
++class TabOrder()
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
+	end func
+
+	+func [d0001.knd, _tabOrderChk] chk(key: @Key, shiftCtrl: @ShiftCtrl): bool
+	end func
+
+	var ctrls: []@WndBase
+end class
+
++func [d0001.knd, _makeTabOrder, _make_instance] makeTabOrder(me2: @TabOrder, ctrls: []@WndBase): @TabOrder
 end func
 
 +func [d0001.knd, _key] key(key_: @Key): bool
@@ -717,4 +784,21 @@ end func
 	f10
 	f11
 	f12
+end enum
+
++enum MouseImg
+	arrow :: 32512
+	ibeam
+	wait
+	cross
+	upArrow
+	resizeLTRD :: 32642
+	resizeRTLD
+	resizeH
+	resizeV
+	move
+	no :: 32648
+	link
+	arrowWait
+	arrowHelp
 end enum

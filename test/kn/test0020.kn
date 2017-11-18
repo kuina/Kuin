@@ -1,0 +1,29 @@
+func main()
+	block
+		var server: net@TcpServer :: net@makeTcpServer(12345)
+		do lib@sleep(200)
+		var client: net@Tcp :: net@makeTcpClient("localhost", 12345)
+		do lib@sleep(200)
+		var client2: net@Tcp :: server.get()
+		do cui@print(client.connecting().toStr() ~ ", " ~ client2.connecting().toStr())
+		for i(0, 2)
+			block
+				var a: []bit8 :: "abcd" $> []bit8
+				do client.send(a)
+				do lib@sleep(200)
+				var b: []bit8 ::  client2.receive(^a)
+				do cui@print(b $< []char)
+			end block
+			block
+				var a: []bit8 :: "efgi" $> []bit8
+				do client2.send(a)
+				do lib@sleep(200)
+				var b: []bit8 ::  client.receive(^a)
+				do cui@print(b $< []char)
+			end block
+		end for
+		do client.fin()
+		do lib@sleep(200)
+		do cui@print(client.connecting().toStr() ~ ", " ~ client2.connecting().toStr())
+	end block
+end func
