@@ -331,6 +331,65 @@ EXPORT S64 _levenshtein(const U8* s1, const U8* s2)
 	return value;
 }
 
+EXPORT double _lerp(double first, double last, double rate)
+{
+	if (rate < 0.0)
+		rate = 0.0;
+	else if (rate > 1.0)
+		rate = 1.0;
+	return first * (1.0 - rate) + last * rate;
+}
+
+EXPORT double _qerp(double first, double last, Bool easyIn, double rate)
+{
+	if (rate < 0.0)
+		rate = 0.0;
+	else if (rate > 1.0)
+		rate = 1.0;
+	double rate2 = easyIn ? (rate * rate) : (rate * (2.0 - rate));
+	return first * (1.0 - rate2) + last * rate2;
+}
+
+EXPORT double _cerp(double first, double last, double rate)
+{
+	if (rate < 0.0)
+		rate = 0.0;
+	else if (rate > 1.0)
+		rate = 1.0;
+	double rate2 = rate * rate * (3.0 - 2.0 * rate);
+	return first * (1.0 - rate2) + last * rate2;
+}
+
+EXPORT double _hermite(const void* pos, double rate)
+{
+	THROWDBG(pos == NULL, 0xc0000005);
+	int len = (int)((S64*)pos)[1];
+	double len2 = (double)len;
+	const double* pos2 = (const double*)((const U8*)pos + 0x10);
+	if (rate < 0.0)
+		rate = 0.0;
+	else if (rate > len2 - 1.0)
+		rate = len2 - 1.0;
+	if (len <= 1)
+		return len == 1 ? pos2[0] : 0.0f;
+	int idx = (int)rate;
+	int idx_minus1 = idx - 1;
+	if (idx_minus1 < 0)
+		idx_minus1 = 0;
+	int idx_plus1 = idx + 1;
+	if (idx_plus1 > len - 1)
+		idx_plus1 = len - 1;
+	int idx_plus2 = idx + 2;
+	if (idx_plus2 > len - 1)
+		idx_plus2 = len - 1;
+	double dx0 = (pos2[idx_plus1] - pos2[idx_minus1]) / 2.0;
+	double dx1 = (pos2[idx_plus2] - pos2[idx]) / 2.0;
+	double x0 = pos2[idx];
+	double x1 = pos2[idx_plus1];
+	double rate2 = rate - (double)idx;
+	return (((2.0 * (x0 - x1) + (dx0 + dx1)) * rate2 + (-3.0 * (x0 - x1) - (2.0 * dx0 + dx1))) * rate2 + dx0) * rate2 + x0;
+}
+
 EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern)
 {
 	THROWDBG(pattern == NULL, 0xc0000005);

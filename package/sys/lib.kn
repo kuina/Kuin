@@ -159,6 +159,18 @@ end func
 +func [d0000.knd, _levenshtein] levenshtein(s1: []char, s2: []char): int
 end func
 
++func [d0000.knd, _lerp] lerp(first: float, last: float, rate: float): float
+end func
+
++func [d0000.knd, _qerp] qerp(first: float, last: float, easyIn: bool, rate: float): float
+end func
+
++func [d0000.knd, _cerp] cerp(first: float, last: float, rate: float): float
+end func
+
++func [d0000.knd, _hermite] hermite(pos: []float, rate: float): float
+end func
+
 +class BmSearch()
 	*func [d0000.knd, _bmSearchDtor, _force] _dtor()
 	end func
