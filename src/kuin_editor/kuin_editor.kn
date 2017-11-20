@@ -3211,7 +3211,7 @@ func showFind(replace: bool)
 	var w: int
 	do @drawEditor.getPosScr(&x, &y, &w, &)
 	if(@wndFind =& null)
-		do @wndFind :: wnd@makeWnd(@wndMain, %fix, 380, 332, @langEn ?("Find and Replace", "検索と置換"))
+		do @wndFind :: wnd@makeWnd(@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 380, 332, @langEn ?("Find and Replace", "検索と置換"))
 		do @wndFind.setPos(x + w - 380 - 17, y, 380, 332)
 		do @wndFind.onClose :: wndFindOnClose
 		do @wndFindTabFind :: wnd@makeTab(@wndFind, 12, 12, 356, 308, %scale, %scale)
@@ -3459,7 +3459,7 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char)
 
 	do @wndCompletionSrc :: src
 	do @wndCompletionRow :: row
-	do @wndCompletion :: wnd@makeWnd(@wndMain, %popup, 300, 152, null)
+	do @wndCompletion :: wnd@makeWnd(@wndMain, (%popup $ wnd@WndStyle).or(%layered), 300, 152, null)
 	do @wndCompletion.setPos(x + x2, y + y2 + @cellHeight, 300, 152)
 	do @wndCompletion.setAlpha(230)
 	do @wndCompletion.onClose :: wndCompletionOnClose

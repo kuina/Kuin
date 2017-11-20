@@ -18,6 +18,8 @@ end func
 	dock
 	dockChild
 }
+	layered :: 16#10000
+	noMinimize :: 16#20000
 end enum
 
 +enum Anchor
