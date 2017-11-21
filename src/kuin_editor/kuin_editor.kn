@@ -108,6 +108,9 @@ class Document()
 	+func mouseUpL(x: int, y: int)
 	end func
 
+	+func mouseDoubleClick(x: int, y: int)
+	end func
+
 	+func mouseMove(x: int, y: int)
 	end func
 
@@ -313,6 +316,22 @@ class DocumentSrc(@Document)
 
 	+*func mouseUpL(x: int, y: int)
 		do me.refreshCursor(false, true, 2)
+	end func
+
+	+*func mouseDoubleClick(x: int, y: int)
+		do me.mousePosToCharPos(x, y)
+		do me.refreshCursor(false, true, 0)
+		if(me.cursorY < ^me.src.src & me.cursorX < ^me.src.src[me.cursorY])
+			var color: @CharColor :: me.src.color[me.cursorY][me.cursorX].and(16#7Fb8) $ @CharColor
+			do me.areaX :: me.cursorX
+			while(me.areaX > 0 & me.src.color[me.cursorY][me.areaX - 1].and(16#7Fb8) = color $ bit8)
+				do me.areaX :- 1
+			end while
+			while(me.cursorX < ^me.src.src[me.cursorY] & me.src.color[me.cursorY][me.cursorX].and(16#7Fb8) = color $ bit8)
+				do me.cursorX :+ 1
+			end while
+		end if
+		do @drawEditor.paint()
 	end func
 
 	+*func mouseMove(x: int, y: int)
@@ -2026,6 +2045,7 @@ func main()
 	do @drawEditor.onPaint :: @drawEditorOnPaint
 	do @drawEditor.onMouseDownL :: @drawEditorOnMouseDownL
 	do @drawEditor.onMouseUpL :: @drawEditorOnMouseUpL
+	do @drawEditor.onMouseDoubleClick :: @drawEditorOnMouseDoubleClick
 	do @drawEditor.onMouseMove :: @drawEditorOnMouseMove
 	do @drawEditor.onFocus :: @drawEditorOnFocus
 	do @drawEditor.onKeyDown :: @drawEditorOnKeyDown
@@ -2654,6 +2674,10 @@ end func
 func drawEditorOnMouseUpL(wnd: wnd@WndBase, x: int, y: int)
 	do @drag :: false
 	do @curDocument.mouseUpL(x, y)
+end func
+
+func drawEditorOnMouseDoubleClick(wnd: wnd@WndBase, x: int, y: int)
+	do @curDocument.mouseDoubleClick(x, y)
 end func
 
 func drawEditorOnMouseMove(wnd: wnd@WndBase, x: int, y: int)
