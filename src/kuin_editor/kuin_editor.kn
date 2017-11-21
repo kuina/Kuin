@@ -321,15 +321,24 @@ class DocumentSrc(@Document)
 	+*func mouseDoubleClick(x: int, y: int)
 		do me.mousePosToCharPos(x, y)
 		do me.refreshCursor(false, true, 0)
-		if(me.cursorY < ^me.src.src & me.cursorX < ^me.src.src[me.cursorY])
-			var color: @CharColor :: me.src.color[me.cursorY][me.cursorX].and(16#7Fb8) $ @CharColor
+		if(me.cursorY < ^me.src.src & me.cursorX <= ^me.src.src[me.cursorY])
 			do me.areaX :: me.cursorX
-			while(me.areaX > 0 & me.src.color[me.cursorY][me.areaX - 1].and(16#7Fb8) = color $ bit8)
+			do me.areaY :: me.cursorY
+			if(me.cursorX = ^me.src.src[me.cursorY])
 				do me.areaX :- 1
-			end while
-			while(me.cursorX < ^me.src.src[me.cursorY] & me.src.color[me.cursorY][me.cursorX].and(16#7Fb8) = color $ bit8)
-				do me.cursorX :+ 1
-			end while
+				if(me.areaX < 0)
+					do me.areaX :: 0
+				end if
+			end if
+			if(^me.src.src[me.cursorY] > 0)
+				var color: bit8 :: me.src.color[me.areaY][me.areaX].and(16#7Fb8)
+				while(me.areaX > 0 & me.src.color[me.areaY][me.areaX - 1].and(16#7Fb8) = color)
+					do me.areaX :- 1
+				end while
+				while(me.cursorX < ^me.src.src[me.cursorY] & me.src.color[me.cursorY][me.cursorX].and(16#7Fb8) = color)
+					do me.cursorX :+ 1
+				end while
+			end if
 		end if
 		do @drawEditor.paint()
 	end func
@@ -1667,6 +1676,10 @@ class DocumentArBase(@Document)
 			do me.mode :: %none
 			do @drawEditor.paint()
 		end switch
+	end func
+
+	+*func mouseDoubleClick(x: int, y: int)
+		; TODO:
 	end func
 
 	+*func mouseMove(x: int, y: int)
