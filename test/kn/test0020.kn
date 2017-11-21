@@ -1,8 +1,8 @@
 func main()
 	block
-		var server: net@TcpServer :: net@makeTcpServer(12345)
+		var server: net@TcpServer :: net@makeTcpServer(1024)
 		do lib@sleep(200)
-		var client: net@Tcp :: net@makeTcpClient("localhost", 12345)
+		var client: net@Tcp :: net@makeTcpClient("localhost", 1024)
 		do lib@sleep(200)
 		var client2: net@Tcp :: server.get()
 		do cui@print(client.connecting().toStr() ~ ", " ~ client2.connecting().toStr())

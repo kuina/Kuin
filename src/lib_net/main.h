@@ -15,3 +15,7 @@ EXPORT void _tcpFin(SClass* me_);
 EXPORT void _tcpSend(SClass* me_, const U8* data);
 EXPORT void* _tcpReceive(SClass* me_, S64 size);
 EXPORT Bool _tcpConnecting(SClass* me_);
+EXPORT SClass* _makeHttp(SClass* me_, const U8* url, Bool post, const U8* agent);
+EXPORT void _httpDtor(SClass* me_);
+EXPORT void _httpFin(SClass* me_);
+EXPORT void* _httpGet(SClass* me_);
