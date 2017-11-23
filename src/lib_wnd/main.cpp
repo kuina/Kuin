@@ -793,6 +793,11 @@ EXPORT_CPP void _wndBaseSetRedraw(SClass* me_, Bool is_enabled)
 		SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
 }
 
+EXPORT_CPP void _wndBaseSetVisible(SClass* me_, Bool is_visible)
+{
+	ShowWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_visible ? SW_SHOW : SW_HIDE);
+}
+
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
 {
 	THROWDBG(minWidth != -1 && minWidth <= 0 || minHeight != -1 && minHeight <= 0 || maxWidth != -1 && maxWidth < minWidth || maxHeight != -1 && maxHeight < minHeight, 0xe9170006);

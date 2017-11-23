@@ -123,9 +123,6 @@ class Document()
 	+func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 	end func
 
-	+func keyDownAlt(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
-	end func
-
 	+func keyChar(key: char)
 	end func
 
@@ -497,7 +494,19 @@ class DocumentSrc(@Document)
 			end if
 			ret true
 		case %up
-			if(shiftCtrl = %ctrl)
+			if(@wndCompletion <>& null & @wndCompletionListKeywords <>& null)
+				var sel: int :: @wndCompletionListKeywords.getSel()
+				if(sel = -1)
+					do sel :: @wndCompletionCursor
+				else
+					do sel :- 1
+					if(sel < 0)
+						do sel :: 0
+					end if
+				end if
+				do @wndCompletionListKeywords.setSel(sel)
+				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(-1)
 			else
 				do me.setArea(shiftCtrl)
@@ -517,7 +526,20 @@ class DocumentSrc(@Document)
 			end if
 			ret true
 		case %down
-			if(shiftCtrl = %ctrl)
+			if(@wndCompletion <>& null & @wndCompletionListKeywords <>& null)
+				var sel: int :: @wndCompletionListKeywords.getSel()
+				if(sel = -1)
+					do sel :: @wndCompletionCursor
+				else
+					do sel :+ 1
+					var len: int :: @wndCompletionListKeywords.len()
+					if(sel >= len)
+						do sel :: len - 1
+					end if
+				end if
+				do @wndCompletionListKeywords.setSel(sel)
+				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(1)
 			else
 				do me.setArea(shiftCtrl)
@@ -541,43 +563,6 @@ class DocumentSrc(@Document)
 			end if
 		end switch
 		do @drawEditor.paint()
-	end func
-
-	+*func keyDownAlt(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
-		switch(key)
-		case %up
-			if(@wndCompletion <>& null)
-				var sel: int :: @wndCompletionListKeywords.getSel()
-				if(sel = -1)
-					do sel :: @wndCompletionCursor
-				else
-					do sel :- 1
-					if(sel < 0)
-						do sel :: 0
-					end if
-				end if
-				do @wndCompletionListKeywords.setSel(sel)
-				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
-				ret true
-			end if
-		case %down
-			if(@wndCompletion <>& null)
-				var sel: int :: @wndCompletionListKeywords.getSel()
-				if(sel = -1)
-					do sel :: @wndCompletionCursor
-				else
-					do sel :+ 1
-					var len: int :: @wndCompletionListKeywords.len()
-					if(sel >= len)
-						do sel :: len - 1
-					end if
-				end if
-				do @wndCompletionListKeywords.setSel(sel)
-				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
-				ret true
-			end if
-		end switch
-		ret false
 	end func
 
 	+*func keyChar(key: char)
@@ -864,7 +849,7 @@ class DocumentSrc(@Document)
 		end if
 	end func
 
-	+func showHint()
+	+func showHint(fast: bool)
 		var x: int :: me.cursorX
 		if(^me.src.src[me.cursorY] = x)
 			do x :- 1
@@ -885,8 +870,8 @@ class DocumentSrc(@Document)
 				if(color = %identifier | color = %global | color = %reserved)
 					var srcName2: []char
 					var word: []char :: me.getWord(&srcName2, x, me.cursorY, color, srcName)
-					var funcHint: []char :: me.getFuncHint(srcName, x, me.cursorY)
-					do @showCompletion(srcName2, me.cursorY + 1, word, funcHint)
+					var funcHint: []char :: fast ?(me.getFuncHint(srcName, x, me.cursorY), null)
+					do @showCompletion(srcName2, me.cursorY + 1, word, funcHint, fast)
 				elif(@wndCompletion <>& null)
 					do @closeCompletion()
 				end if
@@ -1476,7 +1461,7 @@ class DocumentSrc(@Document)
 	end func
 
 	func complementImpl(): bool
-		if(@wndCompletion =& null)
+		if(@wndCompletion =& null | @wndCompletionListKeywords =& null)
 			ret false
 		end if
 		var sel: int :: @wndCompletionListKeywords.getSel()
@@ -1704,11 +1689,6 @@ class DocumentArBase(@Document)
 
 	+*func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 		; TODO:
-	end func
-
-	+*func keyDownAlt(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
-		; TODO:
-		ret false
 	end func
 
 	+*func keyChar(key: char)
@@ -2200,7 +2180,7 @@ func main()
 						do @closeCompletion()
 					end if
 					if(diff > (@dirtyHintFast ?(400, 800)) & @dirtyInterpret >= 1)
-						do document.showHint()
+						do document.showHint(@dirtyHintFast)
 						do @dirtyHint :: false
 						do @dirtyHintFast :: false
 					end if
@@ -2247,9 +2227,6 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			ret true
 		end if
 	elif(@wndMain.focusedWnd() | @wndCompletion <>& null & @wndCompletion.focusedWnd())
-		if(wnd@key(%alt))
-			ret @curDocument.keyDownAlt(key, %none)
-		end if
 		switch(shiftCtrl)
 		case %none
 			switch(key)
@@ -3477,7 +3454,7 @@ var wndCompletionRow: int
 var wndCompletionCursor: int
 var wndCompletionHintPos: @Pos
 
-func showCompletion(src: []char, row: int, hint: []char, funcHint: []char)
+func showCompletion(src: []char, row: int, hint: []char, funcHint: []char, fast: bool)
 	if(@wndCompletion <>& null)
 		do @closeCompletion()
 		assert @wndCompletion =& null
@@ -3495,37 +3472,59 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char)
 	do @wndCompletionSrc :: src
 	do @wndCompletionRow :: row
 	do @wndCompletion :: wnd@makeWnd(@wndMain, (%popup $ wnd@WndStyle).or(%layered), 300, 152, null)
-	do @wndCompletion.setPos(x + x2, y + y2 + @cellHeight, 300, 152)
+	do @wndCompletion.setPos(x + x2, y + y2 + @cellHeight, 300, fast ?(152, 38))
 	do @wndCompletion.setAlpha(230)
 	do @wndCompletion.onClose :: wndCompletionOnClose
 	do @wndCompletionEditHint :: wnd@makeEditMulti(@wndCompletion, 0, 0, 300, 38, %fix, %fix)
 	do @wndCompletionEditHint.readonly(true)
-	do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 38, 300, 76, %fix, %fix)
-	do @wndCompletionListKeywords.onSel :: @wndCompletionListKeywordsOnSel
-	do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
-	do @wndCompletionListKeywords.setRedraw(false)
-	var best: int :: @getKeywords(src, row, hint, getKeywordsCallback)
-	do @wndCompletionListKeywords.setRedraw(true)
-	do @wndCompletionListKeywords.setSel(@wndCompletionListKeywords.len() - 1)
-	do @wndCompletionListKeywords.setSel(best)
-	do @wndCompletionCursor :: best = -1 ?(0, best)
-	do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
-	do @wndCompletionListKeywords.setSel(-1)
-	do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 114, 300, 38, %fix, %fix)
-	do @wndCompletionEditFunc.readonly(true)
-	if(^funcHint = 0)
-		do @wndCompletionEditFunc.setText(@langEn ?("Select...Alt+Up/Alt+Down, To Definition...F12\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Alt+Up/Alt+Down, 定義元へ...F12\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
+	if(fast)
+		do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 38, 300, 76, %fix, %fix)
+		do @wndCompletionListKeywords.onSel :: @wndCompletionListKeywordsOnSel
+		do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
+		do @wndCompletionListKeywords.setRedraw(false)
+		var best: int :: @getKeywords(src, row, hint, getKeywordsCallback)
+		do @wndCompletionListKeywords.setRedraw(true)
+		do @wndCompletionListKeywords.setSel(@wndCompletionListKeywords.len() - 1)
+		do @wndCompletionListKeywords.setSel(best)
+		do @wndCompletionCursor :: best = -1 ?(0, best)
+		do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+		do @wndCompletionListKeywords.setSel(-1)
 	else
-		do @wndCompletionEditFunc.setText(funcHint)
+		do @wndCompletionHintPos :: #@Pos
+		var hintSrc: []char
+		var wordHint: []char :: @getHint(0, @wndCompletionSrc, @wndCompletionRow, hint, &hintSrc, &@wndCompletionHintPos.row, &@wndCompletionHintPos.col)
+		if(hintSrc =& null)
+			do @wndCompletionHintPos :: null
+		else
+			do @wndCompletionHintPos.src :: ##hintSrc
+		end if
+		if(wordHint =& null)
+			do @wndCompletionHintPos :: null
+		else
+			do @wndCompletionEditHint.setText(wordHint)
+		end if
+	end if
+	if(fast)
+		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, fast ?(114, 38), 300, 38, %fix, %fix)
+		do @wndCompletionEditFunc.readonly(true)
+		if(^funcHint = 0)
+			do @wndCompletionEditFunc.setText(@langEn ?("Select...Up/Down, To Definition...F12\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Up/Down, 定義元へ...F12\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
+		else
+			do @wndCompletionEditFunc.setText(funcHint)
+		end if
 	end if
 
 	do @drawEditor.focus()
 
 	func wndCompletionOnClose(wnd: wnd@Wnd): bool
 		do @wndCompletion :: null
+		do @wndCompletionEditHint :: null
+		do @wndCompletionListKeywords :: null
+		do @wndCompletionEditFunc :: null
 		do @wndCompletionSrc :: null
 		do @wndCompletionRow :: 0
 		do @wndCompletionCursor :: -1
+		do @wndCompletionHintPos :: null
 		ret true
 	end func
 
@@ -3551,7 +3550,9 @@ func wndCompletionListKeywordsOnSel(wnd: wnd@List)
 		else
 			do @wndCompletionHintPos.src :: ##hintSrc
 		end if
-		if(wordHint <>& null)
+		if(wordHint =& null)
+			do @wndCompletionHintPos :: null
+		else
 			do @wndCompletionEditHint.setText(wordHint)
 		end if
 	end if

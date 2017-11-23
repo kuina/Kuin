@@ -65,6 +65,9 @@ end enum
 	+func [d0001.knd, _wndBaseSetRedraw] setRedraw(isEnabled: bool)
 	end func
 
+	+func [d0001.knd, _wndBaseSetVisible] setVisible(isVisible: bool)
+	end func
+
 	+func addChild(child: kuin@Class)
 		do me.children.add(child)
 	end func
