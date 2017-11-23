@@ -1562,13 +1562,13 @@ class DocumentSrc(@Document)
 				end if
 			end if
 		end if
-		if(indent > 0 & @regexDecIndent.find(&, me.src.src[y], indent) <>& null)
+		var curIndent: int :: me.skipTabs(y)
+		if(indent > 0 & curIndent <> -1 & @regexDecIndent.find(&, me.src.src[y], curIndent) <>& null)
 			do indent :- 1
 		end if
 		if(indent < 0)
 			do indent :: 0
 		end if
-		var curIndent: int :: me.skipTabs(y)
 		var replaceStr: []char :: "\t".repeat(indent) ~ (curIndent = -1 ?("", me.src.src[y].sub(curIndent, -1)))
 		do x :+ ^replaceStr - ^me.src.src[y]
 		do me.del(0, y, ^me.src.src[y], true)
