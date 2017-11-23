@@ -55,10 +55,6 @@ var popupMainFile: wnd@Popup
 var popupMainBuild: wnd@Popup
 var popupMainHelp: wnd@Popup
 var tabOrderFind: wnd@TabOrder
-var regexIncIndent: regex@Regex
-var regexDecIndent: regex@Regex
-var regexBlankLine: regex@Regex
-var regexIndent: regex@Regex
 
 class Pos()
 	+var src: []char
@@ -359,40 +355,6 @@ class DocumentSrc(@Document)
 		end if
 	end func
 
-	func autoIndent(x: int, y: int)
-		var indent: int :: 0
-		if(y > 0)
-			var prevY: int :: y - 1
-			while(prevY > 0 & @regexBlankLine.match(&, me.src.src[prevY]) <>& null)
-				do prevY :- 1
-			end while
-			for i(0, ^me.src.src[prevY] - 1)
-				switch c(me.src.src[prevY][i])
-				case '\t'
-					do indent :+ me.charWidth(c, indent)
-				case ' '
-					do indent :+ 1
-				default
-					break i
-				end switch
-			end for
-			do indent :/ me.charWidth('\t', 0)
-			if(@regexIncIndent.find(&, me.src.src[prevY], 0) <>& null)
-				do indent :+ 1
-			end if
-		end if
-		if(indent > 0 & @regexDecIndent.find(&, me.src.src[y], 0) <>& null)
-			do indent :- 1
-		end if
-		block
-			var replaceStr: []char :: @regexIndent.replace(me.src.src[y], "\t".repeat(indent), false)
-			do x :: lib@max(x + ^replaceStr - ^me.src.src[y], 0)
-			do me.del(0, y, ^me.src.src[y], true)
-			do me.ins(0, y, replaceStr, true)
-			do me.move(x, y)
-		end block
-	end func
-
 	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		switch(key)
 		case %ctrl
@@ -463,13 +425,15 @@ class DocumentSrc(@Document)
 					block
 						var x: int :: me.cursorX
 						var y: int :: me.cursorY - 1
-						if(@regexBlankLine.match(&, me.src.src[y]) <>& null)
+						; The upper row.
+						var curIndent: int :: me.skipTabs(y)
+						if(curIndent = -1)
 							do me.del(0, y, ^me.src.src[y], true)
 						else
 							do me.autoIndent(0, y)
 						end if
-						do me.move(x, y + 1)
-						do me.autoIndent(me.cursorX, me.cursorY)
+						; The current row.
+						do me.autoIndent(x, y + 1)
 					end block
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true, 1)
@@ -1580,6 +1544,45 @@ class DocumentSrc(@Document)
 		do @scrollYSrc.setScrollPos(me.pageY)
 		do @drawEditor.paint()
 	end func
+
+	func autoIndent(x: int, y: int)
+		var indent: int :: -1
+		if(y > 0)
+			var prevY: int :: y - 1
+			while loop(true)
+				do indent :: me.skipTabs(prevY)
+				if(prevY = 0 | indent <> -1)
+					break loop
+				end if
+				do prevY :- 1
+			end while
+			if(indent <> -1)
+				if(@regexIncIndent.find(&, me.src.src[prevY], indent) <>& null)
+					do indent :+ 1
+				end if
+			end if
+		end if
+		if(indent > 0 & @regexDecIndent.find(&, me.src.src[y], indent) <>& null)
+			do indent :- 1
+		end if
+		if(indent < 0)
+			do indent :: 0
+		end if
+		var curIndent: int :: me.skipTabs(y)
+		var replaceStr: []char :: "\t".repeat(indent) ~ (curIndent = -1 ?("", me.src.src[y].sub(curIndent, -1)))
+		do x :+ ^replaceStr - ^me.src.src[y]
+		do me.del(0, y, ^me.src.src[y], true)
+		do me.ins(0, y, replaceStr, true)
+		do me.cursorX :: x
+	end func
+
+	func skipTabs(y: int): int
+		var x: int :: 0
+		while(x < ^me.src.src[y] & me.src.src[y][x] = '\t')
+			do x :+ 1
+		end while
+		ret x = ^me.src.src[y] ?(-1, x)
+	end func
 end class
 
 class DocumentArBase(@Document)
@@ -2047,6 +2050,8 @@ var auxiliaryErr: dict<@Pos, []char>
 var lockingEditor: bool
 var textErr: []char
 var textLog: []char
+var regexIncIndent: regex@Regex
+var regexDecIndent: regex@Regex
 
 func main()
 	block
@@ -2060,6 +2065,8 @@ func main()
 	do @wndFindEditPatternLast :: ""
 	do @wndFindEditReplaceLast :: ""
 	do @wndFindChkDistinguishCaseLast :: true
+	do @regexIncIndent :: regex@makeRegex("^(?:if|elif|else|switch|case|default|while|for|try|catch|finally|block|\\+?\\*?\\*?func|\\+?class|\\+?enum)\\b")
+	do @regexDecIndent :: regex@makeRegex("^(?:end|elif|else|case|default|catch|finally)\\b")
 
 	do @initCompiler(2, @langEn ?(1, 0))
 	do wnd@onKeyPress(@onKeyPress)
@@ -2088,10 +2095,6 @@ func main()
 	do @drawEditor.onSetMouseImg :: @drawEditorOnSetMouseImg
 	do @wndMain.focus()
 	do @drawEditor.focus()
-	do @regexIncIndent :: regex@makeRegex("^\\s*(?:if|elif|else|switch|case|default|while|for|try|catch|finally|block|\\+?\\*?\\*?func|\\+?class|\\+?enum)\\b")
-	do @regexDecIndent :: regex@makeRegex("^\\s*(?:end|elif|else|case|default|catch|finally)\\b")
-	do @regexBlankLine :: regex@makeRegex("^\\s*$")
-	do @regexIndent :: regex@makeRegex("^\\s*")
 
 	do mainLoop()
 
