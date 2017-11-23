@@ -3489,6 +3489,14 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char, fast:
 		do @wndCompletionCursor :: best = -1 ?(0, best)
 		do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 		do @wndCompletionListKeywords.setSel(-1)
+
+		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, fast ?(114, 38), 300, 38, %fix, %fix)
+		do @wndCompletionEditFunc.readonly(true)
+		if(^funcHint = 0)
+			do @wndCompletionEditFunc.setText(@langEn ?("Select...Up/Down, To Definition...F12\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Up/Down, 定義元へ...F12\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
+		else
+			do @wndCompletionEditFunc.setText(funcHint)
+		end if
 	else
 		do @wndCompletionHintPos :: #@Pos
 		var hintSrc: []char
@@ -3500,17 +3508,9 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char, fast:
 		end if
 		if(wordHint =& null)
 			do @wndCompletionHintPos :: null
+			do @closeCompletion()
 		else
 			do @wndCompletionEditHint.setText(wordHint)
-		end if
-	end if
-	if(fast)
-		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, fast ?(114, 38), 300, 38, %fix, %fix)
-		do @wndCompletionEditFunc.readonly(true)
-		if(^funcHint = 0)
-			do @wndCompletionEditFunc.setText(@langEn ?("Select...Up/Down, To Definition...F12\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Up/Down, 定義元へ...F12\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
-		else
-			do @wndCompletionEditFunc.setText(funcHint)
 		end if
 	end if
 
