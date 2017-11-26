@@ -426,18 +426,17 @@ class DocumentSrc(@Document)
 						var y: int :: me.cursorY
 						do me.ins(x, y, "\n", true)
 						; The upper row.
-						var curIndent: int :: me.skipTabs(y)
-						if(curIndent = -1)
+						if(me.skipTabs(y) = -1)
 							do me.del(0, y, ^me.src.src[y], true)
 						else
+							do me.autoIndent(0, y)
 							if(^me.src.src[y + 1] = 0)
-								var result: [][]char :: @regexBlock.find(&, me.src.src[y], curIndent)
+								var result: [][]char :: @regexBlock.find(&, me.src.src[y], me.skipTabs(y))
 								if(result <>& null)
 									do me.ins(0, y + 1, "\nend " ~ result[1], true)
 									do me.autoIndent(0, y + 2)
 								end if
 							end if
-							do me.autoIndent(0, y)
 						end if
 						; The current row.
 						do me.autoIndent(0, y + 1)
