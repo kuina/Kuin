@@ -424,19 +424,19 @@ class DocumentSrc(@Document)
 					block
 						var x: int :: me.cursorX
 						var y: int :: me.cursorY
-						if(x = ^me.src.src[y])
-							var result: [][]char :: @regexBlock.find(&, me.src.src[y], me.skipTabs(y))
-							if(result <>& null)
-								do me.ins(x, y, "\nend " ~ result[1], true)
-								do me.autoIndent(x, y + 1)
-							end if
-						end if
 						do me.ins(x, y, "\n", true)
 						; The upper row.
 						if(me.skipTabs(y) = -1)
 							do me.del(0, y, ^me.src.src[y], true)
 						else
 							do me.autoIndent(0, y)
+							if(^me.src.src[y + 1] = 0)
+								var result: [][]char :: @regexBlock.find(&, me.src.src[y], me.skipTabs(y))
+								if(result <>& null)
+									do me.ins(0, y + 1, "\nend " ~ result[1], true)
+									do me.autoIndent(0, y + 2)
+								end if
+							end if
 						end if
 						; The current row.
 						do me.autoIndent(0, y + 1)
@@ -1576,10 +1576,9 @@ class DocumentSrc(@Document)
 			do indent :: 0
 		end if
 		var replaceStr: []char :: "\t".repeat(indent) ~ (curIndent = -1 ?("", me.src.src[y].sub(curIndent, -1)))
-		do x :+ ^replaceStr - ^me.src.src[y]
 		do me.del(0, y, ^me.src.src[y], true)
 		do me.ins(0, y, replaceStr, true)
-		do me.cursorX :: x
+		do me.cursorX :: indent
 	end func
 
 	func skipTabs(y: int): int
