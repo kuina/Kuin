@@ -421,19 +421,25 @@ class DocumentSrc(@Document)
 					if(me.areaSelected())
 						do me.delAreaStr()
 					end if
-					do me.ins(me.cursorX, me.cursorY, "\n", true)
 					block
 						var x: int :: me.cursorX
-						var y: int :: me.cursorY - 1
+						var y: int :: me.cursorY
+						if(x = ^me.src.src[y])
+							var result: [][]char :: @regexBlock.find(&, me.src.src[y], me.skipTabs(y))
+							if(result <>& null)
+								do me.ins(x, y, "\nend " ~ result[1], true)
+								do me.autoIndent(x, y + 1)
+							end if
+						end if
+						do me.ins(x, y, "\n", true)
 						; The upper row.
-						var curIndent: int :: me.skipTabs(y)
-						if(curIndent = -1)
+						if(me.skipTabs(y) = -1)
 							do me.del(0, y, ^me.src.src[y], true)
 						else
 							do me.autoIndent(0, y)
 						end if
 						; The current row.
-						do me.autoIndent(x, y + 1)
+						do me.autoIndent(0, y + 1)
 					end block
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true, 1)
@@ -2052,6 +2058,7 @@ var textErr: []char
 var textLog: []char
 var regexIncIndent: regex@Regex
 var regexDecIndent: regex@Regex
+var regexBlock: regex@Regex
 
 func main()
 	block
@@ -2067,6 +2074,7 @@ func main()
 	do @wndFindChkDistinguishCaseLast :: true
 	do @regexIncIndent :: regex@makeRegex("^(?:if|elif|else|switch|case|default|while|for|try|catch|finally|block|\\+?\\*?\\*?func|\\+?class|\\+?enum)\\b")
 	do @regexDecIndent :: regex@makeRegex("^(?:end|elif|else|case|default|catch|finally)\\b")
+	do @regexBlock :: regex@makeRegex("^[+*]*(if|switch|while|for|try|block|func|class|enum)\\b")
 
 	do @initCompiler(2, @langEn ?(1, 0))
 	do wnd@onKeyPress(@onKeyPress)
