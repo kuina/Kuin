@@ -503,7 +503,7 @@ class DocumentSrc(@Document)
 			end if
 			ret true
 		case %up
-			if(@wndCompletion <>& null & @wndCompletionListKeywords <>& null)
+			if(shiftCtrl = %none & @wndCompletion <>& null & @wndCompletionListKeywords <>& null)
 				if(@wndCompletionListKeywords.len() <> 0)
 					var sel: int :: @wndCompletionListKeywords.getSel()
 					if(sel = -1)
@@ -534,7 +534,7 @@ class DocumentSrc(@Document)
 			end if
 			ret true
 		case %down
-			if(@wndCompletion <>& null & @wndCompletionListKeywords <>& null)
+			if(shiftCtrl = %none & @wndCompletion <>& null & @wndCompletionListKeywords <>& null)
 				var len: int :: @wndCompletionListKeywords.len()
 				if(len <> 0)
 					var sel: int :: @wndCompletionListKeywords.getSel()
