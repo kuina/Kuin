@@ -503,18 +503,17 @@ class DocumentSrc(@Document)
 			end if
 			ret true
 		case %up
-			if(@wndCompletion <>& null & @wndCompletionListKeywords <>& null)
-				var sel: int :: @wndCompletionListKeywords.getSel()
-				if(sel = -1)
-					do sel :: @wndCompletionCursor
-				else
-					do sel :- 1
-					if(sel < 0)
-						do sel :: 0
+			if(shiftCtrl = %none & @wndCompletion <>& null & @wndCompletionListKeywords <>& null)
+				if(@wndCompletionListKeywords.len() <> 0)
+					var sel: int :: @wndCompletionListKeywords.getSel()
+					if(sel = -1)
+						do sel :: @wndCompletionCursor
+					elif(sel <> 0)
+						do sel :- 1
 					end if
+					do @wndCompletionListKeywords.setSel(sel)
+					do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 				end if
-				do @wndCompletionListKeywords.setSel(sel)
-				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(-1)
 			else
@@ -535,19 +534,18 @@ class DocumentSrc(@Document)
 			end if
 			ret true
 		case %down
-			if(@wndCompletion <>& null & @wndCompletionListKeywords <>& null)
-				var sel: int :: @wndCompletionListKeywords.getSel()
-				if(sel = -1)
-					do sel :: @wndCompletionCursor
-				else
-					do sel :+ 1
-					var len: int :: @wndCompletionListKeywords.len()
-					if(sel >= len)
-						do sel :: len - 1
+			if(shiftCtrl = %none & @wndCompletion <>& null & @wndCompletionListKeywords <>& null)
+				var len: int :: @wndCompletionListKeywords.len()
+				if(len <> 0)
+					var sel: int :: @wndCompletionListKeywords.getSel()
+					if(sel = -1)
+						do sel :: @wndCompletionCursor
+					elif(sel <> len - 1)
+						do sel :+ 1
 					end if
+					do @wndCompletionListKeywords.setSel(sel)
+					do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 				end if
-				do @wndCompletionListKeywords.setSel(sel)
-				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(1)
 			else
