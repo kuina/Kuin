@@ -424,19 +424,25 @@ class DocumentSrc(@Document)
 					if(me.areaSelected())
 						do me.delAreaStr()
 					end if
-					do me.ins(me.cursorX, me.cursorY, "\n", true)
 					block
 						var x: int :: me.cursorX
-						var y: int :: me.cursorY - 1
+						var y: int :: me.cursorY
+						do me.ins(x, y, "\n", true)
 						; The upper row.
-						var curIndent: int :: me.skipTabs(y)
-						if(curIndent = -1)
+						if(me.skipTabs(y) = -1)
 							do me.del(0, y, ^me.src.src[y], true)
 						else
 							do me.autoIndent(0, y)
+							if(^me.src.src[y + 1] = 0)
+								var result: [][]char :: @regexBlock.find(&, me.src.src[y], me.skipTabs(y))
+								if(result <>& null)
+									do me.ins(0, y + 1, "\nend " ~ result[1], true)
+									do me.autoIndent(0, y + 2)
+								end if
+							end if
 						end if
 						; The current row.
-						do me.autoIndent(x, y + 1)
+						do me.autoIndent(0, y + 1)
 					end block
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true, 1)
@@ -500,18 +506,17 @@ class DocumentSrc(@Document)
 			end if
 			ret true
 		case %up
-			if(@wndCompletion <>& null & @wndCompletionListKeywords <>& null)
-				var sel: int :: @wndCompletionListKeywords.getSel()
-				if(sel = -1)
-					do sel :: @wndCompletionCursor
-				else
-					do sel :- 1
-					if(sel < 0)
-						do sel :: 0
+			if(shiftCtrl = %none & @wndCompletion <>& null & @wndCompletionListKeywords <>& null)
+				if(@wndCompletionListKeywords.len() <> 0)
+					var sel: int :: @wndCompletionListKeywords.getSel()
+					if(sel = -1)
+						do sel :: @wndCompletionCursor
+					elif(sel <> 0)
+						do sel :- 1
 					end if
+					do @wndCompletionListKeywords.setSel(sel)
+					do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 				end if
-				do @wndCompletionListKeywords.setSel(sel)
-				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(-1)
 			else
@@ -532,19 +537,18 @@ class DocumentSrc(@Document)
 			end if
 			ret true
 		case %down
-			if(@wndCompletion <>& null & @wndCompletionListKeywords <>& null)
-				var sel: int :: @wndCompletionListKeywords.getSel()
-				if(sel = -1)
-					do sel :: @wndCompletionCursor
-				else
-					do sel :+ 1
-					var len: int :: @wndCompletionListKeywords.len()
-					if(sel >= len)
-						do sel :: len - 1
+			if(shiftCtrl = %none & @wndCompletion <>& null & @wndCompletionListKeywords <>& null)
+				var len: int :: @wndCompletionListKeywords.len()
+				if(len <> 0)
+					var sel: int :: @wndCompletionListKeywords.getSel()
+					if(sel = -1)
+						do sel :: @wndCompletionCursor
+					elif(sel <> len - 1)
+						do sel :+ 1
 					end if
+					do @wndCompletionListKeywords.setSel(sel)
+					do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 				end if
-				do @wndCompletionListKeywords.setSel(sel)
-				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(1)
 			else
@@ -1573,10 +1577,9 @@ class DocumentSrc(@Document)
 			do indent :: 0
 		end if
 		var replaceStr: []char :: "\t".repeat(indent) ~ (curIndent = -1 ?("", me.src.src[y].sub(curIndent, -1)))
-		do x :+ ^replaceStr - ^me.src.src[y]
 		do me.del(0, y, ^me.src.src[y], true)
 		do me.ins(0, y, replaceStr, true)
-		do me.cursorX :: x
+		do me.cursorX :: indent
 	end func
 
 	func skipTabs(y: int): int
@@ -2055,6 +2058,7 @@ var textErr: []char
 var textLog: []char
 var regexIncIndent: regex@Regex
 var regexDecIndent: regex@Regex
+var regexBlock: regex@Regex
 
 func main()
 	block
@@ -2070,6 +2074,7 @@ func main()
 	do @wndFindChkDistinguishCaseLast :: true
 	do @regexIncIndent :: regex@makeRegex("^(?:if|elif|else|switch|case|default|while|for|try|catch|finally|block|\\+?\\*?\\*?func|\\+?class|\\+?enum)\\b")
 	do @regexDecIndent :: regex@makeRegex("^(?:end|elif|else|case|default|catch|finally)\\b")
+	do @regexBlock :: regex@makeRegex("^[+*]*(if|switch|while|for|try|block|func|class|enum)\\b")
 
 	do @initCompiler(2, @langEn ?(1, 0))
 	do wnd@onKeyPress(@onKeyPress)
