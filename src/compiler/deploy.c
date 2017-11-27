@@ -24,7 +24,6 @@ void Deploy(U64 app_code, const SOption* option, SDict* dlls)
 			Err(L"EK0012", NULL, path);
 	}
 	DictForEach(dlls, CopyDlls, (void*)option);
-	// TODO: Deploy the resource folder.
 #endif
 }
 
@@ -32,8 +31,8 @@ static const void* CopyDlls(const Char* key, const void* value, void* param)
 {
 	const SOption* option = (SOption*)param;
 	{
-		Char src[KUIN_MAX_PATH];
-		Char dst[KUIN_MAX_PATH];
+		Char src[KUIN_MAX_PATH + 1];
+		Char dst[KUIN_MAX_PATH + 1];
 		wcscpy(src, option->SysDir);
 		if (option->Rls)
 			wcscat(src, L"rls/");
@@ -54,8 +53,8 @@ static const void* CopyDlls(const Char* key, const void* value, void* param)
 
 static void CopyKuinFile(const Char* name, const SOption* option)
 {
-	Char src[KUIN_MAX_PATH];
-	Char dst[KUIN_MAX_PATH];
+	Char src[KUIN_MAX_PATH + 1];
+	Char dst[KUIN_MAX_PATH + 1];
 	wcscpy(src, option->SysDir);
 	wcscat(src, name);
 	wcscpy(dst, option->OutputDir);

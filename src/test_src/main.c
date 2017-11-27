@@ -14,7 +14,7 @@
 
 #pragma comment(lib, "compiler.lib")
 
-Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang);
+Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang, S64 app_code, const Char* app_name, Bool not_deploy);
 
 static void Log(const Char* code, const Char* msg, const Char* src, int row, int col);
 static Bool Compare(const Char* path1, const Char* path2);
@@ -35,14 +35,14 @@ int wmain(void)
 		{
 			PROCESS_INFORMATION process_info;
 			HANDLE process;
-			Char test_path[KUIN_MAX_PATH];
-			Char output_path[KUIN_MAX_PATH];
-			Char log_path[KUIN_MAX_PATH];
-			swprintf(test_path, KUIN_MAX_PATH, L"../../test/kn/test%04d.kn", i);
-			swprintf(output_path, KUIN_MAX_PATH, L"../../test/output/output%04d.exe", i);
-			swprintf(log_path, KUIN_MAX_PATH, L"../../test/output/log%04d.txt", i);
+			Char test_path[KUIN_MAX_PATH + 1];
+			Char output_path[KUIN_MAX_PATH + 1];
+			Char log_path[KUIN_MAX_PATH + 1];
+			swprintf(test_path, KUIN_MAX_PATH + 1, L"../../test/kn/test%04d.kn", i);
+			swprintf(output_path, KUIN_MAX_PATH + 1, L"../../test/output/output%04d.exe", i);
+			swprintf(log_path, KUIN_MAX_PATH + 1, L"../../test/output/log%04d.txt", i);
 			wprintf(L"%s\n", output_path);
-			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Log, 1))
+			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Log, 1, 0, L"", False))
 				goto Failure;
 			wprintf(L"Compile[S]");
 			{
@@ -108,8 +108,8 @@ int wmain(void)
 			}
 			wprintf(L", Run[S]");
 			{
-				Char path[KUIN_MAX_PATH];
-				swprintf(path, KUIN_MAX_PATH, L"../../test/correct/log%04d.txt", i);
+				Char path[KUIN_MAX_PATH + 1];
+				swprintf(path, KUIN_MAX_PATH + 1, L"../../test/correct/log%04d.txt", i);
 				if (!Compare(log_path, path))
 				{
 					correct = False;
@@ -125,12 +125,12 @@ int wmain(void)
 	}
 	else if (type == -1)
 	{
-		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Log, LANG))
+		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Log, LANG, 0, L"", False))
 			goto Failure;
 	}
 	else if (type == -2)
 	{
-		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Log, LANG))
+		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Log, LANG, 0, L"", False))
 			goto Failure;
 	}
 	else

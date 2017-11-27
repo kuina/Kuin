@@ -87,6 +87,12 @@ typedef struct SKeywordCallbackParam
 	EAstTypeId Type;
 } SKeywordCallbackParam;
 
+typedef struct SArchiveFileList
+{
+	struct SArchiveFileList* Next;
+	const Char* Path;
+} SArchiveFileList;
+
 static const void*(*FuncGetSrc)(const U8*) = NULL;
 static void(*FuncLog)(const void*, S64, S64) = NULL;
 static const void* Src = NULL;
@@ -109,7 +115,7 @@ void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);
 
 static void LoadExcptMsg(S64 lang);
 static void DecSrc(void);
-static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang);
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang, S64 app_code, const Char* app_name, Bool not_deploy);
 static FILE* BuildMemWfopen(const Char* file_name, const Char* mode);
 static int BuildMemFclose(FILE* file_ptr);
 static U16 BuildMemFgetwc(FILE* file_ptr);
@@ -124,6 +130,9 @@ static const void* MakeKeywordsCallback(const Char* key, const void* value, void
 static void MakeKeywordsRecursion(SKeywordCallbackParam* param, const SAst* ast);
 static int CmpKeyword(const void* a, const void* b);
 static void SearchAst(int* first, int* last, const Char* src, const Char* keyword);
+static SArchiveFileList* SearchFiles(int* len, const Char* src);
+static Bool SearchFilesRecursion(int* len, size_t src_base_len, const Char* src, SArchiveFileList** top, SArchiveFileList** bottom);
+static U8 GetKey(U64 key, U8 data, U64 pos);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -145,13 +154,13 @@ EXPORT void FinCompiler(void)
 	FinAllocator();
 }
 
-EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* output, const U8* icon, Bool rls, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang)
+EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* output, const U8* icon, Bool rls, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang, S64 app_code, const U8* app_name)
 {
 	// This function is for the Kuin Editor.
 	Bool result;
 	FuncGetSrc = func_get_src;
 	FuncLog = func_log;
-	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon == NULL ? NULL : (const Char*)(icon + 0x10), rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog, lang);
+	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon == NULL ? NULL : (const Char*)(icon + 0x10), rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog, lang, app_code, (const Char*)(app_name + 0x10), False);
 	FuncGetSrc = NULL;
 	FuncLog = NULL;
 	DecSrc();
@@ -161,12 +170,12 @@ EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), cons
 	return result;
 }
 
-EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang)
+EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang, S64 app_code, const Char* app_name, Bool not_deploy)
 {
 	// This function is for 'kuincl'.
 	Bool result;
 	InitAllocator(1);
-	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log, lang);
+	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log, lang, app_code, app_name, not_deploy);
 	FinAllocator();
 	return result;
 }
@@ -203,7 +212,7 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 		SOption option;
 		SDict* asts;
 		SDict* dlls;
-		MakeOption(&option, (const Char*)(path + 0x10), NULL, sys_dir2, NULL, False, env == NULL ? NULL : (const Char*)(env + 0x10));
+		MakeOption(&option, (const Char*)(path + 0x10), NULL, sys_dir2, NULL, False, env == NULL ? NULL : (const Char*)(env + 0x10), False);
 		if (!ErrOccurred())
 		{
 			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
@@ -625,6 +634,99 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 	return True;
 }
 
+EXPORT Bool Archive(const U8* dst, const U8* src, S64 app_code)
+{
+	FILE* file_ptr = _wfopen((const Char*)(dst + 0x10), L"wb");
+	if (file_ptr == NULL)
+		return False;
+	const Char* src2 = (const Char*)(src + 0x10);
+	int len;
+	SArchiveFileList* files = SearchFiles(&len, src2);
+	if (files == (SArchiveFileList*)DummyPtr || len > 65535)
+	{
+		fclose(file_ptr);
+		return False;
+	}
+	U64 key = ((U64)(U32)timeGetTime() | ((U64)(U32)time(NULL) << 32)) ^ 0x8364ff023819442e;
+	fwrite(&key, sizeof(U64), 1, file_ptr);
+	key ^= (U64)app_code * 0x9271ac8394027acb + 0x35718394ca72849e;
+	{
+		U64 signature = 0x83261772fa0c01a7 ^ key;
+		fwrite(&signature, sizeof(U64), 1, file_ptr);
+	}
+	{
+		U64 len2 = (U64)len ^ 0x9c4cab83ce74a67e ^ key;
+		fwrite(&len2, sizeof(U64), 1, file_ptr);
+	}
+	U64 pos = 0;
+	{
+		SArchiveFileList* ptr = files;
+		while (ptr != NULL)
+		{
+			Char path[KUIN_MAX_PATH + 1];
+			swprintf(path, KUIN_MAX_PATH + 1, L"%s%s", src2, ptr->Path);
+			FILE* file_ptr2 = _wfopen(path, L"rb");
+			if (file_ptr2 == NULL)
+			{
+				fclose(file_ptr);
+				return False;
+			}
+			_fseeki64(file_ptr2, 0, SEEK_END);
+			U64 size = (U64)_ftelli64(file_ptr2);
+			_fseeki64(file_ptr2, 0, SEEK_SET);
+			{
+				U64 path_len = (U64)wcslen(ptr->Path);
+				if (path_len > 255)
+				{
+					fclose(file_ptr);
+					fclose(file_ptr2);
+					return False;
+				}
+				U64 i;
+				{
+					U8* ptr2 = (U8*)&size;
+					for (i = 0; i < 8; i++)
+					{
+						U8 data = GetKey(key, ptr2[i], pos);
+						pos++;
+						fwrite(&data, sizeof(U8), 1, file_ptr);
+					}
+				}
+				{
+					U8* ptr2 = (U8*)&path_len;
+					for (i = 0; i < 8; i++)
+					{
+						U8 data = GetKey(key, ptr2[i], pos);
+						pos++;
+						fwrite(&data, sizeof(U8), 1, file_ptr);
+					}
+				}
+				{
+					U8* ptr2 = (U8*)ptr->Path;
+					for (i = 0; i < path_len * 2; i++)
+					{
+						U8 data = GetKey(key, ptr2[i], pos);
+						pos++;
+						fwrite(&data, sizeof(U8), 1, file_ptr);
+					}
+				}
+				for (i = 0; i < size; i++)
+				{
+					U8 data;
+					fread(&data, sizeof(U8), 1, file_ptr2);
+					data = GetKey(key, data, pos);
+					pos++;
+					fwrite(&data, sizeof(U8), 1, file_ptr);
+				}
+			}
+			fclose(file_ptr2);
+			ptr = ptr->Next;
+		}
+	}
+	fclose(file_ptr);
+	return True;
+}
+
 static void LoadExcptMsg(S64 lang)
 {
 	if (!MsgLoaded)
@@ -682,7 +784,7 @@ static void DecSrc(void)
 	}
 }
 
-static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang)
+static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang, S64 app_code, const Char* app_name, Bool not_deploy)
 {
 	SOption option;
 	SDict* asts;
@@ -706,7 +808,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	timeBeginPeriod(1);
 
 	begin_time = timeGetTime();
-	MakeOption(&option, path, output, sys_dir, icon, rls, env);
+	MakeOption(&option, path, output, sys_dir, icon, rls, env, not_deploy);
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0000", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
@@ -729,7 +831,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0002", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
-	Assemble(&PackAsm, entry, &option, dlls);
+	Assemble(&PackAsm, entry, &option, dlls, app_code, app_name);
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0003", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
@@ -737,7 +839,8 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0004", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
-	Deploy(PackAsm.AppCode, &option, dlls);
+	if (!option.NotDeploy)
+		Deploy(PackAsm.AppCode, &option, dlls);
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0005", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
@@ -1211,4 +1314,69 @@ static void SearchAst(int* first, int* last, const Char* src, const Char* keywor
 	}
 	*first = -1;
 	*last = -1;
+}
+
+static SArchiveFileList* SearchFiles(int* len, const Char* src)
+{
+	SArchiveFileList* top = NULL;
+	SArchiveFileList* bottom = NULL;
+	*len = 0;
+	if (!SearchFilesRecursion(len, wcslen(src), src, &top, &bottom))
+		return (SArchiveFileList*)DummyPtr;
+	return top;
+}
+
+static Bool SearchFilesRecursion(int* len, size_t src_base_len, const Char* src, SArchiveFileList** top, SArchiveFileList** bottom)
+{
+	Char src2[KUIN_MAX_PATH + 1];
+	if (wcslen(src) > KUIN_MAX_PATH)
+		return False;
+	if (!PathFileExists(src))
+		return False;
+	wcscpy(src2, src);
+	wcscat(src2, L"*");
+	{
+		WIN32_FIND_DATA find_data;
+		HANDLE handle = FindFirstFile(src2, &find_data);
+		if (handle == INVALID_HANDLE_VALUE)
+			return False;
+		do
+		{
+			if (wcscmp(find_data.cFileName, L".") == 0 || wcscmp(find_data.cFileName, L"..") == 0)
+				continue;
+			{
+				wcscpy(src2, src);
+				wcscat(src2, find_data.cFileName);
+				if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+				{
+					wcscat(src2, L"/");
+					if (!SearchFilesRecursion(len, src_base_len, src2, top, bottom))
+					{
+						FindClose(handle);
+						return False;
+					}
+				}
+				else
+				{
+					SArchiveFileList* node = (SArchiveFileList*)Alloc(sizeof(SArchiveFileList));
+					node->Next = NULL;
+					node->Path = NewStr(NULL, L"%s", src2 + src_base_len);
+					if ((*top) == NULL)
+						(*top) = node;
+					else
+						(*bottom)->Next = node;
+					(*bottom) = node;
+					(*len)++;
+				}
+			}
+		} while (FindNextFile(handle, &find_data));
+		FindClose(handle);
+	}
+	return True;
+}
+
+static U8 GetKey(U64 key, U8 data, U64 pos)
+{
+	U64 rnd = ((pos ^ key) * 0x351cd819923acaea) ^ 0x7428003312715139;
+	return (U8)(data ^ rnd);
 }

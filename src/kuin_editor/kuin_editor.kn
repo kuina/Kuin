@@ -7,7 +7,7 @@ end func
 func [d0917.knd, FinCompiler] finCompiler()
 end func
 
-func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>, lang: int): bool
+func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>, lang: int, appCode: int, appName: []char): bool
 end func
 
 func [d0917.knd, Interpret1] interpret1(src: [][]char, color: [][]bit8)
@@ -32,6 +32,9 @@ func [d0917.knd, GetKeywords] getKeywords(src: []char, row: int, keyword: []char
 end func
 
 func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>): bool
+end func
+
+func [d0917.knd, Archive] archive(dst: []char, src: []char, appCode: int): bool
 end func
 
 var wndMain: wnd@Wnd
@@ -2788,7 +2791,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end if
 	try
 		do @resetAuxiliary()
-		if(@build(@mainSrcName, @getSrc, null, out, null, false, @getEnv(), @log, @langEn ?(1, 0)))
+		if(@build(@mainSrcName, @getSrc, null, out, null, false, @getEnv(), @log, @langEn ?(1, 0), 0, "")) {TODO: AppName}
 			if (@mainSrcName <> @untitledSrcName)
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
 				do filePtr.writeStr(file@dir(@mainSrcName))
@@ -2857,12 +2860,25 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	do @updateLog()
 	try
 		do @resetAuxiliary()
-		if(@build(@mainSrcName, @getSrc, null, out, null, true, @getEnv(), @log, @langEn ?(1, 0)))
+		var appCode: int :: lib@rnd(1, lib@intMax) * (lib@rnd(0, 1) = 0 ?(1, -1))
+		if(appCode = 0)
+			do appCode :: 1 {Since it is not convenient when 'AppCode' becomes 0, it is set to 1.}
+		end if
+		if(@build(@mainSrcName, @getSrc, null, out, null, true, @getEnv(), @log, @langEn ?(1, 0), appCode, "")) {TODO: AppName}
 			if(@mainSrcName <> @untitledSrcName)
 				var resSrc: []char :: file@dir(@mainSrcName) ~ "res/"
 				if(file@exist(resSrc))
-					var resDst: []char :: tmp ~ "res/"
-					do file@copyDir(resDst, resSrc)
+					var resDst: []char :: tmp ~ "res.knd"
+					if(!@archive(resDst, resSrc, appCode))
+						var msg: []char
+						if(@langEn)
+							do msg :: "Could not make the resource file. " ~ resDst
+						else
+							do msg :: "リソースファイルを作成できませんでした。 " ~ resDst
+						end if
+						do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
+						ret
+					end if
 				end if
 			end if
 			if(zip@zip(file, tmp, -1))

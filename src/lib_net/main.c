@@ -221,7 +221,7 @@ EXPORT SClass* _makeTcpClient(SClass* me_, const U8* host, S64 port)
 	THROWDBG(port < 0 || 65535 < port, 0xe9170006);
 	STcp* me2 = (STcp*)me_;
 
-	char host_name[KUIN_MAX_PATH];
+	char host_name[KUIN_MAX_PATH + 1];
 	{
 		const Char* host2 = (const Char*)(host + 0x10);
 		S64 len = *(S64*)(host + 0x08);

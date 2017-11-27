@@ -12,6 +12,7 @@ typedef enum EEnv
 typedef struct SOption
 {
 	Bool Rls;
+	Bool NotDeploy;
 	const Char* IconFile;
 	const Char* SysDir;
 	const Char* SrcDir;
@@ -21,4 +22,4 @@ typedef struct SOption
 	EEnv Env;
 } SOption;
 
-void MakeOption(SOption* option, const Char* path, const Char* output, const Char* sys_dir, const Char* icon, Bool rls, const Char* env);
+void MakeOption(SOption* option, const Char* path, const Char* output, const Char* sys_dir, const Char* icon, Bool rls, const Char* env, Bool not_deploy);

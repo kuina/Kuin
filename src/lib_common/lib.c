@@ -40,7 +40,7 @@ EXPORT void* _cmdLine(void)
 
 EXPORT S64 _rnd(S64 min, S64 max)
 {
-	THROWDBG(min > max, 0xe9170006);
+	THROWDBG(max - min < 0, 0xe9170006);
 	return RndGet(&GlobalRnd, min, max);
 }
 

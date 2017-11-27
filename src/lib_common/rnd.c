@@ -33,7 +33,7 @@ EXPORT void _rndDtor(SClass* me_)
 
 EXPORT S64 _rndRnd(SClass* me_, S64 min, S64 max)
 {
-	THROWDBG(min > max, 0xe9170006);
+	THROWDBG(max - min < 0, 0xe9170006);
 	SRnd* me2 = (SRnd*)me_;
 	return RndGet(me2->RndState, min, max);
 }

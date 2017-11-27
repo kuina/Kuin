@@ -331,7 +331,9 @@ static S64 FindFactor(S64 n, U32 seed)
 			return 2;
 		if (_prime((S64)n2))
 			return (S64)n2;
-		U64 y = (((U64)XorShift(&seed) << 32) | (U64)XorShift(&seed)) % (n2 + 1);
+		U64 a = (U64)XorShift(&seed) << 32;
+		a |= (U64)XorShift(&seed);
+		U64 y = a % (n2 + 1);
 		U64 c = (U64)XorShift(&seed) + 1;
 		U64 m = (U64)XorShift(&seed) + 1;
 		U64 g;
