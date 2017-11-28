@@ -3,7 +3,7 @@
 #include "..\common.h"
 
 // 'kuin'
-EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name);
+EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const Char* app_name);
 EXPORT void _fin(void);
 EXPORT void _err(S64 excpt);
 EXPORT void _freeSet(void* ptr, const U8* type);

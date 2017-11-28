@@ -2,7 +2,7 @@
 
 #include "..\common.h"
 
-EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name);
+EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const Char* app_name);
 EXPORT_CPP void _fin();
 EXPORT_CPP Bool _act();
 EXPORT_CPP void _onKeyPress(void* onKeyPressFunc);

@@ -2796,7 +2796,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end if
 	try
 		do @resetAuxiliary()
-		if(@build(@mainSrcName, @getSrc, null, out, null, false, @getEnv(), @log, @langEn ?(1, 0), 0, "")) {TODO: AppName}
+		if(@build(@mainSrcName, @getSrc, null, out, null, false, @getEnv(), @log, @langEn ?(1, 0), 0, "Untitled")) {TODO: AppName}
 			if (@mainSrcName <> @untitledSrcName)
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
 				do filePtr.writeStr(file@dir(@mainSrcName))
@@ -2869,7 +2869,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		if(appCode = 0)
 			do appCode :: 1 {Since it is not convenient when 'AppCode' becomes 0, it is set to 1.}
 		end if
-		if(@build(@mainSrcName, @getSrc, null, out, null, true, @getEnv(), @log, @langEn ?(1, 0), appCode, "")) {TODO: AppName}
+		if(@build(@mainSrcName, @getSrc, null, out, null, true, @getEnv(), @log, @langEn ?(1, 0), appCode, "Untitled")) {TODO: AppName}
 			if(@mainSrcName <> @untitledSrcName)
 				var resSrc: []char :: file@dir(@mainSrcName) ~ "res/"
 				if(file@exist(resSrc))

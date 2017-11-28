@@ -1377,6 +1377,6 @@ static Bool SearchFilesRecursion(int* len, size_t src_base_len, const Char* src,
 
 static U8 GetKey(U64 key, U8 data, U64 pos)
 {
-	U64 rnd = ((pos ^ key) * 0x351cd819923acaea) ^ 0x7428003312715139;
+	U64 rnd = ((pos ^ key) * 0x351cd819923acae7) >> 32;
 	return (U8)(data ^ rnd);
 }

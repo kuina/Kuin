@@ -200,7 +200,7 @@ int wmain(int argc, Char** argv)
 				wprintf(L"Usage: kuincl [-i input.kn] [-o output.kn] [-s 'sys' directory] [-c icon.ico] [-e environment] [-n appname] [-a appcode] [-r] [-h] [-v] [-q]\n");
 				return 0;
 			}
-			if (func_build(input, sys_dir, output, icon, rls, env, Log, LANG, app_code, app_name == NULL ? L"" : app_name, not_deploy))
+			if (func_build(input, sys_dir, output, icon, rls, env, Log, LANG, app_code, app_name == NULL ? L"Untitled" : app_name, not_deploy))
 			{
 				if (rls)
 				{

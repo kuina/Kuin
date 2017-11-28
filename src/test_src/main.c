@@ -42,7 +42,7 @@ int wmain(void)
 			swprintf(output_path, KUIN_MAX_PATH + 1, L"../../test/output/output%04d.exe", i);
 			swprintf(log_path, KUIN_MAX_PATH + 1, L"../../test/output/log%04d.txt", i);
 			wprintf(L"%s\n", output_path);
-			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Log, 1, 0, L"", False))
+			if (!BuildFile(test_path, L"../../package/sys/", output_path, L"../../package/sys/default.ico", False, L"cui", Log, 1, 0, L"Test", False))
 				goto Failure;
 			wprintf(L"Compile[S]");
 			{
@@ -125,12 +125,12 @@ int wmain(void)
 	}
 	else if (type == -1)
 	{
-		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Log, LANG, 0, L"", False))
+		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"cui", Log, LANG, 0, L"Test", False))
 			goto Failure;
 	}
 	else if (type == -2)
 	{
-		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Log, LANG, 0, L"", False))
+		if (!BuildFile(L"../../test/kn/test.kn", L"../../package/sys/", L"../../test/output/output.exe", L"../../package/sys/default.ico", False, L"wnd", Log, LANG, 0, L"Test", False))
 			goto Failure;
 	}
 	else
