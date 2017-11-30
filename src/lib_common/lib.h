@@ -42,7 +42,7 @@ EXPORT S64 _maxInt(S64 n1, S64 n2);
 EXPORT double _maxFloat(double n1, double n2);
 EXPORT S64 _levenshtein(const U8* s1, const U8* s2);
 EXPORT double _lerp(double first, double last, double rate);
-EXPORT double _qerp(double first, double last, Bool easyIn, double rate);
+EXPORT double _qerp(double first, double last, Bool easeIn, double rate);
 EXPORT double _cerp(double first, double last, double rate);
 EXPORT double _hermite(const void* pos, double rate);
 EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern);

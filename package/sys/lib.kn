@@ -162,7 +162,7 @@ end func
 +func [d0000.knd, _lerp] lerp(first: float, last: float, rate: float): float
 end func
 
-+func [d0000.knd, _qerp] qerp(first: float, last: float, easyIn: bool, rate: float): float
++func [d0000.knd, _qerp] qerp(first: float, last: float, easeIn: bool, rate: float): float
 end func
 
 +func [d0000.knd, _cerp] cerp(first: float, last: float, rate: float): float

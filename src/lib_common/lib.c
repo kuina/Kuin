@@ -340,13 +340,13 @@ EXPORT double _lerp(double first, double last, double rate)
 	return first * (1.0 - rate) + last * rate;
 }
 
-EXPORT double _qerp(double first, double last, Bool easyIn, double rate)
+EXPORT double _qerp(double first, double last, Bool easeIn, double rate)
 {
 	if (rate < 0.0)
 		rate = 0.0;
 	else if (rate > 1.0)
 		rate = 1.0;
-	double rate2 = easyIn ? (rate * rate) : (rate * (2.0 - rate));
+	double rate2 = easeIn ? (rate * rate) : (rate * (2.0 - rate));
 	return first * (1.0 - rate2) + last * rate2;
 }
 
