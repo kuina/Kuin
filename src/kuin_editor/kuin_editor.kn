@@ -432,17 +432,20 @@ class DocumentSrc(@Document)
 						if(me.skipTabs(y) = -1)
 							do me.del(0, y, ^me.src.src[y], true)
 						else
-							do me.autoIndent(0, y)
+							do me.autoIndent(y)
+							{
+							; Complement 'end ...' syntaxes.
 							if(^me.src.src[y + 1] = 0)
 								var result: [][]char :: @regexBlock.find(&, me.src.src[y], me.skipTabs(y))
 								if(result <>& null)
 									do me.ins(0, y + 1, "\nend " ~ result[1], true)
-									do me.autoIndent(0, y + 2)
+									do me.autoIndent(y + 2)
 								end if
 							end if
+							}
 						end if
 						; The current row.
-						do me.autoIndent(0, y + 1)
+						do me.autoIndent(y + 1)
 					end block
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true, 1)
@@ -1552,7 +1555,7 @@ class DocumentSrc(@Document)
 		do @drawEditor.paint()
 	end func
 
-	func autoIndent(x: int, y: int)
+	func autoIndent(y: int)
 		var indent: int :: -1
 		if(y > 0)
 			var prevY: int :: y - 1
