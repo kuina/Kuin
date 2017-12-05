@@ -3541,14 +3541,14 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char, fast:
 
 	do @wndCompletionSrc :: src
 	do @wndCompletionRow :: row
-	do @wndCompletion :: wnd@makeWnd(@wndMain, (%popup $ wnd@WndStyle).or(%layered), 300, 152, null)
-	do @wndCompletion.setPos(x + x2, y + y2 + @cellHeight, 300, fast ?(152, 38))
+	do @wndCompletion :: wnd@makeWnd(@wndMain, (%popup $ wnd@WndStyle).or(%layered), 250, 100, null)
+	do @wndCompletion.setPos(x + x2, y + y2 + @cellHeight, 250, fast ?(100, 30))
 	do @wndCompletion.setAlpha(230)
 	do @wndCompletion.onClose :: wndCompletionOnClose
-	do @wndCompletionEditHint :: wnd@makeEditMulti(@wndCompletion, 0, 0, 300, 38, %fix, %fix)
+	do @wndCompletionEditHint :: wnd@makeEditMulti(@wndCompletion, 0, 0, 250, 30, %fix, %fix)
 	do @wndCompletionEditHint.readonly(true)
 	if(fast)
-		do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 38, 300, 76, %fix, %fix)
+		do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 30, 250, 48, %fix, %fix)
 		do @wndCompletionListKeywords.onSel :: @wndCompletionListKeywordsOnSel
 		do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
 		do @wndCompletionListKeywords.setRedraw(false)
@@ -3560,7 +3560,7 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char, fast:
 		do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 		do @wndCompletionListKeywords.setSel(-1)
 
-		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, fast ?(114, 38), 300, 38, %fix, %fix)
+		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 70, 250, 30, %fix, %fix)
 		do @wndCompletionEditFunc.readonly(true)
 		if(^funcHint = 0)
 			do @wndCompletionEditFunc.setText(@langEn ?("Select...Up/Down, To Definition...F12\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Up/Down, 定義元へ...F12\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
