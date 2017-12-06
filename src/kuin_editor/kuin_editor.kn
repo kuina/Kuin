@@ -445,17 +445,13 @@ class DocumentSrc(@Document)
 											do endFlag :: true
 											break loop
 										end if
-										if(me.skipTabs(nextY) = curIndent)
-											switch(result[1])
-											case "if"
-												do endFlag :: @regexIf.find(&, me.src.src[nextY], curIndent) =& null
-											case "switch"
-												do endFlag :: @regexSwitch.find(&, me.src.src[nextY], curIndent) =& null
-											case "try"
-												do endFlag :: @regexTry.find(&, me.src.src[nextY], curIndent) =& null
-											default
-												do endFlag :: @regexOther.find(&, me.src.src[nextY], curIndent) =& null
-											end switch
+										var nextIndent: int :: me.skipTabs(nextY)
+										if(nextIndent <> -1 & nextIndent <= curIndent)
+											if(nextIndent = curIndent)
+												do endFlag :: @regexComplementDict.get(result[1]).find(&, me.src.src[nextY], curIndent) =& null
+											else
+												do endFlag :: true
+											end if
 											break loop
 										end if
 										do nextY :+ 1
@@ -2085,10 +2081,7 @@ var textLog: []char
 var regexIncIndent: regex@Regex
 var regexDecIndent: regex@Regex
 var regexBlock: regex@Regex
-var regexIf: regex@Regex
-var regexSwitch: regex@Regex
-var regexTry: regex@Regex
-var regexOther: regex@Regex
+var regexComplementDict: dict<[]char, regex@Regex>
 
 func main()
 	block
@@ -2105,10 +2098,16 @@ func main()
 	do @regexIncIndent :: regex@makeRegex("^(?:if|elif|else|switch|case|default|while|for|try|catch|finally|block|\\+?\\*?\\*?func|\\+?class|\\+?enum)\\b")
 	do @regexDecIndent :: regex@makeRegex("^(?:end|elif|else|case|default|catch|finally)\\b")
 	do @regexBlock :: regex@makeRegex("^[+*]*(if|switch|while|for|try|block|func|class|enum)\\b")
-	do @regexIf :: regex@makeRegex("^(?:elif|else|end)\\b")
-	do @regexSwitch :: regex@makeRegex("^(?:case|default|end)\\b")
-	do @regexTry :: regex@makeRegex("^(?:catch|finally|end)\\b")
-	do @regexOther :: regex@makeRegex("^end\\b")
+	do @regexComplementDict :: #dict<[]char, regex@Regex>
+	do @regexComplementDict.add("if", regex@makeRegex("^(?:elif|else|end if)\\b"))
+	do @regexComplementDict.add("switch", regex@makeRegex("^(?:case|default|end switch)\\b"))
+	do @regexComplementDict.add("while", regex@makeRegex("^end while\\b"))
+	do @regexComplementDict.add("for", regex@makeRegex("^end for\\b"))
+	do @regexComplementDict.add("try", regex@makeRegex("^(?:catch|finally|end try)\\b"))
+	do @regexComplementDict.add("block", regex@makeRegex("^end block\\b"))
+	do @regexComplementDict.add("func", regex@makeRegex("^end func\\b"))
+	do @regexComplementDict.add("class", regex@makeRegex("^end class\\b"))
+	do @regexComplementDict.add("enum", regex@makeRegex("^end enum\\b"))
 
 	do @initCompiler(2, @langEn ?(1, 0))
 	do wnd@onKeyPress(@onKeyPress)
