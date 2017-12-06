@@ -433,16 +433,39 @@ class DocumentSrc(@Document)
 							do me.del(0, y, ^me.src.src[y], true)
 						else
 							do me.autoIndent(y)
-							{
 							; Complement 'end ...' syntaxes.
 							if(^me.src.src[y + 1] = 0)
-								var result: [][]char :: @regexBlock.find(&, me.src.src[y], me.skipTabs(y))
+								var curIndent: int :: me.skipTabs(y)
+								var result: [][]char :: @regexBlock.find(&, me.src.src[y], curIndent)
 								if(result <>& null)
-									do me.ins(0, y + 1, "\nend " ~ result[1], true)
-									do me.autoIndent(y + 2)
+									var endFlag: bool
+									var nextY: int :: y + 2
+									while loop(true)
+										if(nextY = ^me.src.src)
+											do endFlag :: true
+											break loop
+										end if
+										if(me.skipTabs(nextY) = curIndent)
+											switch(result[1])
+											case "if"
+												do endFlag :: @regexIf.find(&, me.src.src[nextY], curIndent) =& null
+											case "switch"
+												do endFlag :: @regexSwitch.find(&, me.src.src[nextY], curIndent) =& null
+											case "try"
+												do endFlag :: @regexTry.find(&, me.src.src[nextY], curIndent) =& null
+											default
+												do endFlag :: @regexOther.find(&, me.src.src[nextY], curIndent) =& null
+											end switch
+											break loop
+										end if
+										do nextY :+ 1
+									end while
+									if(endFlag = true)
+										do me.ins(0, y + 1, "\nend " ~ result[1], true)
+										do me.autoIndent(y + 2)
+									end if
 								end if
 							end if
-							}
 						end if
 						; The current row.
 						do me.autoIndent(y + 1)
@@ -2062,6 +2085,10 @@ var textLog: []char
 var regexIncIndent: regex@Regex
 var regexDecIndent: regex@Regex
 var regexBlock: regex@Regex
+var regexIf: regex@Regex
+var regexSwitch: regex@Regex
+var regexTry: regex@Regex
+var regexOther: regex@Regex
 
 func main()
 	block
@@ -2078,6 +2105,10 @@ func main()
 	do @regexIncIndent :: regex@makeRegex("^(?:if|elif|else|switch|case|default|while|for|try|catch|finally|block|\\+?\\*?\\*?func|\\+?class|\\+?enum)\\b")
 	do @regexDecIndent :: regex@makeRegex("^(?:end|elif|else|case|default|catch|finally)\\b")
 	do @regexBlock :: regex@makeRegex("^[+*]*(if|switch|while|for|try|block|func|class|enum)\\b")
+	do @regexIf :: regex@makeRegex("^(?:elif|else|end)\\b")
+	do @regexSwitch :: regex@makeRegex("^(?:case|default|end)\\b")
+	do @regexTry :: regex@makeRegex("^(?:catch|finally|end)\\b")
+	do @regexOther :: regex@makeRegex("^end\\b")
 
 	do @initCompiler(2, @langEn ?(1, 0))
 	do wnd@onKeyPress(@onKeyPress)
