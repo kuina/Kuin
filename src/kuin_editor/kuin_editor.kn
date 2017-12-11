@@ -3583,6 +3583,10 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char, fast:
 		do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
 		do @wndCompletionListKeywords.setRedraw(false)
 		var best: int :: @getKeywords(src, row, hint, getKeywordsCallback)
+		if(@wndCompletionListKeywords.len() = 0)
+			do @closeCompletion()
+			ret
+		end if
 		do @wndCompletionListKeywords.setRedraw(true)
 		do @wndCompletionListKeywords.setSel(@wndCompletionListKeywords.len() - 1)
 		do @wndCompletionListKeywords.setSel(best)
@@ -3609,6 +3613,7 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char, fast:
 		if(wordHint =& null)
 			do @wndCompletionHintPos :: null
 			do @closeCompletion()
+			ret
 		else
 			do @wndCompletionEditHint.setText(wordHint)
 		end if

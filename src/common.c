@@ -45,6 +45,7 @@ void FreeMem(void* ptr)
 	HeapFree(Heap, 0, ptr);
 #if defined(_DEBUG)
 	(*HeapCnt)--;
+	ASSERT(*HeapCnt >= 0);
 #endif
 }
 

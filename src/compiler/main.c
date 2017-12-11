@@ -330,6 +330,8 @@ EXPORT void* GetHint(S64 buf_idx, const U8* src, S64 row, const U8* keyword, voi
 
 EXPORT S64 GetKeywords(const U8* src, S64 row, const U8* keyword, void* callback)
 {
+	if (Keywords == NULL)
+		return -1;
 	const Char* src2 = (const Char*)(src + 0x10);
 	const Char* keyword2 = (const Char*)(keyword + 0x10);
 	int i;
@@ -1289,6 +1291,12 @@ static int CmpKeyword(const void* a, const void* b)
 
 static void SearchAst(int* first, int* last, const Char* src, const Char* keyword)
 {
+	if (Keywords == NULL)
+	{
+		*first = -1;
+		*last = -1;
+		return;
+	}
 	int min = 0;
 	int max = KeywordNum - 1;
 	while (min <= max)
