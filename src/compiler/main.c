@@ -1101,10 +1101,25 @@ static void WriteHintDef(Char* buf, size_t* len, const SAst* ast)
 		case AstTypeId_ExprValue:
 			if (*len < HINT_MSG_MAX)
 			{
-				if (ast->Name == NULL)
-					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%I64d", *(S64*)((SAstExprValue*)ast)->Value);
+				if (ast->Name != NULL)
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%%%s :: ", ast->Name);
+			}
+			if (*len < HINT_MSG_MAX)
+			{
+				if (IsFloat(((SAstExpr*)ast)->Type))
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%g", *(double*)((SAstExprValue*)ast)->Value);
+				else if (IsStr(((SAstExpr*)ast)->Type))
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"\"%s\"", *(Char**)((SAstExprValue*)ast)->Value);
+				else if (IsBool(((SAstExpr*)ast)->Type))
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%s", (*(Bool*)((SAstExprValue*)ast)->Value ? L"true" : L"false"));
+				else if (IsChar(((SAstExpr*)ast)->Type))
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"'%c'", *(Char*)((SAstExprValue*)ast)->Value);
+				else if (((SAst*)((SAstExpr*)ast)->Type)->TypeId == AstTypeId_TypeNull)
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"null");
+				else if (((SAst*)((SAstExpr*)ast)->Type)->TypeId == AstTypeId_TypeBit)
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"16#%016I64X", *(U64*)((SAstExprValue*)ast)->Value);
 				else
-					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%%%s :: %I64d", ast->Name, *(S64*)((SAstExprValue*)ast)->Value);
+					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%I64d", *(S64*)((SAstExprValue*)ast)->Value);
 			}
 			break;
 	}
