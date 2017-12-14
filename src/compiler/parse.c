@@ -217,6 +217,7 @@ void InterpretImpl1(const void* src, void* color)
 	S64 len = *(const S64*)((const U8*)src + 0x08);
 	S64 i;
 	int comment_level = 0;
+	int str_level = 0;
 	for (i = 0; i < len; i++)
 	{
 		const Char* str = (const Char*)((const U8*)*(const void**)((const U8*)src + 0x10 + 0x08 * (size_t)i) + 0x10);
@@ -369,8 +370,10 @@ void InterpretImpl1(const void* src, void* color)
 					}
 				}
 			}
-			else if (*str == L'"')
+			else if (*str == L'"' || str_level != 0 && *str == L'}')
 			{
+				if (*str == L'}')
+					str_level--;
 				do
 				{
 					if (*str == L'\\')
@@ -380,6 +383,14 @@ void InterpretImpl1(const void* src, void* color)
 						color_ptr++;
 						if (*str == L'\0')
 							break;
+						if (*str == L'{')
+						{
+							str_level++;
+							*color_ptr = CharColor_Str;
+							str++;
+							color_ptr++;
+							break;
+						}
 					}
 					*color_ptr = CharColor_Str;
 					str++;
