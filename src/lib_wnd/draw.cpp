@@ -176,7 +176,7 @@ ID3D10ShaderResourceView* ViewEven[TexEvenNum];
 
 EXPORT_CPP void _render(S64 fps)
 {
-	CurWndBuf->SwapChain->Present(0, 0);
+	CurWndBuf->SwapChain->Present(1, 0);
 	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, CurWndBuf->ClearColor);
 	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 	Device->RSSetState(RasterizerState);
@@ -580,6 +580,8 @@ EXPORT_CPP SClass* _makeTexEvenArgb(SClass* me_, double a, double r, double g, d
 {
 	STex* me2 = reinterpret_cast<STex*>(me_);
 	float img[4] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a) };
+	me2->Width = 1;
+	me2->Height = 1;
 	{
 		D3D10_TEXTURE2D_DESC desc;
 		D3D10_SUBRESOURCE_DATA sub;
@@ -2477,7 +2479,7 @@ void ColorToArgb(double* a, double* r, double* g, double* b, S64 color)
 
 double Gamma(double value)
 {
-	return pow(value, 2.2);
+	return value * (value * (value * 0.305306011 + 0.682171111) + 0.012522878);
 }
 
 U8* AdjustTexSize(U8* rgba, int* width, int* height)
