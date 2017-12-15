@@ -3672,7 +3672,7 @@ func wndCompletionListKeywordsOnMouseDoubleClick(wnd: wnd@List, x: int, y: int)
 end func
 
 func jumpSrc(pos: @Pos): bool
-	if(pos.src[0] <> '\\')
+	if(pos =& null | pos.src =& null | ^pos.src = 0 | pos.src[0] <> '\\')
 		ret false
 	end if
 	var src: []char :: @internalNameToSrcName(pos.src)
