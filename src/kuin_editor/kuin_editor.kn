@@ -1272,10 +1272,10 @@ class DocumentSrc(@Document)
 		do me.undo.recordBegin()
 		for i(y1, y2)
 			if(^me.src.src[i] > 0 & me.src.src[i][0] = '\t')
-				if(i = oldAreaY & oldAreaX > 0 & me.src.src[i][oldAreaX] <> '\t')
+				if(i = oldAreaY & oldAreaX > 0 & oldAreaX < ^me.src.src[i] & me.src.src[i][oldAreaX] <> '\t')
 					do oldAreaX :- 1
 				end if
-				if(i = oldCursorY & oldCursorX > 0 & me.src.src[i][oldCursorX] <> '\t')
+				if(i = oldCursorY & oldCursorX > 0 & oldCursorX < ^me.src.src[i] & me.src.src[i][oldCursorX] <> '\t')
 					do oldCursorX :- 1
 				end if
 				do me.del(0, i, 1, true)
