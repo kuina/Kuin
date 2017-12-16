@@ -2088,6 +2088,7 @@ var regexIncIndent: regex@Regex
 var regexDecIndent: regex@Regex
 var regexBlock: regex@Regex
 var regexComplementDict: dict<[]char, regex@Regex>
+var lockPropOnChange: bool
 
 func main()
 	block
@@ -2174,8 +2175,10 @@ func main()
 		do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 161, 16, %fix, %fix, @langEn ?("CUI", "CUI"))
 		do @labelAppName :: wnd@makeLabel(@groupConfig, 6, 85, 173, 12, %fix, %fix, @langEn ?("Application Name", "アプリケーション名"))
 		do @editAppName :: wnd@makeEdit(@wndMain, 1033, 145, 173, 16, %fix, %fix)
+		do @editAppName.onChange :: @editAppNameOnChange
 		do @labelIcon :: wnd@makeLabel(@groupConfig, 6, 126, 173, 12, %fix, %fix, @langEn ?("Icon", "アイコン"))
 		do @editIcon :: wnd@makeEdit(@wndMain, 1033, 185, 92, 16, %fix, %fix)
+		do @editIcon.onChange :: @editIconOnChange
 		do @btnIcon :: wnd@makeBtn(@wndMain, 1131, 178, 75, 23, %fix, %fix, @langEn ?("Browse...", "参照..."))
 		do @btnIcon.onPush :: @btnIconOnPush
 		do @btnRls :: wnd@makeBtn(@wndMain, 1027, 213, 185, 23, %move, %fix, @langEn ?("Release Build...", "リリースビルド..."))
@@ -2326,13 +2329,16 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		if(@tabOrderFind <>& null & @tabOrderFind.chk(key, shiftCtrl))
 			ret true
 		end if
-	elif(@wndMain.focusedWnd() & !@editAppName.focused() & !@editIcon.focused() | @wndCompletion <>& null & @wndCompletion.focusedWnd())
+	elif(@wndMain.focusedWnd() | @wndCompletion <>& null & @wndCompletion.focusedWnd())
+		var editFocused: bool :: @editAppName.focused() | @editIcon.focused()
 		switch(shiftCtrl)
 		case %none
 			switch(key)
 			case %del
-				do @wndMainOnPushMenu(@wndMain, 16#0037)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0037)
+					ret true
+				end if
 			case %esc
 				if(@wndCompletion <>& null)
 					do @closeCompletion()
@@ -2367,11 +2373,15 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		case %ctrl
 			switch(key)
 			case %a
-				do @wndMainOnPushMenu(@wndMain, 16#0038)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0038)
+					ret true
+				end if
 			case %c
-				do @wndMainOnPushMenu(@wndMain, 16#0035)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0035)
+					ret true
+				end if
 			case %f
 				do @wndMainOnPushMenu(@wndMain, 16#0039)
 				ret true
@@ -2391,17 +2401,25 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 				do @wndMainOnPushMenu(@wndMain, 16#0005)
 				ret true
 			case %v
-				do @wndMainOnPushMenu(@wndMain, 16#0036)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0036)
+					ret true
+				end if
 			case %x
-				do @wndMainOnPushMenu(@wndMain, 16#0034)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0034)
+					ret true
+				end if
 			case %y
-				do @wndMainOnPushMenu(@wndMain, 16#0033)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0033)
+					ret true
+				end if
 			case %z
-				do @wndMainOnPushMenu(@wndMain, 16#0032)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0032)
+					ret true
+				end if
 			end switch
 		case (%shift $ wnd@ShiftCtrl).or(%ctrl)
 			switch(key)
@@ -2414,11 +2432,13 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 				do @wndMainOnPushMenu(@wndMain, 16#0004)
 				ret true
 			case %z
-				do @wndMainOnPushMenu(@wndMain, 16#0033)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0033)
+					ret true
+				end if
 			end switch
 		end switch
-		if(@wndCompletion <>& null & key <> %ctrl)
+		if(@wndCompletion <>& null & key <> %ctrl & !editFocused)
 			ret @curDocument.keyDown(key, shiftCtrl)
 		end if
 	end if
@@ -2443,6 +2463,7 @@ func open(file: []char)
 	end while
 	do filePtr.fin()
 	do @new(file, src.toArray())
+	do @loadProp(file@delExt(file) ~ ".knprop")
 end func
 
 func new(srcName: []char, src: [][]char)
@@ -2462,6 +2483,10 @@ func new(srcName: []char, src: [][]char)
 	do @resetAuxiliary()
 	do @updateUi()
 	do @resetKeywords()
+	do @lockPropOnChange :: true
+	do @editAppName.setText("")
+	do @editIcon.setText("")
+	do @lockPropOnChange :: false
 	do @drawEditor.paint()
 	do @drawEditor.focus()
 end func
@@ -2476,6 +2501,7 @@ func save(): bool
 	end if
 	do @mainSrcName :: file
 	do @mainSrcDir :: file@dir(file)
+	do @saveProp(file@delExt(@mainSrcName) ~ ".knprop")
 	var newDocuments: dict<[]char, @Document> :: #dict<[]char, @Document>
 	var data: @DocumentsClass :: #@DocumentsClass
 	do data.documents :: newDocuments
@@ -2499,6 +2525,8 @@ func saveAll(): bool
 		if(!@save())
 			ret false
 		end if
+	else
+		do @saveProp(file@delExt(@mainSrcName) ~ ".knprop")
 	end if
 	do @saveAllSuccess :: true
 	do @documents.forEach(callback, null)
@@ -2538,6 +2566,34 @@ func saveSrc(path: []char, src: [][]char): bool
 	end for
 	do filePtr.fin()
 	ret true
+end func
+
+func saveProp(path: []char)
+	do file@delFile(path)
+	var prop: xml@Xml :: xml@makeXmlEmpty()
+	var root: xml@Node :: prop.root()
+	var config: xml@Node :: root.addChild("configuration")
+	do config.addChild("app_name").setValue(@editAppName.getText())
+	do config.addChild("icon").setValue(@editIcon.getText())
+	do prop.save(path, false)
+end func
+
+func loadProp(path: []char)
+	try
+		var prop: xml@Xml :: xml@makeXml(path)
+		if(prop =& null)
+			ret
+		end if
+		var root: xml@Node :: prop.root()
+		var config: xml@Node :: root.findChild("configuration")
+		var appName: []char :: config.findChild("app_name").getValue()
+		var icon: []char :: config.findChild("icon").getValue()
+		do @lockPropOnChange :: true
+		do @editAppName.setText(appName)
+		do @editIcon.setText(icon)
+		do @lockPropOnChange :: false
+	catch
+	end try
 end func
 
 func add(file: []char): @Document
@@ -2591,6 +2647,23 @@ func setCurSrc(document: @Document)
 	end if
 	do @drawEditor.paint()
 	do @drawEditor.focus()
+end func
+
+func mainDocument(): @Document
+	class RefDocument()
+		+var value: @Document
+	end class
+	var document: RefDocument :: #RefDocument
+	do @documents.forEach(callback, document)
+	ret document.value
+
+	func callback(src: []char, document: @Document, data: RefDocument): bool
+		if(src = @mainSrcName)
+			do data.value :: document
+			ret false
+		end if
+		ret true
+	end func
 end func
 
 func chkChanged(): bool
@@ -2879,6 +2952,28 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 			do @updateLog()
 		end switch
 	end func
+end func
+
+func editAppNameOnChange(wnd: wnd@WndBase)
+	if(@lockPropOnChange)
+		ret
+	end if
+	var document: @Document :: @mainDocument()
+	if(document <>& null & document =$ @DocumentSrc)
+		do (document $ @DocumentSrc).changed :: true
+		do @updateUi()
+	end if
+end func
+
+func editIconOnChange(wnd: wnd@WndBase)
+	if(@lockPropOnChange)
+		ret
+	end if
+	var document: @Document :: @mainDocument()
+	if(document <>& null & document =$ @DocumentSrc)
+		do (document $ @DocumentSrc).changed :: true
+		do @updateUi()
+	end if
 end func
 
 func btnIconOnPush(wnd: wnd@WndBase)

@@ -160,7 +160,7 @@ EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), cons
 	Bool result;
 	FuncGetSrc = func_get_src;
 	FuncLog = func_log;
-	Char* icon2;
+	const Char* icon2;
 	if (icon == NULL)
 		icon2 = NULL;
 	else
