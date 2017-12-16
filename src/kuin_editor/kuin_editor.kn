@@ -47,9 +47,15 @@ var scrollYSrc: wnd@ScrollY
 var editHint: wnd@EditMulti
 var editLog: wnd@EditMulti
 var btnCompile: wnd@Btn
+var groupConfig: wnd@Group
 var groupEnv: wnd@Group
 var radioEnvWnd: wnd@Radio
 var radioEnvCui: wnd@Radio
+var labelAppName: wnd@Label
+var editAppName: wnd@Edit
+var labelIcon: wnd@Label
+var editIcon: wnd@Edit
+var btnIcon: wnd@Btn
 var btnRls: wnd@Btn
 var listFile: wnd@List
 var menuMain: wnd@Menu
@@ -2161,11 +2167,18 @@ func main()
 		do @editLog.readonly(true)
 		do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, @langEn ?("Compile && Run", "コンパイル＆実行"))
 		do @btnCompile.onPush :: @btnCompileOnPush
-		do @groupEnv :: wnd@makeGroup(@wndMain, 1027, 41, 185, 62, %move, %fix, @langEn ?("Environment", "実行環境"))
-		do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 173, 16, %fix, %fix, @langEn ?("Window", "ウインドウ"))
+		do @groupConfig :: wnd@makeGroup(@wndMain, 1027, 41, 185, 166, %move, %fix, @langEn ?("Configuration", "設定"))
+		do @groupEnv :: wnd@makeGroup(@wndMain, 1033, 59, 173, 62, %fix, %fix, @langEn ?("Environment", "実行環境"))
+		do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 161, 16, %fix, %fix, @langEn ?("Window", "ウインドウ"))
 		do @radioEnvWnd.setChk(true)
-		do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 173, 16, %fix, %fix, @langEn ?("CUI", "CUI"))
-		do @btnRls :: wnd@makeBtn(@wndMain, 1027, 109, 185, 23, %move, %fix, @langEn ?("Release Build...", "リリースビルド"))
+		do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 161, 16, %fix, %fix, @langEn ?("CUI", "CUI"))
+		do @labelAppName :: wnd@makeLabel(@groupConfig, 6, 85, 173, 12, %fix, %fix, @langEn ?("Application Name", "アプリケーション名"))
+		do @editAppName :: wnd@makeEdit(@wndMain, 1033, 145, 173, 16, %fix, %fix)
+		do @labelIcon :: wnd@makeLabel(@groupConfig, 6, 126, 173, 12, %fix, %fix, @langEn ?("Icon", "アイコン"))
+		do @editIcon :: wnd@makeEdit(@wndMain, 1033, 185, 92, 16, %fix, %fix)
+		do @btnIcon :: wnd@makeBtn(@wndMain, 1131, 178, 75, 23, %fix, %fix, @langEn ?("Browse...", "参照..."))
+		do @btnIcon.onPush :: @btnIconOnPush
+		do @btnRls :: wnd@makeBtn(@wndMain, 1027, 213, 185, 23, %move, %fix, @langEn ?("Release Build...", "リリースビルド..."))
 		do @btnRls.onPush :: @btnRlsOnPush
 		do @listFile :: wnd@makeList(@wndMain, 1027, 255, 185, 360, %move, %scale)
 		do @listFile.onSel :: @listFileOnSel
@@ -2200,7 +2213,7 @@ func main()
 		do @popupMainBuild :: wnd@makePopup()
 		do @popupMainBuild.add(16#0020, @langEn ?("&Compile && Run\tF5", "コンパイル＆実行(&C)\tF5"))
 		do @popupMainBuild.addLine()
-		do @popupMainBuild.add(16#0021, @langEn ?("&Release Build...\tCtrl+Shift+B", "リリースビルド(&R)\tCtrl+Shift+B"))
+		do @popupMainBuild.add(16#0021, @langEn ?("&Release Build...\tCtrl+Shift+B", "リリースビルド(&R)...\tCtrl+Shift+B"))
 		do @menuMain.addPopup(@langEn ?("&Build", "ビルド(&B)"), @popupMainBuild)
 		do @popupMainHelp :: wnd@makePopup()
 		do @popupMainHelp.add(16#0010, @langEn ?("&View Help\tF1", "ヘルプの表示(&V)\tF1"))
@@ -2313,7 +2326,7 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		if(@tabOrderFind <>& null & @tabOrderFind.chk(key, shiftCtrl))
 			ret true
 		end if
-	elif(@wndMain.focusedWnd() | @wndCompletion <>& null & @wndCompletion.focusedWnd())
+	elif(@wndMain.focusedWnd() & !@editAppName.focused() & !@editIcon.focused() | @wndCompletion <>& null & @wndCompletion.focusedWnd())
 		switch(shiftCtrl)
 		case %none
 			switch(key)
@@ -2829,7 +2842,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end if
 	try
 		do @resetAuxiliary()
-		if(@build(@mainSrcName, @getSrc, null, out, null, false, @getEnv(), @log, @langEn ?(1, 0), 0, "Untitled")) {TODO: AppName}
+		if(@build(@mainSrcName, @getSrc, null, out, @editIcon.getText().trim(), false, @getEnv(), @log, @langEn ?(1, 0), 0, @editAppName.getText()))
 			if (@mainSrcName <> @untitledSrcName)
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
 				do filePtr.writeStr(file@dir(@mainSrcName))
@@ -2868,6 +2881,14 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end func
 end func
 
+func btnIconOnPush(wnd: wnd@WndBase)
+	var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Icon (*.ico,*.icon)", "アイコン (*.ico,*.icon)"), "*.ico;*.icon"], 0)
+	if(file =& null)
+		ret
+	end if
+	do @editIcon.setText(file)
+end func
+
 func btnRlsOnPush(wnd: wnd@WndBase)
 	if(@lockingEditor)
 		do @showMsgRunning()
@@ -2902,7 +2923,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		if(appCode = 0)
 			do appCode :: 1 {Since it is not convenient when 'AppCode' becomes 0, it is set to 1.}
 		end if
-		if(@build(@mainSrcName, @getSrc, null, out, null, true, @getEnv(), @log, @langEn ?(1, 0), appCode, "Untitled")) {TODO: AppName}
+		if(@build(@mainSrcName, @getSrc, null, out, @editIcon.getText().trim(), true, @getEnv(), @log, @langEn ?(1, 0), appCode, @editAppName.getText()))
 			if(@mainSrcName <> @untitledSrcName)
 				var resSrc: []char :: file@dir(@mainSrcName) ~ "res/"
 				if(file@exist(resSrc))
@@ -3247,6 +3268,9 @@ func lockEditor(lock: bool)
 	do @lockingEditor :: lock
 	do @btnCompile.enable(!lock)
 	do @btnRls.enable(!lock)
+	do @editAppName.enable(!lock)
+	do @editIcon.enable(!lock)
+	do @btnIcon.enable(!lock)
 end func
 
 func updateLog()

@@ -160,7 +160,16 @@ EXPORT Bool BuildMem(const U8* path, const void*(*func_get_src)(const U8*), cons
 	Bool result;
 	FuncGetSrc = func_get_src;
 	FuncLog = func_log;
-	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon == NULL ? NULL : (const Char*)(icon + 0x10), rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog, lang, app_code, (const Char*)(app_name + 0x10), False);
+	Char* icon2;
+	if (icon == NULL)
+		icon2 = NULL;
+	else
+	{
+		icon2 = (const Char*)(icon + 0x10);
+		if (icon2[0] == L'\0')
+			icon2 = NULL;
+	}
+	result = Build(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, (const Char*)(path + 0x10), sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10), output == NULL ? NULL : (const Char*)(output + 0x10), icon2, rls, env == NULL ? NULL : (const Char*)(env + 0x10), BuildMemLog, lang, app_code, (const Char*)(app_name + 0x10), False);
 	FuncGetSrc = NULL;
 	FuncLog = NULL;
 	DecSrc();
