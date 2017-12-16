@@ -73,12 +73,12 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const Char* app_name)
+EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
 {
 	Heap = heap;
 	HeapCnt = heap_cnt;
 	AppCode = app_code;
-	AppName = app_name;
+	UseResFlags = use_res_flags;
 	Instance = (HINSTANCE)GetModuleHandle(NULL);
 
 	// Set the current directory.

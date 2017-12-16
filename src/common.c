@@ -24,7 +24,7 @@ typedef struct SFile
 void* Heap;
 S64* HeapCnt;
 S64 AppCode;
-const Char* AppName;
+const U8* UseResFlags;
 HINSTANCE Instance;
 
 static SFile* OpenPackFile(const Char* path);

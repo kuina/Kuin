@@ -3,7 +3,7 @@
 #include "..\common.h"
 
 // 'math'
-EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const Char* app_name);
+EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags);
 EXPORT S64 _gcd(S64 a, S64 b);
 EXPORT S64 _lcm(S64 a, S64 b);
 EXPORT S64 _modPow(S64 value, S64 exponent, S64 modulus);

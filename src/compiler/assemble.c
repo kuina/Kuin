@@ -159,7 +159,7 @@ static void AssembleExprValue(SAstExprValue* ast, int reg_i, int reg_f);
 static void AssembleExprValueArray(SAstExprValueArray* ast, int reg_i, int reg_f);
 static void AssembleExprRef(SAstExpr* ast, int reg_i, int reg_f);
 
-void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, SDict* dlls, S64 app_code, const Char* app_name)
+void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, SDict* dlls, S64 app_code)
 {
 	PackAsm = pack_asm;
 	Option = option;
@@ -179,7 +179,7 @@ void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, 
 	PackAsm->FuncAddrs = NULL;
 	PackAsm->ClassTables = ListNew();
 	PackAsm->AppCode = app_code;
-	PackAsm->AppName = app_name;
+	memset(PackAsm->UseResFlags, 0, USE_RES_FLAGS_LEN);
 
 	ASSERT(Option->IconFile != NULL);
 	if (!LoadResources())
@@ -1682,7 +1682,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 #endif
 				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_R8), ValImmS(8, PackAsm->AppCode)));
 				{
-					S64* addr = AddReadonlyData((int)(sizeof(Char) * (wcslen(PackAsm->AppName) + 1)), (const U8*)PackAsm->AppName, False);
+					S64* addr = AddReadonlyData((int)USE_RES_FLAGS_LEN, PackAsm->UseResFlags, False);
 					ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_R9), ValRIP(8, RefValueAddr(addr, True))));
 				}
 			}

@@ -315,12 +315,12 @@ SClass* IncWndRef(SClass* wnd)
 	return wnd;
 }
 
-EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const Char* app_name)
+EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
 {
 	Heap = heap;
 	HeapCnt = heap_cnt;
 	AppCode = app_code;
-	AppName = app_name;
+	UseResFlags = use_res_flags;
 	Instance = static_cast<HINSTANCE>(GetModuleHandle(NULL));
 
 	WndCnt = 0;
@@ -443,7 +443,7 @@ EXPORT_CPP void _onKeyPress(void* onKeyPressFunc)
 
 EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon, S64 btn)
 {
-	return MessageBox(parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), title == NULL ? AppName : reinterpret_cast<const Char*>(title + 0x10), static_cast<UINT>(icon | btn));
+	return MessageBox(parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), title == NULL ? L"" : reinterpret_cast<const Char*>(title + 0x10), static_cast<UINT>(icon | btn));
 }
 
 EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFilter)

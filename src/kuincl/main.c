@@ -10,7 +10,7 @@
 
 #define LANG (0)
 
-typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang, S64 app_code, const Char* app_name, Bool not_deploy);
+typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang, S64 app_code, Bool not_deploy);
 typedef void(*TypeOfVersion)(int* major, int* minor, int* micro);
 typedef void(*TypeOfInitCompiler)(S64 mem_num, S64 lang);
 typedef void(*TypeOfFinCompiler)(void);
@@ -33,7 +33,6 @@ int wmain(int argc, Char** argv)
 	Bool version = False;
 	int ret_code = 0;
 	S64 app_code = 0;
-	const Char* app_name = NULL;
 	Bool not_deploy = False;
 	Quiet = False;
 
@@ -141,14 +140,6 @@ int wmain(int argc, Char** argv)
 							}
 						}
 						break;
-					case L'n':
-						if (app_name != NULL)
-						{
-							wprintf(L"The option '-n' was used incorrectly.\n");
-							return 1;
-						}
-						app_name = argv[i + 1];
-						break;
 					case L'd':
 						if (not_deploy != False)
 						{
@@ -197,10 +188,10 @@ int wmain(int argc, Char** argv)
 			}
 			if (help || input == NULL)
 			{
-				wprintf(L"Usage: kuincl [-i input.kn] [-o output.kn] [-s 'sys' directory] [-c icon.ico] [-e environment] [-n appname] [-a appcode] [-r] [-h] [-v] [-q]\n");
+				wprintf(L"Usage: kuincl [-i input.kn] [-o output.kn] [-s 'sys' directory] [-c icon.ico] [-e environment] [-a appcode] [-r] [-h] [-v] [-q]\n");
 				return 0;
 			}
-			if (func_build(input, sys_dir, output, icon, rls, env, Log, LANG, app_code, app_name == NULL ? L"Untitled" : app_name, not_deploy))
+			if (func_build(input, sys_dir, output, icon, rls, env, Log, LANG, app_code, not_deploy))
 			{
 				if (rls)
 				{
