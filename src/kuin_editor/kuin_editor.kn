@@ -2234,7 +2234,7 @@ func main()
 		do @srcCharColor[%lineComment $ @CharColor $ int] :: 16#FF1EB000
 		do @srcCharColor[%comment $ @CharColor $ int] :: 16#FF1EB000
 		do @srcCharColor[%symbol $ @CharColor $ int] :: 16#FF666666
-		do @font :: draw@makeFont("Consolas", @fontSize, false, false, false, @cellWidth $ float)
+		do @font :: draw@makeFont("Consolas", @fontSize, false, false, true, false, @cellWidth $ float)
 		do @tex :: draw@makeTex("res/tex.png")
 		do @drag :: false
 		do @lockingEditor :: false

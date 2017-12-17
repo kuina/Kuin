@@ -48,6 +48,7 @@ v.2017.12.17
       追加
     - HTTP通信を行うnet@Httpクラスの追加
     - Kuinエディタの操作感の改善
+    - 不透明度(アルファ)が本来よりも不透明に描画されていた不具合の修正
     - 細かな機能追加
       - lib@lerp、lib@qerp、lib@cerp、lib@hermite、file@ext関数の追加
     - 細かな不具合の修正

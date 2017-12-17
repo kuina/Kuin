@@ -64,6 +64,7 @@ struct SFont
 	int CellSizeAligned;
 	U32 Cnt;
 	double Advance;
+	bool DarkAlpha;
 	bool Proportional;
 	HFONT Font;
 	Char* CharMap;
@@ -173,6 +174,7 @@ static int CurBlend = -1;
 static int CurSampler = -1;
 ID3D10Texture2D* TexEven[TexEvenNum];
 ID3D10ShaderResourceView* ViewEven[TexEvenNum];
+static U8 DarkAlpha[256];
 
 EXPORT_CPP void _render(S64 fps)
 {
@@ -744,7 +746,7 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 	Device->DrawIndexed(6, 0, 0);
 }
 
-EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool proportional, double advance)
+EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool dark_alpha, bool proportional, double advance)
 {
 	THROWDBG(size < 1, 0xe9170006);
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
@@ -755,6 +757,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		ReleaseDC(NULL, dc);
 	}
 	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, fontName == NULL ? L"Meiryo UI" : reinterpret_cast<const Char*>(fontName + 0x10));
+	me2->DarkAlpha = dark_alpha;
 	me2->Proportional = proportional;
 	me2->Advance = advance;
 	{
@@ -919,12 +922,25 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			D3D10_MAPPED_TEXTURE2D map;
 			me2->Tex->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_WRITE_DISCARD, 0, &map);
 			U8* dst = static_cast<U8*>(map.pData);
-			for (int j = 0; j < me2->CellHeight; j++)
+			if (me2->DarkAlpha)
 			{
-				int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
-				for (int k = 0; k < me2->CellWidth; k++)
-					dst[j * me2->CellSizeAligned + k] = me2->Pixel[(begin + k) * 3];
-				dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
+				for (int j = 0; j < me2->CellHeight; j++)
+				{
+					int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
+					for (int k = 0; k < me2->CellWidth; k++)
+						dst[j * me2->CellSizeAligned + k] = DarkAlpha[me2->Pixel[(begin + k) * 3]];
+					dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
+				}
+			}
+			else
+			{
+				for (int j = 0; j < me2->CellHeight; j++)
+				{
+					int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
+					for (int k = 0; k < me2->CellWidth; k++)
+						dst[j * me2->CellSizeAligned + k] = me2->Pixel[(begin + k) * 3];
+					dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
+				}
 			}
 			{
 				int j = me2->CellHeight;
@@ -1927,6 +1943,12 @@ void Init()
 			if (FAILED(Device->CreateShaderResourceView(TexEven[i], &desc, &ViewEven[i])))
 				THROW(0xe9170009);
 		}
+	}
+
+	for (int i = 0; i < 256; i++)
+	{
+		double value = 1.0 - (double)i / 255.0;
+		DarkAlpha[i] = (U8)((1.0 - value * value) * 255.0 + 0.5);
 	}
 
 	memset(&ObjVsConstBuf, 0, sizeof(SObjVsConstBuf));
