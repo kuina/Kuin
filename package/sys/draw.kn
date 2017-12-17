@@ -129,7 +129,7 @@ end func
 	var glyphWidth: int
 end class
 
-+func [d0001.knd, _makeFont, _make_instance] makeFont(me2: @Font, fontName: []char, size: int, bold: bool, italic: bool, darkAlpha: bool, proportional: bool, advance: float): @Font
++func [d0001.knd, _makeFont, _make_instance] makeFont(me2: @Font, fontName: []char, size: int, bold: bool, italic: bool, strong: bool, proportional: bool, advance: float): @Font
 end func
 
 +func [d0001.knd, _camera] camera(eyeX: float, eyeY: float, eyeZ: float, atX: float, atY: float, atZ: float, upX: float, upY: float, upZ: float)
