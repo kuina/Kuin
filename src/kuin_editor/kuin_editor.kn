@@ -2167,14 +2167,14 @@ func main()
 		do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, @langEn ?("Compile && Run", "コンパイル＆実行"))
 		do @btnCompile.onPush :: @btnCompileOnPush
 		do @groupConfig :: wnd@makeGroup(@wndMain, 1027, 41, 185, 125, %move, %fix, @langEn ?("Configuration", "設定"))
-		do @groupEnv :: wnd@makeGroup(@wndMain, 1033, 59, 173, 62, %fix, %fix, @langEn ?("Environment", "実行環境"))
+		do @groupEnv :: wnd@makeGroup(@wndMain, 1033, 59, 173, 62, %move, %fix, @langEn ?("Environment", "実行環境"))
 		do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 161, 16, %fix, %fix, @langEn ?("Window", "ウインドウ"))
 		do @radioEnvWnd.setChk(true)
 		do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 161, 16, %fix, %fix, @langEn ?("CUI", "CUI"))
 		do @labelIcon :: wnd@makeLabel(@groupConfig, 6, 85, 173, 12, %fix, %fix, @langEn ?("Icon", "アイコン"))
-		do @editIcon :: wnd@makeEdit(@wndMain, 1033, 144, 92, 16, %fix, %fix)
+		do @editIcon :: wnd@makeEdit(@wndMain, 1033, 144, 92, 16, %move, %fix)
 		do @editIcon.onChange :: @editIconOnChange
-		do @btnIcon :: wnd@makeBtn(@wndMain, 1131, 137, 75, 23, %fix, %fix, @langEn ?("Browse...", "参照..."))
+		do @btnIcon :: wnd@makeBtn(@wndMain, 1131, 137, 75, 23, %move, %fix, @langEn ?("Browse...", "参照..."))
 		do @btnIcon.onPush :: @btnIconOnPush
 		do @btnRls :: wnd@makeBtn(@wndMain, 1027, 172, 185, 23, %move, %fix, @langEn ?("Release Build...", "リリースビルド..."))
 		do @btnRls.onPush :: @btnRlsOnPush
