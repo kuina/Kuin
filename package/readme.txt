@@ -49,7 +49,7 @@ v.2017.12.17
     - HTTP通信を行うnet@Httpクラスの追加
     - Kuinエディタの操作感の改善
     - 細かな機能追加
-      - lib@lerp、lib@qerp、lib@cerp、lib@hermite関数の追加
+      - lib@lerp、lib@qerp、lib@cerp、lib@hermite、file@ext関数の追加
     - 細かな不具合の修正
       - draw@Font.drawで座標が小数の場合に線が描画されることがある不具合の修正
 

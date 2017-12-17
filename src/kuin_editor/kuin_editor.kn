@@ -3283,18 +3283,26 @@ func addNewFile()
 	do btnAdd.onPush :: btnAddOnPush
 	do @wndAddFile.modal()
 	if(@wndAddFileResuiltFile <>& null & @wndAddFileResuiltFile <> "")
-		var document: @Document
+		var ext: []char :: file@ext(@wndAddFileResuiltFile)
+		var document: @Document :: null
 		switch(@wndAddFileResuiltType)
 		case 0
-			do document :: #@DocumentSrc
+			if(ext = "kn")
+				do document :: #@DocumentSrc
+			end if
 		case 1
-			do document :: #@DocumentArWnd
+			if(ext = "knwnd")
+				do document :: #@DocumentArWnd
+			end if
 		end switch
-		do document.init(null)
-		if(@saveSrc(@wndAddFileResuiltFile, document.getSrc()))
-			do @add(@wndAddFileResuiltFile)
-			do @updateUi()
-			; TODO: Exchange the files.
+		if(document <>& null)
+			do document.init(null)
+			if(@saveSrc(@wndAddFileResuiltFile, document.getSrc()))
+				do @setCurSrc(@add(@wndAddFileResuiltFile))
+				do @updateUi()
+			end if
+		else
+			do wnd@msgBox(@wndMain, @langEn ?("An invalid extension was specified.", "不正な拡張子が指定されました。"), @title, %err, %ok)
 		end if
 	end if
 	do @wndAddFile :: null
@@ -3303,7 +3311,17 @@ func addNewFile()
 	do @wndAddFileListType :: null
 
 	func btnFileOnPush(wnd: wnd@WndBase)
-		var path: []char :: wnd@saveFileDialog(@wndAddFile, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
+		var filter: [][]char
+		var ext: []char
+		switch(@wndAddFileListType.getSel())
+		case -1, 0
+			do filter :: [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"]
+			do ext :: "kn"
+		case 1
+			do filter :: [@langEn ?("Kuin window (*.knwnd)", "Kuinウインドウ (*.knwnd)"), "*.knwnd"]
+			do ext :: "knwnd"
+		end switch
+		var path: []char :: wnd@saveFileDialog(@wndAddFile, filter, 0, ext)
 		if(path <>& null)
 			do @wndAddFileEditFile.setText(path)
 		end if
@@ -3321,11 +3339,10 @@ func addExistingFile()
 		do wnd@msgBox(@wndMain, @langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), @title, %err, %ok)
 		ret
 	end if
-	var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0)
+	var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Kuin supported file (*.kn,*.knwnd)", "Kuinがサポートするファイル (*.kn,*.knwnd)"), "*.kn;*.knwnd"], 0)
 	if(file <>& null)
-		do @add(file)
+		do @setCurSrc(@add(file))
 		do @updateUi()
-		; TODO: Exchange the files.
 	end if
 end func
 

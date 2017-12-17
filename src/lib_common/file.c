@@ -531,8 +531,38 @@ EXPORT void* _dir(const U8* path)
 
 EXPORT void* _ext(const U8* path)
 {
-	// TODO:
-	return NULL;
+	THROWDBG(path == NULL, 0xc0000005);
+	const Char* path2 = (const Char*)(path + 0x10);
+	size_t len = wcslen(path2);
+	U8* result;
+	const Char* ptr = path2 + len;
+	const Char* ptr2 = ptr;
+	while (ptr != path2 && *ptr != L'\\' && *ptr != L'/' && *ptr != L'.')
+		ptr--;
+	if (ptr == path2 || *ptr != L'.')
+	{
+		result = (U8*)AllocMem(0x10 + sizeof(Char) * 1);
+		*(S64*)(result + 0x00) = DefaultRefCntFunc;
+		*(S64*)(result + 0x08) = 0;
+		*(Char*)(result + 0x10) = L'\0';
+	}
+	else
+	{
+		ptr++;
+		{
+			size_t len2 = ptr2 - ptr;
+			size_t i;
+			Char* str;
+			result = (U8*)AllocMem(0x10 + sizeof(Char) * (len2 + 1));
+			*(S64*)(result + 0x00) = DefaultRefCntFunc;
+			*(S64*)(result + 0x08) = len2;
+			str = (Char*)(result + 0x10);
+			for (i = 0; i < len2; i++)
+				str[i] = ptr[i];
+			str[len2] = L'\0';
+		}
+	}
+	return result;
 }
 
 EXPORT void* _fileName(const U8* path)
