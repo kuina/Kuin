@@ -93,7 +93,10 @@ echo F | xcopy /y /r $(TargetPath) $(SolutionDir)test\output\data\d0917.knd</Com
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\d0917.knd</Command>
+      <Command>rd /s /q $(SolutionDir)package\data
+mkdir $(SolutionDir)package\data
+echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\data\d0917.knd
+</Command>
     </PostBuildEvent>
     <CustomBuild>
       <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp %(Filename).asm</Command>

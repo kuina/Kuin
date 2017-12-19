@@ -18,6 +18,8 @@ end func
 	dock
 	dockChild
 }
+	layered :: 16#10000
+	noMinimize :: 16#20000
 end enum
 
 +enum Anchor
@@ -58,6 +60,12 @@ end enum
 	end func
 
 	+func [d0001.knd, _wndBaseSetPos] setPos(x: int, y: int, width: int, height: int)
+	end func
+
+	+func [d0001.knd, _wndBaseSetRedraw] setRedraw(isEnabled: bool)
+	end func
+
+	+func [d0001.knd, _wndBaseSetVisible] setVisible(isVisible: bool)
 	end func
 
 	+func addChild(child: kuin@Class)

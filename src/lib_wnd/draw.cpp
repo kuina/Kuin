@@ -64,6 +64,7 @@ struct SFont
 	int CellSizeAligned;
 	U32 Cnt;
 	double Advance;
+	bool Strong;
 	bool Proportional;
 	HFONT Font;
 	Char* CharMap;
@@ -173,10 +174,11 @@ static int CurBlend = -1;
 static int CurSampler = -1;
 ID3D10Texture2D* TexEven[TexEvenNum];
 ID3D10ShaderResourceView* ViewEven[TexEvenNum];
+static U8 StrongMap[256];
 
 EXPORT_CPP void _render(S64 fps)
 {
-	CurWndBuf->SwapChain->Present(0, 0);
+	CurWndBuf->SwapChain->Present(1, 0);
 	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, CurWndBuf->ClearColor);
 	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 	Device->RSSetState(RasterizerState);
@@ -580,6 +582,8 @@ EXPORT_CPP SClass* _makeTexEvenArgb(SClass* me_, double a, double r, double g, d
 {
 	STex* me2 = reinterpret_cast<STex*>(me_);
 	float img[4] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a) };
+	me2->Width = 1;
+	me2->Height = 1;
 	{
 		D3D10_TEXTURE2D_DESC desc;
 		D3D10_SUBRESOURCE_DATA sub;
@@ -742,7 +746,7 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 	Device->DrawIndexed(6, 0, 0);
 }
 
-EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool proportional, double advance)
+EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool strong, bool proportional, double advance)
 {
 	THROWDBG(size < 1, 0xe9170006);
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
@@ -753,6 +757,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		ReleaseDC(NULL, dc);
 	}
 	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, fontName == NULL ? L"Meiryo UI" : reinterpret_cast<const Char*>(fontName + 0x10));
+	me2->Strong = strong;
 	me2->Proportional = proportional;
 	me2->Advance = advance;
 	{
@@ -779,7 +784,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		SelectObject(me2->Dc, old_bitmap);
 	}
 	me2->CellSizeAligned = 128; // Texture length must not be less than 128.
-	while (me2->CellSizeAligned < me2->CellWidth || me2->CellSizeAligned < me2->CellHeight)
+	while (me2->CellSizeAligned < me2->CellWidth + 1 || me2->CellSizeAligned < me2->CellHeight + 1)
 		me2->CellSizeAligned *= 2;
 	{
 		D3D10_TEXTURE2D_DESC desc;
@@ -917,11 +922,31 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			D3D10_MAPPED_TEXTURE2D map;
 			me2->Tex->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_WRITE_DISCARD, 0, &map);
 			U8* dst = static_cast<U8*>(map.pData);
-			for (int j = 0; j < me2->CellHeight; j++)
+			if (me2->Strong)
 			{
+				for (int j = 0; j < me2->CellHeight; j++)
+				{
+					int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
+					for (int k = 0; k < me2->CellWidth; k++)
+						dst[j * me2->CellSizeAligned + k] = StrongMap[me2->Pixel[(begin + k) * 3]];
+					dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
+				}
+			}
+			else
+			{
+				for (int j = 0; j < me2->CellHeight; j++)
+				{
+					int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
+					for (int k = 0; k < me2->CellWidth; k++)
+						dst[j * me2->CellSizeAligned + k] = me2->Pixel[(begin + k) * 3];
+					dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
+				}
+			}
+			{
+				int j = me2->CellHeight;
 				int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
-				for (int k = 0; k < me2->CellWidth; k++)
-					dst[j * me2->CellSizeAligned + k] = me2->Pixel[(begin + k) * 3];
+				for (int k = 0; k < me2->CellWidth + 1; k++)
+					dst[j * me2->CellSizeAligned + k] = 0;
 			}
 			me2->Tex->Unmap(D3D10CalcSubresource(0, 0, 1));
 		}
@@ -1920,6 +1945,12 @@ void Init()
 		}
 	}
 
+	for (int i = 0; i < 256; i++)
+	{
+		double value = 1.0 - (double)i / 255.0;
+		StrongMap[i] = (U8)((1.0 - value * value) * 255.0 + 0.5);
+	}
+
 	memset(&ObjVsConstBuf, 0, sizeof(SObjVsConstBuf));
 	memset(&ObjPsConstBuf, 0, sizeof(SObjPsConstBuf));
 	ObjPsConstBuf.AmbTopColor[3] = 0.0f;
@@ -2470,7 +2501,7 @@ void ColorToArgb(double* a, double* r, double* g, double* b, S64 color)
 
 double Gamma(double value)
 {
-	return pow(value, 2.2);
+	return value * (value * (value * 0.305306011 + 0.682171111) + 0.012522878);
 }
 
 U8* AdjustTexSize(U8* rgba, int* width, int* height)

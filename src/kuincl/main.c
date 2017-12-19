@@ -10,14 +10,16 @@
 
 #define LANG (0)
 
-typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang);
+typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang, S64 app_code, Bool not_deploy);
 typedef void(*TypeOfVersion)(int* major, int* minor, int* micro);
 typedef void(*TypeOfInitCompiler)(S64 mem_num, S64 lang);
 typedef void(*TypeOfFinCompiler)(void);
+typedef Bool(*TypeOfArchive)(const U8* dst, const U8* src, S64 app_code);
 
 static Bool Quiet;
 
 static void Log(const Char* code, const Char* msg, const Char* src, int row, int col);
+static U8* GetDir(const Char* path, Bool dir, const Char* add_name);
 
 int wmain(int argc, Char** argv)
 {
@@ -30,6 +32,8 @@ int wmain(int argc, Char** argv)
 	Bool help = False;
 	Bool version = False;
 	int ret_code = 0;
+	S64 app_code = 0;
+	Bool not_deploy = False;
 	Quiet = False;
 
 	_setmode(_fileno(stdout), _O_U16TEXT); // Set the output format to UTF-16.
@@ -119,6 +123,31 @@ int wmain(int argc, Char** argv)
 						}
 						Quiet = True;
 						break;
+					case L'a':
+						if (app_code != 0)
+						{
+							wprintf(L"The option '-a' was used incorrectly.\n");
+							return 1;
+						}
+						{
+							Char* end_ptr;
+							errno = 0;
+							app_code = wcstol(argv[i + 1], &end_ptr, 10);
+							if (*end_ptr != L'\0' || errno == ERANGE || app_code == 0)
+							{
+								wprintf(L"The option '-a' was used incorrectly.\n");
+								return 1;
+							}
+						}
+						break;
+					case L'd':
+						if (not_deploy != False)
+						{
+							wprintf(L"The option '-d' was used incorrectly.\n");
+							return 1;
+						}
+						not_deploy = True;
+						break;
 					default:
 						wprintf(L"Unexpected option: %s.\n", argv[i]);
 						return 1;
@@ -132,10 +161,10 @@ int wmain(int argc, Char** argv)
 		}
 	}
 	{
-		HMODULE library = LoadLibrary(L"sys/d0917.knd");
+		HMODULE library = LoadLibrary(L"data/d0917.knd");
 		if (library == NULL)
 		{
-			wprintf(L"The file 'sys/d0917.knd' could not be opened.\n");
+			wprintf(L"The file 'data/d0917.knd' could not be opened.\n");
 			return 1;
 		}
 		{
@@ -143,9 +172,10 @@ int wmain(int argc, Char** argv)
 			TypeOfVersion func_version = (TypeOfVersion)GetProcAddress(library, "Version");
 			TypeOfInitCompiler func_init_compiler = (TypeOfInitCompiler)GetProcAddress(library, "InitCompiler");
 			TypeOfFinCompiler func_fin_compiler = (TypeOfFinCompiler)GetProcAddress(library, "FinCompiler");
+			TypeOfArchive func_archive = (TypeOfArchive)GetProcAddress(library, "Archive");
 			if (func_build == NULL || func_version == NULL)
 			{
-				wprintf(L"The file 'sys/d0917.knd' was broken.\n");
+				wprintf(L"The file 'data/d0917.knd' was broken.\n");
 				return 1;
 			}
 			if (version)
@@ -158,21 +188,31 @@ int wmain(int argc, Char** argv)
 			}
 			if (help || input == NULL)
 			{
-				wprintf(L"Usage: kuincl [-i input.kn] [-o output.kn] [-s 'sys' directory] [-c icon.ico] [-e environment] [-r] [-h] [-v] [-q]\n");
+				wprintf(L"Usage: kuincl [-i input.kn] [-o output.kn] [-s 'sys' directory] [-c icon.ico] [-e environment] [-a appcode] [-r] [-h] [-v] [-q]\n");
 				return 0;
 			}
-			func_init_compiler(1, -1);
-			if (func_build(input, sys_dir, output, icon, rls, env, Log, LANG))
+			if (func_build(input, sys_dir, output, icon, rls, env, Log, LANG, app_code, not_deploy))
+			{
+				if (rls)
+				{
+					U8* res_output = GetDir(output == NULL ? input : output, False, L"res.knd");
+					U8* res_src = GetDir(input, False, L"res/");
+					func_init_compiler(1, -1);
+					if (!func_archive(res_output, res_src, app_code))
+						ret_code = 1;
+					func_fin_compiler();
+					free(res_output);
+				}
+			}
+			else
+				ret_code = 1;
+			if (ret_code == 0)
 			{
 				if (!Quiet)
 					wprintf(L"Success.\n");
 			}
 			else
-			{
 				wprintf(L"Failure.\n");
-				ret_code = 1;
-			}
-			func_fin_compiler();
 		}
 		FreeLibrary(library);
 	}
@@ -206,4 +246,66 @@ static void Log(const Char* code, const Char* msg, const Char* src, int row, int
 		else
 			wprintf(L"%s: %s (%s: %d, %d)\n", code, msg, src, row, col);
 	}
+}
+
+static U8* GetDir(const Char* path, Bool dir, const Char* add_name)
+{
+	size_t len = wcslen(path);
+	size_t len_add_name = add_name == NULL ? 0 : wcslen(add_name);
+	U8* result;
+	Char* result2;
+	if (len == 0)
+	{
+		result = (U8*)malloc(0x10 + sizeof(Char) * (2 + len_add_name + 1));
+		result2 = (Char*)(result + 0x10);
+		((S64*)result)[0] = 1;
+		((S64*)result)[1] = 2 + len_add_name;
+		wcscpy(result2, L"./");
+	}
+	if (dir)
+	{
+		Bool backslash_eol = path[len - 1] == L'\\' || path[len - 1] == L'/';
+		size_t i;
+		result = (U8*)malloc(0x10 + sizeof(Char) * (len + len_add_name + (backslash_eol ? 0 : 1) + 1));
+		result2 = (Char*)(result + 0x10);
+		((S64*)result)[0] = 1;
+		((S64*)result)[1] = len + len_add_name + (backslash_eol ? 0 : 1);
+		for (i = 0; i < len; i++)
+			result2[i] = path[i] == L'\\' ? L'/' : path[i];
+		if (!backslash_eol)
+		{
+			result2[i] = L'/';
+			i++;
+		}
+		result2[i] = L'\0';
+	}
+	else
+	{
+		const Char* ptr = path + len - 1;
+		while (ptr != path && *ptr != L'\\' && *ptr != L'/')
+			ptr--;
+		if (ptr == path)
+		{
+			result = (U8*)malloc(0x10 + sizeof(Char) * (2 + len_add_name + 1));
+			result2 = (Char*)(result + 0x10);
+			((S64*)result)[0] = 1;
+			((S64*)result)[1] = 2 + len_add_name;
+			wcscpy(result2, L"./");
+		}
+		else
+		{
+			size_t len2 = ptr - path + 1;
+			size_t i;
+			result = (U8*)malloc(0x10 + sizeof(Char) * (len2 + len_add_name + 1));
+			result2 = (Char*)(result + 0x10);
+			((S64*)result)[0] = 1;
+			((S64*)result)[1] = len2 + len_add_name;
+			for (i = 0; i < len2; i++)
+				result2[i] = path[i] == L'\\' ? L'/' : path[i];
+			result2[i] = L'\0';
+		}
+	}
+	if (len_add_name != 0)
+		wcscat(result2, add_name);
+	return result;
 }

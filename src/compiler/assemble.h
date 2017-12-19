@@ -23,7 +23,8 @@ typedef struct SPackAsm
 	SDictI* FuncAddrs;
 	S64* ExcptFunc;
 	SList* ClassTables;
-	U64 AppCode;
+	S64 AppCode;
+	U8 UseResFlags[USE_RES_FLAGS_LEN];
 } SPackAsm;
 
 typedef struct SReadonlyData
@@ -86,4 +87,4 @@ typedef struct SExcptTable
 	S64 Addr;
 } SExcptTable;
 
-void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, SDict* dlls);
+void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, SDict* dlls, S64 app_code);

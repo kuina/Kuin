@@ -16,7 +16,7 @@ func main()
 	do @drawMain.onMouseEnter :: @drawMainOnMouseEnter {マウスが突入したときのイベント}
 	do @drawMain.onMouseLeave :: @drawMainOnMouseLeave {マウスが離脱したときのイベント}
 	do @drawMain.onKeyChar :: @drawMainOnKeyChar {文字が入力されたときのイベント}
-	var font: draw@Font :: draw@makeFont(null, 28, false, false, false, 22.0)
+	var font: draw@Font :: draw@makeFont(null, 28, false, false, false, false, 22.0)
 	do @keyBuf :: "                    "
 	do @drawMain.focus() {キーを受け取るためにフォーカスさせる}
 	while(wnd@act())

@@ -3,7 +3,7 @@
 func main()
 	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Time Sample")
 	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false)
-	var font: draw@Font :: draw@makeFont(null, 28, false, false, false, 24.0)
+	var font: draw@Font :: draw@makeFont(null, 28, false, false, false, false, 24.0)
 	var year: int
 	var month: int
 	var day: int

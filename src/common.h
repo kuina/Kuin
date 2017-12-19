@@ -71,10 +71,11 @@ static const S64 DefaultRefCntOpe = 1; // For 'GcInstance'.
 
 static void* DummyPtr = (void*)1i64; // An invalid pointer used to point to non-NULL.
 
+#define USE_RES_FLAGS_LEN (1)
 extern void* Heap;
 extern S64* HeapCnt;
 extern S64 AppCode;
-extern const Char* AppName;
+extern const U8* UseResFlags;
 extern HINSTANCE Instance;
 
 void* AllocMem(size_t size);

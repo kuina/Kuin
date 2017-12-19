@@ -14,14 +14,21 @@ typedef struct SClassTable
 typedef struct SFile
 {
 	Bool Pack;
-	void* Handle;
+	FILE* Handle;
+	S64 Pos;
+	S64 Size;
+	S64 Cur;
+	U64 Key;
 } SFile;
 
 void* Heap;
 S64* HeapCnt;
 S64 AppCode;
-const Char* AppName;
+const U8* UseResFlags;
 HINSTANCE Instance;
+
+static SFile* OpenPackFile(const Char* path);
+static U8 GetKey(U64 key, U8 data, U64 pos);
 
 void* AllocMem(size_t size)
 {
@@ -38,6 +45,7 @@ void FreeMem(void* ptr)
 	HeapFree(Heap, 0, ptr);
 #if defined(_DEBUG)
 	(*HeapCnt)--;
+	ASSERT(*HeapCnt >= 0);
 #endif
 }
 
@@ -48,13 +56,29 @@ void ThrowImpl(U32 code)
 
 void* LoadFileAll(const Char* path, size_t* size)
 {
-	if (path[0] == L':')
+#if !defined(DBG)
+	if (path[0] == L'r' || path[1] == L'e' || path[2] == L's' || path[3] == L'/')
 	{
-		path++;
-		// TODO:
-		return NULL;
+		SFile* handle = OpenPackFile(path + 4);
+		if (handle == NULL)
+			return NULL;
+		void* result = AllocMem((size_t)handle->Size);
+		fread(result, 1, (size_t)handle->Size, handle->Handle);
+		U8* ptr = (U8*)result;
+		S64 i;
+		U64 pos = (U64)handle->Pos - (U64)sizeof(U64) * 3;
+		for (i = 0; i < handle->Size; i++)
+		{
+			ptr[i] = GetKey(handle->Key, ptr[i], pos);
+			pos++;
+		}
+		*size = (size_t)handle->Size;
+		fclose(handle->Handle);
+		FreeMem(handle);
+		return result;
 	}
 	else
+#endif
 	{
 		FILE* file_ptr = _wfopen(path, L"rb");
 		if (file_ptr == NULL)
@@ -76,17 +100,16 @@ void* LoadFileAll(const Char* path, size_t* size)
 
 void* OpenFileStream(const Char* path)
 {
-	if (path[0] == L':')
+#if !defined(DBG)
+	if (path[0] == L'r' || path[1] == L'e' || path[2] == L's' || path[3] == L'/')
 	{
-		path++;
-		{
-			SFile* result = (SFile*)AllocMem(sizeof(SFile));
-			result->Pack = True;
-			// TODO:
-			return result;
-		}
+		SFile* handle = OpenPackFile(path + 4);
+		if (handle == NULL)
+			return NULL;
+		return handle;
 	}
 	else
+#endif
 	{
 		FILE* file_ptr = _wfopen(path, L"rb");
 		if (file_ptr == NULL)
@@ -95,6 +118,10 @@ void* OpenFileStream(const Char* path)
 			SFile* result = (SFile*)AllocMem(sizeof(SFile));
 			result->Pack = False;
 			result->Handle = file_ptr;
+			result->Pos = 0;
+			result->Size = 0;
+			result->Cur = 0;
+			result->Key = 0;
 			return result;
 		}
 	}
@@ -103,13 +130,8 @@ void* OpenFileStream(const Char* path)
 void CloseFileStream(void* handle)
 {
 	SFile* handle2 = (SFile*)handle;
-	ASSERT(handle2 != NULL);
-	if (handle2->Pack)
-	{
-		// TODO:
-	}
-	else
-		fclose((FILE*)handle2->Handle);
+	ASSERT(handle2 != NULL && handle2->Handle != NULL);
+	fclose(handle2->Handle);
 	FreeMem(handle2);
 }
 
@@ -119,11 +141,25 @@ size_t ReadFileStream(void* handle, size_t size, void* buf)
 	ASSERT(handle2 != NULL);
 	if (handle2->Pack)
 	{
-		// TODO:
-		return 0;
+		S64 size2 = (S64)size;
+		S64 rest = handle2->Pos + handle2->Size - handle2->Cur;
+		if (size2 > rest)
+			size2 = rest;
+		ASSERT(size2 >= 0);
+		size_t size3 = fread(buf, 1, (size_t)size2, handle2->Handle);
+		S64 i;
+		U8* ptr = (U8*)buf;
+		U64 pos = (U64)(handle2->Cur - sizeof(U64) * 3);
+		for (i = 0; i < (S64)size3; i++)
+		{
+			ptr[i] = GetKey(handle2->Key, ptr[i], pos);
+			pos++;
+		}
+		handle2->Cur += (S64)size3;
+		return size3;
 	}
 	else
-		return fread(buf, 1, size, (FILE*)handle2->Handle);
+		return fread(buf, 1, size, handle2->Handle);
 }
 
 Bool SeekFileStream(void* handle, S64 offset, S64 origin)
@@ -132,11 +168,32 @@ Bool SeekFileStream(void* handle, S64 offset, S64 origin)
 	ASSERT(handle2 != NULL);
 	if (handle2->Pack)
 	{
-		// TODO:
-		return False;
+		S64 pos = 0;
+		switch (origin)
+		{
+			case SEEK_SET:
+				pos = handle2->Pos;
+				break;
+			case SEEK_CUR:
+				pos = handle2->Cur;
+				break;
+			case SEEK_END:
+				pos = handle2->Pos + handle2->Size;
+				break;
+			default:
+				ASSERT(False);
+				break;
+		}
+		pos += offset;
+		if (pos < handle2->Pos || handle2->Pos + handle2->Size < pos)
+			return False;
+		handle2->Cur = pos;
+		int result = _fseeki64(handle2->Handle, pos, SEEK_SET);
+		ASSERT(result == 0);
+		return True;
 	}
 	else
-		return _fseeki64((FILE*)handle2->Handle, offset, (int)origin) == 0;
+		return _fseeki64(handle2->Handle, offset, (int)origin) == 0;
 }
 
 S64 TellFileStream(void* handle)
@@ -144,12 +201,9 @@ S64 TellFileStream(void* handle)
 	SFile* handle2 = (SFile*)handle;
 	ASSERT(handle2 != NULL);
 	if (handle2->Pack)
-	{
-		// TODO:
-		return 0;
-	}
+		return handle2->Cur - handle2->Pos;
 	else
-		return _ftelli64((FILE*)handle2->Handle);
+		return _ftelli64(handle2->Handle);
 }
 
 Bool StrCmpIgnoreCase(const Char* a, const Char* b)
@@ -239,4 +293,108 @@ U8* Utf8ToUtf16(const char* str)
 	}
 	((Char*)(buf + 0x10))[len] = L'\0';
 	return buf;
+}
+
+static SFile* OpenPackFile(const Char* path)
+{
+	FILE* file_ptr = _wfopen(L"res.knd", L"rb");
+	if (file_ptr == NULL)
+		return NULL;
+	SFile* handle = (SFile*)AllocMem(sizeof(SFile));
+	handle->Pack = True;
+	handle->Handle = file_ptr;
+	handle->Pos = -1;
+	handle->Size = 0;
+	handle->Cur = 0;
+	U64 key;
+	U64 len;
+	{
+		fread(&key, sizeof(U64), 1, file_ptr);
+		key ^= (U64)AppCode * 0x9271ac8394027acb + 0x35718394ca72849e;
+		handle->Key = key;
+	}
+	{
+		U64 signature;
+		fread(&signature, sizeof(U64), 1, file_ptr);
+		signature ^= key;
+		if (signature != 0x83261772fa0c01a7)
+		{
+			FreeMem(handle);
+			fclose(file_ptr);
+			return NULL;
+		}
+	}
+	{
+		fread(&len, sizeof(U64), 1, file_ptr);
+		len ^= 0x9c4cab83ce74a67e ^ key;
+		if (len > 65535)
+		{
+			FreeMem(handle);
+			fclose(file_ptr);
+			return NULL;
+		}
+	}
+	{
+		U64 pos = 0;
+		U64 i;
+		U64 j;
+		Char path2[KUIN_MAX_PATH + 1];
+		for (i = 0; i < len; i++)
+		{
+			U64 size;
+			U64 path_len;
+			{
+				fread(&size, sizeof(U64), 1, file_ptr);
+				U8* ptr = (U8*)&size;
+				for (j = 0; j < 8; j++)
+				{
+					ptr[j] = GetKey(key, ptr[j], pos);
+					pos++;
+				}
+			}
+			{
+				fread(&path_len, sizeof(U64), 1, file_ptr);
+				U8* ptr = (U8*)&path_len;
+				for (j = 0; j < 8; j++)
+				{
+					ptr[j] = GetKey(key, ptr[j], pos);
+					pos++;
+				}
+				if (path_len > KUIN_MAX_PATH)
+				{
+					FreeMem(handle);
+					fclose(file_ptr);
+					return NULL;
+				}
+			}
+			{
+				fread(path2, sizeof(Char), (size_t)path_len, file_ptr);
+				U8* ptr = (U8*)path2;
+				for (j = 0; j < path_len * 2; j++)
+				{
+					ptr[j] = GetKey(key, ptr[j], pos);
+					pos++;
+				}
+				path2[path_len] = L'\0';
+				if (wcscmp(path2, path) == 0)
+				{
+					handle->Pos = (S64)((U64)sizeof(U64) * 3 + pos);
+					handle->Size = (S64)size;
+					handle->Cur = handle->Pos;
+					return handle;
+				}
+				_fseeki64(file_ptr, (S64)size, SEEK_CUR);
+				pos += size;
+			}
+		}
+	}
+	FreeMem(handle);
+	fclose(file_ptr);
+	return NULL;
+}
+
+static U8 GetKey(U64 key, U8 data, U64 pos)
+{
+	U64 rnd = ((pos ^ key) * 0x351cd819923acae7) >> 32;
+	return (U8)(data ^ rnd);
 }

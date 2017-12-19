@@ -4,8 +4,8 @@ func main()
 	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Draw 2D Sample") {ウインドウの生成}
 	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
 	var texKuin: draw@Tex :: draw@makeTex("res/kuin.png") {画像の読み込み}
-	var fontProportional: draw@Font :: draw@makeFont(null, 32, false, false, true, 0.0) {プロポーショナルフォントの生成}
-	var fontMonospace: draw@Font :: draw@makeFont(null, 32, false, false, false, 40.0) {等幅フォントの生成}
+	var fontProportional: draw@Font :: draw@makeFont(null, 32, false, false, false, true, 0.0) {プロポーショナルフォントの生成}
+	var fontMonospace: draw@Font :: draw@makeFont(null, 32, false, false, false, false, 40.0) {等幅フォントの生成}
 	do draw@clearColor(16#FF333333) {背景色の設定}
 	while(wnd@act())
 		do draw@line(100.0, 100.0, 200.0, 200.0, 16#FFFF3333) {線分}

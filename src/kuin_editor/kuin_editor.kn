@@ -7,7 +7,7 @@ end func
 func [d0917.knd, FinCompiler] finCompiler()
 end func
 
-func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>, lang: int): bool
+func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>, lang: int, appCode: int): bool
 end func
 
 func [d0917.knd, Interpret1] interpret1(src: [][]char, color: [][]bit8)
@@ -34,6 +34,9 @@ end func
 func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>): bool
 end func
 
+func [d0917.knd, Archive] archive(dst: []char, src: []char, appCode: int): bool
+end func
+
 var wndMain: wnd@Wnd
 var treeItem: wnd@Tree
 var listInfo: wnd@List
@@ -44,9 +47,13 @@ var scrollYSrc: wnd@ScrollY
 var editHint: wnd@EditMulti
 var editLog: wnd@EditMulti
 var btnCompile: wnd@Btn
+var groupConfig: wnd@Group
 var groupEnv: wnd@Group
 var radioEnvWnd: wnd@Radio
 var radioEnvCui: wnd@Radio
+var labelIcon: wnd@Label
+var editIcon: wnd@Edit
+var btnIcon: wnd@Btn
 var btnRls: wnd@Btn
 var listFile: wnd@List
 var menuMain: wnd@Menu
@@ -108,6 +115,9 @@ class Document()
 	+func mouseUpL(x: int, y: int)
 	end func
 
+	+func mouseDoubleClick(x: int, y: int)
+	end func
+
 	+func mouseMove(x: int, y: int)
 	end func
 
@@ -118,9 +128,6 @@ class Document()
 	end func
 
 	+func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
-	end func
-
-	+func keyDownAlt(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 	end func
 
 	+func keyChar(key: char)
@@ -246,7 +253,7 @@ class DocumentSrc(@Document)
 				if(x2 >= width)
 					break j
 				end if
-				var charWidth: int :: me.charWidth(str[j], x)
+				var charWidth: int :: j < ^str ?(me.charWidth(str[j], x), 0)
 				if(x2 >= me.lineNumberWidth)
 					var inArea: bool :: false
 					if(me.areaSelected())
@@ -313,6 +320,29 @@ class DocumentSrc(@Document)
 
 	+*func mouseUpL(x: int, y: int)
 		do me.refreshCursor(false, true, 2)
+	end func
+
+	+*func mouseDoubleClick(x: int, y: int)
+		do me.mousePosToCharPos(x, y)
+		do me.refreshCursor(false, true, 0)
+		do me.areaX :: me.cursorX
+		do me.areaY :: me.cursorY
+		if(me.cursorX = ^me.src.src[me.cursorY])
+			do me.areaX :- 1
+			if(me.areaX < 0)
+				do me.areaX :: 0
+			end if
+		end if
+		if(^me.src.src[me.cursorY] > 0)
+			var color: bit8 :: me.src.color[me.areaY][me.areaX].and(16#7Fb8)
+			while(me.areaX > 0 & me.src.color[me.areaY][me.areaX - 1].and(16#7Fb8) = color)
+				do me.areaX :- 1
+			end while
+			while(me.cursorX < ^me.src.src[me.cursorY] & me.src.color[me.cursorY][me.cursorX].and(16#7Fb8) = color)
+				do me.cursorX :+ 1
+			end while
+		end if
+		do @drawEditor.paint()
 	end func
 
 	+*func mouseMove(x: int, y: int)
@@ -399,15 +429,46 @@ class DocumentSrc(@Document)
 						do me.delAreaStr()
 					end if
 					block
-						var str: []char :: "\n"
-						for i(0, ^me.src.src[me.cursorY] - 1)
-							if(me.src.src[me.cursorY][i] = '\t')
-								do str :~ "\t"
-							else
-								break i
+						var x: int :: me.cursorX
+						var y: int :: me.cursorY
+						do me.ins(x, y, "\n", true)
+						; The upper row.
+						if(me.skipTabs(y) = -1)
+							do me.del(0, y, ^me.src.src[y], true)
+						else
+							do me.autoIndent(y)
+							; Complement 'end ...' syntaxes.
+							if(^me.src.src[y + 1] = 0)
+								var curIndent: int :: me.skipTabs(y)
+								var result: [][]char :: @regexBlock.find(&, me.src.src[y], curIndent)
+								if(result <>& null)
+									var endFlag: bool
+									var nextY: int :: y + 2
+									while loop(true)
+										if(nextY = ^me.src.src)
+											do endFlag :: true
+											break loop
+										end if
+										var nextIndent: int :: me.skipTabs(nextY)
+										if(nextIndent <> -1 & nextIndent <= curIndent)
+											if(nextIndent = curIndent)
+												do endFlag :: @regexComplementDict.get(result[1]).find(&, me.src.src[nextY], curIndent) =& null
+											else
+												do endFlag :: true
+											end if
+											break loop
+										end if
+										do nextY :+ 1
+									end while
+									if(endFlag = true)
+										do me.ins(0, y + 1, "\nend " ~ result[1], true)
+										do me.autoIndent(y + 2)
+									end if
+								end if
 							end if
-						end for
-						do me.ins(me.cursorX, me.cursorY, str, true)
+						end if
+						; The current row.
+						do me.autoIndent(y + 1)
 					end block
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true, 1)
@@ -471,7 +532,18 @@ class DocumentSrc(@Document)
 			end if
 			ret true
 		case %up
-			if(shiftCtrl = %ctrl)
+			if(shiftCtrl = %none & @wndCompletion <>& null & @wndCompletionListKeywords <>& null)
+				if(@wndCompletionListKeywords.len() <> 0)
+					var sel: int :: @wndCompletionListKeywords.getSel()
+					if(sel = -1)
+						do sel :: @wndCompletionCursor
+					elif(sel <> 0)
+						do sel :- 1
+					end if
+					do @wndCompletionListKeywords.setSel(sel)
+					do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+				end if
+			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(-1)
 			else
 				do me.setArea(shiftCtrl)
@@ -491,7 +563,19 @@ class DocumentSrc(@Document)
 			end if
 			ret true
 		case %down
-			if(shiftCtrl = %ctrl)
+			if(shiftCtrl = %none & @wndCompletion <>& null & @wndCompletionListKeywords <>& null)
+				var len: int :: @wndCompletionListKeywords.len()
+				if(len <> 0)
+					var sel: int :: @wndCompletionListKeywords.getSel()
+					if(sel = -1)
+						do sel :: @wndCompletionCursor
+					elif(sel <> len - 1)
+						do sel :+ 1
+					end if
+					do @wndCompletionListKeywords.setSel(sel)
+					do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+				end if
+			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(1)
 			else
 				do me.setArea(shiftCtrl)
@@ -515,43 +599,6 @@ class DocumentSrc(@Document)
 			end if
 		end switch
 		do @drawEditor.paint()
-	end func
-
-	+*func keyDownAlt(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
-		switch(key)
-		case %up
-			if(@wndCompletion <>& null)
-				var sel: int :: @wndCompletionListKeywords.getSel()
-				if(sel = -1)
-					do sel :: @wndCompletionCursor
-				else
-					do sel :- 1
-					if(sel < 0)
-						do sel :: 0
-					end if
-				end if
-				do @wndCompletionListKeywords.setSel(sel)
-				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
-				ret true
-			end if
-		case %down
-			if(@wndCompletion <>& null)
-				var sel: int :: @wndCompletionListKeywords.getSel()
-				if(sel = -1)
-					do sel :: @wndCompletionCursor
-				else
-					do sel :+ 1
-					var len: int :: @wndCompletionListKeywords.len()
-					if(sel >= len)
-						do sel :: len - 1
-					end if
-				end if
-				do @wndCompletionListKeywords.setSel(sel)
-				do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
-				ret true
-			end if
-		end switch
-		ret false
 	end func
 
 	+*func keyChar(key: char)
@@ -838,7 +885,7 @@ class DocumentSrc(@Document)
 		end if
 	end func
 
-	+func showHint()
+	+func showHint(fast: bool)
 		var x: int :: me.cursorX
 		if(^me.src.src[me.cursorY] = x)
 			do x :- 1
@@ -859,8 +906,8 @@ class DocumentSrc(@Document)
 				if(color = %identifier | color = %global | color = %reserved)
 					var srcName2: []char
 					var word: []char :: me.getWord(&srcName2, x, me.cursorY, color, srcName)
-					var funcHint: []char :: me.getFuncHint(srcName, x, me.cursorY)
-					do @showCompletion(srcName2, me.cursorY + 1, word, funcHint)
+					var funcHint: []char :: fast ?(me.getFuncHint(srcName, x, me.cursorY), null)
+					do @showCompletion(srcName2, me.cursorY + 1, word, funcHint, fast)
 				elif(@wndCompletion <>& null)
 					do @closeCompletion()
 				end if
@@ -984,7 +1031,7 @@ class DocumentSrc(@Document)
 		var scrWidth: int
 		var scrHeight: int
 		do @drawEditor.getPos(&, &, &scrWidth, &scrHeight)
-		do me.lineNumberWidth :: @cellWidth * (log10(^me.src.src) + 1)
+		do me.lineNumberWidth :: @cellWidth * (lib@max(log10(^me.src.src), 3) + 1)
 
 		if(me.cursorX < 0)
 			do me.cursorX :: lib@intMax
@@ -1229,10 +1276,10 @@ class DocumentSrc(@Document)
 		do me.undo.recordBegin()
 		for i(y1, y2)
 			if(^me.src.src[i] > 0 & me.src.src[i][0] = '\t')
-				if(i = oldAreaY & oldAreaX > 0 & me.src.src[i][oldAreaX] <> '\t')
+				if(i = oldAreaY & oldAreaX > 0 & oldAreaX < ^me.src.src[i] & me.src.src[i][oldAreaX] <> '\t')
 					do oldAreaX :- 1
 				end if
-				if(i = oldCursorY & oldCursorX > 0 & me.src.src[i][oldCursorX] <> '\t')
+				if(i = oldCursorY & oldCursorX > 0 & oldCursorX < ^me.src.src[i] & me.src.src[i][oldCursorX] <> '\t')
 					do oldCursorX :- 1
 				end if
 				do me.del(0, i, 1, true)
@@ -1450,7 +1497,7 @@ class DocumentSrc(@Document)
 	end func
 
 	func complementImpl(): bool
-		if(@wndCompletion =& null)
+		if(@wndCompletion =& null | @wndCompletionListKeywords =& null)
 			ret false
 		end if
 		var sel: int :: @wndCompletionListKeywords.getSel()
@@ -1529,6 +1576,44 @@ class DocumentSrc(@Document)
 		do me.refreshCursor(false, false, 0)
 		do @scrollYSrc.setScrollPos(me.pageY)
 		do @drawEditor.paint()
+	end func
+
+	func autoIndent(y: int)
+		var indent: int :: -1
+		if(y > 0)
+			var prevY: int :: y - 1
+			while loop(true)
+				do indent :: me.skipTabs(prevY)
+				if(prevY = 0 | indent <> -1)
+					break loop
+				end if
+				do prevY :- 1
+			end while
+			if(indent <> -1)
+				if(@regexIncIndent.find(&, me.src.src[prevY], indent) <>& null)
+					do indent :+ 1
+				end if
+			end if
+		end if
+		var curIndent: int :: me.skipTabs(y)
+		if(indent > 0 & curIndent <> -1 & @regexDecIndent.find(&, me.src.src[y], curIndent) <>& null)
+			do indent :- 1
+		end if
+		if(indent < 0)
+			do indent :: 0
+		end if
+		var replaceStr: []char :: "\t".repeat(indent) ~ (curIndent = -1 ?("", me.src.src[y].sub(curIndent, -1)))
+		do me.del(0, y, ^me.src.src[y], true)
+		do me.ins(0, y, replaceStr, true)
+		do me.cursorX :: indent
+	end func
+
+	func skipTabs(y: int): int
+		var x: int :: 0
+		while(x < ^me.src.src[y] & me.src.src[y][x] = '\t')
+			do x :+ 1
+		end while
+		ret x = ^me.src.src[y] ?(-1, x)
 	end func
 end class
 
@@ -1650,6 +1735,10 @@ class DocumentArBase(@Document)
 		end switch
 	end func
 
+	+*func mouseDoubleClick(x: int, y: int)
+		; TODO:
+	end func
+
 	+*func mouseMove(x: int, y: int)
 		switch(me.mode)
 		case %put
@@ -1674,11 +1763,6 @@ class DocumentArBase(@Document)
 
 	+*func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 		; TODO:
-	end func
-
-	+*func keyDownAlt(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
-		; TODO:
-		ret false
 	end func
 
 	+*func keyChar(key: char)
@@ -1998,6 +2082,11 @@ var auxiliaryErr: dict<@Pos, []char>
 var lockingEditor: bool
 var textErr: []char
 var textLog: []char
+var regexIncIndent: regex@Regex
+var regexDecIndent: regex@Regex
+var regexBlock: regex@Regex
+var regexComplementDict: dict<[]char, regex@Regex>
+var lockPropOnChange: bool
 
 func main()
 	block
@@ -2011,6 +2100,19 @@ func main()
 	do @wndFindEditPatternLast :: ""
 	do @wndFindEditReplaceLast :: ""
 	do @wndFindChkDistinguishCaseLast :: true
+	do @regexIncIndent :: regex@makeRegex("^(?:if|elif|else|switch|case|default|while|for|try|catch|finally|block|\\+?\\*?\\*?func|\\+?class|\\+?enum)\\b")
+	do @regexDecIndent :: regex@makeRegex("^(?:end|elif|else|case|default|catch|finally)\\b")
+	do @regexBlock :: regex@makeRegex("^[+*]*(if|switch|while|for|try|block|func|class|enum)\\b")
+	do @regexComplementDict :: #dict<[]char, regex@Regex>
+	do @regexComplementDict.add("if", regex@makeRegex("^(?:elif|else|end if)\\b"))
+	do @regexComplementDict.add("switch", regex@makeRegex("^(?:case|default|end switch)\\b"))
+	do @regexComplementDict.add("while", regex@makeRegex("^end while\\b"))
+	do @regexComplementDict.add("for", regex@makeRegex("^end for\\b"))
+	do @regexComplementDict.add("try", regex@makeRegex("^(?:catch|finally|end try)\\b"))
+	do @regexComplementDict.add("block", regex@makeRegex("^end block\\b"))
+	do @regexComplementDict.add("func", regex@makeRegex("^end func\\b"))
+	do @regexComplementDict.add("class", regex@makeRegex("^end class\\b"))
+	do @regexComplementDict.add("enum", regex@makeRegex("^end enum\\b"))
 
 	do @initCompiler(2, @langEn ?(1, 0))
 	do wnd@onKeyPress(@onKeyPress)
@@ -2026,6 +2128,7 @@ func main()
 	do @drawEditor.onPaint :: @drawEditorOnPaint
 	do @drawEditor.onMouseDownL :: @drawEditorOnMouseDownL
 	do @drawEditor.onMouseUpL :: @drawEditorOnMouseUpL
+	do @drawEditor.onMouseDoubleClick :: @drawEditorOnMouseDoubleClick
 	do @drawEditor.onMouseMove :: @drawEditorOnMouseMove
 	do @drawEditor.onFocus :: @drawEditorOnFocus
 	do @drawEditor.onKeyDown :: @drawEditorOnKeyDown
@@ -2063,11 +2166,17 @@ func main()
 		do @editLog.readonly(true)
 		do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, @langEn ?("Compile && Run", "コンパイル＆実行"))
 		do @btnCompile.onPush :: @btnCompileOnPush
-		do @groupEnv :: wnd@makeGroup(@wndMain, 1027, 41, 185, 62, %move, %fix, @langEn ?("Environment", "実行環境"))
-		do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 173, 16, %fix, %fix, @langEn ?("Window", "ウインドウ"))
+		do @groupConfig :: wnd@makeGroup(@wndMain, 1027, 41, 185, 125, %move, %fix, @langEn ?("Configuration", "設定"))
+		do @groupEnv :: wnd@makeGroup(@wndMain, 1033, 59, 173, 62, %move, %fix, @langEn ?("Environment", "実行環境"))
+		do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 161, 16, %fix, %fix, @langEn ?("Window", "ウインドウ"))
 		do @radioEnvWnd.setChk(true)
-		do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 173, 16, %fix, %fix, @langEn ?("CUI", "CUI"))
-		do @btnRls :: wnd@makeBtn(@wndMain, 1027, 109, 185, 23, %move, %fix, @langEn ?("Release Build...", "リリースビルド"))
+		do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 161, 16, %fix, %fix, @langEn ?("CUI", "CUI"))
+		do @labelIcon :: wnd@makeLabel(@groupConfig, 6, 85, 173, 12, %fix, %fix, @langEn ?("Icon", "アイコン"))
+		do @editIcon :: wnd@makeEdit(@wndMain, 1033, 144, 92, 16, %move, %fix)
+		do @editIcon.onChange :: @editIconOnChange
+		do @btnIcon :: wnd@makeBtn(@wndMain, 1131, 137, 75, 23, %move, %fix, @langEn ?("Browse...", "参照..."))
+		do @btnIcon.onPush :: @btnIconOnPush
+		do @btnRls :: wnd@makeBtn(@wndMain, 1027, 172, 185, 23, %move, %fix, @langEn ?("Release Build...", "リリースビルド..."))
 		do @btnRls.onPush :: @btnRlsOnPush
 		do @listFile :: wnd@makeList(@wndMain, 1027, 255, 185, 360, %move, %scale)
 		do @listFile.onSel :: @listFileOnSel
@@ -2102,7 +2211,7 @@ func main()
 		do @popupMainBuild :: wnd@makePopup()
 		do @popupMainBuild.add(16#0020, @langEn ?("&Compile && Run\tF5", "コンパイル＆実行(&C)\tF5"))
 		do @popupMainBuild.addLine()
-		do @popupMainBuild.add(16#0021, @langEn ?("&Release Build...\tCtrl+Shift+B", "リリースビルド(&R)\tCtrl+Shift+B"))
+		do @popupMainBuild.add(16#0021, @langEn ?("&Release Build...\tCtrl+Shift+B", "リリースビルド(&R)...\tCtrl+Shift+B"))
 		do @menuMain.addPopup(@langEn ?("&Build", "ビルド(&B)"), @popupMainBuild)
 		do @popupMainHelp :: wnd@makePopup()
 		do @popupMainHelp.add(16#0010, @langEn ?("&View Help\tF1", "ヘルプの表示(&V)\tF1"))
@@ -2125,7 +2234,7 @@ func main()
 		do @srcCharColor[%lineComment $ @CharColor $ int] :: 16#FF1EB000
 		do @srcCharColor[%comment $ @CharColor $ int] :: 16#FF1EB000
 		do @srcCharColor[%symbol $ @CharColor $ int] :: 16#FF666666
-		do @font :: draw@makeFont("Consolas", @fontSize, false, false, false, @cellWidth $ float)
+		do @font :: draw@makeFont("Consolas", @fontSize, false, false, true, false, @cellWidth $ float)
 		do @tex :: draw@makeTex("res/tex.png")
 		do @drag :: false
 		do @lockingEditor :: false
@@ -2169,7 +2278,7 @@ func main()
 						do @closeCompletion()
 					end if
 					if(diff > (@dirtyHintFast ?(400, 800)) & @dirtyInterpret >= 1)
-						do document.showHint()
+						do document.showHint(@dirtyHintFast)
 						do @dirtyHint :: false
 						do @dirtyHintFast :: false
 					end if
@@ -2216,15 +2325,15 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			ret true
 		end if
 	elif(@wndMain.focusedWnd() | @wndCompletion <>& null & @wndCompletion.focusedWnd())
-		if(wnd@key(%alt))
-			ret @curDocument.keyDownAlt(key, %none)
-		end if
+		var editFocused: bool :: @editIcon.focused()
 		switch(shiftCtrl)
 		case %none
 			switch(key)
 			case %del
-				do @wndMainOnPushMenu(@wndMain, 16#0037)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0037)
+					ret true
+				end if
 			case %esc
 				if(@wndCompletion <>& null)
 					do @closeCompletion()
@@ -2259,11 +2368,15 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		case %ctrl
 			switch(key)
 			case %a
-				do @wndMainOnPushMenu(@wndMain, 16#0038)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0038)
+					ret true
+				end if
 			case %c
-				do @wndMainOnPushMenu(@wndMain, 16#0035)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0035)
+					ret true
+				end if
 			case %f
 				do @wndMainOnPushMenu(@wndMain, 16#0039)
 				ret true
@@ -2283,17 +2396,25 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 				do @wndMainOnPushMenu(@wndMain, 16#0005)
 				ret true
 			case %v
-				do @wndMainOnPushMenu(@wndMain, 16#0036)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0036)
+					ret true
+				end if
 			case %x
-				do @wndMainOnPushMenu(@wndMain, 16#0034)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0034)
+					ret true
+				end if
 			case %y
-				do @wndMainOnPushMenu(@wndMain, 16#0033)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0033)
+					ret true
+				end if
 			case %z
-				do @wndMainOnPushMenu(@wndMain, 16#0032)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0032)
+					ret true
+				end if
 			end switch
 		case (%shift $ wnd@ShiftCtrl).or(%ctrl)
 			switch(key)
@@ -2306,11 +2427,13 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 				do @wndMainOnPushMenu(@wndMain, 16#0004)
 				ret true
 			case %z
-				do @wndMainOnPushMenu(@wndMain, 16#0033)
-				ret true
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0033)
+					ret true
+				end if
 			end switch
 		end switch
-		if(@wndCompletion <>& null & key <> %ctrl)
+		if(@wndCompletion <>& null & key <> %ctrl & !editFocused)
 			ret @curDocument.keyDown(key, shiftCtrl)
 		end if
 	end if
@@ -2335,6 +2458,7 @@ func open(file: []char)
 	end while
 	do filePtr.fin()
 	do @new(file, src.toArray())
+	do @loadProp(file@delExt(file) ~ ".knprop")
 end func
 
 func new(srcName: []char, src: [][]char)
@@ -2354,6 +2478,9 @@ func new(srcName: []char, src: [][]char)
 	do @resetAuxiliary()
 	do @updateUi()
 	do @resetKeywords()
+	do @lockPropOnChange :: true
+	do @editIcon.setText("")
+	do @lockPropOnChange :: false
 	do @drawEditor.paint()
 	do @drawEditor.focus()
 end func
@@ -2368,6 +2495,7 @@ func save(): bool
 	end if
 	do @mainSrcName :: file
 	do @mainSrcDir :: file@dir(file)
+	do @saveProp(file@delExt(@mainSrcName) ~ ".knprop")
 	var newDocuments: dict<[]char, @Document> :: #dict<[]char, @Document>
 	var data: @DocumentsClass :: #@DocumentsClass
 	do data.documents :: newDocuments
@@ -2391,6 +2519,8 @@ func saveAll(): bool
 		if(!@save())
 			ret false
 		end if
+	else
+		do @saveProp(file@delExt(@mainSrcName) ~ ".knprop")
 	end if
 	do @saveAllSuccess :: true
 	do @documents.forEach(callback, null)
@@ -2430,6 +2560,31 @@ func saveSrc(path: []char, src: [][]char): bool
 	end for
 	do filePtr.fin()
 	ret true
+end func
+
+func saveProp(path: []char)
+	do file@delFile(path)
+	var prop: xml@Xml :: xml@makeXmlEmpty()
+	var root: xml@Node :: prop.root()
+	var config: xml@Node :: root.addChild("configuration")
+	do config.addChild("icon").setValue(@editIcon.getText())
+	do prop.save(path, false)
+end func
+
+func loadProp(path: []char)
+	try
+		var prop: xml@Xml :: xml@makeXml(path)
+		if(prop =& null)
+			ret
+		end if
+		var root: xml@Node :: prop.root()
+		var config: xml@Node :: root.findChild("configuration")
+		var icon: []char :: config.findChild("icon").getValue()
+		do @lockPropOnChange :: true
+		do @editIcon.setText(icon)
+		do @lockPropOnChange :: false
+	catch
+	end try
 end func
 
 func add(file: []char): @Document
@@ -2483,6 +2638,23 @@ func setCurSrc(document: @Document)
 	end if
 	do @drawEditor.paint()
 	do @drawEditor.focus()
+end func
+
+func mainDocument(): @Document
+	class RefDocument()
+		+var value: @Document
+	end class
+	var document: RefDocument :: #RefDocument
+	do @documents.forEach(callback, document)
+	ret document.value
+
+	func callback(src: []char, document: @Document, data: RefDocument): bool
+		if(src = @mainSrcName)
+			do data.value :: document
+			ret false
+		end if
+		ret true
+	end func
 end func
 
 func chkChanged(): bool
@@ -2656,6 +2828,10 @@ func drawEditorOnMouseUpL(wnd: wnd@WndBase, x: int, y: int)
 	do @curDocument.mouseUpL(x, y)
 end func
 
+func drawEditorOnMouseDoubleClick(wnd: wnd@WndBase, x: int, y: int)
+	do @curDocument.mouseDoubleClick(x, y)
+end func
+
 func drawEditorOnMouseMove(wnd: wnd@WndBase, x: int, y: int)
 	do @curDocument.mouseMove(x, y)
 end func
@@ -2730,7 +2906,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end if
 	try
 		do @resetAuxiliary()
-		if(@build(@mainSrcName, @getSrc, null, out, null, false, @getEnv(), @log, @langEn ?(1, 0)))
+		if(@build(@mainSrcName, @getSrc, null, out, @editIcon.getText().trim(), false, @getEnv(), @log, @langEn ?(1, 0), 0))
 			if (@mainSrcName <> @untitledSrcName)
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
 				do filePtr.writeStr(file@dir(@mainSrcName))
@@ -2769,6 +2945,25 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end func
 end func
 
+func editIconOnChange(wnd: wnd@WndBase)
+	if(@lockPropOnChange)
+		ret
+	end if
+	var document: @Document :: @mainDocument()
+	if(document <>& null & document =$ @DocumentSrc)
+		do (document $ @DocumentSrc).changed :: true
+		do @updateUi()
+	end if
+end func
+
+func btnIconOnPush(wnd: wnd@WndBase)
+	var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Icon (*.ico,*.icon)", "アイコン (*.ico,*.icon)"), "*.ico;*.icon"], 0)
+	if(file =& null)
+		ret
+	end if
+	do @editIcon.setText(file)
+end func
+
 func btnRlsOnPush(wnd: wnd@WndBase)
 	if(@lockingEditor)
 		do @showMsgRunning()
@@ -2799,12 +2994,25 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	do @updateLog()
 	try
 		do @resetAuxiliary()
-		if(@build(@mainSrcName, @getSrc, null, out, null, true, @getEnv(), @log, @langEn ?(1, 0)))
+		var appCode: int :: lib@rnd(1, lib@intMax) * (lib@rnd(0, 1) = 0 ?(1, -1))
+		if(appCode = 0)
+			do appCode :: 1 {Since it is not convenient when 'AppCode' becomes 0, it is set to 1.}
+		end if
+		if(@build(@mainSrcName, @getSrc, null, out, @editIcon.getText().trim(), true, @getEnv(), @log, @langEn ?(1, 0), appCode))
 			if(@mainSrcName <> @untitledSrcName)
 				var resSrc: []char :: file@dir(@mainSrcName) ~ "res/"
 				if(file@exist(resSrc))
-					var resDst: []char :: tmp ~ "res/"
-					do file@copyDir(resDst, resSrc)
+					var resDst: []char :: tmp ~ "res.knd"
+					if(!@archive(resDst, resSrc, appCode))
+						var msg: []char
+						if(@langEn)
+							do msg :: "Could not make the resource file. " ~ resDst
+						else
+							do msg :: "リソースファイルを作成できませんでした。 " ~ resDst
+						end if
+						do wnd@msgBox(@wndMain, msg, @title, %err, %ok)
+						ret
+					end if
 				end if
 			end if
 			if(zip@zip(file, tmp, -1))
@@ -3012,6 +3220,7 @@ end func
 
 func updateUi()
 	do @editFile.setText("")
+	do @listInfo.setRedraw(false)
 	do @listInfo.clear()
 	if(@curDocument =$ @DocumentSrc)
 		do @listInfoItem.sort()
@@ -3024,9 +3233,12 @@ func updateUi()
 		do @listInfo.add(@langEn ?("None", "なし"))
 		do @listInfo.add("Button")
 	end if
+	do @listInfo.setRedraw(true)
 
+	do @listFile.setRedraw(false)
 	do @listFile.clear()
 	do @documents.forEach(callback, null)
+	do @listFile.setRedraw(true)
 
 	func callback(src: []char, document: @Document, data: kuin@Class): bool
 		var prefix: []char :: ""
@@ -3071,18 +3283,26 @@ func addNewFile()
 	do btnAdd.onPush :: btnAddOnPush
 	do @wndAddFile.modal()
 	if(@wndAddFileResuiltFile <>& null & @wndAddFileResuiltFile <> "")
-		var document: @Document
+		var ext: []char :: file@ext(@wndAddFileResuiltFile)
+		var document: @Document :: null
 		switch(@wndAddFileResuiltType)
 		case 0
-			do document :: #@DocumentSrc
+			if(ext = "kn")
+				do document :: #@DocumentSrc
+			end if
 		case 1
-			do document :: #@DocumentArWnd
+			if(ext = "knwnd")
+				do document :: #@DocumentArWnd
+			end if
 		end switch
-		do document.init(null)
-		if(@saveSrc(@wndAddFileResuiltFile, document.getSrc()))
-			do @add(@wndAddFileResuiltFile)
-			do @updateUi()
-			; TODO: Exchange the files.
+		if(document <>& null)
+			do document.init(null)
+			if(@saveSrc(@wndAddFileResuiltFile, document.getSrc()))
+				do @setCurSrc(@add(@wndAddFileResuiltFile))
+				do @updateUi()
+			end if
+		else
+			do wnd@msgBox(@wndMain, @langEn ?("An invalid extension was specified.", "不正な拡張子が指定されました。"), @title, %err, %ok)
 		end if
 	end if
 	do @wndAddFile :: null
@@ -3091,7 +3311,17 @@ func addNewFile()
 	do @wndAddFileListType :: null
 
 	func btnFileOnPush(wnd: wnd@WndBase)
-		var path: []char :: wnd@saveFileDialog(@wndAddFile, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
+		var filter: [][]char
+		var ext: []char
+		switch(@wndAddFileListType.getSel())
+		case -1, 0
+			do filter :: [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"]
+			do ext :: "kn"
+		case 1
+			do filter :: [@langEn ?("Kuin window (*.knwnd)", "Kuinウインドウ (*.knwnd)"), "*.knwnd"]
+			do ext :: "knwnd"
+		end switch
+		var path: []char :: wnd@saveFileDialog(@wndAddFile, filter, 0, ext)
 		if(path <>& null)
 			do @wndAddFileEditFile.setText(path)
 		end if
@@ -3109,11 +3339,10 @@ func addExistingFile()
 		do wnd@msgBox(@wndMain, @langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), @title, %err, %ok)
 		ret
 	end if
-	var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0)
+	var file: []char :: wnd@openFileDialog(@wndMain, [@langEn ?("Kuin supported file (*.kn,*.knwnd)", "Kuinがサポートするファイル (*.kn,*.knwnd)"), "*.kn;*.knwnd"], 0)
 	if(file <>& null)
-		do @add(file)
+		do @setCurSrc(@add(file))
 		do @updateUi()
-		; TODO: Exchange the files.
 	end if
 end func
 
@@ -3131,6 +3360,8 @@ func lockEditor(lock: bool)
 	do @lockingEditor :: lock
 	do @btnCompile.enable(!lock)
 	do @btnRls.enable(!lock)
+	do @editIcon.enable(!lock)
+	do @btnIcon.enable(!lock)
 end func
 
 func updateLog()
@@ -3207,7 +3438,7 @@ func showFind(replace: bool)
 	var w: int
 	do @drawEditor.getPosScr(&x, &y, &w, &)
 	if(@wndFind =& null)
-		do @wndFind :: wnd@makeWnd(@wndMain, %fix, 380, 332, @langEn ?("Find and Replace", "検索と置換"))
+		do @wndFind :: wnd@makeWnd(@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 380, 332, @langEn ?("Find and Replace", "検索と置換"))
 		do @wndFind.setPos(x + w - 380 - 17, y, 380, 332)
 		do @wndFind.onClose :: wndFindOnClose
 		do @wndFindTabFind :: wnd@makeTab(@wndFind, 12, 12, 356, 308, %scale, %scale)
@@ -3438,7 +3669,7 @@ var wndCompletionRow: int
 var wndCompletionCursor: int
 var wndCompletionHintPos: @Pos
 
-func showCompletion(src: []char, row: int, hint: []char, funcHint: []char)
+func showCompletion(src: []char, row: int, hint: []char, funcHint: []char, fast: bool)
 	if(@wndCompletion <>& null)
 		do @closeCompletion()
 		assert @wndCompletion =& null
@@ -3455,36 +3686,65 @@ func showCompletion(src: []char, row: int, hint: []char, funcHint: []char)
 
 	do @wndCompletionSrc :: src
 	do @wndCompletionRow :: row
-	do @wndCompletion :: wnd@makeWnd(@wndMain, %popup, 300, 152, null)
-	do @wndCompletion.setPos(x + x2, y + y2 + @cellHeight, 300, 152)
+	do @wndCompletion :: wnd@makeWnd(@wndMain, (%popup $ wnd@WndStyle).or(%layered), 250, 100, null)
+	do @wndCompletion.setPos(x + x2, y + y2 + @cellHeight, 250, fast ?(100, 30))
 	do @wndCompletion.setAlpha(230)
 	do @wndCompletion.onClose :: wndCompletionOnClose
-	do @wndCompletionEditHint :: wnd@makeEditMulti(@wndCompletion, 0, 0, 300, 38, %fix, %fix)
+	do @wndCompletionEditHint :: wnd@makeEditMulti(@wndCompletion, 0, 0, 250, 30, %fix, %fix)
 	do @wndCompletionEditHint.readonly(true)
-	do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 38, 300, 76, %fix, %fix)
-	do @wndCompletionListKeywords.onSel :: @wndCompletionListKeywordsOnSel
-	do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
-	var best: int :: @getKeywords(src, row, hint, getKeywordsCallback)
-	do @wndCompletionListKeywords.setSel(@wndCompletionListKeywords.len() - 1)
-	do @wndCompletionListKeywords.setSel(best)
-	do @wndCompletionCursor :: best = -1 ?(0, best)
-	do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
-	do @wndCompletionListKeywords.setSel(-1)
-	do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 114, 300, 38, %fix, %fix)
-	do @wndCompletionEditFunc.readonly(true)
-	if(^funcHint = 0)
-		do @wndCompletionEditFunc.setText(@langEn ?("Select...Alt+Up/Alt+Down, To Definition...F12\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Alt+Up/Alt+Down, 定義元へ...F12\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
+	if(fast)
+		do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 30, 250, 48, %fix, %fix)
+		do @wndCompletionListKeywords.onSel :: @wndCompletionListKeywordsOnSel
+		do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
+		do @wndCompletionListKeywords.setRedraw(false)
+		var best: int :: @getKeywords(src, row, hint, getKeywordsCallback)
+		if(@wndCompletionListKeywords.len() = 0)
+			do @closeCompletion()
+			ret
+		end if
+		do @wndCompletionListKeywords.setRedraw(true)
+		do @wndCompletionListKeywords.setSel(@wndCompletionListKeywords.len() - 1)
+		do @wndCompletionListKeywords.setSel(best)
+		do @wndCompletionCursor :: best = -1 ?(0, best)
+		do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+		do @wndCompletionListKeywords.setSel(-1)
+
+		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 70, 250, 30, %fix, %fix)
+		do @wndCompletionEditFunc.readonly(true)
+		if(^funcHint = 0)
+			do @wndCompletionEditFunc.setText(@langEn ?("Select...Up/Down, To Definition...F12\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Up/Down, 定義元へ...F12\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
+		else
+			do @wndCompletionEditFunc.setText(funcHint)
+		end if
 	else
-		do @wndCompletionEditFunc.setText(funcHint)
+		do @wndCompletionHintPos :: #@Pos
+		var hintSrc: []char
+		var wordHint: []char :: @getHint(0, @wndCompletionSrc, @wndCompletionRow, hint, &hintSrc, &@wndCompletionHintPos.row, &@wndCompletionHintPos.col)
+		if(hintSrc =& null)
+			do @wndCompletionHintPos :: null
+		else
+			do @wndCompletionHintPos.src :: ##hintSrc
+		end if
+		if(wordHint =& null)
+			do @wndCompletionHintPos :: null
+			do @closeCompletion()
+			ret
+		else
+			do @wndCompletionEditHint.setText(wordHint)
+		end if
 	end if
 
 	do @drawEditor.focus()
 
 	func wndCompletionOnClose(wnd: wnd@Wnd): bool
 		do @wndCompletion :: null
+		do @wndCompletionEditHint :: null
+		do @wndCompletionListKeywords :: null
+		do @wndCompletionEditFunc :: null
 		do @wndCompletionSrc :: null
 		do @wndCompletionRow :: 0
 		do @wndCompletionCursor :: -1
+		do @wndCompletionHintPos :: null
 		ret true
 	end func
 
@@ -3510,7 +3770,9 @@ func wndCompletionListKeywordsOnSel(wnd: wnd@List)
 		else
 			do @wndCompletionHintPos.src :: ##hintSrc
 		end if
-		if(wordHint <>& null)
+		if(wordHint =& null)
+			do @wndCompletionHintPos :: null
+		else
 			do @wndCompletionEditHint.setText(wordHint)
 		end if
 	end if
@@ -3525,7 +3787,7 @@ func wndCompletionListKeywordsOnMouseDoubleClick(wnd: wnd@List, x: int, y: int)
 end func
 
 func jumpSrc(pos: @Pos): bool
-	if(pos.src[0] <> '\\')
+	if(pos =& null | pos.src =& null | ^pos.src = 0 | pos.src[0] <> '\\')
 		ret false
 	end if
 	var src: []char :: @internalNameToSrcName(pos.src)

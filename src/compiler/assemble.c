@@ -159,7 +159,7 @@ static void AssembleExprValue(SAstExprValue* ast, int reg_i, int reg_f);
 static void AssembleExprValueArray(SAstExprValueArray* ast, int reg_i, int reg_f);
 static void AssembleExprRef(SAstExpr* ast, int reg_i, int reg_f);
 
-void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, SDict* dlls)
+void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, SDict* dlls, S64 app_code)
 {
 	PackAsm = pack_asm;
 	Option = option;
@@ -178,15 +178,8 @@ void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, 
 	PackAsm->RefValueList = ListNew();
 	PackAsm->FuncAddrs = NULL;
 	PackAsm->ClassTables = ListNew();
-
-	if (Option->Rls)
-	{
-		PackAsm->AppCode = (U64)(U32)timeGetTime() | ((U64)(U32)time(NULL) << 32);
-		if (PackAsm->AppCode == 0)
-			PackAsm->AppCode = 1; // Since it is not convenient when 'AppCode' becomes 0, it is set to 1.
-	}
-	else
-		PackAsm->AppCode = 0;
+	PackAsm->AppCode = app_code;
+	memset(PackAsm->UseResFlags, 0, USE_RES_FLAGS_LEN);
 
 	ASSERT(Option->IconFile != NULL);
 	if (!LoadResources())
@@ -1687,13 +1680,10 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 #else
 				ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
 #endif
+				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_R8), ValImmS(8, PackAsm->AppCode)));
 				{
-					// TODO: app_code
-					ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R8), ValReg(4, Reg_R8)));
-				}
-				{
-					// TODO: app_name
-					ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R9), ValReg(4, Reg_R9)));
+					S64* addr = AddReadonlyData((int)USE_RES_FLAGS_LEN, PackAsm->UseResFlags, False);
+					ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_R9), ValRIP(8, RefValueAddr(addr, True))));
 				}
 			}
 			else

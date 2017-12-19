@@ -1,3 +1,5 @@
+#include "common.h"
+
 cbuffer ConstBuf: register(b0)
 {
 	float4 Color;
@@ -16,5 +18,6 @@ float4 main(PS_INPUT input): SV_TARGET
 		discard;
 	if (input.Tex.x * input.Tex.x + input.Tex.y * input.Tex.y > 1.0f)
 		discard;
+	output.a = gamma(output.a);
 	return output;
 }

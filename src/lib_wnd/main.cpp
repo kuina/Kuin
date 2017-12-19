@@ -47,6 +47,8 @@ enum EWndKind
 	WndKind_SplitY,
 	WndKind_ScrollX,
 	WndKind_ScrollY,
+	WndKind_WndLayered = 0x10000,
+	WndKind_WndNoMinimize = 0x20000,
 };
 
 enum ECtrlFlag
@@ -313,12 +315,12 @@ SClass* IncWndRef(SClass* wnd)
 	return wnd;
 }
 
-EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
+EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
 {
 	Heap = heap;
 	HeapCnt = heap_cnt;
 	AppCode = app_code;
-	AppName = app_name == NULL ? L"Untitled" : reinterpret_cast<const Char*>(app_name + 0x10);
+	UseResFlags = use_res_flags;
 	Instance = static_cast<HINSTANCE>(GetModuleHandle(NULL));
 
 	WndCnt = 0;
@@ -441,7 +443,7 @@ EXPORT_CPP void _onKeyPress(void* onKeyPressFunc)
 
 EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon, S64 btn)
 {
-	return MessageBox(parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), title == NULL ? AppName : reinterpret_cast<const Char*>(title + 0x10), static_cast<UINT>(icon | btn));
+	return MessageBox(parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), title == NULL ? L"" : reinterpret_cast<const Char*>(title + 0x10), static_cast<UINT>(icon | btn));
 }
 
 EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFilter)
@@ -652,24 +654,27 @@ EXPORT_CPP Bool _key(S64 key)
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
-	me2->Kind = static_cast<EWndKind>(static_cast<S64>(WndKind_WndNormal) + style);
+	me2->Kind = static_cast<EWndKind>(static_cast<S64>(WndKind_WndNormal) + (style & 0xffff));
 	THROWDBG(width <= 0 || height <= 0, 0xe9170006);
 	int width2 = static_cast<int>(width);
 	int height2 = static_cast<int>(height);
 	HWND parent2 = parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle;
+	DWORD ex_style = 0;
+	if ((style & static_cast<S64>(WndKind_WndLayered)) != 0)
+		ex_style |= WS_EX_LAYERED;
 	switch (me2->Kind)
 	{
 		case WndKind_WndNormal:
-			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndNormalClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(ex_style, L"KuinWndNormalClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndFix:
-			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(ex_style, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndAspect:
-			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(ex_style, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndPopup:
-			me2->WndHandle = CreateWindowEx(WS_EX_LAYERED, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_POPUP | WS_BORDER | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(ex_style, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_POPUP | WS_BORDER | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		default:
 			THROWDBG(True, 0xe9170006);
@@ -677,7 +682,10 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	}
 	if (me2->WndHandle == NULL)
 		THROW(0xe9170009);
-	SetLayeredWindowAttributes(me2->WndHandle, NULL, 255, LWA_ALPHA);
+	if ((style & static_cast<S64>(WndKind_WndLayered)) != 0)
+		SetLayeredWindowAttributes(me2->WndHandle, NULL, 255, LWA_ALPHA);
+	if ((style & static_cast<S64>(WndKind_WndNoMinimize)) != 0)
+		SetWindowLongPtr(me2->WndHandle, GWL_STYLE, GetWindowLongPtr(me2->WndHandle, GWL_STYLE) & ~WS_MINIMIZEBOX);
 	int border_x;
 	int border_y;
 	{
@@ -771,6 +779,23 @@ EXPORT_CPP void _wndBaseEnable(SClass* me_, Bool is_enabled)
 EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height)
 {
 	SetWindowPos(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, (int)x, (int)y, (int)width, (int)height, SWP_NOZORDER);
+}
+
+EXPORT_CPP void _wndBaseSetRedraw(SClass* me_, Bool is_enabled)
+{
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	if (is_enabled)
+	{
+		SendMessage(wnd, WM_SETREDRAW, TRUE, 0);
+		InvalidateRect(wnd, NULL, TRUE);
+	}
+	else
+		SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
+}
+
+EXPORT_CPP void _wndBaseSetVisible(SClass* me_, Bool is_visible)
+{
+	ShowWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_visible ? SW_SHOW : SW_HIDE);
 }
 
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)

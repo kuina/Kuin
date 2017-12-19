@@ -6,10 +6,13 @@
 #include "main.h"
 
 #include <WS2tcpip.h>
+#include <WinInet.h>
 
 #pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "Wininet.lib")
 
-#define DATA_SIZE (1024 * 1024)
+#define TCP_DATA_SIZE (1024 * 1024)
+#define HTTP_DATA_SIZE (1024)
 
 typedef struct SServerConnectList
 {
@@ -41,10 +44,33 @@ typedef struct STcp
 	HANDLE ThreadHandle;
 } STcp;
 
+typedef struct SHttpList
+{
+	struct SHttpList* Next;
+	size_t Size;
+	U8 Data[HTTP_DATA_SIZE];
+} SHttpList;
+
+typedef struct SHttp
+{
+	SClass Class;
+	HINTERNET HandleOpen;
+	HINTERNET HandleConnect;
+	HINTERNET HandleRequest;
+	Bool ThreadExit;
+	Bool Success;
+	size_t TotalSize;
+	SHttpList* DataTop;
+	SHttpList* DataBottom;
+	CRITICAL_SECTION* Mutex;
+	HANDLE ThreadHandle;
+} SHttp;
+
 static WSADATA* WsaData = NULL;
 
 static DWORD WINAPI ServerThread(LPVOID param);
 static DWORD WINAPI ConnectThread(LPVOID param);
+static DWORD WINAPI HttpThread(LPVOID param);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -54,14 +80,14 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* app_name)
+EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
 {
 	if (Heap != NULL)
 		return;
 	Heap = heap;
 	HeapCnt = heap_cnt;
 	AppCode = app_code;
-	AppName = app_name == NULL ? L"Untitled" : (Char*)(app_name + 0x10);
+	UseResFlags = use_res_flags;
 	Instance = (HINSTANCE)GetModuleHandle(NULL);
 
 	WsaData = (WSADATA*)AllocMem(sizeof(WSADATA));
@@ -119,7 +145,6 @@ EXPORT SClass* _makeTcpServer(SClass* me_, S64 port)
 
 EXPORT void _tcpServerDtor(SClass* me_)
 {
-	STcpServer* me2 = (STcpServer*)me_;
 	_tcpServerFin(me_);
 }
 
@@ -180,7 +205,7 @@ EXPORT SClass* _tcpServerGet(SClass* me_, SClass* me2)
 
 	me4->ThreadExit = False;
 	me4->DataFull = False;
-	me4->Data = (U8*)AllocMem(DATA_SIZE);
+	me4->Data = (U8*)AllocMem(TCP_DATA_SIZE);
 	me4->DataTop = 0;
 	me4->DataBottom = 0;
 	InitializeCriticalSection(me4->Mutex);
@@ -196,7 +221,7 @@ EXPORT SClass* _makeTcpClient(SClass* me_, const U8* host, S64 port)
 	THROWDBG(port < 0 || 65535 < port, 0xe9170006);
 	STcp* me2 = (STcp*)me_;
 
-	char host_name[KUIN_MAX_PATH];
+	char host_name[KUIN_MAX_PATH + 1];
 	{
 		const Char* host2 = (const Char*)(host + 0x10);
 		S64 len = *(S64*)(host + 0x08);
@@ -251,7 +276,7 @@ EXPORT SClass* _makeTcpClient(SClass* me_, const U8* host, S64 port)
 
 	me2->ThreadExit = False;
 	me2->DataFull = False;
-	me2->Data = (U8*)AllocMem(DATA_SIZE);
+	me2->Data = (U8*)AllocMem(TCP_DATA_SIZE);
 	me2->DataTop = 0;
 	me2->DataBottom = 0;
 	InitializeCriticalSection(me2->Mutex);
@@ -264,7 +289,6 @@ EXPORT SClass* _makeTcpClient(SClass* me_, const U8* host, S64 port)
 
 EXPORT void _tcpDtor(SClass* me_)
 {
-	STcp* me2 = (STcp*)me_;
 	_tcpFin(me_);
 }
 
@@ -314,7 +338,7 @@ EXPORT void _tcpSend(SClass* me_, const U8* data)
 
 EXPORT void* _tcpReceive(SClass* me_, S64 size)
 {
-	THROWDBG(size < 0 || DATA_SIZE < size, 0xe9170006);
+	THROWDBG(size < 0 || TCP_DATA_SIZE < size, 0xe9170006);
 	STcp* me2 = (STcp*)me_;
 	if (me2->ThreadExit)
 		return NULL;
@@ -340,7 +364,7 @@ EXPORT void* _tcpReceive(SClass* me_, S64 size)
 		if (me2->DataTop < me2->DataBottom)
 			len = me2->DataBottom - me2->DataTop;
 		else
-			len = DATA_SIZE - me2->DataTop + me2->DataBottom;
+			len = TCP_DATA_SIZE - me2->DataTop + me2->DataBottom;
 		if (len < (int)size)
 		{
 			LeaveCriticalSection(me2->Mutex);
@@ -356,7 +380,7 @@ EXPORT void* _tcpReceive(SClass* me_, S64 size)
 		{
 			*ptr = me2->Data[me2->DataTop];
 			me2->DataTop++;
-			if (me2->DataTop == DATA_SIZE)
+			if (me2->DataTop == TCP_DATA_SIZE)
 				me2->DataTop = 0;
 			ptr++;
 			len--;
@@ -372,6 +396,169 @@ EXPORT Bool _tcpConnecting(SClass* me_)
 {
 	STcp* me2 = (STcp*)me_;
 	return !me2->ThreadExit;
+}
+
+EXPORT SClass* _makeHttp(SClass* me_, const U8* url, Bool post, const U8* agent)
+{
+	THROWDBG(url == NULL, 0xc0000005);
+	SHttp* me2 = (SHttp*)me_;
+	URL_COMPONENTS url_components;
+	Char host_name[2049];
+	Char url_path[2049];
+	memset(&url_components, 0, sizeof(url_components));
+	url_components.dwStructSize = sizeof(url_components);
+	url_components.lpszHostName = host_name;
+	url_components.lpszUrlPath = url_path;
+	url_components.dwHostNameLength = 2049;
+	url_components.dwUrlPathLength = 2049;
+	if (!InternetCrackUrl((const Char*)(url + 0x10), (DWORD)((S64*)(url + 0x08))[1], 0, &url_components))
+		return NULL;
+	DWORD flags;
+	if (url_components.nScheme == INTERNET_SCHEME_HTTP)
+		flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_NO_AUTO_REDIRECT;
+	else if (url_components.nScheme == INTERNET_SCHEME_HTTPS)
+		flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_NO_AUTO_REDIRECT | INTERNET_FLAG_SECURE | INTERNET_FLAG_IGNORE_CERT_DATE_INVALID | INTERNET_FLAG_IGNORE_CERT_CN_INVALID;
+	else
+		return NULL;
+	// TODO: Parameters
+	if (post)
+	{
+	}
+	Bool success = False;
+	for (; ; )
+	{
+		me2->HandleOpen = InternetOpen(agent == NULL ? L"" : (const Char*)(agent + 0x10), INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+		if (me2->HandleOpen == NULL)
+			break;
+		me2->HandleConnect = InternetConnect(me2->HandleOpen, url_components.lpszHostName, url_components.nPort, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
+		if (me2->HandleConnect == NULL)
+			break;
+		me2->HandleRequest = HttpOpenRequest(me2->HandleConnect, post ? L"POST" : L"GET", url_components.lpszUrlPath, NULL, NULL, NULL, flags, 0);
+		if (me2->HandleRequest == NULL)
+			break;
+		const Char* header = post ? L"Content-Type: application/x-www-form-urlencoded" : L"";
+		if (!HttpSendRequest(me2->HandleRequest, header, (DWORD)wcslen(header), NULL, 0)) // TODO: Parameters
+			break;
+		{
+			DWORD status_code;
+			DWORD len = (DWORD)sizeof(DWORD);
+			if (!HttpQueryInfo(me2->HandleRequest, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &status_code, &len, 0))
+				break;
+			if (status_code < 200 || 299 < status_code)
+				break;
+		}
+		success = True;
+		break;
+	}
+	if (!success)
+	{
+		if (me2->HandleRequest != NULL)
+			InternetCloseHandle(me2->HandleRequest);
+		if (me2->HandleConnect != NULL)
+			InternetCloseHandle(me2->HandleConnect);
+		if (me2->HandleOpen != NULL)
+			InternetCloseHandle(me2->HandleOpen);
+		return NULL;
+	}
+	me2->Mutex = (CRITICAL_SECTION*)AllocMem(sizeof(CRITICAL_SECTION));
+
+	me2->ThreadExit = False;
+	me2->Success = False;
+	me2->TotalSize = 0;
+	SHttpList* http_list = (SHttpList*)AllocMem(sizeof(SHttpList));
+	http_list->Next = NULL;
+	http_list->Size = 0;
+	me2->DataTop = http_list;
+	me2->DataBottom = http_list;
+	InitializeCriticalSection(me2->Mutex);
+	me2->ThreadHandle = CreateThread(NULL, 0, HttpThread, me2, 0, NULL);
+	return me_;
+}
+
+EXPORT void _httpDtor(SClass* me_)
+{
+	_httpFin(me_);
+}
+
+EXPORT void _httpFin(SClass* me_)
+{
+	SHttp* me2 = (SHttp*)me_;
+	if (me2->Mutex == NULL)
+		return;
+	EnterCriticalSection(me2->Mutex);
+	me2->ThreadExit = True;
+	LeaveCriticalSection(me2->Mutex);
+	WaitForSingleObject(me2->ThreadHandle, INFINITE);
+	CloseHandle(me2->ThreadHandle);
+	me2->ThreadHandle = NULL;
+	DeleteCriticalSection(me2->Mutex);
+	FreeMem(me2->Mutex);
+	me2->Mutex = NULL;
+
+	if (me2->HandleRequest != NULL)
+		InternetCloseHandle(me2->HandleRequest);
+	if (me2->HandleConnect != NULL)
+		InternetCloseHandle(me2->HandleConnect);
+	if (me2->HandleOpen != NULL)
+		InternetCloseHandle(me2->HandleOpen);
+
+	while (me2->DataTop != NULL)
+	{
+		SHttpList* ptr = me2->DataTop;
+		me2->DataTop = me2->DataTop->Next;
+		FreeMem(ptr);
+	}
+	me2->Success = False;
+	me2->TotalSize = 0;
+	me2->DataTop = NULL;
+	me2->DataBottom = NULL;
+}
+
+EXPORT void* _httpGet(SClass* me_)
+{
+	SHttp* me2 = (SHttp*)me_;
+	if (!me2->Success)
+		return NULL;
+
+	EnterCriticalSection(me2->Mutex);
+	me2->Success = False;
+	U8* result;
+	if (me2->TotalSize == 0)
+	{
+		result = (U8*)AllocMem(0x10);
+		((S64*)result)[0] = DefaultRefCntFunc;
+		((S64*)result)[1] = 0;
+	}
+	else
+	{
+		char* str = (char*)AllocMem((size_t)me2->TotalSize + 1);
+		char* ptr = str;
+		SHttpList* ptr2 = me2->DataTop;
+		while (ptr2 != NULL)
+		{
+			memcpy(ptr, ptr2->Data, ptr2->Size);
+			ptr += ptr2->Size;
+			ptr2 = ptr2->Next;
+		}
+		ASSERT(ptr == str + me2->TotalSize);
+		str[me2->TotalSize] = L'\0';
+		size_t len = (size_t)MultiByteToWideChar(CP_UTF8, 0, str, (int)me2->TotalSize, NULL, 0);
+		result = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+		((S64*)result)[0] = DefaultRefCntFunc;
+		((S64*)result)[1] = (S64)len;
+		if (MultiByteToWideChar(CP_UTF8, 0, str, (int)me2->TotalSize, (Char*)(result + 0x10), (int)len) != (int)len)
+		{
+			FreeMem(result);
+			result = (U8*)AllocMem(0x10);
+			((S64*)result)[0] = DefaultRefCntFunc;
+			((S64*)result)[1] = 0;
+		}
+		else
+			((Char*)(result + 0x10))[len] = L'\0';
+		FreeMem(str);
+	}
+	LeaveCriticalSection(me2->Mutex);
+	return result;
 }
 
 static DWORD WINAPI ServerThread(LPVOID param)
@@ -394,7 +581,6 @@ static DWORD WINAPI ServerThread(LPVOID param)
 		if (sock == INVALID_SOCKET)
 		{
 			LeaveCriticalSection(param2->Mutex);
-			Sleep(100);
 			continue;
 		}
 		SServerConnectList* connect = (SServerConnectList*)AllocMem(sizeof(SServerConnectList));
@@ -435,20 +621,19 @@ static DWORD WINAPI ConnectThread(LPVOID param)
 		if (param2->DataFull)
 		{
 			LeaveCriticalSection(param2->Mutex);
-			Sleep(100);
 			continue;
 		}
 
 		int size;
 		if (param2->DataTop <= param2->DataBottom)
-			size = DATA_SIZE - param2->DataBottom;
+			size = TCP_DATA_SIZE - param2->DataBottom;
 		else
 			size = param2->DataTop - param2->DataBottom;
 		int received = recv(*param2->Socket, (char*)(param2->Data + param2->DataBottom), size, 0);
 		if (received > 0)
 		{
 			param2->DataBottom += received;
-			if (param2->DataBottom == DATA_SIZE)
+			if (param2->DataBottom == TCP_DATA_SIZE)
 				param2->DataBottom = 0;
 			if (param2->DataBottom == param2->DataTop)
 				param2->DataFull = True;
@@ -466,9 +651,55 @@ static DWORD WINAPI ConnectThread(LPVOID param)
 		}
 
 		LeaveCriticalSection(param2->Mutex);
+	}
+	return TRUE;
+}
 
-		if (received == SOCKET_ERROR)
-			Sleep(100);
+static DWORD WINAPI HttpThread(LPVOID param)
+{
+	SHttp* param2 = (SHttp*)param;
+	for (; ; )
+	{
+		Sleep(1);
+
+		EnterCriticalSection(param2->Mutex);
+		if (param2->ThreadExit)
+		{
+			param2->Success = False;
+			param2->TotalSize = 0;
+			LeaveCriticalSection(param2->Mutex);
+			break;
+		}
+
+		DWORD read_size = 0;
+		if (!InternetReadFile(param2->HandleRequest, param2->DataBottom->Data, HTTP_DATA_SIZE, &read_size))
+		{
+			param2->ThreadExit = True;
+			param2->Success = False;
+			param2->TotalSize = 0;
+			LeaveCriticalSection(param2->Mutex);
+			break;
+		}
+
+		if (read_size == 0)
+		{
+			param2->ThreadExit = True;
+			param2->Success = True;
+			LeaveCriticalSection(param2->Mutex);
+			break;
+		}
+		else
+		{
+			param2->DataBottom->Size = (size_t)read_size;
+			param2->TotalSize += (size_t)read_size;
+			SHttpList* http_list = (SHttpList*)AllocMem(sizeof(SHttpList));
+			http_list->Next = NULL;
+			http_list->Size = 0;
+			param2->DataBottom->Next = http_list;
+			param2->DataBottom = http_list;
+		}
+
+		LeaveCriticalSection(param2->Mutex);
 	}
 	return TRUE;
 }

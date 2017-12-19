@@ -1,8 +1,8 @@
 func main()
 	block
-		var server: net@TcpServer :: net@makeTcpServer(12345)
+		var server: net@TcpServer :: net@makeTcpServer(1024)
 		do lib@sleep(200)
-		var client: net@Tcp :: net@makeTcpClient("localhost", 12345)
+		var client: net@Tcp :: net@makeTcpClient("localhost", 1024)
 		do lib@sleep(200)
 		var client2: net@Tcp :: server.get()
 		do cui@print(client.connecting().toStr() ~ ", " ~ client2.connecting().toStr())
@@ -25,5 +25,19 @@ func main()
 		do client.fin()
 		do lib@sleep(200)
 		do cui@print(client.connecting().toStr() ~ ", " ~ client2.connecting().toStr())
+	end block
+
+	block
+		for i(0, 10)
+			var l: float :: lib@lerp(5.0, 10.0, (i $ float) / 10.0)
+			var qi: float :: lib@qerp(5.0, 10.0, true, (i $ float) / 10.0)
+			var qo: float :: lib@qerp(5.0, 10.0, false, (i $ float) / 10.0)
+			var c: float :: lib@cerp(5.0, 10.0, (i $ float) / 10.0)
+			do cui@print("\{l}, \{qi}, \{qo}, \{c}")
+		end for
+		var pos: []float :: [4.0, 3.0, 5.0, 10.0]
+		for i(0, 30, 2)
+			do cui@print(lib@hermite(pos, (i $ float) / 10.0).toStr())
+		end for
 	end block
 end func

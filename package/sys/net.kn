@@ -75,3 +75,39 @@ end class
 
 +func [d0004.knd, _makeTcpClient, _make_instance] makeTcpClient(me2: @Tcp, host: []char, port: int): @Tcp
 end func
+
++class Http()
+	*func [d0004.knd, _httpDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
+	end func
+
+	+func [d0004.knd, _httpFin] fin()
+	end func
+
+	+func [d0004.knd, _httpGet] get(): []char
+	end func
+
+	var handleOpen: int
+	var handleCorrect: int
+	var handleRequest: int
+	var threadExit: int
+	var totalSize: int
+	var dataTop: int
+	var dataBottom: int
+	var mutex: int
+	var threadHandle: int
+end class
+
++func [d0004.knd, _makeHttp, _make_instance] makeHttp(me2: @Http, url: []char, post: bool, agent: []char): @Http
+end func

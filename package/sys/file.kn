@@ -153,6 +153,9 @@ end func
 +func [d0000.knd, _dir] dir(path: []char): []char
 end func
 
++func [d0000.knd, _ext] ext(path: []char): []char
+end func
+
 +func [d0000.knd, _fileName] fileName(path: []char): []char
 end func
 

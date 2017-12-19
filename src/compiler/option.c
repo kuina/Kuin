@@ -4,12 +4,13 @@
 #include "mem.h"
 #include "util.h"
 
-void MakeOption(SOption* option, const Char* path, const Char* output, const Char* sys_dir, const Char* icon, Bool rls, const Char* env)
+void MakeOption(SOption* option, const Char* path, const Char* output, const Char* sys_dir, const Char* icon, Bool rls, const Char* env, Bool not_deploy)
 {
 	option->Rls = rls;
 	option->IconFile = icon;
 	option->SysDir = sys_dir;
 	option->OutputFile = output;
+	option->NotDeploy = not_deploy;
 
 	ASSERT(path != NULL);
 
