@@ -241,7 +241,7 @@ end func
 end class
 
 +class Float()
-	+*func cmp(t: @Int): int
+	+*func cmp(t: @Float): int
 		ret (me.value - t.value).sign() $ int
 	end func
 
@@ -253,7 +253,7 @@ end class
 end class
 
 +class Str()
-	+*func cmp(t: @Int): int
+	+*func cmp(t: @Str): int
 		ret me.value.cmp(t.value)
 	end func
 
