@@ -37,6 +37,8 @@ EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, 
 EXPORT_CPP void _objLookCamera(SClass* me_, double x, double y, double z, double upX, double upY, double upZ, Bool fixUp);
 EXPORT_CPP void _ambLight(double topR, double topG, double topB, double bottomR, double bottomG, double bottomB);
 EXPORT_CPP void _dirLight(double atX, double atY, double atZ, double r, double g, double b);
+EXPORT_CPP S64 _argbToColor(double a, double r, double g, double b);
+EXPORT_CPP void _colorToArgb(S64 color, double* a, double* r, double* g, double* b);
 
 namespace Draw
 {
@@ -77,6 +79,8 @@ namespace Draw
 	void SetProjViewMtx(float out[4][4], const double proj[4][4], const double view[4][4]);
 	HFONT ToFontHandle(SClass* font);
 	void ColorToArgb(double* a, double* r, double* g, double* b, S64 color);
+	S64 ArgbToColor(double a, double r, double g, double b);
 	double Gamma(double value);
-	U8* AdjustTexSize(U8* rgba, int* width, int* height);
+	double Degamma(double value);
+	U8* AdjustTexSize(U8* argb, int* width, int* height);
 }

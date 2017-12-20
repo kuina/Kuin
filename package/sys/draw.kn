@@ -198,3 +198,9 @@ end func
 
 +func [d0001.knd, _dirLight] dirLight(atX: float, atY: float, atZ: float, r: float, g: float, b: float)
 end func
+
++func [d0001.knd, _argbToColor] argbToColor(a: float, r: float, g: float, b: float): int
+end func
+
++func [d0001.knd, _colorToArgb] colorToArgb(color: int, a: &float, r: &float, g: &float, b: &float)
+end func

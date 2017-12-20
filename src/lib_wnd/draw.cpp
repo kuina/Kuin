@@ -1476,6 +1476,16 @@ EXPORT_CPP void _dirLight(double atX, double atY, double atZ, double r, double g
 	ObjPsConstBuf.DirColor[2] = static_cast<float>(b);
 }
 
+EXPORT_CPP S64 _argbToColor(double a, double r, double g, double b)
+{
+	return Draw::ArgbToColor(a, r, g, b);
+}
+
+EXPORT_CPP void _colorToArgb(S64 color, double* a, double* r, double* g, double* b)
+{
+	Draw::ColorToArgb(a, r, g, b, color);
+}
+
 namespace Draw
 {
 
@@ -2499,12 +2509,44 @@ void ColorToArgb(double* a, double* r, double* g, double* b, S64 color)
 	*b = Gamma(static_cast<double>(color & 0xff) / 255.0);
 }
 
+S64 ArgbToColor(double a, double r, double g, double b)
+{
+	if (a < 0.0)
+		a = 0.0;
+	else if (a > 1.0)
+		a = 1.0;
+	if (r < 0.0)
+		r = 0.0;
+	else if (r > 1.0)
+		r = 1.0;
+	if (g < 0.0)
+		g = 0.0;
+	else if (g > 1.0)
+		g = 1.0;
+	if (b < 0.0)
+		b = 0.0;
+	else if (b > 1.0)
+		b = 1.0;
+	return (static_cast<S64>(a * 255.0 + 0.5) << 24) |
+		(static_cast<S64>(Degamma(r) * 255.0 + 0.5) << 16) |
+		(static_cast<S64>(Degamma(g) * 255.0 + 0.5) << 8) |
+		static_cast<S64>(Degamma(b) * 255.0 + 0.5);
+}
+
 double Gamma(double value)
 {
 	return value * (value * (value * 0.305306011 + 0.682171111) + 0.012522878);
 }
 
-U8* AdjustTexSize(U8* rgba, int* width, int* height)
+double Degamma(double value)
+{
+	value = 1.055 * pow(value, 0.416666667) - 0.055;
+	if (value < 0.0)
+		value = 0.0;
+	return value;
+}
+
+U8* AdjustTexSize(U8* argb, int* width, int* height)
 {
 	int width2 = 1;
 	int height2 = 1;
@@ -2516,11 +2558,11 @@ U8* AdjustTexSize(U8* rgba, int* width, int* height)
 	U8* rgba2 = static_cast<U8*>(AllocMem(static_cast<size_t>(width2 * height2 * 4)));
 	memset(rgba2, 0, static_cast<size_t>(width2 * height2 * 4));
 	for (int i = 0; i < *height; i++)
-		memcpy(rgba2 + width2 * 4 * i, rgba + *width * 4 * i, *width * 4);
+		memcpy(rgba2 + width2 * 4 * i, argb + *width * 4 * i, *width * 4);
 
 	*width = width2;
 	*height = height2;
-	FreeMem(rgba);
+	FreeMem(argb);
 	return rgba2;
 }
 
