@@ -3208,7 +3208,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 		return (SAstExpr*)DummyPtr;
 	{
 		SAstTypeFunc* type = (SAstTypeFunc*)ast->Func->Type;
-		if ((type->FuncAttr & FuncAttr_MakeInstance) != 0)
+		if (((SAst*)type)->TypeId == AstTypeId_TypeFunc && (type->FuncAttr & FuncAttr_MakeInstance) != 0)
 		{
 			// Make an instance and add it to the second argument when '_make_instance' is specified.
 			SAstExprCallArg* value_type = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
