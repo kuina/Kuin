@@ -178,7 +178,7 @@ static U8 StrongMap[256];
 
 EXPORT_CPP void _render(S64 fps)
 {
-	CurWndBuf->SwapChain->Present(1, 0);
+	CurWndBuf->SwapChain->Present(fps == 0 ? 0 : 1, 0);
 	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, CurWndBuf->ClearColor);
 	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 	Device->RSSetState(RasterizerState);
