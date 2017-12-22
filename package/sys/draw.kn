@@ -157,7 +157,7 @@ end func
 	+func [d0001.knd, _objDraw] draw(diffuse: @Tex, specular: @Tex, normal: @Tex, element: int, frame: float)
 	end func
 
-	+func [d0001.knd, _objMtx] mtx(mtx_: []float, normMtx: []float)
+	+func [d0001.knd, _objMat] mat(mat_: []float, normMat: []float)
 	end func
 
 	+func [d0001.knd, _objPos] pos(scaleX: float, scaleY: float, scaleZ: float, rotX: float, rotY: float, rotZ: float, transX: float, transY: float, transZ: float)
@@ -172,22 +172,22 @@ end func
 	var elementNum: int
 	var elementKinds: int
 	var elements: int
-	var mtx1: int
-	var mtx2: int
-	var mtx3: int
-	var mtx4: int
-	var mtx5: int
-	var mtx6: int
-	var mtx7: int
-	var mtx8: int
-	var normMtx1: int
-	var normMtx2: int
-	var normMtx3: int
-	var normMtx4: int
-	var normMtx5: int
-	var normMtx6: int
-	var normMtx7: int
-	var normMtx8: int
+	var mat1: int
+	var mat2: int
+	var mat3: int
+	var mat4: int
+	var mat5: int
+	var mat6: int
+	var mat7: int
+	var mat8: int
+	var normMat1: int
+	var normMat2: int
+	var normMat3: int
+	var normMat4: int
+	var normMat5: int
+	var normMat6: int
+	var normMat7: int
+	var normMat8: int
 end class
 
 +func [d0001.knd, _makeObj, _make_instance] makeObj(me2: @Obj, path: []char): @Obj

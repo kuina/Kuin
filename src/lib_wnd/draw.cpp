@@ -92,8 +92,8 @@ struct SObj
 	int ElementNum;
 	int* ElementKinds;
 	void** Elements;
-	float Mtx[4][4];
-	float NormMtx[4][4];
+	float Mat[4][4];
+	float NormMat[4][4];
 };
 
 struct SObjVsConstBuf
@@ -165,8 +165,8 @@ static void* FontPs = NULL;
 static void* ObjVs = NULL;
 static void* ObjJointVs = NULL;
 static void* ObjPs = NULL;
-static double ViewMtx[4][4];
-static double ProjMtx[4][4];
+static double ViewMat[4][4];
+static double ProjMat[4][4];
 static SObjJointVsConstBuf ObjVsConstBuf;
 static SObjPsConstBuf ObjPsConstBuf;
 static int CurZBuf = -1;
@@ -1015,53 +1015,53 @@ EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, doubl
 	pxyz[1] = Draw::Dot(eye, up);
 	pxyz[2] = Draw::Dot(eye, look);
 
-	ViewMtx[0][0] = right[0];
-	ViewMtx[0][1] = up[0];
-	ViewMtx[0][2] = look[0];
-	ViewMtx[0][3] = 0.0;
-	ViewMtx[1][0] = right[1];
-	ViewMtx[1][1] = up[1];
-	ViewMtx[1][2] = look[1];
-	ViewMtx[1][3] = 0.0;
-	ViewMtx[2][0] = right[2];
-	ViewMtx[2][1] = up[2];
-	ViewMtx[2][2] = look[2];
-	ViewMtx[2][3] = 0.0;
-	ViewMtx[3][0] = -pxyz[0];
-	ViewMtx[3][1] = -pxyz[1];
-	ViewMtx[3][2] = -pxyz[2];
-	ViewMtx[3][3] = 1.0;
+	ViewMat[0][0] = right[0];
+	ViewMat[0][1] = up[0];
+	ViewMat[0][2] = look[0];
+	ViewMat[0][3] = 0.0;
+	ViewMat[1][0] = right[1];
+	ViewMat[1][1] = up[1];
+	ViewMat[1][2] = look[1];
+	ViewMat[1][3] = 0.0;
+	ViewMat[2][0] = right[2];
+	ViewMat[2][1] = up[2];
+	ViewMat[2][2] = look[2];
+	ViewMat[2][3] = 0.0;
+	ViewMat[3][0] = -pxyz[0];
+	ViewMat[3][1] = -pxyz[1];
+	ViewMat[3][2] = -pxyz[2];
+	ViewMat[3][3] = 1.0;
 
 	ObjVsConstBuf.Eye[0] = static_cast<float>(eyeX);
 	ObjVsConstBuf.Eye[1] = static_cast<float>(eyeY);
 	ObjVsConstBuf.Eye[2] = static_cast<float>(eyeZ);
 	ObjVsConstBuf.Eye[3] = static_cast<float>(eye_len);
 
-	Draw::SetProjViewMtx(ObjVsConstBuf.ProjView, ProjMtx, ViewMtx);
+	Draw::SetProjViewMat(ObjVsConstBuf.ProjView, ProjMat, ViewMat);
 }
 
 EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ, double farZ)
 {
 	THROWDBG(fovy <= 0.0 || M_PI / 2.0 <= fovy || aspectX <= 0.0 || aspectY <= 0.0 || nearZ <= 0.0 || farZ <= nearZ, 0xe9170006);
 	double tan_theta = tan(fovy / 2.0);
-	ProjMtx[0][0] = -1.0 / ((aspectX / aspectY) * tan_theta);
-	ProjMtx[0][1] = 0.0;
-	ProjMtx[0][2] = 0.0;
-	ProjMtx[0][3] = 0.0;
-	ProjMtx[1][0] = 0.0;
-	ProjMtx[1][1] = 1.0 / tan_theta;
-	ProjMtx[1][2] = 0.0;
-	ProjMtx[1][3] = 0.0;
-	ProjMtx[2][0] = 0.0;
-	ProjMtx[2][1] = 0.0;
-	ProjMtx[2][2] = farZ / (farZ - nearZ);
-	ProjMtx[2][3] = 1.0;
-	ProjMtx[3][0] = 0.0;
-	ProjMtx[3][1] = 0.0;
-	ProjMtx[3][2] = -farZ * nearZ / (farZ - nearZ);
-	ProjMtx[3][3] = 0.0;
+	ProjMat[0][0] = -1.0 / ((aspectX / aspectY) * tan_theta);
+	ProjMat[0][1] = 0.0;
+	ProjMat[0][2] = 0.0;
+	ProjMat[0][3] = 0.0;
+	ProjMat[1][0] = 0.0;
+	ProjMat[1][1] = 1.0 / tan_theta;
+	ProjMat[1][2] = 0.0;
+	ProjMat[1][3] = 0.0;
+	ProjMat[2][0] = 0.0;
+	ProjMat[2][1] = 0.0;
+	ProjMat[2][2] = farZ / (farZ - nearZ);
+	ProjMat[2][3] = 1.0;
+	ProjMat[3][0] = 0.0;
+	ProjMat[3][1] = 0.0;
+	ProjMat[3][2] = -farZ * nearZ / (farZ - nearZ);
+	ProjMat[3][3] = 0.0;
 
-	Draw::SetProjViewMtx(ObjVsConstBuf.ProjView, ProjMtx, ViewMtx);
+	Draw::SetProjViewMat(ObjVsConstBuf.ProjView, ProjMat, ViewMat);
 }
 
 EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
@@ -1069,8 +1069,8 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 	SObj* me2 = (SObj*)me_;
 	me2->ElementKinds = NULL;
 	me2->Elements = NULL;
-	Draw::IdentityFloat(me2->Mtx);
-	Draw::IdentityFloat(me2->NormMtx);
+	Draw::IdentityFloat(me2->Mat);
+	Draw::IdentityFloat(me2->NormMat);
 	{
 		Bool correct = True;
 		U8* buf = NULL;
@@ -1272,8 +1272,8 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass*
 				THROWDBG(element2->JointNum < 0 && JointMax < element2->JointNum, 0xe9170006);
 				Bool joint = element2->JointNum != 0;
 
-				memcpy(ObjVsConstBuf.World, me2->Mtx, sizeof(float[4][4]));
-				memcpy(ObjVsConstBuf.NormWorld, me2->NormMtx, sizeof(float[4][4]));
+				memcpy(ObjVsConstBuf.World, me2->Mat, sizeof(float[4][4]));
+				memcpy(ObjVsConstBuf.NormWorld, me2->NormMat, sizeof(float[4][4]));
 #if defined(_DEBUG)
 				ObjPsConstBuf.Mode[0] = 0;
 #endif
@@ -1283,14 +1283,14 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass*
 					{
 						for (int i = 0; i < element2->JointNum; i++)
 						{
-							int mtx_a = static_cast<int>(frame);
-							int mtx_b = mtx_a + 1;
+							int mat_a = static_cast<int>(frame);
+							int mat_b = mat_a + 1;
 							float rate_b = static_cast<float>(frame - static_cast<double>(static_cast<int>(frame)));
 							float rate_a = 1.0f - rate_b;
 							for (int j = 0; j < 4; j++)
 							{
 								for (int k = 0; k < 4; k++)
-									ObjVsConstBuf.Joint[i][j][k] = rate_a * element2->Joints[mtx_a][j][k] + rate_b * element2->Joints[mtx_b][j][k];
+									ObjVsConstBuf.Joint[i][j][k] = rate_a * element2->Joints[mat_a][j][k] + rate_b * element2->Joints[mat_b][j][k];
 							}
 						}
 					}
@@ -1310,47 +1310,47 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass*
 	}
 }
 
-EXPORT_CPP void _objMtx(SClass* me_, const U8* mtx, const U8* normMtx)
+EXPORT_CPP void _objMat(SClass* me_, const U8* mat, const U8* normMat)
 {
 	SObj* me2 = (SObj*)me_;
-	THROWDBG(*(S64*)(mtx + 0x08) != 16 || *(S64*)(normMtx + 0x08) != 16, 0xe9170006);
+	THROWDBG(*(S64*)(mat + 0x08) != 16 || *(S64*)(normMat + 0x08) != 16, 0xe9170006);
 	{
-		const double* ptr = reinterpret_cast<const double*>(mtx + 0x10);
-		me2->Mtx[0][0] = static_cast<float>(ptr[0]);
-		me2->Mtx[0][1] = static_cast<float>(ptr[1]);
-		me2->Mtx[0][2] = static_cast<float>(ptr[2]);
-		me2->Mtx[0][3] = static_cast<float>(ptr[3]);
-		me2->Mtx[1][0] = static_cast<float>(ptr[4]);
-		me2->Mtx[1][1] = static_cast<float>(ptr[5]);
-		me2->Mtx[1][2] = static_cast<float>(ptr[6]);
-		me2->Mtx[1][3] = static_cast<float>(ptr[7]);
-		me2->Mtx[2][0] = static_cast<float>(ptr[8]);
-		me2->Mtx[2][1] = static_cast<float>(ptr[9]);
-		me2->Mtx[2][2] = static_cast<float>(ptr[10]);
-		me2->Mtx[2][3] = static_cast<float>(ptr[11]);
-		me2->Mtx[3][0] = static_cast<float>(ptr[12]);
-		me2->Mtx[3][1] = static_cast<float>(ptr[13]);
-		me2->Mtx[3][2] = static_cast<float>(ptr[14]);
-		me2->Mtx[3][3] = static_cast<float>(ptr[15]);
+		const double* ptr = reinterpret_cast<const double*>(mat + 0x10);
+		me2->Mat[0][0] = static_cast<float>(ptr[0]);
+		me2->Mat[0][1] = static_cast<float>(ptr[1]);
+		me2->Mat[0][2] = static_cast<float>(ptr[2]);
+		me2->Mat[0][3] = static_cast<float>(ptr[3]);
+		me2->Mat[1][0] = static_cast<float>(ptr[4]);
+		me2->Mat[1][1] = static_cast<float>(ptr[5]);
+		me2->Mat[1][2] = static_cast<float>(ptr[6]);
+		me2->Mat[1][3] = static_cast<float>(ptr[7]);
+		me2->Mat[2][0] = static_cast<float>(ptr[8]);
+		me2->Mat[2][1] = static_cast<float>(ptr[9]);
+		me2->Mat[2][2] = static_cast<float>(ptr[10]);
+		me2->Mat[2][3] = static_cast<float>(ptr[11]);
+		me2->Mat[3][0] = static_cast<float>(ptr[12]);
+		me2->Mat[3][1] = static_cast<float>(ptr[13]);
+		me2->Mat[3][2] = static_cast<float>(ptr[14]);
+		me2->Mat[3][3] = static_cast<float>(ptr[15]);
 	}
 	{
-		const double* ptr = reinterpret_cast<const double*>(normMtx + 0x10);
-		me2->NormMtx[0][0] = static_cast<float>(ptr[0]);
-		me2->NormMtx[0][1] = static_cast<float>(ptr[1]);
-		me2->NormMtx[0][2] = static_cast<float>(ptr[2]);
-		me2->NormMtx[0][3] = static_cast<float>(ptr[3]);
-		me2->NormMtx[1][0] = static_cast<float>(ptr[4]);
-		me2->NormMtx[1][1] = static_cast<float>(ptr[5]);
-		me2->NormMtx[1][2] = static_cast<float>(ptr[6]);
-		me2->NormMtx[1][3] = static_cast<float>(ptr[7]);
-		me2->NormMtx[2][0] = static_cast<float>(ptr[8]);
-		me2->NormMtx[2][1] = static_cast<float>(ptr[9]);
-		me2->NormMtx[2][2] = static_cast<float>(ptr[10]);
-		me2->NormMtx[2][3] = static_cast<float>(ptr[11]);
-		me2->NormMtx[3][0] = static_cast<float>(ptr[12]);
-		me2->NormMtx[3][1] = static_cast<float>(ptr[13]);
-		me2->NormMtx[3][2] = static_cast<float>(ptr[14]);
-		me2->NormMtx[3][3] = static_cast<float>(ptr[15]);
+		const double* ptr = reinterpret_cast<const double*>(normMat + 0x10);
+		me2->NormMat[0][0] = static_cast<float>(ptr[0]);
+		me2->NormMat[0][1] = static_cast<float>(ptr[1]);
+		me2->NormMat[0][2] = static_cast<float>(ptr[2]);
+		me2->NormMat[0][3] = static_cast<float>(ptr[3]);
+		me2->NormMat[1][0] = static_cast<float>(ptr[4]);
+		me2->NormMat[1][1] = static_cast<float>(ptr[5]);
+		me2->NormMat[1][2] = static_cast<float>(ptr[6]);
+		me2->NormMat[1][3] = static_cast<float>(ptr[7]);
+		me2->NormMat[2][0] = static_cast<float>(ptr[8]);
+		me2->NormMat[2][1] = static_cast<float>(ptr[9]);
+		me2->NormMat[2][2] = static_cast<float>(ptr[10]);
+		me2->NormMat[2][3] = static_cast<float>(ptr[11]);
+		me2->NormMat[3][0] = static_cast<float>(ptr[12]);
+		me2->NormMat[3][1] = static_cast<float>(ptr[13]);
+		me2->NormMat[3][2] = static_cast<float>(ptr[14]);
+		me2->NormMat[3][3] = static_cast<float>(ptr[15]);
 	}
 }
 
@@ -1363,41 +1363,41 @@ EXPORT_CPP void _objPos(SClass* me_, double scaleX, double scaleY, double scaleZ
 	double sin_y = sin(rotY);
 	double cos_z = cos(rotZ);
 	double sin_z = sin(rotZ);
-	me2->Mtx[0][0] = static_cast<float>(scaleX * (cos_y * cos_z));
-	me2->Mtx[0][1] = static_cast<float>(scaleX * (cos_y * sin_z));
-	me2->Mtx[0][2] = static_cast<float>(scaleX * (-sin_y));
-	me2->Mtx[0][3] = 0.0f;
-	me2->Mtx[1][0] = static_cast<float>(scaleY * (sin_x * sin_y * cos_z - cos_x * sin_z));
-	me2->Mtx[1][1] = static_cast<float>(scaleY * (sin_x * sin_y * sin_z + cos_x * cos_z));
-	me2->Mtx[1][2] = static_cast<float>(scaleY * (sin_x * cos_y));
-	me2->Mtx[1][3] = 0.0f;
-	me2->Mtx[2][0] = static_cast<float>(scaleZ * (cos_x * sin_y * cos_z + sin_x * sin_z));
-	me2->Mtx[2][1] = static_cast<float>(scaleZ * (cos_x * sin_y * sin_z - sin_x * cos_z));
-	me2->Mtx[2][2] = static_cast<float>(scaleZ * (cos_x * cos_y));
-	me2->Mtx[2][3] = 0.0f;
-	me2->Mtx[3][0] = static_cast<float>(transX);
-	me2->Mtx[3][1] = static_cast<float>(transY);
-	me2->Mtx[3][2] = static_cast<float>(transZ);
-	me2->Mtx[3][3] = 1.0f;
+	me2->Mat[0][0] = static_cast<float>(scaleX * (cos_y * cos_z));
+	me2->Mat[0][1] = static_cast<float>(scaleX * (cos_y * sin_z));
+	me2->Mat[0][2] = static_cast<float>(scaleX * (-sin_y));
+	me2->Mat[0][3] = 0.0f;
+	me2->Mat[1][0] = static_cast<float>(scaleY * (sin_x * sin_y * cos_z - cos_x * sin_z));
+	me2->Mat[1][1] = static_cast<float>(scaleY * (sin_x * sin_y * sin_z + cos_x * cos_z));
+	me2->Mat[1][2] = static_cast<float>(scaleY * (sin_x * cos_y));
+	me2->Mat[1][3] = 0.0f;
+	me2->Mat[2][0] = static_cast<float>(scaleZ * (cos_x * sin_y * cos_z + sin_x * sin_z));
+	me2->Mat[2][1] = static_cast<float>(scaleZ * (cos_x * sin_y * sin_z - sin_x * cos_z));
+	me2->Mat[2][2] = static_cast<float>(scaleZ * (cos_x * cos_y));
+	me2->Mat[2][3] = 0.0f;
+	me2->Mat[3][0] = static_cast<float>(transX);
+	me2->Mat[3][1] = static_cast<float>(transY);
+	me2->Mat[3][2] = static_cast<float>(transZ);
+	me2->Mat[3][3] = 1.0f;
 	scaleX = 1.0 / scaleX;
 	scaleY = 1.0 / scaleY;
 	scaleZ = 1.0 / scaleZ;
-	me2->NormMtx[0][0] = static_cast<float>(scaleX * (cos_y * cos_z));
-	me2->NormMtx[0][1] = static_cast<float>(scaleX * (cos_y * sin_z));
-	me2->NormMtx[0][2] = static_cast<float>(scaleX * (-sin_y));
-	me2->NormMtx[0][3] = 0.0f;
-	me2->NormMtx[1][0] = static_cast<float>(scaleY * (sin_x * sin_y * cos_z - cos_x * sin_z));
-	me2->NormMtx[1][1] = static_cast<float>(scaleY * (sin_x * sin_y * sin_z + cos_x * cos_z));
-	me2->NormMtx[1][2] = static_cast<float>(scaleY * (sin_x * cos_y));
-	me2->NormMtx[1][3] = 0.0f;
-	me2->NormMtx[2][0] = static_cast<float>(scaleZ * (cos_x * sin_y * cos_z + sin_x * sin_z));
-	me2->NormMtx[2][1] = static_cast<float>(scaleZ * (cos_x * sin_y * sin_z - sin_x * cos_z));
-	me2->NormMtx[2][2] = static_cast<float>(scaleZ * (cos_x * cos_y));
-	me2->NormMtx[2][3] = 0.0f;
-	me2->NormMtx[3][0] = 0.0f;
-	me2->NormMtx[3][1] = 0.0f;
-	me2->NormMtx[3][2] = 0.0f;
-	me2->NormMtx[3][3] = 1.0f;
+	me2->NormMat[0][0] = static_cast<float>(scaleX * (cos_y * cos_z));
+	me2->NormMat[0][1] = static_cast<float>(scaleX * (cos_y * sin_z));
+	me2->NormMat[0][2] = static_cast<float>(scaleX * (-sin_y));
+	me2->NormMat[0][3] = 0.0f;
+	me2->NormMat[1][0] = static_cast<float>(scaleY * (sin_x * sin_y * cos_z - cos_x * sin_z));
+	me2->NormMat[1][1] = static_cast<float>(scaleY * (sin_x * sin_y * sin_z + cos_x * cos_z));
+	me2->NormMat[1][2] = static_cast<float>(scaleY * (sin_x * cos_y));
+	me2->NormMat[1][3] = 0.0f;
+	me2->NormMat[2][0] = static_cast<float>(scaleZ * (cos_x * sin_y * cos_z + sin_x * sin_z));
+	me2->NormMat[2][1] = static_cast<float>(scaleZ * (cos_x * sin_y * sin_z - sin_x * cos_z));
+	me2->NormMat[2][2] = static_cast<float>(scaleZ * (cos_x * cos_y));
+	me2->NormMat[2][3] = 0.0f;
+	me2->NormMat[3][0] = 0.0f;
+	me2->NormMat[3][1] = 0.0f;
+	me2->NormMat[3][2] = 0.0f;
+	me2->NormMat[3][3] = 1.0f;
 }
 
 EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, double atY, double atZ, double upX, double upY, double upZ, Bool fixUp)
@@ -1415,38 +1415,38 @@ EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, 
 		Draw::Cross(up, at, right);
 	else
 		Draw::Cross(at, right, up);
-	me2->Mtx[0][0] = static_cast<float>(right[0]);
-	me2->Mtx[0][1] = static_cast<float>(right[1]);
-	me2->Mtx[0][2] = static_cast<float>(right[2]);
-	me2->Mtx[0][3] = 0.0f;
-	me2->Mtx[1][0] = static_cast<float>(up[0]);
-	me2->Mtx[1][1] = static_cast<float>(up[1]);
-	me2->Mtx[1][2] = static_cast<float>(up[2]);
-	me2->Mtx[1][3] = 0.0f;
-	me2->Mtx[2][0] = static_cast<float>(at[0]);
-	me2->Mtx[2][1] = static_cast<float>(at[1]);
-	me2->Mtx[2][2] = static_cast<float>(at[2]);
-	me2->Mtx[2][3] = 0.0f;
-	me2->Mtx[3][0] = static_cast<float>(x);
-	me2->Mtx[3][1] = static_cast<float>(y);
-	me2->Mtx[3][2] = static_cast<float>(z);
-	me2->Mtx[3][3] = 1.0f;
-	me2->NormMtx[0][0] = static_cast<float>(right[0]);
-	me2->NormMtx[0][1] = static_cast<float>(right[1]);
-	me2->NormMtx[0][2] = static_cast<float>(right[2]);
-	me2->NormMtx[0][3] = 0.0f;
-	me2->NormMtx[1][0] = static_cast<float>(up[0]);
-	me2->NormMtx[1][1] = static_cast<float>(up[1]);
-	me2->NormMtx[1][2] = static_cast<float>(up[2]);
-	me2->NormMtx[1][3] = 0.0f;
-	me2->NormMtx[2][0] = static_cast<float>(at[0]);
-	me2->NormMtx[2][1] = static_cast<float>(at[1]);
-	me2->NormMtx[2][2] = static_cast<float>(at[2]);
-	me2->NormMtx[2][3] = 0.0f;
-	me2->NormMtx[3][0] = 0.0f;
-	me2->NormMtx[3][1] = 0.0f;
-	me2->NormMtx[3][2] = 0.0f;
-	me2->NormMtx[3][3] = 1.0f;
+	me2->Mat[0][0] = static_cast<float>(right[0]);
+	me2->Mat[0][1] = static_cast<float>(right[1]);
+	me2->Mat[0][2] = static_cast<float>(right[2]);
+	me2->Mat[0][3] = 0.0f;
+	me2->Mat[1][0] = static_cast<float>(up[0]);
+	me2->Mat[1][1] = static_cast<float>(up[1]);
+	me2->Mat[1][2] = static_cast<float>(up[2]);
+	me2->Mat[1][3] = 0.0f;
+	me2->Mat[2][0] = static_cast<float>(at[0]);
+	me2->Mat[2][1] = static_cast<float>(at[1]);
+	me2->Mat[2][2] = static_cast<float>(at[2]);
+	me2->Mat[2][3] = 0.0f;
+	me2->Mat[3][0] = static_cast<float>(x);
+	me2->Mat[3][1] = static_cast<float>(y);
+	me2->Mat[3][2] = static_cast<float>(z);
+	me2->Mat[3][3] = 1.0f;
+	me2->NormMat[0][0] = static_cast<float>(right[0]);
+	me2->NormMat[0][1] = static_cast<float>(right[1]);
+	me2->NormMat[0][2] = static_cast<float>(right[2]);
+	me2->NormMat[0][3] = 0.0f;
+	me2->NormMat[1][0] = static_cast<float>(up[0]);
+	me2->NormMat[1][1] = static_cast<float>(up[1]);
+	me2->NormMat[1][2] = static_cast<float>(up[2]);
+	me2->NormMat[1][3] = 0.0f;
+	me2->NormMat[2][0] = static_cast<float>(at[0]);
+	me2->NormMat[2][1] = static_cast<float>(at[1]);
+	me2->NormMat[2][2] = static_cast<float>(at[2]);
+	me2->NormMat[2][3] = 0.0f;
+	me2->NormMat[3][0] = 0.0f;
+	me2->NormMat[3][1] = 0.0f;
+	me2->NormMat[3][2] = 0.0f;
+	me2->NormMat[3][3] = 1.0f;
 }
 
 EXPORT_CPP void _objLookCamera(SClass* me_, double x, double y, double z, double upX, double upY, double upZ, Bool fixUp)
@@ -2411,44 +2411,44 @@ void FinVertexBuf(void* vertex_buf)
 	FreeMem(vertex_buf);
 }
 
-void Identity(double mtx[4][4])
+void Identity(double mat[4][4])
 {
-	mtx[0][0] = 1.0;
-	mtx[0][1] = 0.0;
-	mtx[0][2] = 0.0;
-	mtx[0][3] = 0.0;
-	mtx[1][0] = 0.0;
-	mtx[1][1] = 1.0;
-	mtx[1][2] = 0.0;
-	mtx[1][3] = 0.0;
-	mtx[2][0] = 0.0;
-	mtx[2][1] = 0.0;
-	mtx[2][2] = 1.0;
-	mtx[2][3] = 0.0;
-	mtx[3][0] = 0.0;
-	mtx[3][1] = 0.0;
-	mtx[3][2] = 0.0;
-	mtx[3][3] = 1.0;
+	mat[0][0] = 1.0;
+	mat[0][1] = 0.0;
+	mat[0][2] = 0.0;
+	mat[0][3] = 0.0;
+	mat[1][0] = 0.0;
+	mat[1][1] = 1.0;
+	mat[1][2] = 0.0;
+	mat[1][3] = 0.0;
+	mat[2][0] = 0.0;
+	mat[2][1] = 0.0;
+	mat[2][2] = 1.0;
+	mat[2][3] = 0.0;
+	mat[3][0] = 0.0;
+	mat[3][1] = 0.0;
+	mat[3][2] = 0.0;
+	mat[3][3] = 1.0;
 }
 
-void IdentityFloat(float mtx[4][4])
+void IdentityFloat(float mat[4][4])
 {
-	mtx[0][0] = 1.0f;
-	mtx[0][1] = 0.0f;
-	mtx[0][2] = 0.0f;
-	mtx[0][3] = 0.0f;
-	mtx[1][0] = 0.0f;
-	mtx[1][1] = 1.0f;
-	mtx[1][2] = 0.0f;
-	mtx[1][3] = 0.0f;
-	mtx[2][0] = 0.0f;
-	mtx[2][1] = 0.0f;
-	mtx[2][2] = 1.0f;
-	mtx[2][3] = 0.0f;
-	mtx[3][0] = 0.0f;
-	mtx[3][1] = 0.0f;
-	mtx[3][2] = 0.0f;
-	mtx[3][3] = 1.0f;
+	mat[0][0] = 1.0f;
+	mat[0][1] = 0.0f;
+	mat[0][2] = 0.0f;
+	mat[0][3] = 0.0f;
+	mat[1][0] = 0.0f;
+	mat[1][1] = 1.0f;
+	mat[1][2] = 0.0f;
+	mat[1][3] = 0.0f;
+	mat[2][0] = 0.0f;
+	mat[2][1] = 0.0f;
+	mat[2][2] = 1.0f;
+	mat[2][3] = 0.0f;
+	mat[3][0] = 0.0f;
+	mat[3][1] = 0.0f;
+	mat[3][2] = 0.0f;
+	mat[3][3] = 1.0f;
 }
 
 double Normalize(double vec[3])
@@ -2475,7 +2475,7 @@ void Cross(double out[3], const double a[3], const double b[3])
 	out[2] = a[0] * b[1] - a[1] * b[0];
 }
 
-void SetProjViewMtx(float out[4][4], const double proj[4][4], const double view[4][4])
+void SetProjViewMat(float out[4][4], const double proj[4][4], const double view[4][4])
 {
 	out[0][0] = static_cast<float>(proj[0][0] * view[0][0] + proj[1][0] * view[0][1] + proj[2][0] * view[0][2] + proj[3][0] * view[0][3]);
 	out[0][1] = static_cast<float>(proj[0][1] * view[0][0] + proj[1][1] * view[0][1] + proj[2][1] * view[0][2] + proj[3][1] * view[0][3]);
