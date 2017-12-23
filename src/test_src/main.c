@@ -22,7 +22,7 @@ static Bool Compare(const Char* path1, const Char* path2);
 int wmain(void)
 {
 	int type;
-	_setmode(_fileno(stdout), _O_U16TEXT);
+	_setmode(_fileno(stdout), _O_U8TEXT); // Set the output format to UTF-8.
 	wprintf(L"-1 = Just build 'test.kn'.\n");
 	wprintf(L" 0 = Run all the tests.\n");
 	wprintf(L"> ");

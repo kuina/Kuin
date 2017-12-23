@@ -36,7 +36,7 @@ int wmain(int argc, Char** argv)
 	Bool not_deploy = False;
 	Quiet = False;
 
-	_setmode(_fileno(stdout), _O_U16TEXT); // Set the output format to UTF-16.
+	_setmode(_fileno(stdout), _O_U8TEXT); // Set the output format to UTF-8.
 	{
 		int i;
 		for (i = 1; i < argc; i++)
