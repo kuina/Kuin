@@ -1305,14 +1305,14 @@ class DocumentSrc(@Document)
 			if(str[i] = '\n')
 				var line: []char :: me.src.src[y].sub(x, -1)
 				do me.src.src[y] :: me.src.src[y].sub(0, x)
-				do me.src.color[y] :: #[^me.src.src[y]]bit8
+				do me.src.color[y] :: me.src.color[y].sub(0, x)
 				do me.src.src :: me.src.src.sub(0, y + 1) ~ [line] ~ me.src.src.sub(y + 1, -1)
 				do me.src.color :: me.src.color.sub(0, y + 1) ~ [#[^line]bit8] ~ me.src.color.sub(y + 1, -1)
 				do x :: 0
 				do y :+ 1
 			else
 				do me.src.src[y] :: me.src.src[y].sub(0, x) ~ str[i].toStr() ~ me.src.src[y].sub(x, -1)
-				do me.src.color[y] :: #[^me.src.src[y]]bit8
+				do me.src.color[y] :: me.src.color[y].sub(0, x) ~ #[1]bit8 ~ me.src.color[y].sub(x, -1)
 				do x :+ 1
 			end if
 		end for
@@ -1348,7 +1348,7 @@ class DocumentSrc(@Document)
 					do undoStr :: "\n" ~ undoStr
 					var x2: int :: ^me.src.src[y - 1]
 					do me.src.src[y - 1] :~ me.src.src[y]
-					do me.src.color[y - 1] :: #[^me.src.src[y - 1]]bit8
+					do me.src.color[y - 1] :~ me.src.color[y]
 					do me.src.src :: me.src.src.sub(0, y) ~ me.src.src.sub(y + 1, -1)
 					do me.src.color :: me.src.color.sub(0, y) ~ me.src.color.sub(y + 1, -1)
 					do y :- 1
@@ -1357,7 +1357,7 @@ class DocumentSrc(@Document)
 			else
 				do undoStr :: me.src.src[y][x - 1].toStr() ~ undoStr
 				do me.src.src[y] :: me.src.src[y].sub(0, x - 1) ~ me.src.src[y].sub(x, -1)
-				do me.src.color[y] :: #[^me.src.src[y]]bit8
+				do me.src.color[y] :: me.src.color[y].sub(0, x - 1) ~ me.src.color[y].sub(x, -1)
 				do x :- 1
 			end if
 		end for
@@ -1391,14 +1391,14 @@ class DocumentSrc(@Document)
 				if(y <> ^me.src.src - 1)
 					do undoStr :~ "\n"
 					do me.src.src[y] :~ me.src.src[y + 1]
-					do me.src.color[y] :: #[^me.src.src[y]]bit8
+					do me.src.color[y] :~ me.src.color[y + 1]
 					do me.src.src :: me.src.src.sub(0, y + 1) ~ me.src.src.sub(y + 2, -1)
 					do me.src.color :: me.src.color.sub(0, y + 1) ~ me.src.color.sub(y + 2, -1)
 				end if
 			else
 				do undoStr :~ me.src.src[y][x].toStr()
 				do me.src.src[y] :: me.src.src[y].sub(0, x) ~ me.src.src[y].sub(x + 1, -1)
-				do me.src.color[y] :: #[^me.src.src[y]]bit8
+				do me.src.color[y] :: me.src.color[y].sub(0, x) ~ me.src.color[y].sub(x + 1, -1)
 			end if
 		end for
 		if(recordUndo)
@@ -1602,9 +1602,8 @@ class DocumentSrc(@Document)
 		if(indent < 0)
 			do indent :: 0
 		end if
-		var replaceStr: []char :: "\t".repeat(indent) ~ (curIndent = -1 ?("", me.src.src[y].sub(curIndent, -1)))
-		do me.del(0, y, ^me.src.src[y], true)
-		do me.ins(0, y, replaceStr, true)
+		do me.del(0, y, curIndent = -1 ?(^me.src.src[y], curIndent), true)
+		do me.ins(0, y, "\t".repeat(indent), true)
 		do me.cursorX :: indent
 	end func
 
