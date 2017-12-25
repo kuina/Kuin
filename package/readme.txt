@@ -49,6 +49,7 @@ v.2018.01.17
     - 互換性が失われる変更
       - wnd@Keyの要素mouseCをmouseMに変更
       - draw@Obj.mtxをdraw@Obj.matに変更
+      - regex@Regex.matchの引数の変更
     - 細かな機能追加
       - draw@argbToColor、draw@colorToArgb関数の追加
 

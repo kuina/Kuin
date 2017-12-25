@@ -23,7 +23,7 @@ end func
 	+func [d1002.knd, _regexFindLast] findLast(pos: &int, text: []char, start: int): [][]char
 	end func
 
-	+func [d1002.knd, _regexMatch] match(pos: &int, text: []char): [][]char
+	+func [d1002.knd, _regexMatch] match(text: []char): [][]char
 	end func
 
 	+func [d1002.knd, _regexFindAll] findAll(pos: &[]int, text: []char): [][][]char
