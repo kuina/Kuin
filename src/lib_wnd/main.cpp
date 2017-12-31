@@ -750,7 +750,7 @@ EXPORT_CPP void _wndBaseGetPos(SClass* me_, S64* x, S64* y, S64* width, S64* hei
 	*height = static_cast<S64>(rect.bottom - rect.top);
 }
 
-EXPORT_CPP void _wndBaseGetPosScr(SClass* me_, S64* x, S64* y, S64* width, S64* height)
+EXPORT_CPP void _wndBaseGetPosScreen(SClass* me_, S64* x, S64* y, S64* width, S64* height)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	RECT rect;
@@ -2192,9 +2192,9 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				int height = static_cast<int>(HIWORD(l_param));
 				if (width > 0 && height > 0)
 				{
-					int scr_width = wnd3->EqualMagnification ? width : wnd2->DefaultWidth;
-					int scr_height = wnd3->EqualMagnification ? height : wnd2->DefaultHeight;
-					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, scr_width, scr_height, wnd2->WndHandle, wnd3->DrawBuf);
+					int screen_width = wnd3->EqualMagnification ? width : wnd2->DefaultWidth;
+					int screen_height = wnd3->EqualMagnification ? height : wnd2->DefaultHeight;
+					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, screen_width, screen_height, wnd2->WndHandle, wnd3->DrawBuf);
 					wnd3->DrawTwice = True;
 				}
 			}

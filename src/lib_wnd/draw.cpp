@@ -25,8 +25,8 @@ struct SWndBuf
 	FLOAT ClearColor[4];
 	int TexWidth;
 	int TexHeight;
-	int ScrWidth;
-	int ScrHeight;
+	int ScreenWidth;
+	int ScreenHeight;
 };
 
 struct SShaderBuf
@@ -302,10 +302,10 @@ EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
 	{
 		float const_buf_vs[4] =
 		{
-			static_cast<float>(x1) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y1) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(x2 - x1) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(y2 - y1) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(x1) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y1) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(x2 - x1) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(y2 - y1) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
 		float const_buf_ps[4] =
 		{
@@ -343,12 +343,12 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 	{
 		float const_buf_vs[8] =
 		{
-			static_cast<float>(x1) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y1) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(x2) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y2) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(x3) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y3) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
+			static_cast<float>(x1) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y1) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(x2) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y2) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(x3) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y3) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
 		};
 		float const_buf_ps[4] =
 		{
@@ -384,10 +384,10 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 	{
 		float const_buf_vs[4] =
 		{
-			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(w) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(h) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(w) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(h) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
 		float const_buf_ps[4] =
 		{
@@ -423,10 +423,10 @@ EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 	{
 		float const_buf_vs[4] =
 		{
-			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(w) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(h) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(w) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(h) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
 		float const_buf_ps[4] =
 		{
@@ -458,10 +458,10 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 	{
 		float const_buf_vs[4] =
 		{
-			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(radiusX) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(radiusY) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(radiusX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(radiusY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
 		float const_buf_ps[4] =
 		{
@@ -663,10 +663,10 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 	{
 		float const_buf_vs[8] =
 		{
-			static_cast<float>(dstX) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(dstX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 			static_cast<float>(srcX) / static_cast<float>(me2->Width),
 			-(static_cast<float>(srcY) / static_cast<float>(me2->Height)),
 			static_cast<float>(srcW) / static_cast<float>(me2->Width),
@@ -713,19 +713,19 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 	{
 		float const_buf_vs[16] =
 		{
-			static_cast<float>(dstX) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(dstX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 			static_cast<float>(srcX) / static_cast<float>(me2->Width),
 			-(static_cast<float>(srcY) / static_cast<float>(me2->Height)),
 			static_cast<float>(srcW) / static_cast<float>(me2->Width),
 			-(static_cast<float>(srcH) / static_cast<float>(me2->Height)),
-			static_cast<float>(centerX) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(centerY) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(centerX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(centerY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 			static_cast<float>(sin(-angle)),
 			static_cast<float>(cos(-angle)),
-			static_cast<float>(CurWndBuf->ScrWidth) / static_cast<float>(CurWndBuf->ScrHeight),
+			static_cast<float>(CurWndBuf->ScreenWidth) / static_cast<float>(CurWndBuf->ScreenHeight),
 			0.0f,
 			0.0f,
 			0.0f,
@@ -957,10 +957,10 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			{
 				float const_buf_vs[8] =
 				{
-					static_cast<float>(half_space + x) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-					-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-					static_cast<float>(me2->CellWidth) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-					-(static_cast<float>(me2->CellHeight) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+					static_cast<float>(half_space + x) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+					-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+					static_cast<float>(me2->CellWidth) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+					-(static_cast<float>(me2->CellHeight) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 					0.0f,
 					0.0f,
 					static_cast<float>(me2->CellWidth) / static_cast<float>(me2->CellSizeAligned),
@@ -2043,7 +2043,7 @@ void Fin()
 		Device->Release();
 }
 
-void* MakeDrawBuf(int tex_width, int tex_height, int scr_width, int scr_height, HWND wnd, void* old)
+void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_height, HWND wnd, void* old)
 {
 	SWndBuf* old2 = static_cast<SWndBuf*>(old);
 	FLOAT clear_color[4];
@@ -2064,8 +2064,8 @@ void* MakeDrawBuf(int tex_width, int tex_height, int scr_width, int scr_height, 
 	memcpy(wnd_buf->ClearColor, clear_color, sizeof(FLOAT) * 4);
 	wnd_buf->TexWidth = tex_width;
 	wnd_buf->TexHeight = tex_height;
-	wnd_buf->ScrWidth = scr_width;
-	wnd_buf->ScrHeight = scr_height;
+	wnd_buf->ScreenWidth = screen_width;
+	wnd_buf->ScreenHeight = screen_height;
 
 	// Create a swap chain.
 	{
