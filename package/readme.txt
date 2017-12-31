@@ -46,6 +46,7 @@ v.2017.12.17
 v.2018.01.17
 	- draw@render(0)を実行すると垂直同期を待ち、実際には60FPS程度になっていた
 	  不具合の修正
+	- include文の追加
     - 互換性が失われる変更
       - wnd@Keyの要素mouseCをmouseMに変更
       - draw@Obj.mtxをdraw@Obj.matに変更

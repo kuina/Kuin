@@ -1229,7 +1229,8 @@ static const void* MakeKeywordsCallback(const Char* key, const void* value, void
 	SKeywordCallbackParam param3 = *param2;
 	if (param3.Src == NULL)
 		param3.Src = key;
-	MakeKeywordsRecursion(&param3, ast);
+	if (value != DummyPtr)
+		MakeKeywordsRecursion(&param3, ast);
 	return value;
 }
 

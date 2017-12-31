@@ -38,6 +38,7 @@ static const Char* Reserved[] =
 	L"for",
 	L"func",
 	L"if",
+	L"include",
 	L"inf",
 	L"int",
 	L"list",
@@ -82,6 +83,7 @@ static FILE* FilePtr;
 static const Char* SrcName;
 static int Row;
 static int Col;
+static Bool SubSrc;
 static Char FileBuf;
 static Char FileBufTmp; // For single line comments and line breaking.
 static Bool IsLast;
@@ -111,12 +113,13 @@ static void ObtainBlockName(SAst* ast);
 static SAstExprValue* ObtainPrimValue(const SPos* pos, EAstTypePrimKind kind, const void* value);
 static SAstExprValue* ObtainStrValue(const SPos* pos, const Char* value);
 static Char EscChar(Char c);
-static Bool IsCorrectSrcName(const Char* name);
-static SAstRoot* ParseRoot(void);
+static Bool IsCorrectSrcName(const Char* name, Bool skip_dot);
+static SAstRoot* ParseRoot(SAstRoot* ast);
 static SAstFunc* ParseFunc(const Char* parent_class);
 static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class);
 static SAstConst* ParseConst(void);
 static SAstAlias* ParseAlias(void);
+static void ParseInclude(void);
 static SAstClass* ParseClass(void);
 static SAstEnum* ParseEnum(void);
 static SAstArg* ParseArg(EAstArgKind kind, const Char* parent_class);
@@ -179,7 +182,15 @@ SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FI
 #endif
 
 	Srces = NULL;
-	Srces = DictAdd(Srces, NewStr(NULL, L"\\%s", option->SrcName), NULL);
+	{
+		const Char* path = NewStr(NULL, L"\\%s", option->SrcName);
+		if (!IsCorrectSrcName(path, False))
+		{
+			Err(L"EK0005", NULL, path);
+			return DummyPtr;
+		}
+		Srces = DictAdd(Srces, path, NULL);
+	}
 	Srces = DictAdd(Srces, L"kuin", NULL);
 	Option = option;
 	switch (Option->Env)
@@ -478,7 +489,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 		return ast;
 	}
 
-	if (!IsCorrectSrcName(src_name))
+	if (!IsCorrectSrcName(src_name, True))
 	{
 		Err(L"EK0005", NULL, src_name);
 		return DummyPtr;
@@ -528,16 +539,31 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 	}
 
 	{
-		SAstRoot* ast2;
+		SAstRoot* ast2 = NULL;
 		SrcName = src_name;
 		Row = 1;
 		Col = 0;
+		SubSrc = False;
+		{
+			const Char* sub_src_name = wcschr(src_name, L'.');
+			if (sub_src_name != NULL)
+			{
+				Char parent_src_name[KUIN_MAX_PATH + 1];
+				size_t len = sub_src_name - src_name;
+				memcpy(parent_src_name, src_name, sizeof(Char) * len);
+				parent_src_name[len] = L'\0';
+				Srces2 = DictAdd(Srces2, src_name, DummyPtr);
+				src_name = parent_src_name;
+				ast2 = (SAstRoot*)DictSearch(Srces2, src_name);
+				SubSrc = True;
+			}
+		}
 		FileBuf = L'\0';
 		FileBufTmp = L'\0';
 		IsLast = False;
 		Scope = NULL;
 		UniqueCnt = 0;
-		ast2 = ParseRoot();
+		ast2 = ParseRoot(ast2);
 		FuncFclose(FilePtr);
 		Srces2 = DictAdd(Srces2, src_name, ast2);
 		return ast2;
@@ -1055,7 +1081,7 @@ static Char EscChar(Char c)
 	}
 }
 
-static Bool IsCorrectSrcName(const Char* name)
+static Bool IsCorrectSrcName(const Char* name, Bool skip_dot)
 {
 	if (*name == L'\\')
 		name++;
@@ -1066,7 +1092,7 @@ static Bool IsCorrectSrcName(const Char* name)
 		for (; ; )
 		{
 			name++;
-			if (L'a' <= name[0] && name[0] <= L'z' || name[0] == L'_' || L'0' <= name[0] && name[0] <= L'9')
+			if (L'a' <= name[0] && name[0] <= L'z' || name[0] == L'_' || L'0' <= name[0] && name[0] <= L'9' || skip_dot && name[0] == L'.')
 				continue;
 			if (*name == L'\\')
 				break;
@@ -1078,11 +1104,14 @@ static Bool IsCorrectSrcName(const Char* name)
 	}
 }
 
-static SAstRoot* ParseRoot(void)
+static SAstRoot* ParseRoot(SAstRoot* ast)
 {
-	SAstRoot* ast = (SAstRoot*)Alloc(sizeof(SAstRoot));
-	InitAst((SAst*)ast, AstTypeId_Root, NewPos(SrcName, 1, 1), NULL, False, True);
-	ast->Items = ListNew();
+	if (ast == NULL)
+	{
+		ast = (SAstRoot*)Alloc(sizeof(SAstRoot));
+		InitAst((SAst*)ast, AstTypeId_Root, NewPos(SrcName, 1, 1), NULL, False, True);
+		ast->Items = ListNew();
+	}
 	Scope = StackPush(Scope, ast);
 	{
 		// For the case where there is a single line comment at the beginning of source codes.
@@ -1115,6 +1144,11 @@ static SAstRoot* ParseRoot(void)
 					child = (SAst*)ParseConst();
 				else if (wcscmp(id, L"alias") == 0)
 					child = (SAst*)ParseAlias();
+				else if (wcscmp(id, L"include") == 0)
+				{
+					ParseInclude();
+					continue;
+				}
 				else if (wcscmp(id, L"class") == 0)
 					child = (SAst*)ParseClass();
 				else if (wcscmp(id, L"enum") == 0)
@@ -1366,6 +1400,20 @@ static SAstAlias* ParseAlias(void)
 	else
 		AssertNextChar(L'\n', True);
 	return ast;
+}
+
+static void ParseInclude(void)
+{
+	const Char* sub_src_name = ReadIdentifier(True, False);
+	if (SubSrc)
+	{
+		Err(L"EP0059", NewPos(SrcName, Row, Col));
+		return;
+	}
+	const Char* new_src_name = NewStr(NULL, L"%s.%s", SrcName, sub_src_name);
+	AssertNextChar(L'\n', True);
+	if (DictSearch(Srces2, new_src_name) == NULL)
+		Srces2 = DictAdd(Srces2, new_src_name, NULL);
 }
 
 static SAstClass* ParseClass(void)

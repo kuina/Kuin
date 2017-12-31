@@ -212,6 +212,8 @@ static SAstFunc* SearchMain(void)
 
 static const void* ResolveIdentifierCallback(const Char* key, const void* value, void* param)
 {
+	if (value == DummyPtr)
+		return value; // Sub-source.
 	if (param != NULL)
 	{
 		// 'key' is the source name and 'param' is 'NULL' when the compiler searches the roots of sources.
@@ -872,6 +874,8 @@ static const void* RebuildEnumCallback(U64 key, const void* value, void* param)
 
 static const void* RebuildRootCallback(const Char* key, const void* value, void* param)
 {
+	if (value == DummyPtr)
+		return value; // Sub-source.
 	UNUSED(param);
 	UNUSED(key);
 	RebuildRoot((SAstRoot*)value);
