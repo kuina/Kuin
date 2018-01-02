@@ -1,0 +1,83 @@
++class Document()
+	*func ctor()
+		do me.undo :: #undo@Undo
+		do me.undo.init(1024)
+		do me.changed :: false
+	end func
+
+	+func load(path: []char): bool
+	end func
+
+	+func save(path: []char): bool
+	end func
+
+	+func draw(width: int, height: int)
+	end func
+
+	+func mouseDownL(x: int, y: int)
+	end func
+
+	+func mouseUpL(x: int, y: int)
+	end func
+
+	+func mouseDoubleClick(x: int, y: int)
+	end func
+
+	+func mouseMove(x: int, y: int)
+	end func
+
+	+func focus(isFocus: bool)
+	end func
+
+	+func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+	end func
+
+	+func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+	end func
+
+	+func keyChar(key: char)
+	end func
+
+	+func scrollX(pos: int)
+	end func
+
+	+func scrollY(pos: int)
+	end func
+
+	+func wheelX(wheel: int)
+	end func
+
+	+func wheelY(wheel: int)
+	end func
+
+	+func cmdUndo()
+	end func
+
+	+func cmdRedo()
+	end func
+
+	+func cmdCut()
+	end func
+
+	+func cmdCopy()
+	end func
+
+	+func cmdPaste()
+	end func
+
+	+func cmdDel()
+	end func
+
+	+func cmdSelAll()
+	end func
+
+	+func undoImpl(undo2: @UndoCmd)
+	end func
+
+	+var changed: bool
+	var undo: undo@Undo
+end class
+
++class UndoCmd(undo@Cmd)
+	+var document: @Document
+end class

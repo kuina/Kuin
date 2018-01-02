@@ -1,0 +1,356 @@
++var documents: dict<[]char, \document@Document>
++var curDocument: \document@Document
++var mainSrcName: []char
++var mainSrcDir: []char
++var sysDir: []char
+var runningFiles: list<[]char>
++var blankMem: int
+
++class Pos()
+	+var src: []char
+	+var row: int
+	+var col: int
+
+	+*func cmp(t: @Pos): int
+		var result: int :: lib@cmp(me.src, t.src)
+		if(result <> 0)
+			ret result
+		end if
+		do result :: me.row - t.row
+		if(result <> 0)
+			ret result
+		end if
+		ret me.col - t.col
+	end func
+end class
+
++func init()
+	do @sysDir :: file@exeDir() ~ "sys/"
+	do @runningFiles :: #list<[]char>
+	do @blankMem :: 0
+end func
+
++func newMainSrc()
+	var document: \document_src@DocumentSrc :: #\document_src@DocumentSrc
+	do @curDocument :: document
+	do @mainSrcName :: \common@untitledSrcName
+	do @mainSrcDir :: ""
+	do @documents :: #dict<[]char, \document@Document>
+	do @documents.add(@mainSrcName, @curDocument)
+	do @initMainSrc()
+end func
+
++func openMainSrc(path: []char)
+	var document: \document_src@DocumentSrc :: #\document_src@DocumentSrc
+	if(!document.load(path))
+		var msg: []char
+		if(\common@langEn)
+			do msg :: "Loading failed. " ~ path
+		else
+			do msg :: "読み込みに失敗しました。 " ~ path
+		end if
+		do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
+		ret
+	end if
+	do @curDocument :: document
+	do @mainSrcName :: path
+	do @mainSrcDir :: file@dir(path)
+	do @documents :: #dict<[]char, \document@Document>
+	do @documents.add(@mainSrcName, @curDocument)
+	do @initMainSrc()
+end func
+
+func initMainSrc()
+	do \completion@close()
+	do \auxiliary@setDirtyInterpret()
+	do \auxiliary@resetDirtyHint()
+	do \auxiliary@resetDirtyHintFast()
+	do \auxiliary@resetData()
+	do \form@updateList()
+	do \dll@resetKeywords()
+	do \form@setEditIconDirectly("")
+	do \form@paintDrawEditor()
+	do \form@focusDrawEditor()
+end func
+
++func saveMainSrc(): bool
+	var file: []char :: wnd@saveFileDialog(\form@wndMain, [\common@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
+	if(file =& null)
+		ret false
+	end if
+	if(!@saveImpl(file, @curDocument))
+		ret false
+	end if
+	do @mainSrcName :: file
+	do @mainSrcDir :: file@dir(file)
+	do \prop@save(file@delExt(@mainSrcName) ~ ".knprop")
+	var newDocuments: dict<[]char, \document@Document> :: #dict<[]char, \document@Document>
+
+	class DocumentsClass()
+		+var documents: dict<[]char, \document@Document>
+	end class
+
+	var data: DocumentsClass :: #DocumentsClass
+	do data.documents :: newDocuments
+	do @documents.forEach(callback, data)
+	do newDocuments.add(file, @curDocument)
+	do @documents :: newDocuments
+	do @curDocument.changed :: false
+	do \form@updateList()
+	ret true
+
+	func callback(src: []char, document: \document@Document, data: DocumentsClass): bool
+		if(document <>& @curDocument)
+			do data.documents.add(src, document)
+		end if
+		ret true
+	end func
+end func
+
++func saveAll(): bool
+	if(@mainSrcName = \common@untitledSrcName)
+		if(!@saveMainSrc())
+			ret false
+		end if
+	else
+		do \prop@save(file@delExt(@mainSrcName) ~ ".knprop")
+	end if
+	var saveAllSuccess: lib@Bool :: #lib@Bool
+	do saveAllSuccess.value :: true
+	do @documents.forEach(callback, saveAllSuccess)
+	do \form@updateList()
+	ret saveAllSuccess.value
+
+	func callback(src: []char, document: \document@Document, saveAllSuccess: lib@Bool): bool
+		if(document.changed)
+			if(@saveImpl(src, document))
+				do document.changed :: false
+			else
+				do saveAllSuccess.value :: false
+			end if
+		end if
+		ret true
+	end func
+end func
+
++func saveImpl(path: []char, document: \document@Document): bool
+	if(document.save(path))
+		ret true
+	end if
+	var msg: []char
+	if(\common@langEn)
+		do msg :: "Saving failed. " ~ path
+	else
+		do msg :: "保存に失敗しました。 " ~ path
+	end if
+	do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
+	ret false
+end func
+
++func setCurSrc(document: \document@Document)
+	do @curDocument :: document
+	if(document =$ \document_src@DocumentSrc)
+		var document2: \document_src@DocumentSrc :: document $ \document_src@DocumentSrc
+		if(!document2.interpreted)
+			do \dll@interpret1(document2.src.src, document2.src.color)
+			do document2.interpreted :: true
+		end if
+	end if
+	do \form@paintDrawEditor()
+	do \form@focusDrawEditor()
+end func
+
++func mainDocument(): \document@Document
+	class RefDocument()
+		+var value: \document@Document
+	end class
+	var document: RefDocument :: #RefDocument
+	do @documents.forEach(callback, document)
+	ret document.value
+
+	func callback(src: []char, document: \document@Document, data: RefDocument): bool
+		if(src = @mainSrcName)
+			do data.value :: document
+			ret false
+		end if
+		ret true
+	end func
+end func
+
++func chkChanged(): bool
+	var chkCloseChanged: lib@Bool :: #lib@Bool
+	do chkCloseChanged.value :: false
+	do @documents.forEach(callback, chkCloseChanged)
+	if(!chkCloseChanged.value)
+		ret true
+	end if
+	var msg: []char
+	if(\common@langEn)
+		do msg :: "Do you want to save changes to the documents?"
+	else
+		do msg :: "ドキュメントへの変更を保存しますか？"
+	end if
+	var result: wnd@MsgBoxResult :: wnd@msgBox(\form@wndMain, msg, \common@title, %warn, %yesNoCancel)
+	if(result = %cancel)
+		ret false
+	elif(result = %no)
+		ret true
+	end if
+	ret @saveAll()
+
+	func callback(src: []char, document: \document@Document, chkCloseChanged: lib@Bool): bool
+		if(document.changed)
+			do chkCloseChanged.value :: true
+			ret false
+		end if
+		ret true
+	end func
+end func
+
++func getSrc(path: []char): [][]char
+	; This function is called by the Kuin compiler.
+	var path2: []char :: (##path).replace("\\", "/")
+	var document: \document@Document :: @documents.get(path2)
+	if(document <>& null)
+		var document2: \document_src@DocumentSrc :: document $ \document_src@DocumentSrc
+		ret document2.getSrc()
+	end if
+
+	block
+		var document2: \document_src@DocumentSrc :: #\document_src@DocumentSrc
+		if(@loadFileToDocuments(path2, document2))
+			ret document2.getSrc()
+		end if
+	end block
+	ret null
+end func
+
++func loadFileToDocuments(path: []char, document: \document@Document): bool
+	if(!(^@sysDir <= ^path & @sysDir = path.sub(0, ^@sysDir) | @mainSrcDir <> "" & ^@mainSrcDir <= ^path & @mainSrcDir = path.sub(0, ^@mainSrcDir)))
+		ret false
+	end if
+	if(!document.load(path))
+		ret false
+	end if
+	do @documents.add(path, document)
+	ret true
+end func
+
++func jumpSrc(pos: @Pos): bool
+	if(pos =& null | pos.src =& null | ^pos.src = 0 | pos.src[0] <> '\\')
+		ret false
+	end if
+	var src: []char :: @internalNameToSrcName(pos.src)
+	if(src =& null)
+		ret false
+	end if
+	var document: \document@Document :: @documents.get(src)
+	if(document =& null)
+		ret false
+	end if
+	if(document =$ \document_src@DocumentSrc)
+		if(document <>& @curDocument)
+			var sel: int :: -1
+			for i(0, \form@listFile.len() - 1)
+				var internalName: []char :: @removePrefix(\form@listFile.getText(i))
+				if(internalName = pos.src)
+					do sel :: i
+					break i
+				end if
+			end for
+			if(sel = -1)
+				ret false
+			end if
+			do \form@listFile.setSel(sel)
+			do \form@listFileOnSel(\form@listFile)
+		end if
+		do (@curDocument $ \document_src@DocumentSrc).move(pos.col - 1, pos.row - 1)
+		do \form@paintDrawEditor()
+		do \form@focusDrawEditor()
+		ret true
+	end if
+	ret false
+end func
+
++func removePrefix(src: []char): []char
+	var begin: int :: 0
+	while loop(begin < ^src)
+		switch(src[begin])
+		case '*', '>'
+			do begin :+ 1
+		default
+			break loop
+		end switch
+	end while
+	if(begin = 0)
+		ret src
+	else
+		ret src.sub(begin, -1)
+	end if
+end func
+
++func srcNameToInternalName(srcName: []char): []char
+	if(^@sysDir <= ^srcName & @sysDir = srcName.sub(0, ^@sysDir))
+		ret file@delExt(srcName.sub(^@sysDir, -1)).replace("/", "\\")
+	elif(@mainSrcDir <> "" & ^@mainSrcDir <= ^srcName & @mainSrcDir = srcName.sub(0, ^@mainSrcDir))
+		ret "\\" ~ file@delExt(srcName.sub(^@mainSrcDir, -1)).replace("/", "\\")
+	else
+		ret "\\" ~ file@delExt(file@fileName(srcName)).replace("/", "\\")
+	end if
+end func
+
++func internalNameToSrcName(internalName: []char): []char
+	if(internalName = \common@untitledInternalName)
+		ret \common@untitledSrcName
+	end if
+	if(^internalName > 1 & internalName[0] = '\\')
+		ret @mainSrcDir ~ internalName.sub(1, -1).replace("\\", "/") ~ ".kn"
+	end if
+	ret @sysDir ~ internalName.replace("\\", "/") ~ ".kn"
+end func
+
++func getDocumentName(document: \document@Document): []char
+	class GetDocumentNameClass()
+		+var src: []char
+		+var document2: \document@Document
+	end class
+
+	var getSrcClass: GetDocumentNameClass :: #GetDocumentNameClass
+	do getSrcClass.src :: null
+	do getSrcClass.document2 :: document
+	do @documents.forEach(callback, getSrcClass)
+	ret getSrcClass.src
+
+	func callback(src: []char, document: \document@Document, param: GetDocumentNameClass): bool
+		if(document =& param.document2)
+			do param.src :: src
+			ret false
+		end if
+		ret true
+	end func
+end func
+
++func delRunningFiles()
+	do @runningFiles.head()
+	while loop(!@runningFiles.term())
+		var dir: []char :: file@sysDir(%appData) ~ "Kuin/" ~ @runningFiles.get() ~ "/"
+		try
+			if(file@delDir(dir))
+				do @runningFiles.del()
+				skip loop
+			end if
+		catch
+		end try
+		do @runningFiles.next()
+	end while
+end func
+
++func addRunningFileName(): []char
+	var uuid: []char :: lib@rndUuid()
+	do @runningFiles.add(uuid)
+	ret uuid
+end func
+
++func flipBlankMem()
+	do @blankMem :: 1 - @blankMem
+end func

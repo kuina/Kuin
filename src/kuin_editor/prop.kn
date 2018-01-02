@@ -1,0 +1,22 @@
++func save(path: []char)
+	do file@delFile(path)
+	var prop: xml@Xml :: xml@makeXmlEmpty()
+	var root: xml@Node :: prop.root()
+	var config: xml@Node :: root.addChild("configuration")
+	do config.addChild("icon").setValue(\form@getIconPath())
+	do prop.save(path, false)
+end func
+
++func load(path: []char)
+	try
+		var prop: xml@Xml :: xml@makeXml(path)
+		if(prop =& null)
+			ret
+		end if
+		var root: xml@Node :: prop.root()
+		var config: xml@Node :: root.findChild("configuration")
+		var icon: []char :: config.findChild("icon").getValue()
+		do \form@setEditIconDirectly(icon)
+	catch
+	end try
+end func

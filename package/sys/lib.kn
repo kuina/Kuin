@@ -252,6 +252,30 @@ end class
 	+var value: float
 end class
 
++class Bool()
+	+*func cmp(t: @Bool): int
+		ret (me.value $ int - t.value $ int).sign()
+	end func
+
+	+*func toStr(): []char
+		ret me.value.toStr()
+	end func
+
+	+var value: bool
+end class
+
++class Char()
+	+*func cmp(t: @Char): int
+		ret (me.value $ int - t.value $ int).sign()
+	end func
+
+	+*func toStr(): []char
+		ret me.value.toStr()
+	end func
+
+	+var value: char
+end class
+
 +class Str()
 	+*func cmp(t: @Str): int
 		ret me.value.cmp(t.value)

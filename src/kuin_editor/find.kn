@@ -1,0 +1,252 @@
++var wndFind: wnd@Wnd
+var wndFindTabFind: wnd@Tab
+var wndFindEditPattern: wnd@Edit
+var wndFindEditReplace: wnd@Edit
+var wndFindRadioDocument: wnd@Radio
+var wndFindRadioAll: wnd@Radio
+var wndFindRadioSelection: wnd@Radio
+var wndFindChkDistinguishCase: wnd@Chk
+var wndFindChkOnlyWord: wnd@Chk
+var wndFindChkRegularExpression: wnd@Chk
+var wndFindBtnPrev: wnd@Btn
+var wndFindBtnNext: wnd@Btn
+var wndFindBtnReplace: wnd@Btn
+var wndFindBtnReplaceAll: wnd@Btn
+var wndFindEditPatternLast: []char
+var wndFindEditReplaceLast: []char
+var wndFindRadioLast: int
+var wndFindChkDistinguishCaseLast: bool
+var wndFindChkOnlyWordLast: bool
+var wndFindChkRegularExpressionLast: bool
+var tabOrderFind: wnd@TabOrder
+
++func init()
+	do @wndFindEditPatternLast :: ""
+	do @wndFindEditReplaceLast :: ""
+	do @wndFindChkDistinguishCaseLast :: true
+end func
+
++func show(replace: bool)
+	var x: int
+	var y: int
+	var w: int
+	do \form@drawEditor.getPosScreen(&x, &y, &w, &)
+	if(@wndFind =& null)
+		do @wndFind :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 380, 332, \common@langEn ?("Find and Replace", "検索と置換"))
+		do @wndFind.setPos(x + w - 380 - 17, y, 380, 332)
+		do @wndFind.onClose :: wndFindOnClose
+		do @wndFindTabFind :: wnd@makeTab(@wndFind, 12, 12, 356, 308, %scale, %scale)
+		do @wndFindTabFind.add("検索")
+		do @wndFindTabFind.add("置換")
+		do @wndFindTabFind.onSel :: wndFindTabFindOnSel
+		do wnd@makeLabel(@wndFindTabFind, 6, 28, 324, 12, %fix, %fix, \common@langEn ?("Find what:", "検索する文字列:"))
+		do @wndFindEditPattern :: wnd@makeEdit(@wndFindTabFind, 6, 46, 344, 19, %scale, %fix)
+		do @wndFindEditPattern.onChange :: wndFindEditPatternOnChange
+		do wnd@makeLabel(@wndFindTabFind, 6, 71, 324, 12, %fix, %fix, \common@langEn ?("Replace with:", "置換後の文字列:"))
+		do @wndFindEditReplace :: wnd@makeEdit(@wndFindTabFind, 6, 89, 344, 19, %scale, %fix)
+		do @wndFindEditReplace.onChange :: wndFindEditReplaceOnChange
+		var groupTarget: wnd@Group :: wnd@makeGroup(@wndFindTabFind, 6, 114, 344, 84, %scale, %fix, \common@langEn ?("Look in", "検索対象"))
+		do @wndFindRadioDocument :: wnd@makeRadio(groupTarget, 6, 18, 312, 16, %fix, %fix, \common@langEn ?("Current document", "現在のドキュメント"))
+		do @wndFindRadioAll :: wnd@makeRadio(groupTarget, 6, 40, 312, 16, %fix, %fix, \common@langEn ?("All documents", "すべてのドキュメント"))
+		do @wndFindRadioSelection :: wnd@makeRadio(groupTarget, 6, 62, 312, 16, %fix, %fix, \common@langEn ?("Selection", "選択範囲"))
+		do @wndFindChkDistinguishCase :: wnd@makeChk(@wndFindTabFind, 6, 204, 166, 16, %fix, %fix, \common@langEn ?("Match case", "大文字と小文字を区別する"))
+		do @wndFindChkDistinguishCase.onPush :: wndFindChkDistinguishCaseOnPush
+		do @wndFindChkOnlyWord :: wnd@makeChk(@wndFindTabFind, 6, 226, 166, 16, %fix, %fix, \common@langEn ?("Match whole word", "単語単位"))
+		do @wndFindChkOnlyWord.onPush :: wndFindChkOnlyWordOnPush
+		do @wndFindChkRegularExpression :: wnd@makeChk(@wndFindTabFind, 6, 248, 166, 16, %fix, %fix, \common@langEn ?("Use Regular Expressions", "正規表現を使用する"))
+		do @wndFindChkRegularExpression.onPush :: wndFindChkRegularExpressionOnPush
+		do @wndFindBtnPrev :: wnd@makeBtn(@wndFindTabFind, 178, 212, 75, 23, %fix, %fix, \common@langEn ?("Find Previous", "前を検索"))
+		do @wndFindBtnPrev.onPush :: @wndFindBtnPrevOnPush
+		do @wndFindBtnNext :: wnd@makeBtn(@wndFindTabFind, 178, 241, 75, 23, %fix, %fix, \common@langEn ?("Find Next", "次を検索"))
+		do @wndFindBtnNext.onPush :: @wndFindBtnNextOnPush
+		do @wndFindBtnReplace :: wnd@makeBtn(@wndFindTabFind, 259, 212, 75, 23, %fix, %fix, \common@langEn ?("Replace", "置換"))
+		do @wndFindBtnReplace.onPush :: wndFindBtnReplaceOnPush
+		do @wndFindBtnReplaceAll :: wnd@makeBtn(@wndFindTabFind, 259, 241, 75, 23, %fix, %fix, \common@langEn ?("Replace All", "すべて置換"))
+		do @wndFindBtnReplaceAll.onPush :: wndFindBtnReplaceAllOnPush
+		if(@wndFindEditPatternLast <>& null)
+			do @wndFindEditPattern.setText(@wndFindEditPatternLast)
+		end if
+		if(@wndFindEditReplaceLast <>& null)
+			do @wndFindEditReplace.setText(@wndFindEditReplaceLast)
+		end if
+		switch(@wndFindRadioLast)
+		case 1
+			do @wndFindRadioAll.setChk(true)
+		case 2
+			do @wndFindRadioSelection.setChk(true)
+		default
+			do @wndFindRadioDocument.setChk(true)
+		end switch
+		do @wndFindChkDistinguishCase.setChk(@wndFindChkDistinguishCaseLast)
+		do @wndFindChkOnlyWord.setChk(@wndFindChkOnlyWordLast)
+		do @wndFindChkRegularExpression.setChk(@wndFindChkRegularExpressionLast)
+
+		do @tabOrderFind :: wnd@makeTabOrder([@wndFindEditPattern $ wnd@WndBase, @wndFindEditReplace, @wndFindBtnPrev, @wndFindBtnNext, @wndFindBtnReplace, @wndFindBtnReplaceAll])
+	else
+		do @wndFind.setPos(x + w - 380 - 17, y, 380, 332)
+		do @wndFind.activate()
+	end if
+	do @wndFindTabFind.setSel(replace ?(1, 0))
+	do @wndFindEditReplace.enable(replace)
+	do @wndFindBtnReplace.enable(replace)
+	do @wndFindBtnReplaceAll.enable(replace)
+	do wndFindChkRegularExpressionOnPush(null)
+	do @wndFindEditPattern.focus()
+	do @wndFindEditPattern.setSel(0, -1)
+
+	; TODO:
+	do @wndFindRadioAll.enable(false)
+	do @wndFindRadioSelection.enable(false)
+
+	func wndFindOnClose(wnd: wnd@Wnd): bool
+		do @tabOrderFind :: null
+
+		do @wndFindEditPatternLast :: @wndFindEditPattern.getText()
+		do @wndFindEditReplaceLast :: @wndFindEditReplace.getText()
+		if(@wndFindRadioAll.getChk())
+			do @wndFindRadioLast :: 1
+		elif(@wndFindRadioSelection.getChk())
+			do @wndFindRadioLast :: 2
+		else
+			do @wndFindRadioLast :: 0
+		end if
+		do @wndFindChkDistinguishCaseLast :: @wndFindChkDistinguishCase.getChk()
+		do @wndFindChkOnlyWordLast :: @wndFindChkOnlyWord.getChk()
+		do @wndFindChkRegularExpressionLast :: @wndFindChkRegularExpression.getChk()
+
+		do @wndFind :: null
+		do @wndFindTabFind :: null
+		do @wndFindEditPattern :: null
+		do @wndFindEditReplace :: null
+		do @wndFindRadioDocument :: null
+		do @wndFindRadioAll :: null
+		do @wndFindRadioSelection :: null
+		do @wndFindChkDistinguishCase :: null
+		do @wndFindChkOnlyWord :: null
+		do @wndFindChkRegularExpression :: null
+		do @wndFindBtnPrev :: null
+		do @wndFindBtnNext :: null
+		do @wndFindBtnReplace :: null
+		do @wndFindBtnReplaceAll :: null
+		ret true
+	end func
+
+	func wndFindTabFindOnSel(wnd: wnd@Tab)
+		var sel: int :: @wndFindTabFind.getSel()
+		if(sel = -1)
+			ret
+		end if
+		var replace: bool :: sel = 1
+		do @wndFindEditReplace.enable(replace)
+		do @wndFindBtnReplace.enable(replace)
+		do @wndFindBtnReplaceAll.enable(replace)
+	end func
+
+	func wndFindEditPatternOnChange(wnd: wnd@Edit)
+		do @wndFindEditPatternLast :: @wndFindEditPattern.getText()
+	end func
+
+	func wndFindEditReplaceOnChange(wnd: wnd@Edit)
+		do @wndFindEditReplaceLast :: @wndFindEditReplace.getText()
+	end func
+
+	func wndFindChkDistinguishCaseOnPush(wnd: wnd@Chk)
+		do @wndFindChkDistinguishCaseLast :: @wndFindChkDistinguishCase.getChk()
+	end func
+
+	func wndFindChkOnlyWordOnPush(wnd: wnd@Chk)
+		do @wndFindChkOnlyWordLast :: @wndFindChkOnlyWord.getChk()
+	end func
+
+	func wndFindChkRegularExpressionOnPush(wnd: wnd@Chk)
+		do @wndFindChkRegularExpressionLast :: @wndFindChkRegularExpression.getChk()
+		do @wndFindChkDistinguishCase.enable(!@wndFindChkRegularExpressionLast)
+		do @wndFindChkOnlyWord.enable(!@wndFindChkRegularExpressionLast)
+	end func
+
+	func wndFindBtnReplaceOnPush(wnd: wnd@Btn)
+		do @replaceOne(@wndFindEditPatternLast, @wndFindEditReplaceLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+		do \form@focusDrawEditor()
+		do \auxiliary@resetDirtyHint()
+	end func
+
+	func wndFindBtnReplaceAllOnPush(wnd: wnd@Btn)
+		do @replaceAll(@wndFindEditPatternLast, @wndFindEditReplaceLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+		do \form@focusDrawEditor()
+		do \auxiliary@resetDirtyHint()
+	end func
+end func
+
+func wndFindBtnNextOnPush(wnd: wnd@Btn)
+	if(@wndFindEditPatternLast <>& null)
+		do @findNext()
+	end if
+end func
+
+func wndFindBtnPrevOnPush(wnd: wnd@Btn)
+	if(@wndFindEditPatternLast <>& null)
+		do @findPrev()
+	end if
+end func
+
++func findNext()
+	do @findNextImpl(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+	do \form@focusDrawEditor()
+	do \auxiliary@resetDirtyHint()
+end func
+
++func findPrev()
+	do @findPrevImpl(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+	do \form@focusDrawEditor()
+	do \auxiliary@resetDirtyHint()
+end func
+
+func findNextImpl(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	if(\src@curDocument =$ \document_src@DocumentSrc & !(\src@curDocument $ \document_src@DocumentSrc).findNext(pattern, distinguishCase, onlyWord, regularExpression))
+		do wnd@msgBox(@wndFind, \common@langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), \common@title, %info, %ok)
+	end if
+end func
+
+func findPrevImpl(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	if(\src@curDocument =$ \document_src@DocumentSrc & !(\src@curDocument $ \document_src@DocumentSrc).findPrev(pattern, distinguishCase, onlyWord, regularExpression))
+		do wnd@msgBox(@wndFind, \common@langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), \common@title, %info, %ok)
+	end if
+end func
+
+func replaceOne(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	if(\src@curDocument =$ \document_src@DocumentSrc)
+		var document: \document_src@DocumentSrc :: \src@curDocument $ \document_src@DocumentSrc
+		do document.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+		if(!document.findNext(pattern, distinguishCase, onlyWord, regularExpression))
+			do wnd@msgBox(@wndFind, \common@langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), \common@title, %info, %ok)
+		end if
+	end if
+end func
+
+func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+	if(\src@curDocument =$ \document_src@DocumentSrc)
+		var document: \document_src@DocumentSrc :: \src@curDocument $ \document_src@DocumentSrc
+		var msg: []char
+		if(\common@langEn)
+			do msg :: "Do you want to replace all \"" ~ pattern ~ "\" with \"" ~ replaceStr ~ "\" in the current document?"
+		else
+			do msg :: "現在のドキュメントの「" ~ pattern ~ "」を「" ~ replaceStr ~ "」に、すべて置換しますか？"
+		end if
+		if(wnd@msgBox(@wndFind, msg, \common@title, %warn, %yesNoCancel) = %yes)
+			var cnt: int :: document.replaceAll(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+			if(\common@langEn)
+				do msg :: cnt.toStr() ~ " string(s) have been replaced."
+			else
+				do msg :: cnt.toStr() ~ "個の文字列を置換しました。"
+			end if
+			do wnd@msgBox(@wndFind, msg, \common@title, %info, %ok)
+		end if
+	end if
+end func
+
++func runTabOrder(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+	if(@tabOrderFind <>& null & @tabOrderFind.chk(key, shiftCtrl))
+		ret true
+	end if
+	ret false
+end func

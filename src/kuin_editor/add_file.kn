@@ -1,0 +1,116 @@
+var wndAddFile: wnd@Wnd
+var wndAddFileResuiltFile: []char
+var wndAddFileResuiltType: int
+var wndAddFileEditFile: wnd@Edit
+var wndAddFileListType: wnd@List
+
++func addNewFile()
+	if(\src@mainSrcDir = "")
+		do wnd@msgBox(\form@wndMain, \common@langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), \common@title, %err, %ok)
+		ret
+	end if
+	do @wndAddFile :: wnd@makeWnd(\form@wndMain, %fix, 640, 480, \common@langEn?("Add New File", "新しいファイルを追加"))
+	do @wndAddFileResuiltFile :: null
+	do @wndAddFileResuiltType :: 0
+	do @wndAddFileListType :: wnd@makeList(@wndAddFile, 12, 12, 616, 100, %fix, %scale)
+	do @wndAddFileListType.add(\common@langEn?("Source Code", "ソースコード"))
+	; TODO: do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"))
+	do @wndAddFileListType.setSel(0)
+	do @wndAddFileEditFile :: wnd@makeEdit(@wndAddFile, 12, 118, 510, 19, %fix, %fix)
+	var btnFile: wnd@Btn :: wnd@makeBtn(@wndAddFile, 528, 118, 100, 23, %fix, %fix, \common@langEn ?("Browse...", "参照..."))
+	do btnFile.onPush :: btnFileOnPush
+	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndAddFile, 12, 143, 100, 23, %fix, %fix, \common@langEn ?("Add", "追加"))
+	do btnAdd.onPush :: btnAddOnPush
+	do @wndAddFile.modal()
+	if(@wndAddFileResuiltFile <>& null & @wndAddFileResuiltFile <> "")
+		var ext: []char :: file@ext(@wndAddFileResuiltFile).lower()
+		var document: \document@Document :: null
+		var document2: \document@Document :: null
+		switch(@wndAddFileResuiltType)
+		case 0
+			if(ext = "kn")
+				do document :: #\document_src@DocumentSrc
+				do document2 :: #\document_src@DocumentSrc
+			end if
+		case 1
+			if(ext = "knwnd")
+				do document :: #\document_ar_wnd@DocumentArWnd
+				do document2 :: #\document_ar_wnd@DocumentArWnd
+			end if
+		end switch
+		if(document <>& null)
+			if(\src@saveImpl(@wndAddFileResuiltFile, document))
+				if(\src@loadFileToDocuments(@wndAddFileResuiltFile, document2))
+					do \src@setCurSrc(document2)
+					do \form@updateList()
+				else
+					var msg: []char
+					if(\common@langEn)
+						do msg :: "Loading failed. " ~ @wndAddFileResuiltFile
+					else
+						do msg :: "読み込みに失敗しました。 " ~ @wndAddFileResuiltFile
+					end if
+					do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
+				end if
+			end if
+		else
+			do wnd@msgBox(\form@wndMain, \common@langEn ?("An invalid extension was specified.", "不正な拡張子が指定されました。"), \common@title, %err, %ok)
+		end if
+	end if
+	do @wndAddFile :: null
+	do @wndAddFileResuiltFile :: null
+	do @wndAddFileEditFile :: null
+	do @wndAddFileListType :: null
+
+	func btnFileOnPush(wnd: wnd@WndBase)
+		var filter: [][]char
+		var ext: []char
+		switch(@wndAddFileListType.getSel())
+		case -1, 0
+			do filter :: [\common@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"]
+			do ext :: "kn"
+		case 1
+			do filter :: [\common@langEn ?("Kuin window (*.knwnd)", "Kuinウインドウ (*.knwnd)"), "*.knwnd"]
+			do ext :: "knwnd"
+		end switch
+		var path: []char :: wnd@saveFileDialog(@wndAddFile, filter, 0, ext)
+		if(path <>& null)
+			do @wndAddFileEditFile.setText(path)
+		end if
+	end func
+
+	func btnAddOnPush(wnd: wnd@WndBase)
+		do @wndAddFileResuiltFile :: @wndAddFileEditFile.getText().replace("\\", "/")
+		do @wndAddFileResuiltType :: @wndAddFileListType.getSel()
+		do @wndAddFile.close()
+	end func
+end func
+
++func addExistingFile()
+	if(\src@mainSrcDir = "")
+		do wnd@msgBox(\form@wndMain, \common@langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), \common@title, %err, %ok)
+		ret
+	end if
+	var file: []char :: wnd@openFileDialog(\form@wndMain, [\common@langEn ?("Kuin supported file (*.kn,*.knwnd)", "Kuinがサポートするファイル (*.kn,*.knwnd)"), "*.kn;*.knwnd"], 0)
+	if(file <>& null)
+		var document: \document@Document :: null
+		switch(file@ext(file).lower())
+		case "kn"
+			do document :: #\document_src@DocumentSrc
+		case "knwnd"
+			do document :: #\document_ar_wnd@DocumentArWnd
+		end switch
+		if(\src@loadFileToDocuments(file, document))
+			do \src@setCurSrc(document)
+			do \form@updateList()
+		else
+			var msg: []char
+			if(\common@langEn)
+				do msg :: "Loading failed. " ~ file
+			else
+				do msg :: "読み込みに失敗しました。 " ~ file
+			end if
+			do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
+		end if
+	end if
+end func

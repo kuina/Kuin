@@ -1,0 +1,141 @@
+var dirtyInterpret: int
+var dirtyInterpretTime: int
+var dirtyHint: bool
+var dirtyHintTime: int
+var dirtyHintFast: bool
+var auxiliaryErr: dict<\src@Pos, []char>
+
++func resetData()
+	do @auxiliaryErr :: #dict<\src@Pos, []char>
+	do \form@listInfoItem :: #list<\form@ListInfoItem>
+end func
+
++func update()
+	do @auxiliaryErr.forEach(callback, null)
+	do \form@paintDrawEditor()
+
+	func callback(pos: \src@Pos, msg: []char, data: kuin@Class): bool
+		var listInfoItem: \form@ListInfoItem :: #\form@ListInfoItem
+		do listInfoItem.text :: msg
+		do listInfoItem.pos :: pos
+		do \form@listInfoItem.add(listInfoItem)
+
+		; Fill in words with the error color.
+		var srcName: []char :: \src@internalNameToSrcName(pos.src)
+		if(srcName =& null)
+			ret true
+		end if
+		var document: \document@Document :: \src@documents.get(srcName)
+		if(document <>& null & document =$ \document_src@DocumentSrc)
+			var document2: \document_src@DocumentSrc :: document $ \document_src@DocumentSrc
+			var x: int :: pos.col - 1
+			var y: int :: pos.row - 1
+			var color: bit8
+			if(moveWordTop(document2.src.src, document2.src.color, &x, &y, &color))
+				while(x < ^document2.src.color[y] & document2.src.color[y][x].and(16#7Fb8) = color)
+					do document2.src.color[y][x] :: document2.src.color[y][x].or(16#80b8)
+					do x :+ 1
+				end while
+			end if
+		end if
+		ret true
+
+		func moveWordTop(src: [][]char, srcColor: [][]bit8, x: &int, y: &int, color: &bit8): bool
+			if(y < 0)
+				do y :: 0
+			elif(^srcColor <= y)
+				do y :: ^srcColor - 1
+			end if
+			if(1 <= x & x < ^srcColor[y] & (src[y][x] = ' ' | src[y][x] = '\t' | srcColor[y][x].and(16#7Fb8) = %comment $ \document_src@CharColor $ bit8 | srcColor[y][x].and(16#7Fb8) = %symbol $ \document_src@CharColor $ bit8))
+				do x :- 1
+			end if
+			if(x < 0)
+				do x :: 0
+			elif(^srcColor[y] <= x)
+				do x :: ^srcColor[y] - 1
+			end if
+			if(^srcColor[y] <> 0)
+				do color :: srcColor[y][x].and(16#7Fb8)
+				while(x >= 1 & srcColor[y][x - 1].and(16#7Fb8) = color)
+					do x :- 1
+				end while
+				ret true
+			end if
+			ret false
+		end func
+	end func
+end func
+
++func chk()
+	if(\src@curDocument =$ \document_src@DocumentSrc)
+		var document: \document_src@DocumentSrc :: \src@curDocument $ \document_src@DocumentSrc
+		switch(@dirtyInterpret)
+		case 0
+			if(lib@sysTime() - @dirtyInterpretTime > 150)
+				do \dll@interpret1(document.src.src, document.src.color)
+				do document.interpreted :: true
+				do \form@paintDrawEditor()
+				do @dirtyInterpret :: 1
+			end if
+		case 1
+			if(lib@sysTime() - @dirtyInterpretTime > 1200)
+				do @resetData()
+				var srcs: [][]char :: \src@documents.toArrayKey()
+				for i(0, ^srcs - 1)
+					do srcs[i] :: \src@srcNameToInternalName(srcs[i])
+				end for
+				try
+					if(\dll@interpret2(\src@mainSrcName, \src@getSrc, null, \form@getEnv(), \form@logForInterpret, \common@langEn ?(1, 0), \src@blankMem, srcs))
+						do \src@flipBlankMem()
+					end if
+				catch
+				end try
+				do @update()
+				do \form@updateList()
+				do @dirtyInterpret :: 2
+			end if
+		end switch
+		if(@dirtyHint)
+			var diff: int :: lib@sysTime() - @dirtyHintTime
+			if(diff > 50)
+				do \completion@close()
+			end if
+			if(diff > (@dirtyHintFast ?(400, 800)) & @dirtyInterpret >= 1)
+				do document.showHint(@dirtyHintFast)
+				do @dirtyHint :: false
+				do @dirtyHintFast :: false
+			end if
+		end if
+	end if
+end func
+
++func setDirtyInterpret()
+	do @dirtyInterpret :: 0
+	do @dirtyInterpretTime :: lib@sysTime()
+end func
+
++func setDirtyHint(fast: bool)
+	do @dirtyHint :: true
+	do @dirtyHintTime :: lib@sysTime()
+	if(fast)
+		do @dirtyHintFast :: true
+	end if
+end func
+
++func resetDirtyHint()
+	do @dirtyHint :: false
+end func
+
++func resetDirtyHintFast()
+	do @dirtyHintFast :: false
+end func
+
++func addAuxiliaryErr(pos: \src@Pos, code: []char, msg: []char, src: []char, row: int, col: int)
+	if(!@auxiliaryErr.exist(pos))
+		do @auxiliaryErr.add(pos, errStr(code, msg, src, row, col))
+	end if
+
+	func errStr(code: []char, msg: []char, src: []char, row: int, col: int): []char
+		ret "[" ~ \common@nullStr(src) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ "] " ~ \common@nullStr(code) ~ ": " ~ \common@nullStr(msg)
+	end func
+end func
