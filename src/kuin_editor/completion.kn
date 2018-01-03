@@ -119,8 +119,8 @@ end func
 end func
 
 func wndCompletionListKeywordsOnMouseDoubleClick(wnd: wnd@List, x: int, y: int)
-	if(\src@curDocument =$ \document_src@DocumentSrc)
-		if((\src@curDocument $ \document_src@DocumentSrc).complement())
+	if(\src@curDoc =$ \doc_src@DocSrc)
+		if((\src@curDoc $ \doc_src@DocSrc).complement())
 			do \auxiliary@resetDirtyHint()
 		end if
 	end if
@@ -167,7 +167,7 @@ end func
 	end if
 end func
 
-+func getSelectedWord(): []char
++func getSelWord(): []char
 	if(@wndCompletion =& null | @wndCompletionListKeywords =& null)
 		ret null
 	end if

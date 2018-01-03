@@ -7,7 +7,7 @@ func main()
 	do \dll@initCompiler(2, \common@langEn ?(1, 0))
 	do \find@init()
 	do \form@makeWnd()
-	do \document_src@init()
+	do \doc_src@init()
 	do \src@init()
 
 	if(^lib@cmdLine() > 0)

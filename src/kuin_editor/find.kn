@@ -2,9 +2,9 @@
 var wndFindTabFind: wnd@Tab
 var wndFindEditPattern: wnd@Edit
 var wndFindEditReplace: wnd@Edit
-var wndFindRadioDocument: wnd@Radio
+var wndFindRadioDoc: wnd@Radio
 var wndFindRadioAll: wnd@Radio
-var wndFindRadioSelection: wnd@Radio
+var wndFindRadioSel: wnd@Radio
 var wndFindChkDistinguishCase: wnd@Chk
 var wndFindChkOnlyWord: wnd@Chk
 var wndFindChkRegularExpression: wnd@Chk
@@ -46,9 +46,9 @@ end func
 		do @wndFindEditReplace :: wnd@makeEdit(@wndFindTabFind, 6, 89, 344, 19, %scale, %fix)
 		do @wndFindEditReplace.onChange :: wndFindEditReplaceOnChange
 		var groupTarget: wnd@Group :: wnd@makeGroup(@wndFindTabFind, 6, 114, 344, 84, %scale, %fix, \common@langEn ?("Look in", "検索対象"))
-		do @wndFindRadioDocument :: wnd@makeRadio(groupTarget, 6, 18, 312, 16, %fix, %fix, \common@langEn ?("Current document", "現在のドキュメント"))
+		do @wndFindRadioDoc :: wnd@makeRadio(groupTarget, 6, 18, 312, 16, %fix, %fix, \common@langEn ?("Current document", "現在のドキュメント"))
 		do @wndFindRadioAll :: wnd@makeRadio(groupTarget, 6, 40, 312, 16, %fix, %fix, \common@langEn ?("All documents", "すべてのドキュメント"))
-		do @wndFindRadioSelection :: wnd@makeRadio(groupTarget, 6, 62, 312, 16, %fix, %fix, \common@langEn ?("Selection", "選択範囲"))
+		do @wndFindRadioSel :: wnd@makeRadio(groupTarget, 6, 62, 312, 16, %fix, %fix, \common@langEn ?("Selection", "選択範囲"))
 		do @wndFindChkDistinguishCase :: wnd@makeChk(@wndFindTabFind, 6, 204, 166, 16, %fix, %fix, \common@langEn ?("Match case", "大文字と小文字を区別する"))
 		do @wndFindChkDistinguishCase.onPush :: wndFindChkDistinguishCaseOnPush
 		do @wndFindChkOnlyWord :: wnd@makeChk(@wndFindTabFind, 6, 226, 166, 16, %fix, %fix, \common@langEn ?("Match whole word", "単語単位"))
@@ -73,9 +73,9 @@ end func
 		case 1
 			do @wndFindRadioAll.setChk(true)
 		case 2
-			do @wndFindRadioSelection.setChk(true)
+			do @wndFindRadioSel.setChk(true)
 		default
-			do @wndFindRadioDocument.setChk(true)
+			do @wndFindRadioDoc.setChk(true)
 		end switch
 		do @wndFindChkDistinguishCase.setChk(@wndFindChkDistinguishCaseLast)
 		do @wndFindChkOnlyWord.setChk(@wndFindChkOnlyWordLast)
@@ -96,7 +96,7 @@ end func
 
 	; TODO:
 	do @wndFindRadioAll.enable(false)
-	do @wndFindRadioSelection.enable(false)
+	do @wndFindRadioSel.enable(false)
 
 	func wndFindOnClose(wnd: wnd@Wnd): bool
 		do @tabOrderFind :: null
@@ -105,7 +105,7 @@ end func
 		do @wndFindEditReplaceLast :: @wndFindEditReplace.getText()
 		if(@wndFindRadioAll.getChk())
 			do @wndFindRadioLast :: 1
-		elif(@wndFindRadioSelection.getChk())
+		elif(@wndFindRadioSel.getChk())
 			do @wndFindRadioLast :: 2
 		else
 			do @wndFindRadioLast :: 0
@@ -118,9 +118,9 @@ end func
 		do @wndFindTabFind :: null
 		do @wndFindEditPattern :: null
 		do @wndFindEditReplace :: null
-		do @wndFindRadioDocument :: null
+		do @wndFindRadioDoc :: null
 		do @wndFindRadioAll :: null
-		do @wndFindRadioSelection :: null
+		do @wndFindRadioSel :: null
 		do @wndFindChkDistinguishCase :: null
 		do @wndFindChkOnlyWord :: null
 		do @wndFindChkRegularExpression :: null
@@ -202,30 +202,30 @@ end func
 end func
 
 func findNextImpl(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
-	if(\src@curDocument =$ \document_src@DocumentSrc & !(\src@curDocument $ \document_src@DocumentSrc).findNext(pattern, distinguishCase, onlyWord, regularExpression))
+	if(\src@curDoc =$ \doc_src@DocSrc & !(\src@curDoc $ \doc_src@DocSrc).findNext(pattern, distinguishCase, onlyWord, regularExpression))
 		do wnd@msgBox(@wndFind, \common@langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), \common@title, %info, %ok)
 	end if
 end func
 
 func findPrevImpl(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
-	if(\src@curDocument =$ \document_src@DocumentSrc & !(\src@curDocument $ \document_src@DocumentSrc).findPrev(pattern, distinguishCase, onlyWord, regularExpression))
+	if(\src@curDoc =$ \doc_src@DocSrc & !(\src@curDoc $ \doc_src@DocSrc).findPrev(pattern, distinguishCase, onlyWord, regularExpression))
 		do wnd@msgBox(@wndFind, \common@langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), \common@title, %info, %ok)
 	end if
 end func
 
 func replaceOne(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
-	if(\src@curDocument =$ \document_src@DocumentSrc)
-		var document: \document_src@DocumentSrc :: \src@curDocument $ \document_src@DocumentSrc
-		do document.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
-		if(!document.findNext(pattern, distinguishCase, onlyWord, regularExpression))
+	if(\src@curDoc =$ \doc_src@DocSrc)
+		var doc: \doc_src@DocSrc :: \src@curDoc $ \doc_src@DocSrc
+		do doc.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+		if(!doc.findNext(pattern, distinguishCase, onlyWord, regularExpression))
 			do wnd@msgBox(@wndFind, \common@langEn ?("No strings match your search.", "検索した単語は見つかりませんでした。"), \common@title, %info, %ok)
 		end if
 	end if
 end func
 
 func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
-	if(\src@curDocument =$ \document_src@DocumentSrc)
-		var document: \document_src@DocumentSrc :: \src@curDocument $ \document_src@DocumentSrc
+	if(\src@curDoc =$ \doc_src@DocSrc)
+		var doc: \doc_src@DocSrc :: \src@curDoc $ \doc_src@DocSrc
 		var msg: []char
 		if(\common@langEn)
 			do msg :: "Do you want to replace all \"" ~ pattern ~ "\" with \"" ~ replaceStr ~ "\" in the current document?"
@@ -233,7 +233,7 @@ func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, only
 			do msg :: "現在のドキュメントの「" ~ pattern ~ "」を「" ~ replaceStr ~ "」に、すべて置換しますか？"
 		end if
 		if(wnd@msgBox(@wndFind, msg, \common@title, %warn, %yesNoCancel) = %yes)
-			var cnt: int :: document.replaceAll(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+			var cnt: int :: doc.replaceAll(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
 			if(\common@langEn)
 				do msg :: cnt.toStr() ~ " string(s) have been replaced."
 			else

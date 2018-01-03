@@ -1,5 +1,5 @@
-+var documents: dict<[]char, \document@Document>
-+var curDocument: \document@Document
++var docs: dict<[]char, \doc@Doc>
++var curDoc: \doc@Doc
 +var mainSrcName: []char
 +var mainSrcDir: []char
 +var sysDir: []char
@@ -31,18 +31,18 @@ end class
 end func
 
 +func newMainSrc()
-	var document: \document_src@DocumentSrc :: #\document_src@DocumentSrc
-	do @curDocument :: document
+	var doc: \doc_src@DocSrc :: #\doc_src@DocSrc
+	do @curDoc :: doc
 	do @mainSrcName :: \common@untitledSrcName
 	do @mainSrcDir :: ""
-	do @documents :: #dict<[]char, \document@Document>
-	do @documents.add(@mainSrcName, @curDocument)
+	do @docs :: #dict<[]char, \doc@Doc>
+	do @docs.add(@mainSrcName, @curDoc)
 	do @initMainSrc()
 end func
 
 +func openMainSrc(path: []char)
-	var document: \document_src@DocumentSrc :: #\document_src@DocumentSrc
-	if(!document.load(path))
+	var doc: \doc_src@DocSrc :: #\doc_src@DocSrc
+	if(!doc.load(path))
 		var msg: []char
 		if(\common@langEn)
 			do msg :: "Loading failed. " ~ path
@@ -52,11 +52,11 @@ end func
 		do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
 		ret
 	end if
-	do @curDocument :: document
+	do @curDoc :: doc
 	do @mainSrcName :: path
 	do @mainSrcDir :: file@dir(path)
-	do @documents :: #dict<[]char, \document@Document>
-	do @documents.add(@mainSrcName, @curDocument)
+	do @docs :: #dict<[]char, \doc@Doc>
+	do @docs.add(@mainSrcName, @curDoc)
 	do @initMainSrc()
 end func
 
@@ -78,30 +78,30 @@ end func
 	if(file =& null)
 		ret false
 	end if
-	if(!@saveImpl(file, @curDocument))
+	if(!@saveImpl(file, @curDoc))
 		ret false
 	end if
 	do @mainSrcName :: file
 	do @mainSrcDir :: file@dir(file)
 	do \prop@save(file@delExt(@mainSrcName) ~ ".knprop")
-	var newDocuments: dict<[]char, \document@Document> :: #dict<[]char, \document@Document>
+	var newDocs: dict<[]char, \doc@Doc> :: #dict<[]char, \doc@Doc>
 
-	class DocumentsClass()
-		+var documents: dict<[]char, \document@Document>
+	class DocsClass()
+		+var docs: dict<[]char, \doc@Doc>
 	end class
 
-	var data: DocumentsClass :: #DocumentsClass
-	do data.documents :: newDocuments
-	do @documents.forEach(callback, data)
-	do newDocuments.add(file, @curDocument)
-	do @documents :: newDocuments
-	do @curDocument.changed :: false
+	var data: DocsClass :: #DocsClass
+	do data.docs :: newDocs
+	do @docs.forEach(callback, data)
+	do newDocs.add(file, @curDoc)
+	do @docs :: newDocs
+	do @curDoc.changed :: false
 	do \form@updateList()
 	ret true
 
-	func callback(src: []char, document: \document@Document, data: DocumentsClass): bool
-		if(document <>& @curDocument)
-			do data.documents.add(src, document)
+	func callback(src: []char, doc: \doc@Doc, data: DocsClass): bool
+		if(doc <>& @curDoc)
+			do data.docs.add(src, doc)
 		end if
 		ret true
 	end func
@@ -117,14 +117,14 @@ end func
 	end if
 	var saveAllSuccess: lib@Bool :: #lib@Bool
 	do saveAllSuccess.value :: true
-	do @documents.forEach(callback, saveAllSuccess)
+	do @docs.forEach(callback, saveAllSuccess)
 	do \form@updateList()
 	ret saveAllSuccess.value
 
-	func callback(src: []char, document: \document@Document, saveAllSuccess: lib@Bool): bool
-		if(document.changed)
-			if(@saveImpl(src, document))
-				do document.changed :: false
+	func callback(src: []char, doc: \doc@Doc, saveAllSuccess: lib@Bool): bool
+		if(doc.changed)
+			if(@saveImpl(src, doc))
+				do doc.changed :: false
 			else
 				do saveAllSuccess.value :: false
 			end if
@@ -133,8 +133,8 @@ end func
 	end func
 end func
 
-+func saveImpl(path: []char, document: \document@Document): bool
-	if(document.save(path))
++func saveImpl(path: []char, doc: \doc@Doc): bool
+	if(doc.save(path))
 		ret true
 	end if
 	var msg: []char
@@ -147,30 +147,30 @@ end func
 	ret false
 end func
 
-+func setCurSrc(document: \document@Document)
-	do @curDocument :: document
-	if(document =$ \document_src@DocumentSrc)
-		var document2: \document_src@DocumentSrc :: document $ \document_src@DocumentSrc
-		if(!document2.interpreted)
-			do \dll@interpret1(document2.src.src, document2.src.color)
-			do document2.interpreted :: true
++func setCurSrc(doc: \doc@Doc)
+	do @curDoc :: doc
+	if(doc =$ \doc_src@DocSrc)
+		var doc2: \doc_src@DocSrc :: doc $ \doc_src@DocSrc
+		if(!doc2.interpreted)
+			do \dll@interpret1(doc2.src.src, doc2.src.color)
+			do doc2.interpreted :: true
 		end if
 	end if
 	do \form@paintDrawEditor()
 	do \form@focusDrawEditor()
 end func
 
-+func mainDocument(): \document@Document
-	class RefDocument()
-		+var value: \document@Document
++func mainDoc(): \doc@Doc
+	class RefDoc()
+		+var value: \doc@Doc
 	end class
-	var document: RefDocument :: #RefDocument
-	do @documents.forEach(callback, document)
-	ret document.value
+	var doc: RefDoc :: #RefDoc
+	do @docs.forEach(callback, doc)
+	ret doc.value
 
-	func callback(src: []char, document: \document@Document, data: RefDocument): bool
+	func callback(src: []char, doc: \doc@Doc, data: RefDoc): bool
 		if(src = @mainSrcName)
-			do data.value :: document
+			do data.value :: doc
 			ret false
 		end if
 		ret true
@@ -180,7 +180,7 @@ end func
 +func chkChanged(): bool
 	var chkCloseChanged: lib@Bool :: #lib@Bool
 	do chkCloseChanged.value :: false
-	do @documents.forEach(callback, chkCloseChanged)
+	do @docs.forEach(callback, chkCloseChanged)
 	if(!chkCloseChanged.value)
 		ret true
 	end if
@@ -198,8 +198,8 @@ end func
 	end if
 	ret @saveAll()
 
-	func callback(src: []char, document: \document@Document, chkCloseChanged: lib@Bool): bool
-		if(document.changed)
+	func callback(src: []char, doc: \doc@Doc, chkCloseChanged: lib@Bool): bool
+		if(doc.changed)
 			do chkCloseChanged.value :: true
 			ret false
 		end if
@@ -210,29 +210,29 @@ end func
 +func getSrc(path: []char): [][]char
 	; This function is called by the Kuin compiler.
 	var path2: []char :: (##path).replace("\\", "/")
-	var document: \document@Document :: @documents.get(path2)
-	if(document <>& null)
-		var document2: \document_src@DocumentSrc :: document $ \document_src@DocumentSrc
-		ret document2.getSrc()
+	var doc: \doc@Doc :: @docs.get(path2)
+	if(doc <>& null)
+		var doc2: \doc_src@DocSrc :: doc $ \doc_src@DocSrc
+		ret doc2.getSrc()
 	end if
 
 	block
-		var document2: \document_src@DocumentSrc :: #\document_src@DocumentSrc
-		if(@loadFileToDocuments(path2, document2))
-			ret document2.getSrc()
+		var doc2: \doc_src@DocSrc :: #\doc_src@DocSrc
+		if(@loadFileToDocs(path2, doc2))
+			ret doc2.getSrc()
 		end if
 	end block
 	ret null
 end func
 
-+func loadFileToDocuments(path: []char, document: \document@Document): bool
++func loadFileToDocs(path: []char, doc: \doc@Doc): bool
 	if(!(^@sysDir <= ^path & @sysDir = path.sub(0, ^@sysDir) | @mainSrcDir <> "" & ^@mainSrcDir <= ^path & @mainSrcDir = path.sub(0, ^@mainSrcDir)))
 		ret false
 	end if
-	if(!document.load(path))
+	if(!doc.load(path))
 		ret false
 	end if
-	do @documents.add(path, document)
+	do @docs.add(path, doc)
 	ret true
 end func
 
@@ -244,12 +244,12 @@ end func
 	if(src =& null)
 		ret false
 	end if
-	var document: \document@Document :: @documents.get(src)
-	if(document =& null)
+	var doc: \doc@Doc :: @docs.get(src)
+	if(doc =& null)
 		ret false
 	end if
-	if(document =$ \document_src@DocumentSrc)
-		if(document <>& @curDocument)
+	if(doc =$ \doc_src@DocSrc)
+		if(doc <>& @curDoc)
 			var sel: int :: -1
 			for i(0, \form@listFile.len() - 1)
 				var internalName: []char :: @removePrefix(\form@listFile.getText(i))
@@ -264,7 +264,7 @@ end func
 			do \form@listFile.setSel(sel)
 			do \form@listFileOnSel(\form@listFile)
 		end if
-		do (@curDocument $ \document_src@DocumentSrc).move(pos.col - 1, pos.row - 1)
+		do (@curDoc $ \doc_src@DocSrc).move(pos.col - 1, pos.row - 1)
 		do \form@paintDrawEditor()
 		do \form@focusDrawEditor()
 		ret true
@@ -309,20 +309,20 @@ end func
 	ret @sysDir ~ internalName.replace("\\", "/") ~ ".kn"
 end func
 
-+func getDocumentName(document: \document@Document): []char
-	class GetDocumentNameClass()
++func getDocName(doc: \doc@Doc): []char
+	class GetDocNameClass()
 		+var src: []char
-		+var document2: \document@Document
+		+var doc2: \doc@Doc
 	end class
 
-	var getSrcClass: GetDocumentNameClass :: #GetDocumentNameClass
+	var getSrcClass: GetDocNameClass :: #GetDocNameClass
 	do getSrcClass.src :: null
-	do getSrcClass.document2 :: document
-	do @documents.forEach(callback, getSrcClass)
+	do getSrcClass.doc2 :: doc
+	do @docs.forEach(callback, getSrcClass)
 	ret getSrcClass.src
 
-	func callback(src: []char, document: \document@Document, param: GetDocumentNameClass): bool
-		if(document =& param.document2)
+	func callback(src: []char, doc: \doc@Doc, param: GetDocNameClass): bool
+		if(doc =& param.doc2)
 			do param.src :: src
 			ret false
 		end if

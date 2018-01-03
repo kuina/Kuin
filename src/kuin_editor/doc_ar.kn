@@ -1,4 +1,4 @@
-+class DocumentArBase(\document@Document)
++class DocArBase(\doc@Doc)
 	**func ctor()
 		do me.obj2dRoot :: #@Obj2dRoot
 		do me.obj2dRoot.init("", 0, 0, 1600, 900)
@@ -167,7 +167,7 @@
 		; TODO:
 	end func
 
-	+*func undoImpl(undo2: \document@UndoCmd)
+	+*func undoImpl(undo2: \doc@UndoCmd)
 		; TODO:
 	end func
 
@@ -187,10 +187,7 @@
 	var mode: Mode
 	var hold: @Obj2d
 
-	func initFromMeta(src2: []char, ptr: &int)
-	end func
-
-	func getMeta(): []char
+	func makeObj2d(name: []char): @Obj2d
 	end func
 
 	func refreshScroll()
@@ -199,9 +196,6 @@
 		do \form@drawEditor.getPos(&, &, &scrWidth, &scrHeight)
 		do \form@scrollXSrc.setState(me.obj2dRoot.x, me.obj2dRoot.width + padding, scrWidth, me.pageX)
 		do \form@scrollYSrc.setState(me.obj2dRoot.y, me.obj2dRoot.height + padding, scrHeight, me.pageY)
-	end func
-
-	func makeObj2d(name: []char): @Obj2d
 	end func
 
 	func getDefaultName(name: []char): []char
@@ -255,16 +249,13 @@ end class
 		do me.height :: height
 	end func
 
+	+func save()
+	end func
+
+	+func load()
+	end func
+
 	+func draw(pageX: int, pageY: int)
-	end func
-
-	+func getSrc(): [][]char
-	end func
-
-	+func readMeta(src: []char, ptr: &int)
-	end func
-
-	+func writeMeta(): []char
 	end func
 
 	+var children: list<Obj2d>
@@ -273,46 +264,20 @@ end class
 	+var y: int
 	+var width: int
 	+var height: int
-
-	func readMetaBase(src: []char, ptr: &int)
-		var x2: int
-		do @arBaseParseWord(src, &ptr).toInt(&x2)
-		var y2: int
-		do @arBaseParseWord(src, &ptr).toInt(&y2)
-		var width2: int
-		do @arBaseParseWord(src, &ptr).toInt(&width2)
-		var height2: int
-		do @arBaseParseWord(src, &ptr).toInt(&height2)
-		do me.init(@arBaseParseWord(src, &ptr), x2, y2, width2, height2)
-	end func
-
-	func writeMetaBase(type: []char): []char
-		ret ",\{type},\{me.name},\{me.x.toStr()},\{me.y.toStr()},\{me.width.toStr()},\{me.height.toStr()},\{(^me.children).toStr()}"
-	end func
 end class
 
 class Obj2dRoot(@Obj2d)
+	+*func save()
+		; TODO:
+	end func
+
+	+*func load()
+		; TODO:
+	end func
+
 	+*func draw(pageX: int, pageY: int)
 		do draw@rect((me.x - pageX) $ float, (me.y - pageY) $ float, me.width $ float, me.height $ float, me.color)
 	end func
 
-	+*func getSrc(): [][]char
-		ret [""]
-	end func
-
-	+*func writeMeta(): []char
-		ret (^me.children).toStr()
-	end func
-
 	+var color: int
 end class
-
-+func arBaseParseWord(src: []char, ptr: &int): []char
-	var last: int :: ptr
-	while(last < ^src & src[last] <> ',')
-		do last :+ 1
-	end while
-	var word: []char :: src.sub(ptr, last - ptr)
-	do ptr :: last + 1
-	ret word
-end func

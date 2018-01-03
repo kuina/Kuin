@@ -286,7 +286,7 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			end switch
 		end switch
 		if(\completion@displayed() & key <> %ctrl & !editFocused)
-			ret \src@curDocument.keyDown(key, shiftCtrl)
+			ret \src@curDoc.keyDown(key, shiftCtrl)
 		end if
 	end if
 	ret false
@@ -377,19 +377,19 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		end if
 		do \add_file@addExistingFile()
 	case 16#0032
-		do \src@curDocument.cmdUndo()
+		do \src@curDoc.cmdUndo()
 	case 16#0033
-		do \src@curDocument.cmdRedo()
+		do \src@curDoc.cmdRedo()
 	case 16#0034
-		do \src@curDocument.cmdCut()
+		do \src@curDoc.cmdCut()
 	case 16#0035
-		do \src@curDocument.cmdCopy()
+		do \src@curDoc.cmdCopy()
 	case 16#0036
-		do \src@curDocument.cmdPaste()
+		do \src@curDoc.cmdPaste()
 	case 16#0037
-		do \src@curDocument.cmdDel()
+		do \src@curDoc.cmdDel()
 	case 16#0038
-		do \src@curDocument.cmdSelAll()
+		do \src@curDoc.cmdSelAll()
 	case 16#0039
 		do \find@show(false)
 	case 16#003A
@@ -415,58 +415,58 @@ func listInfoOnSel(wnd: wnd@WndBase)
 end func
 
 func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
-	do \src@curDocument.draw(width, height)
+	do \src@curDoc.draw(width, height)
 	do draw@render(0)
 end func
 
 func drawEditorOnMouseDownL(wnd: wnd@WndBase, x: int, y: int)
 	do @drag :: true
-	do \src@curDocument.mouseDownL(x, y)
+	do \src@curDoc.mouseDownL(x, y)
 end func
 
 func drawEditorOnMouseUpL(wnd: wnd@WndBase, x: int, y: int)
 	do @drag :: false
-	do \src@curDocument.mouseUpL(x, y)
+	do \src@curDoc.mouseUpL(x, y)
 end func
 
 func drawEditorOnMouseDoubleClick(wnd: wnd@WndBase, x: int, y: int)
-	do \src@curDocument.mouseDoubleClick(x, y)
+	do \src@curDoc.mouseDoubleClick(x, y)
 end func
 
 func drawEditorOnMouseMove(wnd: wnd@WndBase, x: int, y: int)
-	do \src@curDocument.mouseMove(x, y)
+	do \src@curDoc.mouseMove(x, y)
 end func
 
 func drawEditorOnFocus(wnd: wnd@WndBase, focus: bool)
-	do \src@curDocument.focus(focus)
+	do \src@curDoc.focus(focus)
 end func
 
 func drawEditorOnKeyDown(wnd: wnd@WndBase, key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
-	do \src@curDocument.keyDown(key, shiftCtrl)
+	do \src@curDoc.keyDown(key, shiftCtrl)
 end func
 
 func drawEditorOnKeyUp(wnd: wnd@WndBase, key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
-	do \src@curDocument.keyUp(key, shiftCtrl)
+	do \src@curDoc.keyUp(key, shiftCtrl)
 end func
 
 func drawEditorOnKeyChar(wnd: wnd@WndBase, key: char)
-	do \src@curDocument.keyChar(key)
+	do \src@curDoc.keyChar(key)
 end func
 
 func drawEditorOnScrollX(wnd: wnd@WndBase, pos: int)
-	do \src@curDocument.scrollX(pos)
+	do \src@curDoc.scrollX(pos)
 end func
 
 func drawEditorOnScrollY(wnd: wnd@WndBase, pos: int)
-	do \src@curDocument.scrollY(pos)
+	do \src@curDoc.scrollY(pos)
 end func
 
 func drawEditorOnMouseWheelX(wnd: wnd@WndBase, wheel: int)
-	do \src@curDocument.wheelX(wheel)
+	do \src@curDoc.wheelX(wheel)
 end func
 
 func drawEditorOnMouseWheelY(wnd: wnd@WndBase, wheel: int)
-	do \src@curDocument.wheelY(wheel)
+	do \src@curDoc.wheelY(wheel)
 end func
 
 func drawEditorOnSetMouseImg(wnd: wnd@WndBase): wnd@MouseImg
@@ -550,9 +550,9 @@ func editIconOnChange(wnd: wnd@WndBase)
 	if(@lockPropOnChange)
 		ret
 	end if
-	var document: \document@Document :: \src@mainDocument()
-	if(document <>& null & document =$ \document_src@DocumentSrc)
-		do (document $ \document_src@DocumentSrc).changed :: true
+	var doc: \doc@Doc :: \src@mainDoc()
+	if(doc <>& null & doc =$ \doc_src@DocSrc)
+		do (doc $ \doc_src@DocSrc).changed :: true
 		do @updateList()
 	end if
 end func
@@ -644,9 +644,9 @@ end func
 		var internalName: []char :: \src@removePrefix(@listFile.getText(sel))
 		if(^internalName > 0 & internalName[0] = '\\')
 			var src: []char :: \src@internalNameToSrcName(internalName)
-			var document: \document@Document :: \src@documents.get(src)
-			if(document <>& null)
-				do \src@setCurSrc(document)
+			var doc: \doc@Doc :: \src@docs.get(src)
+			if(doc <>& null)
+				do \src@setCurSrc(doc)
 			end if
 		end if
 	end if
@@ -662,14 +662,14 @@ end func
 	do @editFile.setText("")
 	do @listInfo.setRedraw(false)
 	do @listInfo.clear()
-	if(\src@curDocument =$ \document_src@DocumentSrc)
+	if(\src@curDoc =$ \doc_src@DocSrc)
 		do @listInfoItem.sort()
 		do @listInfoItem.head()
 		while(!@listInfoItem.term())
 			do @listInfo.add(@listInfoItem.get().text)
 			do @listInfoItem.next()
 		end while
-	elif(\src@curDocument =$ \document_ar_wnd@DocumentArWnd)
+	elif(\src@curDoc =$ \doc_ar_wnd@DocArWnd)
 		do @listInfo.add(\common@langEn ?("None", "なし"))
 		do @listInfo.add("Button")
 	end if
@@ -677,21 +677,21 @@ end func
 
 	do @listFile.setRedraw(false)
 	do @listFile.clear()
-	do \src@documents.forEach(callback, null)
+	do \src@docs.forEach(callback, null)
 	do @listFile.setRedraw(true)
 
-	func callback(src: []char, document: \document@Document, data: kuin@Class): bool
+	func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
 		var prefix: []char :: ""
 		var internalName: []char :: \src@srcNameToInternalName(src)
-		if(document =& \src@curDocument)
+		if(doc =& \src@curDoc)
 			do prefix :~ ">"
 			do @editFile.setText(internalName)
 		end if
-		if(document.changed)
+		if(doc.changed)
 			do prefix :~ "*"
 		end if
 		do @listFile.add(prefix ~ internalName)
-		if(document =& \src@curDocument)
+		if(doc =& \src@curDoc)
 			do @listFile.setSel(@listFile.len() - 1)
 		end if
 		ret true

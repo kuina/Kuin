@@ -1,4 +1,4 @@
-+class Document()
++class Doc()
 	*func ctor()
 		do me.undo :: #undo@Undo
 		do me.undo.init(1024)
@@ -79,5 +79,5 @@
 end class
 
 +class UndoCmd(undo@Cmd)
-	+var document: @Document
+	+var doc: @Doc
 end class

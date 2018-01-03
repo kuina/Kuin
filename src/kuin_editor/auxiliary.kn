@@ -25,15 +25,15 @@ end func
 		if(srcName =& null)
 			ret true
 		end if
-		var document: \document@Document :: \src@documents.get(srcName)
-		if(document <>& null & document =$ \document_src@DocumentSrc)
-			var document2: \document_src@DocumentSrc :: document $ \document_src@DocumentSrc
+		var doc: \doc@Doc :: \src@docs.get(srcName)
+		if(doc <>& null & doc =$ \doc_src@DocSrc)
+			var doc2: \doc_src@DocSrc :: doc $ \doc_src@DocSrc
 			var x: int :: pos.col - 1
 			var y: int :: pos.row - 1
 			var color: bit8
-			if(moveWordTop(document2.src.src, document2.src.color, &x, &y, &color))
-				while(x < ^document2.src.color[y] & document2.src.color[y][x].and(16#7Fb8) = color)
-					do document2.src.color[y][x] :: document2.src.color[y][x].or(16#80b8)
+			if(moveWordTop(doc2.src.src, doc2.src.color, &x, &y, &color))
+				while(x < ^doc2.src.color[y] & doc2.src.color[y][x].and(16#7Fb8) = color)
+					do doc2.src.color[y][x] :: doc2.src.color[y][x].or(16#80b8)
 					do x :+ 1
 				end while
 			end if
@@ -46,7 +46,7 @@ end func
 			elif(^srcColor <= y)
 				do y :: ^srcColor - 1
 			end if
-			if(1 <= x & x < ^srcColor[y] & (src[y][x] = ' ' | src[y][x] = '\t' | srcColor[y][x].and(16#7Fb8) = %comment $ \document_src@CharColor $ bit8 | srcColor[y][x].and(16#7Fb8) = %symbol $ \document_src@CharColor $ bit8))
+			if(1 <= x & x < ^srcColor[y] & (src[y][x] = ' ' | src[y][x] = '\t' | srcColor[y][x].and(16#7Fb8) = %comment $ \doc_src@CharColor $ bit8 | srcColor[y][x].and(16#7Fb8) = %symbol $ \doc_src@CharColor $ bit8))
 				do x :- 1
 			end if
 			if(x < 0)
@@ -67,20 +67,20 @@ end func
 end func
 
 +func chk()
-	if(\src@curDocument =$ \document_src@DocumentSrc)
-		var document: \document_src@DocumentSrc :: \src@curDocument $ \document_src@DocumentSrc
+	if(\src@curDoc =$ \doc_src@DocSrc)
+		var doc: \doc_src@DocSrc :: \src@curDoc $ \doc_src@DocSrc
 		switch(@dirtyInterpret)
 		case 0
 			if(lib@sysTime() - @dirtyInterpretTime > 150)
-				do \dll@interpret1(document.src.src, document.src.color)
-				do document.interpreted :: true
+				do \dll@interpret1(doc.src.src, doc.src.color)
+				do doc.interpreted :: true
 				do \form@paintDrawEditor()
 				do @dirtyInterpret :: 1
 			end if
 		case 1
 			if(lib@sysTime() - @dirtyInterpretTime > 1200)
 				do @resetData()
-				var srcs: [][]char :: \src@documents.toArrayKey()
+				var srcs: [][]char :: \src@docs.toArrayKey()
 				for i(0, ^srcs - 1)
 					do srcs[i] :: \src@srcNameToInternalName(srcs[i])
 				end for
@@ -101,7 +101,7 @@ end func
 				do \completion@close()
 			end if
 			if(diff > (@dirtyHintFast ?(400, 800)) & @dirtyInterpret >= 1)
-				do document.showHint(@dirtyHintFast)
+				do doc.showHint(@dirtyHintFast)
 				do @dirtyHint :: false
 				do @dirtyHintFast :: false
 			end if

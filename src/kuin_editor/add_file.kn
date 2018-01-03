@@ -24,24 +24,24 @@ var wndAddFileListType: wnd@List
 	do @wndAddFile.modal()
 	if(@wndAddFileResuiltFile <>& null & @wndAddFileResuiltFile <> "")
 		var ext: []char :: file@ext(@wndAddFileResuiltFile).lower()
-		var document: \document@Document :: null
-		var document2: \document@Document :: null
+		var doc: \doc@Doc :: null
+		var doc2: \doc@Doc :: null
 		switch(@wndAddFileResuiltType)
 		case 0
 			if(ext = "kn")
-				do document :: #\document_src@DocumentSrc
-				do document2 :: #\document_src@DocumentSrc
+				do doc :: #\doc_src@DocSrc
+				do doc2 :: #\doc_src@DocSrc
 			end if
 		case 1
 			if(ext = "knwnd")
-				do document :: #\document_ar_wnd@DocumentArWnd
-				do document2 :: #\document_ar_wnd@DocumentArWnd
+				do doc :: #\doc_ar_wnd@DocArWnd
+				do doc2 :: #\doc_ar_wnd@DocArWnd
 			end if
 		end switch
-		if(document <>& null)
-			if(\src@saveImpl(@wndAddFileResuiltFile, document))
-				if(\src@loadFileToDocuments(@wndAddFileResuiltFile, document2))
-					do \src@setCurSrc(document2)
+		if(doc <>& null)
+			if(\src@saveImpl(@wndAddFileResuiltFile, doc))
+				if(\src@loadFileToDocs(@wndAddFileResuiltFile, doc2))
+					do \src@setCurSrc(doc2)
 					do \form@updateList()
 				else
 					var msg: []char
@@ -93,15 +93,15 @@ end func
 	end if
 	var file: []char :: wnd@openFileDialog(\form@wndMain, [\common@langEn ?("Kuin supported file (*.kn,*.knwnd)", "Kuinがサポートするファイル (*.kn,*.knwnd)"), "*.kn;*.knwnd"], 0)
 	if(file <>& null)
-		var document: \document@Document :: null
+		var doc: \doc@Doc :: null
 		switch(file@ext(file).lower())
 		case "kn"
-			do document :: #\document_src@DocumentSrc
+			do doc :: #\doc_src@DocSrc
 		case "knwnd"
-			do document :: #\document_ar_wnd@DocumentArWnd
+			do doc :: #\doc_ar_wnd@DocArWnd
 		end switch
-		if(\src@loadFileToDocuments(file, document))
-			do \src@setCurSrc(document)
+		if(\src@loadFileToDocs(file, doc))
+			do \src@setCurSrc(doc)
 			do \form@updateList()
 		else
 			var msg: []char

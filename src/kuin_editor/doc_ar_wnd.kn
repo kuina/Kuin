@@ -1,0 +1,21 @@
++class DocArWnd(\doc_ar@DocArBase)
+	**func ctor()
+		do me.obj2dRoot.color :: draw@white
+	end func
+
+	*func makeObj2d(name: []char): \doc_ar@Obj2d
+		; TODO:
+	end func
+end class
+
+class Obj2dBtn(\doc_ar@Obj2d)
+	+*func draw(pageX: int, pageY: int)
+		do draw@rect((me.x - pageX) $ float, (me.y - pageY) $ float, me.width $ float, me.height $ float, 16#FF808080)
+	end func
+
+	+*func readMeta(src: []char, ptr: &int)
+	end func
+
+	+*func writeMeta(): []char
+	end func
+end class
