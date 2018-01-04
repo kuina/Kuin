@@ -85,7 +85,10 @@
 			var name: []char :: \form@listInfo.getText(sel)
 			do me.mode :: %put
 			var obj: @Obj2d :: me.makeObj2d(name)
-			do obj.init(me.getDefaultName(name), x, y, minSize, minSize)
+			var minWidth: int
+			var minHeight: int
+			do obj.getMinMaxSize(&minWidth, &minHeight, &, &)
+			do obj.init(me.getDefaultName(name), x, y, minWidth, minHeight)
 			if(me.hold =& null)
 				do me.obj2dRoot.children.add(obj)
 			else
@@ -214,7 +217,6 @@
 	end func
 
 	const padding: int :: 32
-	const minSize: int :: 50
 
 	enum Mode
 		none
@@ -274,11 +276,22 @@
 	func moveObj2d(x: int, y: int)
 		var width: int :: x - me.hold.x
 		var height: int :: y - me.hold.y
-		if(width < minSize)
-			do width :: minSize
+		var minWidth: int
+		var minHeight: int
+		var maxWidth: int
+		var maxHeight: int
+		do me.hold.getMinMaxSize(&minWidth, &minHeight, &maxWidth, &maxHeight)
+		if(width < minWidth)
+			do width :: minWidth
 		end if
-		if(height < minSize)
-			do height :: minSize
+		if(width > maxWidth)
+			do width :: maxWidth
+		end if
+		if(height < minHeight)
+			do height :: minHeight
+		end if
+		if(height > maxHeight)
+			do height :: maxHeight
 		end if
 		do me.hold.width :: width
 		do me.hold.height :: height
@@ -296,6 +309,13 @@ end class
 	end func
 
 	+func getName(): []char
+	end func
+
+	+func getMinMaxSize(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 10
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
 	end func
 
 	+func load(node: xml@Node)

@@ -22,6 +22,13 @@ class Obj2dBtn(\doc_ar@Obj2d)
 		ret "button"
 	end func
 
+	+*func getMinMaxSize(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 23
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
+	end func
+
 	+*func draw(pageX: int, pageY: int)
 		do draw@rect((me.x - pageX) $ float, (me.y - pageY) $ float, me.width $ float, me.height $ float, 16#FF808080)
 	end func

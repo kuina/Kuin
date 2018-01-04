@@ -156,6 +156,7 @@ end func
 			do doc2.interpreted :: true
 		end if
 	end if
+	do \completion@close()
 	do \form@paintDrawEditor()
 	do \form@focusDrawEditor()
 end func
@@ -292,7 +293,7 @@ end func
 +func srcNameToInternalName(srcName: []char): []char
 	if(^@sysDir <= ^srcName & @sysDir = srcName.sub(0, ^@sysDir))
 		ret file@delExt(srcName.sub(^@sysDir, -1).replace("/", "\\"))
-	elif(@mainSrcDir <> "" & ^@mainSrcDir <= ^srcName & @mainSrcDir = srcName.sub(0, ^@mainSrcDir))
+	elif(@mainSrcDir <> "" & ^@mainSrcDir <= ^srcName & @mainSrcDir = srcName.sub(0, ^@mainSrcDir) | @mainSrcDir = "" & srcName = \common@untitledSrcName)
 		var name: []char :: srcName.sub(^@mainSrcDir, -1).replace("/", "\\")
 		if(file@ext(name) = "kn")
 			ret "\\" ~ file@delExt(name)
