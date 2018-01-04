@@ -291,11 +291,16 @@ end func
 
 +func srcNameToInternalName(srcName: []char): []char
 	if(^@sysDir <= ^srcName & @sysDir = srcName.sub(0, ^@sysDir))
-		ret file@delExt(srcName.sub(^@sysDir, -1)).replace("/", "\\")
+		ret file@delExt(srcName.sub(^@sysDir, -1).replace("/", "\\"))
 	elif(@mainSrcDir <> "" & ^@mainSrcDir <= ^srcName & @mainSrcDir = srcName.sub(0, ^@mainSrcDir))
-		ret "\\" ~ file@delExt(srcName.sub(^@mainSrcDir, -1)).replace("/", "\\")
+		var name: []char :: srcName.sub(^@mainSrcDir, -1).replace("/", "\\")
+		if(file@ext(name) = "kn")
+			ret "\\" ~ file@delExt(name)
+		else
+			ret "!" ~ name
+		end if
 	else
-		ret "\\" ~ file@delExt(file@fileName(srcName)).replace("/", "\\")
+		ret "?" ~ srcName
 	end if
 end func
 
@@ -303,8 +308,15 @@ end func
 	if(internalName = \common@untitledInternalName)
 		ret \common@untitledSrcName
 	end if
-	if(^internalName > 1 & internalName[0] = '\\')
-		ret @mainSrcDir ~ internalName.sub(1, -1).replace("\\", "/") ~ ".kn"
+	if(^internalName > 1)
+		switch(internalName[0])
+		case '\\'
+			ret @mainSrcDir ~ internalName.sub(1, -1).replace("\\", "/") ~ ".kn"
+		case '!'
+			ret @mainSrcDir ~ internalName.sub(1, -1).replace("\\", "/")
+		case '?'
+			ret internalName.sub(1, -1)
+		end switch
 	end if
 	ret @sysDir ~ internalName.replace("\\", "/") ~ ".kn"
 end func

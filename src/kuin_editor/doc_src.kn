@@ -498,6 +498,10 @@ end func
 		do me.scrollPageY(wheel * 3)
 	end func
 
+	+*func setMouseImg(): wnd@MouseImg
+		ret %ibeam
+	end func
+
 	+*func cmdUndo()
 		if (\form@getLockingEditor())
 			do \form@showMsgRunning()

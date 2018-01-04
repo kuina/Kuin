@@ -1,21 +1,28 @@
 +class DocArWnd(\doc_ar@DocArBase)
 	**func ctor()
-		do me.obj2dRoot.color :: draw@white
+		; TODO: do me.obj2dRoot.color :: draw@white
 	end func
 
-	*func makeObj2d(name: []char): \doc_ar@Obj2d
-		; TODO:
+	+*func makeObj2d(name: []char): \doc_ar@Obj2d
+		switch(name)
+		case "button"
+			ret #@Obj2dBtn
+		end switch
+		assert(false)
+		ret null
+	end func
+
+	+**func setCtrlList(ctrlList: wnd@List)
+		do ctrlList.add("button")
 	end func
 end class
 
 class Obj2dBtn(\doc_ar@Obj2d)
+	+*func getName(): []char
+		ret "button"
+	end func
+
 	+*func draw(pageX: int, pageY: int)
 		do draw@rect((me.x - pageX) $ float, (me.y - pageY) $ float, me.width $ float, me.height $ float, 16#FF808080)
-	end func
-
-	+*func readMeta(src: []char, ptr: &int)
-	end func
-
-	+*func writeMeta(): []char
 	end func
 end class

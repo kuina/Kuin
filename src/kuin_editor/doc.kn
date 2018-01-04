@@ -50,6 +50,9 @@
 	+func wheelY(wheel: int)
 	end func
 
+	+func setMouseImg(): wnd@MouseImg
+	end func
+
 	+func cmdUndo()
 	end func
 

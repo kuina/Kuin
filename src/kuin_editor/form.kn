@@ -470,7 +470,7 @@ func drawEditorOnMouseWheelY(wnd: wnd@WndBase, wheel: int)
 end func
 
 func drawEditorOnSetMouseImg(wnd: wnd@WndBase): wnd@MouseImg
-	ret %ibeam
+	ret \src@curDoc.setMouseImg()
 end func
 
 func btnCompileOnPush(wnd: wnd@WndBase)
@@ -642,7 +642,7 @@ end func
 	var sel: int :: @listFile.getSel()
 	if(sel <> -1)
 		var internalName: []char :: \src@removePrefix(@listFile.getText(sel))
-		if(^internalName > 0 & internalName[0] = '\\')
+		if(^internalName > 0 & (internalName[0] = '\\' | internalName[0] = '!'))
 			var src: []char :: \src@internalNameToSrcName(internalName)
 			var doc: \doc@Doc :: \src@docs.get(src)
 			if(doc <>& null)
@@ -669,9 +669,8 @@ end func
 			do @listInfo.add(@listInfoItem.get().text)
 			do @listInfoItem.next()
 		end while
-	elif(\src@curDoc =$ \doc_ar_wnd@DocArWnd)
-		do @listInfo.add(\common@langEn ?("None", "なし"))
-		do @listInfo.add("Button")
+	elif(\src@curDoc =$ \doc_ar@DocArBase)
+		do (\src@curDoc $ \doc_ar@DocArBase).setCtrlList(@listInfo)
 	end if
 	do @listInfo.setRedraw(true)
 

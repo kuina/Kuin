@@ -1,7 +1,8 @@
 +class DocArBase(\doc@Doc)
 	**func ctor()
 		do me.obj2dRoot :: #@Obj2dRoot
-		do me.obj2dRoot.init("", 0, 0, 1600, 900)
+		do me.obj2dRoot.init("root", 0, 0, 1600, 900)
+		do me.obj2dRoot.color :: draw@white
 		do me.pageX :: 0
 		do me.pageY :: 0
 		do me.mode :: %none
@@ -9,11 +10,48 @@
 	end func
 
 	+*func load(path: []char): bool
-		; TODO:
+		try
+			var xml: xml@Xml :: xml@makeXml(path)
+			var node: xml@Node :: xml.root().lastChild()
+			do loadRecursion(me, node, me.obj2dRoot)
+			; TODO:
+		catch
+			ret false
+		end try
+		ret true
+
+		func loadRecursion(doc: @DocArBase, xmlNode: xml@Node, obj2dNode: @Obj2d)
+			do obj2dNode.load(xmlNode)
+			var node: xml@Node :: xmlNode.firstChild()
+			while(node <>& null)
+				var newObj2dNode: @Obj2d :: doc.makeObj2d(node.getName())
+				do loadRecursion(doc, node, newObj2dNode)
+				do obj2dNode.children.add(newObj2dNode)
+				do node :: node.next()
+			end while
+		end func
 	end func
 
 	+*func save(path: []char): bool
-		; TODO:
+		try
+			var xml: xml@Xml :: xml@makeXmlEmpty()
+			var root: xml@Node :: xml.root()
+			do saveRecursion(root, me.obj2dRoot)
+			do xml.save(path, false)
+		catch
+			ret false
+		end try
+		ret true
+
+		func saveRecursion(xmlParentNode: xml@Node, obj2dNode: @Obj2d)
+			var node: xml@Node :: xmlParentNode.addChild(obj2dNode.getName())
+			do obj2dNode.save(node)
+			do obj2dNode.children.head()
+			while(!obj2dNode.children.term())
+				do saveRecursion(node, obj2dNode.children.get())
+				do obj2dNode.children.next()
+			end while
+		end func
 	end func
 
 	+*func draw(width: int, height: int)
@@ -139,6 +177,10 @@
 		; TODO:
 	end func
 
+	+*func setMouseImg(): wnd@MouseImg
+		ret %cross
+	end func
+
 	+*func cmdUndo()
 		; TODO:
 	end func
@@ -187,7 +229,11 @@
 	var mode: Mode
 	var hold: @Obj2d
 
-	func makeObj2d(name: []char): @Obj2d
+	+func makeObj2d(name: []char): @Obj2d
+	end func
+
+	+func setCtrlList(ctrlList: wnd@List)
+		do ctrlList.add(\common@langEn ?("none", "なし"))
 	end func
 
 	func refreshScroll()
@@ -211,7 +257,7 @@
 		ret newName
 
 		func searchRecursion(name: []char, obj: @Obj2d): bool
-			if(name = obj.name)
+			if(name = obj.objName)
 				ret true
 			end if
 			do obj.children.head()
@@ -240,26 +286,37 @@
 end class
 
 +class Obj2d()
-	+func init(name: []char, x: int, y: int, width: int, height: int)
+	+func init(objName: []char, x: int, y: int, width: int, height: int)
 		do me.children :: #list<Obj2d>
-		do me.name :: name
+		do me.objName :: objName
 		do me.x :: x
 		do me.y :: y
 		do me.width :: width
 		do me.height :: height
 	end func
 
-	+func save()
+	+func getName(): []char
 	end func
 
-	+func load()
+	+func load(node: xml@Node)
+		do node.getAttr("x").toInt(&me.x)
+		do node.getAttr("y").toInt(&me.y)
+		do node.getAttr("width").toInt(&me.width)
+		do node.getAttr("height").toInt(&me.height)
+	end func
+
+	+func save(node: xml@Node)
+		do node.setAttr("x", me.x.toStr())
+		do node.setAttr("y", me.y.toStr())
+		do node.setAttr("width", me.width.toStr())
+		do node.setAttr("height", me.height.toStr())
 	end func
 
 	+func draw(pageX: int, pageY: int)
 	end func
 
 	+var children: list<Obj2d>
-	+var name: []char
+	+var objName: []char
 	+var x: int
 	+var y: int
 	+var width: int
@@ -267,12 +324,16 @@ end class
 end class
 
 class Obj2dRoot(@Obj2d)
-	+*func save()
-		; TODO:
+	+*func getName(): []char
+		ret "root"
 	end func
 
-	+*func load()
-		; TODO:
+	+**func load(node: xml@Node)
+		do node.getAttr("color").toInt(&me.color)
+	end func
+
+	+**func save(node: xml@Node)
+		do node.setAttr("color", me.color.toStr())
 	end func
 
 	+*func draw(pageX: int, pageY: int)
