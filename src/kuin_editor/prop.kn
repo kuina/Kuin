@@ -1,22 +1,57 @@
-+func save(path: []char)
++func save()
+	var path: []char :: file@delExt(\src@mainSrcName) ~ ".knprop"
 	do file@delFile(path)
 	var prop: xml@Xml :: xml@makeXmlEmpty()
 	var root: xml@Node :: prop.root()
-	var config: xml@Node :: root.addChild("configuration")
-	do config.addChild("icon").setValue(\form@getIconPath())
+	var cfg: xml@Node :: root.addChild("configuration")
+	do cfg.addChild("icon").setValue(\form@getIconPath())
+	do cfg.addChild("env").setValue(\form@getEnv())
+	var reses: xml@Node :: cfg.addChild("resources")
+	do \src@docs.forEach(callback, reses)
 	do prop.save(path, false)
+
+	func callback(src: []char, doc: \doc@Doc, reses: xml@Node): bool
+		if(^\src@mainSrcDir <= ^src & \src@mainSrcDir = src.sub(0, ^\src@mainSrcDir) & file@ext(src).lower() <> "kn")
+			do reses.addChild("resource").setValue(src.sub(^\src@mainSrcDir, -1))
+		end if
+		ret true
+	end func
 end func
 
-+func load(path: []char)
++func load()
 	try
-		var prop: xml@Xml :: xml@makeXml(path)
+		var prop: xml@Xml :: xml@makeXml(file@delExt(\src@mainSrcName) ~  ".knprop")
 		if(prop =& null)
 			ret
 		end if
 		var root: xml@Node :: prop.root()
-		var config: xml@Node :: root.findChild("configuration")
-		var icon: []char :: config.findChild("icon").getValue()
-		do \form@setEditIconDirectly(icon)
+		var cfg: xml@Node :: root.findChild("configuration")
+		try
+			do \form@setEditIconDirectly(cfg.findChild("icon").getValue())
+		catch
+		end try
+		try
+			do \form@setEnvDirectly(cfg.findChild("env").getValue())
+		catch
+		end try
+		try
+			var reses: xml@Node :: cfg.findChild("resources").firstChild()
+			while(reses <>& null)
+				var path2: []char :: \src@mainSrcDir ~ reses.getValue()
+				var doc: \doc@Doc :: \src@makeDoc(path2)
+				if(doc <>& null)
+					do \src@loadFileToDocs(path2, doc)
+				end if
+				do reses :: reses.next()
+			end while
+		catch
+		end try
 	catch
 	end try
+end func
+
++func changeProp()
+	var doc: \doc@Doc :: \src@mainDoc()
+	do doc.changed :: true
+	do \form@updateList()
 end func

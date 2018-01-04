@@ -39,19 +39,17 @@ var wndAddFileListType: wnd@List
 			end if
 		end switch
 		if(doc <>& null)
-			if(\src@saveImpl(@wndAddFileResuiltFile, doc))
-				if(\src@loadFileToDocs(@wndAddFileResuiltFile, doc2))
-					do \src@setCurSrc(doc2)
-					do \form@updateList()
+			if(\src@saveImpl(@wndAddFileResuiltFile, doc) & \src@loadFileToDocs(@wndAddFileResuiltFile, doc2))
+				do \src@setCurSrc(doc2)
+				do \prop@changeProp()
+			else
+				var msg: []char
+				if(\common@langEn)
+					do msg :: "Loading failed. " ~ @wndAddFileResuiltFile
 				else
-					var msg: []char
-					if(\common@langEn)
-						do msg :: "Loading failed. " ~ @wndAddFileResuiltFile
-					else
-						do msg :: "読み込みに失敗しました。 " ~ @wndAddFileResuiltFile
-					end if
-					do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
+					do msg :: "読み込みに失敗しました。 " ~ @wndAddFileResuiltFile
 				end if
+				do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
 			end if
 		else
 			do wnd@msgBox(\form@wndMain, \common@langEn ?("An invalid extension was specified.", "不正な拡張子が指定されました。"), \common@title, %err, %ok)
@@ -93,16 +91,10 @@ end func
 	end if
 	var file: []char :: wnd@openFileDialog(\form@wndMain, [\common@langEn ?("Kuin supported file (*.kn,*.knwnd)", "Kuinがサポートするファイル (*.kn,*.knwnd)"), "*.kn;*.knwnd"], 0)
 	if(file <>& null)
-		var doc: \doc@Doc :: null
-		switch(file@ext(file).lower())
-		case "kn"
-			do doc :: #\doc_src@DocSrc
-		case "knwnd"
-			do doc :: #\doc_ar_wnd@DocArWnd
-		end switch
-		if(\src@loadFileToDocs(file, doc))
+		var doc: \doc@Doc :: \src@makeDoc(file)
+		if(doc <>& null & \src@loadFileToDocs(file, doc))
 			do \src@setCurSrc(doc)
-			do \form@updateList()
+			do \prop@changeProp()
 		else
 			var msg: []char
 			if(\common@langEn)

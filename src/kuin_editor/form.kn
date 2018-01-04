@@ -65,7 +65,9 @@ var drag: bool
 	do @groupEnv :: wnd@makeGroup(@wndMain, 1033, 59, 173, 62, %move, %fix, \common@langEn ?("Environment", "実行環境"))
 	do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 161, 16, %fix, %fix, \common@langEn ?("Window", "ウインドウ"))
 	do @radioEnvWnd.setChk(true)
+	do @radioEnvWnd.onPush :: @radioEnvOnPush
 	do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 161, 16, %fix, %fix, \common@langEn ?("CUI", "CUI"))
+	do @radioEnvCui.onPush :: @radioEnvOnPush
 	do @labelIcon :: wnd@makeLabel(@groupConfig, 6, 85, 173, 12, %fix, %fix, \common@langEn ?("Icon", "アイコン"))
 	do @editIcon :: wnd@makeEdit(@wndMain, 1033, 144, 92, 16, %move, %fix)
 	do @editIcon.onChange :: @editIconOnChange
@@ -546,15 +548,18 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end func
 end func
 
+func radioEnvOnPush(wnd: wnd@WndBase)
+	if(@lockPropOnChange)
+		ret
+	end if
+	do \prop@changeProp()
+end func
+
 func editIconOnChange(wnd: wnd@WndBase)
 	if(@lockPropOnChange)
 		ret
 	end if
-	var doc: \doc@Doc :: \src@mainDoc()
-	if(doc <>& null & doc =$ \doc_src@DocSrc)
-		do (doc $ \doc_src@DocSrc).changed :: true
-		do @updateList()
-	end if
+	do \prop@changeProp()
 end func
 
 func btnIconOnPush(wnd: wnd@WndBase)
@@ -726,6 +731,19 @@ end func
 		ret "cui"
 	end if
 	ret "wnd"
+end func
+
++func setEnvDirectly(env: []char)
+	do @lockPropOnChange :: true
+	do @radioEnvWnd.setChk(false)
+	do @radioEnvCui.setChk(false)
+	switch(env)
+	case "wnd"
+		do @radioEnvWnd.setChk(true)
+	case "cui"
+		do @radioEnvCui.setChk(true)
+	end switch
+	do @lockPropOnChange :: false
 end func
 
 func log(args: [][]char, row: int, col: int)

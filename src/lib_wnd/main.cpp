@@ -2373,7 +2373,9 @@ static LRESULT CALLBACK WndProcGroup(HWND wnd, UINT msg, WPARAM w_param, LPARAM 
 	ASSERT(wnd2->Kind == WndKind_Group);
 	switch (msg)
 	{
-		// TODO:
+		case WM_COMMAND:
+			CommandAndNotify(wnd, msg, w_param, l_param);
+			return 0;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }

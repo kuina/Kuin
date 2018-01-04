@@ -57,6 +57,7 @@ end func
 	do @mainSrcDir :: file@dir(path)
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add(@mainSrcName, @curDoc)
+	do \prop@load()
 	do @initMainSrc()
 end func
 
@@ -83,7 +84,7 @@ end func
 	end if
 	do @mainSrcName :: file
 	do @mainSrcDir :: file@dir(file)
-	do \prop@save(file@delExt(@mainSrcName) ~ ".knprop")
+	do \prop@save()
 	var newDocs: dict<[]char, \doc@Doc> :: #dict<[]char, \doc@Doc>
 
 	class DocsClass()
@@ -113,7 +114,7 @@ end func
 			ret false
 		end if
 	else
-		do \prop@save(file@delExt(@mainSrcName) ~ ".knprop")
+		do \prop@save()
 	end if
 	var saveAllSuccess: lib@Bool :: #lib@Bool
 	do saveAllSuccess.value :: true
@@ -226,6 +227,16 @@ end func
 	ret null
 end func
 
++func makeDoc(path: []char): \doc@Doc
+	switch(file@ext(path).lower())
+	case "kn"
+		ret #\doc_src@DocSrc
+	case "knwnd"
+		ret #\doc_ar_wnd@DocArWnd
+	end switch
+	ret null
+end func
+
 +func loadFileToDocs(path: []char, doc: \doc@Doc): bool
 	if(!(^@sysDir <= ^path & @sysDir = path.sub(0, ^@sysDir) | @mainSrcDir <> "" & ^@mainSrcDir <= ^path & @mainSrcDir = path.sub(0, ^@mainSrcDir)))
 		ret false
@@ -292,13 +303,13 @@ end func
 
 +func srcNameToInternalName(srcName: []char): []char
 	if(^@sysDir <= ^srcName & @sysDir = srcName.sub(0, ^@sysDir))
-		ret file@delExt(srcName.sub(^@sysDir, -1).replace("/", "\\"))
+		ret file@delExt(srcName.sub(^@sysDir, -1)).replace("/", "\\")
 	elif(@mainSrcDir <> "" & ^@mainSrcDir <= ^srcName & @mainSrcDir = srcName.sub(0, ^@mainSrcDir) | @mainSrcDir = "" & srcName = \common@untitledSrcName)
-		var name: []char :: srcName.sub(^@mainSrcDir, -1).replace("/", "\\")
-		if(file@ext(name) = "kn")
-			ret "\\" ~ file@delExt(name)
+		var name: []char :: srcName.sub(^@mainSrcDir, -1)
+		if(file@ext(name).lower() = "kn")
+			ret "\\" ~ file@delExt(name).replace("/", "\\")
 		else
-			ret "!" ~ name
+			ret "!" ~ name.replace("/", "\\")
 		end if
 	else
 		ret "?" ~ srcName
