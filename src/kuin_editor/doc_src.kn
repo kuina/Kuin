@@ -182,6 +182,10 @@ end func
 		end for
 	end func
 
+	+*func updateTree(tree: wnd@Tree)
+		; TODO:
+	end func
+
 	+*func mouseDownL(x: int, y: int)
 		do me.setArea(wnd@key(%shift) ?(%shift $ wnd@ShiftCtrl, %none))
 		do me.mousePosToCharPos(x, y)

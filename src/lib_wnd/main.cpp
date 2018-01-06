@@ -229,6 +229,13 @@ struct STree
 	SWndBase WndBase;
 };
 
+struct STreeNode
+{
+	SClass Class;
+	HWND WndHandle;
+	HTREEITEM Item;
+};
+
 struct SSplitX
 {
 	SWndBase WndBase;
@@ -270,6 +277,7 @@ static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const C
 static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param);
 static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static Char* ParseFilter(const U8* filter, int* num);
+static void TreeExpandAll(HWND wnd_handle, HTREEITEM node, int flag);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -1261,8 +1269,158 @@ EXPORT_CPP void _tabGetPosInner(SClass* me_, S64* x, S64* y, S64* width, S64* he
 
 EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | TVS_HASBUTTONS | TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_LINESATROOT, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
 	return me_;
+}
+
+EXPORT_CPP void _treeClear(SClass* me_)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	TreeView_DeleteAllItems(me2->WndHandle);
+}
+
+EXPORT_CPP void _treeExpand(SClass* me_, Bool expand)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	HTREEITEM root = TreeView_GetRoot(me2->WndHandle);
+	if (root != NULL)
+		TreeExpandAll(me2->WndHandle, root, expand ? TVE_EXPAND : TVE_COLLAPSE);
+}
+
+EXPORT_CPP SClass* _treeRoot(SClass* me_, SClass* me2)
+{
+	SWndBase* me3 = reinterpret_cast<SWndBase*>(me_);
+	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
+	me4->WndHandle = me3->WndHandle;
+	me4->Item = NULL;
+	return me2;
+}
+
+EXPORT_CPP SClass* _treeNodeAddChild(SClass* me_, SClass* me2, const U8* name)
+{
+	THROWDBG(name == NULL, 0xc0000005);
+	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
+	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
+	TVINSERTSTRUCT tvis;
+	memset(&tvis, 0, sizeof(tvis));
+	tvis.hParent = me3->Item == NULL ? TVI_ROOT : me3->Item;
+	tvis.hInsertAfter = TVI_LAST;
+	tvis.item.mask = TVIF_TEXT;
+	tvis.item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(name + 0x10));
+	me4->Item = TreeView_InsertItem(me3->WndHandle, &tvis);
+	if (me4->Item == NULL)
+		return NULL;
+	me4->WndHandle = me3->WndHandle;
+	return me2;
+}
+
+EXPORT_CPP SClass* _treeNodeInsChild(SClass* me_, SClass* me2, SClass* node, const U8* name)
+{
+	THROWDBG(node == NULL, 0xc0000005);
+	THROWDBG(name == NULL, 0xc0000005);
+	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
+	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
+	STreeNode* node2 = reinterpret_cast<STreeNode*>(node);
+	TVINSERTSTRUCT tvis;
+	memset(&tvis, 0, sizeof(tvis));
+	tvis.hParent = me3->Item == NULL ? TVI_ROOT : me3->Item;
+	HTREEITEM prev = TreeView_GetPrevSibling(me3->WndHandle, node2->Item);
+	tvis.hInsertAfter = prev == NULL ? TVI_FIRST : prev;
+	tvis.item.mask = TVIF_TEXT;
+	tvis.item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(name + 0x10));
+	me4->Item = TreeView_InsertItem(me3->WndHandle, &tvis);
+	if (me4->Item == NULL)
+		return NULL;
+	me4->WndHandle = me3->WndHandle;
+	return me2;
+}
+
+EXPORT_CPP void _treeNodeDelChild(SClass* me_, SClass* node)
+{
+	THROWDBG(node == NULL, 0xc0000005);
+	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
+	STreeNode* node2 = reinterpret_cast<STreeNode*>(node);
+	if (node2->Item == NULL)
+		return;
+	if (me3->Item == NULL)
+		TreeView_DeleteItem(me3->WndHandle, node2->Item);
+}
+
+EXPORT_CPP SClass* _treeNodeFirstChild(SClass* me_, SClass* me2)
+{
+	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
+	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
+	if (me3->Item == NULL)
+		me4->Item = TreeView_GetRoot(me3->WndHandle);
+	else
+		me4->Item = TreeView_GetChild(me3->WndHandle, me3->Item);
+	if (me4->Item == NULL)
+		return NULL;
+	me4->WndHandle = me3->WndHandle;
+	return me2;
+}
+
+EXPORT_CPP void* _treeNodeGetName(SClass* me_)
+{
+	STreeNode* me2 = reinterpret_cast<STreeNode*>(me_);
+	if (me2->Item == NULL)
+		return NULL;
+	TVITEM ti;
+	Char buf[1024];
+	memset(&ti, 0, sizeof(ti));
+	ti.mask = TVIF_TEXT;
+	ti.hItem = me2->Item;
+	ti.pszText = buf;
+	ti.cchTextMax = 1023;
+	if (!TreeView_GetItem(me2->WndHandle, &ti))
+		buf[0] = L'\0';
+	else
+		buf[1023] = L'\0';
+	size_t len = wcslen(buf);
+	U8* result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * static_cast<size_t>(len + 1)));
+	*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
+	*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len);
+	memcpy(result + 0x10, buf, sizeof(Char) * static_cast<size_t>(len + 1));
+	return result;
+}
+
+EXPORT_CPP SClass* _treeNodeNext(SClass* me_, SClass* me2)
+{
+	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
+	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
+	if (me3->Item == NULL)
+		return NULL;
+	me4->Item = TreeView_GetNextSibling(me3->WndHandle, me3->Item);
+	if (me4->Item == NULL)
+		return NULL;
+	me4->WndHandle = me3->WndHandle;
+	return me2;
+}
+
+EXPORT_CPP SClass* _treeNodePrev(SClass* me_, SClass* me2)
+{
+	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
+	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
+	if (me3->Item == NULL)
+		return NULL;
+	me4->Item = TreeView_GetPrevSibling(me3->WndHandle, me3->Item);
+	if (me4->Item == NULL)
+		return NULL;
+	me4->WndHandle = me3->WndHandle;
+	return me2;
+}
+
+EXPORT_CPP SClass* _treeNodeParent(SClass* me_, SClass* me2)
+{
+	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
+	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
+	if (me3->Item == NULL)
+		return NULL;
+	me4->Item = TreeView_GetParent(me3->WndHandle, me3->Item);
+	if (me4->Item == NULL)
+		return NULL;
+	me4->WndHandle = me3->WndHandle;
+	return me2;
 }
 
 EXPORT_CPP SClass* _makeSplitX(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
@@ -1832,6 +1990,21 @@ static Char* ParseFilter(const U8* filter, int* num)
 	}
 	*num = (int)(len_parent / 2);
 	return result;
+}
+
+static void TreeExpandAll(HWND wnd_handle, HTREEITEM node, int flag)
+{
+	HTREEITEM child = TreeView_GetChild(wnd_handle, node);
+	if (child != NULL)
+		TreeExpandAll(wnd_handle, child, flag);
+	TreeView_Expand(wnd_handle, node, flag);
+	for (; ; )
+	{
+		node = TreeView_GetNextSibling(wnd_handle, node);
+		if (node == NULL)
+			break;
+		TreeExpandAll(wnd_handle, node, flag);
+	}
 }
 
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)

@@ -69,6 +69,19 @@
 		end func
 	end func
 
+	+*func updateTree(tree: wnd@Tree)
+		do updateTreeRecursion(tree.root(), me.obj2dRoot)
+
+		func updateTreeRecursion(node: wnd@TreeNode, obj: @Obj2d)
+			var node2: wnd@TreeNode :: node.addChild(obj.objName)
+			do obj.children.head()
+			while(!obj.children.term())
+				do updateTreeRecursion(node2, obj.children.get())
+				do obj.children.next()
+			end while
+		end func
+	end func
+
 	+*func mouseDownL(x: int, y: int)
 		var sel: int :: \form@listInfo.getSel()
 		if(sel <= 0)
@@ -181,7 +194,12 @@
 	end func
 
 	+*func setMouseImg(): wnd@MouseImg
-		ret %cross
+		switch(me.mode)
+		case %put
+			ret %cross
+		default
+			ret %arrow
+		end switch
 	end func
 
 	+*func cmdUndo()
