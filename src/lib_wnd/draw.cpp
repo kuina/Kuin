@@ -10,12 +10,13 @@
 #include "jpg_decoder.h"
 #include "bc_decoder.h"
 
-const int DepthNum = 4;
-const int BlendNum = 5;
-const int SamplerNum = 2;
-const int JointMax = 64;
-const int FontBitmapSize = 1024;
-const int TexEvenNum = 3;
+static const int DepthNum = 4;
+static const int BlendNum = 5;
+static const int SamplerNum = 2;
+static const int JointMax = 64;
+static const int FontBitmapSize = 1024;
+static const int TexEvenNum = 3;
+static const double DiscardAlpha = 0.02;
 
 struct SWndBuf
 {
@@ -27,6 +28,9 @@ struct SWndBuf
 	int TexHeight;
 	int ScreenWidth;
 	int ScreenHeight;
+	ID3D10Texture2D* TmpTex;
+	ID3D10ShaderResourceView* TmpShaderResView;
+	ID3D10RenderTargetView* TmpRenderTargetView;
 };
 
 struct SShaderBuf
@@ -64,7 +68,6 @@ struct SFont
 	int CellSizeAligned;
 	U32 Cnt;
 	double Advance;
-	bool Strong;
 	bool Proportional;
 	HFONT Font;
 	Char* CharMap;
@@ -139,6 +142,8 @@ const U8* GetTexPsBin(size_t* size);
 const U8* GetObjVsBin(size_t* size);
 const U8* GetObjJointVsBin(size_t* size);
 const U8* GetObjPsBin(size_t* size);
+const U8* GetFilterVsBin(size_t* size);
+const U8* GetFilterPsBin(size_t* size);
 
 static S64 Cnt;
 static U32 PrevTime;
@@ -165,6 +170,9 @@ static void* FontPs = NULL;
 static void* ObjVs = NULL;
 static void* ObjJointVs = NULL;
 static void* ObjPs = NULL;
+static void* FilterVertex = NULL;
+static void* FilterVs = NULL;
+static void* FilterPs = NULL;
 static double ViewMat[4][4];
 static double ProjMat[4][4];
 static SObjJointVsConstBuf ObjVsConstBuf;
@@ -174,12 +182,37 @@ static int CurBlend = -1;
 static int CurSampler = -1;
 ID3D10Texture2D* TexEven[TexEvenNum];
 ID3D10ShaderResourceView* ViewEven[TexEvenNum];
-static U8 StrongMap[256];
 
 EXPORT_CPP void _render(S64 fps)
 {
+	// Draw with a filter.
+	{
+		int old_z_buf = CurZBuf;
+		int old_blend = CurBlend;
+		int old_sampler = CurSampler;
+		_resetViewport();
+		_depth(False, False);
+		_blend(0);
+		_sampler(0);
+
+		Device->OMSetRenderTargets(1, &CurWndBuf->RenderTargetView, NULL);
+		{
+			Draw::ConstBuf(FilterVs, NULL);
+			Device->GSSetShader(NULL);
+			Draw::ConstBuf(FilterPs, NULL);
+			Draw::VertexBuf(FilterVertex);
+			Device->PSSetShaderResources(0, 1, &CurWndBuf->TmpShaderResView);
+		}
+		Device->DrawIndexed(6, 0, 0);
+
+		_depth((old_z_buf & 2) != 0, (old_z_buf & 1) != 0);
+		_blend(old_blend);
+		_sampler(old_sampler);
+	}
+
 	CurWndBuf->SwapChain->Present(fps == 0 ? 0 : 1, 0);
-	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, CurWndBuf->ClearColor);
+	Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
+	Device->ClearRenderTargetView(CurWndBuf->TmpRenderTargetView, CurWndBuf->ClearColor);
 	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 	Device->RSSetState(RasterizerState);
 
@@ -297,7 +330,7 @@ EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 	{
 		float const_buf_vs[4] =
@@ -328,7 +361,7 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 	if ((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1) < 0.0)
 	{
@@ -369,7 +402,7 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 	if (w < 0.0)
 	{
@@ -408,7 +441,7 @@ EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 	if (w < 0.0)
 	{
@@ -449,7 +482,7 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 	if (radiusX < 0.0)
 		radiusX = -radiusX;
@@ -642,7 +675,7 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 
 	STex* me2 = reinterpret_cast<STex*>(me_);
@@ -692,7 +725,7 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 
 	STex* me2 = reinterpret_cast<STex*>(me_);
@@ -746,7 +779,7 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 	Device->DrawIndexed(6, 0, 0);
 }
 
-EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool strong, bool proportional, double advance)
+EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool proportional, double advance)
 {
 	THROWDBG(size < 1, 0xe9170006);
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
@@ -757,7 +790,6 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		ReleaseDC(NULL, dc);
 	}
 	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, fontName == NULL ? L"Meiryo UI" : reinterpret_cast<const Char*>(fontName + 0x10));
-	me2->Strong = strong;
 	me2->Proportional = proportional;
 	me2->Advance = advance;
 	{
@@ -848,7 +880,7 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 	THROWDBG(text == NULL, 0xc0000005);
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
@@ -922,25 +954,12 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			D3D10_MAPPED_TEXTURE2D map;
 			me2->Tex->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_WRITE_DISCARD, 0, &map);
 			U8* dst = static_cast<U8*>(map.pData);
-			if (me2->Strong)
+			for (int j = 0; j < me2->CellHeight; j++)
 			{
-				for (int j = 0; j < me2->CellHeight; j++)
-				{
-					int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
-					for (int k = 0; k < me2->CellWidth; k++)
-						dst[j * me2->CellSizeAligned + k] = StrongMap[me2->Pixel[(begin + k) * 3]];
-					dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
-				}
-			}
-			else
-			{
-				for (int j = 0; j < me2->CellHeight; j++)
-				{
-					int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
-					for (int k = 0; k < me2->CellWidth; k++)
-						dst[j * me2->CellSizeAligned + k] = me2->Pixel[(begin + k) * 3];
-					dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
-				}
+				int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
+				for (int k = 0; k < me2->CellWidth; k++)
+					dst[j * me2->CellSizeAligned + k] = me2->Pixel[(begin + k) * 3];
+				dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
 			}
 			{
 				int j = me2->CellHeight;
@@ -1896,6 +1915,50 @@ void Init()
 		}
 	}
 
+	// Initialize 'Filter'.
+	{
+		{
+			float vertices[] =
+			{
+				-1.0f, -1.0f,
+				1.0f, -1.0f,
+				-1.0f, 1.0f,
+				1.0f, 1.0f,
+			};
+
+			U32 idces[] =
+			{
+				0, 1, 2,
+				3, 2, 1,
+			};
+
+			FilterVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+		}
+
+		{
+			ELayoutType layout_types[1] =
+			{
+				LayoutType_Float2,
+			};
+
+			const Char* layout_semantics[1] =
+			{
+				L"K_POSITION",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetFilterVsBin(&size);
+				FilterVs = MakeShaderBuf(ShaderKind_Vs, size, bin, 0, 1, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetFilterPsBin(&size);
+				FilterPs = MakeShaderBuf(ShaderKind_Ps, size, bin, 0, 0, NULL, NULL);
+			}
+		}
+	}
+
 	for (int i = 0; i < TexEvenNum; i++)
 	{
 		float img[4];
@@ -1955,12 +2018,6 @@ void Init()
 		}
 	}
 
-	for (int i = 0; i < 256; i++)
-	{
-		double value = 1.0 - (double)i / 255.0;
-		StrongMap[i] = (U8)((1.0 - value * value) * 255.0 + 0.5);
-	}
-
 	memset(&ObjVsConstBuf, 0, sizeof(SObjVsConstBuf));
 	memset(&ObjPsConstBuf, 0, sizeof(SObjPsConstBuf));
 	ObjPsConstBuf.AmbTopColor[3] = 0.0f;
@@ -1988,6 +2045,12 @@ void Fin()
 		if (TexEven[i] != NULL)
 			TexEven[i]->Release();
 	}
+	if (FilterPs != NULL)
+		FinShaderBuf(FilterPs);
+	if (FilterVs != NULL)
+		FinShaderBuf(FilterVs);
+	if (FilterVertex != NULL)
+		FinVertexBuf(FilterVertex);
 	if (ObjPs != NULL)
 		FinShaderBuf(ObjPs);
 	if (ObjJointVs != NULL)
@@ -2150,6 +2213,39 @@ void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_he
 			THROW(0xe9170009);
 	}
 
+	// Create a temporary texture.
+	{
+		{
+			D3D10_TEXTURE2D_DESC desc;
+			D3D10_SUBRESOURCE_DATA sub;
+			desc.Width = static_cast<UINT>(tex_width);
+			desc.Height = static_cast<UINT>(tex_height);
+			desc.MipLevels = 1;
+			desc.ArraySize = 1;
+			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
+			desc.Usage = D3D10_USAGE_DEFAULT;
+			desc.BindFlags = D3D10_BIND_RENDER_TARGET | D3D10_BIND_SHADER_RESOURCE;
+			desc.CPUAccessFlags = 0;
+			desc.MiscFlags = 0;
+			if (FAILED(Device->CreateTexture2D(&desc, NULL, &wnd_buf->TmpTex)))
+				THROW(0xe9170009);
+		}
+		{
+			D3D10_SHADER_RESOURCE_VIEW_DESC desc;
+			memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+			desc.Texture2D.MostDetailedMip = 0;
+			desc.Texture2D.MipLevels = 1;
+			if (FAILED(Device->CreateShaderResourceView(wnd_buf->TmpTex, &desc, &wnd_buf->TmpShaderResView)))
+				THROW(0xe9170009);
+		}
+		if (FAILED(Device->CreateRenderTargetView(wnd_buf->TmpTex, NULL, &wnd_buf->TmpRenderTargetView)))
+			THROW(0xe9170009);
+	}
+
 	ActiveDrawBuf(wnd_buf);
 	_resetViewport();
 	return wnd_buf;
@@ -2160,6 +2256,12 @@ void FinDrawBuf(void* wnd_buf)
 	if (CurWndBuf == wnd_buf)
 		CurWndBuf = NULL;
 	SWndBuf* wnd_buf2 = static_cast<SWndBuf*>(wnd_buf);
+	if (wnd_buf2->TmpRenderTargetView != NULL)
+		wnd_buf2->TmpRenderTargetView->Release();
+	if (wnd_buf2->TmpShaderResView != NULL)
+		wnd_buf2->TmpShaderResView->Release();
+	if (wnd_buf2->TmpTex != NULL)
+		wnd_buf2->TmpTex->Release();
 	if (wnd_buf2->DepthView != NULL)
 		wnd_buf2->DepthView->Release();
 	if (wnd_buf2->RenderTargetView != NULL)
@@ -2175,7 +2277,7 @@ void ActiveDrawBuf(void* wnd_buf)
 	{
 		SWndBuf* wnd_buf2 = static_cast<SWndBuf*>(wnd_buf);
 		CurWndBuf = wnd_buf2;
-		Device->OMSetRenderTargets(1, &CurWndBuf->RenderTargetView, CurWndBuf->DepthView);
+		Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
 		_resetViewport();
 	}
 }
@@ -2205,6 +2307,9 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 	shader_buf->Kind = kind;
 	shader_buf->ConstBufSize = const_buf_size;
 
+	if (const_buf_size == 0)
+		shader_buf->ConstBuf = NULL;
+	else
 	{
 		D3D10_BUFFER_DESC desc;
 		desc.ByteWidth = static_cast<UINT>(const_buf_size);
@@ -2320,11 +2425,14 @@ void FinShaderBuf(void* shader_buf)
 void ConstBuf(void* shader_buf, const void* data)
 {
 	SShaderBuf* shader_buf2 = static_cast<SShaderBuf*>(shader_buf);
-	void* buf;
-	if (shader_buf2->ConstBuf->Map(D3D10_MAP_WRITE_DISCARD, 0, &buf))
-		return;
-	memcpy(buf, data, shader_buf2->ConstBufSize);
-	shader_buf2->ConstBuf->Unmap();
+	if (data != NULL)
+	{
+		void* buf;
+		if (shader_buf2->ConstBuf->Map(D3D10_MAP_WRITE_DISCARD, 0, &buf))
+			return;
+		memcpy(buf, data, shader_buf2->ConstBufSize);
+		shader_buf2->ConstBuf->Unmap();
+	}
 
 	switch (shader_buf2->Kind)
 	{

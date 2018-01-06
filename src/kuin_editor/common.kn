@@ -17,7 +17,7 @@
 	do \dll@version(&major, &minor, &micro)
 	do @title :: "Kuin Programming Language \{major}.\{minor}.\{micro}"
 
-	do @font :: draw@makeFont("Consolas", @fontSize, false, false, true, false, @cellWidth $ float)
+	do @font :: draw@makeFont("Consolas", @fontSize, false, false, false, @cellWidth $ float)
 	do @tex :: draw@makeTex("res/tex.png")
 end func
 

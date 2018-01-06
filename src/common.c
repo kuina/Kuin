@@ -190,6 +190,7 @@ Bool SeekFileStream(void* handle, S64 offset, S64 origin)
 		handle2->Cur = pos;
 		int result = _fseeki64(handle2->Handle, pos, SEEK_SET);
 		ASSERT(result == 0);
+		UNUSED(result);
 		return True;
 	}
 	else

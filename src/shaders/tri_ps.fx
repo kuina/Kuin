@@ -1,5 +1,3 @@
-#include "common.h"
-
 cbuffer ConstBuf: register(b0)
 {
 	float4 Color;
@@ -15,6 +13,5 @@ float4 main(PS_INPUT input): SV_TARGET
 	float4 output = Color;
 	if (output.a <= 0.04f)
 		discard;
-	output.a = gamma(output.a);
 	return output;
 }
