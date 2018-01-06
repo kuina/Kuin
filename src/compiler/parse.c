@@ -78,6 +78,7 @@ static U16(*FuncFgetwc)(FILE*);
 static size_t(*FuncSize)(FILE*);
 static SDict* Srces;
 static SDict* Srces2;
+static SDict* SrcRefPos;
 static const SOption* Option;
 static FILE* FilePtr;
 static const Char* SrcName;
@@ -114,6 +115,7 @@ static SAstExprValue* ObtainPrimValue(const SPos* pos, EAstTypePrimKind kind, co
 static SAstExprValue* ObtainStrValue(const SPos* pos, const Char* value);
 static Char EscChar(Char c);
 static Bool IsCorrectSrcName(const Char* name, Bool skip_dot);
+static void AddSrc(const Char* name);
 static SAstRoot* ParseRoot(SAstRoot* ast);
 static SAstFunc* ParseFunc(const Char* parent_class);
 static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class);
@@ -182,11 +184,12 @@ SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FI
 #endif
 
 	Srces = NULL;
+	SrcRefPos = NULL;
 	{
 		const Char* path = NewStr(NULL, L"\\%s", option->SrcName);
 		if (!IsCorrectSrcName(path, False))
 		{
-			Err(L"EK0005", NULL, path);
+			Err(L"EP0060", NULL, path);
 			return DummyPtr;
 		}
 		Srces = DictAdd(Srces, path, NULL);
@@ -491,7 +494,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 
 	if (!IsCorrectSrcName(src_name, True))
 	{
-		Err(L"EK0005", NULL, src_name);
+		Err(L"EP0060", DictSearch(SrcRefPos, src_name), src_name);
 		return DummyPtr;
 	}
 	*end_flag = False;
@@ -507,7 +510,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 			FilePtr = FuncWfopen(true_path, L"r, ccs=UTF-8");
 			if (FilePtr == NULL)
 			{
-				Err(L"EK0006", NULL, true_path);
+				Err(L"EP0061", DictSearch(SrcRefPos, src_name), true_path);
 				return DummyPtr;
 			}
 			{
@@ -795,8 +798,7 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 								ptr++;
 							}
 						}
-						if (DictSearch(Srces2, src_name) == NULL)
-							Srces2 = DictAdd(Srces2, src_name, NULL);
+						AddSrc(src_name);
 					}
 					at = True;
 					break;
@@ -1102,6 +1104,14 @@ static Bool IsCorrectSrcName(const Char* name, Bool skip_dot)
 		}
 		name++;
 	}
+}
+
+static void AddSrc(const Char* name)
+{
+	if (DictSearch(Srces2, name) == NULL)
+		Srces2 = DictAdd(Srces2, name, NULL);
+	if (DictSearch(SrcRefPos, name) == NULL)
+		SrcRefPos = DictAdd(SrcRefPos, name, NewPos(SrcName, Row, Col));
 }
 
 static SAstRoot* ParseRoot(SAstRoot* ast)
@@ -1412,8 +1422,7 @@ static void ParseInclude(void)
 	}
 	const Char* new_src_name = NewStr(NULL, L"%s.%s", SrcName, sub_src_name);
 	AssertNextChar(L'\n', True);
-	if (DictSearch(Srces2, new_src_name) == NULL)
-		Srces2 = DictAdd(Srces2, new_src_name, NULL);
+	AddSrc(new_src_name);
 }
 
 static SAstClass* ParseClass(void)
