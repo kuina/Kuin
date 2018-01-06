@@ -411,8 +411,8 @@ end func
 			end if
 			ret true
 		case %up
-			if(shiftCtrl = %none & \completion@displayed())
-				do \completion@moveCursorUp()
+			if(shiftCtrl = %none & \completion@displayed() & \completion@moveCursorUp())
+				; Do nothing.
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(-1)
 			else
@@ -433,8 +433,8 @@ end func
 			end if
 			ret true
 		case %down
-			if(shiftCtrl = %none & \completion@displayed())
-				do \completion@moveCursorDown()
+			if(shiftCtrl = %none & \completion@displayed() & \completion@moveCursorDown())
+				; Do nothing.
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(1)
 			else

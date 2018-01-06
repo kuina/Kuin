@@ -138,7 +138,7 @@ end func
 	ret @wndCompletion <>& null & @wndCompletion.focusedWnd()
 end func
 
-+func moveCursorUp()
++func moveCursorUp(): bool
 	if(@wndCompletionListKeywords <>& null & @wndCompletionListKeywords.len() <> 0)
 		var sel: int :: @wndCompletionListKeywords.getSel()
 		if(sel = -1)
@@ -148,10 +148,12 @@ end func
 		end if
 		do @wndCompletionListKeywords.setSel(sel)
 		do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+		ret true
 	end if
+	ret false
 end func
 
-+func moveCursorDown()
++func moveCursorDown(): bool
 	if(@wndCompletionListKeywords <>& null)
 		var len: int :: @wndCompletionListKeywords.len()
 		if(len <> 0)
@@ -164,7 +166,9 @@ end func
 			do @wndCompletionListKeywords.setSel(sel)
 			do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
 		end if
+		ret true
 	end if
+	ret false
 end func
 
 +func getSelWord(): []char
