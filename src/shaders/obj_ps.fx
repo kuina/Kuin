@@ -99,7 +99,7 @@ float4 main(PS_INPUT input): SV_TARGET
 		default: discard; output = float4(0.0f, 0.0f, 0.0f, 0.0f); break;
 	}
 #endif
-	if (output.a <= 0.04f)
+	if (output.a <= 0.02f)
 		discard;
 	return output;
 }
