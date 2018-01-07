@@ -14,7 +14,6 @@
 			var xml: xml@Xml :: xml@makeXml(path)
 			var node: xml@Node :: xml.root().lastChild()
 			do loadRecursion(me, node, me.obj2dRoot)
-			; TODO:
 		catch
 			ret false
 		end try
@@ -110,6 +109,7 @@
 			do me.hold :: obj
 			do me.changed :: true
 		end if
+		do \form@updateTree()
 		do \form@paintDrawEditor()
 
 		func selRecursion(obj: @Obj2d, x: int, y: int): @Obj2d
@@ -337,6 +337,8 @@ end class
 	end func
 
 	+func load(node: xml@Node)
+		do me.children :: #list<Obj2d>
+		do me.objName :: node.getAttr("name")
 		do node.getAttr("x").toInt(&me.x)
 		do node.getAttr("y").toInt(&me.y)
 		do node.getAttr("width").toInt(&me.width)
@@ -344,6 +346,7 @@ end class
 	end func
 
 	+func save(node: xml@Node)
+		do node.setAttr("name", me.objName)
 		do node.setAttr("x", me.x.toStr())
 		do node.setAttr("y", me.y.toStr())
 		do node.setAttr("width", me.width.toStr())

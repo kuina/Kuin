@@ -1,8 +1,4 @@
 +class DocArWnd(\doc_ar@DocArBase)
-	**func ctor()
-		; TODO: do me.obj2dRoot.color :: draw@white
-	end func
-
 	+*func makeObj2d(name: []char): \doc_ar@Obj2d
 		switch(name)
 		case "button"
