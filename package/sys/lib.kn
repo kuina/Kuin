@@ -278,7 +278,7 @@ end class
 
 +class Str()
 	+*func cmp(t: @Str): int
-		ret me.value.cmp(t.value)
+		ret @cmp(me.value, t.value)
 	end func
 
 	+*func toStr(): []char
