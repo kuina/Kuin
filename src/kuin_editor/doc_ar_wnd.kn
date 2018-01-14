@@ -1,4 +1,8 @@
 +class DocArWnd(\doc_ar@DocArBase)
+	**func ctor()
+		do me.obj2dRoot :: #@Obj2dWnd
+	end func
+
 	+*func makeObj2d(name: []char): \doc_ar@Obj2d
 		switch(name)
 		case "button"
@@ -13,7 +17,27 @@
 	end func
 end class
 
+class Obj2dWnd(\doc_ar@Obj2dRoot)
+	**func ctor()
+		do me.text :: "Untitled"
+	end func
+
+	+**func load(node: xml@Node)
+		do me.text :: node.getAttr("text")
+	end func
+
+	+**func save(node: xml@Node)
+		do node.setAttr("text", me.text)
+	end func
+
+	+var text: []char
+end class
+
 class Obj2dBtn(\doc_ar@Obj2d)
+	**func ctor()
+		do me.text :: ""
+	end func
+
 	+*func getName(): []char
 		ret "button"
 	end func
@@ -25,7 +49,17 @@ class Obj2dBtn(\doc_ar@Obj2d)
 		do maxHeight :: lib@intMax
 	end func
 
+	+**func load(node: xml@Node)
+		do me.text :: node.getAttr("text")
+	end func
+
+	+**func save(node: xml@Node)
+		do node.setAttr("text", me.text)
+	end func
+
 	+*func draw(pageX: int, pageY: int)
 		do draw@rect((me.x - pageX) $ float, (me.y - pageY) $ float, me.width $ float, me.height $ float, 16#FF808080)
 	end func
+
+	+var text: []char
 end class

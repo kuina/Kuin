@@ -1,8 +1,5 @@
 +class DocArBase(\doc@Doc)
 	**func ctor()
-		do me.obj2dRoot :: #@Obj2dRoot
-		do me.obj2dRoot.init("root", 0, 0, 1600, 900)
-		do me.obj2dRoot.color :: draw@white
 		do me.pageX :: 0
 		do me.pageY :: 0
 		do me.mode :: %none
@@ -488,6 +485,10 @@
 end class
 
 +class Obj2d()
+	**func ctor()
+		do me.init("root", 0, 0, 1600, 900)
+	end func
+
 	+func init(objName: []char, x: int, y: int, width: int, height: int)
 		do me.children :: #list<Obj2d>
 		do me.objName :: objName
@@ -535,7 +536,11 @@ end class
 	+var height: int
 end class
 
-class Obj2dRoot(@Obj2d)
++class Obj2dRoot(@Obj2d)
+	**func ctor()
+		do me.color :: draw@white
+	end func
+
 	+*func getName(): []char
 		ret "root"
 	end func
