@@ -11,6 +11,8 @@
 #include "snd.h"
 #include "input.h"
 
+#pragma comment(lib, "Comctl32.lib")
+
 enum EWndKind
 {
 	WndKind_WndNormal = 0x00,
@@ -62,6 +64,7 @@ enum ECtrlFlag
 struct SWndBase
 {
 	SClass Class;
+	U8* Name;
 	EWndKind Kind;
 	HWND WndHandle;
 	WNDPROC DefaultWndProc;
@@ -227,6 +230,11 @@ struct STab
 struct STree
 {
 	SWndBase WndBase;
+	Bool Draggable;
+	Bool AllowDraggingToRoot;
+	HTREEITEM DraggingItem;
+	void* OnSel;
+	void* OnMoveNode;
 };
 
 struct STreeNode
@@ -277,7 +285,8 @@ static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const C
 static BOOL CALLBACK ResizeCallback(HWND wnd, LPARAM l_param);
 static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static Char* ParseFilter(const U8* filter, int* num);
-static void TreeExpandAll(HWND wnd_handle, HTREEITEM node, int flag);
+static void TreeExpandAllRecursion(HWND wnd_handle, HTREEITEM node, int flag);
+static void CopyTreeNodeRecursion(HWND tree_wnd, HTREEITEM dst, HTREEITEM src, Char* buf);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -704,6 +713,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 		border_x = static_cast<int>((window.right - window.left) - (client.right - client.left));
 		border_y = static_cast<int>((window.bottom - window.top) - (client.bottom - client.top));
 	}
+	me2->Name = NULL;
 	me2->DefaultWndProc = NULL;
 	me2->CtrlFlag = static_cast<U64>(CtrlFlag_AnchorLeft) | static_cast<U64>(CtrlFlag_AnchorTop);
 	me2->DefaultX = 0;
@@ -733,6 +743,9 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 		me3->MinHeight = 128;
 		me3->MaxWidth = static_cast<U16>(-1);
 		me3->MaxHeight = static_cast<U16>(-1);
+		me3->OnClose = NULL;
+		me3->OnActivate = NULL;
+		me3->OnPushMenu = NULL;
 		me3->ModalLock = False;
 	}
 	SendMessage(me2->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
@@ -804,6 +817,26 @@ EXPORT_CPP void _wndBaseSetRedraw(SClass* me_, Bool is_enabled)
 EXPORT_CPP void _wndBaseSetVisible(SClass* me_, Bool is_visible)
 {
 	ShowWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_visible ? SW_SHOW : SW_HIDE);
+}
+
+EXPORT_CPP void _wndBaseClientToScreen(SClass* me_, S64* screenX, S64* screenY, S64 clientX, S64 clientY)
+{
+	POINT point;
+	point.x = static_cast<LONG>(clientX);
+	point.y = static_cast<LONG>(clientY);
+	ClientToScreen(reinterpret_cast<SWndBase*>(me_)->WndHandle, &point);
+	*screenX = static_cast<S64>(point.x);
+	*screenY = static_cast<S64>(point.y);
+}
+
+EXPORT_CPP void _wndBaseScreenToClient(SClass* me_, S64* clientX, S64* clientY, S64 screenX, S64 screenY)
+{
+	POINT point;
+	point.x = static_cast<LONG>(screenX);
+	point.y = static_cast<LONG>(screenY);
+	ScreenToClient(reinterpret_cast<SWndBase*>(me_)->WndHandle, &point);
+	*clientX = static_cast<S64>(point.x);
+	*clientY = static_cast<S64>(point.y);
 }
 
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
@@ -909,6 +942,26 @@ EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	me3->WheelX = 0;
 	me3->WheelY = 0;
 	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), static_cast<int>(width), static_cast<int>(height), me2->WndHandle, NULL);
+	me3->OnPaint = NULL;
+	me3->OnMouseDownL = NULL;
+	me3->OnMouseDownR = NULL;
+	me3->OnMouseDownM = NULL;
+	me3->OnMouseDoubleClick = NULL;
+	me3->OnMouseUpL = NULL;
+	me3->OnMouseUpR = NULL;
+	me3->OnMouseUpM = NULL;
+	me3->OnMouseMove = NULL;
+	me3->OnMouseEnter = NULL;
+	me3->OnMouseLeave = NULL;
+	me3->OnMouseWheelX = NULL;
+	me3->OnMouseWheelY = NULL;
+	me3->OnFocus = NULL;
+	me3->OnKeyDown = NULL;
+	me3->OnKeyUp = NULL;
+	me3->OnKeyChar = NULL;
+	me3->OnScrollX = NULL;
+	me3->OnScrollY = NULL;
+	me3->OnSetMouseImg = NULL;
 	return me_;
 }
 
@@ -995,19 +1048,25 @@ EXPORT_CPP Bool _btnGetChk(SClass* me_)
 
 EXPORT_CPP SClass* _makeChk(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
+	SChk* me2 = reinterpret_cast<SChk*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Chk, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX, x, y, width, height, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WndProcChk, anchorX, anchorY);
+	me2->OnPush = NULL;
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeRadio(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
+	SRadio* me2 = reinterpret_cast<SRadio*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Radio, WC_BUTTON, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON, x, y, width, height, text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WndProcRadio, anchorX, anchorY);
+	me2->OnPush = NULL;
 	return me_;
 }
 
 EXPORT_CPP SClass* _makeEdit(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
+	SEdit* me2 = reinterpret_cast<SEdit*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Edit, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, x, y, width, height, L"", WndProcEdit, anchorX, anchorY);
+	me2->OnChange = NULL;
 	return me_;
 }
 
@@ -1052,7 +1111,10 @@ EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64
 
 EXPORT_CPP SClass* _makeList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
+	SList* me2 = reinterpret_cast<SList*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_List, WC_LISTBOX, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_DISABLENOSCROLL | LBS_NOTIFY, x, y, width, height, L"", WndProcList, anchorX, anchorY);
+	me2->OnSel = NULL;
+	me2->OnMouseDoubleClick = NULL;
 	return me_;
 }
 
@@ -1269,7 +1331,13 @@ EXPORT_CPP void _tabGetPosInner(SClass* me_, S64* x, S64* y, S64* width, S64* he
 
 EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
+	STree* me2 = reinterpret_cast<STree*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | TVS_HASBUTTONS | TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_LINESATROOT, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
+	me2->Draggable = False;
+	me2->AllowDraggingToRoot = False;
+	me2->DraggingItem = NULL;
+	me2->OnSel = NULL;
+	me2->OnMoveNode = NULL;
 	return me_;
 }
 
@@ -1284,7 +1352,7 @@ EXPORT_CPP void _treeExpand(SClass* me_, Bool expand)
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	HTREEITEM root = TreeView_GetRoot(me2->WndHandle);
 	if (root != NULL)
-		TreeExpandAll(me2->WndHandle, root, expand ? TVE_EXPAND : TVE_COLLAPSE);
+		TreeExpandAllRecursion(me2->WndHandle, root, expand ? TVE_EXPAND : TVE_COLLAPSE);
 }
 
 EXPORT_CPP SClass* _treeRoot(SClass* me_, SClass* me2)
@@ -1293,6 +1361,33 @@ EXPORT_CPP SClass* _treeRoot(SClass* me_, SClass* me2)
 	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
 	me4->WndHandle = me3->WndHandle;
 	me4->Item = NULL;
+	return me2;
+}
+
+EXPORT_CPP void _treeDraggable(SClass* me_, Bool enabled)
+{
+	reinterpret_cast<STree*>(me_)->Draggable = enabled;
+}
+
+EXPORT_CPP void _treeAllowDraggingToRoot(SClass* me_, Bool enabled)
+{
+	reinterpret_cast<STree*>(me_)->AllowDraggingToRoot = enabled;
+}
+
+EXPORT_CPP void _treeSetSel(SClass* me_, SClass* node)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	STreeNode* node2 = reinterpret_cast<STreeNode*>(node);
+	THROWDBG(me2->WndHandle != node2->WndHandle, 0xe9170006);
+	TreeView_Select(me2->WndHandle, node2->Item, TVGN_CARET);
+}
+
+EXPORT_CPP SClass* _treeGetSel(SClass* me_, SClass* me2)
+{
+	SWndBase* me3 = reinterpret_cast<SWndBase*>(me_);
+	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
+	me4->WndHandle = me3->WndHandle;
+	me4->Item = TreeView_GetSelection(me3->WndHandle);
 	return me2;
 }
 
@@ -1366,16 +1461,16 @@ EXPORT_CPP void* _treeNodeGetName(SClass* me_)
 	if (me2->Item == NULL)
 		return NULL;
 	TVITEM ti;
-	Char buf[1024];
+	Char buf[1025];
 	memset(&ti, 0, sizeof(ti));
 	ti.mask = TVIF_TEXT;
 	ti.hItem = me2->Item;
 	ti.pszText = buf;
-	ti.cchTextMax = 1023;
+	ti.cchTextMax = 1025;
 	if (!TreeView_GetItem(me2->WndHandle, &ti))
 		buf[0] = L'\0';
 	else
-		buf[1023] = L'\0';
+		buf[1024] = L'\0';
 	size_t len = wcslen(buf);
 	U8* result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * static_cast<size_t>(len + 1)));
 	*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
@@ -1732,6 +1827,7 @@ static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const C
 	if (wnd->WndHandle == NULL)
 		THROW(0xe9170009);
 	SetWindowLongPtr(wnd->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(wnd));
+	wnd->Name = NULL;
 	wnd->DefaultWndProc = reinterpret_cast<WNDPROC>(GetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC));
 	wnd->Children = AllocMem(0x28);
 	*(S64*)wnd->Children = 1;
@@ -1902,7 +1998,6 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 					}
 				}
 				break;
-			// TODO:
 		}
 	}
 	else
@@ -1950,7 +2045,29 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 						}
 					}
 					break;
-				// TODO:
+				case WndKind_Tree:
+					{
+						STree* tree = reinterpret_cast<STree*>(wnd_ctrl2);
+						switch (reinterpret_cast<LPNMHDR>(l_param)->code)
+						{
+							case TVN_BEGINDRAG:
+								if (tree->Draggable)
+								{
+									LPNMTREEVIEW param = reinterpret_cast<LPNMTREEVIEW>(l_param);
+									HIMAGELIST img_drag = TreeView_CreateDragImage(wnd_ctrl, param->itemNew.hItem);
+									ImageList_BeginDrag(img_drag, 0, 0, 0);
+									ClientToScreen(wnd_ctrl, &param->ptDrag);
+									ImageList_DragEnter(NULL, param->ptDrag.x, param->ptDrag.y);
+									tree->DraggingItem = param->itemNew.hItem;
+								}
+								break;
+							case TVN_SELCHANGED:
+								if (tree->OnSel != NULL)
+									Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), tree->OnSel);
+								break;
+						}
+					}
+					break;
 			}
 		}
 	}
@@ -1992,18 +2109,45 @@ static Char* ParseFilter(const U8* filter, int* num)
 	return result;
 }
 
-static void TreeExpandAll(HWND wnd_handle, HTREEITEM node, int flag)
+static void TreeExpandAllRecursion(HWND wnd_handle, HTREEITEM node, int flag)
 {
 	HTREEITEM child = TreeView_GetChild(wnd_handle, node);
 	if (child != NULL)
-		TreeExpandAll(wnd_handle, child, flag);
+		TreeExpandAllRecursion(wnd_handle, child, flag);
 	TreeView_Expand(wnd_handle, node, flag);
 	for (; ; )
 	{
 		node = TreeView_GetNextSibling(wnd_handle, node);
 		if (node == NULL)
 			break;
-		TreeExpandAll(wnd_handle, node, flag);
+		TreeExpandAllRecursion(wnd_handle, node, flag);
+	}
+}
+
+static void CopyTreeNodeRecursion(HWND tree_wnd, HTREEITEM dst, HTREEITEM src, Char* buf)
+{
+	TVITEM tvitem;
+	tvitem.mask = TVIF_TEXT;
+	tvitem.hItem = src;
+	tvitem.pszText = buf;
+	tvitem.cchTextMax = 1025;
+	if (!TreeView_GetItem(tree_wnd, &tvitem))
+		return;
+	buf[1024] = L'\0';
+	TVINSERTSTRUCT tvis;
+	memset(&tvis, 0, sizeof(tvis));
+	tvis.hParent = dst;
+	tvis.hInsertAfter = TVI_LAST;
+	tvis.item.mask = TVIF_TEXT;
+	tvis.item.pszText = buf;
+	HTREEITEM new_item = TreeView_InsertItem(tree_wnd, &tvis);
+	if (new_item == NULL)
+		return;
+	HTREEITEM child = TreeView_GetChild(tree_wnd, src);
+	while (child != NULL)
+	{
+		CopyTreeNodeRecursion(tree_wnd, new_item, child, buf);
+		child = TreeView_GetNextSibling(tree_wnd, child);
 	}
 }
 
@@ -2427,8 +2571,7 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 			if (wnd3->OnSetMouseImg)
 			{
 				S64 img = (S64)Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnSetMouseImg);
-				if (img != 32512)
-					SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(img)));
+				SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(img)));
 				return 0;
 			}
 			break;
@@ -2547,6 +2690,7 @@ static LRESULT CALLBACK WndProcGroup(HWND wnd, UINT msg, WPARAM w_param, LPARAM 
 	switch (msg)
 	{
 		case WM_COMMAND:
+		case WM_NOTIFY:
 			CommandAndNotify(wnd, msg, w_param, l_param);
 			return 0;
 	}
@@ -2669,10 +2813,75 @@ static LRESULT CALLBACK WndProcTab(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_
 static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
+	STree* wnd3 = reinterpret_cast<STree*>(wnd2);
 	ASSERT(wnd2->Kind == WndKind_Tree);
 	switch (msg)
 	{
-		// TODO:
+		case WM_MOUSEMOVE:
+			if (wnd3->DraggingItem != NULL)
+			{
+				POINT point;
+				TVHITTESTINFO hit_test = { 0 };
+				ImageList_DragLeave(NULL);
+				GetCursorPos(&point);
+				hit_test.flags = TVHT_ONITEM;
+				hit_test.pt.x = point.x;
+				hit_test.pt.y = point.y;
+				ScreenToClient(wnd, &hit_test.pt);
+				HTREEITEM item = reinterpret_cast<HTREEITEM>(SendMessage(wnd, TVM_HITTEST, 0, reinterpret_cast<LPARAM>(&hit_test)));
+				if (item != NULL)
+				{
+					ImageList_DragShowNolock(FALSE);
+					SendMessage(wnd, TVM_SELECTITEM, TVGN_DROPHILITE, reinterpret_cast<LPARAM>(item));
+					ImageList_DragShowNolock(TRUE);
+				}
+				ImageList_DragMove(point.x, point.y);
+				ImageList_DragEnter(NULL, point.x, point.y);
+			}
+			return 0;
+		case WM_LBUTTONUP:
+			if (wnd3->DraggingItem != NULL)
+			{
+				POINT point;
+				TVHITTESTINFO hit_test = { 0 };
+				ImageList_DragShowNolock(FALSE);
+				GetCursorPos(&point);
+				hit_test.flags = TVHT_ONITEM;
+				hit_test.pt.x = point.x;
+				hit_test.pt.y = point.y;
+				ScreenToClient(wnd, &hit_test.pt);
+				HTREEITEM item = reinterpret_cast<HTREEITEM>(SendMessage(wnd, TVM_HITTEST, 0, reinterpret_cast<LPARAM>(&hit_test)));
+				if (wnd3->DraggingItem != item && (wnd3->AllowDraggingToRoot || item != NULL))
+				{
+					Bool success = True;
+					{
+						// Prohibit dropping a node on one of its children.
+						HTREEITEM item2 = item;
+						while (item2 != NULL)
+						{
+							if (item2 == wnd3->DraggingItem)
+							{
+								success = False;
+								break;
+							}
+							item2 = TreeView_GetParent(wnd, item2);
+						}
+					}
+					if (success)
+					{
+						Char buf[1025];
+						CopyTreeNodeRecursion(wnd, item, wnd3->DraggingItem, buf);
+						TreeView_DeleteItem(wnd, wnd3->DraggingItem);
+						if (wnd3->OnMoveNode)
+							Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd3)), wnd3->OnMoveNode);
+					}
+				}
+				ImageList_DragShowNolock(TRUE);
+				ImageList_DragLeave(NULL);
+				ImageList_EndDrag();
+				wnd3->DraggingItem = NULL;
+			}
+			return 0;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }

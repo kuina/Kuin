@@ -80,6 +80,14 @@ EXPORT_CPP Bool _inputKey(S64 key)
 	return (KeyboardState[key] & 0x80) != 0;
 }
 
+EXPORT_CPP void _mousePos(S64* x, S64* y)
+{
+	POINT point;
+	GetCursorPos(&point);
+	*x = static_cast<S64>(point.x);
+	*y = static_cast<S64>(point.y);
+}
+
 namespace Input
 {
 

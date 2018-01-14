@@ -17,6 +17,15 @@
 	+func updateTree(tree: wnd@Tree)
 	end func
 
+	+func treeItemOnSel()
+	end func
+
+	+func treeItemOnMoveNode()
+	end func
+
+	+func listInfoOnSel()
+	end func
+
 	+func mouseDownL(x: int, y: int)
 	end func
 

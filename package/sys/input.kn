@@ -147,3 +147,6 @@ end func
 
 +func [d0001.knd, _inputKey] key(key_: @Key): bool
 end func
+
++func [d0001.knd, _mousePos] mousePos(x: &int, y: &int)
+end func

@@ -7,18 +7,22 @@ var auxiliaryErr: dict<\src@Pos, []char>
 
 +func resetData()
 	do @auxiliaryErr :: #dict<\src@Pos, []char>
-	do \form@listInfoItem :: #list<\form@ListInfoItem>
+	if(\src@curDoc =$ \doc_src@DocSrc)
+		do (\src@curDoc $ \doc_src@DocSrc).resetListInfoItem()
+	end if
 end func
 
 +func update()
-	do @auxiliaryErr.forEach(callback, null)
+	if(\src@curDoc =$ \doc_src@DocSrc)
+		do @auxiliaryErr.forEach(callback, \src@curDoc $ \doc_src@DocSrc)
+	end if
 	do \form@paintDrawEditor()
 
-	func callback(pos: \src@Pos, msg: []char, data: kuin@Class): bool
-		var listInfoItem: \form@ListInfoItem :: #\form@ListInfoItem
+	func callback(pos: \src@Pos, msg: []char, doc_src: \doc_src@DocSrc): bool
+		var listInfoItem: \doc_src@ListInfoItem :: #\doc_src@ListInfoItem
 		do listInfoItem.text :: msg
 		do listInfoItem.pos :: pos
-		do \form@listInfoItem.add(listInfoItem)
+		do doc_src.addListInfoItem(listInfoItem)
 
 		; Fill in words with the error color.
 		var srcName: []char :: \src@internalNameToSrcName(pos.src)

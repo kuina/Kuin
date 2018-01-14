@@ -12,6 +12,15 @@
 	max
 end enum
 
++class ListInfoItem()
+	+var text: []char
+	+var pos: \src@Pos
+
+	+*func cmp(t: @ListInfoItem): int
+		ret me.pos.cmp(t.pos)
+	end func
+end class
+
 var srcCharColor: []int
 var regexIncIndent: regex@Regex
 var regexDecIndent: regex@Regex
@@ -183,7 +192,34 @@ end func
 	end func
 
 	+*func updateTree(tree: wnd@Tree)
+		do me.listInfoItem.sort()
+		do me.listInfoItem.head()
+		do \form@listInfo.setRedraw(false)
+		while(!me.listInfoItem.term())
+			do \form@listInfo.add(me.listInfoItem.get().text)
+			do me.listInfoItem.next()
+		end while
+		do \form@listInfo.setRedraw(true)
+	end func
+
+	+*func treeItemOnSel()
 		; TODO:
+	end func
+
+	+*func treeItemOnMoveNode()
+		; TODO:
+	end func
+
+	+*func listInfoOnSel()
+		var sel: int :: \form@listInfo.getSel()
+		if(sel <> -1 & sel < ^me.listInfoItem)
+			do me.listInfoItem.head()
+			var item: @ListInfoItem :: me.listInfoItem.getOffset(sel)
+			if(\src@jumpSrc(item.pos))
+				do \form@setLog(item.text)
+				do \auxiliary@resetDirtyHint()
+			end if
+		end if
 	end func
 
 	+*func mouseDownL(x: int, y: int)
@@ -808,6 +844,14 @@ end func
 		ret me.complementImpl()
 	end func
 
+	+func resetListInfoItem()
+		do me.listInfoItem :: #list<@ListInfoItem>
+	end func
+
+	+func addListInfoItem(item: @ListInfoItem)
+		do me.listInfoItem.add(item)
+	end func
+
 	const colorLineNum: int :: 16#FFFF7F7F
 	const colorAreaBack: int :: 16#FF808080
 	const colorErrBack: int :: 16#FFFF3333
@@ -852,6 +896,7 @@ end func
 	var areaY: int
 	var lineNumWidth: int
 	+var interpreted: bool
+	+var listInfoItem: list<@ListInfoItem>
 
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)

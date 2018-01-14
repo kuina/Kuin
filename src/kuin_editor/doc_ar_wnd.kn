@@ -8,7 +8,7 @@
 		ret null
 	end func
 
-	+**func setCtrlList(ctrlList: wnd@List)
+	**func addCtrlList(ctrlList: wnd@List)
 		do ctrlList.add("button")
 	end func
 end class

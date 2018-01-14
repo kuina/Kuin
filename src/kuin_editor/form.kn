@@ -1,5 +1,5 @@
 +var wndMain: wnd@Wnd
-var treeItem: wnd@Tree
++var treeItem: wnd@Tree
 +var listInfo: wnd@List
 var editFile: wnd@Edit
 +var drawEditor: wnd@Draw
@@ -23,16 +23,6 @@ var popupMainFile: wnd@Popup
 var popupMainBuild: wnd@Popup
 var popupMainHelp: wnd@Popup
 
-+class ListInfoItem()
-	+var text: []char
-	+var pos: \src@Pos
-
-	+*func cmp(t: ListInfoItem): int
-		ret me.pos.cmp(t.pos)
-	end func
-end class
-
-+var listInfoItem: list<@ListInfoItem>
 var lockingEditor: bool
 var lockPropOnChange: bool
 var textErr: []char
@@ -46,6 +36,10 @@ var drag: bool
 	do @wndMain.onActivate :: @wndMainOnActivate
 	do @wndMain.onPushMenu :: @wndMainOnPushMenu
 	do @treeItem :: wnd@makeTree(@wndMain, 12, 12, 244, 466, %fix, %fix)
+	do @treeItem.draggable(true)
+	do @treeItem.allowDraggingToRoot(false)
+	do @treeItem.onSel :: @treeItemOnSel
+	do @treeItem.onMoveNode :: @treeItemOnMoveNode
 	do @listInfo :: wnd@makeList(@wndMain, 12, 484, 244, 272, %fix, %scale)
 	do @listInfo.onSel :: @listInfoOnSel
 	do @editFile :: wnd@makeEdit(@wndMain, 262, 12, 759, 15, %scale, %fix)
@@ -403,17 +397,16 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	end switch
 end func
 
+func treeItemOnSel(wnd: wnd@WndBase)
+	do \src@curDoc.treeItemOnSel()
+end func
+
+func treeItemOnMoveNode(wnd: wnd@WndBase)
+	do \src@curDoc.treeItemOnMoveNode()
+end func
+
 func listInfoOnSel(wnd: wnd@WndBase)
-	var sel: int :: @listInfo.getSel()
-	if(sel <> -1 & sel < ^@listInfoItem)
-		do @listInfoItem.head()
-		var item: @ListInfoItem :: @listInfoItem.getOffset(sel)
-		if(\src@jumpSrc(item.pos))
-			do @textErr :: item.text
-			do @updateLog()
-			do \auxiliary@resetDirtyHint()
-		end if
-	end if
+	do \src@curDoc.listInfoOnSel()
 end func
 
 func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
@@ -663,21 +656,13 @@ func updateLog()
 	do @editLog.setText(@textLog)
 end func
 
++func setLog(text: []char)
+	do @textErr :: text
+	do @updateLog()
+end func
+
 +func updateList()
 	do @editFile.setText("")
-	do @listInfo.setRedraw(false)
-	do @listInfo.clear()
-	if(\src@curDoc =$ \doc_src@DocSrc)
-		do @listInfoItem.sort()
-		do @listInfoItem.head()
-		while(!@listInfoItem.term())
-			do @listInfo.add(@listInfoItem.get().text)
-			do @listInfoItem.next()
-		end while
-	elif(\src@curDoc =$ \doc_ar@DocArBase)
-		do (\src@curDoc $ \doc_ar@DocArBase).setCtrlList(@listInfo)
-	end if
-	do @listInfo.setRedraw(true)
 
 	do @listFile.setRedraw(false)
 	do @listFile.clear()
@@ -705,6 +690,8 @@ end func
 end func
 
 +func updateTree()
+	do @listInfo.clear()
+
 	do @treeItem.setRedraw(false)
 	do @treeItem.clear()
 	do \src@curDoc.updateTree(@treeItem)

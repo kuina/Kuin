@@ -1,0 +1,46 @@
++func make(path: []char, parent: wnd@WndBase): wnd@WndBase
+	try
+		ret buildRecursion(xml@makeXml(path).root().firstChild().next(), parent)
+	catch
+		ret null
+	end try
+
+	func buildRecursion(node: xml@Node, parent: wnd@WndBase): wnd@WndBase
+		var result: wnd@WndBase
+
+		var x: int
+		var y: int
+		var width: int
+		var height: int
+		if(!node.getAttr("x").toInt(&x))
+			throw 16#E9170008
+		end if
+		if(!node.getAttr("y").toInt(&y))
+			throw 16#E9170008
+		end if
+		if(!node.getAttr("width").toInt(&width))
+			throw 16#E9170008
+		end if
+		if(!node.getAttr("height").toInt(&height))
+			throw 16#E9170008
+		end if
+
+		switch(node.getName())
+		case "root"
+			do result :: wnd@makeWnd(parent, %normal, width, height, "")
+		case "button"
+			do result :: wnd@makeBtn(parent, x, y, width, height, %fix, %fix, "")
+		default
+			throw 16#E9170008
+		end switch
+		do result.name :: node.getAttr("name")
+
+		var child: xml@Node :: node.firstChild()
+		while(child <>& null)
+			do buildRecursion(child, result)
+			do child :: child.next()
+		end while
+
+		ret result
+	end func
+end func

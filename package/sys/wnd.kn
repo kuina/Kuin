@@ -68,16 +68,50 @@ end enum
 	+func [d0001.knd, _wndBaseSetVisible] setVisible(isVisible: bool)
 	end func
 
+	+func [d0001.knd, _wndBaseClientToScreen] clientToScreen(screenX: &int, screenY: &int, clientX: int, clientY: int)
+	end func
+
+	+func [d0001.knd, _wndBaseScreenToClient] screenToClient(clientX: &int, clientY: &int, screenX: int, screenY: int)
+	end func
+
 	+func addChild(child: kuin@Class)
 		do me.children.add(child)
 	end func
 
+	+func find(name: []char): @WndBase
+		if(dbg)
+			if(name =& null)
+				throw 16#E9170006
+			end if
+		end if
+		ret findRecursion(me, name)
+
+		func findRecursion(wnd: @WndBase, name: []char): @WndBase
+			if(wnd.name <>& null & wnd.name = name)
+				ret wnd
+			end if
+			do wnd.children.head()
+			while(!wnd.children.term())
+				var child: kuin@Class :: wnd.children.get()
+				if(child =$ @WndBase)
+					var result: @WndBase :: findRecursion(child $ @WndBase, name)
+					if(result <>& null)
+						ret result
+					end if
+				end if
+				do wnd.children.next()
+			end while
+			ret null
+		end func
+	end func
+
+	+var name: []char
 	var kind: int
 	var handle: int
 	var defaultWndProc: int
 	var ctrlFlag: int
 	var defaultRect: int
-	var children: list<kuin@Class>
+	+var children: list<kuin@Class>
 end class
 
 +class Wnd(@WndBase)
@@ -408,9 +442,30 @@ end class
 
 	+func [d0001.knd, _treeRoot, _make_instance] root(me2: @TreeNode): @TreeNode
 	end func
+
+	+func [d0001.knd, _treeDraggable] draggable(enabled: bool)
+	end func
+
+	+func [d0001.knd, _treeAllowDraggingToRoot] allowDraggingToRoot(enabled: bool)
+	end func
+
+	+func [d0001.knd, _treeSetSel] setSel(node: @TreeNode)
+	end func
+
+	+func [d0001.knd, _treeGetSel, _make_instance] getSel(me2: @TreeNode): @TreeNode
+	end func
+
+	var draggable_: int
+	var draggingItem: int
+	+var onSel: func<(@WndBase)>
+	+var onMoveNode: func<(@WndBase)>
 end class
 
 +class TreeNode()
+	+*func cmp(t: @TreeNode): int
+		ret me.item - t.item
+	end func
+
 	*func [_force] _copy(): kuin@Class
 		throw 16#E9170005
 	end func
@@ -448,7 +503,7 @@ end class
 	end func
 
 	var wndHandle: int
-	var item: int
+	+var item: int
 end class
 
 class SplitBase(@WndBase)

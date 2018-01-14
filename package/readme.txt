@@ -56,7 +56,7 @@ v.2018.1.17
       - wnd@WndBase.getPosScrをwnd@WndBase.getPosScreenに変更
       - draw@makeFontの引数の変更
     - 細かな機能追加
-      - draw@argbToColor、draw@colorToArgb関数の追加
+      - draw@argbToColor、draw@colorToArgb、input@mousePos関数の追加
 
 v.2017.12.17
     - リリースビルド時に、resフォルダをres.kndファイルにアーカイブする機能の

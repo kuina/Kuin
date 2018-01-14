@@ -7,6 +7,7 @@
 		do me.pageY :: 0
 		do me.mode :: %none
 		do me.hold :: null
+		do me.ctrl :: 0
 	end func
 
 	+*func load(path: []char): bool
@@ -69,38 +70,119 @@
 	end func
 
 	+*func updateTree(tree: wnd@Tree)
-		do updateTreeRecursion(tree.root(), me.obj2dRoot)
+		do updateTreeRecursion(me.hold, tree, tree.root(), me.obj2dRoot)
+		do me.addCtrlList(\form@listInfo)
+		do \form@listInfo.setSel(me.ctrl)
 
-		func updateTreeRecursion(node: wnd@TreeNode, obj: @Obj2d)
+		func updateTreeRecursion(hold: @Obj2d, tree: wnd@Tree, node: wnd@TreeNode, obj: @Obj2d)
 			var node2: wnd@TreeNode :: node.addChild(obj.objName)
+			if(hold =& obj)
+				do tree.setSel(node2)
+			end if
 			do obj.children.head()
 			while(!obj.children.term())
-				do updateTreeRecursion(node2, obj.children.get())
+				do updateTreeRecursion(hold, tree, node2, obj.children.get())
 				do obj.children.next()
 			end while
 		end func
 	end func
 
-	+*func mouseDownL(x: int, y: int)
+	+*func treeItemOnSel()
+		var sel: wnd@TreeNode :: \form@treeItem.getSel()
+		do me.hold :: selRecursion(\form@treeItem.root().firstChild(), me.obj2dRoot, sel)
+		do \form@paintDrawEditor()
+
+		func selRecursion(node: wnd@TreeNode, obj: @Obj2d, sel: wnd@TreeNode): @Obj2d
+			if(node = sel)
+				ret obj
+			end if
+			do obj.children.head()
+			var node2: wnd@TreeNode :: node.firstChild()
+			while(!obj.children.term() & node2 <>& null)
+				var result: @Obj2d :: selRecursion(node2, obj.children.get(), sel)
+				if(result <>& null)
+					ret result
+				end if
+				do node2 :: node2.next()
+				do obj.children.next()
+			end while
+			ret null
+		end func
+	end func
+
+	+*func treeItemOnMoveNode()
+		do me.obj2dRoot :: updateObjRecursion(\form@treeItem.root().firstChild(), me.obj2dRoot) $ @Obj2dRoot
+		do \form@updateTree()
+		do \form@paintDrawEditor()
+
+		func updateObjRecursion(node: wnd@TreeNode, objRoot: @Obj2d): @Obj2d
+			var obj: @Obj2d :: searchRecursion(node.getName(), objRoot)
+			var newObj: @Obj2d :: ##obj
+			do newObj.children :: #list<@Obj2d>
+			var node2: wnd@TreeNode :: node.firstChild()
+			while(node2 <>& null)
+				do newObj.children.add(updateObjRecursion(node2, objRoot))
+				do node2 :: node2.next()
+			end while
+			ret newObj
+
+			func searchRecursion(name: []char, obj: @Obj2d): @Obj2d
+				if(name = obj.objName)
+					ret obj
+				end if
+				do obj.children.head()
+				while(!obj.children.term())
+					var result: @Obj2d :: searchRecursion(name, obj.children.get())
+					if(result <>& null)
+						ret result
+					end if
+					do obj.children.next()
+				end while
+				ret null
+			end func
+		end func
+	end func
+
+	+*func listInfoOnSel()
 		var sel: int :: \form@listInfo.getSel()
-		if(sel <= 0)
-			do me.mode :: %move
-			do me.hold :: selRecursion(me.obj2dRoot, x + me.pageX, y + me.pageY)
+		do me.ctrl :: sel < 0 ?(0, sel)
+	end func
+
+	+*func mouseDownL(x: int, y: int)
+		var x2: int :: x + me.pageX
+		var y2: int :: y + me.pageY
+		if(me.ctrl <= 0)
+			do me.hold :: selRecursion(me.obj2dRoot, x2, y2)
 			if(me.hold =& null)
 				do me.hold :: me.obj2dRoot
+			end if
+			if(me.hold =& me.obj2dRoot)
+				do me.mode :: %none
+			else
+				if(me.hold.x + me.hold.width - resizeArea <= x2 & me.hold.y + me.hold.height - resizeArea <= y2)
+					do me.mode :: %resize
+					do me.holdOffsetX :: me.hold.x + me.hold.width - x2
+					do me.holdOffsetY :: me.hold.y + me.hold.height - y2
+				else
+					do me.mode :: %move
+					do me.holdOffsetX :: me.hold.x - x2
+					do me.holdOffsetY :: me.hold.y - y2
+				end if
 			end if
 		else
 			if (\form@getLockingEditor())
 				do \form@showMsgRunning()
 				ret
 			end if
-			var name: []char :: \form@listInfo.getText(sel)
+			var name: []char :: \form@listInfo.getText(me.ctrl)
 			do me.mode :: %put
+			do me.holdOffsetX :: 0
+			do me.holdOffsetY :: 0
 			var obj: @Obj2d :: me.makeObj2d(name)
 			var minWidth: int
 			var minHeight: int
 			do obj.getMinMaxSize(&minWidth, &minHeight, &, &)
-			do obj.init(me.getDefaultName(name), x, y, minWidth, minHeight)
+			do obj.init(me.getDefaultName(name), x2, y2, minWidth, minHeight)
 			if(me.hold =& null)
 				do me.obj2dRoot.children.add(obj)
 			else
@@ -113,18 +195,19 @@
 		do \form@paintDrawEditor()
 
 		func selRecursion(obj: @Obj2d, x: int, y: int): @Obj2d
+			var result: @Obj2d :: null
+			if(obj.x <= x & x <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
+				do result :: obj
+			end if
 			do obj.children.head()
 			while(!obj.children.term())
-				var result: @Obj2d :: selRecursion(obj.children.get(), x, y)
-				if(result <>& null)
-					ret result
+				var result2: @Obj2d :: selRecursion(obj.children.get(), x, y)
+				if(result2 <>& null)
+					do result :: result2
 				end if
 				do obj.children.next()
 			end while
-			if(obj.x <= x & x <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
-				ret obj
-			end if
-			ret null
+			ret result
 		end func
 	end func
 
@@ -135,8 +218,28 @@
 				do \form@showMsgRunning()
 				ret
 			end if
-			do me.moveObj2d(x, y)
+			do me.resizeObj2d(x + me.pageX, y + me.pageY)
 			do me.mode :: %none
+			do me.ctrl :: 0
+			do \form@updateTree()
+			do \form@paintDrawEditor()
+		case %move
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.moveObj2d(x + me.pageX, y + me.pageY)
+			do me.mode :: %none
+			do \form@updateTree()
+			do \form@paintDrawEditor()
+		case %resize
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.resizeObj2d(x + me.pageX, y + me.pageY)
+			do me.mode :: %none
+			do \form@updateTree()
 			do \form@paintDrawEditor()
 		end switch
 	end func
@@ -152,7 +255,21 @@
 				do \form@showMsgRunning()
 				ret
 			end if
-			do me.moveObj2d(x, y)
+			do me.resizeObj2d(x + me.pageX, y + me.pageY)
+			do \form@paintDrawEditor()
+		case %move
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.moveObj2d(x + me.pageX, y + me.pageY)
+			do \form@paintDrawEditor()
+		case %resize
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.resizeObj2d(x + me.pageX, y + me.pageY)
 			do \form@paintDrawEditor()
 		end switch
 	end func
@@ -195,10 +312,30 @@
 
 	+*func setMouseImg(): wnd@MouseImg
 		switch(me.mode)
+		case %none
+			if(me.hold <>& null)
+				var x: int
+				var y: int
+				do input@mousePos(&x, &y)
+				do \form@drawEditor.screenToClient(&x, &y, x, y)
+				do x :+ me.pageX
+				do y :+ me.pageY
+				if(me.hold.x <= x & me.hold.y <= y & x <= me.hold.x + me.hold.width & y <= me.hold.y + me.hold.height)
+					if(me.hold.x + me.hold.width - resizeArea <= x & me.hold.y + me.hold.height - resizeArea <= y)
+						ret %resizeLTRD
+					end if
+					ret %move
+				end if
+			end if
+			ret %arrow
 		case %put
 			ret %cross
+		case %move
+			ret %move
+		case %resize
+			ret %resizeLTRD
 		default
-			ret %arrow
+			assert false
 		end switch
 	end func
 
@@ -223,7 +360,31 @@
 	end func
 
 	+*func cmdDel()
-		; TODO:
+		if(me.hold =& null | me.hold =& me.obj2dRoot)
+			ret
+		end if
+		do delRecursion(\form@treeItem.root().firstChild(), me.obj2dRoot, me.hold)
+		do \form@updateTree()
+		do \form@paintDrawEditor()
+
+		func delRecursion(node: wnd@TreeNode, obj: @Obj2d, hold: @Obj2d): bool
+			var node2: wnd@TreeNode :: node.firstChild()
+			do obj.children.head()
+			while(!obj.children.term() & node2 <>& null)
+				var childObj: @Obj2d :: obj.children.get()
+				if(hold =& childObj)
+					do node.delChild(node2)
+					do obj.children.del()
+					ret true
+				end if
+				if(delRecursion(node2, childObj, hold))
+					ret true
+				end if
+				do node2 :: node2.next()
+				do obj.children.next()
+			end while
+			ret false
+		end func
 	end func
 
 	+*func cmdSelAll()
@@ -235,11 +396,13 @@
 	end func
 
 	const padding: int :: 32
+	const resizeArea: int :: 6
 
 	enum Mode
 		none
 		put
 		move
+		resize
 	end enum
 
 	var src: [][]char
@@ -248,11 +411,14 @@
 	var pageY: int
 	var mode: Mode
 	var hold: @Obj2d
+	var ctrl: int
+	var holdOffsetX: int
+	var holdOffsetY: int
 
 	+func makeObj2d(name: []char): @Obj2d
 	end func
 
-	+func setCtrlList(ctrlList: wnd@List)
+	func addCtrlList(ctrlList: wnd@List)
 		do ctrlList.add(\common@langEn ?("none", "なし"))
 	end func
 
@@ -291,9 +457,9 @@
 		end func
 	end func
 
-	func moveObj2d(x: int, y: int)
-		var width: int :: x - me.hold.x
-		var height: int :: y - me.hold.y
+	func resizeObj2d(x: int, y: int)
+		var width: int :: x - me.hold.x + me.holdOffsetX
+		var height: int :: y - me.hold.y + me.holdOffsetY
 		var minWidth: int
 		var minHeight: int
 		var maxWidth: int
@@ -313,6 +479,11 @@
 		end if
 		do me.hold.width :: width
 		do me.hold.height :: height
+	end func
+
+	func moveObj2d(x: int, y: int)
+		do me.hold.x :: x + me.holdOffsetX
+		do me.hold.y :: y + me.holdOffsetY
 	end func
 end class
 

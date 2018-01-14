@@ -149,6 +149,7 @@ end func
 end func
 
 +func setCurSrc(doc: \doc@Doc)
+	do \completion@close()
 	do @curDoc :: doc
 	if(doc =$ \doc_src@DocSrc)
 		var doc2: \doc_src@DocSrc :: doc $ \doc_src@DocSrc
@@ -157,7 +158,6 @@ end func
 			do doc2.interpreted :: true
 		end if
 	end if
-	do \completion@close()
 	do \form@paintDrawEditor()
 	do \form@focusDrawEditor()
 end func
