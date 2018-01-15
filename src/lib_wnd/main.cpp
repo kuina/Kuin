@@ -1268,8 +1268,124 @@ EXPORT_CPP SClass* _makeLabelLink(SClass* me_, SClass* parent, S64 x, S64 y, S64
 
 EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP, x, y, width, height, L"", WndProcListView, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | LVS_REPORT, x, y, width, height, L"", WndProcListView, anchorX, anchorY);
+	SetWindowLongPtr(ListView_GetHeader(reinterpret_cast<SWndBase*>(me_)->WndHandle), GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me_));
 	return me_;
+}
+
+EXPORT_CPP void _listViewClear(SClass* me_)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	ListView_DeleteAllItems(me2->WndHandle);
+}
+
+EXPORT_CPP void _listViewAdd(SClass* me_, const U8* text)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	LVITEM item;
+	item.mask = LVIF_TEXT;
+	item.iItem = ListView_GetItemCount(wnd);
+	item.iSubItem = 0;
+	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
+	ListView_InsertItem(wnd, &item);
+}
+
+EXPORT_CPP void _listViewIns(SClass* me_, S64 idx, const U8* text)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+#if defined(DBG)
+	S64 len = _listViewLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+#endif
+	LVITEM item;
+	item.mask = LVIF_TEXT;
+	item.iItem = static_cast<int>(idx);
+	item.iSubItem = 0;
+	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
+	ListView_InsertItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
+}
+
+EXPORT_CPP void _listViewDel(SClass* me_, S64 idx)
+{
+#if defined(DBG)
+	S64 len = _listViewLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+#endif
+	ListView_DeleteItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx));
+}
+
+EXPORT_CPP S64 _listViewLen(SClass* me_)
+{
+	return static_cast<S64>(ListView_GetItemCount(reinterpret_cast<SWndBase*>(me_)->WndHandle));
+}
+
+EXPORT_CPP void _listViewAddColumn(SClass* me_, const U8* text)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	LVCOLUMN lvcolumn;
+	lvcolumn.mask = LVCF_TEXT;
+	lvcolumn.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
+	ListView_InsertColumn(wnd, Header_GetItemCount(ListView_GetHeader(wnd)), &lvcolumn);
+}
+
+EXPORT_CPP void _listViewInsColumn(SClass* me_, S64 column, const U8* text)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+#if defined(DBG)
+	S64 len = _listViewLenColumn(me_);
+	THROWDBG(column < 0 || len <= column, 0xe9170006);
+#endif
+	LVCOLUMN lvcolumn;
+	lvcolumn.mask = LVCF_TEXT;
+	lvcolumn.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
+	ListView_InsertColumn(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(column), &lvcolumn);
+}
+
+EXPORT_CPP void _listViewDelColumn(SClass* me_, S64 column)
+{
+#if defined(DBG)
+	S64 len = _listViewLenColumn(me_);
+	THROWDBG(column < 0 || len <= column, 0xe9170006);
+#endif
+	ListView_DeleteColumn(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(column));
+}
+
+EXPORT_CPP S64 _listViewLenColumn(SClass* me_)
+{
+	return static_cast<S64>(Header_GetItemCount(ListView_GetHeader(reinterpret_cast<SWndBase*>(me_)->WndHandle)));
+}
+
+EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* text)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+#if defined(DBG)
+	S64 len = _listViewLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	len = _listViewLenColumn(me_);
+	THROWDBG(column < 0 || len <= column, 0xe9170006);
+#endif
+	ListView_SetItemText(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), static_cast<int>(column), const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10)));
+}
+
+EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column)
+{
+#if defined(DBG)
+	S64 len = _listViewLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	len = _listViewLenColumn(me_);
+	THROWDBG(column < 0 || len <= column, 0xe9170006);
+#endif
+	Char buf[1025];
+	ListView_GetItemText(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), static_cast<int>(column), buf, 1025);
+	buf[1024] = L'\0';
+	size_t len2 = wcslen(buf);
+	U8* result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * static_cast<size_t>(len2 + 1)));
+	*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
+	*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len2);
+	memcpy(result + 0x10, buf, sizeof(Char) * static_cast<size_t>(len2 + 1));
+	return result;
 }
 
 EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
@@ -1397,7 +1513,6 @@ EXPORT_CPP SClass* _treeNodeAddChild(SClass* me_, SClass* me2, const U8* name)
 	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
 	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
 	TVINSERTSTRUCT tvis;
-	memset(&tvis, 0, sizeof(tvis));
 	tvis.hParent = me3->Item == NULL ? TVI_ROOT : me3->Item;
 	tvis.hInsertAfter = TVI_LAST;
 	tvis.item.mask = TVIF_TEXT;
@@ -1417,7 +1532,6 @@ EXPORT_CPP SClass* _treeNodeInsChild(SClass* me_, SClass* me2, SClass* node, con
 	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
 	STreeNode* node2 = reinterpret_cast<STreeNode*>(node);
 	TVINSERTSTRUCT tvis;
-	memset(&tvis, 0, sizeof(tvis));
 	tvis.hParent = me3->Item == NULL ? TVI_ROOT : me3->Item;
 	HTREEITEM prev = TreeView_GetPrevSibling(me3->WndHandle, node2->Item);
 	tvis.hInsertAfter = prev == NULL ? TVI_FIRST : prev;
@@ -1462,7 +1576,6 @@ EXPORT_CPP void* _treeNodeGetName(SClass* me_)
 		return NULL;
 	TVITEM ti;
 	Char buf[1025];
-	memset(&ti, 0, sizeof(ti));
 	ti.mask = TVIF_TEXT;
 	ti.hItem = me2->Item;
 	ti.pszText = buf;

@@ -5,7 +5,8 @@ var editFile: wnd@Edit
 +var drawEditor: wnd@Draw
 +var scrollXSrc: wnd@ScrollX
 +var scrollYSrc: wnd@ScrollY
-var editHint: wnd@EditMulti
+var editProp: wnd@EditMulti
+var listProp: wnd@ListView
 var editLog: wnd@EditMulti
 var btnCompile: wnd@Btn
 var groupConfig: wnd@Group
@@ -25,7 +26,6 @@ var popupMainHelp: wnd@Popup
 
 var lockingEditor: bool
 var lockPropOnChange: bool
-var textErr: []char
 var textLog: []char
 var drag: bool
 
@@ -49,8 +49,12 @@ var drag: bool
 	do @scrollXSrc.setState(0, 0, 1, 0)
 	do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 742, 0, 17, 565, %move, %scale)
 	do @scrollYSrc.setState(0, 0, 1, 0)
-	do @editHint :: wnd@makeEditMulti(@wndMain, 262, 621, 391, 135, %scale, %move)
-	do @editHint.readonly(true)
+	do @editProp :: wnd@makeEditMulti(@wndMain, 262, 621, 391, 135, %scale, %move)
+	do @editProp.readonly(true)
+	do @listProp :: wnd@makeListView(@wndMain, 262, 621, 391, 135, %scale, %move)
+	do @listProp.setVisible(false)
+	do @listProp.addColumn(\common@langEn ?("Property", "プロパティ"))
+	do @listProp.addColumn(\common@langEn ?("Value", "値"))
 	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
 	do @editLog.readonly(true)
 	do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, \common@langEn ?("Compile && Run", "コンパイル＆実行"))
@@ -115,7 +119,6 @@ var drag: bool
 
 	do @lockingEditor :: false
 	do @lockPropOnChange :: false
-	do @textErr :: ""
 	do @textLog :: ""
 	do @drag :: false
 end func
@@ -652,13 +655,19 @@ end func
 end func
 
 func updateLog()
-	do @editHint.setText(@textErr)
 	do @editLog.setText(@textLog)
 end func
 
-+func setLog(text: []char)
-	do @textErr :: text
-	do @updateLog()
++func updateProp()
+	do @editProp.setRedraw(false)
+	do @editProp.setText("")
+	do @listProp.setRedraw(false)
+	do @listProp.clear()
+	var result: bool :: \src@curDoc.updateProp(@editProp, @listProp)
+	do @editProp.setRedraw(true)
+	do @listProp.setRedraw(true)
+	do @editProp.setVisible(result)
+	do @listProp.setVisible(!result)
 end func
 
 +func updateList()

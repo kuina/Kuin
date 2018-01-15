@@ -401,6 +401,39 @@ end class
 +class ListView(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+
+	+func [d0001.knd, _listViewClear] clear()
+	end func
+
+	+func [d0001.knd, _listViewAdd] add(text: []char)
+	end func
+
+	+func [d0001.knd, _listViewIns] ins(idx: int, text: []char)
+	end func
+
+	+func [d0001.knd, _listViewDel] del(idx: int)
+	end func
+
+	+func [d0001.knd, _listViewLen] len(): int
+	end func
+
+	+func [d0001.knd, _listViewAddColumn] addColumn(text: []char)
+	end func
+
+	+func [d0001.knd, _listViewInsColumn] insColumn(column: int, text: []char)
+	end func
+
+	+func [d0001.knd, _listViewDelColumn] delColumn(column: int)
+	end func
+
+	+func [d0001.knd, _listViewLenColumn] lenColumn(): int
+	end func
+
+	+func [d0001.knd, _listViewSetText] setText(idx: int, column: int, text: []char)
+	end func
+
+	+func [d0001.knd, _listViewGetText] getText(idx: int, column: int): []char
+	end func
 end class
 
 +class Pager(@WndBase)

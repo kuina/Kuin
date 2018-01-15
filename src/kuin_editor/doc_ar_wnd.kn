@@ -30,6 +30,17 @@ class Obj2dWnd(\doc_ar@Obj2dRoot)
 		do node.setAttr("text", me.text)
 	end func
 
+	+*func draw(pageX: int, pageY: int)
+		var x: float :: (me.absX - pageX) $ float
+		var y: float :: (me.absY - pageY) $ float
+		var width: float :: me.width $ float
+		var height: float :: me.height $ float
+		do draw@rect(x, y, width, height, 16#FFF0F0F0)
+		do draw@rect(x, y - 30.0, width, 30.0, 16#FFFFFFFF)
+		do \common@fontP.draw(x + 30.0, y - 30.0 + 6.0, me.text, draw@black)
+		do draw@rectLine(x - 1.0, y - 31.0, width + 2.0, height + 32.0, 16#FF1883D7)
+	end func
+
 	+var text: []char
 end class
 
@@ -58,7 +69,12 @@ class Obj2dBtn(\doc_ar@Obj2d)
 	end func
 
 	+*func draw(pageX: int, pageY: int)
-		do draw@rect((me.x - pageX) $ float, (me.y - pageY) $ float, me.width $ float, me.height $ float, 16#FF808080)
+		var x: float :: (me.absX - pageX) $ float
+		var y: float :: (me.absY - pageY) $ float
+		var width: float :: me.width $ float
+		var height: float :: me.height $ float
+		do draw@rect(x, y, width, height, 16#FFE1E1E1)
+		do draw@rectLine(x, y, width, height, 16#FFADADAD)
 	end func
 
 	+var text: []char

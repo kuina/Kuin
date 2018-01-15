@@ -1,7 +1,9 @@
 +class DocArBase(\doc@Doc)
 	**func ctor()
-		do me.pageX :: 0
-		do me.pageY :: 0
+		do me.scrollOffsetX :: 10
+		do me.scrollOffsetY :: 40
+		do me.pageX :: -me.scrollOffsetX
+		do me.pageY :: -me.scrollOffsetY
 		do me.mode :: %none
 		do me.hold :: null
 		do me.ctrl :: 0
@@ -56,7 +58,10 @@
 		do drawRecursion(me.obj2dRoot, me.pageX, me.pageY, me.hold)
 
 		func drawRecursion(obj: @Obj2d, pageX: int, pageY: int, hold: @Obj2d)
-			do draw@rect((obj.x - 2 - pageX) $ float, (obj.y - 2 - pageY) $ float, (obj.width + 4) $ float, (obj.height + 4) $ float, hold =& obj ?(16#FF6666FF, 16#FF666666))
+			if(hold =& obj)
+				do draw@rectLine((obj.absX - 3 - pageX) $ float, (obj.absY - 3 - pageY) $ float, (obj.width + 6) $ float, (obj.height + 6) $ float, 16#FF6666FF)
+				do draw@rectLine((obj.absX - 4 - pageX) $ float, (obj.absY - 4 - pageY) $ float, (obj.width + 8) $ float, (obj.height + 8) $ float, 16#FF6666FF)
+			end if
 			do obj.draw(pageX, pageY)
 			do obj.children.head()
 			while(!obj.children.term())
@@ -66,10 +71,41 @@
 		end func
 	end func
 
+	+*func updateProp(edit: wnd@EditMulti, listView: wnd@ListView): bool
+		if(me.hold <>& null)
+			var parent: @Obj2d :: searchParentRecursion(me.hold, me.obj2dRoot)
+			var x: int :: 0
+			var y: int :: 0
+			if(parent <>& null)
+				do x :: parent.absX
+				do y :: parent.absY
+			end if
+			do me.hold.updateProp(listView, x, y)
+		end if
+		ret false
+
+		func searchParentRecursion(child: @Obj2d, obj: @Obj2d): @Obj2d
+			do obj.children.head()
+			while(!obj.children.term())
+				var child2: @Obj2d :: obj.children.get()
+				var result: @Obj2d :: searchParentRecursion(child, child2)
+				if(result <>& null)
+					ret result
+				end if
+				if(child =& child2)
+					ret obj
+				end if
+				do obj.children.next()
+			end while
+			ret null
+		end func
+	end func
+
 	+*func updateTree(tree: wnd@Tree)
 		do updateTreeRecursion(me.hold, tree, tree.root(), me.obj2dRoot)
 		do me.addCtrlList(\form@listInfo)
 		do \form@listInfo.setSel(me.ctrl)
+		do \form@updateProp()
 
 		func updateTreeRecursion(hold: @Obj2d, tree: wnd@Tree, node: wnd@TreeNode, obj: @Obj2d)
 			var node2: wnd@TreeNode :: node.addChild(obj.objName)
@@ -153,18 +189,17 @@
 			if(me.hold =& null)
 				do me.hold :: me.obj2dRoot
 			end if
-			if(me.hold =& me.obj2dRoot)
+			
+			if(me.hold.absX + me.hold.width - resizeArea <= x2 & me.hold.absY + me.hold.height - resizeArea <= y2)
+				do me.mode :: %resize
+				do me.holdOffsetX :: me.hold.absX + me.hold.width - x2
+				do me.holdOffsetY :: me.hold.absY + me.hold.height - y2
+			elif(me.hold =& me.obj2dRoot)
 				do me.mode :: %none
 			else
-				if(me.hold.x + me.hold.width - resizeArea <= x2 & me.hold.y + me.hold.height - resizeArea <= y2)
-					do me.mode :: %resize
-					do me.holdOffsetX :: me.hold.x + me.hold.width - x2
-					do me.holdOffsetY :: me.hold.y + me.hold.height - y2
-				else
-					do me.mode :: %move
-					do me.holdOffsetX :: me.hold.x - x2
-					do me.holdOffsetY :: me.hold.y - y2
-				end if
+				do me.mode :: %move
+				do me.holdOffsetX :: me.hold.absX - x2
+				do me.holdOffsetY :: me.hold.absY - y2
 			end if
 		else
 			if (\form@getLockingEditor())
@@ -193,7 +228,7 @@
 
 		func selRecursion(obj: @Obj2d, x: int, y: int): @Obj2d
 			var result: @Obj2d :: null
-			if(obj.x <= x & x <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
+			if(obj.absX <= x & x <= obj.absX + obj.width & obj.absY <= y & y <= obj.absY + obj.height)
 				do result :: obj
 			end if
 			do obj.children.head()
@@ -290,12 +325,12 @@
 	end func
 
 	+*func scrollX(pos: int)
-		do me.pageX :: pos
+		do me.pageX :: pos - me.scrollOffsetX
 		do \form@paintDrawEditor()
 	end func
 
 	+*func scrollY(pos: int)
-		do me.pageY :: pos
+		do me.pageY :: pos - me.scrollOffsetY
 		do \form@paintDrawEditor()
 	end func
 
@@ -317,8 +352,8 @@
 				do \form@drawEditor.screenToClient(&x, &y, x, y)
 				do x :+ me.pageX
 				do y :+ me.pageY
-				if(me.hold.x <= x & me.hold.y <= y & x <= me.hold.x + me.hold.width & y <= me.hold.y + me.hold.height)
-					if(me.hold.x + me.hold.width - resizeArea <= x & me.hold.y + me.hold.height - resizeArea <= y)
+				if(me.hold.absX <= x & me.hold.absY <= y & x <= me.hold.absX + me.hold.width & y <= me.hold.absY + me.hold.height)
+					if(me.hold.absX + me.hold.width - resizeArea <= x & me.hold.absY + me.hold.height - resizeArea <= y)
 						ret %resizeLTRD
 					end if
 					ret %move
@@ -411,6 +446,8 @@
 	var ctrl: int
 	var holdOffsetX: int
 	var holdOffsetY: int
+	var scrollOffsetX: int
+	var scrollOffsetY: int
 
 	+func makeObj2d(name: []char): @Obj2d
 	end func
@@ -420,11 +457,11 @@
 	end func
 
 	func refreshScroll()
-		var scrWidth: int
-		var scrHeight: int
-		do \form@drawEditor.getPos(&, &, &scrWidth, &scrHeight)
-		do \form@scrollXSrc.setState(me.obj2dRoot.x, me.obj2dRoot.width + padding, scrWidth, me.pageX)
-		do \form@scrollYSrc.setState(me.obj2dRoot.y, me.obj2dRoot.height + padding, scrHeight, me.pageY)
+		var screenWidth: int
+		var screenHeight: int
+		do \form@drawEditor.getPos(&, &, &screenWidth, &screenHeight)
+		do \form@scrollXSrc.setState(me.obj2dRoot.absX, me.obj2dRoot.width + padding, screenWidth, me.pageX + me.scrollOffsetX)
+		do \form@scrollYSrc.setState(me.obj2dRoot.absY, me.obj2dRoot.height + padding, screenHeight, me.pageY + me.scrollOffsetY)
 	end func
 
 	func getDefaultName(name: []char): []char
@@ -455,8 +492,8 @@
 	end func
 
 	func resizeObj2d(x: int, y: int)
-		var width: int :: x - me.hold.x + me.holdOffsetX
-		var height: int :: y - me.hold.y + me.holdOffsetY
+		var width: int :: x - me.hold.absX + me.holdOffsetX
+		var height: int :: y - me.hold.absY + me.holdOffsetY
 		var minWidth: int
 		var minHeight: int
 		var maxWidth: int
@@ -479,21 +516,21 @@
 	end func
 
 	func moveObj2d(x: int, y: int)
-		do me.hold.x :: x + me.holdOffsetX
-		do me.hold.y :: y + me.holdOffsetY
+		do me.hold.absX :: x + me.holdOffsetX
+		do me.hold.absY :: y + me.holdOffsetY
 	end func
 end class
 
 +class Obj2d()
 	**func ctor()
-		do me.init("root", 0, 0, 1600, 900)
+		do me.init("root", 0, 0, 800, 450)
 	end func
 
 	+func init(objName: []char, x: int, y: int, width: int, height: int)
 		do me.children :: #list<Obj2d>
 		do me.objName :: objName
-		do me.x :: x
-		do me.y :: y
+		do me.absX :: x
+		do me.absY :: y
 		do me.width :: width
 		do me.height :: height
 	end func
@@ -511,16 +548,16 @@ end class
 	+func load(node: xml@Node)
 		do me.children :: #list<Obj2d>
 		do me.objName :: node.getAttr("name")
-		do node.getAttr("x").toInt(&me.x)
-		do node.getAttr("y").toInt(&me.y)
+		do node.getAttr("x").toInt(&me.absX)
+		do node.getAttr("y").toInt(&me.absY)
 		do node.getAttr("width").toInt(&me.width)
 		do node.getAttr("height").toInt(&me.height)
 	end func
 
 	+func save(node: xml@Node)
 		do node.setAttr("name", me.objName)
-		do node.setAttr("x", me.x.toStr())
-		do node.setAttr("y", me.y.toStr())
+		do node.setAttr("x", me.absX.toStr())
+		do node.setAttr("y", me.absY.toStr())
 		do node.setAttr("width", me.width.toStr())
 		do node.setAttr("height", me.height.toStr())
 	end func
@@ -528,34 +565,34 @@ end class
 	+func draw(pageX: int, pageY: int)
 	end func
 
+	+func updateProp(listView: wnd@ListView, x: int, y: int)
+		var idx: int :: listView.len()
+		do listView.add("name")
+		do listView.setText(idx + 0, 1, me.objName)
+		do listView.add("x")
+		do listView.setText(idx + 1, 1, (me.absX - x).toStr())
+		do listView.add("y")
+		do listView.setText(idx + 2, 1, (me.absY - y).toStr())
+		do listView.add("absolute_x")
+		do listView.setText(idx + 3, 1, me.absX.toStr())
+		do listView.add("absolute_y")
+		do listView.setText(idx + 4, 1, me.absY.toStr())
+		do listView.add("width")
+		do listView.setText(idx + 5, 1, me.width.toStr())
+		do listView.add("height")
+		do listView.setText(idx + 6, 1, me.height.toStr())
+	end func
+
 	+var children: list<Obj2d>
 	+var objName: []char
-	+var x: int
-	+var y: int
+	+var absX: int
+	+var absY: int
 	+var width: int
 	+var height: int
 end class
 
 +class Obj2dRoot(@Obj2d)
-	**func ctor()
-		do me.color :: draw@white
-	end func
-
 	+*func getName(): []char
 		ret "root"
 	end func
-
-	+**func load(node: xml@Node)
-		do node.getAttr("color").toInt(&me.color)
-	end func
-
-	+**func save(node: xml@Node)
-		do node.setAttr("color", me.color.toStr())
-	end func
-
-	+*func draw(pageX: int, pageY: int)
-		do draw@rect((me.x - pageX) $ float, (me.y - pageY) $ float, me.width $ float, me.height $ float, me.color)
-	end func
-
-	+var color: int
 end class

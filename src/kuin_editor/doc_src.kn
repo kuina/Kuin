@@ -68,6 +68,7 @@ end func
 		do me.areaY :: -1
 		do me.lineNumWidth :: 0
 		do me.interpreted :: false
+		do me.propText :: null
 		do me.setSrc(null)
 	end func
 
@@ -191,6 +192,14 @@ end func
 		end for
 	end func
 
+	+*func updateProp(edit: wnd@EditMulti, listView: wnd@ListView): bool
+		if(me.propText =& null)
+			ret true
+		end if
+		do edit.setText(me.propText)
+		ret true
+	end func
+
 	+*func updateTree(tree: wnd@Tree)
 		do me.listInfoItem.sort()
 		do me.listInfoItem.head()
@@ -216,7 +225,8 @@ end func
 			do me.listInfoItem.head()
 			var item: @ListInfoItem :: me.listInfoItem.getOffset(sel)
 			if(\src@jumpSrc(item.pos))
-				do \form@setLog(item.text)
+				do me.propText :: item.text
+				do \form@updateProp()
 				do \auxiliary@resetDirtyHint()
 			end if
 		end if
@@ -897,6 +907,7 @@ end func
 	var lineNumWidth: int
 	+var interpreted: bool
 	+var listInfoItem: list<@ListInfoItem>
+	var propText: []char
 
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
