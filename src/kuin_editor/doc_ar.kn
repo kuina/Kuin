@@ -25,6 +25,7 @@
 			while(node <>& null)
 				var newObj2dNode: @Obj2d :: doc.makeObj2d(node.getName())
 				do loadRecursion(doc, node, newObj2dNode)
+				do newObj2dNode.parent :: obj2dNode
 				do obj2dNode.children.add(newObj2dNode)
 				do node :: node.next()
 			end while
@@ -73,7 +74,7 @@
 
 	+*func updateProp(edit: wnd@EditMulti, listView: wnd@ListView): bool
 		if(me.hold <>& null)
-			var parent: @Obj2d :: searchParentRecursion(me.hold, me.obj2dRoot)
+			var parent: @Obj2d :: me.hold.parent
 			var x: int :: 0
 			var y: int :: 0
 			if(parent <>& null)
@@ -83,22 +84,6 @@
 			do me.hold.updateProp(listView, x, y)
 		end if
 		ret false
-
-		func searchParentRecursion(child: @Obj2d, obj: @Obj2d): @Obj2d
-			do obj.children.head()
-			while(!obj.children.term())
-				var child2: @Obj2d :: obj.children.get()
-				var result: @Obj2d :: searchParentRecursion(child, child2)
-				if(result <>& null)
-					ret result
-				end if
-				if(child =& child2)
-					ret obj
-				end if
-				do obj.children.next()
-			end while
-			ret null
-		end func
 	end func
 
 	+*func updateTree(tree: wnd@Tree)
@@ -144,17 +129,31 @@
 	end func
 
 	+*func treeItemOnMoveNode()
+		do delParentRecursion(me.obj2dRoot)
 		do me.obj2dRoot :: updateObjRecursion(\form@treeItem.root().firstChild(), me.obj2dRoot) $ @Obj2dRoot
+		do me.changed :: true
 		do \form@updateTree()
 		do \form@paintDrawEditor()
+
+		func delParentRecursion(obj: @Obj2d)
+			do obj.parent :: null
+			do obj.children.head()
+			while(!obj.children.term())
+				do delParentRecursion(obj.children.get())
+				do obj.children.next()
+			end while
+		end func
 
 		func updateObjRecursion(node: wnd@TreeNode, objRoot: @Obj2d): @Obj2d
 			var obj: @Obj2d :: searchRecursion(node.getName(), objRoot)
 			var newObj: @Obj2d :: ##obj
+			do newObj.parent :: null
 			do newObj.children :: #list<@Obj2d>
 			var node2: wnd@TreeNode :: node.firstChild()
 			while(node2 <>& null)
-				do newObj.children.add(updateObjRecursion(node2, objRoot))
+				var child: @Obj2d :: updateObjRecursion(node2, objRoot)
+				do child.parent :: newObj
+				do newObj.children.add(child)
 				do node2 :: node2.next()
 			end while
 			ret newObj
@@ -179,6 +178,59 @@
 	+*func listInfoOnSel()
 		var sel: int :: \form@listInfo.getSel()
 		do me.ctrl :: sel < 0 ?(0, sel)
+	end func
+
+	+*func listPropOnMouseDoubleClick(listView: wnd@ListView)
+		if(me.hold =& null)
+			ret
+		end if
+		var sel: int :: listView.getSel()
+		if(sel = -1)
+			ret
+		end if
+		var prop: []char :: listView.getText(sel, 0)
+		var value: []char :: listView.getText(sel, 1)
+		do value :: wndex@inputBox(\form@wndMain, me.hold.objName ~ "." ~ prop, \common@title, value, null)
+		if(value =& null)
+			ret
+		end if
+
+		var value2: int
+		switch(prop)
+		case "x"
+			if(value.toInt(&value2))
+				var parentValue: int
+				if(me.hold.parent =& null)
+					do parentValue :: 0
+				else
+					do parentValue :: me.hold.parent.absX
+				end if
+				do value :: (value2 + parentValue).toStr()
+			else
+				ret
+			end if
+		case "y"
+			if(value.toInt(&value2))
+				var parentValue: int
+				if(me.hold.parent =& null)
+					do parentValue :: 0
+				else
+					do parentValue :: me.hold.parent.absY
+				end if
+				do value :: (value2 + parentValue).toStr()
+			else
+				ret
+			end if
+		case "absolute_x"
+			do prop :: "x"
+		case "absolute_y"
+			do prop :: "y"
+		end switch
+
+		do me.hold.setProp(prop, value)
+		do me.changed :: true
+		do \form@updateTree()
+		do \form@paintDrawEditor()
 	end func
 
 	+*func mouseDownL(x: int, y: int)
@@ -216,13 +268,15 @@
 			do obj.getMinMaxSize(&minWidth, &minHeight, &, &)
 			do obj.init(me.getDefaultName(name), x2, y2, minWidth, minHeight)
 			if(me.hold =& null)
+				do obj.parent :: me.obj2dRoot
 				do me.obj2dRoot.children.add(obj)
 			else
+				do obj.parent :: me.hold
 				do me.hold.children.add(obj)
 			end if
 			do me.hold :: obj
-			do me.changed :: true
 		end if
+		do me.changed :: true
 		do \form@updateTree()
 		do \form@paintDrawEditor()
 
@@ -396,6 +450,7 @@
 			ret
 		end if
 		do delRecursion(\form@treeItem.root().firstChild(), me.obj2dRoot, me.hold)
+		do me.changed :: true
 		do \form@updateTree()
 		do \form@paintDrawEditor()
 
@@ -429,6 +484,7 @@
 
 	const padding: int :: 32
 	const resizeArea: int :: 6
+	const stickingArea: int :: 6
 
 	enum Mode
 		none
@@ -492,6 +548,7 @@
 	end func
 
 	func resizeObj2d(x: int, y: int)
+		do me.stick(&x, &y)
 		var width: int :: x - me.hold.absX + me.holdOffsetX
 		var height: int :: y - me.hold.absY + me.holdOffsetY
 		var minWidth: int
@@ -518,6 +575,45 @@
 	func moveObj2d(x: int, y: int)
 		do me.hold.absX :: x + me.holdOffsetX
 		do me.hold.absY :: y + me.holdOffsetY
+		do me.stick(&me.hold.absX, &me.hold.absY)
+	end func
+
+	func stick(x: &int, y: &int)
+		var parent: @Obj2d :: me.hold.parent
+		if(parent =& null)
+			ret
+		end if
+		if((x - parent.absX).abs() <= stickingArea)
+			do x :: parent.absX
+		end if
+		if((y - parent.absY).abs() <= stickingArea)
+			do y :: parent.absY
+		end if
+		if((x - (parent.absX + parent.width)).abs() <= stickingArea)
+			do x :: parent.absX + parent.width
+		end if
+		if((y - (parent.absY + parent.height)).abs() <= stickingArea)
+			do y :: parent.absY + parent.height
+		end if
+		do parent.children.head()
+		while(!parent.children.term())
+			var child: @Obj2d :: parent.children.get()
+			if(child <>& me.hold)
+				if((x - child.absX).abs() <= stickingArea)
+					do x :: child.absX
+				end if
+				if((y - child.absY).abs() <= stickingArea)
+					do y :: child.absY
+				end if
+				if((x - (child.absX + child.width)).abs() <= stickingArea)
+					do x :: child.absX + child.width
+				end if
+				if((y - (child.absY + child.height)).abs() <= stickingArea)
+					do y :: child.absY + child.height
+				end if
+			end if
+			do parent.children.next()
+		end while
 	end func
 end class
 
@@ -527,6 +623,7 @@ end class
 	end func
 
 	+func init(objName: []char, x: int, y: int, width: int, height: int)
+		do me.parent :: null
 		do me.children :: #list<Obj2d>
 		do me.objName :: objName
 		do me.absX :: x
@@ -546,12 +643,9 @@ end class
 	end func
 
 	+func load(node: xml@Node)
+		do me.parent :: null
 		do me.children :: #list<Obj2d>
-		do me.objName :: node.getAttr("name")
-		do node.getAttr("x").toInt(&me.absX)
-		do node.getAttr("y").toInt(&me.absY)
-		do node.getAttr("width").toInt(&me.width)
-		do node.getAttr("height").toInt(&me.height)
+		do me.setProps(node, ["name", "x", "y", "width", "height"])
 	end func
 
 	+func save(node: xml@Node)
@@ -583,12 +677,37 @@ end class
 		do listView.setText(idx + 6, 1, me.height.toStr())
 	end func
 
-	+var children: list<Obj2d>
+	+func setProp(prop: []char, value: []char)
+		switch(prop)
+		case "name"
+			do me.objName :: value
+		case "x"
+			do value.toInt(&me.absX)
+		case "y"
+			do value.toInt(&me.absY)
+		case "width"
+			do value.toInt(&me.width)
+		case "height"
+			do value.toInt(&me.height)
+		end switch
+	end func
+
+	+var parent: @Obj2d
+	+var children: list<@Obj2d>
 	+var objName: []char
 	+var absX: int
 	+var absY: int
 	+var width: int
 	+var height: int
+
+	func setProps(node: xml@Node, props: [][]char)
+		for i(0, ^props - 1)
+			var attr: []char :: node.getAttr(props[i])
+			if(attr <>& null)
+				do me.setProp(props[i], attr)
+			end if
+		end for
+	end func
 end class
 
 +class Obj2dRoot(@Obj2d)

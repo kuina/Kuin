@@ -118,7 +118,7 @@ end func
 	end if
 end func
 
-func wndCompletionListKeywordsOnMouseDoubleClick(wnd: wnd@List, x: int, y: int)
+func wndCompletionListKeywordsOnMouseDoubleClick(wnd: wnd@List)
 	if(\src@curDoc =$ \doc_src@DocSrc)
 		if((\src@curDoc $ \doc_src@DocSrc).complement())
 			do \auxiliary@resetDirtyHint()

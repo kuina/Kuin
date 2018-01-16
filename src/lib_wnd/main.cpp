@@ -214,6 +214,7 @@ struct SLabelLink
 struct SListView
 {
 	SWndBase WndBase;
+	void* OnMouseDoubleClick;
 };
 
 struct SPager
@@ -287,6 +288,7 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 static Char* ParseFilter(const U8* filter, int* num);
 static void TreeExpandAllRecursion(HWND wnd_handle, HTREEITEM node, int flag);
 static void CopyTreeNodeRecursion(HWND tree_wnd, HTREEITEM dst, HTREEITEM src, Char* buf);
+static void ListViewAdjustWidth(HWND wnd);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -655,6 +657,12 @@ EXPORT_CPP void _getCaretPos(S64* x, S64* y)
 		*x = static_cast<S64>(point.x);
 		*y = static_cast<S64>(point.y);
 	}
+}
+
+EXPORT_CPP void _screenSize(S64* width, S64* height)
+{
+	*width = static_cast<S64>(GetSystemMetrics(SM_CXSCREEN));
+	*height = static_cast<S64>(GetSystemMetrics(SM_CYSCREEN));
 }
 
 EXPORT_CPP void _target(SClass* draw_ctrl)
@@ -1268,8 +1276,13 @@ EXPORT_CPP SClass* _makeLabelLink(SClass* me_, SClass* parent, S64 x, S64 y, S64
 
 EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | LVS_REPORT, x, y, width, height, L"", WndProcListView, anchorX, anchorY);
-	SetWindowLongPtr(ListView_GetHeader(reinterpret_cast<SWndBase*>(me_)->WndHandle), GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me_));
+	SListView* me2 = reinterpret_cast<SListView*>(me_);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | LVS_REPORT | LVS_SINGLESEL | LVS_NOSORTHEADER, x, y, width, height, L"", WndProcListView, anchorX, anchorY);
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	DWORD ex = ListView_GetExtendedListViewStyle(wnd);
+	ListView_SetExtendedListViewStyle(wnd, ex | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
+	SetWindowLongPtr(ListView_GetHeader(wnd), GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me_));
+	me2->OnMouseDoubleClick = NULL;
 	return me_;
 }
 
@@ -1328,6 +1341,7 @@ EXPORT_CPP void _listViewAddColumn(SClass* me_, const U8* text)
 	lvcolumn.mask = LVCF_TEXT;
 	lvcolumn.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
 	ListView_InsertColumn(wnd, Header_GetItemCount(ListView_GetHeader(wnd)), &lvcolumn);
+	ListViewAdjustWidth(wnd);
 }
 
 EXPORT_CPP void _listViewInsColumn(SClass* me_, S64 column, const U8* text)
@@ -1337,10 +1351,12 @@ EXPORT_CPP void _listViewInsColumn(SClass* me_, S64 column, const U8* text)
 	S64 len = _listViewLenColumn(me_);
 	THROWDBG(column < 0 || len <= column, 0xe9170006);
 #endif
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
 	LVCOLUMN lvcolumn;
 	lvcolumn.mask = LVCF_TEXT;
 	lvcolumn.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
-	ListView_InsertColumn(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(column), &lvcolumn);
+	ListView_InsertColumn(wnd, static_cast<int>(column), &lvcolumn);
+	ListViewAdjustWidth(wnd);
 }
 
 EXPORT_CPP void _listViewDelColumn(SClass* me_, S64 column)
@@ -1386,6 +1402,25 @@ EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column)
 	*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len2);
 	memcpy(result + 0x10, buf, sizeof(Char) * static_cast<size_t>(len2 + 1));
 	return result;
+}
+
+EXPORT_CPP void _listViewAdjustWidth(SClass* me_)
+{
+	ListViewAdjustWidth(reinterpret_cast<SWndBase*>(me_)->WndHandle);
+}
+
+EXPORT_CPP void _listViewSetSel(SClass* me_, S64 idx)
+{
+#if defined(DBG)
+	S64 len = _listViewLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+#endif
+	ListView_SetItemState(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), LVIS_SELECTED, LVIS_SELECTED);
+}
+
+EXPORT_CPP S64 _listViewGetSel(SClass* me_)
+{
+	return static_cast<S64>(ListView_GetNextItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, -1, LVNI_ALL | LVNI_SELECTED));
 }
 
 EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
@@ -2264,6 +2299,13 @@ static void CopyTreeNodeRecursion(HWND tree_wnd, HTREEITEM dst, HTREEITEM src, C
 	}
 }
 
+static void ListViewAdjustWidth(HWND wnd)
+{
+	int cnt = Header_GetItemCount(ListView_GetHeader(wnd));
+	for (int i = 0; i < cnt; i++)
+		ListView_SetColumnWidth(wnd, i, LVSCW_AUTOSIZE_USEHEADER);
+}
+
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
@@ -2755,9 +2797,8 @@ static LRESULT CALLBACK WndProcList(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 	switch (msg)
 	{
 		case WM_LBUTTONDBLCLK:
-			SetFocus(wnd);
 			if (wnd3->OnMouseDoubleClick != NULL)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDoubleClick);
+				Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnMouseDoubleClick);
 			return 0;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
@@ -2890,10 +2931,14 @@ static LRESULT CALLBACK WndProcLabelLink(HWND wnd, UINT msg, WPARAM w_param, LPA
 static LRESULT CALLBACK WndProcListView(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	SWndBase* wnd2 = ToWnd(wnd);
+	SListView* wnd3 = reinterpret_cast<SListView*>(wnd2);
 	ASSERT(wnd2->Kind == WndKind_ListView);
 	switch (msg)
 	{
-		// TODO:
+		case WM_LBUTTONDBLCLK:
+			if (wnd3->OnMouseDoubleClick != NULL)
+				Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnMouseDoubleClick);
+			return 0;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }

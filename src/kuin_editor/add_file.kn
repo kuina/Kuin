@@ -9,12 +9,12 @@ var wndAddFileListType: wnd@List
 		do wnd@msgBox(\form@wndMain, \common@langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), \common@title, %err, %ok)
 		ret
 	end if
-	do @wndAddFile :: wnd@makeWnd(\form@wndMain, %fix, 640, 480, \common@langEn?("Add New File", "新しいファイルを追加"))
+	do @wndAddFile :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 480, \common@langEn?("Add New File", "新しいファイルを追加"))
 	do @wndAddFileResuiltFile :: null
 	do @wndAddFileResuiltType :: 0
 	do @wndAddFileListType :: wnd@makeList(@wndAddFile, 12, 12, 616, 100, %fix, %scale)
 	do @wndAddFileListType.add(\common@langEn?("Source Code", "ソースコード"))
-	; TODO: do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"))
+	do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"))
 	do @wndAddFileListType.setSel(0)
 	do @wndAddFileEditFile :: wnd@makeEdit(@wndAddFile, 12, 118, 510, 19, %fix, %fix)
 	var btnFile: wnd@Btn :: wnd@makeBtn(@wndAddFile, 528, 118, 100, 23, %fix, %fix, \common@langEn ?("Browse...", "参照..."))

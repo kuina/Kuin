@@ -22,8 +22,15 @@ class Obj2dWnd(\doc_ar@Obj2dRoot)
 		do me.text :: "Untitled"
 	end func
 
+	+*func getMinMaxSize(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 50
+		do minHeight :: 50
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
+	end func
+
 	+**func load(node: xml@Node)
-		do me.text :: node.getAttr("text")
+		do me.setProps(node, ["text"])
 	end func
 
 	+**func save(node: xml@Node)
@@ -41,10 +48,59 @@ class Obj2dWnd(\doc_ar@Obj2dRoot)
 		do draw@rectLine(x - 1.0, y - 31.0, width + 2.0, height + 32.0, 16#FF1883D7)
 	end func
 
+	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+		var idx: int :: listView.len()
+		do listView.add("text")
+		do listView.setText(idx + 0, 1, me.text)
+	end func
+
+	+**func setProp(prop: []char, value: []char)
+		switch(prop)
+		case "text"
+			do me.text :: value
+		end switch
+	end func
+
 	+var text: []char
 end class
 
-class Obj2dBtn(\doc_ar@Obj2d)
+class Obj2dWndBase(\doc_ar@Obj2d)
+	**func ctor()
+		do me.enabled :: true
+		do me.visible :: true
+	end func
+
+	+**func load(node: xml@Node)
+		do me.setProps(node, ["enabled", "visible"])
+	end func
+
+	+**func save(node: xml@Node)
+		do node.setAttr("enabled", me.enabled.toStr())
+		do node.setAttr("visible", me.visible.toStr())
+	end func
+
+	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+		var idx: int :: listView.len()
+		do listView.add("enabled")
+		do listView.setText(idx + 0, 1, me.enabled.toStr())
+		do listView.add("visible")
+		do listView.setText(idx + 1, 1, me.visible.toStr())
+	end func
+
+	+**func setProp(prop: []char, value: []char)
+		switch(prop)
+		case "enabled"
+			do me.enabled :: value = "true"
+		case "visible"
+			do me.visible :: value = "true"
+		end switch
+	end func
+
+	+var enabled: bool
+	+var visible: bool
+end class
+
+class Obj2dBtn(@Obj2dWndBase)
 	**func ctor()
 		do me.text :: ""
 	end func
@@ -61,7 +117,7 @@ class Obj2dBtn(\doc_ar@Obj2d)
 	end func
 
 	+**func load(node: xml@Node)
-		do me.text :: node.getAttr("text")
+		do me.setProps(node, ["text"])
 	end func
 
 	+**func save(node: xml@Node)
@@ -75,6 +131,19 @@ class Obj2dBtn(\doc_ar@Obj2d)
 		var height: float :: me.height $ float
 		do draw@rect(x, y, width, height, 16#FFE1E1E1)
 		do draw@rectLine(x, y, width, height, 16#FFADADAD)
+	end func
+
+	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+		var idx: int :: listView.len()
+		do listView.add("text")
+		do listView.setText(idx + 0, 1, me.text)
+	end func
+
+	+**func setProp(prop: []char, value: []char)
+		switch(prop)
+		case "text"
+			do me.text :: value
+		end switch
 	end func
 
 	+var text: []char

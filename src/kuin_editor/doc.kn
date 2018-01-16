@@ -29,6 +29,9 @@
 	+func listInfoOnSel()
 	end func
 
+	+func listPropOnMouseDoubleClick(listView: wnd@ListView)
+	end func
+
 	+func mouseDownL(x: int, y: int)
 	end func
 

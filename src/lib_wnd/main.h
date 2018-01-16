@@ -13,6 +13,7 @@ EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 EXPORT_CPP void _setClipboardStr(const U8* str);
 EXPORT_CPP void* _getClipboardStr();
 EXPORT_CPP void _getCaretPos(S64* x, S64* y);
+EXPORT_CPP void _screenSize(S64* width, S64* height);
 EXPORT_CPP void _target(SClass* draw_ctrl);
 EXPORT_CPP Bool _key(S64 key);
 EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S64 height, const U8* text);
@@ -87,6 +88,9 @@ EXPORT_CPP void _listViewDelColumn(SClass* me_, S64 column);
 EXPORT_CPP S64 _listViewLenColumn(SClass* me_);
 EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* text);
 EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column);
+EXPORT_CPP void _listViewAdjustWidth(SClass* me_);
+EXPORT_CPP void _listViewSetSel(SClass* me_, S64 idx);
+EXPORT_CPP S64 _listViewGetSel(SClass* me_);
 EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeTab(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP void _tabAdd(SClass* me_, const U8* text);

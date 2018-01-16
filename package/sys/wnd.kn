@@ -328,7 +328,7 @@ end class
 	end func
 
 	+var onSel: func<(@WndBase)>
-	+var onMouseDoubleClick: func<(@WndBase, int, int)>
+	+var onMouseDoubleClick: func<(@WndBase)>
 end class
 
 +class Combo(@WndBase)
@@ -434,6 +434,17 @@ end class
 
 	+func [d0001.knd, _listViewGetText] getText(idx: int, column: int): []char
 	end func
+
+	+func [d0001.knd, _listViewAdjustWidth] adjustWidth()
+	end func
+
+	+func [d0001.knd, _listViewSetSel] setSel(idx: int)
+	end func
+
+	+func [d0001.knd, _listViewGetSel] getSel(): int
+	end func
+
+	+var onMouseDoubleClick: func<(@WndBase)>
 end class
 
 +class Pager(@WndBase)
@@ -624,6 +635,9 @@ end func
 end func
 
 +func [d0001.knd, _getCaretPos] getCaretPos(x: &int, y: &int)
+end func
+
++func [d0001.knd, _screenSize] screenSize(width: &int, height: &int)
 end func
 
 +func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, parent: @Wnd, style: @WndStyle, width: int, height: int, text: []char): @Wnd

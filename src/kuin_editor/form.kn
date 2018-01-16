@@ -55,6 +55,7 @@ var drag: bool
 	do @listProp.setVisible(false)
 	do @listProp.addColumn(\common@langEn ?("Property", "プロパティ"))
 	do @listProp.addColumn(\common@langEn ?("Value", "値"))
+	do @listProp.onMouseDoubleClick :: @listPropOnMouseDoubleClick
 	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
 	do @editLog.readonly(true)
 	do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, \common@langEn ?("Compile && Run", "コンパイル＆実行"))
@@ -471,6 +472,10 @@ func drawEditorOnSetMouseImg(wnd: wnd@WndBase): wnd@MouseImg
 	ret \src@curDoc.setMouseImg()
 end func
 
+func listPropOnMouseDoubleClick(wnd: wnd@WndBase)
+	do \src@curDoc.listPropOnMouseDoubleClick(@listProp)
+end func
+
 func btnCompileOnPush(wnd: wnd@WndBase)
 	if(@lockingEditor)
 		do @showMsgRunning()
@@ -664,6 +669,7 @@ end func
 	do @listProp.setRedraw(false)
 	do @listProp.clear()
 	var result: bool :: \src@curDoc.updateProp(@editProp, @listProp)
+	do @listProp.adjustWidth()
 	do @editProp.setRedraw(true)
 	do @listProp.setRedraw(true)
 	do @editProp.setVisible(result)
