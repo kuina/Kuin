@@ -806,14 +806,12 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		ReleaseDC(NULL, dc);
 	}
 	{
-		HGDIOBJ old_bitmap = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Bitmap));
 		HGDIOBJ old_font = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Font));
 		TEXTMETRIC tm;
 		GetTextMetrics(me2->Dc, &tm);
 		me2->CellWidth = tm.tmMaxCharWidth;
 		me2->CellHeight = tm.tmHeight;
 		SelectObject(me2->Dc, old_font);
-		SelectObject(me2->Dc, old_bitmap);
 	}
 	me2->CellSizeAligned = 128; // Texture length must not be less than 128.
 	while (me2->CellSizeAligned < me2->CellWidth + 1 || me2->CellSizeAligned < me2->CellHeight + 1)
@@ -937,8 +935,6 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 				rect.bottom = rect.top + static_cast<LONG>(me2->CellHeight);
 				ExtTextOut(me2->Dc, static_cast<int>(rect.left), static_cast<int>(rect.top), ETO_CLIPPED | ETO_OPAQUE, &rect, ptr, 1, NULL);
 				{
-					TEXTMETRIC tm;
-					GetTextMetrics(me2->Dc, &tm);
 					GLYPHMETRICS gm;
 					MAT2 mat = { { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 1 } };
 					GetGlyphOutline(me2->Dc, static_cast<UINT>(*ptr), GGO_METRICS, &gm, 0, NULL, &mat);
@@ -1005,6 +1001,39 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			x += static_cast<double>(me2->GlyphWidth[pos]);
 		ptr++;
 	}
+}
+
+EXPORT_CPP double _fontMaxWidth(SClass* me_)
+{
+	return reinterpret_cast<SFont*>(me_)->CellWidth;
+}
+
+EXPORT_CPP double _fontMaxHeight(SClass* me_)
+{
+	return reinterpret_cast<SFont*>(me_)->CellHeight;
+}
+
+EXPORT_CPP double _fontCalcWidth(SClass* me_, const U8* text)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+	SFont* me2 = reinterpret_cast<SFont*>(me_);
+	S64 len = *reinterpret_cast<const S64*>(text + 0x08);
+
+	double x = me2->Advance * static_cast<double>(len);
+	if (me2->Proportional)
+	{
+		const Char* ptr = reinterpret_cast<const Char*>(text + 0x10);
+		HGDIOBJ old_font = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Font));
+		for (S64 i = 0; i < len; i++)
+		{
+			SIZE size;
+			GetTextExtentPoint32(me2->Dc, ptr, 1, &size);
+			x += static_cast<double>(size.cx);
+			ptr++;
+		}
+		SelectObject(me2->Dc, old_font);
+	}
+	return x;
 }
 
 EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, double atY, double atZ, double upX, double upY, double upZ)

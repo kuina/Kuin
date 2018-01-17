@@ -64,14 +64,49 @@ end func
 		var y: int :: parseInt(node, "y") - parentY
 		var width: int :: parseInt(node, "width")
 		var height: int :: parseInt(node, "height")
+		var anchorX: wnd@Anchor :: parseAnchor(node, "anchor_x")
+		var anchorY: wnd@Anchor :: parseAnchor(node, "anchor_y")
 
 		var isRoot: bool :: false
 		switch(node.getName())
 		case "root"
-			do result :: wnd@makeWnd(parent, %normal, width, height, parseStr(node, "text"))
+			var wndStyle: wnd@WndStyle :: parseWndStyle(node, "style")
+			if(parseBool(node, "layered"))
+				do wndStyle.or(%layered)
+			end if
+			if(parseBool(node, "no_minimize"))
+				do wndStyle.or(%noMinimize)
+			end if
+			do result :: wnd@makeWnd(parent, wndStyle, width, height, parseStr(node, "text"))
 			do isRoot :: true
 		case "button"
-			do result :: wnd@makeBtn(parent, x, y, width, height, %fix, %fix, parseStr(node, "text"))
+			do result :: wnd@makeBtn(parent, x, y, width, height, anchorX, anchorY, parseStr(node, "text"))
+		case "check"
+			do result :: wnd@makeChk(parent, x, y, width, height, anchorX, anchorY, parseStr(node, "text"))
+		case "group"
+			do result :: wnd@makeGroup(parent, x, y, width, height, anchorX, anchorY, parseStr(node, "text"))
+		case "label"
+			do result :: wnd@makeLabel(parent, x, y, width, height, anchorX, anchorY, parseStr(node, "text"))
+		case "list"
+			do result :: wnd@makeList(parent, x, y, width, height, anchorX, anchorY)
+		case "list_view"
+			do result :: wnd@makeListView(parent, x, y, width, height, anchorX, anchorY)
+		case "draw"
+			do result :: wnd@makeDraw(parent, x, y, width, height, anchorX, anchorY, parseBool(node, "equal_magnification"))
+		case "radio"
+			do result :: wnd@makeRadio(parent, x, y, width, height, anchorX, anchorY, parseStr(node, "text"))
+		case "edit"
+			do result :: wnd@makeEdit(parent, x, y, width, height, anchorX, anchorY)
+			if(parseBool(node, "readonly"))
+				do (result $ wnd@Edit).readonly(true)
+			end if
+		case "edit_multi"
+			do result :: wnd@makeEditMulti(parent, x, y, width, height, anchorX, anchorY)
+			if(parseBool(node, "readonly"))
+				do (result $ wnd@EditMulti).readonly(true)
+			end if
+		case "tree"
+			do result :: wnd@makeTree(parent, x, y, width, height, anchorX, anchorY)
 		end switch
 		do result.name :: parseStr(node, "name")
 		if(!isRoot)
@@ -115,6 +150,30 @@ end func
 				ret false
 			end if
 			ret attr = "true"
+		end func
+
+		func parseWndStyle(node: xml@Node, prop: []char): wnd@WndStyle
+			switch(parseInt(node, prop))
+			case 1
+				ret %fix
+			case 2
+				ret %aspect
+			case 3
+				ret %popup
+			default
+				ret %normal
+			end switch
+		end func
+
+		func parseAnchor(node: xml@Node, prop: []char): wnd@Anchor
+			switch(parseInt(node, prop))
+			case 1
+				ret %move
+			case 2
+				ret %scale
+			default
+				ret %fix
+			end switch
 		end func
 	end func
 end func

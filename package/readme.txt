@@ -44,6 +44,7 @@ v.2018.1.17
 -------------------------------------------------------------------------------
 
 v.2018.1.17
+	- ウインドウを視覚的にデザインできる機能の追加
 	- Kuinエディタが強制終了することがある不具合の修正
 	- draw@render(0)を実行すると垂直同期を待ち、実際には60FPS程度になっていた
 	  不具合の修正
@@ -57,6 +58,7 @@ v.2018.1.17
       - draw@makeFontの引数の変更
     - 細かな機能追加
       - draw@argbToColor、draw@colorToArgb、input@mousePos関数の追加
+      - draw@Font.maxWidth、draw@Font.maxHeight、draw@Font.calcWidthメソッドの追加
 
 v.2017.12.17
     - リリースビルド時に、resフォルダをres.kndファイルにアーカイブする機能の

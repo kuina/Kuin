@@ -1,9 +1,0 @@
-func f()
-	var wnd: wnd@WndBase :: arwnd@make("res/test_wnd.knwnd", null)
-	while(wnd@act())
-	end while
-end func
-
-func main()
-	do @f()
-end func

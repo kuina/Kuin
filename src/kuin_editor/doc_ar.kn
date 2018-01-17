@@ -307,6 +307,7 @@
 			do me.resizeObj2d(x + me.pageX, y + me.pageY)
 			do me.mode :: %none
 			do me.ctrl :: 0
+			do me.hold :: null
 			do \form@updateTree()
 			do \form@paintDrawEditor()
 		case %move

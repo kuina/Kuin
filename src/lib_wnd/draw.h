@@ -25,6 +25,9 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool proportional, double advance);
 EXPORT_CPP void _fontDtor(SClass* me_);
 EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text, S64 color);
+EXPORT_CPP double _fontMaxWidth(SClass* me_);
+EXPORT_CPP double _fontMaxHeight(SClass* me_);
+EXPORT_CPP double _fontCalcWidth(SClass* me_, const U8* text);
 EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, double atY, double atZ, double upX, double upY, double upZ);
 EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ, double farZ);
 EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path);
