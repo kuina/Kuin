@@ -70,6 +70,7 @@ end func
 		do me.interpreted :: false
 		do me.propText :: null
 		do me.setSrc(null)
+		do me.resetListInfoItem()
 	end func
 
 	+*func load(path: []char): bool
