@@ -118,9 +118,8 @@ EXPORT_CPP void* _regexFindLast(SClass* me_, S64* pos, const U8* text, S64 start
 	}
 }
 
-EXPORT_CPP void* _regexMatch(SClass* me_, S64* pos, const U8* text)
+EXPORT_CPP void* _regexMatch(SClass* me_, const U8* text)
 {
-	THROWDBG(pos == NULL, 0xc0000005);
 	THROWDBG(text == NULL, 0xc0000005);
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
@@ -128,19 +127,12 @@ EXPORT_CPP void* _regexMatch(SClass* me_, S64* pos, const U8* text)
 	try
 	{
 		if (regex_match(text2, results, *me2->Pattern))
-		{
-			*pos = static_cast<S64>(results.position(0));
 			return ResultsToArray(results);
-		}
 		else
-		{
-			*pos = -1;
 			return NULL;
-		}
 	}
 	catch (...)
 	{
-		*pos = -1;
 		return NULL;
 	}
 }

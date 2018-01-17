@@ -47,7 +47,7 @@ end enum
 	+func [d0001.knd, _wndBaseGetPos] getPos(x: &int, y: &int, width: &int, height: &int)
 	end func
 
-	+func [d0001.knd, _wndBaseGetPosScr] getPosScr(x: &int, y: &int, width: &int, height: &int)
+	+func [d0001.knd, _wndBaseGetPosScreen] getPosScreen(x: &int, y: &int, width: &int, height: &int)
 	end func
 
 	+func [d0001.knd, _wndBaseFocus] focus()
@@ -68,16 +68,50 @@ end enum
 	+func [d0001.knd, _wndBaseSetVisible] setVisible(isVisible: bool)
 	end func
 
+	+func [d0001.knd, _wndBaseClientToScreen] clientToScreen(screenX: &int, screenY: &int, clientX: int, clientY: int)
+	end func
+
+	+func [d0001.knd, _wndBaseScreenToClient] screenToClient(clientX: &int, clientY: &int, screenX: int, screenY: int)
+	end func
+
 	+func addChild(child: kuin@Class)
 		do me.children.add(child)
 	end func
 
+	+func find(name: []char): @WndBase
+		if(dbg)
+			if(name =& null)
+				throw 16#E9170006
+			end if
+		end if
+		ret findRecursion(me, name)
+
+		func findRecursion(wnd: @WndBase, name: []char): @WndBase
+			if(wnd.name <>& null & wnd.name = name)
+				ret wnd
+			end if
+			do wnd.children.head()
+			while(!wnd.children.term())
+				var child: kuin@Class :: wnd.children.get()
+				if(child =$ @WndBase)
+					var result: @WndBase :: findRecursion(child $ @WndBase, name)
+					if(result <>& null)
+						ret result
+					end if
+				end if
+				do wnd.children.next()
+			end while
+			ret null
+		end func
+	end func
+
+	+var name: []char
 	var kind: int
 	var handle: int
 	var defaultWndProc: int
 	var ctrlFlag: int
 	var defaultRect: int
-	var children: list<kuin@Class>
+	+var children: list<kuin@Class>
 end class
 
 +class Wnd(@WndBase)
@@ -294,7 +328,7 @@ end class
 	end func
 
 	+var onSel: func<(@WndBase)>
-	+var onMouseDoubleClick: func<(@WndBase, int, int)>
+	+var onMouseDoubleClick: func<(@WndBase)>
 end class
 
 +class Combo(@WndBase)
@@ -367,6 +401,50 @@ end class
 +class ListView(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+
+	+func [d0001.knd, _listViewClear] clear()
+	end func
+
+	+func [d0001.knd, _listViewAdd] add(text: []char)
+	end func
+
+	+func [d0001.knd, _listViewIns] ins(idx: int, text: []char)
+	end func
+
+	+func [d0001.knd, _listViewDel] del(idx: int)
+	end func
+
+	+func [d0001.knd, _listViewLen] len(): int
+	end func
+
+	+func [d0001.knd, _listViewAddColumn] addColumn(text: []char)
+	end func
+
+	+func [d0001.knd, _listViewInsColumn] insColumn(column: int, text: []char)
+	end func
+
+	+func [d0001.knd, _listViewDelColumn] delColumn(column: int)
+	end func
+
+	+func [d0001.knd, _listViewLenColumn] lenColumn(): int
+	end func
+
+	+func [d0001.knd, _listViewSetText] setText(idx: int, column: int, text: []char)
+	end func
+
+	+func [d0001.knd, _listViewGetText] getText(idx: int, column: int): []char
+	end func
+
+	+func [d0001.knd, _listViewAdjustWidth] adjustWidth()
+	end func
+
+	+func [d0001.knd, _listViewSetSel] setSel(idx: int)
+	end func
+
+	+func [d0001.knd, _listViewGetSel] getSel(): int
+	end func
+
+	+var onMouseDoubleClick: func<(@WndBase)>
 end class
 
 +class Pager(@WndBase)
@@ -399,6 +477,77 @@ end class
 +class Tree(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+
+	+func [d0001.knd, _treeClear] clear()
+	end func
+
+	+func [d0001.knd, _treeExpand] expand(expand_: bool)
+	end func
+
+	+func [d0001.knd, _treeRoot, _make_instance] root(me2: @TreeNode): @TreeNode
+	end func
+
+	+func [d0001.knd, _treeDraggable] draggable(enabled: bool)
+	end func
+
+	+func [d0001.knd, _treeAllowDraggingToRoot] allowDraggingToRoot(enabled: bool)
+	end func
+
+	+func [d0001.knd, _treeSetSel] setSel(node: @TreeNode)
+	end func
+
+	+func [d0001.knd, _treeGetSel, _make_instance] getSel(me2: @TreeNode): @TreeNode
+	end func
+
+	var draggable_: int
+	var draggingItem: int
+	+var onSel: func<(@WndBase)>
+	+var onMoveNode: func<(@WndBase)>
+end class
+
++class TreeNode()
+	+*func cmp(t: @TreeNode): int
+		ret me.item - t.item
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 16#E9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 16#E9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 16#E9170005
+	end func
+
+	+func [d0001.knd, _treeNodeAddChild, _make_instance] addChild(me2: @TreeNode, name: []char): @TreeNode
+	end func
+
+	+func [d0001.knd, _treeNodeInsChild, _make_instance] insChild(me2: @TreeNode, node: @TreeNode, name: []char): @TreeNode
+	end func
+
+	+func [d0001.knd, _treeNodeDelChild] delChild(node: @TreeNode)
+	end func
+
+	+func [d0001.knd, _treeNodeFirstChild, _make_instance] firstChild(me2: @TreeNode): @TreeNode
+	end func
+
+	+func [d0001.knd, _treeNodeGetName] getName(): []char
+	end func
+
+	+func [d0001.knd, _treeNodeNext, _make_instance] next(me2: @TreeNode): @TreeNode
+	end func
+
+	+func [d0001.knd, _treeNodePrev, _make_instance] prev(me2: @TreeNode): @TreeNode
+	end func
+
+	+func [d0001.knd, _treeNodeParent, _make_instance] parent(me2: @TreeNode): @TreeNode
+	end func
+
+	var wndHandle: int
+	+var item: int
 end class
 
 class SplitBase(@WndBase)
@@ -486,6 +635,9 @@ end func
 end func
 
 +func [d0001.knd, _getCaretPos] getCaretPos(x: &int, y: &int)
+end func
+
++func [d0001.knd, _screenSize] screenSize(width: &int, height: &int)
 end func
 
 +func [d0001.knd, _makeWnd, _make_instance] makeWnd(me2: @Wnd, parent: @Wnd, style: @WndStyle, width: int, height: int, text: []char): @Wnd
@@ -724,7 +876,7 @@ end func
 +enum Key
 	mouseL :: 16#01
 	mouseR
-	mouseC :: 16#04
+	mouseM :: 16#04
 	bs :: 16#08
 	tab
 	enter :: 16#0D

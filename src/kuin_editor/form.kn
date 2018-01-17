@@ -1,0 +1,798 @@
++var wndMain: wnd@Wnd
++var treeItem: wnd@Tree
++var listInfo: wnd@List
+var editFile: wnd@Edit
++var drawEditor: wnd@Draw
++var scrollXSrc: wnd@ScrollX
++var scrollYSrc: wnd@ScrollY
+var editProp: wnd@EditMulti
+var listProp: wnd@ListView
+var editLog: wnd@EditMulti
+var btnCompile: wnd@Btn
+var groupConfig: wnd@Group
+var groupEnv: wnd@Group
+var radioEnvWnd: wnd@Radio
+var radioEnvCui: wnd@Radio
+var labelIcon: wnd@Label
+var editIcon: wnd@Edit
+var btnIcon: wnd@Btn
+var btnRls: wnd@Btn
++var listFile: wnd@List
+var menuMain: wnd@Menu
+var popupMainEdit: wnd@Popup
+var popupMainFile: wnd@Popup
+var popupMainBuild: wnd@Popup
+var popupMainHelp: wnd@Popup
+
+var lockingEditor: bool
+var lockPropOnChange: bool
+var textLog: []char
+var drag: bool
+
++func makeWnd()
+	do @wndMain :: wnd@makeWnd(null, %normal, 1224, 768, \common@title)
+	do @wndMain.minMax(930, 640, -1, -1)
+	do @wndMain.onClose :: @wndMainOnClose
+	do @wndMain.onActivate :: @wndMainOnActivate
+	do @wndMain.onPushMenu :: @wndMainOnPushMenu
+	do @treeItem :: wnd@makeTree(@wndMain, 12, 12, 244, 466, %fix, %fix)
+	do @treeItem.draggable(true)
+	do @treeItem.allowDraggingToRoot(false)
+	do @treeItem.onSel :: @treeItemOnSel
+	do @treeItem.onMoveNode :: @treeItemOnMoveNode
+	do @listInfo :: wnd@makeList(@wndMain, 12, 484, 244, 272, %fix, %scale)
+	do @listInfo.onSel :: @listInfoOnSel
+	do @editFile :: wnd@makeEdit(@wndMain, 262, 12, 759, 15, %scale, %fix)
+	do @editFile.readonly(true)
+	do @drawEditor :: wnd@makeDraw(@wndMain, 262, 33, 759, 582, %scale, %scale, true)
+	do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 565, 742, 17, %scale, %move)
+	do @scrollXSrc.setState(0, 0, 1, 0)
+	do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 742, 0, 17, 565, %move, %scale)
+	do @scrollYSrc.setState(0, 0, 1, 0)
+	do @editProp :: wnd@makeEditMulti(@wndMain, 262, 621, 391, 135, %scale, %move)
+	do @editProp.readonly(true)
+	do @listProp :: wnd@makeListView(@wndMain, 262, 621, 391, 135, %scale, %move)
+	do @listProp.setVisible(false)
+	do @listProp.addColumn(\common@langEn ?("Property", "プロパティ"))
+	do @listProp.addColumn(\common@langEn ?("Value", "値"))
+	do @listProp.onMouseDoubleClick :: @listPropOnMouseDoubleClick
+	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
+	do @editLog.readonly(true)
+	do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, \common@langEn ?("Compile && Run", "コンパイル＆実行"))
+	do @btnCompile.onPush :: @btnCompileOnPush
+	do @groupConfig :: wnd@makeGroup(@wndMain, 1027, 41, 185, 125, %move, %fix, \common@langEn ?("Configuration", "設定"))
+	do @groupEnv :: wnd@makeGroup(@wndMain, 1033, 59, 173, 62, %move, %fix, \common@langEn ?("Environment", "実行環境"))
+	do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 161, 16, %fix, %fix, \common@langEn ?("Window", "ウインドウ"))
+	do @radioEnvWnd.setChk(true)
+	do @radioEnvWnd.onPush :: @radioEnvOnPush
+	do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 161, 16, %fix, %fix, \common@langEn ?("CUI", "CUI"))
+	do @radioEnvCui.onPush :: @radioEnvOnPush
+	do @labelIcon :: wnd@makeLabel(@groupConfig, 6, 85, 173, 12, %fix, %fix, \common@langEn ?("Icon", "アイコン"))
+	do @editIcon :: wnd@makeEdit(@wndMain, 1033, 144, 92, 16, %move, %fix)
+	do @editIcon.onChange :: @editIconOnChange
+	do @btnIcon :: wnd@makeBtn(@wndMain, 1131, 137, 75, 23, %move, %fix, \common@langEn ?("Browse...", "参照..."))
+	do @btnIcon.onPush :: @btnIconOnPush
+	do @btnRls :: wnd@makeBtn(@wndMain, 1027, 172, 185, 23, %move, %fix, \common@langEn ?("Release Build...", "リリースビルド..."))
+	do @btnRls.onPush :: @btnRlsOnPush
+	do @listFile :: wnd@makeList(@wndMain, 1027, 255, 185, 360, %move, %scale)
+	do @listFile.onSel :: @listFileOnSel
+	do @menuMain :: wnd@makeMenu()
+	do @popupMainFile :: wnd@makePopup()
+	do @popupMainFile.add(16#0001, \common@langEn ?("&New\tCtrl+N", "新規作成(&N)\tCtrl+N"))
+	do @popupMainFile.add(16#0002, \common@langEn ?("&Load...\tCtrl+O", "開く(&O)\tCtrl+O"))
+	do @popupMainFile.addLine()
+	do @popupMainFile.add(16#0003, \common@langEn ?("&Save All\tCtrl+S", "すべて保存(&S)\tCtrl+S"))
+	do @popupMainFile.add(16#0004, \common@langEn ?("Save &As...\tCtrl+Shift+S", "名前を付けて保存(&A)\tCtrl+Shift+S"))
+	do @popupMainFile.addLine()
+	do @popupMainFile.add(16#0005, \common@langEn ?("E&xit\tCtrl+Q", "終了(&E)\tCtrl+Q"))
+	do @menuMain.addPopup(\common@langEn ?("&File", "ファイル(&F)"), @popupMainFile)
+	do @popupMainEdit :: wnd@makePopup()
+	do @popupMainEdit.add(16#0030, \common@langEn ?("Add Ne&w File\tCtrl+Shift+A", "新しいファイルを追加(&W)\tCtrl+Shift+A"))
+	do @popupMainEdit.add(16#0031, \common@langEn ?("Add Existin&g File", "既存のファイルを追加(&G)"))
+	do @popupMainEdit.addLine()
+	do @popupMainEdit.add(16#0032, \common@langEn ?("&Undo\tCtrl+Z", "元に戻す(&U)\tCtrl+Z"))
+	do @popupMainEdit.add(16#0033, \common@langEn ?("&Redo\tCtrl+Shift+Z, Ctrl+Y", "やり直し(&R)\tCtrl+Shift+Z, Ctrl+Y"))
+	do @popupMainEdit.addLine()
+	do @popupMainEdit.add(16#0034, \common@langEn ?("Cu&t\tCtrl+X", "切り取り(&T)\tCtrl+X"))
+	do @popupMainEdit.add(16#0035, \common@langEn ?("&Copy\tCtrl+C", "コピー(&C)\tCtrl+C"))
+	do @popupMainEdit.add(16#0036, \common@langEn ?("&Paste\tCtrl+V", "貼り付け(&P)\tCtrl+V"))
+	do @popupMainEdit.add(16#0037, \common@langEn ?("&Delete\tDel", "削除(&D)\tDel"))
+	do @popupMainEdit.add(16#0038, \common@langEn ?("Select &All\tCtrl+A", "すべて選択(&A)\tCtrl+A"))
+	do @popupMainEdit.addLine()
+	do @popupMainEdit.add(16#0039, \common@langEn ?("&Find\tCtrl+F", "検索(&F)\tCtrl+F"))
+	do @popupMainEdit.add(16#003A, \common@langEn ?("&Replace\tCtrl+H", "置換(&R)\tCtrl+H"))
+	do @popupMainEdit.add(16#003B, \common@langEn ?("Find Pre&vious\tShift+F3", "前を検索(&V)\tShift+F3"))
+	do @popupMainEdit.add(16#003C, \common@langEn ?("Find &Next\tF3", "次を検索(&N)\tF3"))
+	do @menuMain.addPopup(\common@langEn ?("&Edit", "編集(&E)"), @popupMainEdit)
+	do @popupMainBuild :: wnd@makePopup()
+	do @popupMainBuild.add(16#0020, \common@langEn ?("&Compile && Run\tF5", "コンパイル＆実行(&C)\tF5"))
+	do @popupMainBuild.addLine()
+	do @popupMainBuild.add(16#0021, \common@langEn ?("&Release Build...\tCtrl+Shift+B", "リリースビルド(&R)...\tCtrl+Shift+B"))
+	do @menuMain.addPopup(\common@langEn ?("&Build", "ビルド(&B)"), @popupMainBuild)
+	do @popupMainHelp :: wnd@makePopup()
+	do @popupMainHelp.add(16#0010, \common@langEn ?("&View Help\tF1", "ヘルプの表示(&V)\tF1"))
+	do @popupMainHelp.addLine()
+	do @popupMainHelp.add(16#0011, \common@langEn ?("&About Kuin...", "Kuinについて(&A)..."))
+	do @menuMain.addPopup(\common@langEn ?("&Help", "ヘルプ(&H)"), @popupMainHelp)
+	do @wndMain.setMenu(@menuMain)
+
+	do wnd@onKeyPress(@onKeyPress)
+
+	do @lockingEditor :: false
+	do @lockPropOnChange :: false
+	do @textLog :: ""
+	do @drag :: false
+end func
+
++func init()
+	do @drawEditor.onPaint :: @drawEditorOnPaint
+	do @drawEditor.onMouseDownL :: @drawEditorOnMouseDownL
+	do @drawEditor.onMouseUpL :: @drawEditorOnMouseUpL
+	do @drawEditor.onMouseDoubleClick :: @drawEditorOnMouseDoubleClick
+	do @drawEditor.onMouseMove :: @drawEditorOnMouseMove
+	do @drawEditor.onFocus :: @drawEditorOnFocus
+	do @drawEditor.onKeyDown :: @drawEditorOnKeyDown
+	do @drawEditor.onKeyUp :: @drawEditorOnKeyUp
+	do @drawEditor.onKeyChar :: @drawEditorOnKeyChar
+	do @drawEditor.onScrollX :: @drawEditorOnScrollX
+	do @drawEditor.onScrollY :: @drawEditorOnScrollY
+	do @drawEditor.onMouseWheelX :: @drawEditorOnMouseWheelX
+	do @drawEditor.onMouseWheelY :: @drawEditorOnMouseWheelY
+	do @drawEditor.onSetMouseImg :: @drawEditorOnSetMouseImg
+	do @wndMain.focus()
+	do @drawEditor.focus()
+end func
+
+func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+	if(\find@wndFind <>& null & \find@wndFind.focusedWnd())
+		switch(shiftCtrl)
+		case %none
+			switch(key)
+			case %enter
+				do \find@findNext()
+				ret true
+			case %esc
+				do \find@wndFind.close()
+				ret true
+			case %f3
+				do @wndMainOnPushMenu(@wndMain, 16#003C)
+				ret true
+			end switch
+		case %shift
+			switch(key)
+			case %f3
+				do @wndMainOnPushMenu(@wndMain, 16#003B)
+				ret true
+			end switch
+		case %ctrl
+			switch(key)
+			case %f
+				do @wndMainOnPushMenu(@wndMain, 16#0039)
+				ret true
+			case %h
+				do @wndMainOnPushMenu(@wndMain, 16#003A)
+				ret true
+			end switch
+		end switch
+		if(\find@runTabOrder(key, shiftCtrl))
+			ret true
+		end if
+	elif(@wndMain.focusedWnd() | \completion@focused())
+		var editFocused: bool :: @editIcon.focused()
+		switch(shiftCtrl)
+		case %none
+			switch(key)
+			case %del
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0037)
+					ret true
+				end if
+			case %esc
+				if(\completion@displayed())
+					do \completion@close()
+					do \auxiliary@resetDirtyHint()
+					ret true
+				elif(\find@wndFind <>& null)
+					do \find@wndFind.close()
+					ret true
+				end if
+			case %f1
+				do @wndMainOnPushMenu(@wndMain, 16#0010)
+				ret true
+			case %f3
+				do @wndMainOnPushMenu(@wndMain, 16#003C)
+				ret true
+			case %f5
+				do @wndMainOnPushMenu(@wndMain, 16#0020)
+				ret true
+			case %f12
+				var definitionPos: \src@Pos :: \completion@getDefinitionPos()
+				if(definitionPos <>& null & \src@jumpSrc(definitionPos))
+					ret true
+				end if
+			end switch
+		case %shift
+			switch(key)
+			case %f3
+				do @wndMainOnPushMenu(@wndMain, 16#003B)
+				ret true
+			end switch
+		case %ctrl
+			switch(key)
+			case %a
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0038)
+					ret true
+				end if
+			case %c
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0035)
+					ret true
+				end if
+			case %f
+				do @wndMainOnPushMenu(@wndMain, 16#0039)
+				ret true
+			case %h
+				do @wndMainOnPushMenu(@wndMain, 16#003A)
+				ret true
+			case %n
+				do @wndMainOnPushMenu(@wndMain, 16#0001)
+				ret true
+			case %o
+				do @wndMainOnPushMenu(@wndMain, 16#0002)
+				ret true
+			case %s
+				do @wndMainOnPushMenu(@wndMain, 16#0003)
+				ret true
+			case %q
+				do @wndMainOnPushMenu(@wndMain, 16#0005)
+				ret true
+			case %v
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0036)
+					ret true
+				end if
+			case %x
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0034)
+					ret true
+				end if
+			case %y
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0033)
+					ret true
+				end if
+			case %z
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0032)
+					ret true
+				end if
+			end switch
+		case (%shift $ wnd@ShiftCtrl).or(%ctrl)
+			switch(key)
+			case %a
+				do @wndMainOnPushMenu(@wndMain, 16#0030)
+			case %b
+				do @wndMainOnPushMenu(@wndMain, 16#0021)
+				ret true
+			case %s
+				do @wndMainOnPushMenu(@wndMain, 16#0004)
+				ret true
+			case %z
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 16#0033)
+					ret true
+				end if
+			end switch
+		end switch
+		if(\completion@displayed() & key <> %ctrl & !editFocused)
+			ret \src@curDoc.keyDown(key, shiftCtrl)
+		end if
+	end if
+	ret false
+end func
+
+func wndMainOnClose(wnd: wnd@WndBase): bool
+	if(@lockingEditor)
+		do @showMsgRunning()
+		ret false
+	end if
+	if(\src@chkChanged())
+		do \src@delRunningFiles()
+		var dir: []char :: file@sysDir(%appData) ~ "Kuin/"
+		try
+			do file@delDir(dir)
+		catch
+		end try
+		ret true
+	end if
+	ret false
+end func
+
+func wndMainOnActivate(wnd: wnd@WndBase, active: bool, minimized: bool)
+	if(active & !minimized & @drawEditor <>& null)
+		do @drawEditor.focus()
+	end if
+end func
+
+func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
+	switch(id)
+	case 16#0001
+		if(@lockingEditor)
+			do @showMsgRunning()
+			ret
+		end if
+		if (\src@chkChanged())
+			do \src@newMainSrc()
+		end if
+	case 16#0002
+		if(@lockingEditor)
+			do @showMsgRunning()
+			ret
+		end if
+		if (\src@chkChanged())
+			var file: []char :: wnd@openFileDialog(@wndMain, [\common@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0)
+			if(file <>& null)
+				do \src@openMainSrc(file)
+			end if
+		end if
+	case 16#0003
+		do \src@saveAll()
+	case 16#0004
+		do \src@saveMainSrc()
+	case 16#0005
+		do @wndMain.close()
+	case 16#0010
+		do task@open("http://kuina.ch/kuin")
+	case 16#0011
+		block
+			var major: int
+			var minor: int
+			var micro: int
+			do \dll@version(&major, &minor, &micro)
+			do wnd@msgBox(@wndMain, "Kuin Programming Language\nVersion \{major}.\{minor}.\{micro}\n(C)Kuina-chan", \common@title, %info, %ok)
+		end block
+	case 16#0020
+		if(@lockingEditor)
+			do @showMsgRunning()
+			ret
+		end if
+		do @btnCompileOnPush(@btnCompile)
+	case 16#0021
+		if(@lockingEditor)
+			do @showMsgRunning()
+			ret
+		end if
+		do @btnRlsOnPush(@btnRls)
+	case 16#0030
+		if(@lockingEditor)
+			do @showMsgRunning()
+			ret
+		end if
+		do \add_file@addNewFile()
+	case 16#0031
+		if(@lockingEditor)
+			do @showMsgRunning()
+			ret
+		end if
+		do \add_file@addExistingFile()
+	case 16#0032
+		do \src@curDoc.cmdUndo()
+	case 16#0033
+		do \src@curDoc.cmdRedo()
+	case 16#0034
+		do \src@curDoc.cmdCut()
+	case 16#0035
+		do \src@curDoc.cmdCopy()
+	case 16#0036
+		do \src@curDoc.cmdPaste()
+	case 16#0037
+		do \src@curDoc.cmdDel()
+	case 16#0038
+		do \src@curDoc.cmdSelAll()
+	case 16#0039
+		do \find@show(false)
+	case 16#003A
+		do \find@show(true)
+	case 16#003B
+		do \find@findPrev()
+	case 16#003C
+		do \find@findNext()
+	end switch
+end func
+
+func treeItemOnSel(wnd: wnd@WndBase)
+	do \src@curDoc.treeItemOnSel()
+end func
+
+func treeItemOnMoveNode(wnd: wnd@WndBase)
+	do \src@curDoc.treeItemOnMoveNode()
+end func
+
+func listInfoOnSel(wnd: wnd@WndBase)
+	do \src@curDoc.listInfoOnSel()
+end func
+
+func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
+	do \src@curDoc.draw(width, height)
+	do draw@render(0)
+end func
+
+func drawEditorOnMouseDownL(wnd: wnd@WndBase, x: int, y: int)
+	do @drag :: true
+	do \src@curDoc.mouseDownL(x, y)
+end func
+
+func drawEditorOnMouseUpL(wnd: wnd@WndBase, x: int, y: int)
+	do @drag :: false
+	do \src@curDoc.mouseUpL(x, y)
+end func
+
+func drawEditorOnMouseDoubleClick(wnd: wnd@WndBase, x: int, y: int)
+	do \src@curDoc.mouseDoubleClick(x, y)
+end func
+
+func drawEditorOnMouseMove(wnd: wnd@WndBase, x: int, y: int)
+	do \src@curDoc.mouseMove(x, y)
+end func
+
+func drawEditorOnFocus(wnd: wnd@WndBase, focus: bool)
+	do \src@curDoc.focus(focus)
+end func
+
+func drawEditorOnKeyDown(wnd: wnd@WndBase, key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+	do \src@curDoc.keyDown(key, shiftCtrl)
+end func
+
+func drawEditorOnKeyUp(wnd: wnd@WndBase, key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+	do \src@curDoc.keyUp(key, shiftCtrl)
+end func
+
+func drawEditorOnKeyChar(wnd: wnd@WndBase, key: char)
+	do \src@curDoc.keyChar(key)
+end func
+
+func drawEditorOnScrollX(wnd: wnd@WndBase, pos: int)
+	do \src@curDoc.scrollX(pos)
+end func
+
+func drawEditorOnScrollY(wnd: wnd@WndBase, pos: int)
+	do \src@curDoc.scrollY(pos)
+end func
+
+func drawEditorOnMouseWheelX(wnd: wnd@WndBase, wheel: int)
+	do \src@curDoc.wheelX(wheel)
+end func
+
+func drawEditorOnMouseWheelY(wnd: wnd@WndBase, wheel: int)
+	do \src@curDoc.wheelY(wheel)
+end func
+
+func drawEditorOnSetMouseImg(wnd: wnd@WndBase): wnd@MouseImg
+	ret \src@curDoc.setMouseImg()
+end func
+
+func listPropOnMouseDoubleClick(wnd: wnd@WndBase)
+	do \src@curDoc.listPropOnMouseDoubleClick(@listProp)
+end func
+
+func btnCompileOnPush(wnd: wnd@WndBase)
+	if(@lockingEditor)
+		do @showMsgRunning()
+		ret
+	end if
+	do @lockEditor(true)
+	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/" ~ \src@addRunningFileName() ~ "/"
+	var out: []char :: tmp ~ "out.exe"
+	try
+		do file@makeDir(tmp)
+	catch
+		var msg: []char
+		if(\common@langEn)
+			do msg :: "Could not delete. " ~ tmp
+		else
+			do msg :: "削除できませんでした。 " ~ tmp
+		end if
+		do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
+		ret
+	end try
+	do \dll@resetMemAllocator(\src@blankMem)
+	do @textLog :: ""
+	do @updateLog()
+	var cmd: []char
+	var cmdLine: []char
+	if(@radioEnvWnd.getChk())
+		do cmd :: out
+		do cmdLine :: null
+	elif(@radioEnvCui.getChk())
+		do cmd :: file@sysDir(%system32) ~ "cmd.exe"
+		do cmdLine :: "/C \"\"" ~ file@exeDir().replace("/", "\\") ~ "sys\\launcher.bat\" \"" ~ out.replace("/", "\\") ~ "\"\""
+	end if
+	try
+		do \auxiliary@resetData()
+		if(\dll@build(\src@mainSrcName, \src@getSrc, null, out, @editIcon.getText().trim(), false, @getEnv(), @log, \common@langEn ?(1, 0), 0))
+			if (\src@mainSrcName <> \common@untitledSrcName)
+				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
+				do filePtr.writeStr(file@dir(\src@mainSrcName))
+				do filePtr.writeChar('\n')
+				do filePtr.fin()
+			end if
+			do @textLog :~ \common@langEn ?("IK9999: Run.", "IK9999: 実行。\n")
+			do @updateLog()
+			if(\dll@runDbg(cmd, cmdLine, idleFunc, eventFunc))
+				do @textLog :~ \common@langEn ?("\nIK9999: Succees.\n", "\nIK9999: 正常終了。\n")
+				do @updateLog()
+			else
+				do @textLog :~ \common@langEn ?("\nIK9999: Failure.\n", "\nIK9999: 実行失敗。\n")
+				do @updateLog()
+				do wnd@msgBox(@wndMain, \common@langEn ?("Could not run.", "実行できませんでした。"), \common@title, %err, %ok)
+			end if
+			do \src@delRunningFiles()
+		end if
+		do \auxiliary@update()
+	catch
+		do wnd@msgBox(@wndMain, \common@langEn ?("Unexpected error.", "予期せぬエラーです。"), \common@title, %err, %ok)
+	end try
+	do @updateList()
+	do @lockEditor(false)
+
+	func idleFunc()
+		do wnd@act()
+	end func
+
+	func eventFunc(type: int, str: []char): int
+		switch(type)
+		case 0
+			do @textLog :~ str.sub(5, -1)
+			do @updateLog()
+		end switch
+	end func
+end func
+
+func radioEnvOnPush(wnd: wnd@WndBase)
+	if(@lockPropOnChange)
+		ret
+	end if
+	do \prop@changeProp()
+end func
+
+func editIconOnChange(wnd: wnd@WndBase)
+	if(@lockPropOnChange)
+		ret
+	end if
+	do \prop@changeProp()
+end func
+
+func btnIconOnPush(wnd: wnd@WndBase)
+	var file: []char :: wnd@openFileDialog(@wndMain, [\common@langEn ?("Icon (*.ico,*.icon)", "アイコン (*.ico,*.icon)"), "*.ico;*.icon"], 0)
+	if(file =& null)
+		ret
+	end if
+	do @editIcon.setText(file)
+end func
+
+func btnRlsOnPush(wnd: wnd@WndBase)
+	if(@lockingEditor)
+		do @showMsgRunning()
+		ret
+	end if
+	var file: []char :: wnd@saveFileDialog(@wndMain, [\common@langEn ?("Archive file (*.zip)", "アーカイブファイル (*.zip)"), "*.zip"], 0, "zip")
+	if(file =& null)
+		ret
+	end if
+	do @lockEditor(true)
+	var fileName: []char :: file@delExt(file@fileName(file))
+	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/" ~ \src@addRunningFileName() ~ "/" ~ fileName ~ "/"
+	var out: []char :: tmp ~ fileName ~ ".exe"
+	try
+		do file@makeDir(tmp)
+	catch
+		var msg: []char
+		if(\common@langEn)
+			do msg :: "Could not delete. " ~ tmp
+		else
+			do msg :: "削除できませんでした。 " ~ tmp
+		end if
+		do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
+		ret
+	end try
+	do \dll@resetMemAllocator(\src@blankMem)
+	do @textLog :: ""
+	do @updateLog()
+	try
+		do \auxiliary@resetData()
+		var appCode: int :: lib@rnd(1, lib@intMax) * (lib@rnd(0, 1) = 0 ?(1, -1))
+		if(appCode = 0)
+			do appCode :: 1 {Since it is not convenient when 'AppCode' becomes 0, it is set to 1.}
+		end if
+		if(\dll@build(\src@mainSrcName, \src@getSrc, null, out, @editIcon.getText().trim(), true, @getEnv(), @log, \common@langEn ?(1, 0), appCode))
+			if(\src@mainSrcName <> \common@untitledSrcName)
+				var resSrc: []char :: file@dir(\src@mainSrcName) ~ "res/"
+				if(file@exist(resSrc))
+					var resDst: []char :: tmp ~ "res.knd"
+					if(!\dll@archive(resDst, resSrc, appCode))
+						var msg: []char
+						if(\common@langEn)
+							do msg :: "Could not make the resource file. " ~ resDst
+						else
+							do msg :: "リソースファイルを作成できませんでした。 " ~ resDst
+						end if
+						do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
+						ret
+					end if
+				end if
+			end if
+			if(zip@zip(file, tmp, -1))
+				do wnd@msgBox(@wndMain, \common@langEn ?("The build succeeded.", "ビルドが成功しました。"), \common@title, %info, %ok)
+			else
+				var msg: []char
+				if(\common@langEn)
+					do msg :: "Could not make the archive file. " ~ file
+				else
+					do msg :: "アーカイブファイルを作成できませんでした。 " ~ file
+				end if
+				do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
+				ret
+			end if
+			do \src@delRunningFiles()
+		end if
+		do \auxiliary@update()
+	catch
+		do wnd@msgBox(@wndMain, \common@langEn ?("Unexpected error.", "予期せぬエラーです。"), \common@title, %err, %ok)
+	end try
+	do @updateList()
+	do @lockEditor(false)
+end func
+
++func listFileOnSel(wnd: wnd@WndBase)
+	var sel: int :: @listFile.getSel()
+	if(sel <> -1)
+		var internalName: []char :: \src@removePrefix(@listFile.getText(sel))
+		if(^internalName > 0 & (internalName[0] = '\\' | internalName[0] = '!'))
+			var src: []char :: \src@internalNameToSrcName(internalName)
+			var doc: \doc@Doc :: \src@docs.get(src)
+			if(doc <>& null)
+				do \src@setCurSrc(doc)
+			end if
+		end if
+	end if
+	do @updateList()
+end func
+
+func updateLog()
+	do @editLog.setText(@textLog)
+end func
+
++func updateProp()
+	do @editProp.setRedraw(false)
+	do @editProp.setText("")
+	do @listProp.setRedraw(false)
+	do @listProp.clear()
+	var result: bool :: \src@curDoc.updateProp(@editProp, @listProp)
+	do @listProp.adjustWidth()
+	do @editProp.setRedraw(true)
+	do @listProp.setRedraw(true)
+	do @editProp.setVisible(result)
+	do @listProp.setVisible(!result)
+end func
+
++func updateList()
+	do @editFile.setText("")
+
+	do @listFile.setRedraw(false)
+	do @listFile.clear()
+	do \src@docs.forEach(callback, null)
+	do @listFile.setRedraw(true)
+
+	do @updateTree()
+
+	func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
+		var prefix: []char :: ""
+		var internalName: []char :: \src@srcNameToInternalName(src)
+		if(doc =& \src@curDoc)
+			do prefix :~ ">"
+			do @editFile.setText(internalName)
+		end if
+		if(doc.changed)
+			do prefix :~ "*"
+		end if
+		do @listFile.add(prefix ~ internalName)
+		if(doc =& \src@curDoc)
+			do @listFile.setSel(@listFile.len() - 1)
+		end if
+		ret true
+	end func
+end func
+
++func updateTree()
+	do @listInfo.clear()
+
+	do @treeItem.setRedraw(false)
+	do @treeItem.clear()
+	do \src@curDoc.updateTree(@treeItem)
+	do @treeItem.expand(true)
+	do @treeItem.setRedraw(true)
+end func
+
+func lockEditor(lock: bool)
+	do @lockingEditor :: lock
+	do @btnCompile.enable(!lock)
+	do @btnRls.enable(!lock)
+	do @editIcon.enable(!lock)
+	do @btnIcon.enable(!lock)
+end func
+
++func setEditIconDirectly(icon: []char)
+	do @lockPropOnChange :: true
+	do @editIcon.setText(icon)
+	do @lockPropOnChange :: false
+end func
+
++func paintDrawEditor()
+	do @drawEditor.paint()
+end func
+
++func focusDrawEditor()
+	do @drawEditor.focus()
+end func
+
++func getEnv(): []char
+	if(@radioEnvWnd.getChk())
+		ret "wnd"
+	elif(@radioEnvCui.getChk())
+		ret "cui"
+	end if
+	ret "wnd"
+end func
+
++func setEnvDirectly(env: []char)
+	do @lockPropOnChange :: true
+	do @radioEnvWnd.setChk(false)
+	do @radioEnvCui.setChk(false)
+	switch(env)
+	case "wnd"
+		do @radioEnvWnd.setChk(true)
+	case "cui"
+		do @radioEnvCui.setChk(true)
+	end switch
+	do @lockPropOnChange :: false
+end func
+
+func log(args: [][]char, row: int, col: int)
+	var msg: []char :: \common@nullStr(args[0]) ~ ": " ~ \common@nullStr(args[1])
+	if(args[2] =& null)
+		do @textLog :~ msg ~ "\n"
+	else
+		do @textLog :~ msg ~ " (" ~ \common@nullStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n"
+	end if
+	do @updateLog()
+	var pos: \src@Pos :: #\src@Pos
+	do pos.src :: args[2] =& null ?("", ##args[2])
+	do pos.row :: row
+	do pos.col :: col
+	do \auxiliary@addAuxiliaryErr(pos, args[0], args[1], args[2], row, col)
+end func
+
++func logForInterpret(args: [][]char, row: int, col: int)
+	var pos: \src@Pos :: #\src@Pos
+	do pos.src :: args[2] =& null ?("", ##args[2])
+	do pos.row :: row
+	do pos.col :: col
+	do \auxiliary@addAuxiliaryErr(pos, args[0], args[1], args[2], row, col)
+end func
+
++func getLockingEditor(): bool
+	ret @lockingEditor
+end func
+
++func showMsgRunning()
+	do wnd@msgBox(@wndMain, \common@langEn ?("The program is running.", "プログラムが実行中です。"), \common@title, %err, %ok)
+end func
+
++func dragging(): bool
+	ret @drag
+end func
+
++func getIconPath(): []char
+	ret @editIcon.getText()
+end func

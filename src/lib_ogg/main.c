@@ -43,12 +43,12 @@ EXPORT void* LoadOgg(const Char* path, S64* channel, S64* samples_per_sec, S64* 
 	return file;
 }
 
-EXPORT void init(void* heap, S64* heap_cnt, S64 app_code, const Char* app_name)
+EXPORT void init(void* heap, S64* heap_cnt, S64 app_code, const Char* use_res_flags)
 {
+	UNUSED(use_res_flags);
 	Heap = heap;
 	HeapCnt = heap_cnt;
 	AppCode = app_code;
-	AppName = app_name;
 	Instance = (HINSTANCE)GetModuleHandle(NULL);
 }
 

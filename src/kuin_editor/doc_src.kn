@@ -1,0 +1,1572 @@
++enum CharColor
+	none
+	identifier
+	global
+	reserved
+	num
+	str
+	char_
+	lineComment
+	comment
+	symbol
+	max
+end enum
+
++class ListInfoItem()
+	+var text: []char
+	+var pos: \src@Pos
+
+	+*func cmp(t: @ListInfoItem): int
+		ret me.pos.cmp(t.pos)
+	end func
+end class
+
+var srcCharColor: []int
+var regexIncIndent: regex@Regex
+var regexDecIndent: regex@Regex
+var regexBlock: regex@Regex
+var regexComplementDict: dict<[]char, regex@Regex>
+
++func init()
+	do @srcCharColor :: #[%max $ @CharColor $ int]int
+	do @srcCharColor[%none $ @CharColor $ int] :: 16#FF999999
+	do @srcCharColor[%identifier $ @CharColor $ int] :: 16#FF009BEA
+	do @srcCharColor[%global $ @CharColor $ int] :: 16#FFCC00F6
+	do @srcCharColor[%reserved $ @CharColor $ int] :: 16#FF1400F6
+	do @srcCharColor[%num $ @CharColor $ int] :: 16#FFEA0062
+	do @srcCharColor[%str $ @CharColor $ int] :: 16#FFEA0062
+	do @srcCharColor[%char_ $ @CharColor $ int] :: 16#FFEA0062
+	do @srcCharColor[%lineComment $ @CharColor $ int] :: 16#FF1EB000
+	do @srcCharColor[%comment $ @CharColor $ int] :: 16#FF1EB000
+	do @srcCharColor[%symbol $ @CharColor $ int] :: 16#FF666666
+
+	do @regexIncIndent :: regex@makeRegex("^(?:if|elif|else|switch|case|default|while|for|try|catch|finally|block|\\+?\\*?\\*?func|\\+?class|\\+?enum)\\b")
+	do @regexDecIndent :: regex@makeRegex("^(?:end|elif|else|case|default|catch|finally)\\b")
+	do @regexBlock :: regex@makeRegex("^[+*]*(if|switch|while|for|try|block|func|class|enum)\\b")
+	do @regexComplementDict :: #dict<[]char, regex@Regex>
+	do @regexComplementDict.add("if", regex@makeRegex("^(?:elif|else|end if)\\b"))
+	do @regexComplementDict.add("switch", regex@makeRegex("^(?:case|default|end switch)\\b"))
+	do @regexComplementDict.add("while", regex@makeRegex("^end while\\b"))
+	do @regexComplementDict.add("for", regex@makeRegex("^end for\\b"))
+	do @regexComplementDict.add("try", regex@makeRegex("^(?:catch|finally|end try)\\b"))
+	do @regexComplementDict.add("block", regex@makeRegex("^end block\\b"))
+	do @regexComplementDict.add("func", regex@makeRegex("^end func\\b"))
+	do @regexComplementDict.add("class", regex@makeRegex("^end class\\b"))
+	do @regexComplementDict.add("enum", regex@makeRegex("^end enum\\b"))
+end func
+
++class DocSrc(\doc@Doc)
+	**func ctor()
+		do me.src :: #Src
+		do me.src.src :: null
+		do me.src.color :: null
+		do me.pageX :: 0
+		do me.pageY :: 0
+		do me.cursorX :: 0
+		do me.cursorY :: 0
+		do me.areaX :: -1
+		do me.areaY :: -1
+		do me.lineNumWidth :: 0
+		do me.interpreted :: false
+		do me.propText :: null
+		do me.setSrc(null)
+		do me.resetListInfoItem()
+	end func
+
+	+*func load(path: []char): bool
+		var src: list<[]char> :: #list<[]char>
+		var filePtr: file@Reader :: file@makeReader(path)
+		if(filePtr =& null)
+			ret false
+		end if
+		var doc: \doc@Doc :: null
+		while loop(!filePtr.term())
+			var line: []char :: filePtr.readLine()
+			do src.add(line)
+		end while
+		do filePtr.fin()
+		do me.setSrc(src.toArray())
+		ret true
+	end func
+
+	+*func save(path: []char): bool
+		var filePtr: file@Writer :: file@makeWriter(path, false)
+		if(filePtr =& null)
+			ret false
+		end if
+		var src: [][]char :: me.src.src
+		for line(0, ^src - 1)
+			do filePtr.writeStr(src[line])
+			if(line <> ^src - 1 | src[line] <> "")
+				do filePtr.writeChar('\n')
+			end if
+		end for
+		do filePtr.fin()
+		ret true
+	end func
+
+	+*func draw(width: int, height: int)
+		do draw@rect(0.0, 0.0, width $ float, height $ float, \common@colorBack)
+		var lineX: float :: (me.lineNumWidth - 2) $ float
+		do draw@line(lineX, 0.0, lineX, height $ float, colorLineNum)
+		for i(0, ^me.src.src - 1 - me.pageY)
+			var y: float :: (i * \common@cellHeight) $ float
+			if(y < -\common@cellHeight $ float | y >= (height + \common@cellHeight) $ float)
+				skip i
+			end if
+			var str: []char :: (me.pageY + i + 1).toStr()
+			do \common@font.draw((me.lineNumWidth - (^str + 1) * \common@cellWidth + \common@cellWidth / 2) $ float, y, str, colorLineNum)
+		end for
+
+		var areaX1: int :: me.areaX
+		var areaY1: int :: me.areaY
+		var areaX2: int :: me.cursorX
+		var areaY2: int :: me.cursorY
+		if(me.areaSel() & (areaY1 > areaY2 | areaY1 = areaY2 & areaX1 > areaX2))
+			do areaX1 :$ areaX2
+			do areaY1 :$ areaY2
+		end if
+		for i(0, height / \common@cellHeight)
+			if(me.pageY + i >= ^me.src.src)
+				break i
+			end if
+			var str: []char :: me.src.src[me.pageY + i]
+			var left: int :: me.lineNumWidth - me.pageX * \common@cellWidth
+			var x: int :: 0
+			for j(0, ^str)
+				assert j = ^str | str[j] <> 16#01 $ char & str[j] <> '\n'
+				var x2: int :: left + x * \common@cellWidth
+				if(x2 >= width)
+					break j
+				end if
+				var charWidth: int :: j < ^str ?(me.charWidth(str[j], x), 0)
+				if(x2 >= me.lineNumWidth)
+					var inArea: bool :: false
+					if(me.areaSel())
+						var areaX3: int :: j
+						var areaY3: int :: me.pageY + i
+						if (areaY3 < areaY1 | areaY2 < areaY3)
+							; Do nothing.
+						elif(areaY1 < areaY3 & areaY3 < areaY2)
+							do inArea :: true
+						elif(areaY1 = areaY2)
+							do inArea :: areaX1 <= areaX3 & areaX3 < areaX2
+						elif(areaY3 = areaY1)
+							do inArea :: areaX1 <= areaX3
+						else
+							assert areaY3 = areaY2
+							do inArea :: areaX3 < areaX2
+						end if
+					end if
+					var textX: float :: x2 $ float
+					var textY: float :: (i * \common@cellHeight) $ float
+					if(j = ^str)
+						if(inArea)
+							do draw@rect(textX, textY, \common@cellWidth $ float, \common@cellHeight $ float, colorAreaBack)
+						end if
+						do \common@tex.draw(textX, textY, me.pageY + i = ^me.src.src - 1 ?(18.0, 0.0), 0.0, 9.0, 18.0, draw@white)
+					else
+						var color: int
+						if(inArea)
+							do draw@rect(textX, textY, (\common@cellWidth * (charWidth <= 0 ?(1, charWidth))) $ float, \common@cellHeight $ float, colorAreaBack)
+							do color :: draw@white
+						elif(me.src.color[me.pageY + i][j].and(16#80b8) <> 0 $ @CharColor $ bit8)
+							do draw@rect(textX, textY, (\common@cellWidth * (charWidth <= 0 ?(1, charWidth))) $ float, \common@cellHeight $ float, colorErrBack)
+							do color :: draw@white
+						else
+							do color :: @srcCharColor[me.src.color[me.pageY + i][j].and(16#7Fb8) $ int]
+						end if
+						switch(str[j])
+						case '\t'
+							do \common@tex.draw(textX, textY, 9.0, 0.0, 9.0, 18.0, draw@white)
+						case '　'
+							do \common@tex.draw(textX, textY, 27.0, 0.0, 18.0, 18.0, draw@white)
+						default
+							do \common@font.draw(textX, textY, str[j].toStr(), color)
+						end switch
+					end if
+				end if
+				if(j <> ^str)
+					do x :+ charWidth
+				end if
+			end for
+		end for
+	end func
+
+	+*func updateProp(edit: wnd@EditMulti, listView: wnd@ListView): bool
+		if(me.propText =& null)
+			ret true
+		end if
+		do edit.setText(me.propText)
+		ret true
+	end func
+
+	+*func updateTree(tree: wnd@Tree)
+		do me.listInfoItem.sort()
+		do me.listInfoItem.head()
+		do \form@listInfo.setRedraw(false)
+		while(!me.listInfoItem.term())
+			do \form@listInfo.add(me.listInfoItem.get().text)
+			do me.listInfoItem.next()
+		end while
+		do \form@listInfo.setRedraw(true)
+	end func
+
+	+*func treeItemOnSel()
+		; TODO:
+	end func
+
+	+*func treeItemOnMoveNode()
+		; TODO:
+	end func
+
+	+*func listInfoOnSel()
+		var sel: int :: \form@listInfo.getSel()
+		if(sel <> -1 & sel < ^me.listInfoItem)
+			do me.listInfoItem.head()
+			var item: @ListInfoItem :: me.listInfoItem.getOffset(sel)
+			if(\src@jumpSrc(item.pos))
+				do me.propText :: item.text
+				do \form@updateProp()
+				do \auxiliary@resetDirtyHint()
+			end if
+		end if
+	end func
+
+	+*func mouseDownL(x: int, y: int)
+		do me.setArea(wnd@key(%shift) ?(%shift $ wnd@ShiftCtrl, %none))
+		do me.mousePosToCharPos(x, y)
+		do me.refreshCursor(false, true, 0)
+		if(!me.areaSel())
+			do me.areaX :: me.cursorX
+			do me.areaY :: me.cursorY
+		end if
+		do \form@paintDrawEditor()
+	end func
+
+	+*func mouseUpL(x: int, y: int)
+		do me.refreshCursor(false, true, 2)
+	end func
+
+	+*func mouseDoubleClick(x: int, y: int)
+		do me.mousePosToCharPos(x, y)
+		do me.refreshCursor(false, true, 0)
+		do me.areaX :: me.cursorX
+		do me.areaY :: me.cursorY
+		if(me.cursorX = ^me.src.src[me.cursorY])
+			do me.areaX :- 1
+			if(me.areaX < 0)
+				do me.areaX :: 0
+			end if
+		end if
+		if(^me.src.src[me.cursorY] > 0)
+			var color: bit8 :: me.src.color[me.areaY][me.areaX].and(16#7Fb8)
+			while(me.areaX > 0 & me.src.color[me.areaY][me.areaX - 1].and(16#7Fb8) = color)
+				do me.areaX :- 1
+			end while
+			while(me.cursorX < ^me.src.src[me.cursorY] & me.src.color[me.cursorY][me.cursorX].and(16#7Fb8) = color)
+				do me.cursorX :+ 1
+			end while
+		end if
+		do \form@paintDrawEditor()
+	end func
+
+	+*func mouseMove(x: int, y: int)
+		if(\form@dragging())
+			do me.mousePosToCharPos(x, y)
+			do me.refreshCursor(false, true, 0)
+			do \form@paintDrawEditor()
+		end if
+	end func
+
+	+*func focus(isFocus: bool)
+		if(isFocus)
+			do \form@drawEditor.showCaret(\common@cellHeight, \common@font)
+			do me.refreshCursor(false, true, 2)
+		else
+			do \form@drawEditor.hideCaret()
+		end if
+	end func
+
+	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+		switch(key)
+		case %ctrl
+			if(\completion@displayed())
+				do \completion@setAlpha(25)
+			end if
+			ret true
+		case %bs
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret true
+			end if
+			if(shiftCtrl = %none)
+				do me.undo.recordBegin()
+				if(me.areaSel())
+					do me.delAreaStr()
+				else
+					do me.bs(me.cursorX, me.cursorY, 1, true)
+				end if
+				do me.undo.recordEnd()
+				do me.refreshCursor(false, true, 1)
+				do \form@paintDrawEditor()
+				ret true
+			end if
+		case %tab
+			switch(shiftCtrl)
+			case %none
+				if (\form@getLockingEditor())
+					do \form@showMsgRunning()
+					ret true
+				end if
+				if(!me.areaSel())
+					do me.undo.recordBegin()
+					do me.ins(me.cursorX, me.cursorY, "\t", true)
+					do me.undo.recordEnd()
+					do me.refreshCursor(false, true, 0)
+					do \form@paintDrawEditor()
+				else
+					do me.indentAreaStr()
+					do me.refreshCursor(false, true, 0)
+					do \form@paintDrawEditor()
+				end if
+				ret true
+			case %shift
+				if (\form@getLockingEditor())
+					do \form@showMsgRunning()
+					ret true
+				end if
+				if(me.areaSel())
+					do me.unindentAreaStr()
+					do me.refreshCursor(false, true, 0)
+					do \form@paintDrawEditor()
+				end if
+				ret true
+			end switch
+		case %enter
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret true
+			end if
+			if(shiftCtrl = %none)
+				if(!me.complementImpl())
+					do me.undo.recordBegin()
+					if(me.areaSel())
+						do me.delAreaStr()
+					end if
+					block
+						var x: int :: me.cursorX
+						var y: int :: me.cursorY
+						do me.ins(x, y, "\n", true)
+						; The upper row.
+						if(me.skipTabs(y) = -1)
+							do me.del(0, y, ^me.src.src[y], true)
+						else
+							do me.autoIndent(y)
+							; Complement 'end ...' syntaxes.
+							if(^me.src.src[y + 1] = 0)
+								var curIndent: int :: me.skipTabs(y)
+								var result: [][]char :: @regexBlock.find(&, me.src.src[y], curIndent)
+								if(result <>& null)
+									var endFlag: bool
+									var nextY: int :: y + 2
+									while loop(true)
+										if(nextY = ^me.src.src)
+											do endFlag :: true
+											break loop
+										end if
+										var nextIndent: int :: me.skipTabs(nextY)
+										if(nextIndent <> -1 & nextIndent <= curIndent)
+											if(nextIndent = curIndent)
+												do endFlag :: @regexComplementDict.get(result[1]).find(&, me.src.src[nextY], curIndent) =& null
+											else
+												do endFlag :: true
+											end if
+											break loop
+										end if
+										do nextY :+ 1
+									end while
+									if(endFlag = true)
+										do me.ins(0, y + 1, "\nend " ~ result[1], true)
+										do me.autoIndent(y + 2)
+									end if
+								end if
+							end if
+						end if
+						; The current row.
+						do me.autoIndent(y + 1)
+					end block
+					do me.undo.recordEnd()
+					do me.refreshCursor(false, true, 1)
+					do \form@paintDrawEditor()
+				end if
+				ret true
+			end if
+		case %pageUp
+			block
+				var height: int
+				do \form@drawEditor.getPos(&, &, &, &height)
+				if(shiftCtrl = %ctrl)
+					do me.scrollPageY(-height / \common@cellHeight)
+				else
+					do me.setArea(shiftCtrl)
+					var absoluteX: int :: me.getAbsoluteX()
+					do me.cursorY :- height / \common@cellHeight
+					do me.setAbsoluteX(absoluteX)
+					do me.refreshCursor(false, true, 2)
+				end if
+				ret true
+			end block
+		case %pageDown
+			block
+				var height: int
+				do \form@drawEditor.getPos(&, &, &, &height)
+				if(shiftCtrl = %ctrl)
+					do me.scrollPageY(height / \common@cellHeight)
+				else
+					do me.setArea(shiftCtrl)
+					var absoluteX: int :: me.getAbsoluteX()
+					do me.cursorY :+ height / \common@cellHeight
+					do me.setAbsoluteX(absoluteX)
+					do me.refreshCursor(false, true, 2)
+				end if
+				ret true
+			end block
+		case %end_
+			do me.setArea(shiftCtrl)
+			do me.cursorX :: lib@intMax
+			if(shiftCtrl.and(%ctrl) <> %none)
+				do me.cursorY :: lib@intMax
+			end if
+			do me.refreshCursor(false, true, 2)
+			ret true
+		case %home
+			do me.setArea(shiftCtrl)
+			do me.cursorX :: 0
+			if(shiftCtrl.and(%ctrl) <> %none)
+				do me.cursorY :: 0
+			end if
+			do me.refreshCursor(false, true, 2)
+			ret true
+		case %left
+			if(shiftCtrl = %ctrl)
+				do me.scrollPageX(-1)
+			else
+				do me.setArea(shiftCtrl)
+				do me.cursorX :- 1
+				do me.refreshCursor(false, true, 2)
+			end if
+			ret true
+		case %up
+			if(shiftCtrl = %none & \completion@displayed() & \completion@moveCursorUp())
+				; Do nothing.
+			elif(shiftCtrl = %ctrl)
+				do me.scrollPageY(-1)
+			else
+				do me.setArea(shiftCtrl)
+				var absoluteX: int :: me.getAbsoluteX()
+				do me.cursorY :- 1
+				do me.setAbsoluteX(absoluteX)
+				do me.refreshCursor(false, true, 2)
+			end if
+			ret true
+		case %right
+			if(shiftCtrl = %ctrl)
+				do me.scrollPageX(1)
+			else
+				do me.setArea(shiftCtrl)
+				do me.cursorX :+ 1
+				do me.refreshCursor(true, true, 2)
+			end if
+			ret true
+		case %down
+			if(shiftCtrl = %none & \completion@displayed() & \completion@moveCursorDown())
+				; Do nothing.
+			elif(shiftCtrl = %ctrl)
+				do me.scrollPageY(1)
+			else
+				do me.setArea(shiftCtrl)
+				var absoluteX: int :: me.getAbsoluteX()
+				do me.cursorY :+ 1
+				do me.setAbsoluteX(absoluteX)
+				do me.refreshCursor(false, true, 2)
+			end if
+			ret true
+		case %ins
+			; TODO: Insert mode.
+		end switch
+		ret false
+	end func
+
+	+*func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+		switch(key)
+		case %ctrl
+			if(\completion@displayed())
+				do \completion@setAlpha(230)
+			end if
+		end switch
+		do \form@paintDrawEditor()
+	end func
+
+	+*func keyChar(key: char)
+		if (\form@getLockingEditor())
+			do \form@showMsgRunning()
+			ret
+		end if
+		if(key = '\t' | me.charWidth(key, 0) = 0)
+			ret
+		end if
+		if(\completion@displayed() & !('a' <= key & key <= 'z' | 'A' <= key & key <= 'Z' | '0' <= key & key <= '9' | key = '_' | key = '@' | key = '\\'))
+			do me.complementImpl()
+		end if
+		do me.undo.recordBegin()
+		if(me.areaSel())
+			do me.delAreaStr()
+		end if
+		do me.ins(me.cursorX, me.cursorY, [key], true)
+		do me.undo.recordEnd()
+		do me.refreshCursor(false, true, 1)
+		do \form@paintDrawEditor()
+	end func
+
+	+*func scrollX(pos: int)
+		do me.pageX :: pos
+		do me.refreshCursor(false, false, 0)
+		do \form@paintDrawEditor()
+	end func
+
+	+*func scrollY(pos: int)
+		do me.pageY :: pos
+		do me.refreshCursor(false, false, 0)
+		do \form@paintDrawEditor()
+	end func
+
+	+*func wheelX(wheel: int)
+		do me.scrollPageX(wheel)
+	end func
+
+	+*func wheelY(wheel: int)
+		do me.scrollPageY(wheel * 3)
+	end func
+
+	+*func setMouseImg(): wnd@MouseImg
+		ret %ibeam
+	end func
+
+	+*func cmdUndo()
+		if (\form@getLockingEditor())
+			do \form@showMsgRunning()
+			ret
+		end if
+		if(me.areaSel())
+			do me.areaX :: -1
+		end if
+		do me.undo.undo()
+		do me.refreshCursor(false, true, 0)
+		do \form@paintDrawEditor()
+	end func
+
+	+*func cmdRedo()
+		if (\form@getLockingEditor())
+			do \form@showMsgRunning()
+			ret
+		end if
+		if(me.areaSel())
+			do me.areaX :: -1
+		end if
+		do me.undo.redo()
+		do me.refreshCursor(false, true, 0)
+		do \form@paintDrawEditor()
+	end func
+
+	+*func cmdCut()
+		if (\form@getLockingEditor())
+			do \form@showMsgRunning()
+			ret
+		end if
+		if(me.areaSel())
+			do me.copyAreaStr()
+			do me.undo.recordBegin()
+			do me.delAreaStr()
+			do me.undo.recordEnd()
+			do me.refreshCursor(false, true, 0)
+			do \form@paintDrawEditor()
+		end if
+	end func
+
+	+*func cmdCopy()
+		if(me.areaSel())
+			do me.copyAreaStr()
+		end if
+	end func
+
+	+*func cmdPaste()
+		if (\form@getLockingEditor())
+			do \form@showMsgRunning()
+			ret
+		end if
+		var str: []char :: wnd@getClipboardStr()
+		if(str <>& null)
+			do me.undo.recordBegin()
+			if(me.areaSel())
+				do me.delAreaStr()
+			end if
+			do me.ins(me.cursorX, me.cursorY, str, true)
+			do me.undo.recordEnd()
+			do me.refreshCursor(false, true, 0)
+			do \form@paintDrawEditor()
+		end if
+	end func
+
+	+*func cmdDel()
+		if (\form@getLockingEditor())
+			do \form@showMsgRunning()
+			ret
+		end if
+		do me.undo.recordBegin()
+		if(me.areaSel())
+			do me.delAreaStr()
+		else
+			do me.del(me.cursorX, me.cursorY, 1, true)
+		end if
+		do me.undo.recordEnd()
+		do me.refreshCursor(false, true, 2)
+		do \form@paintDrawEditor()
+	end func
+
+	+*func cmdSelAll()
+		do me.areaX :: 0
+		do me.areaY :: 0
+		do me.cursorX :: lib@intMax
+		do me.cursorY :: lib@intMax
+		do me.refreshCursor(false, true, 0)
+		do \form@paintDrawEditor()
+	end func
+
+	+*func undoImpl(undo2: \doc@UndoCmd)
+		if(undo2 =$ UndoSrcIns)
+			block
+				var undo3: UndoSrcIns :: undo2 $ UndoSrcIns
+				do me.ins(undo3.x, undo3.y, undo3.str, false)
+			end block
+		elif(undo2 =$ UndoSrcBsDel)
+			block
+				var undo3: UndoSrcBsDel :: undo2 $ UndoSrcBsDel
+				switch(undo3.kind)
+				case 0
+					do me.bs(undo3.x, undo3.y, undo3.len, false)
+				case 1
+					do me.del(undo3.x, undo3.y, undo3.len, false)
+				default
+					assert false
+				end switch
+			end block
+		else
+			assert false
+		end if
+	end func
+
+	func setSrc(src: [][]char)
+		if(src =& null | ^src = 0)
+			do me.src.src :: [""]
+			do me.src.color :: [#[0]bit8]
+		else
+			do me.src.src :: src
+			do me.src.color :: #[^src][]bit8
+			for i(0, ^src - 1)
+				do me.src.color[i] :: #[^src[i]]bit8
+			end for
+		end if
+	end func
+
+	+func getSrc(): [][]char
+		ret me.src.src
+	end func
+
+	+func findPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+		var findBeginX: int :: (me.areaX <> -1 & me.areaX < me.cursorX ?(me.areaX, me.cursorX))
+		var findBeginY: int :: me.cursorY
+		var pos: int
+		var found: []char
+		var regex: regex@Regex :: null
+		if(regularExpression)
+			do regex :: regex@makeRegex(pattern)
+			if(regex =& null)
+				ret false
+			end if
+		end if
+		for i(findBeginY, 0, -1)
+			do pos :: @findStr(&found, me.src.src[i], true, 0, i = findBeginY ?(findBeginX - 1, ^me.src.src[i] - 1), pattern, distinguishCase, onlyWord, regex)
+			if(pos <> -1)
+				do me.areaX :: pos
+				do me.areaY :: i
+				do me.cursorX :: pos + ^found
+				do me.cursorY :: i
+				do me.refreshCursor(false, true, 0)
+				do \form@paintDrawEditor()
+				ret true
+			end if
+		end for
+		for i(^me.src.src - 1, findBeginY, -1)
+			do pos :: @findStr(&found, me.src.src[i], true, i = findBeginY ?(findBeginX, 0), ^me.src.src[i] - 1, pattern, distinguishCase, onlyWord, regex)
+			if(pos <> -1)
+				do me.areaX :: pos
+				do me.areaY :: i
+				do me.cursorX :: pos + ^found
+				do me.cursorY :: i
+				do me.refreshCursor(false, true, 0)
+				do \form@paintDrawEditor()
+				ret true
+			end if
+		end for
+		ret false
+	end func
+
+	+func findNext(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
+		var findBeginX: int :: (me.areaX <> -1 & me.areaX > me.cursorX ?(me.areaX, me.cursorX))
+		var findBeginY: int :: me.cursorY
+		var pos: int
+		var found: []char
+		var regex: regex@Regex :: null
+		if(regularExpression)
+			do regex :: regex@makeRegex(pattern)
+			if(regex =& null)
+				ret false
+			end if
+		end if
+		for i(findBeginY, ^me.src.src - 1)
+			do pos :: @findStr(&found, me.src.src[i], false, i = findBeginY ?(findBeginX, 0), ^me.src.src[i] - 1, pattern, distinguishCase, onlyWord, regex)
+			if(pos <> -1)
+				do me.areaX :: pos
+				do me.areaY :: i
+				do me.cursorX :: pos + ^found
+				do me.cursorY :: i
+				do me.refreshCursor(false, true, 0)
+				do \form@paintDrawEditor()
+				ret true
+			end if
+		end for
+		for i(0, findBeginY)
+			do pos :: @findStr(&found, me.src.src[i], false, 0, i = findBeginY ?(findBeginX - 1, ^me.src.src[i] - 1), pattern, distinguishCase, onlyWord, regex)
+			if(pos <> -1)
+				do me.areaX :: pos
+				do me.areaY :: i
+				do me.cursorX :: pos + ^found
+				do me.cursorY :: i
+				do me.refreshCursor(false, true, 0)
+				do \form@paintDrawEditor()
+				ret true
+			end if
+		end for
+		ret false
+	end func
+
+	+func replaceOne(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+		if(!me.areaSel() | me.areaY <> me.cursorY)
+			ret
+		end if
+		var x1: int :: me.areaX
+		var x2: int :: me.cursorX
+		if(x1 > x2)
+			do x1 :$ x2
+		end if
+		var regex: regex@Regex :: null
+		if(regularExpression)
+			do regex :: regex@makeRegex(pattern)
+			if(regex =& null)
+				ret
+			end if
+		end if
+		var found: []char
+		var pos: int :: @findStr(&found, me.src.src[me.cursorY], false, x1, x1, pattern, distinguishCase, onlyWord, regex)
+		if(pos = x1)
+			if(regex <>& null)
+				do replaceStr :: regex.replace(found, replaceStr, false)
+			end if
+			do me.undo.recordBegin()
+			do me.del(x1, me.cursorY, ^found, true)
+			do me.ins(x1, me.cursorY, replaceStr, true)
+			do me.undo.recordEnd()
+		end if
+	end func
+
+	+func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): int
+		do me.cursorX :: 0
+		do me.cursorY :: 0
+		do me.areaX :: -1
+		do me.areaY :: -1
+		var cnt: int :: 0
+		while loop(true)
+			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
+			var oldY: int :: me.cursorY
+			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
+				break loop
+			end if
+			var newX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
+			var newY: int :: me.cursorY
+			if(newY < oldY | newY = oldY & newX <= oldX)
+				break loop
+			end if
+			do me.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+			do cnt :+ 1
+		end while
+		ret cnt
+	end func
+
+	+func showHint(fast: bool)
+		var x: int :: me.cursorX
+		if(^me.src.src[me.cursorY] = x)
+			do x :- 1
+		end if
+		if(x < 0)
+			do \completion@close()
+			ret
+		end if
+		while(x > 0 & (me.src.src[me.cursorY][x] = ' ' | me.src.src[me.cursorY][x] = '\t'))
+			do x :- 1
+		end while
+		var srcName: []char :: \src@srcNameToInternalName(\src@getDocName(\src@curDoc))
+		if(^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t')
+			var color: @CharColor :: me.src.color[me.cursorY][x].and(16#7Fb8) $ @CharColor
+			if(srcName <>& null)
+				if(color = %identifier | color = %global | color = %reserved)
+					var srcName2: []char
+					var word: []char :: me.getWord(&srcName2, x, me.cursorY, color, srcName)
+					var funcHint: []char :: fast ?(me.getFuncHint(srcName, x, me.cursorY), null)
+					do \completion@show(srcName2, me.cursorY + 1, word, funcHint, fast)
+				else
+					do \completion@close()
+				end if
+			end if
+		else
+			do \completion@close()
+		end if
+	end func
+
+	+func move(col: int, row: int)
+		do me.cursorX :: col
+		do me.cursorY :: row
+		do me.areaX :: -1
+		do me.areaY :: -1
+		do me.refreshCursor(false, true, 2)
+	end func
+
+	+func complement(): bool
+		ret me.complementImpl()
+	end func
+
+	+func resetListInfoItem()
+		do me.listInfoItem :: #list<@ListInfoItem>
+	end func
+
+	+func addListInfoItem(item: @ListInfoItem)
+		do me.listInfoItem.add(item)
+	end func
+
+	const colorLineNum: int :: 16#FFFF7F7F
+	const colorAreaBack: int :: 16#FF808080
+	const colorErrBack: int :: 16#FFFF3333
+
+	class Src()
+		+var src: [][]char
+		+var color: [][]bit8
+	end class
+
+	class UndoSrc(\doc@UndoCmd)
+		+*func cmd()
+			do me.doc.undoImpl(me)
+		end func
+	end class
+
+	class UndoSrcIns(UndoSrc)
+		+var x: int
+		+var y: int
+		+var str: []char
+	end class
+
+	class UndoSrcBsDel(UndoSrc)
+		+var kind: int {0=bs, 1=del}
+		+var x: int
+		+var y: int
+		+var len: int
+	end class
+
+	class UndoSrcReplaceAll(UndoSrc)
+		+var x: []int
+		+var y: []int
+		+var len: []int
+		+var str: [][]char
+	end class
+
+	+var src: Src
+	var pageX: int
+	var pageY: int
+	var cursorX: int
+	var cursorY: int
+	var areaX: int
+	var areaY: int
+	var lineNumWidth: int
+	+var interpreted: bool
+	+var listInfoItem: list<@ListInfoItem>
+	var propText: []char
+
+	func areaSel(): bool
+		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
+	end func
+
+	func charWidth(c: char, x: int): int
+		if(c = '\t')
+			ret 4 - x % 4
+		elif(c $ int <= 16#1F)
+			ret 0
+		elif(c $ int <= 16#7E)
+			ret 1
+		elif(c $ int <= 16#A0)
+			ret 0
+		end if
+		ret 2
+	end func
+
+	func setArea(shiftCtrl: wnd@ShiftCtrl)
+		if(shiftCtrl.and(%shift) <> %none)
+			if(!me.areaSel())
+				do me.areaX :: me.cursorX
+				do me.areaY :: me.cursorY
+			end if
+			do \form@paintDrawEditor()
+		else
+			if(me.areaX <> -1)
+				do me.areaX :: -1
+				do \form@paintDrawEditor()
+			end if
+		end if
+	end func
+
+	func mousePosToCharPos(mouseX: int, mouseY: int)
+		do me.cursorY :: me.pageY + mouseY / \common@cellHeight
+		if(me.cursorY >= ^me.src.src)
+			do me.cursorX :: 0
+			ret
+		end if
+		var left: int :: me.lineNumWidth - me.pageX * \common@cellWidth
+		var x: int :: 0
+		for i(0, ^me.src.src[me.cursorY] - 1)
+			var charWidth2: int :: me.charWidth(me.src.src[me.cursorY][i], x)
+			if(mouseX < left + (x + charWidth2) * \common@cellWidth)
+				do me.cursorX :: i
+				ret
+			end if
+			do x :+ charWidth2
+		end for
+		do me.cursorX :: ^me.src.src[me.cursorY]
+	end func
+
+	func refreshCursor(moveRight: bool, refreshScroll: bool, dirtyHint: int)
+		var scrWidth: int
+		var scrHeight: int
+		do \form@drawEditor.getPos(&, &, &scrWidth, &scrHeight)
+		do me.lineNumWidth :: \common@cellWidth * (lib@max(log10(^me.src.src), 3) + 1)
+
+		if(me.cursorX < 0)
+			do me.cursorX :: lib@intMax
+			do me.cursorY :- 1
+		end if
+		if(me.cursorY < 0)
+			do me.cursorX :: 0
+			do me.cursorY :: 0
+		end if
+		if(me.cursorY > ^me.src.src - 1)
+			do me.cursorY :: ^me.src.src - 1
+			do me.cursorX :: ^me.src.src[me.cursorY]
+		else
+			if(me.cursorX > ^me.src.src[me.cursorY])
+				if(moveRight & me.cursorY <> ^me.src.src - 1)
+					do me.cursorX :: 0
+					do me.cursorY :+ 1
+				else
+					do me.cursorX :: ^me.src.src[me.cursorY]
+				end if
+			end if
+		end if
+		if(!\form@dragging() & me.areaX = me.cursorX & me.areaY = me.cursorY)
+			do me.areaX :: -1
+		end if
+
+		if(refreshScroll)
+			var paint: bool :: false
+			var paddingX: int :: (me.lineNumWidth + 17) / \common@cellWidth + 1
+			const paddingY: int :: 17 / \common@cellHeight + 1
+			if(me.pageY > me.cursorY)
+				do me.pageY :: me.cursorY
+				do paint :: true
+			end if
+			if(me.pageY < me.cursorY - scrHeight / \common@cellHeight + paddingY + 1)
+				do me.pageY :: me.cursorY - scrHeight / \common@cellHeight + paddingY + 1
+				do paint :: true
+			end if
+			do \form@scrollYSrc.setState(0, ^me.src.src - 1 + paddingY, scrHeight / \common@cellHeight, me.pageY)
+			var maxX: int :: 0
+			for i(0, scrHeight / \common@cellHeight + 1)
+				if(me.pageY + i >= ^me.src.src)
+					break i
+				end if
+				var x: int :: 0
+				var str: []char :: me.src.src[me.pageY + i]
+				for j(0, ^str - 1)
+					do x :+ me.charWidth(str[j], x)
+				end for
+				if(maxX < x)
+					do maxX :: x
+				end if
+			end for
+			block
+				var x: int :: 0
+				for i(0, ^me.src.src[me.cursorY] - 1)
+					if(i >= me.cursorX)
+						break i
+					end if
+					do x :+ me.charWidth(me.src.src[me.cursorY][i], x)
+				end for
+				if(me.pageX > x)
+					do me.pageX :: x
+					do paint :: true
+				end if
+				if(me.pageX < x - scrWidth / \common@cellWidth + paddingX + 1)
+					do me.pageX :: x - scrWidth / \common@cellWidth + paddingX + 1
+					do paint :: true
+				end if
+			end block
+			do \form@scrollXSrc.setState(0, maxX - 1 + paddingX, scrWidth / \common@cellWidth, me.pageX)
+			if(paint)
+				do \form@paintDrawEditor()
+			end if
+		end if
+
+		block
+			var x: int :: 0
+			var str: []char :: me.src.src[me.cursorY]
+			for i(0, me.cursorX - 1)
+				do x :+ me.charWidth(str[i], x)
+			end for
+			do x :: me.lineNumWidth + (x - me.pageX) * \common@cellWidth
+			var y: int :: (me.cursorY - me.pageY) * \common@cellHeight
+			if(x + 2 <= 0 | scrWidth - 17 <= x | y + \common@cellHeight <= 0 | scrHeight - 17 <= y)
+				do \form@drawEditor.moveCaret(-1, -1)
+			else
+				do \form@drawEditor.moveCaret(x, y)
+			end if
+		end block
+
+		if(dirtyHint <> 0 & !me.areaSel())
+			do \auxiliary@setDirtyHint(dirtyHint = 1)
+		else
+			do \completion@close()
+		end if
+
+		func log10(n: int): int
+			var result: int :: 0
+			var m: int :: 1
+			while(n >= m)
+				do m :* 10
+				do result :+ 1
+			end while
+			ret result
+		end func
+	end func
+
+	func getAbsoluteX(): int
+		if(me.cursorY < 0 | ^me.src.src <= me.cursorY)
+			ret 0
+		end if
+		var absoluteX: int :: 0
+		for i(0, me.cursorX - 1)
+			if(i >= ^me.src.src[me.cursorY])
+				break i
+			end if
+			var charWidth2: int :: me.charWidth(me.src.src[me.cursorY][i], absoluteX)
+			do absoluteX :+ charWidth2
+		end for
+		ret absoluteX
+	end func
+
+	func setAbsoluteX(absoluteX: int)
+		if(me.cursorY < 0 | ^me.src.src <= me.cursorY)
+			ret
+		end if
+		var x: int :: 0
+		do me.cursorX :: 0
+		for i(0, ^me.src.src[me.cursorY] - 1)
+			var charWidth2: int :: me.charWidth(me.src.src[me.cursorY][i], x)
+			if(x + charWidth2 > absoluteX)
+				break i
+			end if
+			do x :+ charWidth2
+			do me.cursorX :+ 1
+		end for
+	end func
+
+	func copyAreaStr()
+		assert me.areaSel()
+		var x1: int :: me.areaX
+		var y1: int :: me.areaY
+		var x2: int :: me.cursorX
+		var y2: int :: me.cursorY
+		if(y1 > y2 | y1 = y2 & x1 > x2)
+			do x1 :$ x2
+			do y1 :$ y2
+		end if
+		var str: []char
+		if(y1 = y2)
+			do str :: me.src.src[y1].sub(x1, x2 - x1)
+		else
+			do str :: me.src.src[y1].sub(x1, -1) ~ "\n"
+			for i(y1 + 1, y2 - 1)
+				do str :~ me.src.src[i] ~ "\n"
+			end for
+			do str :~ me.src.src[y2].sub(0, x2)
+		end if
+		do wnd@setClipboardStr(str)
+	end func
+
+	func delAreaStr()
+		assert me.areaSel()
+		var x1: int :: me.areaX
+		var y1: int :: me.areaY
+		var x2: int :: me.cursorX
+		var y2: int :: me.cursorY
+		if(y1 > y2 | y1 = y2 & x1 > x2)
+			do x1 :$ x2
+			do y1 :$ y2
+		end if
+		var len: int
+		if(y1 = y2)
+			do len :: x2 - x1
+		else
+			do len :: ^me.src.src[y1] - x1 + 1
+			for i(y1 + 1, y2 - 1)
+				do len :+ ^me.src.src[i] + 1
+			end for
+			do len :+ x2
+		end if
+		do me.cursorX :: x1
+		do me.cursorY :: y1
+		do me.del(me.cursorX, me.cursorY, len, true)
+		do me.areaX :: -1
+	end func
+
+	func indentAreaStr()
+		assert me.areaSel()
+		var oldAreaX: int :: me.areaX
+		var oldAreaY: int :: me.areaY
+		var oldCursorX: int :: me.cursorX
+		var oldCursorY: int :: me.cursorY
+		var x1: int :: me.areaX
+		var y1: int :: me.areaY
+		var x2: int :: me.cursorX
+		var y2: int :: me.cursorY
+		if(y1 > y2 | y1 = y2 & x1 > x2)
+			do x1 :$ x2
+			do y1 :$ y2
+		end if
+		if(x2 = 0)
+			do y2 :- 1
+		end if
+		do me.undo.recordBegin()
+		for i(y1, y2)
+			if(^me.src.src[i] <> 0)
+				if(i = oldAreaY)
+					do oldAreaX :+ 1
+				end if
+				if(i = oldCursorY)
+					do oldCursorX :+ 1
+				end if
+				do me.ins(0, i, "\t", true)
+			end if
+		end for
+		do me.undo.recordEnd()
+		do me.areaX :: oldAreaX
+		do me.areaY :: oldAreaY
+		do me.cursorX :: oldCursorX
+		do me.cursorY :: oldCursorY
+	end func
+
+	func unindentAreaStr()
+		assert me.areaSel()
+		var oldAreaX: int :: me.areaX
+		var oldAreaY: int :: me.areaY
+		var oldCursorX: int :: me.cursorX
+		var oldCursorY: int :: me.cursorY
+		var x1: int :: me.areaX
+		var y1: int :: me.areaY
+		var x2: int :: me.cursorX
+		var y2: int :: me.cursorY
+		if(y1 > y2 | y1 = y2 & x1 > x2)
+			do x1 :$ x2
+			do y1 :$ y2
+		end if
+		if(x2 = 0)
+			do y2 :- 1
+		end if
+		do me.undo.recordBegin()
+		for i(y1, y2)
+			if(^me.src.src[i] > 0 & me.src.src[i][0] = '\t')
+				if(i = oldAreaY & oldAreaX > 0 & oldAreaX < ^me.src.src[i] & me.src.src[i][oldAreaX] <> '\t')
+					do oldAreaX :- 1
+				end if
+				if(i = oldCursorY & oldCursorX > 0 & oldCursorX < ^me.src.src[i] & me.src.src[i][oldCursorX] <> '\t')
+					do oldCursorX :- 1
+				end if
+				do me.del(0, i, 1, true)
+			end if
+		end for
+		do me.undo.recordEnd()
+		do me.areaX :: oldAreaX
+		do me.areaY :: oldAreaY
+		do me.cursorX :: oldCursorX
+		do me.cursorY :: oldCursorY
+	end func
+
+	func ins(x: int, y: int, str: []char, recordUndo: bool)
+		var redo: UndoSrcIns
+		if(recordUndo)
+			do redo :: #UndoSrcIns
+			do redo.doc :: me
+			do redo.x :: x
+			do redo.y :: y
+			do redo.str :: str
+		end if
+		for i(0, ^str - 1)
+			if(str[i] = '\n')
+				var line: []char :: me.src.src[y].sub(x, -1)
+				do me.src.src[y] :: me.src.src[y].sub(0, x)
+				do me.src.color[y] :: me.src.color[y].sub(0, x)
+				do me.src.src :: me.src.src.sub(0, y + 1) ~ [line] ~ me.src.src.sub(y + 1, -1)
+				do me.src.color :: me.src.color.sub(0, y + 1) ~ [#[^line]bit8] ~ me.src.color.sub(y + 1, -1)
+				do x :: 0
+				do y :+ 1
+			else
+				do me.src.src[y] :: me.src.src[y].sub(0, x) ~ str[i].toStr() ~ me.src.src[y].sub(x, -1)
+				do me.src.color[y] :: me.src.color[y].sub(0, x) ~ #[1]bit8 ~ me.src.color[y].sub(x, -1)
+				do x :+ 1
+			end if
+		end for
+		if(recordUndo)
+			var undo: UndoSrcBsDel :: #UndoSrcBsDel
+			do undo.doc :: me
+			do undo.kind :: 0
+			do undo.x :: x
+			do undo.y :: y
+			do undo.len :: ^str
+			do me.undo.add(undo, redo)
+		end if
+		do me.cursorX :: x
+		do me.cursorY :: y
+		do \auxiliary@setDirtyInterpret()
+		do me.changed :: true
+	end func
+
+	func bs(x: int, y: int, len: int, recordUndo: bool)
+		var redo: UndoSrcBsDel
+		if(recordUndo)
+			do redo :: #UndoSrcBsDel
+			do redo.doc :: me
+			do redo.kind :: 0
+			do redo.x :: x
+			do redo.y :: y
+			do redo.len :: len
+		end if
+		var undoStr: []char :: ""
+		for(1, len)
+			if(x = 0)
+				if(y <> 0)
+					do undoStr :: "\n" ~ undoStr
+					var x2: int :: ^me.src.src[y - 1]
+					do me.src.src[y - 1] :~ me.src.src[y]
+					do me.src.color[y - 1] :~ me.src.color[y]
+					do me.src.src :: me.src.src.sub(0, y) ~ me.src.src.sub(y + 1, -1)
+					do me.src.color :: me.src.color.sub(0, y) ~ me.src.color.sub(y + 1, -1)
+					do y :- 1
+					do x :: x2
+				end if
+			else
+				do undoStr :: me.src.src[y][x - 1].toStr() ~ undoStr
+				do me.src.src[y] :: me.src.src[y].sub(0, x - 1) ~ me.src.src[y].sub(x, -1)
+				do me.src.color[y] :: me.src.color[y].sub(0, x - 1) ~ me.src.color[y].sub(x, -1)
+				do x :- 1
+			end if
+		end for
+		if(recordUndo)
+			var undo: UndoSrcIns :: #UndoSrcIns
+			do undo.doc :: me
+			do undo.x :: x
+			do undo.y :: y
+			do undo.str :: undoStr
+			do me.undo.add(undo, redo)
+		end if
+		do me.cursorX :: x
+		do me.cursorY :: y
+		do \auxiliary@setDirtyInterpret()
+		do me.changed :: true
+	end func
+
+	func del(x: int, y: int, len: int, recordUndo: bool)
+		var redo: UndoSrcBsDel
+		if(recordUndo)
+			do redo :: #UndoSrcBsDel
+			do redo.doc :: me
+			do redo.kind :: 1
+			do redo.x :: x
+			do redo.y :: y
+			do redo.len :: len
+		end if
+		var undoStr: []char :: ""
+		for(1, len)
+			if(x = ^me.src.src[y])
+				if(y <> ^me.src.src - 1)
+					do undoStr :~ "\n"
+					do me.src.src[y] :~ me.src.src[y + 1]
+					do me.src.color[y] :~ me.src.color[y + 1]
+					do me.src.src :: me.src.src.sub(0, y + 1) ~ me.src.src.sub(y + 2, -1)
+					do me.src.color :: me.src.color.sub(0, y + 1) ~ me.src.color.sub(y + 2, -1)
+				end if
+			else
+				do undoStr :~ me.src.src[y][x].toStr()
+				do me.src.src[y] :: me.src.src[y].sub(0, x) ~ me.src.src[y].sub(x + 1, -1)
+				do me.src.color[y] :: me.src.color[y].sub(0, x) ~ me.src.color[y].sub(x + 1, -1)
+			end if
+		end for
+		if(recordUndo)
+			var undo: UndoSrcIns :: #UndoSrcIns
+			do undo.doc :: me
+			do undo.x :: x
+			do undo.y :: y
+			do undo.str :: undoStr
+			do me.undo.add(undo, redo)
+		end if
+		do me.cursorX :: x
+		do me.cursorY :: y
+		do \auxiliary@setDirtyInterpret()
+		do me.changed :: true
+	end func
+
+	func getFuncHint(srcName: []char, x: int, y: int): []char
+		var charColor: bit8 :: me.src.color[y][x]
+		if(x > 0)
+			do x :- 1
+		end if
+		switch(charColor $ @CharColor)
+		case %char_, %str, %lineComment, %comment
+			while(x > 0 & me.src.color[y][x].and(16#7Fb8) = charColor)
+				do x :- 1
+			end while
+		end switch
+		var parenthesisNum: int :: 0
+		var commaNum: int :: 0
+		while(x > 0)
+			switch(me.src.src[y][x])
+			case '('
+				do parenthesisNum :- 1
+				if(parenthesisNum < 0)
+					while(x > 0 & (me.src.src[y][x - 1] = ' ' | me.src.src[y][x - 1] = '\t'))
+						do x :- 1
+					end while
+					if(x > 0)
+						switch color(me.src.color[y][x - 1].and(16#7Fb8) $ @CharColor)
+						case %identifier, %global
+							do x :- 1
+							var srcName2: []char
+							var word: []char :: me.getWord(&srcName2, x, y, color, srcName)
+							var hint: []char :: \dll@getHint(1, srcName2, y + 1, word, &, &, &)
+							if(hint =& null)
+								do hint :: ""
+							end if
+							ret hint
+						case %reserved
+							ret ""
+						default
+							do parenthesisNum :: 0
+							do commaNum :: 0
+						end switch
+					end if
+				end if
+			case ')'
+				do parenthesisNum :+ 1
+			case ','
+				if(parenthesisNum = 0)
+					do commaNum :+ 1
+				end if
+			default
+				switch color(me.src.color[y][x].and(16#7Fb8) $ @CharColor)
+				case %char_, %str, %lineComment, %comment
+					while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
+						do x :- 1
+					end while
+				end switch
+			end switch
+			do x :- 1
+		end while
+		ret ""
+	end func
+
+	func getWord(srcName2: &[]char, x: int, y: int, color: @CharColor, srcName: []char): []char
+		var last: int :: x
+		while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
+			do x :- 1
+		end while
+		if(x > 0 & (me.src.src[y][x - 1] = '%' | me.src.src[y][x - 1] = '.'))
+			do x :- 1
+		end if
+		var last2: int :: last
+		while(last2 < ^me.src.color[y] - 1 & me.src.color[y][last2 + 1].and(16#7Fb8) = color $ bit8)
+			do last2 :+ 1
+		end while
+		var word: []char :: me.src.src[y].sub(x, last2 - x + 1).trim()
+		do srcName2 :: srcName
+		var pos: int :: word.find('@', -1)
+		if(pos > 0)
+			do srcName2 :: word.sub(0, pos)
+			do word :: word.sub(pos, -1)
+		end if
+		ret word
+	end func
+
+	func complementImpl(): bool
+		var replaceStr: []char :: \completion@getSelWord()
+		if(replaceStr =& null)
+			ret false
+		end if
+		var completionSrc: []char :: \completion@getCompletionSrc()
+		if(replaceStr[0] = '@' & \src@docs.get(\src@internalNameToSrcName(completionSrc)) <>& me)
+			do replaceStr :: completionSrc ~ replaceStr
+		end if
+		var x: int :: me.cursorX
+		if(^me.src.src[me.cursorY] = x)
+			do x :- 1
+		end if
+		assert x >= 0
+		while(x > 0 & (me.src.src[me.cursorY][x] = ' ' | me.src.src[me.cursorY][x] = '\t'))
+			do x :- 1
+		end while
+		assert ^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t'
+		var color: @CharColor :: me.src.color[me.cursorY][x].and(16#7Fb8) $ @CharColor
+		assert color = %identifier | color = %global | color = %reserved
+
+		var last: int :: x
+		while(x > 0 & me.src.color[me.cursorY][x - 1].and(16#7Fb8) = color $ bit8)
+			do x :- 1
+		end while
+		if(x > 0 & (me.src.src[me.cursorY][x - 1] = '%' | me.src.src[me.cursorY][x - 1] = '.'))
+			do x :- 1
+		end if
+		var last2: int :: last
+		while(last2 < ^me.src.color[me.cursorY] - 1 & me.src.color[me.cursorY][last2 + 1].and(16#7Fb8) = color $ bit8)
+			do last2 :+ 1
+		end while
+		var word: []char :: me.src.src[me.cursorY].sub(x, last2 - x + 1).trim()
+		if(word <> replaceStr)
+			do me.cursorX :: x
+			do me.areaX :: last2 + 1
+			do me.areaY :: me.cursorY
+			do me.replaceOne(word, replaceStr, true, false, false)
+			do me.cursorX :: x + ^replaceStr
+			do me.areaX :: -1
+			do me.areaY :: -1
+			do me.refreshCursor(false, true, 1)
+			do \form@paintDrawEditor()
+		end if
+		do \completion@close()
+		if(replaceStr[^replaceStr - 1] <> '@')
+			do \auxiliary@resetDirtyHint()
+		end if
+		ret true
+	end func
+
+	func scrollPageX(wheel: int)
+		do me.pageX :+ wheel
+		; TODO: me.pageX >= ?
+		if(me.pageX < 0)
+			do me.pageX :: 0
+		end if
+		do me.refreshCursor(false, false, 0)
+		do \form@scrollXSrc.setScrollPos(me.pageX)
+		do \form@paintDrawEditor()
+	end func
+
+	func scrollPageY(wheel: int)
+		do me.pageY :+ wheel
+		const paddingY: int :: 17 / \common@cellHeight + 1
+		var scrWidth: int
+		var scrHeight: int
+		do \form@drawEditor.getPos(&, &, &scrWidth, &scrHeight)
+		if (me.pageY >= ^me.src.src - scrHeight / \common@cellHeight + paddingY)
+			do me.pageY :: ^me.src.src - scrHeight / \common@cellHeight + paddingY
+		end if
+		if (me.pageY < 0)
+			do me.pageY :: 0
+		end if
+		do me.refreshCursor(false, false, 0)
+		do \form@scrollYSrc.setScrollPos(me.pageY)
+		do \form@paintDrawEditor()
+	end func
+
+	func autoIndent(y: int)
+		var indent: int :: -1
+		if(y > 0)
+			var prevY: int :: y - 1
+			while loop(true)
+				do indent :: me.skipTabs(prevY)
+				if(prevY = 0 | indent <> -1)
+					break loop
+				end if
+				do prevY :- 1
+			end while
+			if(indent <> -1)
+				if(@regexIncIndent.find(&, me.src.src[prevY], indent) <>& null)
+					do indent :+ 1
+				end if
+			end if
+		end if
+		var curIndent: int :: me.skipTabs(y)
+		if(indent > 0 & curIndent <> -1 & @regexDecIndent.find(&, me.src.src[y], curIndent) <>& null)
+			do indent :- 1
+		end if
+		if(indent < 0)
+			do indent :: 0
+		end if
+		do me.del(0, y, curIndent = -1 ?(^me.src.src[y], curIndent), true)
+		do me.ins(0, y, "\t".repeat(indent), true)
+		do me.cursorX :: indent
+	end func
+
+	func skipTabs(y: int): int
+		var x: int :: 0
+		while(x < ^me.src.src[y] & me.src.src[y][x] = '\t')
+			do x :+ 1
+		end while
+		ret x = ^me.src.src[y] ?(-1, x)
+	end func
+end class
+
+func findStr(found: &[]char, text: []char, fromLast: bool, first: int, last: int, pattern: []char, distinguishCase: bool, onlyWord: bool, regex: regex@Regex): int
+	var pos: int
+	if(regex =& null)
+		do pos :: text.findStrEx(pattern, fromLast ?(last, first), fromLast, !distinguishCase, onlyWord)
+		if(pos < first | last < pos)
+			do pos :: -1
+		end if
+		do found :: pattern
+		ret pos
+	else
+		var word: [][]char
+		if(fromLast)
+			do word :: regex.findLast(&pos, text, last)
+		else
+			do word :: regex.find(&pos, text, first)
+		end if
+		if(pos <> -1)
+			do found :: word[0]
+		end if
+		ret pos
+	end if
+	ret -1
+end func

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="root" x="0" y="0" width="400" height="347" style="0" layered="false" no_minimize="false" text="Calc">
+	<edit name="editDisplay" x="12" y="12" width="376" height="19" anchor_x="0" anchor_y="0" enabled="true" visible="true" readonly="true" />
+	<button name="btn7" x="12" y="37" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="7" />
+	<button name="btn8" x="88" y="37" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="8" />
+	<button name="btn9" x="164" y="37" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="9" />
+	<button name="btn4" x="12" y="113" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="4" />
+	<button name="btn5" x="88" y="113" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="5" />
+	<button name="btn6" x="164" y="113" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="6" />
+	<button name="btnMul" x="240" y="113" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="*" />
+	<button name="btnDiv" x="316" y="113" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="/" />
+	<button name="btn1" x="12" y="189" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="1" />
+	<button name="btn2" x="88" y="189" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="2" />
+	<button name="btn3" x="164" y="189" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="3" />
+	<button name="btnAdd" x="240" y="189" width="70" height="146" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="+" />
+	<button name="btnSub" x="316" y="189" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="-" />
+	<button name="btnC" x="12" y="265" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="C" />
+	<button name="btn0" x="88" y="265" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="0" />
+	<button name="btnDot" x="164" y="265" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="." />
+	<button name="btnEqual" x="316" y="265" width="70" height="70" anchor_x="0" anchor_y="0" enabled="true" visible="true" text="=" />
+</root>

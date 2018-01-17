@@ -246,8 +246,8 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 
 EXPORT void Version(S64* major, S64* minor, S64* micro)
 {
-	*major = 2017;
-	*minor = 12;
+	*major = 2018;
+	*minor = 1;
 	*micro = 17;
 }
 
@@ -1115,17 +1115,20 @@ static void WriteHintDef(Char* buf, size_t* len, const SAst* ast)
 			}
 			if (*len < HINT_MSG_MAX)
 			{
-				if (IsFloat(((SAstExpr*)ast)->Type))
+				SAstType* type = ((SAstExpr*)ast)->Type;
+				if (type == NULL)
+					break;
+				if (IsFloat(type))
 					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%g", *(double*)((SAstExprValue*)ast)->Value);
-				else if (IsStr(((SAstExpr*)ast)->Type))
+				else if (IsStr(type))
 					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"\"%s\"", *(Char**)((SAstExprValue*)ast)->Value);
-				else if (IsBool(((SAstExpr*)ast)->Type))
+				else if (IsBool(type))
 					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%s", (*(Bool*)((SAstExprValue*)ast)->Value ? L"true" : L"false"));
-				else if (IsChar(((SAstExpr*)ast)->Type))
+				else if (IsChar(type))
 					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"'%c'", *(Char*)((SAstExprValue*)ast)->Value);
-				else if (((SAst*)((SAstExpr*)ast)->Type)->TypeId == AstTypeId_TypeNull)
+				else if (((SAst*)type)->TypeId == AstTypeId_TypeNull)
 					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"null");
-				else if (((SAst*)((SAstExpr*)ast)->Type)->TypeId == AstTypeId_TypeBit)
+				else if (((SAst*)type)->TypeId == AstTypeId_TypeBit)
 					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"16#%016I64X", *(U64*)((SAstExprValue*)ast)->Value);
 				else
 					*len += swprintf(buf + *len, HINT_MSG_MAX - *len, L"%I64d", *(S64*)((SAstExprValue*)ast)->Value);
@@ -1226,7 +1229,8 @@ static const void* MakeKeywordsCallback(const Char* key, const void* value, void
 	SKeywordCallbackParam param3 = *param2;
 	if (param3.Src == NULL)
 		param3.Src = key;
-	MakeKeywordsRecursion(&param3, ast);
+	if (value != DummyPtr)
+		MakeKeywordsRecursion(&param3, ast);
 	return value;
 }
 
