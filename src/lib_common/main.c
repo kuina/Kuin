@@ -1021,7 +1021,7 @@ EXPORT U8* _toStrFmtInt(S64 me_, const U8* fmt)
 			src_ptr++;
 		}
 	}
-	if (!(src_ptr < src_len && (fmt2[src_ptr] == L'd' || fmt2[src_ptr] == L'x' || fmt2[src_ptr] == L'X')))
+	if (!(src_ptr < src_len && (fmt2[src_ptr] == L'd' || fmt2[src_ptr] == L'x' || fmt2[src_ptr] == L'X' || fmt2[src_ptr] == L'u' || fmt2[src_ptr] == L'o')))
 		return NULL;
 	dst[dst_ptr] = L'I';
 	dst_ptr++;
@@ -1089,14 +1089,14 @@ EXPORT U8* _toStrFmtFloat(double me_, const U8* fmt)
 				return NULL;
 			src_ptr++;
 		}
-		if (src_ptr < src_len && fmt2[src_ptr] == L'.')
-		{
-			dst[dst_ptr] = fmt2[src_ptr];
-			dst_ptr++;
-			if (dst_ptr + 1 >= 33)
-				return NULL;
-			src_ptr++;
-		}
+	}
+	if (src_ptr < src_len && fmt2[src_ptr] == L'.')
+	{
+		dst[dst_ptr] = fmt2[src_ptr];
+		dst_ptr++;
+		if (dst_ptr + 1 >= 33)
+			return NULL;
+		src_ptr++;
 		if (!(src_ptr < src_len && L'0' <= fmt2[src_ptr] && fmt2[src_ptr] <= L'9'))
 			return NULL;
 		dst[dst_ptr] = fmt2[src_ptr];
@@ -1113,7 +1113,7 @@ EXPORT U8* _toStrFmtFloat(double me_, const U8* fmt)
 			src_ptr++;
 		}
 	}
-	if (!(src_ptr < src_len && (fmt2[src_ptr] == L'f' || fmt2[src_ptr] == L'e' || fmt2[src_ptr] == L'g')))
+	if (!(src_ptr < src_len && (fmt2[src_ptr] == L'f' || fmt2[src_ptr] == L'e' || fmt2[src_ptr] == L'E' || fmt2[src_ptr] == L'g' || fmt2[src_ptr] == L'G' || fmt2[src_ptr] == L'a' || fmt2[src_ptr] == L'A')))
 		return NULL;
 	dst[dst_ptr] = fmt2[src_ptr];
 	dst_ptr++;
