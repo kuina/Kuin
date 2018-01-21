@@ -571,7 +571,6 @@ static void DumpAstStat(const SAstStat* ast)
 static void DumpAstStatBreakable(const SAstStatBreakable* ast)
 {
 	PrintTab(); fwprintf(FilePtr, L"<StatBreakable>\n");
-	ASSERT(ast->BreakPoint != NULL);
 	Tab++;
 	{
 		DumpAstStat((const SAstStat*)ast);
@@ -676,7 +675,8 @@ static void DumpAstStatIf(const SAstStatIf* ast)
 			PrintAst(L"StatIf_Cond", (const SAst*)ast->Cond);
 		PrintAstList(L"StatIf_Stats", ast->Stats);
 		PrintAstList(L"StatIf_ElIfs", ast->ElIfs);
-		PrintAstList(L"StatIf_ElseStats", ast->ElseStats);
+		if (ast->ElseStatBlock != NULL)
+			PrintAst(L"StatIf_ElseStatBlock", (const SAst*)ast->ElseStatBlock);
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</StatIf>\n");
@@ -689,7 +689,7 @@ static void DumpAstStatElIf(const SAstStatElIf* ast)
 	{
 		DumpAstStat((const SAstStat*)ast);
 		PrintAst(L"StatElIf_Cond", (const SAst*)ast->Cond);
-		PrintAstList(L"StatElIf_Stats", ast->Stats);
+		PrintAst(L"StatElIf_StatBlock", (const SAst*)ast->StatBlock);
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</StatElIf>\n");
@@ -703,7 +703,8 @@ static void DumpAstStatSwitch(const SAstStatSwitch* ast)
 		DumpAstStatBreakable((const SAstStatBreakable*)ast);
 		PrintAst(L"StatSwitch_Cond", (const SAst*)ast->Cond);
 		PrintAstList(L"StatSwitch_Cases", ast->Cases);
-		PrintAstList(L"StatSwitch_DefaultStats", ast->DefaultStats);
+		if (ast->DefaultStatBlock != NULL)
+			PrintAst(L"StatSwitch_DefaultStatBlock", (const SAst*)ast->DefaultStatBlock);
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</StatSwitch>\n");
@@ -744,7 +745,7 @@ static void DumpAstStatCase(const SAstStatCase* ast)
 		}
 		Tab--;
 		PrintTab(); fwprintf(FilePtr, L"</StatCase_Conds>\n");
-		PrintAstList(L"StatCase_Stats", ast->Stats);
+		PrintAst(L"StatCase_StatBlock", (const SAst*)ast->StatBlock);
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</StatCase>\n");
@@ -787,8 +788,8 @@ static void DumpAstStatTry(const SAstStatTry* ast)
 		DumpAstStatBreakable((const SAstStatBreakable*)ast);
 		PrintAstList(L"StatTry_Stats", ast->Stats);
 		PrintAstList(L"StatTry_Catches", ast->Catches);
-		if (ast->FinallyStats != NULL)
-			PrintAstList(L"StatTry_FinallyStats", ast->FinallyStats);
+		if (ast->FinallyStatBlock != NULL)
+			PrintAst(L"StatTry_FinallyStatBlock", (const SAst*)ast->FinallyStatBlock);
 	}
 	Tab--;
 	PrintTab(); fwprintf(FilePtr, L"</StatTry>\n");

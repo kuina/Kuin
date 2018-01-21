@@ -703,7 +703,15 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 		((SAstStatBreakable*)try_)->BreakPoint = AsmLabel();
 		try_->Stats = ListNew();
 		try_->Catches = ListNew();
-		try_->FinallyStats = ListNew();
+		{
+			SAstStatBlock* block = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
+			InitAst((SAst*)block, AstTypeId_StatBlock, pos);
+			((SAst*)block)->Name = L"$";
+			((SAstStatBreakable*)block)->BlockVar = NULL;
+			((SAstStatBreakable*)block)->BreakPoint = NULL;
+			block->Stats = ListNew();
+			try_->FinallyStatBlock = block;
+		}
 		{
 			// Make the program to call 'init' and 'main'.
 			SList* funcs = ListNew();
@@ -750,7 +758,15 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 			SAstStatCatch* catch_ = (SAstStatCatch*)Alloc(sizeof(SAstStatCatch));
 			InitAst((SAst*)catch_, AstTypeId_StatCatch, pos);
 			catch_->Conds = ListNew();
-			catch_->Stats = ListNew();
+			{
+				SAstStatBlock* block = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
+				InitAst((SAst*)block, AstTypeId_StatBlock, pos);
+				((SAst*)block)->Name = L"$";
+				((SAstStatBreakable*)block)->BlockVar = NULL;
+				((SAstStatBreakable*)block)->BreakPoint = NULL;
+				block->Stats = ListNew();
+				catch_->StatBlock = block;
+			}
 			{
 				SAstExpr** exprs = (SAstExpr**)Alloc(sizeof(SAstExpr*) * 2);
 				{
@@ -807,7 +823,7 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 					}
 					do_->Expr = (SAstExpr*)call;
 				}
-				ListAdd(catch_->Stats, do_);
+				ListAdd(catch_->StatBlock->Stats, do_);
 			}
 			ListAdd(try_->Catches, catch_);
 		}
@@ -847,7 +863,7 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 						}
 						do_->Expr = (SAstExpr*)call;
 					}
-					ListAdd(try_->FinallyStats, do_);
+					ListAdd(try_->FinallyStatBlock->Stats, do_);
 					ptr = ptr->Next;
 				}
 			}
@@ -1867,11 +1883,12 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
 			}
 			if (!IsBool(elif->Cond->Type))
 				Err(L"EA0017", ((SAst*)elif->Cond)->Pos);
-			elif->Stats = RefreshStats(elif->Stats, ret_type);
+			elif->StatBlock = (SAstStatBlock*)RebuildBlock(elif->StatBlock, ret_type);
 			ptr = ptr->Next;
 		}
 	}
-	ast->ElseStats = RefreshStats(ast->ElseStats, ret_type);
+	if (ast->ElseStatBlock != NULL)
+		ast->ElseStatBlock = (SAstStatBlock*)RebuildBlock(ast->ElseStatBlock, ret_type);
 	{
 		// Optimize the code.
 		SList* stats = NULL;
@@ -1889,13 +1906,18 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
 					return (SAstStat*)ast;
 				if (*((S64*)((SAstExprValue*)elif->Cond)->Value) != 0)
 				{
-					stats = elif->Stats;
+					stats = elif->StatBlock->Stats;
 					break;
 				}
 				ptr = ptr->Next;
 			}
 			if (stats == NULL)
-				stats = ast->ElseStats;
+			{
+				if (ast->ElseStatBlock == NULL)
+					stats = ListNew();
+				else
+					stats = ast->ElseStatBlock->Stats;
+			}
 		}
 		ast->Cond = NULL;
 		ast->Stats = stats;
@@ -1951,11 +1973,12 @@ static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type)
 				}
 				ptr2 = ptr2->Next;
 			}
-			case_->Stats = RefreshStats(case_->Stats, ret_type);
+			case_->StatBlock = (SAstStatBlock*)RebuildBlock(case_->StatBlock, ret_type);
 			ptr = ptr->Next;
 		}
 	}
-	ast->DefaultStats = RefreshStats(ast->DefaultStats, ret_type);
+	if (ast->DefaultStatBlock != NULL)
+		ast->DefaultStatBlock = (SAstStatBlock*)RebuildBlock(ast->DefaultStatBlock, ret_type);
 	return (SAstStat*)ast;
 }
 
@@ -2055,12 +2078,12 @@ static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type)
 				}
 				ptr2 = ptr2->Next;
 			}
-			catch_->Stats = RefreshStats(catch_->Stats, ret_type);
+			catch_->StatBlock = (SAstStatBlock*)RebuildBlock(catch_->StatBlock, ret_type);
 			ptr = ptr->Next;
 		}
 	}
-	if (ast->FinallyStats != NULL)
-		ast->FinallyStats = RefreshStats(ast->FinallyStats, ret_type);
+	if (ast->FinallyStatBlock != NULL)
+		ast->FinallyStatBlock = (SAstStatBlock*)RebuildBlock(ast->FinallyStatBlock, ret_type);
 	return (SAstStat*)ast;
 }
 

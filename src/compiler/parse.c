@@ -116,6 +116,7 @@ static SAstExprValue* ObtainStrValue(const SPos* pos, const Char* value);
 static Char EscChar(Char c);
 static Bool IsCorrectSrcName(const Char* name, Bool skip_dot);
 static void AddSrc(const Char* name);
+static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_id, EAstTypeId type_id, SAst* block);
 static SAstRoot* ParseRoot(SAstRoot* ast);
 static SAstFunc* ParseFunc(const Char* parent_class);
 static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class);
@@ -976,6 +977,7 @@ static void PushDummyScope(SAst* ast)
 
 static void AddEndPosScope(void)
 {
+	// This is used for hints on the editor.
 	SAst* dummy = (SAst*)Alloc(sizeof(SAst));
 	InitAst(dummy, AstTypeId_Ast, NewPos(SrcName, Row - 1, 0), NULL, True, True);
 	((SAst*)StackPeek(Scope))->ScopeChildren = DictAdd(((SAst*)StackPeek(Scope))->ScopeChildren, NewStr(NULL, L"$%u", UniqueCnt), dummy);
@@ -1114,6 +1116,106 @@ static void AddSrc(const Char* name)
 		SrcRefPos = DictAdd(SrcRefPos, name, NewPos(SrcName, Row, Col));
 }
 
+static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_id, EAstTypeId type_id, SAst* block)
+{
+	SAstStatBlock* ast = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
+	InitAst((SAst*)ast, AstTypeId_StatBlock, NewPos(SrcName, Row, Col), NULL, False, True);
+	((SAstStatBreakable*)ast)->BlockVar = NULL;
+	((SAstStatBreakable*)ast)->BreakPoint = NULL;
+	ast->Stats = ListNew();
+	PushDummyScope((SAst*)ast);
+	((SAst*)ast)->Name = L"$";
+	for (; ; )
+	{
+		SAstStat* stat = ParseStat(block);
+		if (stat == (SAstStat*)DummyPtr)
+			return (SAstStatBlock*)DummyPtr;
+		Bool end_flag = False;
+		switch (type_id)
+		{
+			case AstTypeId_StatElIf:
+				switch (((SAst*)stat)->TypeId)
+				{
+					case AstTypeId_StatElIf:
+					case AstTypeId_StatElse:
+					case AstTypeId_StatEnd:
+						end_flag = True;
+						break;
+				}
+				break;
+			case AstTypeId_StatElse:
+				switch (((SAst*)stat)->TypeId)
+				{
+					case AstTypeId_StatElIf:
+					case AstTypeId_StatElse:
+						Err(L"EP0041", NewPos(SrcName, Row, Col));
+						return (SAstStatBlock*)DummyPtr;
+					case AstTypeId_StatEnd:
+						end_flag = True;
+						break;
+				}
+				break;
+			case AstTypeId_StatCase:
+				switch (((SAst*)stat)->TypeId)
+				{
+					case AstTypeId_StatCase:
+					case AstTypeId_StatDefault:
+					case AstTypeId_StatEnd:
+						end_flag = True;
+						break;
+				}
+				break;
+			case AstTypeId_StatDefault:
+				switch (((SAst*)stat)->TypeId)
+				{
+					case AstTypeId_StatCase:
+					case AstTypeId_StatDefault:
+						Err(L"EP0045", NewPos(SrcName, Row, Col));
+						return (SAstStatBlock*)DummyPtr;
+					case AstTypeId_StatEnd:
+						end_flag = True;
+						break;
+				}
+				break;
+			case AstTypeId_StatCatch:
+				switch (((SAst*)stat)->TypeId)
+				{
+					case AstTypeId_StatCatch:
+					case AstTypeId_StatFinally:
+					case AstTypeId_StatEnd:
+						end_flag = True;
+						break;
+				}
+				break;
+			case AstTypeId_StatFinally:
+				switch (((SAst*)stat)->TypeId)
+				{
+					case AstTypeId_StatCatch:
+					case AstTypeId_StatFinally:
+						Err(L"EP0050", NewPos(SrcName, Row, Col));
+						return (SAstStatBlock*)DummyPtr;
+					case AstTypeId_StatEnd:
+						end_flag = True;
+						break;
+				}
+				break;
+			default:
+				ASSERT(False);
+				break;
+		}
+		if (end_flag)
+		{
+			*out_stat = stat;
+			*out_type_id = ((SAst*)stat)->TypeId;
+			break;
+		}
+		ListAdd(ast->Stats, stat);
+	}
+	AddEndPosScope();
+	Scope = StackPop(Scope);
+	return ast;
+}
+
 static SAstRoot* ParseRoot(SAstRoot* ast)
 {
 	if (ast == NULL)
@@ -1189,7 +1291,6 @@ static SAstRoot* ParseRoot(SAstRoot* ast)
 static SAstFunc* ParseFunc(const Char* parent_class)
 {
 	SAstFunc* ast = (SAstFunc*)Alloc(sizeof(SAstFunc));
-	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
 	ast->DllName = NULL;
 	ast->DllFuncName = NULL;
 	ast->FuncAttr = FuncAttr_None;
@@ -1352,11 +1453,7 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 		if (stat == (SAstStat*)DummyPtr)
 			break;
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
-		{
-			scope_new[0] = (SAst*)ast;
-			scope_new[1] = (SAst*)stat;
 			break;
-		}
 		ListAdd(ast->Stats, stat);
 	}
 	AddEndPosScope();
@@ -1428,7 +1525,6 @@ static void ParseInclude(void)
 static SAstClass* ParseClass(void)
 {
 	SAstClass* ast = (SAstClass*)Alloc(sizeof(SAstClass));
-	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
 	InitAst((SAst*)ast, AstTypeId_Class, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, True);
 	ast->Addr = NewAddr();
 	ast->VarSize = 0;
@@ -1510,11 +1606,9 @@ static SAstClass* ParseClass(void)
 						const Char* s2 = ReadIdentifier(True, False);
 						if (wcscmp(s2, L"class") != 0)
 							Err(L"EP0030", NewPos(SrcName, row, col), s2);
-						scope_new[0] = (SAst*)ast;
 						{
 							SAst* ast2 = (SAst*)Alloc(sizeof(SAst)); // 'end class'.
 							InitAst((SAst*)ast2, AstTypeId_Ast, NewPos(SrcName, row, col), NULL, False, False);
-							scope_new[1] = ast2;
 						}
 						AssertNextChar(L'\n', True);
 						break;
@@ -1854,13 +1948,12 @@ static SAstStat* ParseStatEnum(void)
 static SAstStat* ParseStatIf(void)
 {
 	SAstStatIf* ast = (SAstStatIf*)Alloc(sizeof(SAstStatIf));
-	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
 	InitAst((SAst*)ast, AstTypeId_StatIf, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->Stats = ListNew();
 	ast->ElIfs = ListNew();
-	ast->ElseStats = ListNew();
+	ast->ElseStatBlock = NULL;
 	PushDummyScope((SAst*)ast);
 	ObtainBlockName((SAst*)ast);
 	ast->Cond = ParseExpr();
@@ -1890,42 +1983,22 @@ static SAstStat* ParseStatIf(void)
 		while (type_id == AstTypeId_StatElIf)
 		{
 			SAstStatElIf* elif = (SAstStatElIf*)stat;
-			elif->Stats = ListNew();
-			for (; ; )
 			{
-				stat = ParseStat((SAst*)ast);
-				if (stat == (SAstStat*)DummyPtr)
+				SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatElIf, (SAst*)ast);
+				if (stat_block == (SAstStatBlock*)DummyPtr)
 					return (SAstStat*)DummyPtr;
-				type_id = ((SAst*)stat)->TypeId;
-				if (type_id == AstTypeId_StatElIf || type_id == AstTypeId_StatElse || type_id == AstTypeId_StatEnd)
-					break;
-				ListAdd(elif->Stats, stat);
+				elif->StatBlock = stat_block;
 			}
 			ListAdd(ast->ElIfs, elif);
 		}
 		while (type_id == AstTypeId_StatElse)
 		{
-			for (; ; )
-			{
-				stat = ParseStat((SAst*)ast);
-				if (stat == (SAstStat*)DummyPtr)
-					return (SAstStat*)DummyPtr;
-				type_id = ((SAst*)stat)->TypeId;
-				if (type_id == AstTypeId_StatEnd)
-					break;
-				if (type_id == AstTypeId_StatElIf || type_id == AstTypeId_StatElse)
-				{
-					Err(L"EP0041", NewPos(SrcName, Row, Col));
-					return (SAstStat*)DummyPtr;
-				}
-				ListAdd(ast->ElseStats, stat);
-			}
+			SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatElse, (SAst*)ast);
+			if (stat_block == (SAstStatBlock*)DummyPtr)
+				return (SAstStat*)DummyPtr;
+			ast->ElseStatBlock = stat_block;
 		}
 		ASSERT(type_id == AstTypeId_StatEnd);
-		{
-			scope_new[0] = (SAst*)ast;
-			scope_new[1] = (SAst*)stat;
-		}
 	}
 	AddEndPosScope();
 	Scope = StackPop(Scope);
@@ -1936,7 +2009,7 @@ static SAstStat* ParseStatElIf(int row, int col, const SAst* block)
 {
 	SAstStatElIf* ast = (SAstStatElIf*)Alloc(sizeof(SAstStatElIf));
 	InitAst((SAst*)ast, AstTypeId_StatElIf, NULL, NULL, False, False);
-	ast->Stats = NULL;
+	ast->StatBlock = NULL;
 	if (block->TypeId != AstTypeId_StatIf)
 	{
 		Err(L"EP0042", NewPos(SrcName, row, col));
@@ -1975,12 +2048,11 @@ static SAstStat* ParseStatElse(int row, int col, const SAst* block)
 static SAstStat* ParseStatSwitch(int row, int col)
 {
 	SAstStatSwitch* ast = (SAstStatSwitch*)Alloc(sizeof(SAstStatSwitch));
-	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
 	InitAst((SAst*)ast, AstTypeId_StatSwitch, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->Cases = ListNew();
-	ast->DefaultStats = ListNew();
+	ast->DefaultStatBlock = NULL;
 	PushDummyScope((SAst*)ast);
 	ObtainBlockName((SAst*)ast);
 	ast->Cond = ParseExpr();
@@ -2006,40 +2078,22 @@ static SAstStat* ParseStatSwitch(int row, int col)
 		while (type_id == AstTypeId_StatCase)
 		{
 			SAstStatCase* case_ = (SAstStatCase*)stat;
-			case_->Stats = ListNew();
-			for (; ; )
 			{
-				stat = ParseStat((SAst*)ast);
-				if (stat == (SAstStat*)DummyPtr)
+				SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatCase, (SAst*)ast);
+				if (stat_block == (SAstStatBlock*)DummyPtr)
 					return (SAstStat*)DummyPtr;
-				type_id = ((SAst*)stat)->TypeId;
-				if (type_id == AstTypeId_StatCase || type_id == AstTypeId_StatDefault || type_id == AstTypeId_StatEnd)
-					break;
-				ListAdd(case_->Stats, stat);
+				case_->StatBlock = stat_block;
 			}
 			ListAdd(ast->Cases, case_);
 		}
 		while (type_id == AstTypeId_StatDefault)
 		{
-			for (; ; )
-			{
-				stat = ParseStat((SAst*)ast);
-				if (stat == (SAstStat*)DummyPtr)
-					return (SAstStat*)DummyPtr;
-				type_id = ((SAst*)stat)->TypeId;
-				if (type_id == AstTypeId_StatEnd)
-					break;
-				if (type_id == AstTypeId_StatCase || type_id == AstTypeId_StatDefault)
-				{
-					Err(L"EP0045", NewPos(SrcName, Row, Col));
-					return (SAstStat*)DummyPtr;
-				}
-				ListAdd(ast->DefaultStats, stat);
-			}
+			SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatDefault, (SAst*)ast);
+			if (stat_block == (SAstStatBlock*)DummyPtr)
+				return (SAstStat*)DummyPtr;
+			ast->DefaultStatBlock = stat_block;
 		}
 		ASSERT(type_id == AstTypeId_StatEnd);
-		scope_new[0] = (SAst*)ast;
-		scope_new[1] = (SAst*)stat;
 	}
 	AddEndPosScope();
 	Scope = StackPop(Scope);
@@ -2051,7 +2105,7 @@ static SAstStat* ParseStatCase(int row, int col, const SAst* block)
 	SAstStatCase* ast = (SAstStatCase*)Alloc(sizeof(SAstStatCase));
 	InitAst((SAst*)ast, AstTypeId_StatCase, NULL, NULL, False, False);
 	ast->Conds = ListNew();
-	ast->Stats = NULL;
+	ast->StatBlock = NULL;
 	if (block->TypeId != AstTypeId_StatSwitch)
 	{
 		Err(L"EP0046", NewPos(SrcName, row, col));
@@ -2129,7 +2183,6 @@ static SAstStat* ParseStatDefault(int row, int col, const SAst* block)
 static SAstStat* ParseStatWhile(void)
 {
 	SAstStatWhile* ast = (SAstStatWhile*)Alloc(sizeof(SAstStatWhile));
-	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
 	InitAst((SAst*)ast, AstTypeId_StatWhile, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
@@ -2165,11 +2218,7 @@ static SAstStat* ParseStatWhile(void)
 		if (stat == (SAstStat*)DummyPtr)
 			return (SAstStat*)DummyPtr;
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
-		{
-			scope_new[0] = (SAst*)ast;
-			scope_new[1] = (SAst*)stat;
 			break;
-		}
 		ListAdd(ast->Stats, stat);
 	}
 	AddEndPosScope();
@@ -2180,7 +2229,6 @@ static SAstStat* ParseStatWhile(void)
 static SAstStat* ParseStatFor(int row, int col)
 {
 	SAstStatFor* ast = (SAstStatFor*)Alloc(sizeof(SAstStatFor));
-	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
 	InitAst((SAst*)ast, AstTypeId_StatFor, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
@@ -2236,11 +2284,7 @@ static SAstStat* ParseStatFor(int row, int col)
 		if (stat == (SAstStat*)DummyPtr)
 			return (SAstStat*)DummyPtr;
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
-		{
-			scope_new[0] = (SAst*)ast;
-			scope_new[1] = (SAst*)stat;
 			break;
-		}
 		ListAdd(ast->Stats, stat);
 	}
 	AddEndPosScope();
@@ -2251,13 +2295,12 @@ static SAstStat* ParseStatFor(int row, int col)
 static SAstStat* ParseStatTry(int row, int col)
 {
 	SAstStatTry* ast = (SAstStatTry*)Alloc(sizeof(SAstStatTry));
-	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
 	InitAst((SAst*)ast, AstTypeId_StatTry, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->Stats = ListNew();
 	ast->Catches = ListNew();
-	ast->FinallyStats = NULL;
+	ast->FinallyStatBlock = NULL;
 	PushDummyScope((SAst*)ast);
 	{
 		Char c = ReadChar();
@@ -2293,41 +2336,22 @@ static SAstStat* ParseStatTry(int row, int col)
 		while (type_id == AstTypeId_StatCatch)
 		{
 			SAstStatCatch* catch_ = (SAstStatCatch*)stat;
-			catch_->Stats = ListNew();
-			for (; ; )
 			{
-				stat = ParseStat((SAst*)ast);
-				if (stat == (SAstStat*)DummyPtr)
+				SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatCatch, (SAst*)ast);
+				if (stat_block == (SAstStatBlock*)DummyPtr)
 					return (SAstStat*)DummyPtr;
-				type_id = ((SAst*)stat)->TypeId;
-				if (type_id == AstTypeId_StatCatch || type_id == AstTypeId_StatFinally || type_id == AstTypeId_StatEnd)
-					break;
-				ListAdd(catch_->Stats, stat);
+				catch_->StatBlock = stat_block;
 			}
 			ListAdd(ast->Catches, catch_);
 		}
 		if (type_id == AstTypeId_StatFinally)
 		{
-			ast->FinallyStats = ListNew();
-			for (; ; )
-			{
-				stat = ParseStat((SAst*)ast);
-				if (stat == (SAstStat*)DummyPtr)
-					return (SAstStat*)DummyPtr;
-				type_id = ((SAst*)stat)->TypeId;
-				if (type_id == AstTypeId_StatEnd)
-					break;
-				if (type_id == AstTypeId_StatCatch || type_id == AstTypeId_StatFinally)
-				{
-					Err(L"EP0050", NewPos(SrcName, Row, Col));
-					return (SAstStat*)DummyPtr;
-				}
-				ListAdd(ast->FinallyStats, stat);
-			}
+			SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatFinally, (SAst*)ast);
+			if (stat_block == (SAstStatBlock*)DummyPtr)
+				return (SAstStat*)DummyPtr;
+			ast->FinallyStatBlock = stat_block;
 		}
 		ASSERT(type_id == AstTypeId_StatEnd);
-		scope_new[0] = (SAst*)ast;
-		scope_new[1] = (SAst*)stat;
 	}
 	AddEndPosScope();
 	Scope = StackPop(Scope);
@@ -2339,7 +2363,7 @@ static SAstStat* ParseStatCatch(int row, int col, const SAst* block)
 	SAstStatCatch* ast = (SAstStatCatch*)Alloc(sizeof(SAstStatCatch));
 	InitAst((SAst*)ast, AstTypeId_StatCatch, NULL, NULL, False, False);
 	ast->Conds = ListNew();
-	ast->Stats = NULL;
+	ast->StatBlock = NULL;
 	if (block->TypeId != AstTypeId_StatTry)
 	{
 		Err(L"EP0051", NewPos(SrcName, row, col));
@@ -2444,7 +2468,6 @@ static SAstStat* ParseStatThrow(void)
 static SAstStat* ParseStatBlock(void)
 {
 	SAstStatBlock* ast = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
-	SAst** scope_new = (SAst**)Alloc(sizeof(SAst*) * 2);
 	InitAst((SAst*)ast, AstTypeId_StatBlock, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
@@ -2468,11 +2491,7 @@ static SAstStat* ParseStatBlock(void)
 		if (stat == (SAstStat*)DummyPtr)
 			return (SAstStat*)DummyPtr;
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
-		{
-			scope_new[0] = (SAst*)ast;
-			scope_new[1] = (SAst*)stat;
 			break;
-		}
 		ListAdd(ast->Stats, stat);
 	}
 	AddEndPosScope();

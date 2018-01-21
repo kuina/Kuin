@@ -8,6 +8,7 @@
 #include "pos.h"
 
 struct SAstArg;
+struct SAstStatBlock;
 struct SAstType;
 struct SAstExpr;
 
@@ -263,14 +264,14 @@ typedef struct SAstStatIf
 	struct SAstExpr* Cond;
 	SList* Stats;
 	SList* ElIfs;
-	SList* ElseStats;
+	struct SAstStatBlock* ElseStatBlock;
 } SAstStatIf;
 
 typedef struct SAstStatElIf
 {
 	SAstStat AstStat;
 	struct SAstExpr* Cond;
-	SList* Stats;
+	struct SAstStatBlock* StatBlock;
 } SAstStatElIf;
 
 typedef struct SAstStatSwitch
@@ -278,14 +279,14 @@ typedef struct SAstStatSwitch
 	SAstStatBreakable AstStatBreakable;
 	struct SAstExpr* Cond;
 	SList* Cases;
-	SList* DefaultStats;
+	struct SAstStatBlock* DefaultStatBlock;
 } SAstStatSwitch;
 
 typedef struct SAstStatCase
 {
 	SAstStat AstStat;
 	SList* Conds;
-	SList* Stats;
+	struct SAstStatBlock* StatBlock;
 } SAstStatCase;
 
 typedef struct SAstStatWhile
@@ -310,14 +311,14 @@ typedef struct SAstStatTry
 	SAstStatBreakable AstStatBreakable;
 	SList* Stats;
 	SList* Catches;
-	SList* FinallyStats;
+	struct SAstStatBlock* FinallyStatBlock;
 } SAstStatTry;
 
 typedef struct SAstStatCatch
 {
 	SAstStat AstStat;
 	SList* Conds;
-	SList* Stats;
+	struct SAstStatBlock* StatBlock;
 } SAstStatCatch;
 
 typedef struct SAstStatThrow
