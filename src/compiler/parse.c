@@ -1133,6 +1133,16 @@ static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_
 		Bool end_flag = False;
 		switch (type_id)
 		{
+			case AstTypeId_StatIf:
+				switch (((SAst*)stat)->TypeId)
+				{
+					case AstTypeId_StatElIf:
+					case AstTypeId_StatElse:
+					case AstTypeId_StatEnd:
+						end_flag = True;
+						break;
+				}
+				break;
 			case AstTypeId_StatElIf:
 				switch (((SAst*)stat)->TypeId)
 				{
@@ -1173,6 +1183,15 @@ static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_
 						Err(L"EP0045", NewPos(SrcName, Row, Col));
 						return (SAstStatBlock*)DummyPtr;
 					case AstTypeId_StatEnd:
+						end_flag = True;
+						break;
+				}
+				break;
+			case AstTypeId_StatTry:
+				switch (((SAst*)stat)->TypeId)
+				{
+					case AstTypeId_StatCatch:
+					case AstTypeId_StatFinally:
 						end_flag = True;
 						break;
 				}
@@ -1951,7 +1970,7 @@ static SAstStat* ParseStatIf(void)
 	InitAst((SAst*)ast, AstTypeId_StatIf, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
-	ast->Stats = ListNew();
+	ast->StatBlock = NULL;
 	ast->ElIfs = ListNew();
 	ast->ElseStatBlock = NULL;
 	PushDummyScope((SAst*)ast);
@@ -1970,15 +1989,11 @@ static SAstStat* ParseStatIf(void)
 	{
 		SAstStat* stat;
 		EAstTypeId type_id;
-		for (; ; )
 		{
-			stat = ParseStat((SAst*)ast);
-			if (stat == (SAstStat*)DummyPtr)
+			SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatIf, (SAst*)ast);
+			if (stat_block == (SAstStatBlock*)DummyPtr)
 				return (SAstStat*)DummyPtr;
-			type_id = ((SAst*)stat)->TypeId;
-			if (type_id == AstTypeId_StatElIf || type_id == AstTypeId_StatElse || type_id == AstTypeId_StatEnd)
-				break;
-			ListAdd(ast->Stats, stat);
+			ast->StatBlock = stat_block;
 		}
 		while (type_id == AstTypeId_StatElIf)
 		{
@@ -2298,7 +2313,7 @@ static SAstStat* ParseStatTry(int row, int col)
 	InitAst((SAst*)ast, AstTypeId_StatTry, NULL, NULL, False, True);
 	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
-	ast->Stats = ListNew();
+	ast->StatBlock = NULL;
 	ast->Catches = ListNew();
 	ast->FinallyStatBlock = NULL;
 	PushDummyScope((SAst*)ast);
@@ -2323,15 +2338,11 @@ static SAstStat* ParseStatTry(int row, int col)
 	{
 		SAstStat* stat;
 		EAstTypeId type_id;
-		for (; ; )
 		{
-			stat = ParseStat((SAst*)ast);
-			if (stat == (SAstStat*)DummyPtr)
+			SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatTry, (SAst*)ast);
+			if (stat_block == (SAstStatBlock*)DummyPtr)
 				return (SAstStat*)DummyPtr;
-			type_id = ((SAst*)stat)->TypeId;
-			if (type_id == AstTypeId_StatCatch || type_id == AstTypeId_StatFinally)
-				break;
-			ListAdd(ast->Stats, stat);
+			ast->StatBlock = stat_block;
 		}
 		while (type_id == AstTypeId_StatCatch)
 		{

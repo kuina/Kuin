@@ -262,7 +262,7 @@ typedef struct SAstStatIf
 {
 	SAstStatBreakable AstStatBreakable;
 	struct SAstExpr* Cond;
-	SList* Stats;
+	struct SAstStatBlock* StatBlock;
 	SList* ElIfs;
 	struct SAstStatBlock* ElseStatBlock;
 } SAstStatIf;
@@ -309,7 +309,7 @@ typedef struct SAstStatFor
 typedef struct SAstStatTry
 {
 	SAstStatBreakable AstStatBreakable;
-	SList* Stats;
+	struct SAstStatBlock* StatBlock;
 	SList* Catches;
 	struct SAstStatBlock* FinallyStatBlock;
 } SAstStatTry;

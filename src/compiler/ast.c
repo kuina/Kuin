@@ -673,7 +673,7 @@ static void DumpAstStatIf(const SAstStatIf* ast)
 		DumpAstStatBreakable((const SAstStatBreakable*)ast);
 		if (ast->Cond != NULL)
 			PrintAst(L"StatIf_Cond", (const SAst*)ast->Cond);
-		PrintAstList(L"StatIf_Stats", ast->Stats);
+		PrintAst(L"StatIf_StatBlock", (const SAst*)ast->StatBlock);
 		PrintAstList(L"StatIf_ElIfs", ast->ElIfs);
 		if (ast->ElseStatBlock != NULL)
 			PrintAst(L"StatIf_ElseStatBlock", (const SAst*)ast->ElseStatBlock);
@@ -786,7 +786,7 @@ static void DumpAstStatTry(const SAstStatTry* ast)
 	Tab++;
 	{
 		DumpAstStatBreakable((const SAstStatBreakable*)ast);
-		PrintAstList(L"StatTry_Stats", ast->Stats);
+		PrintAst(L"StatTry_StatBlock", (const SAst*)ast->StatBlock);
 		PrintAstList(L"StatTry_Catches", ast->Catches);
 		if (ast->FinallyStatBlock != NULL)
 			PrintAst(L"StatTry_FinallyStatBlock", (const SAst*)ast->FinallyStatBlock);

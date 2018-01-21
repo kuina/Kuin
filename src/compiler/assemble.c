@@ -2033,7 +2033,7 @@ static void AssembleIf(SAstStatIf* ast)
 	{
 		// Optimized code.
 		ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
-		AssembleStats(ast->Stats);
+		AssembleBlock(ast->StatBlock);
 		ListAdd(PackAsm->Asms, ((SAstStatBreakable*)ast)->BreakPoint);
 	}
 	else
@@ -2045,7 +2045,7 @@ static void AssembleIf(SAstStatIf* ast)
 		ToValue(ast->Cond, 0, 0);
 		ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[0]), ValImmU(1, 0x00)));
 		ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-		AssembleStats(ast->Stats);
+		AssembleBlock(ast->StatBlock);
 		ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 		ListAdd(PackAsm->Asms, lbl1);
 		{
@@ -2352,7 +2352,7 @@ static void AssembleTry(SAstStatTry* ast)
 		ListAdd(((SExcptTable*)PackAsm->ExcptTables->Bottom->Data)->TryScopes, scope_catch);
 		ListAdd(PackAsm->Asms, scope_catch->Begin);
 	}
-	AssembleStats(ast->Stats);
+	AssembleBlock(ast->StatBlock);
 	if (scope_catch != NULL)
 	{
 		// 'catch'
