@@ -90,7 +90,6 @@ static Char FileBufTmp; // For single line comments and line breaking.
 static Bool IsLast;
 static SStack* Scope;
 static U32 UniqueCnt;
-static Bool LocalErr;
 
 static const void* ParseSrc(const Char* src_name, const void* ast, void* param);
 static Char ReadBuf(void);
@@ -100,7 +99,7 @@ static Char ReadChar(void);
 static Char ReadStrict(void);
 static const Char* ReadIdentifier(Bool skip_spaces, Bool ref);
 static const Char* ReadFuncAttr(void);
-static void ReadUntilRet(void);
+static void ReadUntilRet(Char c);
 static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos, const Char* name, Bool set_parent, Bool init_refeds);
 static void InitAstExpr(SAstExpr* ast, EAstTypeId type_id, const SPos* pos);
 static void AddScopeName(SAst* ast, Bool refuse_reserved);
@@ -191,7 +190,7 @@ SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FI
 		if (!IsCorrectSrcName(path, False))
 		{
 			Err(L"EP0060", NULL, path);
-			return DummyPtr;
+			return NULL;
 		}
 		Srces = DictAdd(Srces, path, NULL);
 	}
@@ -496,7 +495,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 	if (!IsCorrectSrcName(src_name, True))
 	{
 		Err(L"EP0060", DictSearch(SrcRefPos, src_name), src_name);
-		return DummyPtr;
+		return NULL;
 	}
 	*end_flag = False;
 
@@ -512,7 +511,7 @@ static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
 			if (FilePtr == NULL)
 			{
 				Err(L"EP0061", DictSearch(SrcRefPos, src_name), true_path);
-				return DummyPtr;
+				return NULL;
 			}
 			{
 				const Char* reload = NULL;
@@ -767,6 +766,7 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 	Char c = skip_spaces ? ReadChar() : Read();
 	if (!(L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || ref && (c == L'@' || c == L'\\')))
 	{
+		FileBuf = c;
 		Err(L"EP0000", NewPos(SrcName, Row, Col), CharToStr(c));
 		return L"";
 	}
@@ -781,6 +781,7 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 				case L'@':
 					if (at)
 					{
+						FileBuf = c;
 						Err(L"EP0001", NewPos(SrcName, Row, Col));
 						return L"";
 					}
@@ -793,6 +794,7 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 							{
 								if (L'A' <= *ptr && *ptr <= L'Z')
 								{
+									FileBuf = c;
 									Err(L"EP0002", NewPos(SrcName, Row, Col), src_name);
 									return L"";
 								}
@@ -806,6 +808,7 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 				case L'\\':
 					if (at)
 					{
+						FileBuf = c;
 						Err(L"EP0055", NewPos(SrcName, Row, Col));
 						return L"";
 					}
@@ -813,6 +816,7 @@ static const Char* ReadIdentifier(Bool skip_spaces, Bool ref)
 			}
 			if (pos == 128)
 			{
+				FileBuf = c;
 				buf[127] = L'\0';
 				Err(L"EP0003", NewPos(SrcName, Row, Col), buf);
 				return L"";
@@ -854,13 +858,10 @@ static const Char* ReadFuncAttr(void)
 	}
 }
 
-static void ReadUntilRet(void)
+static void ReadUntilRet(Char c)
 {
-	Char c;
-	do
-	{
+	while (c != L'\n' && c != L'\0')
 		c = Read();
-	} while (c != L'\n' && c != L'\0');
 	FileBuf = c;
 }
 
@@ -944,10 +945,7 @@ static void AssertNextChar(Char c, Bool skip_spaces)
 {
 	Char c2 = skip_spaces ? ReadChar() : Read();
 	if (c2 != c)
-	{
 		NextCharErr(c, c2);
-		FileBuf = c2;
-	}
 }
 
 static void NextCharErr(Char c, Char c2)
@@ -957,6 +955,7 @@ static void NextCharErr(Char c, Char c2)
 	if (c2 == L'\0')
 		c2 = L' ';
 	Err(L"EP0006", NewPos(SrcName, Row, Col), CharToStr(c), CharToStr(c2));
+	ReadUntilRet(c2);
 }
 
 static void AddScopeRefeds(SAst* ast)
@@ -1128,8 +1127,17 @@ static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_
 	for (; ; )
 	{
 		SAstStat* stat = ParseStat(block);
-		if (stat == (SAstStat*)DummyPtr)
-			return (SAstStatBlock*)DummyPtr;
+		if (stat == NULL)
+		{
+			if (IsLast)
+			{
+				*out_stat = NULL;
+				*out_type_id = AstTypeId_StatEnd;
+				break;
+			}
+			else
+				continue;
+		}
 		Bool end_flag = False;
 		switch (type_id)
 		{
@@ -1159,7 +1167,7 @@ static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_
 					case AstTypeId_StatElIf:
 					case AstTypeId_StatElse:
 						Err(L"EP0041", NewPos(SrcName, Row, Col));
-						return (SAstStatBlock*)DummyPtr;
+						continue;
 					case AstTypeId_StatEnd:
 						end_flag = True;
 						break;
@@ -1181,7 +1189,7 @@ static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_
 					case AstTypeId_StatCase:
 					case AstTypeId_StatDefault:
 						Err(L"EP0045", NewPos(SrcName, Row, Col));
-						return (SAstStatBlock*)DummyPtr;
+						continue;
 					case AstTypeId_StatEnd:
 						end_flag = True;
 						break;
@@ -1212,7 +1220,7 @@ static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_
 					case AstTypeId_StatCatch:
 					case AstTypeId_StatFinally:
 						Err(L"EP0050", NewPos(SrcName, Row, Col));
-						return (SAstStatBlock*)DummyPtr;
+						continue;
 					case AstTypeId_StatEnd:
 						end_flag = True;
 						break;
@@ -1287,7 +1295,7 @@ static SAstRoot* ParseRoot(SAstRoot* ast)
 				else
 				{
 					Err(L"EP0025", NewPos(SrcName, row, col), id);
-					ReadUntilRet();
+					ReadUntilRet(Read());
 					continue;
 				}
 			}
@@ -1376,7 +1384,6 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 				if (c != L',')
 				{
 					NextCharErr(L',', c);
-					FileBuf = c;
 					break;
 				}
 			}
@@ -1425,13 +1432,6 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 			for (; ; )
 			{
 				ListAdd(ast->Args, ParseArg(AstArgKind_LocalArg, NULL));
-				if (LocalErr)
-				{
-					LocalErr = False;
-					ReadUntilRet();
-					FileBuf = L'\n';
-					break;
-				}
 				c = ReadChar();
 				if (c == L'\0')
 					break;
@@ -1440,7 +1440,6 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 				if (c != L',')
 				{
 					NextCharErr(L',', c);
-					FileBuf = c;
 					break;
 				}
 			}
@@ -1451,26 +1450,21 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 		if (c == L':')
 		{
 			ast->Ret = ParseType();
-			if (LocalErr)
-			{
-				LocalErr = False;
-				ReadUntilRet();
-				c = L'\n';
-			}
-			else
-				c = ReadChar();
+			c = ReadChar();
 		}
 		if (c != L'\n')
-		{
 			NextCharErr(L'\n', c);
-			FileBuf = c;
-		}
 	}
 	for (; ; )
 	{
 		SAstStat* stat = ParseStat((SAst*)ast);
-		if (stat == (SAstStat*)DummyPtr)
-			break;
+		if (stat == NULL)
+		{
+			if (IsLast)
+				break;
+			else
+				continue;
+		}
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
 			break;
 		ListAdd(ast->Stats, stat);
@@ -1485,14 +1479,7 @@ static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class)
 	SAstVar* ast = (SAstVar*)Alloc(sizeof(SAstVar));
 	InitAst((SAst*)ast, AstTypeId_Var, NewPos(SrcName, Row, Col), NULL, False, False);
 	ast->Var = ParseArg(kind, parent_class);
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-		return (SAstVar*)DummyPtr;
-	}
-	else
-		AssertNextChar(L'\n', True);
+	AssertNextChar(L'\n', True);
 	return ast;
 }
 
@@ -1501,14 +1488,7 @@ static SAstConst* ParseConst(void)
 	SAstConst* ast = (SAstConst*)Alloc(sizeof(SAstConst));
 	InitAst((SAst*)ast, AstTypeId_Const, NewPos(SrcName, Row, Col), NULL, False, False);
 	ast->Var = ParseArg(AstArgKind_Const, NULL);
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-		return (SAstConst*)DummyPtr;
-	}
-	else
-		AssertNextChar(L'\n', True);
+	AssertNextChar(L'\n', True);
 	return ast;
 }
 
@@ -1518,13 +1498,7 @@ static SAstAlias* ParseAlias(void)
 	InitAst((SAst*)ast, AstTypeId_Alias, NewPos(SrcName, Row, Col), ReadIdentifier(True, False), True, False);
 	AssertNextChar(L':', True);
 	ast->Type = ParseType();
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-	}
-	else
-		AssertNextChar(L'\n', True);
+	AssertNextChar(L'\n', True);
 	return ast;
 }
 
@@ -1575,7 +1549,7 @@ static SAstClass* ParseClass(void)
 		if (c == L'\0')
 		{
 			Err(L"EP0027", NewPos(SrcName, Row, Col));
-			return (SAstClass*)DummyPtr;
+			break;
 		}
 		if (c == L'\n')
 			continue;
@@ -1643,7 +1617,7 @@ static SAstClass* ParseClass(void)
 					else
 					{
 						Err(L"EP0031", NewPos(SrcName, row, col), s);
-						ReadUntilRet();
+						ReadUntilRet(Read());
 						continue;
 					}
 				}
@@ -1669,7 +1643,7 @@ static SAstEnum* ParseEnum(void)
 		if (c == L'\0')
 		{
 			Err(L"EP0032", NewPos(SrcName, Row, Col));
-			return (SAstEnum*)DummyPtr;
+			break;
 		}
 		if (c == L'\n')
 			continue;
@@ -1690,15 +1664,12 @@ static SAstEnum* ParseEnum(void)
 			{
 				AssertNextChar(L':', False);
 				item = ParseExpr();
-				if (LocalErr)
+				if (item == NULL)
 				{
-					LocalErr = False;
-					ReadUntilRet();
-					c = L'\n';
+					ReadUntilRet(Read());
 					continue;
 				}
-				else
-					c = ReadChar();
+				c = ReadChar();
 			}
 			else
 			{
@@ -1746,8 +1717,6 @@ static SAstArg* ParseArg(EAstArgKind kind, const Char* parent_class)
 			FileBuf = c;
 	}
 	ast->Type = ParseType();
-	if (LocalErr)
-		return (SAstArg*)DummyPtr;
 	{
 		Char c = ReadChar();
 		if (c == L':')
@@ -1765,11 +1734,7 @@ static SAstArg* ParseArg(EAstArgKind kind, const Char* parent_class)
 				ast->Expr = NULL;
 			}
 			else
-			{
 				ast->Expr = ParseExpr();
-				if (LocalErr)
-					return (SAstArg*)DummyPtr;
-			}
 		}
 		else
 		{
@@ -1793,7 +1758,7 @@ static SAstStat* ParseStat(SAst* block)
 			if (c == L'\0')
 			{
 				Err(L"EP0038", NewPos(SrcName, Row, Col));
-				return (SAstStat*)DummyPtr;
+				return NULL;
 			}
 		} while (c == L'\n');
 		FileBuf = c;
@@ -1855,11 +1820,11 @@ static SAstStat* ParseStat(SAst* block)
 		else
 		{
 			Err(L"EP0025", NewPos(SrcName, row, col), s);
-			ReadUntilRet();
-			return (SAstStat*)DummyPtr;
+			ReadUntilRet(Read());
+			return NULL;
 		}
-		if (ast == (SAstStat*)DummyPtr)
-			return (SAstStat*)DummyPtr;
+		if (ast == NULL)
+			return NULL;
 		((SAst*)ast)->Pos = NewPos(SrcName, row, col);
 	}
 	return ast;
@@ -1976,43 +1941,20 @@ static SAstStat* ParseStatIf(void)
 	PushDummyScope((SAst*)ast);
 	ObtainBlockName((SAst*)ast);
 	ast->Cond = ParseExpr();
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-	}
-	else
-	{
-		AssertNextChar(L')', True);
-		AssertNextChar(L'\n', True);
-	}
+	AssertNextChar(L')', True);
+	AssertNextChar(L'\n', True);
 	{
 		SAstStat* stat;
 		EAstTypeId type_id;
-		{
-			SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatIf, (SAst*)ast);
-			if (stat_block == (SAstStatBlock*)DummyPtr)
-				return (SAstStat*)DummyPtr;
-			ast->StatBlock = stat_block;
-		}
+		ast->StatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatIf, (SAst*)ast);
 		while (type_id == AstTypeId_StatElIf)
 		{
 			SAstStatElIf* elif = (SAstStatElIf*)stat;
-			{
-				SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatElIf, (SAst*)ast);
-				if (stat_block == (SAstStatBlock*)DummyPtr)
-					return (SAstStat*)DummyPtr;
-				elif->StatBlock = stat_block;
-			}
+			elif->StatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatElIf, (SAst*)ast);
 			ListAdd(ast->ElIfs, elif);
 		}
 		while (type_id == AstTypeId_StatElse)
-		{
-			SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatElse, (SAst*)ast);
-			if (stat_block == (SAstStatBlock*)DummyPtr)
-				return (SAstStat*)DummyPtr;
-			ast->ElseStatBlock = stat_block;
-		}
+			ast->ElseStatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatElse, (SAst*)ast);
 		ASSERT(type_id == AstTypeId_StatEnd);
 	}
 	AddEndPosScope();
@@ -2028,21 +1970,13 @@ static SAstStat* ParseStatElIf(int row, int col, const SAst* block)
 	if (block->TypeId != AstTypeId_StatIf)
 	{
 		Err(L"EP0042", NewPos(SrcName, row, col));
-		ReadUntilRet();
-		return (SAstStat*)DummyPtr;
+		ReadUntilRet(Read());
+		return NULL;
 	}
 	AssertNextChar(L'(', True);
 	ast->Cond = ParseExpr();
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-	}
-	else
-	{
-		AssertNextChar(L')', True);
-		AssertNextChar(L'\n', True);
-	}
+	AssertNextChar(L')', True);
+	AssertNextChar(L'\n', True);
 	return (SAstStat*)ast;
 }
 
@@ -2053,8 +1987,8 @@ static SAstStat* ParseStatElse(int row, int col, const SAst* block)
 	if (block->TypeId != AstTypeId_StatIf)
 	{
 		Err(L"EP0043", NewPos(SrcName, row, col));
-		ReadUntilRet();
-		return (SAstStat*)DummyPtr;
+		ReadUntilRet(Read());
+		return NULL;
 	}
 	AssertNextChar(L'\n', True);
 	return ast;
@@ -2071,43 +2005,34 @@ static SAstStat* ParseStatSwitch(int row, int col)
 	PushDummyScope((SAst*)ast);
 	ObtainBlockName((SAst*)ast);
 	ast->Cond = ParseExpr();
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-	}
-	else
-	{
-		AssertNextChar(L')', True);
-		AssertNextChar(L'\n', True);
-	}
+	AssertNextChar(L')', True);
+	AssertNextChar(L'\n', True);
 	{
 		SAstStat* stat;
 		EAstTypeId type_id;
-		stat = ParseStat((SAst*)ast);
-		if (stat == (SAstStat*)DummyPtr)
-			return (SAstStat*)DummyPtr;
+		for (; ; )
+		{
+			stat = ParseStat((SAst*)ast);
+			if (stat == NULL)
+			{
+				if (IsLast)
+					return NULL;
+				else
+					continue;
+			}
+			break;
+		}
 		type_id = ((SAst*)stat)->TypeId;
 		if (!(type_id == AstTypeId_StatCase || type_id == AstTypeId_StatDefault || type_id == AstTypeId_StatEnd))
 			Err(L"EP0044", NewPos(SrcName, Row, Col));
 		while (type_id == AstTypeId_StatCase)
 		{
 			SAstStatCase* case_ = (SAstStatCase*)stat;
-			{
-				SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatCase, (SAst*)ast);
-				if (stat_block == (SAstStatBlock*)DummyPtr)
-					return (SAstStat*)DummyPtr;
-				case_->StatBlock = stat_block;
-			}
+			case_->StatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatCase, (SAst*)ast);
 			ListAdd(ast->Cases, case_);
 		}
 		while (type_id == AstTypeId_StatDefault)
-		{
-			SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatDefault, (SAst*)ast);
-			if (stat_block == (SAstStatBlock*)DummyPtr)
-				return (SAstStat*)DummyPtr;
-			ast->DefaultStatBlock = stat_block;
-		}
+			ast->DefaultStatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatDefault, (SAst*)ast);
 		ASSERT(type_id == AstTypeId_StatEnd);
 	}
 	AddEndPosScope();
@@ -2124,20 +2049,14 @@ static SAstStat* ParseStatCase(int row, int col, const SAst* block)
 	if (block->TypeId != AstTypeId_StatSwitch)
 	{
 		Err(L"EP0046", NewPos(SrcName, row, col));
-		ReadUntilRet();
-		return (SAstStat*)DummyPtr;
+		ReadUntilRet(Read());
+		return NULL;
 	}
 	for (; ; )
 	{
 		Char c;
 		SAstExpr** exprs = (SAstExpr**)Alloc(sizeof(SAstExpr*) * 2);
 		exprs[0] = ParseExpr();
-		if (LocalErr)
-		{
-			LocalErr = False;
-			ReadUntilRet();
-			return (SAstStat*)DummyPtr;
-		}
 		exprs[1] = NULL;
 		c = ReadChar();
 		if (c == L'\0')
@@ -2158,17 +2077,11 @@ static SAstStat* ParseStatCase(int row, int col, const SAst* block)
 			if (wcscmp(s, L"to") != 0)
 			{
 				Err(L"EP0047", NewPos(SrcName, Row, Col), s);
-				ReadUntilRet();
-				return (SAstStat*)DummyPtr;
+				ReadUntilRet(Read());
+				return NULL;
 			}
 		}
 		exprs[1] = ParseExpr();
-		if (LocalErr)
-		{
-			LocalErr = False;
-			ReadUntilRet();
-			return (SAstStat*)DummyPtr;
-		}
 		c = ReadChar();
 		if (c == L'\0')
 			break;
@@ -2188,8 +2101,8 @@ static SAstStat* ParseStatDefault(int row, int col, const SAst* block)
 	if (block->TypeId != AstTypeId_StatSwitch)
 	{
 		Err(L"EP0048", NewPos(SrcName, row, col));
-		ReadUntilRet();
-		return (SAstStat*)DummyPtr;
+		ReadUntilRet(Read());
+		return NULL;
 	}
 	AssertNextChar(L'\n', True);
 	return ast;
@@ -2207,12 +2120,6 @@ static SAstStat* ParseStatWhile(void)
 	PushDummyScope((SAst*)ast);
 	ObtainBlockName((SAst*)ast);
 	ast->Cond = ParseExpr();
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-	}
-	else
 	{
 		Char c = ReadChar();
 		if (c == L',')
@@ -2230,8 +2137,13 @@ static SAstStat* ParseStatWhile(void)
 	for (; ; )
 	{
 		SAstStat* stat = ParseStat((SAst*)ast);
-		if (stat == (SAstStat*)DummyPtr)
-			return (SAstStat*)DummyPtr;
+		if (stat == NULL)
+		{
+			if (IsLast)
+				return NULL;
+			else
+				continue;
+		}
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
 			break;
 		ListAdd(ast->Stats, stat);
@@ -2252,36 +2164,16 @@ static SAstStat* ParseStatFor(int row, int col)
 	PushDummyScope((SAst*)ast);
 	ObtainBlockName((SAst*)ast);
 	ast->Start = ParseExpr();
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-	}
-	else
 	{
 		AssertNextChar(L',', True);
 		ast->Cond = ParseExpr();
-		if (LocalErr)
-		{
-			LocalErr = False;
-			ReadUntilRet();
-		}
-		else
 		{
 			Char c = ReadChar();
 			if (c == L',')
 			{
 				ast->Step = ParseExpr();
-				if (LocalErr)
-				{
-					LocalErr = False;
-					ReadUntilRet();
-				}
-				else
-				{
-					AssertNextChar(L')', True);
-					AssertNextChar(L'\n', True);
-				}
+				AssertNextChar(L')', True);
+				AssertNextChar(L'\n', True);
 			}
 			else
 			{
@@ -2296,8 +2188,13 @@ static SAstStat* ParseStatFor(int row, int col)
 	for (; ; )
 	{
 		SAstStat* stat = ParseStat((SAst*)ast);
-		if (stat == (SAstStat*)DummyPtr)
-			return (SAstStat*)DummyPtr;
+		if (stat == NULL)
+		{
+			if (IsLast)
+				return NULL;
+			else
+				continue;
+		}
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
 			break;
 		ListAdd(ast->Stats, stat);
@@ -2338,30 +2235,15 @@ static SAstStat* ParseStatTry(int row, int col)
 	{
 		SAstStat* stat;
 		EAstTypeId type_id;
-		{
-			SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatTry, (SAst*)ast);
-			if (stat_block == (SAstStatBlock*)DummyPtr)
-				return (SAstStat*)DummyPtr;
-			ast->StatBlock = stat_block;
-		}
+		ast->StatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatTry, (SAst*)ast);
 		while (type_id == AstTypeId_StatCatch)
 		{
 			SAstStatCatch* catch_ = (SAstStatCatch*)stat;
-			{
-				SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatCatch, (SAst*)ast);
-				if (stat_block == (SAstStatBlock*)DummyPtr)
-					return (SAstStat*)DummyPtr;
-				catch_->StatBlock = stat_block;
-			}
+			catch_->StatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatCatch, (SAst*)ast);
 			ListAdd(ast->Catches, catch_);
 		}
 		if (type_id == AstTypeId_StatFinally)
-		{
-			SAstStatBlock* stat_block = ParseDummyBlock(&stat, &type_id, AstTypeId_StatFinally, (SAst*)ast);
-			if (stat_block == (SAstStatBlock*)DummyPtr)
-				return (SAstStat*)DummyPtr;
-			ast->FinallyStatBlock = stat_block;
-		}
+			ast->FinallyStatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatFinally, (SAst*)ast);
 		ASSERT(type_id == AstTypeId_StatEnd);
 	}
 	AddEndPosScope();
@@ -2378,8 +2260,8 @@ static SAstStat* ParseStatCatch(int row, int col, const SAst* block)
 	if (block->TypeId != AstTypeId_StatTry)
 	{
 		Err(L"EP0051", NewPos(SrcName, row, col));
-		ReadUntilRet();
-		return (SAstStat*)DummyPtr;
+		ReadUntilRet(Read());
+		return NULL;
 	}
 	{
 		Char c = ReadChar();
@@ -2400,12 +2282,6 @@ static SAstStat* ParseStatCatch(int row, int col, const SAst* block)
 			{
 				SAstExpr** exprs = (SAstExpr**)Alloc(sizeof(SAstExpr*) * 2);
 				exprs[0] = ParseExpr();
-				if (LocalErr)
-				{
-					LocalErr = False;
-					ReadUntilRet();
-					return (SAstStat*)DummyPtr;
-				}
 				exprs[1] = NULL;
 				c = ReadChar();
 				if (c == L'\0')
@@ -2427,12 +2303,6 @@ static SAstStat* ParseStatCatch(int row, int col, const SAst* block)
 						Err(L"EP0047", NewPos(SrcName, Row, Col), s);
 				}
 				exprs[1] = ParseExpr();
-				if (LocalErr)
-				{
-					LocalErr = False;
-					ReadUntilRet();
-					return (SAstStat*)DummyPtr;
-				}
 				c = ReadChar();
 				if (c == L'\0')
 					break;
@@ -2454,8 +2324,8 @@ static SAstStat* ParseStatFinally(int row, int col, const SAst* block)
 	if (block->TypeId != AstTypeId_StatTry)
 	{
 		Err(L"EP0052", NewPos(SrcName, row, col));
-		ReadUntilRet();
-		return (SAstStat*)DummyPtr;
+		ReadUntilRet(Read());
+		return NULL;
 	}
 	AssertNextChar(L'\n', True);
 	return ast;
@@ -2466,12 +2336,6 @@ static SAstStat* ParseStatThrow(void)
 	SAstStatThrow* ast = (SAstStatThrow*)Alloc(sizeof(SAstStatThrow));
 	InitAst((SAst*)ast, AstTypeId_StatThrow, NULL, NULL, False, False);
 	ast->Code = ParseExpr();
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-		return (SAstStat*)DummyPtr;
-	}
 	AssertNextChar(L'\n', True);
 	return (SAstStat*)ast;
 }
@@ -2499,8 +2363,13 @@ static SAstStat* ParseStatBlock(void)
 	for (; ; )
 	{
 		SAstStat* stat = ParseStat((SAst*)ast);
-		if (stat == (SAstStat*)DummyPtr)
-			return (SAstStat*)DummyPtr;
+		if (stat == NULL)
+		{
+			if (IsLast)
+				return NULL;
+			else
+				continue;
+		}
 		if (((SAst*)stat)->TypeId == AstTypeId_StatEnd)
 			break;
 		ListAdd(ast->Stats, stat);
@@ -2520,12 +2389,6 @@ static SAstStat* ParseStatRet(void)
 		{
 			FileBuf = c;
 			ast->Value = ParseExpr();
-			if (LocalErr)
-			{
-				LocalErr = False;
-				ReadUntilRet();
-				return (SAstStat*)DummyPtr;
-			}
 			AssertNextChar(L'\n', True);
 		}
 		else
@@ -2539,12 +2402,6 @@ static SAstStat* ParseStatDo(void)
 	SAstStatDo* ast = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 	InitAst((SAst*)ast, AstTypeId_StatDo, NULL, NULL, False, False);
 	ast->Expr = ParseExpr();
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-		return (SAstStat*)DummyPtr;
-	}
 	AssertNextChar(L'\n', True);
 	return (SAstStat*)ast;
 }
@@ -2574,12 +2431,6 @@ static SAstStat* ParseStatAssert(void)
 	SAstStatAssert* ast = (SAstStatAssert*)Alloc(sizeof(SAstStatAssert));
 	InitAst((SAst*)ast, AstTypeId_StatAssert, NULL, NULL, False, False);
 	ast->Cond = ParseExpr();
-	if (LocalErr)
-	{
-		LocalErr = False;
-		ReadUntilRet();
-		return (SAstStat*)DummyPtr;
-	}
 	AssertNextChar(L'\n', True);
 	return (SAstStat*)ast;
 }
@@ -2596,8 +2447,6 @@ static SAstType* ParseType(void)
 			SAstTypeArray* ast2 = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
 			InitAst((SAst*)ast2, AstTypeId_TypeArray, pos, NULL, False, False);
 			ast2->ItemType = ParseType();
-			if (LocalErr)
-				return (SAstType*)DummyPtr;
 			ast = (SAstType*)ast2;
 		}
 	}
@@ -2647,8 +2496,6 @@ static SAstType* ParseType(void)
 								FileBuf = c;
 							}
 							arg->Arg = ParseType();
-							if (LocalErr)
-								return (SAstType*)DummyPtr;
 							ListAdd(ast2->Args, arg);
 							c = ReadChar();
 							if (c == L')')
@@ -2661,8 +2508,6 @@ static SAstType* ParseType(void)
 					if (c == L':')
 					{
 						ast2->Ret = ParseType();
-						if (LocalErr)
-							return (SAstType*)DummyPtr;
 						c = ReadChar();
 					}
 					if (c != L'>')
@@ -2678,8 +2523,6 @@ static SAstType* ParseType(void)
 					InitAst((SAst*)ast2, AstTypeId_TypeGen, pos, NULL, False, False);
 					ast2->Kind = AstTypeGenKind_List;
 					ast2->ItemType = ParseType();
-					if (LocalErr)
-						return (SAstType*)DummyPtr;
 					AssertNextChar(L'>', True);
 					ast = (SAstType*)ast2;
 				}
@@ -2692,8 +2535,6 @@ static SAstType* ParseType(void)
 					InitAst((SAst*)ast2, AstTypeId_TypeGen, pos, NULL, False, False);
 					ast2->Kind = AstTypeGenKind_Stack;
 					ast2->ItemType = ParseType();
-					if (LocalErr)
-						return (SAstType*)DummyPtr;
 					AssertNextChar(L'>', True);
 					ast = (SAstType*)ast2;
 				}
@@ -2706,8 +2547,6 @@ static SAstType* ParseType(void)
 					InitAst((SAst*)ast2, AstTypeId_TypeGen, pos, NULL, False, False);
 					ast2->Kind = AstTypeGenKind_Queue;
 					ast2->ItemType = ParseType();
-					if (LocalErr)
-						return (SAstType*)DummyPtr;
 					AssertNextChar(L'>', True);
 					ast = (SAstType*)ast2;
 				}
@@ -2719,12 +2558,8 @@ static SAstType* ParseType(void)
 					SAstTypeDict* ast2 = (SAstTypeDict*)Alloc(sizeof(SAstTypeDict));
 					InitAst((SAst*)ast2, AstTypeId_TypeDict, pos, NULL, False, False);
 					ast2->ItemTypeKey = ParseType();
-					if (LocalErr)
-						return (SAstType*)DummyPtr;
 					AssertNextChar(L',', True);
 					ast2->ItemTypeValue = ParseType();
-					if (LocalErr)
-						return (SAstType*)DummyPtr;
 					AssertNextChar(L'>', True);
 					ast = (SAstType*)ast2;
 				}
@@ -2773,8 +2608,6 @@ static SAstType* ParseType(void)
 static SAstExpr* ParseExpr(void)
 {
 	SAstExpr* ast = ParseExprThree();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	{
 		int row = Row;
 		int col = Col;
@@ -2799,15 +2632,12 @@ static SAstExpr* ParseExpr(void)
 					case L'$': ast2->Kind = AstExpr2Kind_Swap; break;
 					default:
 						Err(L"EP0054", NewPos(SrcName, row, col), CharToStr(c2));
-						LocalErr = True;
-						ReadUntilRet();
-						return (SAstExpr*)DummyPtr;
+						ReadUntilRet(c2);
+						return NULL;
 				}
 			}
 			ast2->Children[0] = ast;
 			ast2->Children[1] = ParseExpr();
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
 			ast = (SAstExpr*)ast2;
 		}
 		else
@@ -2819,8 +2649,6 @@ static SAstExpr* ParseExpr(void)
 static SAstExpr* ParseExprThree(void)
 {
 	SAstExpr* ast = ParseExprOr();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	for (; ; )
 	{
 		int row = Row;
@@ -2834,12 +2662,8 @@ static SAstExpr* ParseExprThree(void)
 				InitAstExpr((SAstExpr*)ast2, AstTypeId_Expr3, NewPos(SrcName, row, col));
 				ast2->Children[0] = ast;
 				ast2->Children[1] = ParseExpr();
-				if (LocalErr)
-					return (SAstExpr*)DummyPtr;
 				AssertNextChar(L',', True);
 				ast2->Children[2] = ParseExpr();
-				if (LocalErr)
-					return (SAstExpr*)DummyPtr;
 				ast = (SAstExpr*)ast2;
 			}
 			AssertNextChar(L')', True);
@@ -2856,8 +2680,6 @@ static SAstExpr* ParseExprThree(void)
 static SAstExpr* ParseExprOr(void)
 {
 	SAstExpr* ast = ParseExprAnd();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	for (; ; )
 	{
 		int row = Row;
@@ -2870,8 +2692,6 @@ static SAstExpr* ParseExprOr(void)
 			ast2->Kind = AstExpr2Kind_Or;
 			ast2->Children[0] = ast;
 			ast2->Children[1] = ParseExprAnd();
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
 			ast = (SAstExpr*)ast2;
 		}
 		else
@@ -2886,8 +2706,6 @@ static SAstExpr* ParseExprOr(void)
 static SAstExpr* ParseExprAnd(void)
 {
 	SAstExpr* ast = ParseExprCmp();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	for (; ; )
 	{
 		int row = Row;
@@ -2900,8 +2718,6 @@ static SAstExpr* ParseExprAnd(void)
 			ast2->Kind = AstExpr2Kind_And;
 			ast2->Children[0] = ast;
 			ast2->Children[1] = ParseExprCmp();
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
 			ast = (SAstExpr*)ast2;
 		}
 		else
@@ -2916,8 +2732,6 @@ static SAstExpr* ParseExprAnd(void)
 static SAstExpr* ParseExprCmp(void)
 {
 	SAstExpr* ast = ParseExprCat();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	{
 		Bool end_flag = False;
 		do
@@ -2937,8 +2751,6 @@ static SAstExpr* ParseExprCmp(void)
 							ast2->Kind = AstExpr2Kind_LE;
 							ast2->Children[0] = ast;
 							ast2->Children[1] = ParseExprCat();
-							if (LocalErr)
-								return (SAstExpr*)DummyPtr;
 							ast = (SAstExpr*)ast2;
 						}
 						else if (c == L'>')
@@ -2951,8 +2763,6 @@ static SAstExpr* ParseExprCmp(void)
 								ast2->Kind = AstExpr2Kind_NEqRef;
 								ast2->Children[0] = ast;
 								ast2->Children[1] = ParseExprCat();
-								if (LocalErr)
-									return (SAstExpr*)DummyPtr;
 								ast = (SAstExpr*)ast2;
 							}
 							else if (c == L'$')
@@ -2962,8 +2772,6 @@ static SAstExpr* ParseExprCmp(void)
 								ast2->Kind = AstExprAsKind_NIs;
 								ast2->Child = ast;
 								ast2->ChildType = ParseType();
-								if (LocalErr)
-									return (SAstExpr*)DummyPtr;
 								ast = (SAstExpr*)ast2;
 							}
 							else
@@ -2975,8 +2783,6 @@ static SAstExpr* ParseExprCmp(void)
 									ast2->Kind = AstExpr2Kind_NEq;
 									ast2->Children[0] = ast;
 									ast2->Children[1] = ParseExprCat();
-									if (LocalErr)
-										return (SAstExpr*)DummyPtr;
 									ast = (SAstExpr*)ast2;
 								}
 							}
@@ -2990,8 +2796,6 @@ static SAstExpr* ParseExprCmp(void)
 								ast2->Kind = AstExpr2Kind_LT;
 								ast2->Children[0] = ast;
 								ast2->Children[1] = ParseExprCat();
-								if (LocalErr)
-									return (SAstExpr*)DummyPtr;
 								ast = (SAstExpr*)ast2;
 							}
 						}
@@ -3011,8 +2815,6 @@ static SAstExpr* ParseExprCmp(void)
 						}
 						ast2->Children[0] = ast;
 						ast2->Children[1] = ParseExprCat();
-						if (LocalErr)
-							return (SAstExpr*)DummyPtr;
 						ast = (SAstExpr*)ast2;
 					}
 					break;
@@ -3026,8 +2828,6 @@ static SAstExpr* ParseExprCmp(void)
 							ast2->Kind = AstExpr2Kind_EqRef;
 							ast2->Children[0] = ast;
 							ast2->Children[1] = ParseExprCat();
-							if (LocalErr)
-								return (SAstExpr*)DummyPtr;
 							ast = (SAstExpr*)ast2;
 						}
 						else if (c == L'$')
@@ -3037,8 +2837,6 @@ static SAstExpr* ParseExprCmp(void)
 							ast2->Kind = AstExprAsKind_Is;
 							ast2->Child = ast;
 							ast2->ChildType = ParseType();
-							if (LocalErr)
-								return (SAstExpr*)DummyPtr;
 							ast = (SAstExpr*)ast2;
 						}
 						else
@@ -3050,8 +2848,6 @@ static SAstExpr* ParseExprCmp(void)
 								ast2->Kind = AstExpr2Kind_Eq;
 								ast2->Children[0] = ast;
 								ast2->Children[1] = ParseExprCat();
-								if (LocalErr)
-									return (SAstExpr*)DummyPtr;
 								ast = (SAstExpr*)ast2;
 							}
 						}
@@ -3070,8 +2866,6 @@ static SAstExpr* ParseExprCmp(void)
 static SAstExpr* ParseExprCat(void)
 {
 	SAstExpr* ast = ParseExprAdd();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	for (; ; )
 	{
 		int row = Row;
@@ -3084,8 +2878,6 @@ static SAstExpr* ParseExprCat(void)
 			ast2->Kind = AstExpr2Kind_Cat;
 			ast2->Children[0] = ast;
 			ast2->Children[1] = ParseExprAdd();
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
 			ast = (SAstExpr*)ast2;
 		}
 		else
@@ -3100,8 +2892,6 @@ static SAstExpr* ParseExprCat(void)
 static SAstExpr* ParseExprAdd(void)
 {
 	SAstExpr* ast = ParseExprMul();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	for (; ; )
 	{
 		int row = Row;
@@ -3114,8 +2904,6 @@ static SAstExpr* ParseExprAdd(void)
 			ast2->Kind = AstExpr2Kind_Add;
 			ast2->Children[0] = ast;
 			ast2->Children[1] = ParseExprMul();
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
 			ast = (SAstExpr*)ast2;
 		}
 		else if (c == L'-')
@@ -3125,8 +2913,6 @@ static SAstExpr* ParseExprAdd(void)
 			ast2->Kind = AstExpr2Kind_Sub;
 			ast2->Children[0] = ast;
 			ast2->Children[1] = ParseExprMul();
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
 			ast = (SAstExpr*)ast2;
 		}
 		else
@@ -3141,8 +2927,6 @@ static SAstExpr* ParseExprAdd(void)
 static SAstExpr* ParseExprMul(void)
 {
 	SAstExpr* ast = ParseExprPlus();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	{
 		Bool end_flag = False;
 		do
@@ -3159,8 +2943,6 @@ static SAstExpr* ParseExprMul(void)
 						ast2->Kind = AstExpr2Kind_Mul;
 						ast2->Children[0] = ast;
 						ast2->Children[1] = ParseExprPlus();
-						if (LocalErr)
-							return (SAstExpr*)DummyPtr;
 						ast = (SAstExpr*)ast2;
 					}
 					break;
@@ -3171,8 +2953,6 @@ static SAstExpr* ParseExprMul(void)
 						ast2->Kind = AstExpr2Kind_Div;
 						ast2->Children[0] = ast;
 						ast2->Children[1] = ParseExprPlus();
-						if (LocalErr)
-							return (SAstExpr*)DummyPtr;
 						ast = (SAstExpr*)ast2;
 					}
 					break;
@@ -3183,8 +2963,6 @@ static SAstExpr* ParseExprMul(void)
 						ast2->Kind = AstExpr2Kind_Mod;
 						ast2->Children[0] = ast;
 						ast2->Children[1] = ParseExprPlus();
-						if (LocalErr)
-							return (SAstExpr*)DummyPtr;
 						ast = (SAstExpr*)ast2;
 					}
 					break;
@@ -3201,8 +2979,6 @@ static SAstExpr* ParseExprMul(void)
 static SAstExpr* ParseExprPlus(void)
 {
 	SAstExpr* ast = ParseExprPow();
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	if (ast != NULL)
 		return ast;
 	{
@@ -3220,8 +2996,6 @@ static SAstExpr* ParseExprPlus(void)
 				for (; ; )
 				{
 					ListAdd(ast2->Idces, ParseExpr());
-					if (LocalErr)
-						return (SAstExpr*)DummyPtr;
 					c = ReadChar();
 					if (c == L'\0')
 						break;
@@ -3230,13 +3004,10 @@ static SAstExpr* ParseExprPlus(void)
 					if (c != L',')
 					{
 						NextCharErr(L',', c);
-						LocalErr = True;
-						return (SAstExpr*)DummyPtr;
+						return NULL;
 					}
 				}
 				ast2->ItemType = ParseType();
-				if (LocalErr)
-					return (SAstExpr*)DummyPtr;
 				ast = (SAstExpr*)ast2;
 			}
 			else if (c == L'#')
@@ -3245,8 +3016,6 @@ static SAstExpr* ParseExprPlus(void)
 				InitAstExpr((SAstExpr*)ast2, AstTypeId_Expr1, NewPos(SrcName, row, col));
 				ast2->Kind = AstExpr1Kind_Copy;
 				ast2->Child = ParseExprPlus();
-				if (LocalErr)
-					return (SAstExpr*)DummyPtr;
 				ast = (SAstExpr*)ast2;
 			}
 			else
@@ -3256,8 +3025,6 @@ static SAstExpr* ParseExprPlus(void)
 					SAstExprNew* ast2 = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
 					InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprNew, NewPos(SrcName, row, col));
 					ast2->ItemType = ParseType();
-					if (LocalErr)
-						return (SAstExpr*)DummyPtr;
 					ast = (SAstExpr*)ast2;
 				}
 			}
@@ -3274,13 +3041,10 @@ static SAstExpr* ParseExprPlus(void)
 				case L'^': ast2->Kind = AstExpr1Kind_Len; break;
 				default:
 					Err(L"EP0054", NewPos(SrcName, row, col), CharToStr(c));
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 			}
 			ast2->Child = ParseExprPlus();
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
 			ast = (SAstExpr*)ast2;
 		}
 	}
@@ -3292,8 +3056,6 @@ static SAstExpr* ParseExprPow(void)
 	SAstExpr* ast = ParseExprCall();
 	if (ast == NULL)
 		return ast; // Interpret as a unary operator.
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	{
 		int row = Row;
 		int col = Col;
@@ -3305,8 +3067,6 @@ static SAstExpr* ParseExprPow(void)
 			ast2->Kind = AstExpr2Kind_Pow;
 			ast2->Children[0] = ast;
 			ast2->Children[1] = ParseExprPlus();
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
 			ast = (SAstExpr*)ast2;
 		}
 		else
@@ -3320,8 +3080,6 @@ static SAstExpr* ParseExprCall(void)
 	SAstExpr* ast = ParseExprValue();
 	if (ast == NULL)
 		return ast;
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
 	{
 		Bool end_flag = False;
 		do
@@ -3371,8 +3129,6 @@ static SAstExpr* ParseExprCall(void)
 									arg->SkipVar = NULL;
 									arg->Arg = ParseExpr();
 								}
-								if (LocalErr)
-									return (SAstExpr*)DummyPtr;
 								ListAdd(ast2->Args, arg);
 								c = ReadChar();
 								if (c == L'\0')
@@ -3382,8 +3138,7 @@ static SAstExpr* ParseExprCall(void)
 								if (c != L',')
 								{
 									NextCharErr(L',', c);
-									LocalErr = True;
-									return (SAstExpr*)DummyPtr;
+									return NULL;
 								}
 							}
 						}
@@ -3397,8 +3152,6 @@ static SAstExpr* ParseExprCall(void)
 						InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprArray, NewPos(SrcName, row, col));
 						ast2->Var = ast;
 						ast2->Idx = ParseExpr();
-						if (LocalErr)
-							return (SAstExpr*)DummyPtr;
 						AssertNextChar(L']', True);
 						ast = (SAstExpr*)ast2;
 					}
@@ -3424,8 +3177,6 @@ static SAstExpr* ParseExprCall(void)
 							InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprToBin, NewPos(SrcName, row, col));
 							ast2->Child = ast;
 							ast2->ChildType = ParseType();
-							if (LocalErr)
-								return (SAstExpr*)DummyPtr;
 							ast = (SAstExpr*)ast2;
 						}
 						else if (c == L'<')
@@ -3438,8 +3189,6 @@ static SAstExpr* ParseExprCall(void)
 								U64 value = 0;
 								ast2->Offset = (SAstExpr*)ObtainPrimValue(((SAst*)ast)->Pos, AstTypePrimKind_Int, &value);
 							}
-							if (LocalErr)
-								return (SAstExpr*)DummyPtr;
 							ast = (SAstExpr*)ast2;
 						}
 						else
@@ -3451,8 +3200,6 @@ static SAstExpr* ParseExprCall(void)
 								ast2->Kind = AstExprAsKind_As;
 								ast2->Child = ast;
 								ast2->ChildType = ParseType();
-								if (LocalErr)
-									return (SAstExpr*)DummyPtr;
 								ast = (SAstExpr*)ast2;
 							}
 						}
@@ -3528,9 +3275,8 @@ static SAstExpr* ParseExprValue(void)
 						{
 							buf[1024] = L'\0';
 							Err(L"EP0012", NewPos(SrcName, row, col), buf);
-							LocalErr = True;
-							ReadUntilRet();
-							return (SAstExpr*)DummyPtr;
+							ReadUntilRet(c);
+							return NULL;
 						}
 						buf[len] = EscChar(c);
 						len++;
@@ -3548,9 +3294,8 @@ static SAstExpr* ParseExprValue(void)
 					{
 						buf[1024] = L'\0';
 						Err(L"EP0012", NewPos(SrcName, row, col), buf);
-						LocalErr = True;
-						ReadUntilRet();
-						return (SAstExpr*)DummyPtr;
+						ReadUntilRet(c);
+						return NULL;
 					}
 					buf[len] = c;
 					len++;
@@ -3577,9 +3322,8 @@ static SAstExpr* ParseExprValue(void)
 						if (set)
 						{
 							Err(L"EP0013", NewPos(SrcName, row, col), CharToStr(buf));
-							LocalErr = True;
-							ReadUntilRet();
-							return (SAstExpr*)DummyPtr;
+							ReadUntilRet(c);
+							return NULL;
 						}
 						buf = EscChar(c);
 						set = True;
@@ -3596,9 +3340,8 @@ static SAstExpr* ParseExprValue(void)
 					if (set)
 					{
 						Err(L"EP0013", NewPos(SrcName, row, col), CharToStr(buf));
-						LocalErr = True;
-						ReadUntilRet();
-						return (SAstExpr*)DummyPtr;
+						ReadUntilRet(c);
+						return NULL;
 					}
 					buf = c;
 					set = True;
@@ -3606,9 +3349,8 @@ static SAstExpr* ParseExprValue(void)
 				if (!set)
 				{
 					Err(L"EP0014", NewPos(SrcName, row, col));
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 				}
 				{
 					U64 value = (U64)buf;
@@ -3619,14 +3361,12 @@ static SAstExpr* ParseExprValue(void)
 		case L'(':
 			{
 				SAstExpr* ast = ParseExpr();
-				if (LocalErr)
-					return (SAstExpr*)DummyPtr;
-				if (ReadChar() != L')')
+				c = ReadChar();
+				if (c != L')')
 				{
 					Err(L"EP0015", NewPos(SrcName, Row, Col));
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 				}
 				return ast;
 			}
@@ -3643,9 +3383,8 @@ static SAstExpr* ParseExprValue(void)
 					for (; ; )
 					{
 						SAstExpr* expr = ParseExpr();
-						if (LocalErr)
-							return (SAstExpr*)DummyPtr;
-						ListAdd(ast->Values, expr);
+						if (expr != NULL)
+							ListAdd(ast->Values, expr);
 						c = ReadChar();
 						if (c == L'\0')
 							break;
@@ -3654,8 +3393,7 @@ static SAstExpr* ParseExprValue(void)
 						if (c != L',')
 						{
 							NextCharErr(L',', c);
-							LocalErr = True;
-							return (SAstExpr*)DummyPtr;
+							return NULL;
 						}
 					}
 				}
@@ -3678,12 +3416,7 @@ static SAstExpr* ParseExprValue(void)
 			break;
 		default:
 			if (L'0' <= c && c <= L'9')
-			{
-				SAstExpr* ast = ParseExprNumber(row, col, c);
-				if (LocalErr)
-					return (SAstExpr*)DummyPtr;
-				return ast;
-			}
+				return ParseExprNumber(row, col, c);
 			else if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || c == L'@' || c == L'\\')
 			{
 				FileBuf = c;
@@ -3754,9 +3487,8 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 				if (change_base || float_type)
 				{
 					Err(L"EP0016", NewPos(SrcName, row, col));
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 				}
 				{
 					Char* end_ptr;
@@ -3766,9 +3498,8 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 					if (*end_ptr != L'\0' || errno == ERANGE || !(base == 2 || base == 8 || base == 16))
 					{
 						Err(L"EP0019", NewPos(SrcName, row, col), base);
-						LocalErr = True;
-						ReadUntilRet();
-						return (SAstExpr*)DummyPtr;
+						ReadUntilRet(c);
+						return NULL;
 					}
 				}
 				len = 0;
@@ -3779,17 +3510,15 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 				if (change_base || float_type)
 				{
 					Err(L"EP0017", NewPos(SrcName, row, col));
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 				}
 				if (len == 1024)
 				{
 					buf[1024] = L'\0';
 					Err(L"EP0018", NewPos(SrcName, row, col), buf);
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 				}
 				buf[len] = c;
 				len++;
@@ -3801,9 +3530,8 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 				{
 					buf[1024] = L'\0';
 					Err(L"EP0018", NewPos(SrcName, row, col), buf);
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 				}
 				buf[len] = c;
 				len++;
@@ -3818,9 +3546,8 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 		if (len == 0 || buf[len - 1] == L'.')
 		{
 			Err(L"EP0017", NewPos(SrcName, row, col));
-			LocalErr = True;
-			ReadUntilRet();
-			return (SAstExpr*)DummyPtr;
+			ReadUntilRet(Read());
+			return NULL;
 		}
 		if (float_type)
 		{
@@ -3831,9 +3558,8 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 				{
 					buf[1024] = L'\0';
 					Err(L"EP0018", NewPos(SrcName, row, col), buf);
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 				}
 				buf[len] = c;
 				len++;
@@ -3841,17 +3567,15 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 				if (c != L'+' && c != L'-')
 				{
 					Err(L"EP0056", NewPos(SrcName, row, col));
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 				}
 				if (len == 1024)
 				{
 					buf[1024] = L'\0';
 					Err(L"EP0018", NewPos(SrcName, row, col), buf);
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 				}
 				buf[len] = c;
 				len++;
@@ -3859,9 +3583,8 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 				if (!(L'0' <= c && c <= L'9'))
 				{
 					Err(L"EP0056", NewPos(SrcName, row, col));
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(c);
+					return NULL;
 				}
 				do
 				{
@@ -3869,9 +3592,8 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 					{
 						buf[1024] = L'\0';
 						Err(L"EP0018", NewPos(SrcName, row, col), buf);
-						LocalErr = True;
-						ReadUntilRet();
-						return (SAstExpr*)DummyPtr;
+						ReadUntilRet(c);
+						return NULL;
 					}
 					buf[len] = c;
 					len++;
@@ -3888,9 +3610,8 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 				if (*end_ptr != L'\0' || errno == ERANGE)
 				{
 					Err(L"EP0020", NewPos(SrcName, row, col), buf);
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(Read());
+					return NULL;
 				}
 				*(double*)ast->Value = value;
 			}
@@ -3921,9 +3642,8 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 					default:
 						buf[len] = L'\0';
 						Err(L"EP0022", NewPos(SrcName, row, col), buf);
-						LocalErr = True;
-						ReadUntilRet();
-						return (SAstExpr*)DummyPtr;
+						ReadUntilRet(c);
+						return NULL;
 				}
 			}
 			else
@@ -3937,16 +3657,14 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 				if (*end_ptr != L'\0' || errno == ERANGE)
 				{
 					Err(L"EP0021", NewPos(SrcName, row, col), buf);
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(Read());
+					return NULL;
 				}
 				if (bit_size == 1 && value > _UI8_MAX || bit_size == 2 && value > _UI16_MAX || bit_size == 4 && value > _UI32_MAX || bit_size == 0 && value > _I64_MAX)
 				{
 					Err(L"EP0021", NewPos(SrcName, row, col), buf);
-					LocalErr = True;
-					ReadUntilRet();
-					return (SAstExpr*)DummyPtr;
+					ReadUntilRet(Read());
+					return NULL;
 				}
 				*(U64*)ast->Value = value;
 			}

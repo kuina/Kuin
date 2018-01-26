@@ -72,7 +72,6 @@ static const Char* BuildInFuncs[] =
 static SDict* Asts;
 static const SOption* Option;
 static SDict* Dlls;
-static Bool LocalErr;
 
 static SAstFunc* SearchMain(void);
 static const void* ResolveIdentifierCallback(const Char* key, const void* value, void* param);
@@ -153,7 +152,6 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 	Asts = asts;
 	Option = option;
 	Dlls = NULL;
-	LocalErr = False;
 	{
 		SAstFunc* main_func = SearchMain();
 		if (main_func == NULL)
@@ -162,11 +160,9 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 			return NULL;
 		}
 		DictForEach(Asts, ResolveIdentifierCallback, NULL);
-		if (!ErrOccurred())
-			result = Rebuild(main_func);
+		result = Rebuild(main_func);
 #if defined(_DEBUG)
-		if (!ErrOccurred())
-			Dump1(NewStr(NULL, L"%s_analyzed.xml", Option->OutputFile), (SAst*)main_func);
+		Dump1(NewStr(NULL, L"%s_analyzed.xml", Option->OutputFile), (SAst*)main_func);
 #endif
 	}
 	{
@@ -315,7 +311,11 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 						ast->RefItem = (SAst*)found_ast;
 					}
 					else
-						Err(L"EA0000", ast->Pos, ast->RefName);
+					{
+						if (ast->RefName[0] != L'\0')
+							Err(L"EA0000", ast->Pos, ast->RefName);
+						ast->RefItem = NULL;
+					}
 				}
 			}
 			ptr = ptr->Next;
@@ -549,16 +549,14 @@ static SAst* SearchStdItem(const Char* src, const Char* identifier, Bool make_ex
 	if (ast == NULL)
 	{
 		Err(L"EK0000", NULL, src);
-		LocalErr = True;
-		return (SAst*)DummyPtr;
+		return NULL;
 	}
 	{
 		SAst* ast2 = (SAst*)DictSearch(ast->ScopeChildren, identifier);
 		if (ast2 == NULL)
 		{
 			Err(L"EK0001", NULL, src);
-			LocalErr = True;
-			return (SAst*)DummyPtr;
+			return NULL;
 		}
 		if (make_expr_ref)
 		{
@@ -878,11 +876,6 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 		}
 		ListAdd(func->Stats, try_);
 	}
-	if (LocalErr)
-	{
-		LocalErr = False;
-		return (SAstFunc*)DummyPtr;
-	}
 	RebuildFunc(func);
 	ListAdd(((const SAstRoot*)DictSearch(Asts, NewStr(NULL, L"\\%s", Option->SrcName)))->Items, func);
 	DictForEach(Asts, RebuildRootCallback, NULL);
@@ -915,7 +908,6 @@ static void RebuildRoot(SAstRoot* ast)
 	{
 		SAstFunc* init_vars = (SAstFunc*)SearchStdItem(L"kuin", L"_initVars", False);
 		SAstFunc* fin_vars = (SAstFunc*)SearchStdItem(L"kuin", L"_finVars", False);
-		ASSERT(!LocalErr);
 		{
 			SListNode* ptr = ast->Items->Top;
 			while (ptr != NULL)
@@ -931,12 +923,6 @@ static void RebuildRoot(SAstRoot* ast)
 					{
 						// Add initialization processing of global variables to '_initVars'.
 						var->Var->Expr = RebuildExpr(var->Var->Expr, False);
-						if (LocalErr)
-						{
-							LocalErr = False;
-							ptr = ptr->Next;
-							continue;
-						}
 						{
 							SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 							InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
@@ -1727,12 +1713,8 @@ static void RebuildEnum(SAstEnum* ast)
 				SAstExpr* item = (SAstExpr*)ptr->Data;
 				const Char* item_name = ((SAst*)item)->Name;
 				item = RebuildExpr(item, item->Type == NULL);
-				if (LocalErr)
-				{
-					LocalErr = False;
-					ptr = ptr->Next;
+				if (item == NULL)
 					continue;
-				}
 				((SAst*)item)->Name = item_name;
 				ptr->Data = item;
 				if (((SAst*)item)->TypeId != AstTypeId_ExprValue || (item->Type != NULL && !IsInt(item->Type)))
@@ -1774,22 +1756,11 @@ static void RebuildArg(SAstArg* ast)
 		return;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Type = RebuildType(ast->Type);
-	if (LocalErr)
-	{
-		ast->Type = NULL;
-		LocalErr = False;
-		ast->Expr = NULL;
-		return;
-	}
 	if (ast->Expr != NULL)
 	{
 		ast->Expr = RebuildExpr(ast->Expr, False);
-		if (LocalErr)
-		{
-			LocalErr = False;
-			ast->Expr = NULL;
+		if (ast->Expr == NULL)
 			return;
-		}
 		if (ast->Kind == AstArgKind_Global && !(((SAst*)ast->Expr)->TypeId == AstTypeId_ExprValue))
 			Err(L"EA0014", ((SAst*)ast)->Pos, ((SAst*)ast)->Name);
 		if (ast->Kind == AstArgKind_Const && !(((SAst*)ast->Expr)->TypeId == AstTypeId_ExprValue))
@@ -1857,10 +1828,9 @@ static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type)
 			ASSERT(False);
 			break;
 	}
-	if (ast == (SAstStat*)DummyPtr)
-		return (SAstStat*)DummyPtr;
-	if (ast != NULL)
-		ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
+	if (ast == NULL)
+		return NULL;
+	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
 	return ast;
 }
 
@@ -1870,12 +1840,7 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Cond = RebuildExpr(ast->Cond, False);
-	if (LocalErr)
-	{
-		LocalErr = False;
-		return (SAstStat*)DummyPtr;
-	}
-	if (!IsBool(ast->Cond->Type))
+	if (ast->Cond != NULL && !IsBool(ast->Cond->Type))
 		Err(L"EA0016", ((SAst*)ast->Cond)->Pos);
 	ast->StatBlock = (SAstStatBlock*)RebuildBlock(ast->StatBlock, ret_type);
 	{
@@ -1884,12 +1849,7 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
 		{
 			SAstStatElIf* elif = (SAstStatElIf*)ptr->Data;
 			elif->Cond = RebuildExpr(elif->Cond, False);
-			if (LocalErr)
-			{
-				LocalErr = False;
-				return (SAstStat*)DummyPtr;
-			}
-			if (!IsBool(elif->Cond->Type))
+			if (elif->Cond != NULL && !IsBool(elif->Cond->Type))
 				Err(L"EA0017", ((SAst*)elif->Cond)->Pos);
 			elif->StatBlock = (SAstStatBlock*)RebuildBlock(elif->StatBlock, ret_type);
 			ptr = ptr->Next;
@@ -1897,6 +1857,7 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
 	}
 	if (ast->ElseStatBlock != NULL)
 		ast->ElseStatBlock = (SAstStatBlock*)RebuildBlock(ast->ElseStatBlock, ret_type);
+	if (ast->Cond != NULL)
 	{
 		// Optimize the code.
 		SAstStatBlock* stats = NULL;
@@ -1938,8 +1899,8 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
 		}
 		ast->Cond = NULL;
 		ast->StatBlock = stats;
-		return (SAstStat*)ast;
 	}
+	return (SAstStat*)ast;
 }
 
 static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type)
@@ -1948,14 +1909,12 @@ static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Cond = RebuildExpr(ast->Cond, False);
-	if (LocalErr)
+	if (ast->Cond != NULL)
 	{
-		LocalErr = False;
-		return (SAstStat*)DummyPtr;
+		if (!IsComparable(ast->Cond->Type, True))
+			Err(L"EA0018", ((SAst*)ast->Cond)->Pos);
+		((SAstStatBreakable*)ast)->BlockVar->Type = ast->Cond->Type;
 	}
-	if (!IsComparable(ast->Cond->Type, True))
-		Err(L"EA0018", ((SAst*)ast->Cond)->Pos);
-	((SAstStatBreakable*)ast)->BlockVar->Type = ast->Cond->Type;
 	{
 		SListNode* ptr = ast->Cases->Top;
 		while (ptr != NULL)
@@ -1966,27 +1925,23 @@ static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type)
 			{
 				SAstExpr** exprs = (SAstExpr**)ptr2->Data;
 				exprs[0] = RebuildExpr(exprs[0], False);
-				if (LocalErr)
+				if (ast->Cond != NULL && exprs[0] != NULL)
 				{
-					LocalErr = False;
-					return (SAstStat*)DummyPtr;
+					if (!CmpType(ast->Cond->Type, exprs[0]->Type))
+						Err(L"EA0019", ((SAst*)exprs[0])->Pos);
+					else if (((SAst*)exprs[0]->Type)->TypeId == AstTypeId_TypeEnumElement)
+						RebuildEnumElement(exprs[0], ast->Cond->Type);
 				}
-				if (!CmpType(ast->Cond->Type, exprs[0]->Type))
-					Err(L"EA0019", ((SAst*)exprs[0])->Pos);
-				else if (((SAst*)exprs[0]->Type)->TypeId == AstTypeId_TypeEnumElement)
-					RebuildEnumElement(exprs[0], ast->Cond->Type);
 				if (exprs[1] != NULL)
 				{
 					exprs[1] = RebuildExpr(exprs[1], False);
-					if (LocalErr)
+					if (ast->Cond != NULL && exprs[1] != NULL)
 					{
-						LocalErr = False;
-						return (SAstStat*)DummyPtr;
+						if (!CmpType(ast->Cond->Type, exprs[1]->Type))
+							Err(L"EA0019", ((SAst*)exprs[1])->Pos);
+						else if (((SAst*)exprs[1]->Type)->TypeId == AstTypeId_TypeEnumElement)
+							RebuildEnumElement(exprs[1], ast->Cond->Type);
 					}
-					if (!CmpType(ast->Cond->Type, exprs[1]->Type))
-						Err(L"EA0019", ((SAst*)exprs[1])->Pos);
-					else if (((SAst*)exprs[1]->Type)->TypeId == AstTypeId_TypeEnumElement)
-						RebuildEnumElement(exprs[1], ast->Cond->Type);
 				}
 				ptr2 = ptr2->Next;
 			}
@@ -2007,12 +1962,7 @@ static SAstStat* RebuildWhile(SAstStatWhile* ast, SAstType* ret_type)
 	if (ast->Cond != NULL)
 	{
 		ast->Cond = RebuildExpr(ast->Cond, False);
-		if (LocalErr)
-		{
-			LocalErr = False;
-			return (SAstStat*)DummyPtr;
-		}
-		if (!IsBool(ast->Cond->Type))
+		if (ast->Cond != NULL && !IsBool(ast->Cond->Type))
 			Err(L"EA0020", ((SAst*)ast->Cond)->Pos);
 	}
 	ast->Stats = RefreshStats(ast->Stats, ret_type);
@@ -2025,34 +1975,25 @@ static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Start = RebuildExpr(ast->Start, False);
-	if (LocalErr)
+	if (ast->Start != NULL)
 	{
-		LocalErr = False;
-		return (SAstStat*)DummyPtr;
+		if (!IsInt(ast->Start->Type))
+			Err(L"EA0021", ((SAst*)ast->Start)->Pos);
+		((SAstStatBreakable*)ast)->BlockVar->Type = ast->Start->Type;
 	}
-	if (!IsInt(ast->Start->Type))
-		Err(L"EA0021", ((SAst*)ast->Start)->Pos);
-	((SAstStatBreakable*)ast)->BlockVar->Type = ast->Start->Type;
 	ast->Cond = RebuildExpr(ast->Cond, False);
-	if (LocalErr)
-	{
-		LocalErr = False;
-		return (SAstStat*)DummyPtr;
-	}
-	if (!IsInt(ast->Cond->Type))
+	if (ast->Cond != NULL && !IsInt(ast->Cond->Type))
 		Err(L"EA0022", ((SAst*)ast->Cond)->Pos);
 	ast->Step = RebuildExpr(ast->Step, False);
-	if (LocalErr)
+	if (ast->Step != NULL)
 	{
-		LocalErr = False;
-		return (SAstStat*)DummyPtr;
+		if (!IsInt(ast->Step->Type))
+			Err(L"EA0023", ((SAst*)ast->Step)->Pos);
+		if (((SAst*)ast->Step)->TypeId != AstTypeId_ExprValue)
+			Err(L"EA0024", ((SAst*)ast->Step)->Pos);
+		if (*((S64*)((SAstExprValue*)ast->Step)->Value) == 0)
+			Err(L"EA0025", ((SAst*)ast->Step)->Pos);
 	}
-	if (!IsInt(ast->Step->Type))
-		Err(L"EA0023", ((SAst*)ast->Step)->Pos);
-	if (((SAst*)ast->Step)->TypeId != AstTypeId_ExprValue)
-		Err(L"EA0024", ((SAst*)ast->Step)->Pos);
-	if (*((S64*)((SAstExprValue*)ast->Step)->Value) == 0)
-		Err(L"EA0025", ((SAst*)ast->Step)->Pos);
 	ast->Stats = RefreshStats(ast->Stats, ret_type);
 	return (SAstStat*)ast;
 }
@@ -2075,22 +2016,12 @@ static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type)
 			{
 				SAstExpr** exprs = (SAstExpr**)ptr2->Data;
 				exprs[0] = RebuildExpr(exprs[0], False);
-				if (LocalErr)
-				{
-					LocalErr = False;
-					return (SAstStat*)DummyPtr;
-				}
-				if (!IsInt(exprs[0]->Type) || ((SAst*)exprs[0])->TypeId != AstTypeId_ExprValue)
+				if (exprs[0] != NULL && (!IsInt(exprs[0]->Type) || ((SAst*)exprs[0])->TypeId != AstTypeId_ExprValue))
 					Err(L"EA0027", ((SAst*)exprs[0])->Pos);
 				if (exprs[1] != NULL)
 				{
 					exprs[1] = RebuildExpr(exprs[1], False);
-					if (LocalErr)
-					{
-						LocalErr = False;
-						return (SAstStat*)DummyPtr;
-					}
-					if (!IsInt(exprs[1]->Type) || ((SAst*)exprs[1])->TypeId != AstTypeId_ExprValue)
+					if (exprs[1] != NULL && (!IsInt(exprs[1]->Type) || ((SAst*)exprs[1])->TypeId != AstTypeId_ExprValue))
 						Err(L"EA0027", ((SAst*)exprs[1])->Pos);
 				}
 				ptr2 = ptr2->Next;
@@ -2110,12 +2041,7 @@ static SAstStat* RebuildThrow(SAstStatThrow* ast)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Code = RebuildExpr(ast->Code, False);
-	if (LocalErr)
-	{
-		LocalErr = False;
-		return (SAstStat*)DummyPtr;
-	}
-	if (!IsInt(ast->Code->Type))
+	if (ast->Code != NULL && !IsInt(ast->Code->Type))
 		Err(L"EA0028", ((SAst*)ast->Code)->Pos);
 	return (SAstStat*)ast;
 }
@@ -2142,15 +2068,13 @@ static SAstStat* RebuildRet(SAstStatRet* ast, SAstType* ret_type)
 	else
 	{
 		ast->Value = RebuildExpr(ast->Value, False);
-		if (LocalErr)
+		if (ast->Value != NULL)
 		{
-			LocalErr = False;
-			return (SAstStat*)DummyPtr;
+			if (ret_type == NULL || !CmpType(ast->Value->Type, ret_type))
+				Err(L"EA0031", ((SAst*)ast)->Pos);
+			else if (((SAst*)ast->Value->Type)->TypeId == AstTypeId_TypeEnumElement)
+				RebuildEnumElement(ast->Value, ret_type);
 		}
-		if (ret_type == NULL || !CmpType(ast->Value->Type, ret_type))
-			Err(L"EA0031", ((SAst*)ast)->Pos);
-		else if (((SAst*)ast->Value->Type)->TypeId == AstTypeId_TypeEnumElement)
-			RebuildEnumElement(ast->Value, ret_type);
 	}
 	return (SAstStat*)ast;
 }
@@ -2161,11 +2085,8 @@ static SAstStat* RebuildDo(SAstStatDo* ast)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Expr = RebuildExpr(ast->Expr, True);
-	if (LocalErr)
-	{
-		LocalErr = False;
-		return (SAstStat*)DummyPtr;
-	}
+	if (ast->Expr == NULL)
+		return NULL;
 	// 'do' needs to end with side effects.
 	if (!(((SAst*)ast->Expr)->TypeId == AstTypeId_Expr2 && (((SAstExpr2*)ast->Expr)->Kind == AstExpr2Kind_Assign || ((SAstExpr2*)ast->Expr)->Kind == AstExpr2Kind_Swap) || ((SAst*)ast->Expr)->TypeId == AstTypeId_ExprCall))
 		Err(L"EA0032", ((SAst*)ast->Expr)->Pos);
@@ -2208,12 +2129,7 @@ static SAstStat* RebuildAssert(SAstStatAssert* ast)
 		return NULL;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Cond = RebuildExpr(ast->Cond, False);
-	if (LocalErr)
-	{
-		LocalErr = False;
-		return (SAstStat*)DummyPtr;
-	}
-	if (!IsBool(ast->Cond->Type))
+	if (ast->Cond != NULL && !IsBool(ast->Cond->Type))
 		Err(L"EA0035", ((SAst*)ast->Cond)->Pos);
 	return (SAstStat*)ast;
 }
@@ -2230,6 +2146,8 @@ static SAstType* RebuildType(SAstType* ast)
 			case AstTypeId_TypeUser:
 				{
 					SAst* ref_item = ((SAst*)ast)->RefItem;
+					if (ref_item == NULL)
+						return NULL;
 					if (ref_item->TypeId == AstTypeId_Class)
 						RebuildClass((SAstClass*)ref_item);
 					else if (ref_item->TypeId == AstTypeId_Enum)
@@ -2243,8 +2161,7 @@ static SAstType* RebuildType(SAstType* ast)
 					else
 					{
 						Err(L"EA0037", ((SAst*)ast)->Pos);
-						LocalErr = True;
-						return (SAstType*)DummyPtr;
+						return NULL;
 					}
 				}
 				break;
@@ -2277,13 +2194,13 @@ static SAstType* RebuildType(SAstType* ast)
 				break;
 		}
 	}
-	if (LocalErr)
-		return (SAstType*)DummyPtr;
 	return (SAstType*)ast;
 }
 
 static SAstExpr* RebuildExpr(SAstExpr* ast, Bool nullable)
 {
+	if (ast == NULL)
+		return NULL;
 	switch (((SAst*)ast)->TypeId)
 	{
 		case AstTypeId_Expr1: ast = RebuildExpr1((SAstExpr1*)ast); break;
@@ -2303,14 +2220,13 @@ static SAstExpr* RebuildExpr(SAstExpr* ast, Bool nullable)
 		default:
 			ASSERT(False);
 	}
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast == NULL)
+		return NULL;
 	if (!nullable && ast->Type == NULL)
 	{
 		// 'Type' is NULL, for example, when calling a function whose return value is 'void'.
 		Err(L"EA0056", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	return (SAstExpr*)ast;
 }
@@ -2321,8 +2237,8 @@ static SAstExpr* RebuildExpr1(SAstExpr1* ast)
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Child = RebuildExpr(ast->Child, False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Child == NULL)
+		return NULL;
 	ASSERT(((SAstExpr*)ast)->Type == NULL);
 	switch (ast->Kind)
 	{
@@ -2360,8 +2276,6 @@ static SAstExpr* RebuildExpr1(SAstExpr1* ast)
 						}
 					}
 					expr = (SAstExprValue*)RebuildExprValue(expr);
-					if (LocalErr)
-						return (SAstExpr*)DummyPtr;
 					((SAst*)ast)->AnalyzedCache = (SAst*)expr;
 					return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 				}
@@ -2378,8 +2292,6 @@ static SAstExpr* RebuildExpr1(SAstExpr1* ast)
 					((SAstExpr*)expr)->Type = ast->Child->Type;
 					*(U64*)expr->Value = *(U64*)((SAstExprValue*)ast->Child)->Value != 0 ? 0 : 1;
 					expr = (SAstExprValue*)RebuildExprValue(expr);
-					if (LocalErr)
-						return (SAstExpr*)DummyPtr;
 					((SAst*)ast)->AnalyzedCache = (SAst*)expr;
 					return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 				}
@@ -2406,8 +2318,7 @@ static SAstExpr* RebuildExpr1(SAstExpr1* ast)
 	if (((SAstExpr*)ast)->Type == NULL)
 	{
 		Err(L"EA0056", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
 	return (SAstExpr*)ast;
@@ -2446,22 +2357,19 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 				expr_assign->Children[1] = (SAstExpr*)expr_ope;
 			}
 			((SAst*)ast)->AnalyzedCache = (SAst*)RebuildExpr((SAstExpr*)expr_assign, True);
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
 			return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 		}
 	}
 	ast->Children[0] = RebuildExpr(ast->Children[0], False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Children[0] == NULL)
+		return NULL;
 	ast->Children[1] = RebuildExpr(ast->Children[1], False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Children[1] == NULL)
+		return NULL;
 	if (!CmpType(ast->Children[0]->Type, ast->Children[1]->Type))
 	{
 		Err(L"EA0056", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	{
 		Bool correct = False;
@@ -2471,8 +2379,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 				if (ast->Children[0]->VarKind == AstExprVarKind_Value)
 				{
 					Err(L"EA0038", ((SAst*)ast)->Pos);
-					LocalErr = True;
-					return (SAstExpr*)DummyPtr;
+					return NULL;
 				}
 				if (IsClass(ast->Children[0]->Type) && IsClass(ast->Children[1]->Type))
 				{
@@ -2483,8 +2390,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 						if (ptr == NULL)
 						{
 							Err(L"EA0056", ((SAst*)ast)->Pos);
-							LocalErr = True;
-							return (SAstExpr*)DummyPtr;
+							return NULL;
 						}
 					}
 				}
@@ -2521,8 +2427,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 				if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeNull || ((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeNull)
 				{
 					Err(L"EA0039", ((SAst*)ast)->Pos);
-					LocalErr = True;
-					return (SAstExpr*)DummyPtr;
+					return NULL;
 				}
 				else if (IsComparable(ast->Children[0]->Type, True))
 				{
@@ -2535,8 +2440,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 						{
 							ASSERT(((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue);
 							Err(L"EA0060", ((SAst*)ast)->Pos, *(const Char**)((SAstExprValue*)ast->Children[0])->Value);
-							LocalErr = True;
-							return (SAstExpr*)DummyPtr;
+							return NULL;
 						}
 						RebuildEnumElement(ast->Children[0], ast->Children[1]->Type);
 					}
@@ -2613,8 +2517,6 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 							((SAstExpr*)expr)->Type = (SAstType*)type;
 							*(U64*)expr->Value = b ? 1 : 0;
 							expr = (SAstExprValue*)RebuildExprValue(expr);
-							if (LocalErr)
-								return (SAstExpr*)DummyPtr;
 							((SAst*)ast)->AnalyzedCache = (SAst*)expr;
 							return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 						}
@@ -2628,8 +2530,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 				if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeNull || ((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeNull)
 				{
 					Err(L"EA0039", ((SAst*)ast)->Pos);
-					LocalErr = True;
-					return (SAstExpr*)DummyPtr;
+					return NULL;
 				}
 				else if (IsComparable(ast->Children[0]->Type, False))
 				{
@@ -2642,8 +2543,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 						{
 							ASSERT(((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue);
 							Err(L"EA0060", ((SAst*)ast)->Pos, *(const Char**)((SAstExprValue*)ast->Children[0])->Value);
-							LocalErr = True;
-							return (SAstExpr*)DummyPtr;
+							return NULL;
 						}
 						RebuildEnumElement(ast->Children[0], ast->Children[1]->Type);
 					}
@@ -2686,8 +2586,6 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 							((SAstExpr*)expr)->Type = (SAstType*)type;
 							*(U64*)expr->Value = b ? 1 : 0;
 							expr = (SAstExprValue*)RebuildExprValue(expr);
-							if (LocalErr)
-								return (SAstExpr*)DummyPtr;
 							((SAst*)ast)->AnalyzedCache = (SAst*)expr;
 							return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 						}
@@ -2711,8 +2609,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 				if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeNull || ((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeNull)
 				{
 					Err(L"EA0040", ((SAst*)ast)->Pos);
-					LocalErr = True;
-					return (SAstExpr*)DummyPtr;
+					return NULL;
 				}
 				else if (((SAst*)ast->Children[0]->Type)->TypeId == AstTypeId_TypeArray)
 				{
@@ -2744,8 +2641,6 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 								((SAstExpr*)expr)->Type = ast->Children[0]->Type;
 								*(Char**)expr->Value = buf;
 								expr = (SAstExprValue*)RebuildExprValue(expr);
-								if (LocalErr)
-									return (SAstExpr*)DummyPtr;
 								((SAst*)ast)->AnalyzedCache = (SAst*)expr;
 								return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 							}
@@ -2780,8 +2675,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 									if (n2 == 0)
 									{
 										Err(L"EA0063", ((SAst*)ast)->Pos);
-										LocalErr = True;
-										return (SAstExpr*)DummyPtr;
+										return NULL;
 									}
 									n1 /= n2;
 									break;
@@ -2789,8 +2683,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 									if (n2 == 0)
 									{
 										Err(L"EA0063", ((SAst*)ast)->Pos);
-										LocalErr = True;
-										return (SAstExpr*)DummyPtr;
+										return NULL;
 									}
 									n1 %= n2;
 									break;
@@ -2811,32 +2704,28 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 									if (AddAsm(&n1, n2))
 									{
 										Err(L"EA0064", ((SAst*)ast)->Pos);
-										LocalErr = True;
-										return (SAstExpr*)DummyPtr;
+										return NULL;
 									}
 									break;
 								case AstExpr2Kind_Sub:
 									if (SubAsm(&n1, n2))
 									{
 										Err(L"EA0064", ((SAst*)ast)->Pos);
-										LocalErr = True;
-										return (SAstExpr*)DummyPtr;
+										return NULL;
 									}
 									break;
 								case AstExpr2Kind_Mul:
 									if (MulAsm(&n1, n2))
 									{
 										Err(L"EA0064", ((SAst*)ast)->Pos);
-										LocalErr = True;
-										return (SAstExpr*)DummyPtr;
+										return NULL;
 									}
 									break;
 								case AstExpr2Kind_Div:
 									if (n2 == 0)
 									{
 										Err(L"EA0063", ((SAst*)ast)->Pos);
-										LocalErr = True;
-										return (SAstExpr*)DummyPtr;
+										return NULL;
 									}
 									n1 /= n2;
 									break;
@@ -2844,8 +2733,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 									if (n2 == 0)
 									{
 										Err(L"EA0063", ((SAst*)ast)->Pos);
-										LocalErr = True;
-										return (SAstExpr*)DummyPtr;
+										return NULL;
 									}
 									n1 %= n2;
 									break;
@@ -2870,8 +2758,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 										if (n1 == 0.0 && n2 == 0.0)
 										{
 											Err(L"EA0063", ((SAst*)ast)->Pos);
-											LocalErr = True;
-											return (SAstExpr*)DummyPtr;
+											return NULL;
 										}
 										n1 /= n2;
 										break;
@@ -2879,8 +2766,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 										if (n1 == 0.0 && n2 == 0.0)
 										{
 											Err(L"EA0063", ((SAst*)ast)->Pos);
-											LocalErr = True;
-											return (SAstExpr*)DummyPtr;
+											return NULL;
 										}
 										n1 = fmod(n1, n2);
 										break;
@@ -2892,8 +2778,6 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 							}
 						}
 						expr = (SAstExprValue*)RebuildExprValue(expr);
-						if (LocalErr)
-							return (SAstExpr*)DummyPtr;
 						((SAst*)ast)->AnalyzedCache = (SAst*)expr;
 						return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 					}
@@ -2912,8 +2796,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 				if (ast->Children[0]->VarKind == AstExprVarKind_Value || ast->Children[1]->VarKind == AstExprVarKind_Value)
 				{
 					Err(L"EA0041", ((SAst*)ast)->Pos);
-					LocalErr = True;
-					return (SAstExpr*)DummyPtr;
+					return NULL;
 				}
 				if (!(IsClass(ast->Children[0]->Type) && ((SAst*)ast->Children[0]->Type)->RefItem != ((SAst*)ast->Children[1]->Type)->RefItem))
 				{
@@ -2928,8 +2811,7 @@ static SAstExpr* RebuildExpr2(SAstExpr2* ast)
 		if (!correct)
 		{
 			Err(L"EA0056", ((SAst*)ast)->Pos);
-			LocalErr = True;
-			return (SAstExpr*)DummyPtr;
+			return NULL;
 		}
 	}
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
@@ -2942,25 +2824,23 @@ static SAstExpr* RebuildExpr3(SAstExpr3* ast)
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Children[0] = RebuildExpr(ast->Children[0], False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Children[0] == NULL)
+		return NULL;
 	ast->Children[1] = RebuildExpr(ast->Children[1], False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Children[1] == NULL)
+		return NULL;
 	ast->Children[2] = RebuildExpr(ast->Children[2], False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Children[2] == NULL)
+		return NULL;
 	if (!IsBool(ast->Children[0]->Type))
 	{
 		Err(L"EA0042", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	if (!CmpType(ast->Children[1]->Type, ast->Children[2]->Type))
 	{
 		Err(L"EA0043", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	if (((SAst*)ast->Children[0])->TypeId == AstTypeId_ExprValue)
 	{
@@ -2973,8 +2853,7 @@ static SAstExpr* RebuildExpr3(SAstExpr3* ast)
 		{
 			ASSERT(((SAst*)ast->Children[1])->TypeId == AstTypeId_ExprValue);
 			Err(L"EA0060", ((SAst*)ast)->Pos, *(const Char**)((SAstExprValue*)ast->Children[1])->Value);
-			LocalErr = True;
-			return (SAstExpr*)DummyPtr;
+			return NULL;
 		}
 		RebuildEnumElement(ast->Children[1], ast->Children[2]->Type);
 	}
@@ -2991,13 +2870,12 @@ static SAstExpr* RebuildExprNew(SAstExprNew* ast)
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->ItemType = RebuildType(ast->ItemType);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->ItemType == NULL)
+		return NULL;
 	if (!(((SAst*)ast->ItemType)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->ItemType)->TypeId == AstTypeId_TypeDict || IsClass(ast->ItemType)))
 	{
 		Err(L"EA0044", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	((SAstExpr*)ast)->Type = ast->ItemType;
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
@@ -3014,20 +2892,17 @@ static SAstExpr* RebuildExprNewArray(SAstExprNewArray* ast)
 		while (ptr != NULL)
 		{
 			ptr->Data = RebuildExpr((SAstExpr*)ptr->Data, False);
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
-			if (!IsInt(((SAstExpr*)ptr->Data)->Type))
+			if (ptr->Data != NULL && !IsInt(((SAstExpr*)ptr->Data)->Type))
 			{
 				Err(L"EA0045", ((SAst*)ptr->Data)->Pos);
-				LocalErr = True;
-				return (SAstExpr*)DummyPtr;
+				return NULL;
 			}
 			ptr = ptr->Next;
 		}
 	}
 	ast->ItemType = RebuildType(ast->ItemType);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->ItemType == NULL)
+		return NULL;
 	{
 		SAstType* type = ast->ItemType;
 		int i;
@@ -3050,11 +2925,11 @@ static SAstExpr* RebuildExprAs(SAstExprAs* ast)
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Child = RebuildExpr(ast->Child, False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Child == NULL)
+		return NULL;
 	ast->ChildType = RebuildType(ast->ChildType);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->ChildType == NULL)
+		return NULL;
 	ASSERT(((SAstExpr*)ast)->Type == NULL);
 	switch (ast->Kind)
 	{
@@ -3165,8 +3040,6 @@ static SAstExpr* RebuildExprAs(SAstExprAs* ast)
 							}
 						}
 						expr = (SAstExprValue*)RebuildExprValue(expr);
-						if (LocalErr)
-							return (SAstExpr*)DummyPtr;
 						((SAst*)ast)->AnalyzedCache = (SAst*)expr;
 						return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 					}
@@ -3190,8 +3063,7 @@ static SAstExpr* RebuildExprAs(SAstExprAs* ast)
 	if (((SAstExpr*)ast)->Type == NULL)
 	{
 		Err(L"EA0056", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
 	return (SAstExpr*)ast;
@@ -3203,19 +3075,17 @@ static SAstExpr* RebuildExprToBin(SAstExprToBin* ast)
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Child = RebuildExpr(ast->Child, False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Child == NULL)
+		return NULL;
 	if (((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeNull || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeEnumElement)
 	{
 		Err(L"EA0056", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	if (((SAst*)ast->ChildType)->TypeId != AstTypeId_TypeArray || ((SAst*)((SAstTypeArray*)ast->ChildType)->ItemType)->TypeId != AstTypeId_TypeBit || ((SAstTypeBit*)((SAstTypeArray*)ast->ChildType)->ItemType)->Size != 1)
 	{
 		Err(L"EA0056", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	((SAstExpr*)ast)->Type = ast->ChildType;
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
@@ -3228,13 +3098,12 @@ static SAstExpr* RebuildExprFromBin(SAstExprFromBin* ast)
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Child = RebuildExpr(ast->Child, False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Child == NULL)
+		return NULL;
 	if (((SAst*)ast->Child->Type)->TypeId != AstTypeId_TypeArray || ((SAst*)((SAstTypeArray*)ast->Child->Type)->ItemType)->TypeId != AstTypeId_TypeBit || ((SAstTypeBit*)((SAstTypeArray*)ast->Child->Type)->ItemType)->Size != 1)
 	{
 		Err(L"EA0056", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	((SAstExpr*)ast)->Type = ast->ChildType;
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
@@ -3248,8 +3117,8 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Func = RebuildExpr(ast->Func, False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Func == NULL)
+		return NULL;
 	{
 		SAstTypeFunc* type = (SAstTypeFunc*)ast->Func->Type;
 		if (((SAst*)type)->TypeId == AstTypeId_TypeFunc && (type->FuncAttr & FuncAttr_MakeInstance) != 0)
@@ -3262,8 +3131,6 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				InitAstExpr((SAstExpr*)expr, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
 				expr->ItemType = type->Ret;
 				value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
-				if (LocalErr)
-					return (SAstExpr*)DummyPtr;
 			}
 			value_type->RefVar = False;
 			value_type->SkipVar = NULL;
@@ -3293,8 +3160,6 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 						((SAstExpr*)expr)->Type = (SAstType*)prim;
 					}
 					me_type->Arg = RebuildExpr((SAstExpr*)expr, False);
-					if (LocalErr)
-						return (SAstExpr*)DummyPtr;
 				}
 				me_type->RefVar = False;
 				me_type->SkipVar = NULL;
@@ -3315,8 +3180,6 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 						((SAstExpr*)expr)->Type = (SAstType*)prim;
 					}
 					value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
-					if (LocalErr)
-						return (SAstExpr*)DummyPtr;
 				}
 				value_type->RefVar = False;
 				value_type->SkipVar = NULL;
@@ -3328,8 +3191,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 			if (((SAst*)type)->TypeId != AstTypeId_TypeFunc)
 			{
 				Err(L"EA0046", ((SAst*)ast)->Pos);
-				LocalErr = True;
-				return (SAstExpr*)DummyPtr;
+				return NULL;
 			}
 			type = (SAstTypeFunc*)ast->Func->Type;
 		}
@@ -3337,8 +3199,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 		if (ast->Args->Len != type->Args->Len)
 		{
 			Err(L"EA0047", ((SAst*)ast)->Pos, type->Args->Len, ast->Args->Len, GetTypeNameNew((const SAstType*)type));
-			LocalErr = True;
-			return (SAstExpr*)DummyPtr;
+			return NULL;
 		}
 		{
 			SListNode* ptr_expr = ast->Args->Top;
@@ -3351,16 +3212,16 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				if (arg_expr->SkipVar != NULL)
 					arg_expr->SkipVar->Type = arg_type->Arg;
 				arg_expr->Arg = RebuildExpr(arg_expr->Arg, False);
-				if (LocalErr)
-					return (SAstExpr*)DummyPtr;
-				if (arg_expr->RefVar != arg_type->RefVar || !CmpType(arg_expr->Arg->Type, arg_type->Arg))
+				if (arg_expr->Arg != NULL)
 				{
-					Err(L"EA0048", ((SAst*)ast)->Pos, n + 1, arg_type->RefVar ? L"&" : L"", GetTypeNameNew(arg_type->Arg), arg_expr->RefVar ? L"&" : L"", GetTypeNameNew(arg_expr->Arg->Type));
-					LocalErr = True;
-					return (SAstExpr*)DummyPtr;
+					if (arg_expr->RefVar != arg_type->RefVar || !CmpType(arg_expr->Arg->Type, arg_type->Arg))
+					{
+						Err(L"EA0048", ((SAst*)ast)->Pos, n + 1, arg_type->RefVar ? L"&" : L"", GetTypeNameNew(arg_type->Arg), arg_expr->RefVar ? L"&" : L"", GetTypeNameNew(arg_expr->Arg->Type));
+						return NULL;
+					}
+					if (((SAst*)arg_expr->Arg->Type)->TypeId == AstTypeId_TypeEnumElement)
+						RebuildEnumElement(arg_expr->Arg, arg_type->Arg);
 				}
-				if (((SAst*)arg_expr->Arg->Type)->TypeId == AstTypeId_TypeEnumElement)
-					RebuildEnumElement(arg_expr->Arg, arg_type->Arg);
 				ptr_expr = ptr_expr->Next;
 				ptr_type = ptr_type->Next;
 				n++;
@@ -3377,22 +3238,20 @@ static SAstExpr* RebuildExprArray(SAstExprArray* ast)
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Var = RebuildExpr(ast->Var, False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Var == NULL)
+		return NULL;
 	if (((SAst*)ast->Var->Type)->TypeId != AstTypeId_TypeArray)
 	{
 		Err(L"EA0049", ((SAst*)ast)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	ast->Idx = RebuildExpr(ast->Idx, False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Idx == NULL)
+		return NULL;
 	if (!IsInt(ast->Idx->Type))
 	{
 		Err(L"EA0050", ((SAst*)ast->Idx)->Pos);
-		LocalErr = True;
-		return (SAstExpr*)DummyPtr;
+		return NULL;
 	}
 	((SAstExpr*)ast)->Type = ((SAstTypeArray*)ast->Var->Type)->ItemType;
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_GlobalVar;
@@ -3405,8 +3264,8 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	ast->Var = RebuildExpr(ast->Var, False);
-	if (LocalErr)
-		return (SAstExpr*)DummyPtr;
+	if (ast->Var == NULL)
+		return NULL;
 	if (IsClass(ast->Var->Type))
 	{
 		Bool found = False;
@@ -3456,8 +3315,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 					if (!item->Public && (((SAst*)ast->Var)->RefName == NULL || wcscmp(((SAst*)ast->Var)->RefName, L"me") != 0))
 					{
 						Err(L"EA0051", ((SAst*)ast)->Pos, ast->Member);
-						LocalErr = True;
-						return (SAstExpr*)DummyPtr;
+						return NULL;
 					}
 					ast->ClassItem = item;
 					return (SAstExpr*)ast;
@@ -3476,8 +3334,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 		{
 			ASSERT(((SAst*)ast->Var)->TypeId == AstTypeId_ExprValue);
 			Err(L"EA0060", ((SAst*)ast)->Pos, *(const Char**)((SAstExprValue*)ast->Var)->Value);
-			LocalErr = True;
-			return (SAstExpr*)DummyPtr;
+			return NULL;
 		}
 		switch (GetBuildInFuncType(member))
 		{
@@ -3623,8 +3480,8 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 			wcscpy(name, L"_");
 			wcscat(name, member);
 			expr = (SAstExpr*)SearchStdItem(L"kuin", name, True);
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
+			if (expr == NULL)
+				return NULL;
 			{
 				SAstTypeFunc* func = (SAstTypeFunc*)expr->Type;
 				if ((func->FuncAttr & FuncAttr_AnyType) != 0)
@@ -3803,8 +3660,7 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 		}
 	}
 	Err(L"EA0052", ((SAst*)ast)->Pos, ast->Member);
-	LocalErr = True;
-	return (SAstExpr*)DummyPtr;
+	return NULL;
 }
 
 static SAstExpr* RebuildExprValue(SAstExprValue* ast)
@@ -3829,10 +3685,10 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 		while (ptr != NULL)
 		{
 			ptr->Data = RebuildExpr((SAstExpr*)ptr->Data, False);
+			if (ptr->Data == NULL)
+				return NULL;
 			{
 				SAstType* data_type;
-				if (LocalErr)
-					return (SAstExpr*)DummyPtr;
 				data_type = ((SAstExpr*)ptr->Data)->Type;
 				if (((SAstExpr*)ast)->Type == NULL)
 				{
@@ -3841,8 +3697,7 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 						if (enum_set)
 						{
 							Err(L"EA0054", ((SAst*)ast)->Pos);
-							LocalErr = True;
-							return (SAstExpr*)DummyPtr;
+							return NULL;
 						}
 						null_set = True;
 					}
@@ -3851,8 +3706,7 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 						if (null_set)
 						{
 							Err(L"EA0053", ((SAst*)ast)->Pos);
-							LocalErr = True;
-							return (SAstExpr*)DummyPtr;
+							return NULL;
 						}
 						enum_set = True;
 					}
@@ -3862,14 +3716,12 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 						if (null_set && !IsNullable(data_type))
 						{
 							Err(L"EA0053", ((SAst*)ast)->Pos);
-							LocalErr = True;
-							return (SAstExpr*)DummyPtr;
+							return NULL;
 						}
 						if (enum_set && !IsEnum(data_type))
 						{
 							Err(L"EA0054", ((SAst*)ast)->Pos);
-							LocalErr = True;
-							return (SAstExpr*)DummyPtr;
+							return NULL;
 						}
 						{
 							SAstTypeArray* type = (SAstTypeArray*)Alloc(sizeof(SAstTypeArray));
@@ -3883,8 +3735,7 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 				{
 					// The types of the second and subsequent elements of the array initializer do not match the type of the first element.
 					Err(L"EA0054", ((SAst*)ast)->Pos);
-					LocalErr = True;
-					return (SAstExpr*)DummyPtr;
+					return NULL;
 				}
 			}
 			ptr = ptr->Next;
@@ -3894,14 +3745,12 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 			if (enum_set)
 			{
 				Err(L"EA0061", ((SAst*)ast)->Pos);
-				LocalErr = True;
-				return (SAstExpr*)DummyPtr;
+				return NULL;
 			}
 			else
 			{
 				Err(L"EA0055", ((SAst*)ast)->Pos);
-				LocalErr = True;
-				return (SAstExpr*)DummyPtr;
+				return NULL;
 			}
 		}
 	}
@@ -3949,8 +3798,6 @@ static SAstExpr* RebuildExprValueArray(SAstExprValueArray* ast)
 				*p = L'\0';
 			}
 			ast2 = (SAstExprValue*)RebuildExprValue(ast2);
-			if (LocalErr)
-				return (SAstExpr*)DummyPtr;
 			((SAst*)ast)->AnalyzedCache = (SAst*)ast2;
 			return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 		}
@@ -3967,6 +3814,8 @@ static SAstExpr* RebuildExprRef(SAstExpr* ast)
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	{
 		SAst* ref_item = ((SAst*)ast)->RefItem;
+		if (ref_item == NULL)
+			return NULL;
 		switch (ref_item->TypeId)
 		{
 			case AstTypeId_Func:
@@ -4015,27 +3864,21 @@ static SAstExpr* RebuildExprRef(SAstExpr* ast)
 							break;
 						case AstArgKind_Const:
 							if (arg->Expr == NULL)
-							{
-								LocalErr = True;
-								return (SAstExpr*)DummyPtr;
-							}
+								return NULL;
 							{
 								SAstExprValue* expr = (SAstExprValue*)Alloc(sizeof(SAstExprValue));
 								InitAst((SAst*)expr, AstTypeId_ExprValue, ((SAst*)ast)->Pos);
 								((SAstExpr*)expr)->Type = arg->Expr->Type;
 								*(U64*)expr->Value = *(U64*)((SAstExprValue*)arg->Expr)->Value;
 								expr = (SAstExprValue*)RebuildExprValue(expr);
-								if (LocalErr)
-									return (SAstExpr*)DummyPtr;
 								((SAst*)ast)->AnalyzedCache = (SAst*)expr;
 							}
 							return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 						case AstArgKind_Member:
 							{
 								Err(L"EA0057", ((SAst*)ast)->Pos, ((SAst*)ast)->RefName);
-								LocalErr = True;
-								return (SAstExpr*)DummyPtr;
-							}
+								return NULL;
+						}
 							break;
 						default:
 							ASSERT(False);
@@ -4059,8 +3902,7 @@ static SAstExpr* RebuildExprRef(SAstExpr* ast)
 				else
 				{
 					Err(L"EA0036", ((SAst*)ast)->Pos, ((SAst*)ast)->RefName);
-					LocalErr = True;
-					return (SAstExpr*)DummyPtr;
+					return NULL;
 				}
 				break;
 		}

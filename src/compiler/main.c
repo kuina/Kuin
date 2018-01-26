@@ -225,7 +225,7 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 		if (!ErrOccurred())
 		{
 			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
-			if (!ErrOccurred())
+			if (asts != NULL)
 			{
 				MakeKeywords(asts, srcs);
 				ResetAllocator(1 - blank_mem);
@@ -824,7 +824,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 		goto ERR;
 	Err(L"IK0000", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
 	asts = Parse(func_wfopen, func_fclose, func_fgetwc, func_size, &option);
-	if (ErrOccurred())
+	if (asts == NULL || option.Rls && ErrOccurred())
 		goto ERR;
 	Err(L"IK0001", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
 #if defined(_DEBUG)

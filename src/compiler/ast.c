@@ -158,6 +158,8 @@ void Dump1(const Char* path, const SAst* ast)
 
 void GetTypeName(Char* buf, size_t* len, size_t size, const SAstType* ast)
 {
+	if (ast == NULL)
+		return;
 	switch (((SAst*)ast)->TypeId)
 	{
 		case AstTypeId_TypeArray:
@@ -312,6 +314,8 @@ static void PrintAstList(const Char* tag, const SList* list)
 
 static void DumpRecursion(const SAst* ast)
 {
+	if (ast == NULL)
+		return;
 	switch (ast->TypeId)
 	{
 		case AstTypeId_Ast: DumpAst(ast); break;
