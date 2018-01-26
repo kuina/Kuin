@@ -72,7 +72,7 @@
 		end func
 	end func
 
-	+*func updateProp(edit: wnd@EditMulti, listView: wnd@ListView): bool
+	+*func updateProp(listView: wnd@ListView)
 		if(me.hold <>& null)
 			var parent: @Obj2d :: me.hold.parent
 			var x: int :: 0
@@ -83,14 +83,10 @@
 			end if
 			do me.hold.updateProp(listView, x, y)
 		end if
-		ret false
 	end func
 
 	+*func updateTree(tree: wnd@Tree)
 		do updateTreeRecursion(me.hold, tree, tree.root(), me.obj2dRoot)
-		do me.addCtrlList(\form@listInfo)
-		do \form@listInfo.setSel(me.ctrl)
-		do \form@updateProp()
 
 		func updateTreeRecursion(hold: @Obj2d, tree: wnd@Tree, node: wnd@TreeNode, obj: @Obj2d)
 			var node2: wnd@TreeNode :: node.addChild(obj.objName)
@@ -103,6 +99,11 @@
 				do obj.children.next()
 			end while
 		end func
+	end func
+
+	+*func updateList(list_: wnd@List)
+		do me.addCtrlList(list_)
+		do list_.setSel(me.ctrl)
 	end func
 
 	+*func treeItemOnSel()
@@ -229,7 +230,7 @@
 
 		do me.hold.setProp(prop, value)
 		do me.changed :: true
-		do \form@updateTree()
+		do \form@updateProp()
 		do \form@paintDrawEditor()
 	end func
 
@@ -277,7 +278,6 @@
 			do me.hold :: obj
 		end if
 		do me.changed :: true
-		do \form@updateTree()
 		do \form@paintDrawEditor()
 
 		func selRecursion(obj: @Obj2d, x: int, y: int): @Obj2d
@@ -309,6 +309,7 @@
 			do me.ctrl :: 0
 			do me.hold :: null
 			do \form@updateTree()
+			do \form@updateProp()
 			do \form@paintDrawEditor()
 		case %move
 			if (\form@getLockingEditor())
@@ -318,6 +319,7 @@
 			do me.moveObj2d(x + me.pageX, y + me.pageY)
 			do me.mode :: %none
 			do \form@updateTree()
+			do \form@updateProp()
 			do \form@paintDrawEditor()
 		case %resize
 			if (\form@getLockingEditor())
@@ -327,6 +329,7 @@
 			do me.resizeObj2d(x + me.pageX, y + me.pageY)
 			do me.mode :: %none
 			do \form@updateTree()
+			do \form@updateProp()
 			do \form@paintDrawEditor()
 		end switch
 	end func
@@ -453,6 +456,7 @@
 		do delRecursion(\form@treeItem.root().firstChild(), me.obj2dRoot, me.hold)
 		do me.changed :: true
 		do \form@updateTree()
+		do \form@updateProp()
 		do \form@paintDrawEditor()
 
 		func delRecursion(node: wnd@TreeNode, obj: @Obj2d, hold: @Obj2d): bool

@@ -12,11 +12,11 @@
 	max
 end enum
 
-+class ListInfoItem()
++class ErrListItem()
 	+var text: []char
 	+var pos: \src@Pos
 
-	+*func cmp(t: @ListInfoItem): int
+	+*func cmp(t: @ErrListItem): int
 		ret me.pos.cmp(t.pos)
 	end func
 end class
@@ -68,7 +68,6 @@ end func
 		do me.areaY :: -1
 		do me.lineNumWidth :: 0
 		do me.interpreted :: false
-		do me.propText :: null
 		do me.setSrc(null)
 		do me.resetListInfoItem()
 	end func
@@ -193,23 +192,21 @@ end func
 		end for
 	end func
 
-	+*func updateProp(edit: wnd@EditMulti, listView: wnd@ListView): bool
-		if(me.propText =& null)
-			ret true
-		end if
-		do edit.setText(me.propText)
-		ret true
+	+*func updateProp(listView: wnd@ListView)
+		do me.errList.sort()
+		do me.errList.head()
+		while(!me.errList.term())
+			do listView.add(me.errList.get().text)
+			do me.errList.next()
+		end while
 	end func
 
 	+*func updateTree(tree: wnd@Tree)
-		do me.listInfoItem.sort()
-		do me.listInfoItem.head()
-		do \form@listInfo.setRedraw(false)
-		while(!me.listInfoItem.term())
-			do \form@listInfo.add(me.listInfoItem.get().text)
-			do me.listInfoItem.next()
-		end while
-		do \form@listInfo.setRedraw(true)
+		; TODO:
+	end func
+
+	+*func updateList(list_: wnd@List)
+		; TODO:
 	end func
 
 	+*func treeItemOnSel()
@@ -221,6 +218,8 @@ end func
 	end func
 
 	+*func listInfoOnSel()
+		; TODO:
+		{
 		var sel: int :: \form@listInfo.getSel()
 		if(sel <> -1 & sel < ^me.listInfoItem)
 			do me.listInfoItem.head()
@@ -231,6 +230,7 @@ end func
 				do \auxiliary@resetDirtyHint()
 			end if
 		end if
+		}
 	end func
 
 	+*func mouseDownL(x: int, y: int)
@@ -856,11 +856,11 @@ end func
 	end func
 
 	+func resetListInfoItem()
-		do me.listInfoItem :: #list<@ListInfoItem>
+		do me.errList :: #list<@ErrListItem>
 	end func
 
-	+func addListInfoItem(item: @ListInfoItem)
-		do me.listInfoItem.add(item)
+	+func addListInfoItem(item: @ErrListItem)
+		do me.errList.add(item)
 	end func
 
 	const colorLineNum: int :: 16#FFFF7F7F
@@ -907,8 +907,7 @@ end func
 	var areaY: int
 	var lineNumWidth: int
 	+var interpreted: bool
-	+var listInfoItem: list<@ListInfoItem>
-	var propText: []char
+	+var errList: list<@ErrListItem>
 
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)

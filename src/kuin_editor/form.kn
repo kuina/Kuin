@@ -5,7 +5,6 @@ var editFile: wnd@Edit
 +var drawEditor: wnd@Draw
 +var scrollXSrc: wnd@ScrollX
 +var scrollYSrc: wnd@ScrollY
-var editProp: wnd@EditMulti
 var listProp: wnd@ListView
 var editLog: wnd@EditMulti
 var btnCompile: wnd@Btn
@@ -49,10 +48,7 @@ var drag: bool
 	do @scrollXSrc.setState(0, 0, 1, 0)
 	do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 742, 0, 17, 565, %move, %scale)
 	do @scrollYSrc.setState(0, 0, 1, 0)
-	do @editProp :: wnd@makeEditMulti(@wndMain, 262, 621, 391, 135, %scale, %move)
-	do @editProp.readonly(true)
 	do @listProp :: wnd@makeListView(@wndMain, 262, 621, 391, 135, %scale, %move)
-	do @listProp.setVisible(false)
 	do @listProp.addColumn(\common@langEn ?("Property", "プロパティ"))
 	do @listProp.addColumn(\common@langEn ?("Value", "値"))
 	do @listProp.onMouseDoubleClick :: @listPropOnMouseDoubleClick
@@ -533,7 +529,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	catch
 		do wnd@msgBox(@wndMain, \common@langEn ?("Unexpected error.", "予期せぬエラーです。"), \common@title, %err, %ok)
 	end try
-	do @updateList()
+	do @updateUi()
 	do @lockEditor(false)
 
 	func idleFunc()
@@ -640,7 +636,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	catch
 		do wnd@msgBox(@wndMain, \common@langEn ?("Unexpected error.", "予期せぬエラーです。"), \common@title, %err, %ok)
 	end try
-	do @updateList()
+	do @updateUi()
 	do @lockEditor(false)
 end func
 
@@ -656,35 +652,20 @@ end func
 			end if
 		end if
 	end if
-	do @updateList()
+	do @updateUi()
 end func
 
 func updateLog()
 	do @editLog.setText(@textLog)
 end func
 
-+func updateProp()
-	do @editProp.setRedraw(false)
-	do @editProp.setText("")
-	do @listProp.setRedraw(false)
-	do @listProp.clear()
-	var result: bool :: \src@curDoc.updateProp(@editProp, @listProp)
-	do @listProp.adjustWidth()
-	do @editProp.setRedraw(true)
-	do @listProp.setRedraw(true)
-	do @editProp.setVisible(result)
-	do @listProp.setVisible(!result)
-end func
-
-+func updateList()
++func updateFile()
 	do @editFile.setText("")
 
 	do @listFile.setRedraw(false)
 	do @listFile.clear()
 	do \src@docs.forEach(callback, null)
 	do @listFile.setRedraw(true)
-
-	do @updateTree()
 
 	func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
 		var prefix: []char :: ""
@@ -704,14 +685,34 @@ end func
 	end func
 end func
 
-+func updateTree()
-	do @listInfo.clear()
++func updateProp()
+	do @listProp.setRedraw(false)
+	do @listProp.clear()
+	do \src@curDoc.updateProp(@listProp)
+	do @listProp.adjustWidth()
+	do @listProp.setRedraw(true)
+end func
 
++func updateTree()
 	do @treeItem.setRedraw(false)
 	do @treeItem.clear()
 	do \src@curDoc.updateTree(@treeItem)
 	do @treeItem.expand(true)
 	do @treeItem.setRedraw(true)
+end func
+
++func updateList()
+	do @listInfo.setRedraw(false)
+	do @listInfo.clear()
+	do \src@curDoc.updateList(@listInfo)
+	do @listInfo.setRedraw(true)
+end func
+
++func updateUi()
+	do @updateFile()
+	do @updateProp()
+	do @updateTree()
+	do @updateList()
 end func
 
 func lockEditor(lock: bool)

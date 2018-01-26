@@ -67,7 +67,7 @@ func initMainSrc()
 	do \auxiliary@resetDirtyHint()
 	do \auxiliary@resetDirtyHintFast()
 	do \auxiliary@resetData()
-	do \form@updateList()
+	do \form@updateUi()
 	do \dll@resetKeywords()
 	do \form@setEditIconDirectly("")
 	do \form@paintDrawEditor()
@@ -97,7 +97,7 @@ end func
 	do newDocs.add(file, @curDoc)
 	do @docs :: newDocs
 	do @curDoc.changed :: false
-	do \form@updateList()
+	do \form@updateFile()
 	ret true
 
 	func callback(src: []char, doc: \doc@Doc, data: DocsClass): bool
@@ -119,7 +119,7 @@ end func
 	var saveAllSuccess: lib@Bool :: #lib@Bool
 	do saveAllSuccess.value :: true
 	do @docs.forEach(callback, saveAllSuccess)
-	do \form@updateList()
+	do \form@updateFile()
 	ret saveAllSuccess.value
 
 	func callback(src: []char, doc: \doc@Doc, saveAllSuccess: lib@Bool): bool

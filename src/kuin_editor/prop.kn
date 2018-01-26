@@ -53,5 +53,5 @@ end func
 +func changeProp()
 	var doc: \doc@Doc :: \src@mainDoc()
 	do doc.changed :: true
-	do \form@updateList()
+	do \form@updateFile()
 end func

@@ -14,10 +14,13 @@
 	+func draw(width: int, height: int)
 	end func
 
-	+func updateProp(edit: wnd@EditMulti, listView: wnd@ListView): bool
+	+func updateProp(listView: wnd@ListView)
 	end func
 
 	+func updateTree(tree: wnd@Tree)
+	end func
+
+	+func updateList(list_: wnd@List)
 	end func
 
 	+func treeItemOnSel()

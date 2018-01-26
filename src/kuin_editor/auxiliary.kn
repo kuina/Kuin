@@ -13,6 +13,8 @@ var auxiliaryErr: dict<\src@Pos, []char>
 end func
 
 +func update()
+	{
+		TODO:
 	if(\src@curDoc =$ \doc_src@DocSrc)
 		do @auxiliaryErr.forEach(callback, \src@curDoc $ \doc_src@DocSrc)
 	end if
@@ -68,6 +70,7 @@ end func
 			ret false
 		end func
 	end func
+	}
 end func
 
 +func chk()
@@ -95,7 +98,7 @@ end func
 				catch
 				end try
 				do @update()
-				do \form@updateList()
+				do \form@updateProp()
 				do @dirtyInterpret :: 2
 			end if
 		end switch
