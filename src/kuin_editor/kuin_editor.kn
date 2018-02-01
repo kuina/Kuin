@@ -22,7 +22,6 @@ func main()
 
 	func mainLoop()
 		while(wnd@act())
-			do \auxiliary@chk()
 		end while
 	end func
 end func

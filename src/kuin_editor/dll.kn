@@ -7,7 +7,7 @@ end func
 +func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>, lang: int, appCode: int): bool
 end func
 
-+func [d0917.knd, Interpret1] interpret1(src: [][]char, color: [][]bit8)
++func [d0917.knd, Interpret1] interpret1(src: kuin@Class, line: int, me_: kuin@Class, replaceFunc: func<(kuin@Class, int, []char)>)
 end func
 
 +func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>, lang: int, blankMem: int, srcs: [][]char): bool

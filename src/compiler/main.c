@@ -189,9 +189,13 @@ EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output,
 	return result;
 }
 
-EXPORT void Interpret1(const void* src, const void* color)
+EXPORT void Interpret1(void* src, S64 line, void* me, void* replace_func)
 {
-	InterpretImpl1(src, color);
+	void* str = *(void**)((U8*)src + 0x10);
+	void* color = *(void**)((U8*)src + 0x18);
+	void* comment_level = *(void**)((U8*)src + 0x20);
+	void* flags = *(void**)((U8*)src + 0x28);
+	InterpretImpl1(str, color, comment_level, flags, line, me, replace_func);
 }
 
 EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang, S64 blank_mem, const U8** srcs)

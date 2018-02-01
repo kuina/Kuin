@@ -60,6 +60,8 @@ end func
 		do me.src :: #Src
 		do me.src.src :: null
 		do me.src.color :: null
+		do me.src.commentLevel :: null
+		do me.src.flags :: null
 		do me.pageX :: 0
 		do me.pageY :: 0
 		do me.cursorX :: 0
@@ -67,9 +69,10 @@ end func
 		do me.areaX :: -1
 		do me.areaY :: -1
 		do me.lineNumWidth :: 0
-		do me.interpreted :: false
 		do me.setSrc(null)
 		do me.resetListInfoItem()
+		do me.dirtyLine :: -1
+		do me.dirtyLineLock :: false
 	end func
 
 	+*func load(path: []char): bool
@@ -223,11 +226,10 @@ end func
 		var sel: int :: \form@listInfo.getSel()
 		if(sel <> -1 & sel < ^me.listInfoItem)
 			do me.listInfoItem.head()
-			var item: @ListInfoItem :: me.listInfoItem.getOffset(sel)
+			var item: @ErrListItem :: me.listInfoItem.getOffset(sel)
 			if(\src@jumpSrc(item.pos))
 				do me.propText :: item.text
 				do \form@updateProp()
-				do \auxiliary@resetDirtyHint()
 			end if
 		end if
 		}
@@ -241,6 +243,7 @@ end func
 			do me.areaX :: me.cursorX
 			do me.areaY :: me.cursorY
 		end if
+		do me.interpret1SetDirty(me.cursorY, false)
 		do \form@paintDrawEditor()
 	end func
 
@@ -268,6 +271,7 @@ end func
 				do me.cursorX :+ 1
 			end while
 		end if
+		do me.interpret1SetDirty(me.cursorY, false)
 		do \form@paintDrawEditor()
 	end func
 
@@ -275,6 +279,7 @@ end func
 		if(\form@dragging())
 			do me.mousePosToCharPos(x, y)
 			do me.refreshCursor(false, true, 0)
+			do me.interpret1SetDirty(me.cursorY, false)
 			do \form@paintDrawEditor()
 		end if
 	end func
@@ -358,6 +363,7 @@ end func
 						var x: int :: me.cursorX
 						var y: int :: me.cursorY
 						do me.ins(x, y, "\n", true)
+						{
 						; The upper row.
 						if(me.skipTabs(y) = -1)
 							do me.del(0, y, ^me.src.src[y], true)
@@ -395,6 +401,7 @@ end func
 						end if
 						; The current row.
 						do me.autoIndent(y + 1)
+						}
 					end block
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true, 1)
@@ -414,6 +421,7 @@ end func
 					do me.cursorY :- height / \common@cellHeight
 					do me.setAbsoluteX(absoluteX)
 					do me.refreshCursor(false, true, 2)
+					do me.interpret1SetDirty(me.cursorY, false)
 				end if
 				ret true
 			end block
@@ -429,6 +437,7 @@ end func
 					do me.cursorY :+ height / \common@cellHeight
 					do me.setAbsoluteX(absoluteX)
 					do me.refreshCursor(false, true, 2)
+					do me.interpret1SetDirty(me.cursorY, false)
 				end if
 				ret true
 			end block
@@ -439,6 +448,7 @@ end func
 				do me.cursorY :: lib@intMax
 			end if
 			do me.refreshCursor(false, true, 2)
+			do me.interpret1SetDirty(me.cursorY, false)
 			ret true
 		case %home
 			do me.setArea(shiftCtrl)
@@ -447,6 +457,7 @@ end func
 				do me.cursorY :: 0
 			end if
 			do me.refreshCursor(false, true, 2)
+			do me.interpret1SetDirty(me.cursorY, false)
 			ret true
 		case %left
 			if(shiftCtrl = %ctrl)
@@ -455,6 +466,7 @@ end func
 				do me.setArea(shiftCtrl)
 				do me.cursorX :- 1
 				do me.refreshCursor(false, true, 2)
+				do me.interpret1SetDirty(me.cursorY, false)
 			end if
 			ret true
 		case %up
@@ -468,6 +480,7 @@ end func
 				do me.cursorY :- 1
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true, 2)
+				do me.interpret1SetDirty(me.cursorY, false)
 			end if
 			ret true
 		case %right
@@ -477,6 +490,7 @@ end func
 				do me.setArea(shiftCtrl)
 				do me.cursorX :+ 1
 				do me.refreshCursor(true, true, 2)
+				do me.interpret1SetDirty(me.cursorY, false)
 			end if
 			ret true
 		case %down
@@ -490,6 +504,7 @@ end func
 				do me.cursorY :+ 1
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true, 2)
+				do me.interpret1SetDirty(me.cursorY, false)
 			end if
 			ret true
 		case %ins
@@ -640,6 +655,7 @@ end func
 		do me.cursorX :: lib@intMax
 		do me.cursorY :: lib@intMax
 		do me.refreshCursor(false, true, 0)
+		do me.interpret1SetDirty(me.cursorY, false)
 		do \form@paintDrawEditor()
 	end func
 
@@ -670,11 +686,17 @@ end func
 		if(src =& null | ^src = 0)
 			do me.src.src :: [""]
 			do me.src.color :: [#[0]bit8]
+			do me.src.commentLevel :: [0]
+			do me.src.flags :: [%none $ LineFlag]
 		else
 			do me.src.src :: src
 			do me.src.color :: #[^src][]bit8
+			do me.src.commentLevel :: #[^src]int
+			do me.src.flags :: #[^src]LineFlag
 			for i(0, ^src - 1)
 				do me.src.color[i] :: #[^src[i]]bit8
+				do me.src.commentLevel[i] :: 0
+				do me.src.flags[i] :: %none
 			end for
 		end if
 	end func
@@ -703,6 +725,7 @@ end func
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true, 0)
+				do me.interpret1SetDirty(me.cursorY, false)
 				do \form@paintDrawEditor()
 				ret true
 			end if
@@ -715,6 +738,7 @@ end func
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true, 0)
+				do me.interpret1SetDirty(me.cursorY, false)
 				do \form@paintDrawEditor()
 				ret true
 			end if
@@ -742,6 +766,7 @@ end func
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true, 0)
+				do me.interpret1SetDirty(me.cursorY, false)
 				do \form@paintDrawEditor()
 				ret true
 			end if
@@ -754,6 +779,7 @@ end func
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true, 0)
+				do me.interpret1SetDirty(me.cursorY, false)
 				do \form@paintDrawEditor()
 				ret true
 			end if
@@ -849,6 +875,7 @@ end func
 		do me.areaX :: -1
 		do me.areaY :: -1
 		do me.refreshCursor(false, true, 2)
+		do me.interpret1SetDirty(me.cursorY, false)
 	end func
 
 	+func complement(): bool
@@ -863,13 +890,25 @@ end func
 		do me.errList.add(item)
 	end func
 
+	+func replaceForAuxiliary(line: int, str: []char)
+		do me.del(0, line, ^me.src.src[line], true)
+		do me.ins(0, line, ##str, true)
+	end func
+
 	const colorLineNum: int :: 16#FFFF7F7F
 	const colorAreaBack: int :: 16#FF808080
 	const colorErrBack: int :: 16#FFFF3333
 
+	enum LineFlag
+		none :: 16#00
+		nextLine :: 16#01
+	end enum
+
 	class Src()
 		+var src: [][]char
 		+var color: [][]bit8
+		+var commentLevel: []int
+		+var flags: []LineFlag
 	end class
 
 	class UndoSrc(\doc@UndoCmd)
@@ -906,8 +945,9 @@ end func
 	var areaX: int
 	var areaY: int
 	var lineNumWidth: int
-	+var interpreted: bool
 	+var errList: list<@ErrListItem>
+	var dirtyLine: int
+	var dirtyLineLock: bool
 
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
@@ -1055,12 +1095,6 @@ end func
 				do \form@drawEditor.moveCaret(x, y)
 			end if
 		end block
-
-		if(dirtyHint <> 0 & !me.areaSel())
-			do \auxiliary@setDirtyHint(dirtyHint = 1)
-		else
-			do \completion@close()
-		end if
 
 		func log10(n: int): int
 			var result: int :: 0
@@ -1241,8 +1275,11 @@ end func
 				do me.src.color[y] :: me.src.color[y].sub(0, x)
 				do me.src.src :: me.src.src.sub(0, y + 1) ~ [line] ~ me.src.src.sub(y + 1, -1)
 				do me.src.color :: me.src.color.sub(0, y + 1) ~ [#[^line]bit8] ~ me.src.color.sub(y + 1, -1)
+				do me.src.commentLevel :: me.src.commentLevel.sub(0, y + 1) ~ [0] ~ me.src.commentLevel.sub(y + 1, -1)
+				do me.src.flags :: me.src.flags.sub(0, y + 1) ~ [%none $ LineFlag] ~ me.src.flags.sub(y + 1, -1)
 				do x :: 0
 				do y :+ 1
+				do me.dirtyLine :: -2 {Force}
 			else
 				do me.src.src[y] :: me.src.src[y].sub(0, x) ~ str[i].toStr() ~ me.src.src[y].sub(x, -1)
 				do me.src.color[y] :: me.src.color[y].sub(0, x) ~ #[1]bit8 ~ me.src.color[y].sub(x, -1)
@@ -1260,7 +1297,7 @@ end func
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
-		do \auxiliary@setDirtyInterpret()
+		do me.interpret1SetDirty(y, true)
 		do me.changed :: true
 	end func
 
@@ -1284,8 +1321,11 @@ end func
 					do me.src.color[y - 1] :~ me.src.color[y]
 					do me.src.src :: me.src.src.sub(0, y) ~ me.src.src.sub(y + 1, -1)
 					do me.src.color :: me.src.color.sub(0, y) ~ me.src.color.sub(y + 1, -1)
+					do me.src.commentLevel :: me.src.commentLevel.sub(0, y) ~ me.src.commentLevel.sub(y + 1, -1)
+					do me.src.flags :: me.src.flags.sub(0, y) ~ me.src.flags.sub(y + 1, -1)
 					do y :- 1
 					do x :: x2
+					do me.dirtyLine :: -2 {Force}
 				end if
 			else
 				do undoStr :: me.src.src[y][x - 1].toStr() ~ undoStr
@@ -1304,7 +1344,7 @@ end func
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
-		do \auxiliary@setDirtyInterpret()
+		do me.interpret1SetDirty(y, true)
 		do me.changed :: true
 	end func
 
@@ -1327,6 +1367,9 @@ end func
 					do me.src.color[y] :~ me.src.color[y + 1]
 					do me.src.src :: me.src.src.sub(0, y + 1) ~ me.src.src.sub(y + 2, -1)
 					do me.src.color :: me.src.color.sub(0, y + 1) ~ me.src.color.sub(y + 2, -1)
+					do me.src.commentLevel :: me.src.commentLevel.sub(0, y + 1) ~ me.src.commentLevel.sub(y + 2, -1)
+					do me.src.flags :: me.src.flags.sub(0, y + 1) ~ me.src.flags.sub(y + 2, -1)
+					do me.dirtyLine :: -2 {Force}
 				end if
 			else
 				do undoStr :~ me.src.src[y][x].toStr()
@@ -1344,7 +1387,7 @@ end func
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
-		do \auxiliary@setDirtyInterpret()
+		do me.interpret1SetDirty(y, true)
 		do me.changed :: true
 	end func
 
@@ -1474,9 +1517,6 @@ end func
 			do \form@paintDrawEditor()
 		end if
 		do \completion@close()
-		if(replaceStr[^replaceStr - 1] <> '@')
-			do \auxiliary@resetDirtyHint()
-		end if
 		ret true
 	end func
 
@@ -1543,6 +1583,52 @@ end func
 			do x :+ 1
 		end while
 		ret x = ^me.src.src[y] ?(-1, x)
+	end func
+
+	func interpret1SetDirty(line: int, modified: bool)
+		if(me.dirtyLineLock)
+			ret
+		end if
+		do me.dirtyLineLock :: true
+		if(me.dirtyLine = -1)
+			if(modified)
+				do me.dirtyLine :: line
+				do \dll@interpret1(me.src, me.dirtyLine, me, me.replaceForAuxiliary)
+				do \form@paintDrawEditor()
+			end if
+		else
+			if(me.dirtyLine <> line)
+				do \dll@interpret1(me.src, -1, me, me.replaceForAuxiliary)
+
+				do \src@resetErrList()
+				var srcs: [][]char :: \src@docs.toArrayKey()
+				for i(0, ^srcs - 1)
+					do srcs[i] :: \src@srcNameToInternalName(srcs[i])
+				end for
+				try
+					if(\dll@interpret2(\src@mainSrcName, \src@getSrc, null, \form@getEnv(), \form@logForInterpret, \common@langEn ?(1, 0), \src@blankMem, srcs))
+						do \src@flipBlankMem()
+					end if
+				catch
+				end try
+				do \src@updateErrList()
+				do \form@updateProp()
+
+				if(modified)
+					do me.dirtyLine :: line
+					do \dll@interpret1(me.src, me.dirtyLine, me, me.replaceForAuxiliary)
+				else
+					do me.dirtyLine :: -1
+				end if
+				do \form@paintDrawEditor()
+			else
+				if(modified)
+					do \dll@interpret1(me.src, me.dirtyLine, me, me.replaceForAuxiliary)
+					do \form@paintDrawEditor()
+				end if
+			end if
+		end if
+		do me.dirtyLineLock :: false
 	end func
 end class
 

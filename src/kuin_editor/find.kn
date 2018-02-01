@@ -167,13 +167,11 @@ end func
 	func wndFindBtnReplaceOnPush(wnd: wnd@Btn)
 		do @replaceOne(@wndFindEditPatternLast, @wndFindEditReplaceLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 		do \form@focusDrawEditor()
-		do \auxiliary@resetDirtyHint()
 	end func
 
 	func wndFindBtnReplaceAllOnPush(wnd: wnd@Btn)
 		do @replaceAll(@wndFindEditPatternLast, @wndFindEditReplaceLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 		do \form@focusDrawEditor()
-		do \auxiliary@resetDirtyHint()
 	end func
 end func
 
@@ -192,13 +190,11 @@ end func
 +func findNext()
 	do @findNextImpl(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	do \form@focusDrawEditor()
-	do \auxiliary@resetDirtyHint()
 end func
 
 +func findPrev()
 	do @findPrevImpl(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 	do \form@focusDrawEditor()
-	do \auxiliary@resetDirtyHint()
 end func
 
 func findNextImpl(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)

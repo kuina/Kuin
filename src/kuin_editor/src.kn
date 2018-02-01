@@ -5,6 +5,7 @@
 +var sysDir: []char
 var runningFiles: list<[]char>
 +var blankMem: int
+var errList: dict<@Pos, []char>
 
 +class Pos()
 	+var src: []char
@@ -63,10 +64,7 @@ end func
 
 func initMainSrc()
 	do \completion@close()
-	do \auxiliary@setDirtyInterpret()
-	do \auxiliary@resetDirtyHint()
-	do \auxiliary@resetDirtyHintFast()
-	do \auxiliary@resetData()
+	do @resetErrList()
 	do \form@updateUi()
 	do \dll@resetKeywords()
 	do \form@setEditIconDirectly("")
@@ -151,13 +149,6 @@ end func
 +func setCurSrc(doc: \doc@Doc)
 	do \completion@close()
 	do @curDoc :: doc
-	if(doc =$ \doc_src@DocSrc)
-		var doc2: \doc_src@DocSrc :: doc $ \doc_src@DocSrc
-		if(!doc2.interpreted)
-			do \dll@interpret1(doc2.src.src, doc2.src.color)
-			do doc2.interpreted :: true
-		end if
-	end if
 	do \form@paintDrawEditor()
 	do \form@focusDrawEditor()
 end func
@@ -377,4 +368,79 @@ end func
 
 +func flipBlankMem()
 	do @blankMem :: 1 - @blankMem
+end func
+
++func resetErrList()
+	do @errList :: #dict<@Pos, []char>
+	if(@curDoc =$ \doc_src@DocSrc)
+		do (@curDoc $ \doc_src@DocSrc).resetListInfoItem()
+	end if
+end func
+
++func updateErrList()
+	if(@curDoc =$ \doc_src@DocSrc)
+		do @errList.forEach(callback, @curDoc $ \doc_src@DocSrc)
+	end if
+	do \form@paintDrawEditor()
+
+	func callback(pos: @Pos, msg: []char, doc_src: \doc_src@DocSrc): bool
+		var listInfoItem: \doc_src@ErrListItem :: #\doc_src@ErrListItem
+		do listInfoItem.text :: msg
+		do listInfoItem.pos :: pos
+		do doc_src.addListInfoItem(listInfoItem)
+
+		; Fill in words with the error color.
+		var srcName: []char :: @internalNameToSrcName(pos.src)
+		if(srcName =& null)
+			ret true
+		end if
+		var doc: \doc@Doc :: @docs.get(srcName)
+		if(doc <>& null & doc =$ \doc_src@DocSrc)
+			var doc2: \doc_src@DocSrc :: doc $ \doc_src@DocSrc
+			var x: int :: pos.col - 1
+			var y: int :: pos.row - 1
+			var color: bit8
+			if(moveWordTop(doc2.src.src, doc2.src.color, &x, &y, &color))
+				while(x < ^doc2.src.color[y] & doc2.src.color[y][x].and(16#7Fb8) = color)
+					do doc2.src.color[y][x] :: doc2.src.color[y][x].or(16#80b8)
+					do x :+ 1
+				end while
+			end if
+		end if
+		ret true
+
+		func moveWordTop(src: [][]char, srcColor: [][]bit8, x: &int, y: &int, color: &bit8): bool
+			if(y < 0)
+				do y :: 0
+			elif(^srcColor <= y)
+				do y :: ^srcColor - 1
+			end if
+			if(1 <= x & x < ^srcColor[y] & (src[y][x] = ' ' | src[y][x] = '\t' | srcColor[y][x].and(16#7Fb8) = %comment $ \doc_src@CharColor $ bit8 | srcColor[y][x].and(16#7Fb8) = %symbol $ \doc_src@CharColor $ bit8))
+				do x :- 1
+			end if
+			if(x < 0)
+				do x :: 0
+			elif(^srcColor[y] <= x)
+				do x :: ^srcColor[y] - 1
+			end if
+			if(^srcColor[y] <> 0)
+				do color :: srcColor[y][x].and(16#7Fb8)
+				while(x >= 1 & srcColor[y][x - 1].and(16#7Fb8) = color)
+					do x :- 1
+				end while
+				ret true
+			end if
+			ret false
+		end func
+	end func
+end func
+
++func addErrList(pos: @Pos, code: []char, msg: []char, src: []char, row: int, col: int)
+	if(!@errList.exist(pos))
+		do @errList.add(pos, errStr(code, msg, src, row, col))
+	end if
+
+	func errStr(code: []char, msg: []char, src: []char, row: int, col: int): []char
+		ret "[" ~ \common@nullStr(src) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ "] " ~ \common@nullStr(code) ~ ": " ~ \common@nullStr(msg)
+	end func
 end func
