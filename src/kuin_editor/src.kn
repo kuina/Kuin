@@ -31,11 +31,16 @@ end class
 	do @blankMem :: 0
 end func
 
++func fin()
+	do @clearDocs()
+end func
+
 +func newMainSrc()
 	var doc: \doc_src@DocSrc :: #\doc_src@DocSrc
 	do @curDoc :: doc
 	do @mainSrcName :: \common@untitledSrcName
 	do @mainSrcDir :: ""
+	do @clearDocs()
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add(@mainSrcName, @curDoc)
 	do @initMainSrc()
@@ -56,6 +61,7 @@ end func
 	do @curDoc :: doc
 	do @mainSrcName :: path
 	do @mainSrcDir :: file@dir(path)
+	do @clearDocs()
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add(@mainSrcName, @curDoc)
 	do \prop@load()
@@ -93,6 +99,7 @@ end func
 	do data.docs :: newDocs
 	do @docs.forEach(callback, data)
 	do newDocs.add(file, @curDoc)
+	do @clearDocs()
 	do @docs :: newDocs
 	do @curDoc.changed :: false
 	do \form@updateFile()
@@ -442,5 +449,17 @@ end func
 
 	func errStr(code: []char, msg: []char, src: []char, row: int, col: int): []char
 		ret "[" ~ \common@nullStr(src) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ "] " ~ \common@nullStr(code) ~ ": " ~ \common@nullStr(msg)
+	end func
+end func
+
+func clearDocs()
+	if(@docs =& null)
+		ret
+	end if
+	do @docs.forEach(callback, null)
+
+	func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
+		do doc.fin()
+		ret true
 	end func
 end func

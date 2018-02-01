@@ -18,6 +18,7 @@ func main()
 
 	do \form@init()
 	do mainLoop()
+	do \src@fin()
 	do \dll@finCompiler()
 
 	func mainLoop()

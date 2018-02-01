@@ -5,6 +5,10 @@
 		do me.changed :: false
 	end func
 
+	+func fin()
+		do me.undo :: null
+	end func
+
 	+func load(path: []char): bool
 	end func
 
