@@ -1531,9 +1531,7 @@ end func
 					do srcs[i] :: \src@srcNameToInternalName(srcs[i])
 				end for
 				try
-					if(\dll@interpret2(\src@mainSrcName, \src@getSrc, null, \form@getEnv(), \form@logForInterpret, \common@langEn ?(1, 0), \src@blankMem, srcs))
-						do \src@flipBlankMem()
-					end if
+					do \dll@interpret2(\src@mainSrcName, \src@getSrc, null, \form@getEnv(), \form@logForInterpret, \common@langEn ?(1, 0), srcs)
 				catch
 				end try
 				do \src@updateErrList()

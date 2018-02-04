@@ -27,7 +27,9 @@ S64 AppCode;
 const U8* UseResFlags;
 HINSTANCE Instance;
 
+#if !defined(DBG)
 static SFile* OpenPackFile(const Char* path);
+#endif
 static U8 GetKey(U64 key, U8 data, U64 pos);
 
 void* AllocMem(size_t size)
@@ -296,6 +298,7 @@ U8* Utf8ToUtf16(const char* str)
 	return buf;
 }
 
+#if !defined(DBG)
 static SFile* OpenPackFile(const Char* path)
 {
 	FILE* file_ptr = _wfopen(L"res.knd", L"rb");
@@ -393,6 +396,7 @@ static SFile* OpenPackFile(const Char* path)
 	fclose(file_ptr);
 	return NULL;
 }
+#endif
 
 static U8 GetKey(U64 key, U8 data, U64 pos)
 {

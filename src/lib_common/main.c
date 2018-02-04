@@ -848,7 +848,7 @@ EXPORT void* _fromBin(const U8* me_, const void** type, S64* idx)
 		default:
 			ASSERT(*type2 == TypeId_Class);
 			if (*(S64*)(me_ + 0x10 + *idx) != 0)
-				THROW(0x1000, NULL); // TODO: What is this code?
+				THROW(0xc0000005); // TODO: What is this code?
 			*idx += 8;
 			{
 				const void** type3 = (const void**)type[1];
@@ -1870,7 +1870,6 @@ EXPORT void* _replace(const U8* me_, const U8* old, const U8* new_)
 	U8* result;
 	while (!end_flag)
 	{
-		const Char* ptr2 = ptr;
 		ptr = wcsstr(ptr, old2);
 		if (ptr == NULL || old_len == 0)
 		{

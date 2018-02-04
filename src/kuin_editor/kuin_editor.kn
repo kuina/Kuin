@@ -4,7 +4,7 @@
 func main()
 	do \common@init()
 
-	do \dll@initCompiler(2, \common@langEn ?(1, 0))
+	do \dll@initCompiler(\common@langEn ?(1, 0))
 	do \find@init()
 	do \form@makeWnd()
 	do \doc_src@init()

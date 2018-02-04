@@ -4,7 +4,6 @@
 +var mainSrcDir: []char
 +var sysDir: []char
 var runningFiles: list<[]char>
-+var blankMem: int
 var errList: dict<@Pos, []char>
 
 +class Pos()
@@ -28,7 +27,6 @@ end class
 +func init()
 	do @sysDir :: file@exeDir() ~ "sys/"
 	do @runningFiles :: #list<[]char>
-	do @blankMem :: 0
 end func
 
 +func fin()
@@ -377,10 +375,6 @@ end func
 	var uuid: []char :: lib@rndUuid()
 	do @runningFiles.add(uuid)
 	ret uuid
-end func
-
-+func flipBlankMem()
-	do @blankMem :: 1 - @blankMem
 end func
 
 +func resetErrList()

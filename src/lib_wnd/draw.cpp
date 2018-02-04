@@ -959,7 +959,6 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			}
 			{
 				int j = me2->CellHeight;
-				int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
 				for (int k = 0; k < me2->CellWidth + 1; k++)
 					dst[j * me2->CellSizeAligned + k] = 0;
 			}
@@ -2246,7 +2245,6 @@ void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_he
 	{
 		{
 			D3D10_TEXTURE2D_DESC desc;
-			D3D10_SUBRESOURCE_DATA sub;
 			desc.Width = static_cast<UINT>(tex_width);
 			desc.Height = static_cast<UINT>(tex_height);
 			desc.MipLevels = 1;

@@ -491,7 +491,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
 		ret
 	end try
-	do \dll@resetMemAllocator(\src@blankMem)
+	do \dll@resetMemAllocator()
 	do @textLog :: ""
 	do @updateLog()
 	var cmd: []char
@@ -591,7 +591,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
 		ret
 	end try
-	do \dll@resetMemAllocator(\src@blankMem)
+	do \dll@resetMemAllocator()
 	do @textLog :: ""
 	do @updateLog()
 	try

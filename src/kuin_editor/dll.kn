@@ -1,4 +1,4 @@
-+func [d0917.knd, InitCompiler] initCompiler(memNum: int, lang: int)
++func [d0917.knd, InitCompiler] initCompiler(lang: int)
 end func
 
 +func [d0917.knd, FinCompiler] finCompiler()
@@ -10,13 +10,13 @@ end func
 +func [d0917.knd, Interpret1] interpret1(src: kuin@Class, line: int, me_: kuin@Class, replaceFunc: func<(kuin@Class, int, []char)>, cursorX: int, cursorY: int, newCursorX: &int)
 end func
 
-+func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>, lang: int, blankMem: int, srcs: [][]char): bool
++func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>, lang: int, srcs: [][]char): bool
 end func
 
 +func [d0917.knd, Version] version(major: &int, minor: &int, micro: &int)
 end func
 
-+func [d0917.knd, ResetMemAllocator] resetMemAllocator(memIdx: int)
++func [d0917.knd, ResetMemAllocator] resetMemAllocator()
 end func
 
 +func [d0917.knd, ResetKeywords] resetKeywords()

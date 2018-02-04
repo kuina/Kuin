@@ -142,9 +142,9 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT void InitCompiler(S64 mem_num, S64 lang)
+EXPORT void InitCompiler(S64 lang)
 {
-	InitAllocator(mem_num);
+	InitAllocator();
 	if (lang >= 0)
 		LoadExcptMsg(lang);
 }
@@ -183,7 +183,7 @@ EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output,
 {
 	// This function is for 'kuincl'.
 	Bool result;
-	InitAllocator(1);
+	InitAllocator();
 	result = Build(_wfopen, fclose, fgetwc, BuildFileGetSize, path, sys_dir, output, icon, rls, env, func_log, lang, app_code, not_deploy);
 	FinAllocator();
 	return result;
@@ -198,7 +198,7 @@ EXPORT void Interpret1(void* src, S64 line, void* me, void* replace_func, S64 cu
 	InterpretImpl1(str, color, comment_level, flags, line, me, replace_func, cursor_x, cursor_y, new_cursor_x);
 }
 
-EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang, S64 blank_mem, const U8** srcs)
+EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang, const U8** srcs)
 {
 	Bool result = False;
 	const Char* sys_dir2 = sys_dir == NULL ? NULL : (const Char*)(sys_dir + 0x10);
@@ -206,7 +206,7 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 	FuncGetSrc = func_get_src;
 	FuncLog = func_log;
 
-	ResetAllocator(blank_mem);
+	ResetAllocator();
 
 	// Set the system directory.
 	if (sys_dir2 == NULL)
@@ -231,9 +231,8 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
 			if (asts != NULL)
 			{
-				MakeKeywords(asts, srcs);
-				ResetAllocator(1 - blank_mem);
 				Analyze(asts, &option, &dlls);
+				MakeKeywords(asts, srcs);
 				result = True;
 			}
 		}
@@ -255,9 +254,9 @@ EXPORT void Version(S64* major, S64* minor, S64* micro)
 	*micro = 17;
 }
 
-EXPORT void ResetMemAllocator(S64 mem_idx)
+EXPORT void ResetMemAllocator(void)
 {
-	ResetAllocator(mem_idx);
+	ResetAllocator();
 }
 
 EXPORT void ResetKeywords(void)
