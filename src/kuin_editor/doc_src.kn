@@ -22,10 +22,6 @@ end enum
 end class
 
 var srcCharColor: []int
-var regexIncIndent: regex@Regex
-var regexDecIndent: regex@Regex
-var regexBlock: regex@Regex
-var regexComplementDict: dict<[]char, regex@Regex>
 
 +func init()
 	do @srcCharColor :: #[%max $ @CharColor $ int]int
@@ -39,20 +35,6 @@ var regexComplementDict: dict<[]char, regex@Regex>
 	do @srcCharColor[%lineComment $ @CharColor $ int] :: 16#FF1EB000
 	do @srcCharColor[%comment $ @CharColor $ int] :: 16#FF1EB000
 	do @srcCharColor[%symbol $ @CharColor $ int] :: 16#FF666666
-
-	do @regexIncIndent :: regex@makeRegex("^(?:if|elif|else|switch|case|default|while|for|try|catch|finally|block|\\+?\\*?\\*?func|\\+?class|\\+?enum)\\b")
-	do @regexDecIndent :: regex@makeRegex("^(?:end|elif|else|case|default|catch|finally)\\b")
-	do @regexBlock :: regex@makeRegex("^[+*]*(if|switch|while|for|try|block|func|class|enum)\\b")
-	do @regexComplementDict :: #dict<[]char, regex@Regex>
-	do @regexComplementDict.add("if", regex@makeRegex("^(?:elif|else|end if)\\b"))
-	do @regexComplementDict.add("switch", regex@makeRegex("^(?:case|default|end switch)\\b"))
-	do @regexComplementDict.add("while", regex@makeRegex("^end while\\b"))
-	do @regexComplementDict.add("for", regex@makeRegex("^end for\\b"))
-	do @regexComplementDict.add("try", regex@makeRegex("^(?:catch|finally|end try)\\b"))
-	do @regexComplementDict.add("block", regex@makeRegex("^end block\\b"))
-	do @regexComplementDict.add("func", regex@makeRegex("^end func\\b"))
-	do @regexComplementDict.add("class", regex@makeRegex("^end class\\b"))
-	do @regexComplementDict.add("enum", regex@makeRegex("^end enum\\b"))
 end func
 
 +class DocSrc(\doc@Doc)
@@ -72,7 +54,6 @@ end func
 		do me.setSrc(null)
 		do me.resetListInfoItem()
 		do me.dirtyLine :: -1
-		do me.dirtyLineLock :: false
 	end func
 
 	+*func load(path: []char): bool
@@ -312,6 +293,7 @@ end func
 				else
 					do me.bs(me.cursorX, me.cursorY, 1, true)
 				end if
+				do me.interpret1SetDirty(me.cursorY, true)
 				do me.undo.recordEnd()
 				do me.refreshCursor(false, true)
 				do \form@paintDrawEditor()
@@ -327,6 +309,7 @@ end func
 				if(!me.areaSel())
 					do me.undo.recordBegin()
 					do me.ins(me.cursorX, me.cursorY, "\t", true)
+					do me.interpret1SetDirty(me.cursorY, true)
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true)
 					do \form@paintDrawEditor()
@@ -359,50 +342,8 @@ end func
 					if(me.areaSel())
 						do me.delAreaStr()
 					end if
-					block
-						var x: int :: me.cursorX
-						var y: int :: me.cursorY
-						do me.ins(x, y, "\n", true)
-						{
-						; The upper row.
-						if(me.skipTabs(y) = -1)
-							do me.del(0, y, ^me.src.src[y], true)
-						else
-							do me.autoIndent(y)
-							; Complement 'end ...' syntaxes.
-							if(^me.src.src[y + 1] = 0)
-								var curIndent: int :: me.skipTabs(y)
-								var result: [][]char :: @regexBlock.find(&, me.src.src[y], curIndent)
-								if(result <>& null)
-									var endFlag: bool
-									var nextY: int :: y + 2
-									while loop(true)
-										if(nextY = ^me.src.src)
-											do endFlag :: true
-											break loop
-										end if
-										var nextIndent: int :: me.skipTabs(nextY)
-										if(nextIndent <> -1 & nextIndent <= curIndent)
-											if(nextIndent = curIndent)
-												do endFlag :: @regexComplementDict.get(result[1]).find(&, me.src.src[nextY], curIndent) =& null
-											else
-												do endFlag :: true
-											end if
-											break loop
-										end if
-										do nextY :+ 1
-									end while
-									if(endFlag = true)
-										do me.ins(0, y + 1, "\nend " ~ result[1], true)
-										do me.autoIndent(y + 2)
-									end if
-								end if
-							end if
-						end if
-						; The current row.
-						do me.autoIndent(y + 1)
-						}
-					end block
+					do me.ins(me.cursorX, me.cursorY, "\n", true)
+					do me.interpret1SetDirty(me.cursorY, true)
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true)
 					do \form@paintDrawEditor()
@@ -539,6 +480,7 @@ end func
 			do me.delAreaStr()
 		end if
 		do me.ins(me.cursorX, me.cursorY, [key], true)
+		do me.interpret1SetDirty(me.cursorY, true)
 		do me.undo.recordEnd()
 		do me.refreshCursor(false, true)
 		do \form@paintDrawEditor()
@@ -603,6 +545,7 @@ end func
 			do me.copyAreaStr()
 			do me.undo.recordBegin()
 			do me.delAreaStr()
+			do me.interpret1SetDirty(me.cursorY, true)
 			do me.undo.recordEnd()
 			do me.refreshCursor(false, true)
 			do \form@paintDrawEditor()
@@ -627,6 +570,7 @@ end func
 				do me.delAreaStr()
 			end if
 			do me.ins(me.cursorX, me.cursorY, str, true)
+			do me.interpret1SetDirty(me.cursorY, true)
 			do me.undo.recordEnd()
 			do me.refreshCursor(false, true)
 			do \form@paintDrawEditor()
@@ -644,6 +588,7 @@ end func
 		else
 			do me.del(me.cursorX, me.cursorY, 1, true)
 		end if
+		do me.interpret1SetDirty(me.cursorY, true)
 		do me.undo.recordEnd()
 		do me.refreshCursor(false, true)
 		do \form@paintDrawEditor()
@@ -812,6 +757,7 @@ end func
 			do me.undo.recordBegin()
 			do me.del(x1, me.cursorY, ^found, true)
 			do me.ins(x1, me.cursorY, replaceStr, true)
+			do me.interpret1SetDirty(me.cursorY, true)
 			do me.undo.recordEnd()
 		end if
 	end func
@@ -947,7 +893,6 @@ end func
 	var lineNumWidth: int
 	+var errList: list<@ErrListItem>
 	var dirtyLine: int
-	var dirtyLineLock: bool
 
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
@@ -1216,6 +1161,7 @@ end func
 				do me.ins(0, i, "\t", true)
 			end if
 		end for
+		do me.interpret1SetDirty(y2, true)
 		do me.undo.recordEnd()
 		do me.areaX :: oldAreaX
 		do me.areaY :: oldAreaY
@@ -1252,6 +1198,7 @@ end func
 				do me.del(0, i, 1, true)
 			end if
 		end for
+		do me.interpret1SetDirty(y2, true)
 		do me.undo.recordEnd()
 		do me.areaX :: oldAreaX
 		do me.areaY :: oldAreaY
@@ -1297,9 +1244,6 @@ end func
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
-		if(recordUndo)
-			do me.interpret1SetDirty(y, true)
-		end if
 		do me.changed :: true
 	end func
 
@@ -1346,9 +1290,6 @@ end func
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
-		if(recordUndo)
-			do me.interpret1SetDirty(y, true)
-		end if
 		do me.changed :: true
 	end func
 
@@ -1391,9 +1332,6 @@ end func
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
-		if(recordUndo)
-			do me.interpret1SetDirty(y, true)
-		end if
 		do me.changed :: true
 	end func
 
@@ -1554,35 +1492,6 @@ end func
 		do \form@paintDrawEditor()
 	end func
 
-	func autoIndent(y: int)
-		var indent: int :: -1
-		if(y > 0)
-			var prevY: int :: y - 1
-			while loop(true)
-				do indent :: me.skipTabs(prevY)
-				if(prevY = 0 | indent <> -1)
-					break loop
-				end if
-				do prevY :- 1
-			end while
-			if(indent <> -1)
-				if(@regexIncIndent.find(&, me.src.src[prevY], indent) <>& null)
-					do indent :+ 1
-				end if
-			end if
-		end if
-		var curIndent: int :: me.skipTabs(y)
-		if(indent > 0 & curIndent <> -1 & @regexDecIndent.find(&, me.src.src[y], curIndent) <>& null)
-			do indent :- 1
-		end if
-		if(indent < 0)
-			do indent :: 0
-		end if
-		do me.del(0, y, curIndent = -1 ?(^me.src.src[y], curIndent), true)
-		do me.ins(0, y, "\t".repeat(indent), true)
-		do me.cursorX :: indent
-	end func
-
 	func skipTabs(y: int): int
 		var x: int :: 0
 		while(x < ^me.src.src[y] & me.src.src[y][x] = '\t')
@@ -1592,14 +1501,10 @@ end func
 	end func
 
 	func interpret1SetDirty(line: int, modified: bool)
-		if(me.dirtyLineLock)
-			ret
-		end if
 		var record: bool :: !me.undo.recording()
 		if(record)
 			do me.undo.recordBegin()
 		end if
-		do me.dirtyLineLock :: true
 		if(me.dirtyLine = -1)
 			if(modified)
 				do me.dirtyLine :: line
@@ -1646,7 +1551,6 @@ end func
 		if(record)
 			do me.undo.recordEnd()
 		end if
-		do me.dirtyLineLock :: false
 	end func
 end class
 
