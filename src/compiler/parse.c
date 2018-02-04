@@ -3775,11 +3775,17 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 				if (str[begin] == L'e' && str[begin + 1] == L'n' && str[begin + 2] == L'd' && *ptr_str == begin + 3 ||
 					str[begin] == L'e' && str[begin + 1] == L'l' && str[begin + 2] == L'i' && str[begin + 3] == L'f' && *ptr_str == begin + 4 ||
 					str[begin] == L'e' && str[begin + 1] == L'l' && str[begin + 2] == L's' && str[begin + 3] == L'e' && *ptr_str == begin + 4 ||
-					str[begin] == L'c' && str[begin + 1] == L'a' && str[begin + 2] == L's' && str[begin + 3] == L'e' && *ptr_str == begin + 4 ||
 					str[begin] == L'd' && str[begin + 1] == L'e' && str[begin + 2] == L'f' && str[begin + 3] == L'a' && str[begin + 4] == L'u' && str[begin + 5] == L'l' && str[begin + 6] == L't' && *ptr_str == begin + 7 ||
-					str[begin] == L'c' && str[begin + 1] == L'a' && str[begin + 2] == L't' && str[begin + 3] == L'c' && str[begin + 4] == L'h' && *ptr_str == begin + 5 ||
 					str[begin] == L'f' && str[begin + 1] == L'i' && str[begin + 2] == L'n' && str[begin + 3] == L'a' && str[begin + 4] == L'l' && str[begin + 5] == L'l' && str[begin + 6] == L'y' && *ptr_str == begin + 7)
 				{
+					(*tab_context)--;
+					if (*tab_context < 0)
+						*tab_context = 0;
+				}
+				else if (str[begin] == L'c' && str[begin + 1] == L'a' && str[begin + 2] == L's' && str[begin + 3] == L'e' && *ptr_str == begin + 4 ||
+					str[begin] == L'c' && str[begin + 1] == L'a' && str[begin + 2] == L't' && str[begin + 3] == L'c' && str[begin + 4] == L'h' && *ptr_str == begin + 5)
+				{
+					prev = AlignmentToken_Comma;
 					(*tab_context)--;
 					if (*tab_context < 0)
 						*tab_context = 0;
@@ -3850,7 +3856,7 @@ static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_lev
 		{
 			if (str_level > 0 && c == L'}')
 			{
-				*prev = AlignmentToken_Value;
+				*prev = AlignmentToken_None;
 				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 				InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 				(*ptr_str)++;
@@ -4170,6 +4176,7 @@ static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_lev
 						case L'-':
 						case L'!':
 						case L'^':
+						case L'*':
 							if ((*prev & (AlignmentToken_Value | AlignmentToken_Pr)) != 0)
 								InterpretImpl1Write(ptr_buf, buf, L' ');
 							len = 1;
