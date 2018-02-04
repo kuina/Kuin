@@ -76,14 +76,11 @@ typedef enum ECharColor
 
 typedef enum EAlignmentToken
 {
-	AlignmentToken_None,
-	AlignmentToken_Keyword,
-	AlignmentToken_Number,
-	AlignmentToken_StrOrChar,
-	AlignmentToken_Comment,
-	AlignmentToken_Symbol,
-	AlignmentToken_Ope1,
-	AlignmentToken_Ope2,
+	AlignmentToken_None = 0x01,
+	AlignmentToken_Value = 0x02,
+	AlignmentToken_Ope2 = 0x04,
+	AlignmentToken_Pr = 0x08,
+	AlignmentToken_Comma = 0x10,
 } EAlignmentToken;
 
 // Assembly functions.
@@ -186,9 +183,10 @@ static SAstExpr* ParseExprCall(void);
 static SAstExpr* ParseExprValue(void);
 static SAstExpr* ParseExprNumber(int row, int col, Char c);
 static void InterpretImpl1Color(int* ptr, int str_level, const Char* str, U8* color, S64 comment_level, U64 flags);
-static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context);
-static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_level, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, EAlignmentToken* prev);
+static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, S64 cursor_x, S64* new_cursor_x);
+static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_level, int type_level, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, EAlignmentToken* prev, S64 cursor_x, S64* new_cursor_x);
 static void InterpretImpl1Write(int* ptr, Char* buf, Char c);
+static void Interpret1Impl1UpdateCursor(S64 cursor_x, S64* new_cursor_x, int* ptr_str, int* ptr_buf);
 
 SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const SOption* option)
 {
@@ -250,7 +248,7 @@ SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FI
 	return Srces;
 }
 
-void InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S64 line, void* me, void* replace_func)
+void InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S64 line, void* me, void* replace_func, S64 cursor_x, S64 cursor_y, S64* new_cursor_x)
 {
 	S64 line_len = *(S64*)((U8*)str + 0x08);
 	ASSERT(-1 <= line && line < line_len);
@@ -275,7 +273,7 @@ void InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 			{
 				int ptr_buf = 0;
 				int ptr_str = 0;
-				InterpretImpl1Align(&ptr_buf, &ptr_str, dst_str, (Char*)((U8*)*str2 + 0x10), &comment_level_context, &flags_context, &tab_context);
+				InterpretImpl1Align(&ptr_buf, &ptr_str, dst_str, (Char*)((U8*)*str2 + 0x10), &comment_level_context, &flags_context, &tab_context, cursor_x, i == cursor_y ? new_cursor_x : NULL);
 				len = (S64)ptr_buf;
 			}
 
@@ -3548,7 +3546,7 @@ static void InterpretImpl1Color(int* ptr, int str_level, const Char* str, U8* co
 				color[*ptr] = CharColor_None;
 				(*ptr)++;
 			}
-			else if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || c == L'@' || c == L'\\')
+			else if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || c == L'@' || c == L'\\' || c == L'%' && (L'a' <= str[*ptr + 1] && str[*ptr + 1] <= L'z' || L'A' <= str[*ptr + 1] && str[*ptr + 1] <= L'Z' || str[*ptr + 1] == L'_'))
 			{
 				Bool at = False;
 				int begin = *ptr;
@@ -3744,7 +3742,7 @@ static void InterpretImpl1Color(int* ptr, int str_level, const Char* str, U8* co
 	}
 }
 
-static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context)
+static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, S64 cursor_x, S64* new_cursor_x)
 {
 	EAlignmentToken prev = AlignmentToken_None;
 	if (*comment_level <= 0)
@@ -3757,9 +3755,16 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 				(*ptr_str)++;
 				continue;
 			}
+			if (c == L'+' || c == L'*')
+			{
+				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
+				InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
+				(*ptr_str)++;
+				continue;
+			}
 			if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || c == L'@' || c == L'\\')
 			{
-				prev = AlignmentToken_Keyword;
+				prev = AlignmentToken_Value;
 				int begin = *ptr_str;
 				int end;
 				do
@@ -3785,9 +3790,15 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 						InterpretImpl1Write(ptr_buf, buf, L'\t');
 				}
 				{
+					if (new_cursor_x != NULL)
+						*new_cursor_x = (S64)*ptr_buf;
 					int i;
 					for (i = begin; i < end; i++)
+					{
+						if (new_cursor_x != NULL && cursor_x == (S64)i)
+							*new_cursor_x = (S64)*ptr_buf;
 						InterpretImpl1Write(ptr_buf, buf, str[i]);
+					}
 				}
 				if (str[begin] == L'f' && str[begin + 1] == L'u' && str[begin + 2] == L'n' && str[begin + 3] == L'c' && *ptr_str == begin + 4 ||
 					str[begin] == L'c' && str[begin + 1] == L'l' && str[begin + 2] == L'a' && str[begin + 3] == L's' && str[begin + 4] == L's' && *ptr_str == begin + 5 ||
@@ -3803,25 +3814,34 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 					str[begin] == L't' && str[begin + 1] == L'r' && str[begin + 2] == L'y' && *ptr_str == begin + 3 ||
 					str[begin] == L'c' && str[begin + 1] == L'a' && str[begin + 2] == L't' && str[begin + 3] == L'c' && str[begin + 4] == L'h' && *ptr_str == begin + 5 ||
 					str[begin] == L'f' && str[begin + 1] == L'i' && str[begin + 2] == L'n' && str[begin + 3] == L'a' && str[begin + 4] == L'l' && str[begin + 5] == L'l' && str[begin + 6] == L'y' && *ptr_str == begin + 7 ||
-					str[begin] == L'b' && str[begin + 1] == L'r' && str[begin + 2] == L'e' && str[begin + 3] == L'a' && str[begin + 4] == L'k' && *ptr_str == begin + 5)
+					str[begin] == L'b' && str[begin + 1] == L'l' && str[begin + 2] == L'o' && str[begin + 3] == L'c' && str[begin + 4] == L'k' && *ptr_str == begin + 5)
 				{
 					(*tab_context)++;
 				}
 			}
 			break;
 		}
+		if (prev == AlignmentToken_None)
+		{
+			S64 i;
+			for (i = 0; i < *tab_context; i++)
+				InterpretImpl1Write(ptr_buf, buf, L'\t');
+			if (new_cursor_x != NULL)
+				*new_cursor_x = (S64)*ptr_buf;
+		}
 	}
-	if (prev == AlignmentToken_None)
+	else
 	{
-		S64 i;
-		for (i = 0; i < *tab_context; i++)
-			InterpretImpl1Write(ptr_buf, buf, L'\t');
+		if (new_cursor_x != NULL)
+			*new_cursor_x = (S64)*ptr_buf;
 	}
-	InterpretImpl1AlignRecursion(ptr_buf, ptr_str, 0, buf, str, comment_level, flags, tab_context, &prev);
+	InterpretImpl1AlignRecursion(ptr_buf, ptr_str, 0, 0, buf, str, comment_level, flags, tab_context, &prev, cursor_x, new_cursor_x);
 	buf[*ptr_buf] = L'\0';
+	if (new_cursor_x != NULL && cursor_x >= (S64)*ptr_str)
+		*new_cursor_x = (S64)*ptr_buf;
 }
 
-static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_level, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, EAlignmentToken* prev)
+static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_level, int type_level, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, EAlignmentToken* prev, S64 cursor_x, S64* new_cursor_x)
 {
 	while (str[*ptr_str] != L'\0')
 	{
@@ -3830,45 +3850,87 @@ static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_lev
 		{
 			if (str_level > 0 && c == L'}')
 			{
-				*prev = AlignmentToken_StrOrChar;
+				*prev = AlignmentToken_Value;
+				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
+				InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
+				(*ptr_str)++;
+				break;
+			}
+			else if (type_level > 0 && c == L'>')
+			{
+				*prev = AlignmentToken_Pr;
+				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 				InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 				(*ptr_str)++;
 				break;
 			}
 			else if (c == L' ' || c == L'\t')
-				(*ptr_str)++;
-			else if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || c == L'@' || c == L'\\')
 			{
-				if (*prev != AlignmentToken_None)
+				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
+				(*ptr_str)++;
+			}
+			else if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || c == L'@' || c == L'\\' || c == L'%' && (L'a' <= str[*ptr_str + 1] && str[*ptr_str + 1] <= L'z' || L'A' <= str[*ptr_str + 1] && str[*ptr_str + 1] <= L'Z' || str[*ptr_str + 1] == L'_'))
+			{
+				if ((*prev & (AlignmentToken_Value | AlignmentToken_Ope2 | AlignmentToken_Comma)) != 0)
 					InterpretImpl1Write(ptr_buf, buf, L' ');
-				*prev = AlignmentToken_Keyword;
+				*prev = AlignmentToken_Value;
 				int begin = *ptr_str;
 				do
 				{
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
 				} while (L'a' <= str[*ptr_str] && str[*ptr_str] <= L'z' || L'A' <= str[*ptr_str] && str[*ptr_str] <= L'Z' || str[*ptr_str] == L'_' || L'0' <= str[*ptr_str] && str[*ptr_str] <= L'9' || str[*ptr_str] == L'@' || str[*ptr_str] == L'\\');
+				if (str[begin] == L'f' && str[begin + 1] == L'u' && str[begin + 2] == L'n' && str[begin + 3] == L'c' && *ptr_str == begin + 4 ||
+					str[begin] == L'l' && str[begin + 1] == L'i' && str[begin + 2] == L's' && str[begin + 3] == L't' && *ptr_str == begin + 4 ||
+					str[begin] == L's' && str[begin + 1] == L't' && str[begin + 2] == L'a' && str[begin + 3] == L'c' && str[begin + 4] == L'k' && *ptr_str == begin + 5 ||
+					str[begin] == L'q' && str[begin + 1] == L'u' && str[begin + 2] == L'e' && str[begin + 3] == L'u' && str[begin + 4] == L'e' && *ptr_str == begin + 5 ||
+					str[begin] == L'd' && str[begin + 1] == L'i' && str[begin + 2] == L'c' && str[begin + 3] == L't' && *ptr_str == begin + 4)
+				{
+					while (str[*ptr_str] != L'\0')
+					{
+						if (str[*ptr_str] == L' ' || str[*ptr_str] == L'\t')
+						{
+							Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
+							(*ptr_str)++;
+							continue;
+						}
+						if (str[*ptr_str] == L'<')
+						{
+							*prev = AlignmentToken_None;
+							Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
+							InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
+							(*ptr_str)++;
+							InterpretImpl1AlignRecursion(ptr_buf, ptr_str, str_level, type_level + 1, buf, str, comment_level, flags, tab_context, prev, cursor_x, new_cursor_x);
+						}
+						break;
+					}
+				}
 			}
 			else if (L'0' <= c && c <= L'9')
 			{
-				if (*prev != AlignmentToken_None)
+				if ((*prev & (AlignmentToken_Value | AlignmentToken_Ope2 | AlignmentToken_Comma)) != 0)
 					InterpretImpl1Write(ptr_buf, buf, L' ');
-				*prev = AlignmentToken_Number;
+				*prev = AlignmentToken_Value;
 				do
 				{
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
 				} while (L'0' <= str[*ptr_str] && str[*ptr_str] <= L'9' || L'A' <= str[*ptr_str] && str[*ptr_str] <= L'F' || str[*ptr_str] == L'#' || str[*ptr_str] == L'.');
 				if (str[*ptr_str] == L'e')
 				{
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
 					if (str[*ptr_str] == L'+' || str[*ptr_str] == L'-')
 					{
+						Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 						(*ptr_str)++;
 						while (L'0' <= str[*ptr_str] && str[*ptr_str] <= L'9')
 						{
+							Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 							InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 							(*ptr_str)++;
 						}
@@ -3876,10 +3938,12 @@ static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_lev
 				}
 				else if (str[*ptr_str] == L'b')
 				{
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
 					while (L'0' <= str[*ptr_str] && str[*ptr_str] <= L'9')
 					{
+						Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 						(*ptr_str)++;
 					}
@@ -3887,105 +3951,288 @@ static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_lev
 			}
 			else if (c == L'"')
 			{
-				if (*prev != AlignmentToken_None)
+				if ((*prev & (AlignmentToken_Value | AlignmentToken_Ope2 | AlignmentToken_Comma)) != 0)
 					InterpretImpl1Write(ptr_buf, buf, L' ');
-				*prev = AlignmentToken_StrOrChar;
+				*prev = AlignmentToken_None;
 				do
 				{
 					if (str[*ptr_str] == L'\\')
 					{
+						Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 						(*ptr_str)++;
 						if (str[*ptr_str] == L'\0')
 							break;
 						if (str[*ptr_str] == L'{')
 						{
+							Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 							InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 							(*ptr_str)++;
-							InterpretImpl1AlignRecursion(ptr_buf, ptr_str, str_level + 1, buf, str, comment_level, flags, tab_context, prev);
+							InterpretImpl1AlignRecursion(ptr_buf, ptr_str, str_level + 1, type_level, buf, str, comment_level, flags, tab_context, prev, cursor_x, new_cursor_x);
 							continue;
 						}
 					}
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
 					if (str[*ptr_str] == L'"')
 					{
+						Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 						(*ptr_str)++;
 						break;
 					}
 				} while (str[*ptr_str] != L'\0');
+				*prev = AlignmentToken_Value;
 			}
 			else if (c == L'\'')
 			{
-				if (*prev != AlignmentToken_None)
+				if ((*prev & (AlignmentToken_Value | AlignmentToken_Ope2 | AlignmentToken_Comma)) != 0)
 					InterpretImpl1Write(ptr_buf, buf, L' ');
-				*prev = AlignmentToken_StrOrChar;
+				*prev = AlignmentToken_None;
 				do
 				{
 					if (str[*ptr_str] == L'\\')
 					{
+						Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 						(*ptr_str)++;
 						if (str[*ptr_str] == L'\0')
 							break;
 					}
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
 					if (str[*ptr_str] == L'\'')
 					{
+						Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 						(*ptr_str)++;
 						break;
 					}
 				} while (str[*ptr_str] != L'\0');
+				*prev = AlignmentToken_Value;
 			}
 			else if (c == L'{')
 			{
-				*prev = AlignmentToken_Comment;
+				if (*prev != AlignmentToken_None)
+					InterpretImpl1Write(ptr_buf, buf, L' ');
+				*prev = AlignmentToken_None;
+				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 				InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 				(*ptr_str)++;
 				(*comment_level)++;
 			}
 			else if (c == L';')
 			{
-				*prev = AlignmentToken_Comment;
+				*prev = AlignmentToken_None;
 				do
 				{
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
 				} while (str[*ptr_str] != L'\0');
 			}
 			else
 			{
-				switch (c)
+				Bool is_ope2 = False;
+				int len = 1;
+				if ((*prev & (AlignmentToken_Value | AlignmentToken_Pr)) != 0)
 				{
-					default:
-						*prev = AlignmentToken_Symbol;
-						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
-						(*ptr_str)++;
-						break;
+					switch (c)
+					{
+						case L'^':
+						case L'*':
+						case L'/':
+						case L'%':
+						case L'+':
+						case L'-':
+						case L'~':
+						case L'&':
+						case L'|':
+							is_ope2 = True;
+							len = 1;
+							break;
+						case L'$':
+							is_ope2 = True;
+							len = 1;
+							switch (str[*ptr_str + 1])
+							{
+								case L'>':
+								case L'<':
+									len = 2;
+									break;
+							}
+							break;
+						case L'=':
+							is_ope2 = True;
+							len = 1;
+							switch (str[*ptr_str + 1])
+							{
+								case L'&':
+								case L'$':
+									len = 2;
+									break;
+							}
+							break;
+						case L'<':
+							is_ope2 = True;
+							len = 1;
+							switch (str[*ptr_str + 1])
+							{
+								case L'>':
+									len = 2;
+									switch (str[*ptr_str + 2])
+									{
+										case L'&':
+										case L'$':
+											len = 3;
+											break;
+									}
+									break;
+								case L'=':
+									len = 2;
+									break;
+							}
+							break;
+						case L'>':
+							is_ope2 = True;
+							len = 1;
+							switch (str[*ptr_str + 1])
+							{
+								case L'=':
+									len = 2;
+									break;
+							}
+							break;
+						case L':':
+							switch (str[*ptr_str + 1])
+							{
+								case L'$':
+								case L':':
+								case L'+':
+								case L'-':
+								case L'*':
+								case L'/':
+								case L'%':
+								case L'^':
+								case L'~':
+									is_ope2 = True;
+									len = 2;
+									break;
+							}
+							break;
+					}
+				}
+				if (is_ope2)
+				{
+					if (*prev != AlignmentToken_None)
+						InterpretImpl1Write(ptr_buf, buf, L' ');
+					*prev = AlignmentToken_Ope2;
+				}
+				else
+				{
+					if ((*prev & (AlignmentToken_Ope2 | AlignmentToken_Comma)) != 0)
+						InterpretImpl1Write(ptr_buf, buf, L' ');
+					switch (c)
+					{
+						case L'(':
+						case L'[':
+						case L'.':
+							len = 1;
+							*prev = AlignmentToken_None;
+							break;
+						case L')':
+						case L']':
+							len = 1;
+							*prev = AlignmentToken_Pr;
+							break;
+						case L',':
+							len = 1;
+							*prev = AlignmentToken_Comma;
+							break;
+						case L':':
+							len = 1;
+							switch (str[*ptr_str + 1])
+							{
+								case L':':
+									if ((*prev & (AlignmentToken_Value | AlignmentToken_Pr)) != 0)
+										InterpretImpl1Write(ptr_buf, buf, L' ');
+									*prev = AlignmentToken_Ope2;
+									len = 2;
+									break;
+								default:
+									*prev = AlignmentToken_Comma;
+									break;
+							}
+							break;
+						case L'+':
+						case L'-':
+						case L'!':
+						case L'^':
+							if ((*prev & (AlignmentToken_Value | AlignmentToken_Pr)) != 0)
+								InterpretImpl1Write(ptr_buf, buf, L' ');
+							len = 1;
+							*prev = AlignmentToken_None;
+							break;
+						case L'#':
+							if ((*prev & (AlignmentToken_Value | AlignmentToken_Pr)) != 0)
+								InterpretImpl1Write(ptr_buf, buf, L' ');
+							len = 1;
+							switch (str[*ptr_str + 1])
+							{
+								case L'#':
+									len = 2;
+									break;
+							}
+							*prev = AlignmentToken_None;
+							break;
+						case L'?':
+							switch (str[*ptr_str + 1])
+							{
+								case L'(':
+									if ((*prev & (AlignmentToken_Value | AlignmentToken_Pr)) != 0)
+										InterpretImpl1Write(ptr_buf, buf, L' ');
+									len = 2;
+									break;
+							}
+							*prev = AlignmentToken_None;
+							break;
+						default:
+							*prev = AlignmentToken_None;
+							break;
+					}
+				}
+				int i;
+				for (i = 0; i < len; i++)
+				{
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
+					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
+					(*ptr_str)++;
 				}
 			}
 		}
 		else
 		{
-			*prev = AlignmentToken_Comment;
+			*prev = AlignmentToken_None;
 			if (c == L'"')
 			{
 				do
 				{
 					if (str[*ptr_str] == L'\\')
 					{
+						Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 						(*ptr_str)++;
 						if (str[*ptr_str] == L'\0')
 							break;
 					}
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
 					if (str[*ptr_str] == L'"')
 					{
+						Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 						(*ptr_str)++;
 						break;
@@ -3998,15 +4245,18 @@ static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_lev
 				{
 					if (str[*ptr_str] == L'\\')
 					{
+						Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 						(*ptr_str)++;
 						if (str[*ptr_str] == L'\0')
 							break;
 					}
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
 					if (str[*ptr_str] == L'\'')
 					{
+						Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 						InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 						(*ptr_str)++;
 						break;
@@ -4017,6 +4267,7 @@ static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_lev
 			{
 				do
 				{
+					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
 				} while (str[*ptr_str] != L'\0');
@@ -4027,6 +4278,7 @@ static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_lev
 					(*comment_level)++;
 				else if (c == L'}')
 					(*comment_level)--;
+				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 				InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 				(*ptr_str)++;
 			}
@@ -4041,4 +4293,10 @@ static void InterpretImpl1Write(int* ptr, Char* buf, Char c)
 		buf[*ptr] = c;
 		(*ptr)++;
 	}
+}
+
+static void Interpret1Impl1UpdateCursor(S64 cursor_x, S64* new_cursor_x, int* ptr_str, int* ptr_buf)
+{
+	if (new_cursor_x != NULL && cursor_x == (S64)*ptr_str)
+		*new_cursor_x = (S64)*ptr_buf;
 }
