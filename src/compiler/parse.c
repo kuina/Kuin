@@ -3747,6 +3747,8 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 	EAlignmentToken prev = AlignmentToken_None;
 	if (*comment_level <= 0)
 	{
+		int access_public = -1;
+		int access_override = -1;
 		while (str[*ptr_str] != L'\0')
 		{
 			const Char c = str[*ptr_str];
@@ -3755,10 +3757,17 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 				(*ptr_str)++;
 				continue;
 			}
-			if (c == L'+' || c == L'*')
+			if (c == L'+')
 			{
+				access_public = *ptr_str;
 				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
-				InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
+				(*ptr_str)++;
+				continue;
+			}
+			if (c == L'*')
+			{
+				access_override = *ptr_str;
+				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 				(*ptr_str)++;
 				continue;
 			}
@@ -3798,6 +3807,18 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 				{
 					if (new_cursor_x != NULL)
 						*new_cursor_x = (S64)*ptr_buf;
+					if (access_public != -1)
+					{
+						if (new_cursor_x != NULL && cursor_x == (S64)access_public)
+							*new_cursor_x = (S64)*ptr_buf;
+						InterpretImpl1Write(ptr_buf, buf, L'+');
+					}
+					if (access_override != -1)
+					{
+						if (new_cursor_x != NULL && cursor_x == (S64)access_override)
+							*new_cursor_x = (S64)*ptr_buf;
+						InterpretImpl1Write(ptr_buf, buf, L'*');
+					}
 					int i;
 					for (i = begin; i < end; i++)
 					{

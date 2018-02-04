@@ -9,6 +9,9 @@
 		do me.ctrl :: 0
 	end func
 
+	+*func update()
+	end func
+
 	+*func load(path: []char): bool
 		try
 			var xml: xml@Xml :: xml@makeXml(path)

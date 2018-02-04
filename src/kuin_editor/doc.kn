@@ -9,6 +9,9 @@
 		do me.undo :: null
 	end func
 
+	+func update()
+	end func
+
 	+func load(path: []char): bool
 	end func
 

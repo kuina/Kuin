@@ -56,6 +56,11 @@ end func
 		do me.dirtyLine :: -1
 	end func
 
+	+*func update()
+		do me.dirtyLine :: 0
+		do me.interpret1SetDirty(-1, false)
+	end func
+
 	+*func load(path: []char): bool
 		var src: list<[]char> :: #list<[]char>
 		var filePtr: file@Reader :: file@makeReader(path)

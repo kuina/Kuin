@@ -44,6 +44,8 @@ end func
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add(@mainSrcName, @curDoc)
 	do @initMainSrc()
+	do @curDoc.update()
+	do \form@updateUi()
 end func
 
 +func openMainSrc(path: []char)
@@ -66,6 +68,8 @@ end func
 	do @docs.add(@mainSrcName, @curDoc)
 	do \prop@load()
 	do @initMainSrc()
+	do @curDoc.update()
+	do \form@updateUi()
 end func
 
 func initMainSrc()
@@ -156,8 +160,10 @@ end func
 +func setCurSrc(doc: \doc@Doc)
 	do \completion@close()
 	do @curDoc :: doc
+	do @curDoc.update()
 	do \form@paintDrawEditor()
 	do \form@focusDrawEditor()
+	do \form@updateUi()
 end func
 
 +func mainDoc(): \doc@Doc
