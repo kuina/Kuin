@@ -54,10 +54,11 @@ end func
 		do me.setSrc(null)
 		do me.resetListInfoItem()
 		do me.dirtyLine :: -1
+		do me.dirtyLineForce :: false
 	end func
 
 	+*func update()
-		do me.dirtyLine :: 0
+		do me.dirtyLineForce :: true
 		do me.interpret1SetDirty(-1, false)
 	end func
 
@@ -903,6 +904,7 @@ end func
 	var lineNumWidth: int
 	+var errList: list<@ErrListItem>
 	var dirtyLine: int
+	var dirtyLineForce: bool
 
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
@@ -1236,7 +1238,7 @@ end func
 				do me.src.flags :: me.src.flags.sub(0, y + 1) ~ [%none $ LineFlag] ~ me.src.flags.sub(y + 1, -1)
 				do x :: 0
 				do y :+ 1
-				;do me.dirtyLine :: -2 {Force}
+				do me.dirtyLineForce :: true
 			else
 				do me.src.src[y] :: me.src.src[y].sub(0, x) ~ str[i].toStr() ~ me.src.src[y].sub(x, -1)
 				do me.src.color[y] :: me.src.color[y].sub(0, x) ~ #[1]bit8 ~ me.src.color[y].sub(x, -1)
@@ -1281,7 +1283,7 @@ end func
 					do me.src.flags :: me.src.flags.sub(0, y) ~ me.src.flags.sub(y + 1, -1)
 					do y :- 1
 					do x :: x2
-					;do me.dirtyLine :: -2 {Force}
+					do me.dirtyLineForce :: true
 				end if
 			else
 				do undoStr :: me.src.src[y][x - 1].toStr() ~ undoStr
@@ -1324,7 +1326,7 @@ end func
 					do me.src.color :: me.src.color.sub(0, y + 1) ~ me.src.color.sub(y + 2, -1)
 					do me.src.commentLevel :: me.src.commentLevel.sub(0, y + 1) ~ me.src.commentLevel.sub(y + 2, -1)
 					do me.src.flags :: me.src.flags.sub(0, y + 1) ~ me.src.flags.sub(y + 2, -1)
-					;do me.dirtyLine :: -2 {Force}
+					do me.dirtyLineForce :: true
 				end if
 			else
 				do undoStr :~ me.src.src[y][x].toStr()
@@ -1515,14 +1517,15 @@ end func
 		if(record)
 			do me.undo.recordBegin()
 		end if
-		if(me.dirtyLine = -1)
+		if(me.dirtyLine = -1 & !me.dirtyLineForce)
 			if(modified)
 				do me.dirtyLine :: line
 				do \dll@interpret1(me.src, me.dirtyLine, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &, 0, 0)
 				do \form@paintDrawEditor()
 			end if
 		else
-			if(me.dirtyLine <> line)
+			if(me.dirtyLine <> line | me.dirtyLineForce)
+				do me.dirtyLineForce :: false
 				var newX: int
 				var newY: int :: me.cursorY
 				do \dll@interpret1(me.src, -1, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &newX, me.dirtyLine, modified ?(me.cursorY, me.dirtyLine))
