@@ -189,13 +189,18 @@ EXPORT Bool BuildFile(const Char* path, const Char* sys_dir, const Char* output,
 	return result;
 }
 
-EXPORT void Interpret1(void* src, S64 line, void* me, void* replace_func, S64 cursor_x, S64 cursor_y, S64* new_cursor_x)
+EXPORT void Interpret1(void* src, S64 line, void* me, void* replace_func, S64 cursor_x, S64 cursor_y, S64* new_cursor_x, S64 old_line, S64 new_line)
 {
-	void* str = *(void**)((U8*)src + 0x10);
-	void* color = *(void**)((U8*)src + 0x18);
-	void* comment_level = *(void**)((U8*)src + 0x20);
-	void* flags = *(void**)((U8*)src + 0x28);
-	InterpretImpl1(str, color, comment_level, flags, line, me, replace_func, cursor_x, cursor_y, new_cursor_x);
+	for (; ; )
+	{
+		void* str = *(void**)((U8*)src + 0x10);
+		void* color = *(void**)((U8*)src + 0x18);
+		void* comment_level = *(void**)((U8*)src + 0x20);
+		void* flags = *(void**)((U8*)src + 0x28);
+		if (InterpretImpl1(str, color, comment_level, flags, line, me, replace_func, cursor_x, cursor_y, new_cursor_x, old_line, new_line))
+			break;
+		old_line = -1;
+	}
 }
 
 EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), const U8* sys_dir, const U8* env, void(*func_log)(const void* args, S64 row, S64 col), S64 lang, const U8** srcs)

@@ -842,8 +842,13 @@ end func
 	end func
 
 	+func replaceForAuxiliary(line: int, str: []char)
-		do me.del(0, line, ^me.src.src[line], true)
-		do me.ins(0, line, ##str, true)
+		if(line >= 0)
+			do me.del(0, line, ^me.src.src[line], true)
+			do me.ins(0, line, ##str, true)
+		else
+			do line :: -1 - line
+			do me.ins(^me.src.src[line], line, ##str, true)
+		end if
 	end func
 
 	const colorLineNum: int :: 16#FFFF7F7F
@@ -1231,7 +1236,7 @@ end func
 				do me.src.flags :: me.src.flags.sub(0, y + 1) ~ [%none $ LineFlag] ~ me.src.flags.sub(y + 1, -1)
 				do x :: 0
 				do y :+ 1
-				do me.dirtyLine :: -2 {Force}
+				;do me.dirtyLine :: -2 {Force}
 			else
 				do me.src.src[y] :: me.src.src[y].sub(0, x) ~ str[i].toStr() ~ me.src.src[y].sub(x, -1)
 				do me.src.color[y] :: me.src.color[y].sub(0, x) ~ #[1]bit8 ~ me.src.color[y].sub(x, -1)
@@ -1276,7 +1281,7 @@ end func
 					do me.src.flags :: me.src.flags.sub(0, y) ~ me.src.flags.sub(y + 1, -1)
 					do y :- 1
 					do x :: x2
-					do me.dirtyLine :: -2 {Force}
+					;do me.dirtyLine :: -2 {Force}
 				end if
 			else
 				do undoStr :: me.src.src[y][x - 1].toStr() ~ undoStr
@@ -1319,7 +1324,7 @@ end func
 					do me.src.color :: me.src.color.sub(0, y + 1) ~ me.src.color.sub(y + 2, -1)
 					do me.src.commentLevel :: me.src.commentLevel.sub(0, y + 1) ~ me.src.commentLevel.sub(y + 2, -1)
 					do me.src.flags :: me.src.flags.sub(0, y + 1) ~ me.src.flags.sub(y + 2, -1)
-					do me.dirtyLine :: -2 {Force}
+					;do me.dirtyLine :: -2 {Force}
 				end if
 			else
 				do undoStr :~ me.src.src[y][x].toStr()
@@ -1513,14 +1518,14 @@ end func
 		if(me.dirtyLine = -1)
 			if(modified)
 				do me.dirtyLine :: line
-				do \dll@interpret1(me.src, me.dirtyLine, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &)
+				do \dll@interpret1(me.src, me.dirtyLine, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &, 0, 0)
 				do \form@paintDrawEditor()
 			end if
 		else
 			if(me.dirtyLine <> line)
 				var newX: int
 				var newY: int :: me.cursorY
-				do \dll@interpret1(me.src, -1, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &newX)
+				do \dll@interpret1(me.src, -1, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &newX, me.dirtyLine, modified ?(me.cursorY, me.dirtyLine))
 				do me.cursorX :: newX
 				do me.cursorY :: newY
 				do me.refreshCursor(false, true)
@@ -1539,14 +1544,14 @@ end func
 
 				if(modified)
 					do me.dirtyLine :: line
-					do \dll@interpret1(me.src, me.dirtyLine, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &)
+					do \dll@interpret1(me.src, me.dirtyLine, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &, 0, 0)
 				else
 					do me.dirtyLine :: -1
 				end if
 				do \form@paintDrawEditor()
 			else
 				if(modified)
-					do \dll@interpret1(me.src, me.dirtyLine, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &)
+					do \dll@interpret1(me.src, me.dirtyLine, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &, 0, 0)
 					do \form@paintDrawEditor()
 				end if
 			end if

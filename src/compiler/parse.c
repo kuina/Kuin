@@ -183,7 +183,7 @@ static SAstExpr* ParseExprCall(void);
 static SAstExpr* ParseExprValue(void);
 static SAstExpr* ParseExprNumber(int row, int col, Char c);
 static void InterpretImpl1Color(int* ptr, int str_level, const Char* str, U8* color, S64 comment_level, U64 flags);
-static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, S64 cursor_x, S64* new_cursor_x);
+static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, S64 cursor_x, S64* new_cursor_x, Char* add_end);
 static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_level, int type_level, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, EAlignmentToken* prev, S64 cursor_x, S64* new_cursor_x);
 static void InterpretImpl1Write(int* ptr, Char* buf, Char c);
 static void Interpret1Impl1UpdateCursor(S64 cursor_x, S64* new_cursor_x, int* ptr_str, int* ptr_buf);
@@ -248,17 +248,24 @@ SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FI
 	return Srces;
 }
 
-void InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S64 line, void* me, void* replace_func, S64 cursor_x, S64 cursor_y, S64* new_cursor_x)
+Bool InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S64 line, void* me, void* replace_func, S64 cursor_x, S64 cursor_y, S64* new_cursor_x, S64 old_line, S64 new_line)
 {
-	S64 line_len = *(S64*)((U8*)str + 0x08);
-	ASSERT(-1 <= line && line < line_len);
+#if defined(_DEBUG)
+	{
+		S64 line_len = *(S64*)((U8*)str + 0x08);
+		ASSERT(-1 <= line && line < line_len);
+	}
+#endif
 	if (line == -1)
 	{
+		S64 line_len = *(S64*)((U8*)str + 0x08);
 		S64 comment_level_context = 0;
 		U64 flags_context = 0;
 		S64 tab_context = 0;
 		S64 i;
 		Char buf_str[0x10 + AUXILIARY_BUF_SIZE + 1];
+		Char add_end[32];
+		add_end[0] = L'\0';
 		for (i = 0; i < line_len; i++)
 		{
 			void** str2 = (void**)((U8*)str + 0x10 + 0x08 * (size_t)i);
@@ -273,9 +280,11 @@ void InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 			{
 				int ptr_buf = 0;
 				int ptr_str = 0;
-				InterpretImpl1Align(&ptr_buf, &ptr_str, dst_str, (Char*)((U8*)*str2 + 0x10), &comment_level_context, &flags_context, &tab_context, cursor_x, i == cursor_y ? new_cursor_x : NULL);
+				InterpretImpl1Align(&ptr_buf, &ptr_str, dst_str, (Char*)((U8*)*str2 + 0x10), &comment_level_context, &flags_context, &tab_context, cursor_x, i == cursor_y ? new_cursor_x : NULL, i == old_line ? add_end : NULL );
 				len = (S64)ptr_buf;
 			}
+			if (add_end[0] != L'\0' && tab_context == 0)
+				add_end[0] = L'\0';
 
 			if (wcscmp(str3, dst_str) != 0)
 			{
@@ -284,6 +293,11 @@ void InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 				if (me != NULL)
 					(*(S64*)me)++;
 				Call3Asm(me, (void*)i, (void*)buf_str, replace_func);
+
+				str2 = (void**)((U8*)str + 0x10 + 0x08 * (size_t)i);
+				color2 = (void**)((U8*)color + 0x10 + 0x08 * (size_t)i);
+				comment_level2 = (S64*)((U8*)comment_level + 0x10 + 0x08 * (size_t)i);
+				flags2 = (U64*)((U8*)flags + 0x10 + 0x08 * (size_t)i);
 			}
 			*comment_level2 = comment_level_context;
 			*flags2 = flags_context;
@@ -292,6 +306,13 @@ void InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 				int ptr = 0;
 				InterpretImpl1Color(&ptr, 0, (Char*)((U8*)*str2 + 0x10), (U8*)*color2 + 0x10, *comment_level2, *flags2);
 			}
+		}
+		if (add_end[0] != L'\0')
+		{
+			if (me != NULL)
+				(*(S64*)me)++;
+			Call3Asm(me, (void*)(-1 - new_line), (void*)add_end, replace_func);
+			return False;
 		}
 	}
 	else
@@ -304,6 +325,7 @@ void InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 		int ptr = 0;
 		InterpretImpl1Color(&ptr, 0, str3, color2, comment_level2, flags2);
 	}
+	return True;
 }
 
 int GetReservedNum(void)
@@ -3742,7 +3764,7 @@ static void InterpretImpl1Color(int* ptr, int str_level, const Char* str, U8* co
 	}
 }
 
-static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, S64 cursor_x, S64* new_cursor_x)
+static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, S64 cursor_x, S64* new_cursor_x, Char* add_end)
 {
 	EAlignmentToken prev = AlignmentToken_None;
 	if (*comment_level <= 0)
@@ -3831,17 +3853,35 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 					str[begin] == L'c' && str[begin + 1] == L'l' && str[begin + 2] == L'a' && str[begin + 3] == L's' && str[begin + 4] == L's' && *ptr_str == begin + 5 ||
 					str[begin] == L'e' && str[begin + 1] == L'n' && str[begin + 2] == L'u' && str[begin + 3] == L'm' && *ptr_str == begin + 4 ||
 					str[begin] == L'i' && str[begin + 1] == L'f' && *ptr_str == begin + 2 ||
-					str[begin] == L'e' && str[begin + 1] == L'l' && str[begin + 2] == L'i' && str[begin + 3] == L'f' && *ptr_str == begin + 4 ||
-					str[begin] == L'e' && str[begin + 1] == L'l' && str[begin + 2] == L's' && str[begin + 3] == L'e' && *ptr_str == begin + 4 ||
 					str[begin] == L's' && str[begin + 1] == L'w' && str[begin + 2] == L'i' && str[begin + 3] == L't' && str[begin + 4] == L'c' && str[begin + 5] == L'h' && *ptr_str == begin + 6 ||
-					str[begin] == L'c' && str[begin + 1] == L'a' && str[begin + 2] == L's' && str[begin + 3] == L'e' && *ptr_str == begin + 4 ||
-					str[begin] == L'd' && str[begin + 1] == L'e' && str[begin + 2] == L'f' && str[begin + 3] == L'a' && str[begin + 4] == L'u' && str[begin + 5] == L'l' && str[begin + 6] == L't' && *ptr_str == begin + 7 ||
 					str[begin] == L'w' && str[begin + 1] == L'h' && str[begin + 2] == L'i' && str[begin + 3] == L'l' && str[begin + 4] == L'e' && *ptr_str == begin + 5 ||
 					str[begin] == L'f' && str[begin + 1] == L'o' && str[begin + 2] == L'r' && *ptr_str == begin + 3 ||
 					str[begin] == L't' && str[begin + 1] == L'r' && str[begin + 2] == L'y' && *ptr_str == begin + 3 ||
-					str[begin] == L'c' && str[begin + 1] == L'a' && str[begin + 2] == L't' && str[begin + 3] == L'c' && str[begin + 4] == L'h' && *ptr_str == begin + 5 ||
-					str[begin] == L'f' && str[begin + 1] == L'i' && str[begin + 2] == L'n' && str[begin + 3] == L'a' && str[begin + 4] == L'l' && str[begin + 5] == L'l' && str[begin + 6] == L'y' && *ptr_str == begin + 7 ||
+					
 					str[begin] == L'b' && str[begin + 1] == L'l' && str[begin + 2] == L'o' && str[begin + 3] == L'c' && str[begin + 4] == L'k' && *ptr_str == begin + 5)
+				{
+					(*tab_context)++;
+					if (add_end != NULL)
+					{
+						((S64*)add_end)[0] = 2;
+						((S64*)add_end)[1] = (S64)(0x05 + end - begin);
+						add_end[0x08] = L'\n';
+						add_end[0x09] = L'e';
+						add_end[0x0a] = L'n';
+						add_end[0x0b] = L'd';
+						add_end[0x0c] = L' ';
+						int i;
+						for (i = begin; i < end; i++)
+							add_end[0x0d + i - begin] = str[i];
+						add_end[0x0d + end - begin] = L'\0';
+					}
+				}
+				else if (str[begin] == L'e' && str[begin + 1] == L'l' && str[begin + 2] == L'i' && str[begin + 3] == L'f' && *ptr_str == begin + 4 ||
+					str[begin] == L'e' && str[begin + 1] == L'l' && str[begin + 2] == L's' && str[begin + 3] == L'e' && *ptr_str == begin + 4 ||
+					str[begin] == L'c' && str[begin + 1] == L'a' && str[begin + 2] == L's' && str[begin + 3] == L'e' && *ptr_str == begin + 4 ||
+					str[begin] == L'd' && str[begin + 1] == L'e' && str[begin + 2] == L'f' && str[begin + 3] == L'a' && str[begin + 4] == L'u' && str[begin + 5] == L'l' && str[begin + 6] == L't' && *ptr_str == begin + 7 ||
+					str[begin] == L'c' && str[begin + 1] == L'a' && str[begin + 2] == L't' && str[begin + 3] == L'c' && str[begin + 4] == L'h' && *ptr_str == begin + 5 ||
+					str[begin] == L'f' && str[begin + 1] == L'i' && str[begin + 2] == L'n' && str[begin + 3] == L'a' && str[begin + 4] == L'l' && str[begin + 5] == L'l' && str[begin + 6] == L'y' && *ptr_str == begin + 7)
 				{
 					(*tab_context)++;
 				}
