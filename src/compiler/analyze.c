@@ -2101,7 +2101,7 @@ static SAstStat* RebuildBreak(SAstStat* ast, SAstType* ret_type)
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
-	if ((((SAst*)ast)->RefItem->TypeId & AstTypeId_StatBreakable) != AstTypeId_StatBreakable)
+	if (((SAst*)ast)->RefItem == NULL || (((SAst*)ast)->RefItem->TypeId & AstTypeId_StatBreakable) != AstTypeId_StatBreakable)
 	{
 		Err(L"EA0033", ((SAst*)ast)->Pos);
 		return (SAstStat*)DummyPtr;
