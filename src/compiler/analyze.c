@@ -363,9 +363,12 @@ static SList* RefreshStats(SList* stats, SAstType* ret_type)
 
 static Bool CmpType(const SAstType* type1, const SAstType* type2)
 {
-	EAstTypeId type_id1 = ((SAst*)type1)->TypeId;
-	EAstTypeId type_id2 = ((SAst*)type2)->TypeId;
-	ASSERT(type1 != NULL && type2 != NULL);
+	EAstTypeId type_id1;
+	EAstTypeId type_id2;
+	if (type1 == NULL || type2 == NULL)
+		return False;
+	type_id1 = ((SAst*)type1)->TypeId;
+	type_id2 = ((SAst*)type2)->TypeId;
 	{
 		// Comparing 'null' and 'nullable' should be true.
 		Bool nullable1 = type_id1 == AstTypeId_TypeUser && ((SAst*)type1)->RefItem->TypeId == AstTypeId_Enum ? False : ((type_id1 & AstTypeId_TypeNullable) == AstTypeId_TypeNullable);
