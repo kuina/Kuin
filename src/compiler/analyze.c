@@ -195,7 +195,10 @@ const Char** GetBuildInFuncs(void)
 static SAstFunc* SearchMain(void)
 {
 	const SAst* ast = (const SAst*)DictSearch(Asts, NewStr(NULL, L"\\%s", Option->SrcName));
-	SAst* func = (SAst*)DictSearch(ast->ScopeChildren, L"main");
+	SAst* func;
+	if (ast == NULL)
+		return NULL;
+	func = (SAst*)DictSearch(ast->ScopeChildren, L"main");
 	if (func != NULL && (func->TypeId & AstTypeId_Func) == AstTypeId_Func)
 	{
 		SAstFunc* func2 = (SAstFunc*)func;
