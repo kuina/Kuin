@@ -791,36 +791,6 @@ end func
 		ret cnt
 	end func
 
-	+func showHint(fast: bool)
-		var x: int :: me.cursorX
-		if(^me.src.src[me.cursorY] = x)
-			do x :- 1
-		end if
-		if(x < 0)
-			do \completion@close()
-			ret
-		end if
-		while(x > 0 & (me.src.src[me.cursorY][x] = ' ' | me.src.src[me.cursorY][x] = '\t'))
-			do x :- 1
-		end while
-		var srcName: []char :: \src@srcNameToInternalName(\src@getDocName(\src@curDoc))
-		if(^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t')
-			var color: @CharColor :: me.src.color[me.cursorY][x].and(16#7Fb8) $ @CharColor
-			if(srcName <>& null)
-				if(color = %identifier | color = %global | color = %reserved)
-					var srcName2: []char
-					var word: []char :: me.getWord(&srcName2, x, me.cursorY, color, srcName)
-					var funcHint: []char :: fast ?(me.getFuncHint(srcName, x, me.cursorY), null)
-					do \completion@show(srcName2, me.cursorY + 1, word, funcHint, fast)
-				else
-					do \completion@close()
-				end if
-			end if
-		else
-			do \completion@close()
-		end if
-	end func
-
 	+func move(col: int, row: int)
 		do me.cursorX :: col
 		do me.cursorY :: row
@@ -830,7 +800,7 @@ end func
 		do me.interpret1SetDirty(me.cursorY, false)
 	end func
 
-	+func complement(): bool
+	+func complementDecision(): bool
 		ret me.complementImpl()
 	end func
 
@@ -1347,135 +1317,6 @@ end func
 		do me.changed :: true
 	end func
 
-	func getFuncHint(srcName: []char, x: int, y: int): []char
-		var charColor: bit8 :: me.src.color[y][x]
-		if(x > 0)
-			do x :- 1
-		end if
-		switch(charColor $ @CharColor)
-		case %char_, %str, %lineComment, %comment
-			while(x > 0 & me.src.color[y][x].and(16#7Fb8) = charColor)
-				do x :- 1
-			end while
-		end switch
-		var parenthesisNum: int :: 0
-		var commaNum: int :: 0
-		while(x > 0)
-			switch(me.src.src[y][x])
-			case '('
-				do parenthesisNum :- 1
-				if(parenthesisNum < 0)
-					while(x > 0 & (me.src.src[y][x - 1] = ' ' | me.src.src[y][x - 1] = '\t'))
-						do x :- 1
-					end while
-					if(x > 0)
-						switch color(me.src.color[y][x - 1].and(16#7Fb8) $ @CharColor)
-						case %identifier, %global
-							do x :- 1
-							var srcName2: []char
-							var word: []char :: me.getWord(&srcName2, x, y, color, srcName)
-							var hint: []char :: \dll@getHint(1, srcName2, y + 1, word, &, &, &)
-							if(hint =& null)
-								do hint :: ""
-							end if
-							ret hint
-						case %reserved
-							ret ""
-						default
-							do parenthesisNum :: 0
-							do commaNum :: 0
-						end switch
-					end if
-				end if
-			case ')'
-				do parenthesisNum :+ 1
-			case ','
-				if(parenthesisNum = 0)
-					do commaNum :+ 1
-				end if
-			default
-				switch color(me.src.color[y][x].and(16#7Fb8) $ @CharColor)
-				case %char_, %str, %lineComment, %comment
-					while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
-						do x :- 1
-					end while
-				end switch
-			end switch
-			do x :- 1
-		end while
-		ret ""
-	end func
-
-	func getWord(srcName2: &[]char, x: int, y: int, color: @CharColor, srcName: []char): []char
-		var last: int :: x
-		while(x > 0 & me.src.color[y][x - 1].and(16#7Fb8) = color $ bit8)
-			do x :- 1
-		end while
-		if(x > 0 & (me.src.src[y][x - 1] = '%' | me.src.src[y][x - 1] = '.'))
-			do x :- 1
-		end if
-		var last2: int :: last
-		while(last2 < ^me.src.color[y] - 1 & me.src.color[y][last2 + 1].and(16#7Fb8) = color $ bit8)
-			do last2 :+ 1
-		end while
-		var word: []char :: me.src.src[y].sub(x, last2 - x + 1).trim()
-		do srcName2 :: srcName
-		var pos: int :: word.find('@', -1)
-		if(pos > 0)
-			do srcName2 :: word.sub(0, pos)
-			do word :: word.sub(pos, -1)
-		end if
-		ret word
-	end func
-
-	func complementImpl(): bool
-		var replaceStr: []char :: \completion@getSelWord()
-		if(replaceStr =& null)
-			ret false
-		end if
-		var completionSrc: []char :: \completion@getCompletionSrc()
-		if(replaceStr[0] = '@' & \src@docs.get(\src@internalNameToSrcName(completionSrc)) <>& me)
-			do replaceStr :: completionSrc ~ replaceStr
-		end if
-		var x: int :: me.cursorX
-		if(^me.src.src[me.cursorY] = x)
-			do x :- 1
-		end if
-		assert x >= 0
-		while(x > 0 & (me.src.src[me.cursorY][x] = ' ' | me.src.src[me.cursorY][x] = '\t'))
-			do x :- 1
-		end while
-		assert ^me.src.src[me.cursorY] > 0 & me.src.src[me.cursorY][x] <> ' ' & me.src.src[me.cursorY][x] <> '\t'
-		var color: @CharColor :: me.src.color[me.cursorY][x].and(16#7Fb8) $ @CharColor
-		assert color = %identifier | color = %global | color = %reserved
-
-		var last: int :: x
-		while(x > 0 & me.src.color[me.cursorY][x - 1].and(16#7Fb8) = color $ bit8)
-			do x :- 1
-		end while
-		if(x > 0 & (me.src.src[me.cursorY][x - 1] = '%' | me.src.src[me.cursorY][x - 1] = '.'))
-			do x :- 1
-		end if
-		var last2: int :: last
-		while(last2 < ^me.src.color[me.cursorY] - 1 & me.src.color[me.cursorY][last2 + 1].and(16#7Fb8) = color $ bit8)
-			do last2 :+ 1
-		end while
-		var word: []char :: me.src.src[me.cursorY].sub(x, last2 - x + 1).trim()
-		if(word <> replaceStr)
-			do me.cursorX :: x
-			do me.areaX :: last2 + 1
-			do me.areaY :: me.cursorY
-			do me.replaceOne(word, replaceStr, true, false, false)
-			do me.cursorX :: x + ^replaceStr
-			do me.areaX :: -1
-			do me.areaY :: -1
-			do me.refreshCursor(false, true)
-			do \form@paintDrawEditor()
-		end if
-		do \completion@close()
-		ret true
-	end func
-
 	func scrollPageX(wheel: int)
 		do me.pageX :+ wheel
 		; TODO: me.pageX >= ?
@@ -1534,12 +1375,8 @@ end func
 				do me.refreshCursor(false, true)
 
 				do \src@resetErrList()
-				var srcs: [][]char :: \src@docs.toArrayKey()
-				for i(0, ^srcs - 1)
-					do srcs[i] :: \src@srcNameToInternalName(srcs[i])
-				end for
 				try
-					do \dll@interpret2(\src@mainSrcName, \src@getSrc, null, \form@getEnv(), \form@logForInterpret, \common@langEn ?(1, 0), srcs)
+					do \dll@interpret2(\src@mainSrcName, \src@getSrc, null, \form@getEnv(), \form@logForInterpret, \common@langEn ?(1, 0))
 				catch
 				end try
 				do \src@updateErrList()
@@ -1562,6 +1399,59 @@ end func
 		if(record)
 			do me.undo.recordEnd()
 		end if
+
+		if(modified)
+			var first: int
+			var word: []char :: me.parseWord(me.cursorX, me.cursorY, &first)
+			if(word =& null)
+				do \completion@close()
+			else
+				do \completion@show(me.src, first, me.cursorY, word)
+			end if
+		end if
+	end func
+
+	func parseWord(x: int, y: int, first: &int): []char
+		do first :: x
+		while(first > 0 & keyword(me.src.color[y][first - 1]))
+			do first :- 1
+		end while
+		if(!keyword(me.src.color[y][first]))
+			do first :: -1
+			ret null
+		end if
+		var last: int :: x
+		while(last < ^me.src.color[y] - 1 & keyword(me.src.color[y][last + 1]))
+			do last :+ 1
+		end while
+		ret me.src.src[y].sub(first, last - first).trim()
+
+		func keyword(color: bit8): bool
+			do color :: color.and(16#7Fb8)
+			ret color = %identifier $ @CharColor $ bit8 | color = %global $ @CharColor $ bit8 | color = %reserved $ @CharColor $ bit8
+		end func
+	end func
+
+	func complementImpl(): bool
+		var replaceStr: []char :: \completion@getSelWord()
+		if(replaceStr =& null)
+			ret false
+		end if
+		var first: int
+		var word: []char :: me.parseWord(me.cursorX, me.cursorY, &first)
+		if(word <>& null & word <> replaceStr)
+			do me.cursorX :: first
+			do me.areaX :: first + ^word
+			do me.areaY :: me.cursorY
+			do me.replaceOne(word, replaceStr, true, false, false)
+			do me.cursorX :: first + ^replaceStr
+			do me.areaX :: -1
+			do me.areaY :: -1
+			do me.refreshCursor(false, true)
+			do \form@paintDrawEditor()
+		end if
+		do \completion@close()
+		ret true
 	end func
 end class
 

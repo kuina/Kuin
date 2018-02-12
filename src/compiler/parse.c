@@ -132,6 +132,7 @@ static SAstExprValue* ObtainStrValue(const SPos* pos, const Char* value);
 static Char EscChar(Char c);
 static Bool IsCorrectSrcName(const Char* name, Bool skip_dot);
 static void AddSrc(const Char* name);
+static Bool IsReserved(const Char* word);
 static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_id, EAstTypeId type_id, SAst* block);
 static SAstRoot* ParseRoot(SAstRoot* ast);
 static SAstFunc* ParseFunc(const Char* parent_class);
@@ -326,21 +327,6 @@ Bool InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 		InterpretImpl1Color(&ptr, 0, str3, color2, comment_level2, flags2);
 	}
 	return True;
-}
-
-int GetReservedNum(void)
-{
-	return (int)(sizeof(Reserved) / sizeof(Char*));
-}
-
-const Char** GetReserved(void)
-{
-	return Reserved;
-}
-
-Bool IsReserved(const Char* word)
-{
-	return BinSearch(Reserved, (int)(sizeof(Reserved) / sizeof(Char*)), word) != -1;
 }
 
 static const void* ParseSrc(const Char* src_name, const void* ast, void* param)
@@ -973,6 +959,11 @@ static void AddSrc(const Char* name)
 		Srces2 = DictAdd(Srces2, name, NULL);
 	if (DictSearch(SrcRefPos, name) == NULL)
 		SrcRefPos = DictAdd(SrcRefPos, name, NewPos(SrcName, Row, Col));
+}
+
+static Bool IsReserved(const Char* word)
+{
+	return BinSearch(Reserved, (int)(sizeof(Reserved) / sizeof(Char*)), word) != -1;
 }
 
 static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_id, EAstTypeId type_id, SAst* block)

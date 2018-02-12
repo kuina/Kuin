@@ -5,6 +5,7 @@ func main()
 	do \common@init()
 
 	do \dll@initCompiler(\common@langEn ?(1, 0))
+	do \completion@init()
 	do \find@init()
 	do \form@makeWnd()
 	do \doc_src@init()
