@@ -687,17 +687,6 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	if (asts == NULL || option.Rls && ErrOccurred())
 		goto ERR;
 	Err(L"IK0001", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
-#if defined(_DEBUG)
-	MakeKeywords(asts, NULL);
-	{
-		FILE* fp = _wfopen(NewStr(NULL, L"%s_keywords.txt", option.OutputFile), L"w, ccs=UTF-8");
-		fwprintf(fp, L"%d\n", KeywordNum);
-		int i;
-		for (i = 0; i < KeywordNum; i++)
-			fwprintf(fp, L"%s(%s) = %s: %d, %d - %d\n", Keywords[i]->Name, (Keywords[i]->Ast == NULL || Keywords[i]->Ast->RefName == NULL) ? L"" : Keywords[i]->Ast->RefName, Keywords[i]->SrcName, Keywords[i]->Ast == NULL ? -1 : Keywords[i]->Ast->Pos->Row, Keywords[i]->First == NULL ? -1 : *Keywords[i]->First, Keywords[i]->Last == NULL ? -1 : *Keywords[i]->Last);
-		fclose(fp);
-	}
-#endif
 	entry = Analyze(asts, &option, &dlls);
 	if (ErrOccurred())
 		goto ERR;
