@@ -233,15 +233,15 @@ EXPORT void GetKeywords(void* src, S64 x, S64 y, void* callback)
 {
 	void* str = *(void**)((U8*)src + 0x10);
 	// void* comment_level = *(void**)((U8*)src + 0x20);
-	// void* flags = *(void**)((U8*)src + 0x28);
+	void* flags = *(void**)((U8*)src + 0x28);
 
 	void** str2 = (void**)((U8*)str + 0x10 + 0x08 * (size_t)y);
-	// S64* comment_level2 = (S64*)((U8*)comment_level + 0x10 + 0x08 * (size_t)y);
-	// U64* flags2 = (U64*)((U8*)flags + 0x10 + 0x08 * (size_t)y);
+	// S64 comment_level2 = *(S64*)((U8*)comment_level + 0x10 + 0x08 * (size_t)y);
+	U64 flags2 = *(U64*)((U8*)flags + 0x10 + 0x08 * (size_t)y);
 
 	const Char* str3 = (Char*)((U8*)*str2 + 0x10);
 
-	//GetKeywordsRoot(&str3, callback);
+	GetKeywordsRoot(&str3, str3 + x + 1, flags2, callback);
 }
 
 EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func)
@@ -687,17 +687,6 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	if (asts == NULL || option.Rls && ErrOccurred())
 		goto ERR;
 	Err(L"IK0001", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
-#if defined(_DEBUG)
-	MakeKeywords(asts, NULL);
-	{
-		FILE* fp = _wfopen(NewStr(NULL, L"%s_keywords.txt", option.OutputFile), L"w, ccs=UTF-8");
-		fwprintf(fp, L"%d\n", KeywordNum);
-		int i;
-		for (i = 0; i < KeywordNum; i++)
-			fwprintf(fp, L"%s(%s) = %s: %d, %d - %d\n", Keywords[i]->Name, (Keywords[i]->Ast == NULL || Keywords[i]->Ast->RefName == NULL) ? L"" : Keywords[i]->Ast->RefName, Keywords[i]->SrcName, Keywords[i]->Ast == NULL ? -1 : Keywords[i]->Ast->Pos->Row, Keywords[i]->First == NULL ? -1 : *Keywords[i]->First, Keywords[i]->Last == NULL ? -1 : *Keywords[i]->Last);
-		fclose(fp);
-	}
-#endif
 	entry = Analyze(asts, &option, &dlls);
 	if (ErrOccurred())
 		goto ERR;

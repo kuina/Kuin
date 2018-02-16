@@ -1416,7 +1416,7 @@ end func
 		while(first > 0 & keyword(me.src.color[y][first - 1]))
 			do first :- 1
 		end while
-		if(!keyword(me.src.color[y][first]))
+		if(first = ^me.src.color[y] | !keyword(me.src.color[y][first]))
 			do first :: -1
 			ret null
 		end if

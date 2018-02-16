@@ -3693,6 +3693,9 @@ static void AssembleExprArray(SAstExprArray* ast, int reg_i, int reg_f)
 		ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, RegI[reg_i + 1]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08)));
 		ListAdd(PackAsm->Asms, AsmJL(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 		ListAdd(PackAsm->Asms, lbl1);
+#if defined(_DEBUG)
+		ListAdd(PackAsm->Asms, AsmINT(ValImmU(8, 0x03)));
+#endif
 		RaiseExcpt(0xe9170002);
 		ListAdd(PackAsm->Asms, lbl2);
 	}
