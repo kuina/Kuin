@@ -67,6 +67,32 @@ typedef struct SArchiveFileList
 	const Char* Path;
 } SArchiveFileList;
 
+typedef struct SKeywordListItem
+{
+	const Char* SrcName;
+	const Char* Name;
+	const SAst* Ast;
+	int* First;
+	int* Last;
+} SKeywordListItem;
+
+typedef struct SKeywordList
+{
+	struct SKeywordList* Next;
+	const SKeywordListItem* Keyword;
+} SKeywordList;
+
+typedef struct SKeywordListCallbackParam
+{
+	const Char* Src;
+	SKeywordList** Top;
+	SKeywordList** Bottom;
+	int* Cnt;
+	int* First;
+	int* Last;
+	EAstTypeId ParentType;
+} SKeywordListCallbackParam;
+
 static const void*(*FuncGetSrc)(const U8*) = NULL;
 static void(*FuncLog)(const void*, S64, S64) = NULL;
 static const void* Src = NULL;
@@ -78,6 +104,8 @@ static SErrMsg ExcptMsgs[MSG_NUM];
 static Bool MsgLoaded = (Bool)0;
 static Char HintBuf[HINT_MSG_NUM][0x08 + HINT_MSG_MAX + 1];
 static Char HintSrcBuf[0x08 + KUIN_MAX_PATH + 1];
+static int KeywordListNum = 0;
+static const SKeywordListItem** KeywordList = NULL;
 
 // Assembly functions.
 void* Call0Asm(void* func);
@@ -99,6 +127,10 @@ static const void* AddrToPosCallback(U64 key, const void* value, void* param);
 static SArchiveFileList* SearchFiles(int* len, const Char* src);
 static Bool SearchFilesRecursion(int* len, size_t src_base_len, const Char* src, SArchiveFileList** top, SArchiveFileList** bottom);
 static U8 GetKey(U64 key, U8 data, U64 pos);
+static void MakeKeywordList(SDict* asts);
+static const void* MakeKeywordListCallback(const Char* key, const void* value, void* param);
+static void MakeKeywordListRecursion(SKeywordListCallbackParam* param, const SAst* ast);
+static int CmpKeywordListItem(const void* a, const void* b);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -177,7 +209,7 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 	FuncGetSrc = func_get_src;
 	FuncLog = func_log;
 
-	ResetAllocator();
+	ResetMemAllocator();
 
 	// Set the system directory.
 	if (sys_dir2 == NULL)
@@ -203,6 +235,7 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 			if (asts != NULL)
 			{
 				Analyze(asts, &option, &dlls);
+				MakeKeywordList(asts);
 				result = True;
 			}
 		}
@@ -227,9 +260,11 @@ EXPORT void Version(S64* major, S64* minor, S64* micro)
 EXPORT void ResetMemAllocator(void)
 {
 	ResetAllocator();
+	KeywordListNum = 0;
+	KeywordList = NULL;
 }
 
-EXPORT void GetKeywords(void* src, S64 x, S64 y, void* callback)
+EXPORT void GetKeywords(void* src, const U8* src_name, S64 x, S64 y, void* callback)
 {
 	void* str = *(void**)((U8*)src + 0x10);
 	// void* comment_level = *(void**)((U8*)src + 0x20);
@@ -241,7 +276,7 @@ EXPORT void GetKeywords(void* src, S64 x, S64 y, void* callback)
 
 	const Char* str3 = (Char*)((U8*)*str2 + 0x10);
 
-	GetKeywordsRoot(&str3, str3 + x + 1, flags2, callback);
+	GetKeywordsRoot(&str3, str3 + x + 1, (const Char*)(src_name + 0x10), flags2, callback);
 }
 
 EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func)
@@ -922,4 +957,136 @@ static U8 GetKey(U64 key, U8 data, U64 pos)
 {
 	U64 rnd = ((pos ^ key) * 0x351cd819923acae7) >> 32;
 	return (U8)(data ^ rnd);
+}
+
+static void MakeKeywordList(SDict* asts)
+{
+	SKeywordListCallbackParam param;
+	param.Src = NULL;
+	SKeywordList* top = NULL;
+	SKeywordList* bottom = NULL;
+	param.Top = &top;
+	param.Bottom = &bottom;
+	int cnt = 0;
+	param.Cnt = &cnt;
+	int* first = (int*)Alloc(sizeof(int));
+	int* last = (int*)Alloc(sizeof(int));
+	*first = INT_MAX;
+	*last = INT_MIN;
+	param.First = first;
+	param.Last = last;
+	param.ParentType = AstTypeId_Ast;
+	DictForEach(asts, MakeKeywordListCallback, &param);
+
+	KeywordList = (SKeywordListItem**)Alloc(sizeof(SKeywordListItem*) * (size_t)cnt);
+	{
+		int idx = 0;
+		SKeywordList* ptr = *param.Top;
+		while (ptr != NULL)
+		{
+			KeywordList[idx] = ptr->Keyword;
+			idx++;
+			ptr = ptr->Next;
+		}
+		ASSERT(idx == cnt);
+	}
+	KeywordListNum = cnt;
+	qsort((void*)KeywordList, (size_t)KeywordListNum, sizeof(SKeywordListItem*), CmpKeywordListItem);
+}
+
+static const void* MakeKeywordListCallback(const Char* key, const void* value, void* param)
+{
+	SKeywordListCallbackParam* param2 = (SKeywordListCallbackParam*)param;
+	const SAst* ast = (const SAst*)value;
+	SKeywordListCallbackParam param3 = *param2;
+	if (param3.Src == NULL)
+		param3.Src = key;
+	if (value != DummyPtr)
+		MakeKeywordListRecursion(&param3, ast);
+	return value;
+}
+
+static void MakeKeywordListRecursion(SKeywordListCallbackParam* param, const SAst* ast)
+{
+	if (ast->Pos != NULL && wcscmp(ast->Pos->SrcName, param->Src) == 0 && ast->Pos->Row != -1 &&
+		(ast->Pos->SrcName[0] == L'\\' || param->ParentType == AstTypeId_Root || param->ParentType == AstTypeId_Enum || param->ParentType == AstTypeId_Class))
+	{
+		const int row = ast->Pos->Row;
+		if (*param->First > row)
+			*param->First = row;
+		if (*param->Last < row)
+			*param->Last = row;
+		if (ast->Name != NULL && wcscmp(ast->Name, L"me") != 0 &&
+			!(ast->Pos->SrcName[0] != L'\\' && ast->Name[0] == L'_' && !(L'0' <= ast->Name[1] && ast->Name[1] <= L'9')))
+		{
+			SKeywordList* node = (SKeywordList*)Alloc(sizeof(SKeywordList));
+			SKeywordListItem* keyword = (SKeywordListItem*)Alloc(sizeof(SKeywordListItem));
+			keyword->SrcName = ast->Pos->SrcName;
+			switch (param->ParentType)
+			{
+				case AstTypeId_Root:
+					keyword->Name = NewStr(NULL, L"%s@%s", ast->Pos->SrcName, ast->Name);
+					break;
+				case AstTypeId_Enum:
+					keyword->SrcName = L"";
+					keyword->Name = NewStr(NULL, L"%%%s", ast->Name);
+					break;
+				case AstTypeId_Class:
+					if (ast->TypeId == AstTypeId_Arg || ast->TypeId == AstTypeId_Func)
+					{
+						keyword->SrcName = L"";
+						keyword->Name = NewStr(NULL, L".%s", ast->Name);
+					}
+					break;
+				default:
+					keyword->Name = ast->Name;
+					break;
+			}
+			keyword->Ast = ast;
+			keyword->First = param->First;
+			keyword->Last = param->Last;
+			node->Keyword = keyword;
+			node->Next = NULL;
+			if (*param->Top == NULL)
+				*param->Top = node;
+			else
+				(*param->Bottom)->Next = node;
+			*param->Bottom = node;
+			(*param->Cnt)++;
+		}
+	}
+	if (ast->ScopeChildren != NULL)
+	{
+		SKeywordListCallbackParam param2 = *param;
+		int* first = (int*)Alloc(sizeof(int));
+		int* last = (int*)Alloc(sizeof(int));
+		*first = INT_MAX;
+		*last = INT_MIN;
+		param2.First = first;
+		param2.Last = last;
+		param2.ParentType = ast->TypeId;
+		DictForEach(ast->ScopeChildren, MakeKeywordListCallback, &param2);
+	}
+}
+
+static int CmpKeywordListItem(const void* a, const void* b)
+{
+	const SKeywordListItem* a2 = *(const SKeywordListItem**)a;
+	const SKeywordListItem* b2 = *(const SKeywordListItem**)b;
+	int cmp;
+	cmp = wcscmp(a2->Name, b2->Name);
+	if (cmp != 0)
+		return cmp;
+	cmp = wcscmp(a2->SrcName, b2->SrcName);
+	if (cmp != 0)
+		return cmp;
+	if (a2->First != NULL && b2->First != NULL)
+	{
+		cmp = *a2->First - *b2->First;
+		if (cmp != 0)
+			return cmp;
+		if (a2->Last != NULL && b2->Last != NULL)
+			cmp = *b2->Last - *a2->Last;
+	}
+	return cmp;
 }

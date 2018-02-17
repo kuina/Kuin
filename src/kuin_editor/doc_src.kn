@@ -1406,7 +1406,7 @@ end func
 			if(word =& null)
 				do \completion@close()
 			else
-				do \completion@show(me.src, first, me.cursorY, word)
+				do \completion@show(me.src, \src@curDocInternalName, first, me.cursorY, word)
 			end if
 		end if
 	end func

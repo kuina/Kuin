@@ -108,6 +108,11 @@ static Bool IsLast;
 static SStack* Scope;
 static U32 UniqueCnt;
 
+static const Char* GetKeywordsEnd; 
+static const Char* GetKeywordsSrcName;
+static U64 GetKeywordsFlags;
+static void* GetKeywordsCallback;
+
 static const void* ParseSrc(const Char* src_name, const void* ast, void* param);
 static Char ReadBuf(void);
 static Char Read(void);
@@ -188,27 +193,27 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_level, int type_level, Char* buf, const Char* str, S64* comment_level, U64* flags, S64* tab_context, EAlignmentToken* prev, S64 cursor_x, S64* new_cursor_x);
 static void InterpretImpl1Write(int* ptr, Char* buf, Char c);
 static void Interpret1Impl1UpdateCursor(S64 cursor_x, S64* new_cursor_x, int* ptr_str, int* ptr_buf);
-static Char GetKeywordsRead(const Char** str, const Char* end);
-static void GetKeywordsReadComment(const Char** str, const Char* end);
-static Char GetKeywordsReadChar(const Char** str, const Char* end);
-static Char GetKeywordsReadStrict(const Char** str, const Char* end);
-static Bool GetKeywordsReadIdentifier(Char* buf, const Char** str, const Char* end, Bool skip_spaces, Bool ref);
-static Bool GetKeywordsReadUntil(const Char** str, const Char* end, Char c);
-static void GetKeywordsAdd(void* callback, const Char* str);
-static Bool GetKeywordsReadType(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExpr(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprThree(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprOr(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprAnd(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprCmp(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprCat(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprAdd(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprMul(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprPlus(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprPow(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprCall(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprValue(const Char** str, const Char* end, U64 flags, void* callback);
-static Bool GetKeywordsReadExprNumber(const Char** str, const Char* end, Char c);
+static Char GetKeywordsRead(const Char** str);
+static void GetKeywordsReadComment(const Char** str);
+static Char GetKeywordsReadChar(const Char** str);
+static Char GetKeywordsReadStrict(const Char** str);
+static Bool GetKeywordsReadIdentifier(Char* buf, const Char** str, Bool skip_spaces, Bool ref);
+static Bool GetKeywordsReadUntil(const Char** str, Char c);
+static void GetKeywordsAdd(const Char* str);
+static Bool GetKeywordsReadType(const Char** str);
+static Bool GetKeywordsReadExpr(const Char** str);
+static Bool GetKeywordsReadExprThree(const Char** str);
+static Bool GetKeywordsReadExprOr(const Char** str);
+static Bool GetKeywordsReadExprAnd(const Char** str);
+static Bool GetKeywordsReadExprCmp(const Char** str);
+static Bool GetKeywordsReadExprCat(const Char** str);
+static Bool GetKeywordsReadExprAdd(const Char** str);
+static Bool GetKeywordsReadExprMul(const Char** str);
+static Bool GetKeywordsReadExprPlus(const Char** str);
+static Bool GetKeywordsReadExprPow(const Char** str);
+static Bool GetKeywordsReadExprCall(const Char** str);
+static Bool GetKeywordsReadExprValue(const Char** str);
+static Bool GetKeywordsReadExprNumber(const Char** str, Char c);
 
 SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const SOption* option)
 {
@@ -350,58 +355,63 @@ Bool InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 	return True;
 }
 
-void GetKeywordsRoot(const Char** str, const Char* end, U64 flags, void* callback)
+void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, U64 flags, void* callback)
 {
+	GetKeywordsEnd = end;
+	GetKeywordsSrcName = src_name;
+	GetKeywordsFlags = flags;
+	GetKeywordsCallback = callback;
+
 	Char buf[129];
-	if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+	if (GetKeywordsReadIdentifier(buf, str, True, False))
 	{
-		GetKeywordsAdd(callback, L"alias");
-		GetKeywordsAdd(callback, L"assert");
-		GetKeywordsAdd(callback, L"block");
-		GetKeywordsAdd(callback, L"break");
-		GetKeywordsAdd(callback, L"case");
-		GetKeywordsAdd(callback, L"catch");
-		GetKeywordsAdd(callback, L"class");
-		GetKeywordsAdd(callback, L"const");
-		GetKeywordsAdd(callback, L"default");
-		GetKeywordsAdd(callback, L"do");
-		GetKeywordsAdd(callback, L"elif");
-		GetKeywordsAdd(callback, L"else");
-		GetKeywordsAdd(callback, L"end");
-		GetKeywordsAdd(callback, L"enum");
-		GetKeywordsAdd(callback, L"finally");
-		GetKeywordsAdd(callback, L"for");
-		GetKeywordsAdd(callback, L"func");
-		GetKeywordsAdd(callback, L"if");
-		GetKeywordsAdd(callback, L"include");
-		GetKeywordsAdd(callback, L"ret");
-		GetKeywordsAdd(callback, L"skip");
-		GetKeywordsAdd(callback, L"switch");
-		GetKeywordsAdd(callback, L"throw");
-		GetKeywordsAdd(callback, L"try");
-		GetKeywordsAdd(callback, L"var");
-		GetKeywordsAdd(callback, L"while");
+		GetKeywordsAdd(L"alias");
+		GetKeywordsAdd(L"assert");
+		GetKeywordsAdd(L"block");
+		GetKeywordsAdd(L"break");
+		GetKeywordsAdd(L"case");
+		GetKeywordsAdd(L"catch");
+		GetKeywordsAdd(L"class");
+		GetKeywordsAdd(L"const");
+		GetKeywordsAdd(L"default");
+		GetKeywordsAdd(L"do");
+		GetKeywordsAdd(L"elif");
+		GetKeywordsAdd(L"else");
+		GetKeywordsAdd(L"end");
+		GetKeywordsAdd(L"enum");
+		GetKeywordsAdd(L"finally");
+		GetKeywordsAdd(L"for");
+		GetKeywordsAdd(L"func");
+		GetKeywordsAdd(L"if");
+		GetKeywordsAdd(L"include");
+		GetKeywordsAdd(L"ret");
+		GetKeywordsAdd(L"skip");
+		GetKeywordsAdd(L"switch");
+		GetKeywordsAdd(L"throw");
+		GetKeywordsAdd(L"try");
+		GetKeywordsAdd(L"var");
+		GetKeywordsAdd(L"while");
 	}
 	else if (wcscmp(buf, L"func") == 0)
 	{
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 			return;
-		if (GetKeywordsReadUntil(str, end, L'('))
+		if (GetKeywordsReadUntil(str, L'('))
 			return;
-		Char c = GetKeywordsReadChar(str, end);
+		Char c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return;
 		if (c != L')')
 		{
 			for (; ; )
 			{
-				if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+				if (GetKeywordsReadIdentifier(buf, str, True, False))
 					return;
-				if (GetKeywordsReadUntil(str, end, L':'))
+				if (GetKeywordsReadUntil(str, L':'))
 					return;
-				if (GetKeywordsReadType(str, end, flags, callback))
+				if (GetKeywordsReadType(str))
 					return;
-				c = GetKeywordsReadChar(str, end);
+				c = GetKeywordsReadChar(str);
 				if (c == L'\0')
 					return;
 				if (c == L')')
@@ -410,90 +420,90 @@ void GetKeywordsRoot(const Char** str, const Char* end, U64 flags, void* callbac
 					return;
 			}
 		}
-		c = GetKeywordsReadChar(str, end);
+		c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return;
 		if (c == L':')
 		{
-			if (GetKeywordsReadType(str, end, flags, callback))
+			if (GetKeywordsReadType(str))
 				return;
 		}
 	}
 	else if (wcscmp(buf, L"end") == 0)
 	{
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 		{
-			GetKeywordsAdd(callback, L"block");
-			GetKeywordsAdd(callback, L"class");
-			GetKeywordsAdd(callback, L"enum");
-			GetKeywordsAdd(callback, L"for");
-			GetKeywordsAdd(callback, L"func");
-			GetKeywordsAdd(callback, L"if");
-			GetKeywordsAdd(callback, L"switch");
-			GetKeywordsAdd(callback, L"try");
-			GetKeywordsAdd(callback, L"while");
+			GetKeywordsAdd(L"block");
+			GetKeywordsAdd(L"class");
+			GetKeywordsAdd(L"enum");
+			GetKeywordsAdd(L"for");
+			GetKeywordsAdd(L"func");
+			GetKeywordsAdd(L"if");
+			GetKeywordsAdd(L"switch");
+			GetKeywordsAdd(L"try");
+			GetKeywordsAdd(L"while");
 		}
 	}
 	else if (wcscmp(buf, L"break") == 0)
 	{
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 		{
-			GetKeywordsAdd(callback, L"block");
-			GetKeywordsAdd(callback, L"for");
-			GetKeywordsAdd(callback, L"if");
-			GetKeywordsAdd(callback, L"switch");
-			GetKeywordsAdd(callback, L"try");
-			GetKeywordsAdd(callback, L"while");
+			GetKeywordsAdd(L"block");
+			GetKeywordsAdd(L"for");
+			GetKeywordsAdd(L"if");
+			GetKeywordsAdd(L"switch");
+			GetKeywordsAdd(L"try");
+			GetKeywordsAdd(L"while");
 		}
 	}
 	else if (wcscmp(buf, L"skip") == 0)
 	{
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 		{
-			GetKeywordsAdd(callback, L"for");
-			GetKeywordsAdd(callback, L"while");
+			GetKeywordsAdd(L"for");
+			GetKeywordsAdd(L"while");
 		}
 	}
 	else if (wcscmp(buf, L"var") == 0 || wcscmp(buf, L"const") == 0)
 	{
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 			return;
-		if (GetKeywordsReadUntil(str, end, L':'))
+		if (GetKeywordsReadUntil(str, L':'))
 			return;
-		if (GetKeywordsReadType(str, end, flags, callback))
+		if (GetKeywordsReadType(str))
 			return;
-		if (GetKeywordsReadUntil(str, end, L':'))
+		if (GetKeywordsReadUntil(str, L':'))
 			return;
-		if (GetKeywordsReadUntil(str, end, L':'))
+		if (GetKeywordsReadUntil(str, L':'))
 			return;
-		if (GetKeywordsReadExpr(str, end, flags, callback))
+		if (GetKeywordsReadExpr(str))
 			return;
 	}
 	else if (wcscmp(buf, L"alias") == 0)
 	{
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 			return;
-		if (GetKeywordsReadUntil(str, end, L':'))
+		if (GetKeywordsReadUntil(str, L':'))
 			return;
-		if (GetKeywordsReadType(str, end, flags, callback))
+		if (GetKeywordsReadType(str))
 			return;
 	}
 	else if (wcscmp(buf, L"class") == 0)
 	{
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 			return;
-		if (GetKeywordsReadUntil(str, end, L'('))
+		if (GetKeywordsReadUntil(str, L'('))
 			return;
-		if (GetKeywordsReadIdentifier(buf, str, end, True, True))
+		if (GetKeywordsReadIdentifier(buf, str, True, True))
 		{
-			GetKeywordsAdd(callback, L"class_name");
+			GetKeywordsAdd(L"class_name");
 			// TODO: Class
 			return;
 		}
 	}
 	else if (wcscmp(buf, L"do") == 0 || wcscmp(buf, L"assert") == 0 || wcscmp(buf, L"elif") == 0 || wcscmp(buf, L"throw") == 0 || wcscmp(buf, L"ret") == 0)
 	{
-		if (GetKeywordsReadExpr(str, end, flags, callback))
+		if (GetKeywordsReadExpr(str))
 			return;
 	}
 	else if (wcscmp(buf, L"case") == 0 || wcscmp(buf, L"catch") == 0)
@@ -501,17 +511,17 @@ void GetKeywordsRoot(const Char** str, const Char* end, U64 flags, void* callbac
 		Char c;
 		for (; ; )
 		{
-			if (GetKeywordsReadExpr(str, end, flags, callback))
+			if (GetKeywordsReadExpr(str))
 				return;
-			c = GetKeywordsReadChar(str, end);
+			c = GetKeywordsReadChar(str);
 			if (c == L'\0')
 				return;
 			if (c == L',')
 				continue;
 			(*str)--;
-			if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+			if (GetKeywordsReadIdentifier(buf, str, True, False))
 			{
-				GetKeywordsAdd(callback, L"to");
+				GetKeywordsAdd(L"to");
 				return;
 			}
 			if (wcscmp(buf, L"to") != 0)
@@ -520,44 +530,44 @@ void GetKeywordsRoot(const Char** str, const Char* end, U64 flags, void* callbac
 	}
 	else if (wcscmp(buf, L"for") == 0)
 	{
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 			return;
-		if (GetKeywordsReadUntil(str, end, L'('))
+		if (GetKeywordsReadUntil(str, L'('))
 			return;
-		if (GetKeywordsReadExpr(str, end, flags, callback))
+		if (GetKeywordsReadExpr(str))
 			return;
-		if (GetKeywordsReadUntil(str, end, L','))
+		if (GetKeywordsReadUntil(str, L','))
 			return;
-		if (GetKeywordsReadExpr(str, end, flags, callback))
+		if (GetKeywordsReadExpr(str))
 			return;
-		if (GetKeywordsReadUntil(str, end, L','))
+		if (GetKeywordsReadUntil(str, L','))
 			return;
-		if (GetKeywordsReadExpr(str, end, flags, callback))
+		if (GetKeywordsReadExpr(str))
 			return;
 	}
 	else if (wcscmp(buf, L"while") == 0)
 	{
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 			return;
-		if (GetKeywordsReadUntil(str, end, L'('))
+		if (GetKeywordsReadUntil(str, L'('))
 			return;
-		if (GetKeywordsReadExpr(str, end, flags, callback))
+		if (GetKeywordsReadExpr(str))
 			return;
-		if (GetKeywordsReadUntil(str, end, L','))
+		if (GetKeywordsReadUntil(str, L','))
 			return;
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 		{
-			GetKeywordsAdd(callback, L"skip");
+			GetKeywordsAdd(L"skip");
 			return;
 		}
 	}
 	else if (wcscmp(buf, L"if") == 0 || wcscmp(buf, L"switch") == 0)
 	{
-		if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+		if (GetKeywordsReadIdentifier(buf, str, True, False))
 			return;
-		if (GetKeywordsReadUntil(str, end, L'('))
+		if (GetKeywordsReadUntil(str, L'('))
 			return;
-		if (GetKeywordsReadExpr(str, end, flags, callback))
+		if (GetKeywordsReadExpr(str))
 			return;
 	}
 	else
@@ -4612,18 +4622,18 @@ static void Interpret1Impl1UpdateCursor(S64 cursor_x, S64* new_cursor_x, int* pt
 		*new_cursor_x = (S64)*ptr_buf;
 }
 
-static Char GetKeywordsRead(const Char** str, const Char* end)
+static Char GetKeywordsRead(const Char** str)
 {
 	for (; ; )
 	{
-		if (*str == end)
+		if (*str == GetKeywordsEnd)
 			return L'\0';
 		Char c = **str;
 		(*str)++;
 		switch (c)
 		{
 		case L'{':
-			GetKeywordsReadComment(str, end);
+			GetKeywordsReadComment(str);
 			return L' ';
 		case L'\r':
 			continue;
@@ -4634,12 +4644,12 @@ static Char GetKeywordsRead(const Char** str, const Char* end)
 	}
 }
 
-static void GetKeywordsReadComment(const Char** str, const Char* end)
+static void GetKeywordsReadComment(const Char** str)
 {
 	Char c;
 	do
 	{
-		c = GetKeywordsRead(str, end);
+		c = GetKeywordsRead(str);
 		if (c == L'\0')
 			return;
 		if (c == L'"')
@@ -4647,13 +4657,13 @@ static void GetKeywordsReadComment(const Char** str, const Char* end)
 			Bool esc = False;
 			for (; ; )
 			{
-				c = GetKeywordsReadStrict(str, end);
+				c = GetKeywordsReadStrict(str);
 				if (c == L'\0')
 					return;
 				if (esc)
 				{
 					if (c == L'{')
-						GetKeywordsReadComment(str, end);
+						GetKeywordsReadComment(str);
 					esc = False;
 					continue;
 				}
@@ -4668,7 +4678,7 @@ static void GetKeywordsReadComment(const Char** str, const Char* end)
 			Bool esc = False;
 			for (; ; )
 			{
-				c = GetKeywordsReadStrict(str, end);
+				c = GetKeywordsReadStrict(str);
 				if (c == L'\0')
 					return;
 				if (esc)
@@ -4686,7 +4696,7 @@ static void GetKeywordsReadComment(const Char** str, const Char* end)
 		{
 			for (; ; )
 			{
-				if (*str == end)
+				if (*str == GetKeywordsEnd)
 					return;
 				(*str)++;
 			}
@@ -4694,21 +4704,21 @@ static void GetKeywordsReadComment(const Char** str, const Char* end)
 	} while (c != L'}');
 }
 
-static Char GetKeywordsReadChar(const Char** str, const Char* end)
+static Char GetKeywordsReadChar(const Char** str)
 {
 	for (; ; )
 	{
-		Char c = GetKeywordsRead(str, end);
+		Char c = GetKeywordsRead(str);
 		if (c != L' ')
 			return c;
 	}
 }
 
-static Char GetKeywordsReadStrict(const Char** str, const Char* end)
+static Char GetKeywordsReadStrict(const Char** str)
 {
 	for (; ; )
 	{
-		if (*str == end)
+		if (*str == GetKeywordsEnd)
 			return L'\0';
 		Char c = **str;
 		(*str)++;
@@ -4723,10 +4733,10 @@ static Char GetKeywordsReadStrict(const Char** str, const Char* end)
 	}
 }
 
-static Bool GetKeywordsReadIdentifier(Char* buf, const Char** str, const Char* end, Bool skip_spaces, Bool ref)
+static Bool GetKeywordsReadIdentifier(Char* buf, const Char** str, Bool skip_spaces, Bool ref)
 {
 	int ptr = 0;
-	Char c = skip_spaces ? GetKeywordsReadChar(str, end) : GetKeywordsRead(str, end);
+	Char c = skip_spaces ? GetKeywordsReadChar(str) : GetKeywordsRead(str);
 	if (c == L'\0')
 	{
 		buf[ptr] = L'\0';
@@ -4770,7 +4780,7 @@ static Bool GetKeywordsReadIdentifier(Char* buf, const Char** str, const Char* e
 			}
 			buf[ptr] = c;
 			ptr++;
-			c = GetKeywordsRead(str, end);
+			c = GetKeywordsRead(str);
 			if (c == L'\0')
 			{
 				buf[ptr] = L'\0';
@@ -4783,11 +4793,11 @@ static Bool GetKeywordsReadIdentifier(Char* buf, const Char** str, const Char* e
 	}
 }
 
-static Bool GetKeywordsReadUntil(const Char** str, const Char* end, Char c)
+static Bool GetKeywordsReadUntil(const Char** str, Char c)
 {
 	for (; ; )
 	{
-		Char c2 = GetKeywordsRead(str, end);
+		Char c2 = GetKeywordsRead(str);
 		if (c2 == L'\0')
 			return True;
 		if (c2 == c)
@@ -4795,87 +4805,87 @@ static Bool GetKeywordsReadUntil(const Char** str, const Char* end, Char c)
 	}
 }
 
-static void GetKeywordsAdd(void* callback, const Char* str)
+static void GetKeywordsAdd(const Char* str)
 {
 	Char buf[256];
 	size_t len = wcslen(str);
 	((S64*)buf)[0] = 2;
 	((S64*)buf)[1] = (S64)len;
 	wcscpy(buf + 0x08, str);
-	Call1Asm(buf, callback);
+	Call1Asm(buf, GetKeywordsCallback);
 }
 
-static Bool GetKeywordsReadType(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadType(const Char** str)
 {
-	Char c = GetKeywordsReadChar(str, end);
+	Char c = GetKeywordsReadChar(str);
 	if (c == L'\0')
 		return True;
 	if (c == L'[')
 	{
-		if (GetKeywordsReadUntil(str, end, L']'))
+		if (GetKeywordsReadUntil(str, L']'))
 			return True;
-		if (GetKeywordsReadType(str, end, flags, callback))
+		if (GetKeywordsReadType(str))
 			return True;
 	}
 	else if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_')
 	{
 		(*str)--;
 		Char buf[129];
-		if (GetKeywordsReadIdentifier(buf, str, end, True, True))
+		if (GetKeywordsReadIdentifier(buf, str, True, True))
 		{
-			GetKeywordsAdd(callback, L"bit16");
-			GetKeywordsAdd(callback, L"bit32");
-			GetKeywordsAdd(callback, L"bit64");
-			GetKeywordsAdd(callback, L"bit8");
-			GetKeywordsAdd(callback, L"bool");
-			GetKeywordsAdd(callback, L"char");
-			GetKeywordsAdd(callback, L"dict");
-			GetKeywordsAdd(callback, L"float");
-			GetKeywordsAdd(callback, L"func");
-			GetKeywordsAdd(callback, L"int");
-			GetKeywordsAdd(callback, L"list");
-			GetKeywordsAdd(callback, L"queue");
-			GetKeywordsAdd(callback, L"stack");
+			GetKeywordsAdd(L"bit16");
+			GetKeywordsAdd(L"bit32");
+			GetKeywordsAdd(L"bit64");
+			GetKeywordsAdd(L"bit8");
+			GetKeywordsAdd(L"bool");
+			GetKeywordsAdd(L"char");
+			GetKeywordsAdd(L"dict");
+			GetKeywordsAdd(L"float");
+			GetKeywordsAdd(L"func");
+			GetKeywordsAdd(L"int");
+			GetKeywordsAdd(L"list");
+			GetKeywordsAdd(L"queue");
+			GetKeywordsAdd(L"stack");
 			// TODO: User defined types.
 		}
 		else if (wcscmp(buf, L"int") == 0 || wcscmp(buf, L"float") == 0 || wcscmp(buf, L"char") == 0 || wcscmp(buf, L"bool") == 0 || wcscmp(buf, L"bit8") == 0 || wcscmp(buf, L"bit16") == 0 || wcscmp(buf, L"bit32") == 0 || wcscmp(buf, L"bit64") == 0)
 			return False;
 		else if (wcscmp(buf, L"list") == 0 || wcscmp(buf, L"stack") == 0 || wcscmp(buf, L"queue") == 0)
 		{
-			if (GetKeywordsReadUntil(str, end, L'<'))
+			if (GetKeywordsReadUntil(str, L'<'))
 				return True;
-			if (GetKeywordsReadType(str, end, flags, callback))
+			if (GetKeywordsReadType(str))
 				return True;
-			if (GetKeywordsReadUntil(str, end, L'>'))
+			if (GetKeywordsReadUntil(str, L'>'))
 				return True;
 		}
 		else if (wcscmp(buf, L"dict") == 0)
 		{
-			if (GetKeywordsReadUntil(str, end, L'<'))
+			if (GetKeywordsReadUntil(str, L'<'))
 				return True;
-			if (GetKeywordsReadType(str, end, flags, callback))
+			if (GetKeywordsReadType(str))
 				return True;
-			if (GetKeywordsReadUntil(str, end, L','))
+			if (GetKeywordsReadUntil(str, L','))
 				return True;
-			if (GetKeywordsReadType(str, end, flags, callback))
+			if (GetKeywordsReadType(str))
 				return True;
-			if (GetKeywordsReadUntil(str, end, L'>'))
+			if (GetKeywordsReadUntil(str, L'>'))
 				return True;
 		}
 		else if (wcscmp(buf, L"func") == 0)
 		{
-			if (GetKeywordsReadUntil(str, end, L'<'))
+			if (GetKeywordsReadUntil(str, L'<'))
 				return True;
-			if (GetKeywordsReadUntil(str, end, L'('))
+			if (GetKeywordsReadUntil(str, L'('))
 				return True;
-			c = GetKeywordsReadChar(str, end);
+			c = GetKeywordsReadChar(str);
 			if (c != L')')
 			{
 				for (; ; )
 				{
-					if (GetKeywordsReadType(str, end, flags, callback))
+					if (GetKeywordsReadType(str))
 						return True;
-					c = GetKeywordsReadChar(str, end);
+					c = GetKeywordsReadChar(str);
 					if (c == L'\0')
 						return True;
 					if (c == L')')
@@ -4887,10 +4897,10 @@ static Bool GetKeywordsReadType(const Char** str, const Char* end, U64 flags, vo
 					}
 				}
 			}
-			c = GetKeywordsReadChar(str, end);
+			c = GetKeywordsReadChar(str);
 			if (c == L':')
 			{
-				if (GetKeywordsReadType(str, end, flags, callback))
+				if (GetKeywordsReadType(str))
 					return True;
 			}
 		}
@@ -4900,16 +4910,16 @@ static Bool GetKeywordsReadType(const Char** str, const Char* end, U64 flags, vo
 	return False;
 }
 
-static Bool GetKeywordsReadExpr(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExpr(const Char** str)
 {
-	if (GetKeywordsReadExprThree(str, end, flags, callback))
+	if (GetKeywordsReadExprThree(str))
 		return True;
-	Char c = GetKeywordsReadChar(str, end);
+	Char c = GetKeywordsReadChar(str);
 	if (c == L'\0')
 		return True;
 	if (c == L':')
 	{
-		c = GetKeywordsReadChar(str, end);
+		c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return True;
 		switch (c)
@@ -4923,7 +4933,7 @@ static Bool GetKeywordsReadExpr(const Char** str, const Char* end, U64 flags, vo
 			case L'^':
 			case L'~':
 			case L'$':
-				if (GetKeywordsReadExpr(str, end, flags, callback))
+				if (GetKeywordsReadExpr(str))
 					return True;
 				break;
 			default:
@@ -4936,26 +4946,26 @@ static Bool GetKeywordsReadExpr(const Char** str, const Char* end, U64 flags, vo
 	return False;
 }
 
-static Bool GetKeywordsReadExprThree(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprThree(const Char** str)
 {
-	if (GetKeywordsReadExprOr(str, end, flags, callback))
+	if (GetKeywordsReadExprOr(str))
 		return True;
 	for (; ; )
 	{
-		Char c = GetKeywordsReadChar(str, end);
+		Char c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return True;
 		if (c == L'?')
 		{
-			if (GetKeywordsReadUntil(str, end, L'('))
+			if (GetKeywordsReadUntil(str, L'('))
 				return True;
-			if (GetKeywordsReadExpr(str, end, flags, callback))
+			if (GetKeywordsReadExpr(str))
 				return True;
-			if (GetKeywordsReadUntil(str, end, L','))
+			if (GetKeywordsReadUntil(str, L','))
 				return True;
-			if (GetKeywordsReadExpr(str, end, flags, callback))
+			if (GetKeywordsReadExpr(str))
 				return True;
-			if (GetKeywordsReadUntil(str, end, L')'))
+			if (GetKeywordsReadUntil(str, L')'))
 				return True;
 		}
 		else
@@ -4967,18 +4977,18 @@ static Bool GetKeywordsReadExprThree(const Char** str, const Char* end, U64 flag
 	return False;
 }
 
-static Bool GetKeywordsReadExprOr(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprOr(const Char** str)
 {
-	if (GetKeywordsReadExprAnd(str, end, flags, callback))
+	if (GetKeywordsReadExprAnd(str))
 		return True;
 	for (; ; )
 	{
-		Char c = GetKeywordsReadChar(str, end);
+		Char c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return True;
 		if (c == L'|')
 		{
-			if (GetKeywordsReadExprAnd(str, end, flags, callback))
+			if (GetKeywordsReadExprAnd(str))
 				return True;
 		}
 		else
@@ -4990,18 +5000,18 @@ static Bool GetKeywordsReadExprOr(const Char** str, const Char* end, U64 flags, 
 	return False;
 }
 
-static Bool GetKeywordsReadExprAnd(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprAnd(const Char** str)
 {
-	if (GetKeywordsReadExprCmp(str, end, flags, callback))
+	if (GetKeywordsReadExprCmp(str))
 		return True;
 	for (; ; )
 	{
-		Char c = GetKeywordsReadChar(str, end);
+		Char c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return True;
 		if (c == L'&')
 		{
-			if (GetKeywordsReadExprCmp(str, end, flags, callback))
+			if (GetKeywordsReadExprCmp(str))
 				return True;
 		}
 		else
@@ -5013,83 +5023,83 @@ static Bool GetKeywordsReadExprAnd(const Char** str, const Char* end, U64 flags,
 	return False;
 }
 
-static Bool GetKeywordsReadExprCmp(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprCmp(const Char** str)
 {
-	if (GetKeywordsReadExprCat(str, end, flags, callback))
+	if (GetKeywordsReadExprCat(str))
 		return True;
 	Bool end_flag = False;
 	do
 	{
-		Char c = GetKeywordsReadChar(str, end);
+		Char c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return True;
 		switch (c)
 		{
 			case L'<':
-				c = GetKeywordsReadChar(str, end);
+				c = GetKeywordsReadChar(str);
 				if (c == L'\0')
 					return True;
 				if (c == L'=')
 				{
-					if (GetKeywordsReadExprCat(str, end, flags, callback))
+					if (GetKeywordsReadExprCat(str))
 						return True;
 				}
 				else if (c == L'>')
 				{
-					c = GetKeywordsReadChar(str, end);
+					c = GetKeywordsReadChar(str);
 					if (c == L'\0')
 						return True;
 					if (c == L'&')
 					{
-						if (GetKeywordsReadExprCat(str, end, flags, callback))
+						if (GetKeywordsReadExprCat(str))
 							return True;
 					}
 					else if (c == L'$')
 					{
-						if (GetKeywordsReadType(str, end, flags, callback))
+						if (GetKeywordsReadType(str))
 							return True;
 					}
 					else
 					{
 						(*str)--;
-						if (GetKeywordsReadExprCat(str, end, flags, callback))
+						if (GetKeywordsReadExprCat(str))
 							return True;
 					}
 				}
 				else
 				{
 					(*str)--;
-					if (GetKeywordsReadExprCat(str, end, flags, callback))
+					if (GetKeywordsReadExprCat(str))
 						return True;
 				}
 				break;
 			case L'>':
-				c = GetKeywordsReadChar(str, end);
+				c = GetKeywordsReadChar(str);
 				if (c == L'\0')
 					return True;
 				if (c != L'=')
 					(*str)--;
-				if (GetKeywordsReadExprCat(str, end, flags, callback))
+				if (GetKeywordsReadExprCat(str))
 					return True;
 				break;
 			case L'=':
-				c = GetKeywordsReadChar(str, end);
+				c = GetKeywordsReadChar(str);
 				if (c == L'\0')
 					return True;
 				if (c == L'&')
 				{
-					if (GetKeywordsReadExprCat(str, end, flags, callback))
+					if (GetKeywordsReadExprCat(str))
 						return True;
 				}
 				else if (c == L'$')
 				{
-					if (GetKeywordsReadType(str, end, flags, callback))
+					if (GetKeywordsReadType(str))
 						return True;
 				}
 				else
 				{
 					(*str)--;
-					if (GetKeywordsReadExprCat(str, end, flags, callback))
+					if (GetKeywordsReadExprCat(str))
 						return True;
 				}
 				break;
@@ -5102,18 +5112,18 @@ static Bool GetKeywordsReadExprCmp(const Char** str, const Char* end, U64 flags,
 	return False;
 }
 
-static Bool GetKeywordsReadExprCat(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprCat(const Char** str)
 {
-	if (GetKeywordsReadExprAdd(str, end, flags, callback))
+	if (GetKeywordsReadExprAdd(str))
 		return True;
 	for (; ; )
 	{
-		Char c = GetKeywordsReadChar(str, end);
+		Char c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return True;
 		if (c == L'~')
 		{
-			if (GetKeywordsReadExprAdd(str, end, flags, callback))
+			if (GetKeywordsReadExprAdd(str))
 				return True;
 		}
 		else
@@ -5125,18 +5135,18 @@ static Bool GetKeywordsReadExprCat(const Char** str, const Char* end, U64 flags,
 	return False;
 }
 
-static Bool GetKeywordsReadExprAdd(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprAdd(const Char** str)
 {
-	if (GetKeywordsReadExprMul(str, end, flags, callback))
+	if (GetKeywordsReadExprMul(str))
 		return True;
 	for (; ; )
 	{
-		Char c = GetKeywordsReadChar(str, end);
+		Char c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return True;
 		if (c == L'+' || c == L'-')
 		{
-			if (GetKeywordsReadExprMul(str, end, flags, callback))
+			if (GetKeywordsReadExprMul(str))
 				return True;
 		}
 		else
@@ -5148,14 +5158,14 @@ static Bool GetKeywordsReadExprAdd(const Char** str, const Char* end, U64 flags,
 	return False;
 }
 
-static Bool GetKeywordsReadExprMul(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprMul(const Char** str)
 {
-	if (GetKeywordsReadExprPlus(str, end, flags, callback))
+	if (GetKeywordsReadExprPlus(str))
 		return True;
 	Bool end_flag = False;
 	do
 	{
-		Char c = GetKeywordsReadChar(str, end);
+		Char c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return True;
 		switch (c)
@@ -5163,7 +5173,7 @@ static Bool GetKeywordsReadExprMul(const Char** str, const Char* end, U64 flags,
 			case L'*':
 			case L'/':
 			case L'%':
-				if (GetKeywordsReadExprPlus(str, end, flags, callback))
+				if (GetKeywordsReadExprPlus(str))
 					return True;
 			default:
 				(*str)--;
@@ -5174,28 +5184,28 @@ static Bool GetKeywordsReadExprMul(const Char** str, const Char* end, U64 flags,
 	return False;
 }
 
-static Bool GetKeywordsReadExprPlus(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprPlus(const Char** str)
 {
 	const Char* old = *str;
-	if (GetKeywordsReadExprPow(str, end, flags, callback))
+	if (GetKeywordsReadExprPow(str))
 		return True;
 	if (old != *str)
 		return False;
-	Char c = GetKeywordsReadChar(str, end);
+	Char c = GetKeywordsReadChar(str);
 	if (c == L'\0')
 		return True;
 	switch (c)
 	{
 		case L'#':
 			{
-				c = GetKeywordsReadChar(str, end);
+				c = GetKeywordsReadChar(str);
 				if (c == L'\0')
 					return True;
 				if (c == L'[')
 				{
 					for (; ; )
 					{
-						c = GetKeywordsReadChar(str, end);
+						c = GetKeywordsReadChar(str);
 						if (c == L'\0')
 							return True;
 						if (c == L']')
@@ -5206,18 +5216,18 @@ static Bool GetKeywordsReadExprPlus(const Char** str, const Char* end, U64 flags
 							return False;
 						}
 					}
-					if (GetKeywordsReadType(str, end, flags, callback))
+					if (GetKeywordsReadType(str))
 						return True;
 				}
 				else if (c == L'#')
 				{
-					if (GetKeywordsReadExprPlus(str, end, flags, callback))
+					if (GetKeywordsReadExprPlus(str))
 						return True;
 				}
 				else
 				{
 					(*str)--;
-					if (GetKeywordsReadType(str, end, flags, callback))
+					if (GetKeywordsReadType(str))
 						return True;
 				}
 			}
@@ -5226,7 +5236,7 @@ static Bool GetKeywordsReadExprPlus(const Char** str, const Char* end, U64 flags
 		case L'-':
 		case L'!':
 		case L'^':
-			if (GetKeywordsReadExprPlus(str, end, flags, callback))
+			if (GetKeywordsReadExprPlus(str))
 				return True;
 			break;
 		default:
@@ -5236,19 +5246,19 @@ static Bool GetKeywordsReadExprPlus(const Char** str, const Char* end, U64 flags
 	return False;
 }
 
-static Bool GetKeywordsReadExprPow(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprPow(const Char** str)
 {
 	const Char* old = *str;
-	if (GetKeywordsReadExprCall(str, end, flags, callback))
+	if (GetKeywordsReadExprCall(str))
 		return True;
 	if (old == *str)
 		return False; // Interpret as a unary operator.
-	Char c = GetKeywordsReadChar(str, end);
+	Char c = GetKeywordsReadChar(str);
 	if (c == L'\0')
 		return True;
 	if (c == L'^')
 	{
-		if (GetKeywordsReadExprPlus(str, end, flags, callback))
+		if (GetKeywordsReadExprPlus(str))
 			return True;
 	}
 	else
@@ -5256,23 +5266,23 @@ static Bool GetKeywordsReadExprPow(const Char** str, const Char* end, U64 flags,
 	return False;
 }
 
-static Bool GetKeywordsReadExprCall(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprCall(const Char** str)
 {
 	const Char* old = *str;
-	if (GetKeywordsReadExprValue(str, end, flags, callback))
+	if (GetKeywordsReadExprValue(str))
 		return True;
 	if (old == *str)
 		return False;
 	Bool end_flag = False;
 	do
 	{
-		Char c = GetKeywordsReadChar(str, end);
+		Char c = GetKeywordsReadChar(str);
 		if (c == L'\0')
 			return True;
 		switch (c)
 		{
 			case L'(':
-				c = GetKeywordsReadChar(str, end);
+				c = GetKeywordsReadChar(str);
 				if (c == L'\0')
 					return True;
 				if (c != L')')
@@ -5281,12 +5291,12 @@ static Bool GetKeywordsReadExprCall(const Char** str, const Char* end, U64 flags
 					for (; ; )
 					{
 						Bool skip_var = False;
-						c = GetKeywordsReadChar(str, end);
+						c = GetKeywordsReadChar(str);
 						if (c == L'\0')
 							return True;
 						if (c == L'&')
 						{
-							c = GetKeywordsReadChar(str, end);
+							c = GetKeywordsReadChar(str);
 							if (c == L'\0')
 								return True;
 							if (c == L',' || c == L')')
@@ -5295,10 +5305,10 @@ static Bool GetKeywordsReadExprCall(const Char** str, const Char* end, U64 flags
 						(*str)--;
 						if (!skip_var)
 						{
-							if (GetKeywordsReadExpr(str, end, flags, callback))
+							if (GetKeywordsReadExpr(str))
 								return True;
 						}
-						c = GetKeywordsReadChar(str, end);
+						c = GetKeywordsReadChar(str);
 						if (c == L'\0')
 							return True;
 						if (c == L')')
@@ -5312,35 +5322,35 @@ static Bool GetKeywordsReadExprCall(const Char** str, const Char* end, U64 flags
 				}
 				break;
 			case L'[':
-				if (GetKeywordsReadExpr(str, end, flags, callback))
+				if (GetKeywordsReadExpr(str))
 					return True;
-				if (GetKeywordsReadUntil(str, end, L']'))
+				if (GetKeywordsReadUntil(str, L']'))
 					return True;
 				break;
 			case L'.':
 				{
 					Char buf[129];
-					if (GetKeywordsReadIdentifier(buf, str, end, True, False))
+					if (GetKeywordsReadIdentifier(buf, str, True, False))
 					{
-						GetKeywordsAdd(callback, L"member_name");
+						GetKeywordsAdd(L"member_name");
 						// TODO: Members.
 						return True;
 					}
 				}
 				break;
 			case L'$':
-				c = GetKeywordsReadChar(str, end);
+				c = GetKeywordsReadChar(str);
 				if (c == L'\0')
 					return True;
 				if (c == L'>' || c == L'<')
 				{
-					if (GetKeywordsReadType(str, end, flags, callback))
+					if (GetKeywordsReadType(str))
 						return True;
 				}
 				else
 				{
 					(*str)--;
-					if (GetKeywordsReadType(str, end, flags, callback))
+					if (GetKeywordsReadType(str))
 						return True;
 				}
 				break;
@@ -5353,9 +5363,9 @@ static Bool GetKeywordsReadExprCall(const Char** str, const Char* end, U64 flags
 	return False;
 }
 
-static Bool GetKeywordsReadExprValue(const Char** str, const Char* end, U64 flags, void* callback)
+static Bool GetKeywordsReadExprValue(const Char** str)
 {
-	Char c = GetKeywordsReadChar(str, end);
+	Char c = GetKeywordsReadChar(str);
 	if (c == L'\0')
 		return True;
 	switch (c)
@@ -5365,16 +5375,16 @@ static Bool GetKeywordsReadExprValue(const Char** str, const Char* end, U64 flag
 				Bool escape = False;
 				for (; ; )
 				{
-					c = GetKeywordsReadStrict(str, end);
+					c = GetKeywordsReadStrict(str);
 					if (c == L'\0')
 						return True;
 					if (escape)
 					{
 						if (c == L'{')
 						{
-							if (GetKeywordsReadExpr(str, end, flags, callback))
+							if (GetKeywordsReadExpr(str))
 								return True;
-							if (GetKeywordsReadUntil(str, end, L'}'))
+							if (GetKeywordsReadUntil(str, L'}'))
 								return True;
 						}
 						escape = False;
@@ -5392,7 +5402,7 @@ static Bool GetKeywordsReadExprValue(const Char** str, const Char* end, U64 flag
 				Bool escape = False;
 				for (; ; )
 				{
-					c = GetKeywordsReadStrict(str, end);
+					c = GetKeywordsReadStrict(str);
 					if (c == L'\0')
 						return True;
 					if (escape)
@@ -5408,13 +5418,13 @@ static Bool GetKeywordsReadExprValue(const Char** str, const Char* end, U64 flag
 			}
 			return False;
 		case L'(':
-			if (GetKeywordsReadExpr(str, end, flags, callback))
+			if (GetKeywordsReadExpr(str))
 				return True;
-			if (GetKeywordsReadUntil(str, end, L')'))
+			if (GetKeywordsReadUntil(str, L')'))
 				return True;
 			return False;
 		case L'[':
-			c = GetKeywordsReadStrict(str, end);
+			c = GetKeywordsReadStrict(str);
 			if (c == L'\0')
 				return True;
 			if (c != L']')
@@ -5422,9 +5432,9 @@ static Bool GetKeywordsReadExprValue(const Char** str, const Char* end, U64 flag
 				(*str)--;
 				for (; ; )
 				{
-					if (GetKeywordsReadExpr(str, end, flags, callback))
+					if (GetKeywordsReadExpr(str))
 						return True;
-					c = GetKeywordsReadStrict(str, end);
+					c = GetKeywordsReadStrict(str);
 					if (c == L'\0')
 						return True;
 					if (c == L']')
@@ -5440,9 +5450,9 @@ static Bool GetKeywordsReadExprValue(const Char** str, const Char* end, U64 flag
 		case L'%':
 			{
 				Char buf[129];
-				if (GetKeywordsReadIdentifier(buf, str, end, False, False))
+				if (GetKeywordsReadIdentifier(buf, str, False, False))
 				{
-					GetKeywordsAdd(callback, L"enum_item");
+					GetKeywordsAdd(L"enum_item");
 					// TODO: Enum values.
 					return True;
 				}
@@ -5450,18 +5460,18 @@ static Bool GetKeywordsReadExprValue(const Char** str, const Char* end, U64 flag
 			return False;
 		default:
 			if (L'0' <= c && c <= L'9')
-				return GetKeywordsReadExprNumber(str, end, c);
+				return GetKeywordsReadExprNumber(str, c);
 			else if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || c == L'@' || c == L'\\')
 			{
 				(*str)--;
 				Char buf[129];
-				if (GetKeywordsReadIdentifier(buf, str, end, True, True))
+				if (GetKeywordsReadIdentifier(buf, str, True, True))
 				{
-					GetKeywordsAdd(callback, L"dbg");
-					GetKeywordsAdd(callback, L"false");
-					GetKeywordsAdd(callback, L"inf");
-					GetKeywordsAdd(callback, L"null");
-					GetKeywordsAdd(callback, L"true");
+					GetKeywordsAdd(L"dbg");
+					GetKeywordsAdd(L"false");
+					GetKeywordsAdd(L"inf");
+					GetKeywordsAdd(L"null");
+					GetKeywordsAdd(L"true");
 					// TODO: User defined values.
 					return True;
 				}
@@ -5473,19 +5483,19 @@ static Bool GetKeywordsReadExprValue(const Char** str, const Char* end, U64 flag
 	return False;
 }
 
-static Bool GetKeywordsReadExprNumber(const Char** str, const Char* end, Char c)
+static Bool GetKeywordsReadExprNumber(const Char** str, Char c)
 {
 	for (; ; )
 	{
 		if (!(c == L'#' || c == L'.' || L'0' <= c && c <= L'9' || L'A' <= c && c <= L'F'))
 			break;
-		c = GetKeywordsRead(str, end);
+		c = GetKeywordsRead(str);
 		if (c == L'\0')
 			return True;
 	}
 	if (c == L'e')
 	{
-		c = GetKeywordsRead(str, end);
+		c = GetKeywordsRead(str);
 		if (c == L'\0')
 			return True;
 		if (c != L'+' && c != L'-')
@@ -5495,7 +5505,7 @@ static Bool GetKeywordsReadExprNumber(const Char** str, const Char* end, Char c)
 		}
 		do
 		{
-			c = GetKeywordsRead(str, end);
+			c = GetKeywordsRead(str);
 			if (c == L'\0')
 				return True;
 		} while (L'0' <= c && c <= L'9');
@@ -5503,21 +5513,21 @@ static Bool GetKeywordsReadExprNumber(const Char** str, const Char* end, Char c)
 	}
 	else if (c == L'b')
 	{
-		c = GetKeywordsRead(str, end);
+		c = GetKeywordsRead(str);
 		switch (c)
 		{
 			case L'8':
 				break;
 			case L'1':
-				if (GetKeywordsReadUntil(str, end, L'6'))
+				if (GetKeywordsReadUntil(str, L'6'))
 					return True;
 				break;
 			case L'3':
-				if (GetKeywordsReadUntil(str, end, L'2'))
+				if (GetKeywordsReadUntil(str, L'2'))
 					return True;
 				break;
 			case L'6':
-				if (GetKeywordsReadUntil(str, end, L'4'))
+				if (GetKeywordsReadUntil(str, L'4'))
 					return True;
 				break;
 			default:

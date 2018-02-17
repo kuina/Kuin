@@ -22,7 +22,7 @@ end func
 ; TODO: +func [d0917.knd, GetHint] getHint(bufIdx: int, src: []char, row: int, keyword: []char, hintSrc: &[]char, hintRow: &int, hintCol: &int): []char
 ; end func
 
-+func [d0917.knd, GetKeywords] getKeywords(src: kuin@Class, x: int, y: int, callback: func<([]char)>)
++func [d0917.knd, GetKeywords] getKeywords(src: kuin@Class, srcName: []char, x: int, y: int, callback: func<([]char)>)
 end func
 
 +func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>): bool

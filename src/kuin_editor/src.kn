@@ -1,5 +1,6 @@
 +var docs: dict<[]char, \doc@Doc>
 +var curDoc: \doc@Doc
++var curDocInternalName: []char
 +var mainSrcName: []char
 +var mainSrcDir: []char
 +var sysDir: []char
@@ -38,6 +39,7 @@ end func
 	do @curDoc :: doc
 	do @mainSrcName :: \common@untitledSrcName
 	do @mainSrcDir :: ""
+	do @curDocInternalName :: \common@untitledInternalName
 	do @clearDocs()
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add(@mainSrcName, @curDoc)
@@ -61,6 +63,7 @@ end func
 	do @curDoc :: doc
 	do @mainSrcName :: path
 	do @mainSrcDir :: file@dir(path)
+	do @curDocInternalName :: @srcNameToInternalName(@mainSrcName)
 	do @clearDocs()
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add(@mainSrcName, @curDoc)
@@ -157,6 +160,7 @@ end func
 +func setCurSrc(doc: \doc@Doc)
 	do \completion@close()
 	do @curDoc :: doc
+	do @curDocInternalName :: @srcNameToInternalName(@getDocName(doc))
 	do @curDoc.update()
 	do \form@paintDrawEditor()
 	do \form@focusDrawEditor()
