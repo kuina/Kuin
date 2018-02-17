@@ -5602,15 +5602,15 @@ static void GetKeywordsAddKeywords(Char kind)
 		switch (kind)
 		{
 			case L't':
-				if ((item->Ast->TypeId & (AstTypeId_Class | AstTypeId_Enum | AstTypeId_Alias)) == 0)
+				if (item->Ast->TypeId != AstTypeId_Class && item->Ast->TypeId != AstTypeId_Enum && item->Ast->TypeId != AstTypeId_Alias)
 					continue;
 				break;
 			case L'e':
-				if ((item->Ast->TypeId & (AstTypeId_Class | AstTypeId_Enum | AstTypeId_Alias)) != 0)
+				if (item->Ast->TypeId == AstTypeId_Class || item->Ast->TypeId == AstTypeId_Enum || item->Ast->TypeId == AstTypeId_Alias)
 					continue;
 				break;
 			case L'c':
-				if ((item->Ast->TypeId & AstTypeId_Class) == 0)
+				if (item->Ast->TypeId != AstTypeId_Class)
 					continue;
 				break;
 			default:
@@ -5619,13 +5619,18 @@ static void GetKeywordsAddKeywords(Char kind)
 		}
 		if (item->Name[0] == L'@')
 		{
-			if (!item->Ast->Public)
-				continue;
-			wcscpy(buf, item->Ast->Pos->SrcName);
-			wcscat(buf, item->Name);
-			GetKeywordsAdd(buf);
+			if (wcscmp(GetKeywordsSrcName, item->Ast->Pos->SrcName) == 0)
+				GetKeywordsAdd(item->Name);
+			else
+			{
+				if (!item->Ast->Public)
+					continue;
+				wcscpy(buf, item->Ast->Pos->SrcName);
+				wcscat(buf, item->Name);
+				GetKeywordsAdd(buf);
+			}
 		}
-		else if (wcscmp(GetKeywordsSrcName, item->Ast->Pos->SrcName) == 0 && *item->First <= GetKeywordsCursorY && GetKeywordsCursorY <= *item->Last)
+		else if (wcscmp(GetKeywordsSrcName, item->Ast->Pos->SrcName) == 0 && *item->First - 1 <= GetKeywordsCursorY && GetKeywordsCursorY <= *item->Last - 1)
 			GetKeywordsAdd(GetKeywordsKeywordList[i]->Name);
 	}
 }

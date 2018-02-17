@@ -1030,9 +1030,7 @@ static void MakeKeywordListRecursion(SKeywordListCallbackParam* param, const SAs
 					break;
 				case AstTypeId_Class:
 					if (ast->TypeId == AstTypeId_Arg || ast->TypeId == AstTypeId_Func)
-					{
 						keyword->Name = NewStr(NULL, L".%s", ast->Name);
-					}
 					break;
 				default:
 					keyword->Name = ast->Name;

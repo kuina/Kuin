@@ -1381,7 +1381,7 @@ end func
 				catch
 				end try
 				do \src@updateErrList()
-				do \form@updateProp()
+				do \form@updateUi()
 
 				if(modified)
 					do me.dirtyLine :: line
