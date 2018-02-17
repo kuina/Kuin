@@ -24,6 +24,7 @@ end func
 			do @close()
 			ret
 		end if
+		do @keywords.sort()
 
 		do @wndCompletion :: wnd@makeWnd(\form@wndMain, (%popup $ wnd@WndStyle).or(%layered), 250, 82, null)
 		do @wndCompletion.setAlpha(230)
@@ -44,7 +45,37 @@ end func
 			do @wndCompletionEditFunc.setText(funcHint)
 		end if
 		}
+
+		do @wndCompletionListKeywords.setRedraw(false)
+		do @wndCompletionListKeywords.clear()
+		do @keywords.head()
+		while(!@keywords.term())
+			do @wndCompletionListKeywords.add(@keywords.get())
+			do @keywords.next()
+		end while
+		do @wndCompletionListKeywords.setRedraw(true)
 	end if
+
+	do @oldX :: posX
+	do @oldY :: posY
+
+	block
+		var best: int :: -1
+		var cnt: int :: 0
+		do @keywords.head()
+		while loop(!@keywords.term())
+			var keyword: []char :: @keywords.get()
+			if(^keyword >= ^word & keyword[0] = word[0] & keyword.sub(0, ^word) = word)
+				do best :: cnt
+				break loop
+			end if
+			do @keywords.next()
+			do cnt :+ 1
+		end while
+		do @wndCompletionListKeywords.setRedraw(false)
+		do @wndCompletionListKeywords.setSel(best)
+		do @wndCompletionListKeywords.setRedraw(true)
+	end block
 
 	block
 		var x: int
@@ -59,18 +90,6 @@ end func
 		do @wndCompletion.setPos(x + x2, y + y2 + \common@cellHeight * 2, 250, 82)
 		do \form@focusDrawEditor()
 	end block
-
-	do @oldX :: posX
-	do @oldY :: posY
-	do @wndCompletionListKeywords.setRedraw(false)
-	do @wndCompletionListKeywords.clear()
-	do @keywords.head()
-	while(!@keywords.term())
-		; TODO: Choose items.
-		do @wndCompletionListKeywords.add(@keywords.get())
-		do @keywords.next()
-	end while
-	do @wndCompletionListKeywords.setRedraw(true)
 
 	func wndCompletionOnClose(wnd: wnd@Wnd): bool
 		do @wndCompletion :: null
