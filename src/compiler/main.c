@@ -69,7 +69,6 @@ typedef struct SArchiveFileList
 
 typedef struct SKeywordListItem
 {
-	const Char* SrcName;
 	const Char* Name;
 	const SAst* Ast;
 	int* First;
@@ -276,7 +275,7 @@ EXPORT void GetKeywords(void* src, const U8* src_name, S64 x, S64 y, void* callb
 
 	const Char* str3 = (Char*)((U8*)*str2 + 0x10);
 
-	GetKeywordsRoot(&str3, str3 + x + 1, (const Char*)(src_name + 0x10), flags2, callback);
+	GetKeywordsRoot(&str3, str3 + x + 1, (const Char*)(src_name + 0x10), (int)x, (int)y, flags2, callback, KeywordListNum, (const void*)KeywordList);
 }
 
 EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func)
@@ -1021,20 +1020,17 @@ static void MakeKeywordListRecursion(SKeywordListCallbackParam* param, const SAs
 		{
 			SKeywordList* node = (SKeywordList*)Alloc(sizeof(SKeywordList));
 			SKeywordListItem* keyword = (SKeywordListItem*)Alloc(sizeof(SKeywordListItem));
-			keyword->SrcName = ast->Pos->SrcName;
 			switch (param->ParentType)
 			{
 				case AstTypeId_Root:
-					keyword->Name = NewStr(NULL, L"%s@%s", ast->Pos->SrcName, ast->Name);
+					keyword->Name = NewStr(NULL, L"@%s", ast->Name);
 					break;
 				case AstTypeId_Enum:
-					keyword->SrcName = L"";
 					keyword->Name = NewStr(NULL, L"%%%s", ast->Name);
 					break;
 				case AstTypeId_Class:
 					if (ast->TypeId == AstTypeId_Arg || ast->TypeId == AstTypeId_Func)
 					{
-						keyword->SrcName = L"";
 						keyword->Name = NewStr(NULL, L".%s", ast->Name);
 					}
 					break;
@@ -1077,7 +1073,7 @@ static int CmpKeywordListItem(const void* a, const void* b)
 	cmp = wcscmp(a2->Name, b2->Name);
 	if (cmp != 0)
 		return cmp;
-	cmp = wcscmp(a2->SrcName, b2->SrcName);
+	cmp = wcscmp(a2->Ast->Pos->SrcName, b2->Ast->Pos->SrcName);
 	if (cmp != 0)
 		return cmp;
 	if (a2->First != NULL && b2->First != NULL)

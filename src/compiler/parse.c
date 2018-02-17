@@ -83,6 +83,14 @@ typedef enum EAlignmentToken
 	AlignmentToken_Comma = 0x10,
 } EAlignmentToken;
 
+typedef struct SKeywordListItem
+{
+	const Char* Name;
+	const SAst* Ast;
+	int* First;
+	int* Last;
+} SKeywordListItem;
+
 // Assembly functions.
 void* Call0Asm(void* func);
 void* Call1Asm(void* arg1, void* func);
@@ -110,8 +118,12 @@ static U32 UniqueCnt;
 
 static const Char* GetKeywordsEnd; 
 static const Char* GetKeywordsSrcName;
+static int GetKeywordsCursorX;
+static int GetKeywordsCursorY;
 static U64 GetKeywordsFlags;
 static void* GetKeywordsCallback;
+static int GetKeywordsKeywordListNum;
+static const SKeywordListItem** GetKeywordsKeywordList;
 
 static const void* ParseSrc(const Char* src_name, const void* ast, void* param);
 static Char ReadBuf(void);
@@ -214,6 +226,9 @@ static Bool GetKeywordsReadExprPow(const Char** str);
 static Bool GetKeywordsReadExprCall(const Char** str);
 static Bool GetKeywordsReadExprValue(const Char** str);
 static Bool GetKeywordsReadExprNumber(const Char** str, Char c);
+static void GetKeywordsAddEnum(void);
+static void GetKeywordsAddMember(void);
+static void GetKeywordsAddKeywords(Char kind);
 
 SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const SOption* option)
 {
@@ -355,12 +370,16 @@ Bool InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 	return True;
 }
 
-void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, U64 flags, void* callback)
+void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, int x, int y, U64 flags, void* callback, int keyword_list_num, const void* keyword_list)
 {
 	GetKeywordsEnd = end;
 	GetKeywordsSrcName = src_name;
+	GetKeywordsCursorX = x;
+	GetKeywordsCursorY = y;
 	GetKeywordsFlags = flags;
 	GetKeywordsCallback = callback;
+	GetKeywordsKeywordListNum = keyword_list_num;
+	GetKeywordsKeywordList = (const SKeywordListItem**)keyword_list;
 
 	Char buf[129];
 	if (GetKeywordsReadIdentifier(buf, str, True, False))
@@ -497,7 +516,7 @@ void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, U6
 		if (GetKeywordsReadIdentifier(buf, str, True, True))
 		{
 			GetKeywordsAdd(L"class_name");
-			// TODO: Class
+			GetKeywordsAddKeywords(L'c');
 			return;
 		}
 	}
@@ -4846,7 +4865,7 @@ static Bool GetKeywordsReadType(const Char** str)
 			GetKeywordsAdd(L"list");
 			GetKeywordsAdd(L"queue");
 			GetKeywordsAdd(L"stack");
-			// TODO: User defined types.
+			GetKeywordsAddKeywords(L't');
 		}
 		else if (wcscmp(buf, L"int") == 0 || wcscmp(buf, L"float") == 0 || wcscmp(buf, L"char") == 0 || wcscmp(buf, L"bool") == 0 || wcscmp(buf, L"bit8") == 0 || wcscmp(buf, L"bit16") == 0 || wcscmp(buf, L"bit32") == 0 || wcscmp(buf, L"bit64") == 0)
 			return False;
@@ -5332,8 +5351,7 @@ static Bool GetKeywordsReadExprCall(const Char** str)
 					Char buf[129];
 					if (GetKeywordsReadIdentifier(buf, str, True, False))
 					{
-						GetKeywordsAdd(L"member_name");
-						// TODO: Members.
+						GetKeywordsAddMember();
 						return True;
 					}
 				}
@@ -5452,8 +5470,7 @@ static Bool GetKeywordsReadExprValue(const Char** str)
 				Char buf[129];
 				if (GetKeywordsReadIdentifier(buf, str, False, False))
 				{
-					GetKeywordsAdd(L"enum_item");
-					// TODO: Enum values.
+					GetKeywordsAddEnum();
 					return True;
 				}
 			}
@@ -5472,7 +5489,7 @@ static Bool GetKeywordsReadExprValue(const Char** str)
 					GetKeywordsAdd(L"inf");
 					GetKeywordsAdd(L"null");
 					GetKeywordsAdd(L"true");
-					// TODO: User defined values.
+					GetKeywordsAddKeywords(L'e');
 					return True;
 				}
 				return False;
@@ -5538,4 +5555,77 @@ static Bool GetKeywordsReadExprNumber(const Char** str, Char c)
 	else
 		(*str)--;
 	return False;
+}
+
+static void GetKeywordsAddEnum(void)
+{
+	if (GetKeywordsKeywordList == NULL)
+		return;
+	int i;
+	for (i = 0; i < GetKeywordsKeywordListNum; i++)
+	{
+		const SKeywordListItem* item = GetKeywordsKeywordList[i];
+		if (item->Name[0] != L'%')
+			continue;
+		GetKeywordsAdd(GetKeywordsKeywordList[i]->Name);
+	}
+}
+
+static void GetKeywordsAddMember(void)
+{
+	// TODO:
+	/*
+	if (GetKeywordsKeywordList == NULL)
+		return;
+	int i;
+	for (i = 0; i < GetKeywordsKeywordListNum; i++)
+	{
+		const SKeywordListItem* item = GetKeywordsKeywordList[i];
+		if (item->Name[0] != L'.')
+			continue;
+		GetKeywordsAdd(GetKeywordsKeywordList[i]->Name);
+	}
+	*/
+}
+
+static void GetKeywordsAddKeywords(Char kind)
+{
+	if (GetKeywordsKeywordList == NULL)
+		return;
+	int i;
+	Char buf[256];
+	for (i = 0; i < GetKeywordsKeywordListNum; i++)
+	{
+		const SKeywordListItem* item = GetKeywordsKeywordList[i];
+		if (item->Name[0] == L'%' || item->Name[0] == L'.')
+			continue;
+		switch (kind)
+		{
+			case L't':
+				if ((item->Ast->TypeId & (AstTypeId_Class | AstTypeId_Enum | AstTypeId_Alias)) == 0)
+					continue;
+				break;
+			case L'e':
+				if ((item->Ast->TypeId & (AstTypeId_Class | AstTypeId_Enum | AstTypeId_Alias)) != 0)
+					continue;
+				break;
+			case L'c':
+				if ((item->Ast->TypeId & AstTypeId_Class) == 0)
+					continue;
+				break;
+			default:
+				ASSERT(False);
+				break;
+		}
+		if (item->Name[0] == L'@')
+		{
+			if (!item->Ast->Public)
+				continue;
+			wcscpy(buf, item->Ast->Pos->SrcName);
+			wcscat(buf, item->Name);
+			GetKeywordsAdd(buf);
+		}
+		else if (wcscmp(GetKeywordsSrcName, item->Ast->Pos->SrcName) == 0 && *item->First <= GetKeywordsCursorY && GetKeywordsCursorY <= *item->Last)
+			GetKeywordsAdd(GetKeywordsKeywordList[i]->Name);
+	}
 }

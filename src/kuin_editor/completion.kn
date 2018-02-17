@@ -1,5 +1,4 @@
 var wndCompletion: wnd@Wnd
-var wndCompletionEditHint: wnd@EditMulti
 var wndCompletionListKeywords: wnd@List
 var wndCompletionEditFunc: wnd@EditMulti
 var oldX: int
@@ -26,16 +25,13 @@ end func
 			ret
 		end if
 
-		do @wndCompletion :: wnd@makeWnd(\form@wndMain, (%popup $ wnd@WndStyle).or(%layered), 250, 100, null)
+		do @wndCompletion :: wnd@makeWnd(\form@wndMain, (%popup $ wnd@WndStyle).or(%layered), 250, 82, null)
 		do @wndCompletion.setAlpha(230)
 		do @wndCompletion.onClose :: wndCompletionOnClose
-		do @wndCompletionEditHint :: wnd@makeEditMulti(@wndCompletion, 0, 0, 250, 30, %fix, %fix)
-		do @wndCompletionEditHint.readonly(true)
-
-		do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 30, 250, 48, %fix, %fix)
+		do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 0, 250, 58, %fix, %fix)
 		do @wndCompletionListKeywords.onSel :: @wndCompletionListKeywordsOnSel
 		do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
-		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 70, 250, 30, %fix, %fix)
+		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 52, 250, 30, %fix, %fix)
 		do @wndCompletionEditFunc.readonly(true)
 		{
 			; TODO:
@@ -60,7 +56,7 @@ end func
 		var x2: int
 		var y2: int
 		do \form@drawEditor.getPosScreen(&x2, &y2, &, &)
-		do @wndCompletion.setPos(x + x2, y + y2 + \common@cellHeight, 250, 100)
+		do @wndCompletion.setPos(x + x2, y + y2 + \common@cellHeight * 2, 250, 82)
 		do \form@focusDrawEditor()
 	end block
 
@@ -78,7 +74,6 @@ end func
 
 	func wndCompletionOnClose(wnd: wnd@Wnd): bool
 		do @wndCompletion :: null
-		do @wndCompletionEditHint :: null
 		do @wndCompletionListKeywords :: null
 		do @wndCompletionEditFunc :: null
 		do @oldX :: -1
