@@ -38,7 +38,7 @@ end func
 			; TODO:
 		if(^funcHint = 0)
 		}
-			do @wndCompletionEditFunc.setText(\common@langEn ?("Select...Up/Down, To Definition...F12\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Up/Down, 定義元へ...F12\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
+			do @wndCompletionEditFunc.setText(\common@langEn ?("Select...Up/Down\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Up/Down\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
 		{
 			; TODO:
 		else

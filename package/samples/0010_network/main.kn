@@ -8,7 +8,7 @@ func main()
 	do edit1.readonly(true)
 	var edit2: wnd@EditMulti :: wnd@makeEditMulti(wndMain, 500, 12, 485, 676, %scale, %scale)
 	do edit2.readonly(true)
-
+	
 	; HTTPでHTMLデータを取得する
 	var http: net@Http :: net@makeHttp(@url, false, null)
 	var s: []char :: null
@@ -17,7 +17,7 @@ func main()
 		do s :: http.get()
 	end while
 	do edit1.setText(s ~ "\n")
-
+	
 	; TCP通信を行う
 	var testData: []bit8 :: "Test Data" $> []bit8 {送信するデータ}
 	var server: net@TcpServer :: net@makeTcpServer(1024) {サーバの作成}
@@ -34,7 +34,7 @@ func main()
 		do serverData :: serverConnect.receive(^testData)
 	end while
 	do edit2.setText((serverData $< []char) ~ "\n")
-
+	
 	while(wnd@act())
 	end while
 end func

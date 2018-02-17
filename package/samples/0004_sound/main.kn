@@ -14,12 +14,12 @@ func main()
 	do @sndBgm :: snd@makeSnd("res/bgm.ogg", true) {サウンドをストリーミングで読み込む}
 	while(wnd@act())
 	end while
-
+	
 	func btnSeOnPush(wnd: wnd@Btn)
 		do @sndSe.setPos(0.0) {再生位置を0秒に設定}
 		do @sndSe.play() {SEボタンが押されたらSEを再生}
 	end func
-
+	
 	func btnBgmOnPush(wnd: wnd@Btn)
 		if(@sndBgm.playing())
 			do @sndBgm.stop() {BGMボタンが押されたら再生中ならBGMを停止}

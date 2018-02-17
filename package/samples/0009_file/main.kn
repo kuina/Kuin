@@ -21,7 +21,7 @@ func main()
 	end try
 	while(wnd@act())
 	end while
-
+	
 	func save()
 		; "ABCDE,1234,3.14159"というデータをファイルに書き込む
 		var writer: file@Writer :: file@makeWriter(@fileName, false) {ファイルを書き込みモードで開く}
@@ -31,7 +31,7 @@ func main()
 		do writer.writeChar(',')
 		do writer.writeFloat(3.14159) {小数を書き込み}
 		do writer.fin() {ファイルを閉じる}
-
+		
 		; "Hello"というデータを暗号化して書き込む
 		do writer :: file@makeWriter(@fileName2, false)
 		var data: []char :: "Hello" {データを用意}
@@ -39,10 +39,10 @@ func main()
 		do writer.write(encryptedData) {書き込み}
 		do writer.fin()
 	end func
-
+	
 	func load(): []char
 		var str: []char :: ""
-
+		
 		; ファイルをカンマ区切りで読み込む
 		var reader: file@Reader :: file@makeReader(@fileName) {ファイルを読み込みモードで開く}
 		do reader.delimiter([',']) {区切り文字を指定}
@@ -50,13 +50,13 @@ func main()
 			do str :~ reader.readStr() ~ "\n" {区切った文字列を読み込み}
 		end while
 		do reader.fin()
-
+		
 		; 暗号化されたファイルを読み込んで復号する
 		do reader :: file@makeReader(@fileName2)
 		var encryptedData: []bit8 :: reader.read(reader.fileSize()) {ファイルをすべて読み込む}
 		var data: []char :: lib@decrypt(encryptedData, @getKey()) $< []char {復号}
 		do str :~ data
-
+		
 		ret str
 	end func
 end func
@@ -64,8 +64,8 @@ end func
 ; 暗号化の鍵を生成する関数
 func getKey(): []bit8
 	; 鍵は32byteでなければならない
-	ret [16#12b8, 16#34b8, 16#56b8, 16#78b8, 16#9Ab8, 16#BCb8, 16#DEb8, 16#F0b8,
-		|16#75b8, 16#38b8, 16#9Bb8, 16#C4b8, 16#21b8, 16#A0b8, 16#DFb8, 16#E6b8,
-		|16#49b8, 16#2Fb8, 16#B5b8, 16#3Db8, 16#01b8, 16#68b8, 16#7Ab8, 16#CEb8,
-		|16#F0b8, 16#52b8, 16#CAb8, 16#E6b8, 16#89b8, 16#D7b8, 16#4Bb8, 16#31b8]
+	ret[16#12b8, 16#34b8, 16#56b8, 16#78b8, 16#9Ab8, 16#BCb8, 16#DEb8, 16#F0b8,
+	|16#75b8, 16#38b8, 16#9Bb8, 16#C4b8, 16#21b8, 16#A0b8, 16#DFb8, 16#E6b8,
+	|16#49b8, 16#2Fb8, 16#B5b8, 16#3Db8, 16#01b8, 16#68b8, 16#7Ab8, 16#CEb8,
+	|16#F0b8, 16#52b8, 16#CAb8, 16#E6b8, 16#89b8, 16#D7b8, 16#4Bb8, 16#31b8]
 end func
