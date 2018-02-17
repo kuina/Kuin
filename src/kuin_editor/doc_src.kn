@@ -1367,6 +1367,7 @@ end func
 		else
 			if(me.dirtyLine <> line | me.dirtyLineForce)
 				do me.dirtyLineForce :: false
+				do \completion@close()
 				var newX: int
 				var newY: int :: me.cursorY
 				do \dll@interpret1(me.src, -1, me, me.replaceForAuxiliary, me.cursorX, me.cursorY, &newX, me.dirtyLine, modified ?(me.cursorY, me.dirtyLine))
