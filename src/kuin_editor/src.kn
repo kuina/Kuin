@@ -92,6 +92,7 @@ end func
 	end if
 	do @mainSrcName :: file
 	do @mainSrcDir :: file@dir(file)
+	do @curDocInternalName :: @srcNameToInternalName(@mainSrcName)
 	do \prop@save()
 	var newDocs: dict<[]char, \doc@Doc> :: #dict<[]char, \doc@Doc>
 
@@ -103,7 +104,6 @@ end func
 	do data.docs :: newDocs
 	do @docs.forEach(callback, data)
 	do newDocs.add(file, @curDoc)
-	do @clearDocs()
 	do @docs :: newDocs
 	do @curDoc.changed :: false
 	do \form@updateFile()

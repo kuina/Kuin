@@ -141,6 +141,7 @@ end func
 	end if
 	do @oldX :: -1
 	do @oldY :: -1
+	do @keywords :: null
 end func
 
 +func displayed(): bool
