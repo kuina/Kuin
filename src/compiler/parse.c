@@ -4026,6 +4026,7 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 	{
 		int access_public = -1;
 		int access_override = -1;
+		Bool access_override2 = False;
 		S64 enum_depth = -1;
 		while (str[*ptr_str] != L'\0')
 		{
@@ -4044,6 +4045,8 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 			}
 			if (c == L'*')
 			{
+				if (access_override != -1)
+					access_override2 = True;
 				access_override = *ptr_str;
 				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 				(*ptr_str)++;
@@ -4107,6 +4110,8 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 						if (new_cursor_x != NULL && cursor_x == (S64)access_override)
 							*new_cursor_x = (S64)*ptr_buf;
 						InterpretImpl1Write(ptr_buf, buf, L'*');
+						if (access_override2)
+							InterpretImpl1Write(ptr_buf, buf, L'*');
 					}
 					int i;
 					for (i = begin; i < end; i++)
