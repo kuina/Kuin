@@ -26,6 +26,7 @@ EXPORT_CPP SClass* _makeRegex(SClass* me_, const U8* pattern)
 	{
 		me2->Pattern->~wsregex();
 		FreeMem(me2->Pattern);
+		me2->Pattern = NULL;
 		return NULL;
 	}
 	return me_;
