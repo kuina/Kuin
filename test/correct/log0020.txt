@@ -35,4 +35,9 @@ Excpt: 80000003
 > 8.216
 > 9.272
 > 10
+> Yes
+> B
+> E
+> 2
+> 3
 end: ../../test/output/output0020.exe

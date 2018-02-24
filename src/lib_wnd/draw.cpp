@@ -10,12 +10,13 @@
 #include "jpg_decoder.h"
 #include "bc_decoder.h"
 
-const int DepthNum = 4;
-const int BlendNum = 5;
-const int SamplerNum = 2;
-const int JointMax = 64;
-const int FontBitmapSize = 1024;
-const int TexEvenNum = 3;
+static const int DepthNum = 4;
+static const int BlendNum = 5;
+static const int SamplerNum = 2;
+static const int JointMax = 64;
+static const int FontBitmapSize = 1024;
+static const int TexEvenNum = 3;
+static const double DiscardAlpha = 0.02;
 
 struct SWndBuf
 {
@@ -25,8 +26,11 @@ struct SWndBuf
 	FLOAT ClearColor[4];
 	int TexWidth;
 	int TexHeight;
-	int ScrWidth;
-	int ScrHeight;
+	int ScreenWidth;
+	int ScreenHeight;
+	ID3D10Texture2D* TmpTex;
+	ID3D10ShaderResourceView* TmpShaderResView;
+	ID3D10RenderTargetView* TmpRenderTargetView;
 };
 
 struct SShaderBuf
@@ -64,7 +68,6 @@ struct SFont
 	int CellSizeAligned;
 	U32 Cnt;
 	double Advance;
-	bool Strong;
 	bool Proportional;
 	HFONT Font;
 	Char* CharMap;
@@ -92,8 +95,8 @@ struct SObj
 	int ElementNum;
 	int* ElementKinds;
 	void** Elements;
-	float Mtx[4][4];
-	float NormMtx[4][4];
+	float Mat[4][4];
+	float NormMat[4][4];
 };
 
 struct SObjVsConstBuf
@@ -139,6 +142,8 @@ const U8* GetTexPsBin(size_t* size);
 const U8* GetObjVsBin(size_t* size);
 const U8* GetObjJointVsBin(size_t* size);
 const U8* GetObjPsBin(size_t* size);
+const U8* GetFilterVsBin(size_t* size);
+const U8* GetFilterPsBin(size_t* size);
 
 static S64 Cnt;
 static U32 PrevTime;
@@ -165,8 +170,11 @@ static void* FontPs = NULL;
 static void* ObjVs = NULL;
 static void* ObjJointVs = NULL;
 static void* ObjPs = NULL;
-static double ViewMtx[4][4];
-static double ProjMtx[4][4];
+static void* FilterVertex = NULL;
+static void* FilterVs = NULL;
+static void* FilterPs = NULL;
+static double ViewMat[4][4];
+static double ProjMat[4][4];
 static SObjJointVsConstBuf ObjVsConstBuf;
 static SObjPsConstBuf ObjPsConstBuf;
 static int CurZBuf = -1;
@@ -174,12 +182,37 @@ static int CurBlend = -1;
 static int CurSampler = -1;
 ID3D10Texture2D* TexEven[TexEvenNum];
 ID3D10ShaderResourceView* ViewEven[TexEvenNum];
-static U8 StrongMap[256];
 
 EXPORT_CPP void _render(S64 fps)
 {
-	CurWndBuf->SwapChain->Present(1, 0);
-	Device->ClearRenderTargetView(CurWndBuf->RenderTargetView, CurWndBuf->ClearColor);
+	// Draw with a filter.
+	{
+		int old_z_buf = CurZBuf;
+		int old_blend = CurBlend;
+		int old_sampler = CurSampler;
+		_resetViewport();
+		_depth(False, False);
+		_blend(0);
+		_sampler(0);
+
+		Device->OMSetRenderTargets(1, &CurWndBuf->RenderTargetView, NULL);
+		{
+			Draw::ConstBuf(FilterVs, NULL);
+			Device->GSSetShader(NULL);
+			Draw::ConstBuf(FilterPs, NULL);
+			Draw::VertexBuf(FilterVertex);
+			Device->PSSetShaderResources(0, 1, &CurWndBuf->TmpShaderResView);
+		}
+		Device->DrawIndexed(6, 0, 0);
+
+		_depth((old_z_buf & 2) != 0, (old_z_buf & 1) != 0);
+		_blend(old_blend);
+		_sampler(old_sampler);
+	}
+
+	CurWndBuf->SwapChain->Present(fps == 0 ? 0 : 1, 0);
+	Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
+	Device->ClearRenderTargetView(CurWndBuf->TmpRenderTargetView, CurWndBuf->ClearColor);
 	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 	Device->RSSetState(RasterizerState);
 
@@ -297,15 +330,15 @@ EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 	{
 		float const_buf_vs[4] =
 		{
-			static_cast<float>(x1) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y1) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(x2 - x1) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(y2 - y1) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(x1) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y1) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(x2 - x1) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(y2 - y1) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
 		float const_buf_ps[4] =
 		{
@@ -328,7 +361,7 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 	if ((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1) < 0.0)
 	{
@@ -343,12 +376,12 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 	{
 		float const_buf_vs[8] =
 		{
-			static_cast<float>(x1) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y1) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(x2) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y2) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(x3) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y3) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
+			static_cast<float>(x1) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y1) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(x2) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y2) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(x3) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y3) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
 		};
 		float const_buf_ps[4] =
 		{
@@ -369,7 +402,7 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 	if (w < 0.0)
 	{
@@ -384,10 +417,10 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 	{
 		float const_buf_vs[4] =
 		{
-			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(w) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(h) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(w) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(h) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
 		float const_buf_ps[4] =
 		{
@@ -408,7 +441,7 @@ EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 	if (w < 0.0)
 	{
@@ -423,10 +456,10 @@ EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 	{
 		float const_buf_vs[4] =
 		{
-			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(w) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(h) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(w) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(h) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
 		float const_buf_ps[4] =
 		{
@@ -449,7 +482,7 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 	if (radiusX < 0.0)
 		radiusX = -radiusX;
@@ -458,10 +491,10 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 	{
 		float const_buf_vs[4] =
 		{
-			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(radiusX) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(radiusY) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(radiusX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(radiusY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
 		float const_buf_ps[4] =
 		{
@@ -642,7 +675,7 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 
 	STex* me2 = reinterpret_cast<STex*>(me_);
@@ -663,10 +696,10 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 	{
 		float const_buf_vs[8] =
 		{
-			static_cast<float>(dstX) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(dstX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 			static_cast<float>(srcX) / static_cast<float>(me2->Width),
 			-(static_cast<float>(srcY) / static_cast<float>(me2->Height)),
 			static_cast<float>(srcW) / static_cast<float>(me2->Width),
@@ -692,7 +725,7 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 {
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 
 	STex* me2 = reinterpret_cast<STex*>(me_);
@@ -713,19 +746,19 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 	{
 		float const_buf_vs[16] =
 		{
-			static_cast<float>(dstX) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(dstX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(dstW) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(dstH) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 			static_cast<float>(srcX) / static_cast<float>(me2->Width),
 			-(static_cast<float>(srcY) / static_cast<float>(me2->Height)),
 			static_cast<float>(srcW) / static_cast<float>(me2->Width),
 			-(static_cast<float>(srcH) / static_cast<float>(me2->Height)),
-			static_cast<float>(centerX) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-			-(static_cast<float>(centerY) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+			static_cast<float>(centerX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(centerY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 			static_cast<float>(sin(-angle)),
 			static_cast<float>(cos(-angle)),
-			static_cast<float>(CurWndBuf->ScrWidth) / static_cast<float>(CurWndBuf->ScrHeight),
+			static_cast<float>(CurWndBuf->ScreenWidth) / static_cast<float>(CurWndBuf->ScreenHeight),
 			0.0f,
 			0.0f,
 			0.0f,
@@ -746,7 +779,7 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 	Device->DrawIndexed(6, 0, 0);
 }
 
-EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool strong, bool proportional, double advance)
+EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool proportional, double advance)
 {
 	THROWDBG(size < 1, 0xe9170006);
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
@@ -757,7 +790,6 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		ReleaseDC(NULL, dc);
 	}
 	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, fontName == NULL ? L"Meiryo UI" : reinterpret_cast<const Char*>(fontName + 0x10));
-	me2->Strong = strong;
 	me2->Proportional = proportional;
 	me2->Advance = advance;
 	{
@@ -774,14 +806,12 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		ReleaseDC(NULL, dc);
 	}
 	{
-		HGDIOBJ old_bitmap = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Bitmap));
 		HGDIOBJ old_font = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Font));
 		TEXTMETRIC tm;
 		GetTextMetrics(me2->Dc, &tm);
 		me2->CellWidth = tm.tmMaxCharWidth;
 		me2->CellHeight = tm.tmHeight;
 		SelectObject(me2->Dc, old_font);
-		SelectObject(me2->Dc, old_bitmap);
 	}
 	me2->CellSizeAligned = 128; // Texture length must not be less than 128.
 	while (me2->CellSizeAligned < me2->CellWidth + 1 || me2->CellSizeAligned < me2->CellHeight + 1)
@@ -848,7 +878,7 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 	THROWDBG(text == NULL, 0xc0000005);
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	if (a <= 0.04)
+	if (a <= DiscardAlpha)
 		return;
 
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
@@ -905,8 +935,6 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 				rect.bottom = rect.top + static_cast<LONG>(me2->CellHeight);
 				ExtTextOut(me2->Dc, static_cast<int>(rect.left), static_cast<int>(rect.top), ETO_CLIPPED | ETO_OPAQUE, &rect, ptr, 1, NULL);
 				{
-					TEXTMETRIC tm;
-					GetTextMetrics(me2->Dc, &tm);
 					GLYPHMETRICS gm;
 					MAT2 mat = { { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 1 } };
 					GetGlyphOutline(me2->Dc, static_cast<UINT>(*ptr), GGO_METRICS, &gm, 0, NULL, &mat);
@@ -922,29 +950,15 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			D3D10_MAPPED_TEXTURE2D map;
 			me2->Tex->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_WRITE_DISCARD, 0, &map);
 			U8* dst = static_cast<U8*>(map.pData);
-			if (me2->Strong)
+			for (int j = 0; j < me2->CellHeight; j++)
 			{
-				for (int j = 0; j < me2->CellHeight; j++)
-				{
-					int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
-					for (int k = 0; k < me2->CellWidth; k++)
-						dst[j * me2->CellSizeAligned + k] = StrongMap[me2->Pixel[(begin + k) * 3]];
-					dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
-				}
-			}
-			else
-			{
-				for (int j = 0; j < me2->CellHeight; j++)
-				{
-					int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
-					for (int k = 0; k < me2->CellWidth; k++)
-						dst[j * me2->CellSizeAligned + k] = me2->Pixel[(begin + k) * 3];
-					dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
-				}
+				int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
+				for (int k = 0; k < me2->CellWidth; k++)
+					dst[j * me2->CellSizeAligned + k] = me2->Pixel[(begin + k) * 3];
+				dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
 			}
 			{
 				int j = me2->CellHeight;
-				int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
 				for (int k = 0; k < me2->CellWidth + 1; k++)
 					dst[j * me2->CellSizeAligned + k] = 0;
 			}
@@ -957,10 +971,10 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			{
 				float const_buf_vs[8] =
 				{
-					static_cast<float>(half_space + x) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f - 1.0f,
-					-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f - 1.0f),
-					static_cast<float>(me2->CellWidth) / static_cast<float>(CurWndBuf->ScrWidth) * 2.0f,
-					-(static_cast<float>(me2->CellHeight) / static_cast<float>(CurWndBuf->ScrHeight) * 2.0f),
+					static_cast<float>(half_space + x) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+					-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+					static_cast<float>(me2->CellWidth) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+					-(static_cast<float>(me2->CellHeight) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 					0.0f,
 					0.0f,
 					static_cast<float>(me2->CellWidth) / static_cast<float>(me2->CellSizeAligned),
@@ -986,6 +1000,39 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			x += static_cast<double>(me2->GlyphWidth[pos]);
 		ptr++;
 	}
+}
+
+EXPORT_CPP double _fontMaxWidth(SClass* me_)
+{
+	return reinterpret_cast<SFont*>(me_)->CellWidth;
+}
+
+EXPORT_CPP double _fontMaxHeight(SClass* me_)
+{
+	return reinterpret_cast<SFont*>(me_)->CellHeight;
+}
+
+EXPORT_CPP double _fontCalcWidth(SClass* me_, const U8* text)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+	SFont* me2 = reinterpret_cast<SFont*>(me_);
+	S64 len = *reinterpret_cast<const S64*>(text + 0x08);
+
+	double x = me2->Advance * static_cast<double>(len);
+	if (me2->Proportional)
+	{
+		const Char* ptr = reinterpret_cast<const Char*>(text + 0x10);
+		HGDIOBJ old_font = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Font));
+		for (S64 i = 0; i < len; i++)
+		{
+			SIZE size;
+			GetTextExtentPoint32(me2->Dc, ptr, 1, &size);
+			x += static_cast<double>(size.cx);
+			ptr++;
+		}
+		SelectObject(me2->Dc, old_font);
+	}
+	return x;
 }
 
 EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, double atY, double atZ, double upX, double upY, double upZ)
@@ -1015,53 +1062,53 @@ EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, doubl
 	pxyz[1] = Draw::Dot(eye, up);
 	pxyz[2] = Draw::Dot(eye, look);
 
-	ViewMtx[0][0] = right[0];
-	ViewMtx[0][1] = up[0];
-	ViewMtx[0][2] = look[0];
-	ViewMtx[0][3] = 0.0;
-	ViewMtx[1][0] = right[1];
-	ViewMtx[1][1] = up[1];
-	ViewMtx[1][2] = look[1];
-	ViewMtx[1][3] = 0.0;
-	ViewMtx[2][0] = right[2];
-	ViewMtx[2][1] = up[2];
-	ViewMtx[2][2] = look[2];
-	ViewMtx[2][3] = 0.0;
-	ViewMtx[3][0] = -pxyz[0];
-	ViewMtx[3][1] = -pxyz[1];
-	ViewMtx[3][2] = -pxyz[2];
-	ViewMtx[3][3] = 1.0;
+	ViewMat[0][0] = right[0];
+	ViewMat[0][1] = up[0];
+	ViewMat[0][2] = look[0];
+	ViewMat[0][3] = 0.0;
+	ViewMat[1][0] = right[1];
+	ViewMat[1][1] = up[1];
+	ViewMat[1][2] = look[1];
+	ViewMat[1][3] = 0.0;
+	ViewMat[2][0] = right[2];
+	ViewMat[2][1] = up[2];
+	ViewMat[2][2] = look[2];
+	ViewMat[2][3] = 0.0;
+	ViewMat[3][0] = -pxyz[0];
+	ViewMat[3][1] = -pxyz[1];
+	ViewMat[3][2] = -pxyz[2];
+	ViewMat[3][3] = 1.0;
 
 	ObjVsConstBuf.Eye[0] = static_cast<float>(eyeX);
 	ObjVsConstBuf.Eye[1] = static_cast<float>(eyeY);
 	ObjVsConstBuf.Eye[2] = static_cast<float>(eyeZ);
 	ObjVsConstBuf.Eye[3] = static_cast<float>(eye_len);
 
-	Draw::SetProjViewMtx(ObjVsConstBuf.ProjView, ProjMtx, ViewMtx);
+	Draw::SetProjViewMat(ObjVsConstBuf.ProjView, ProjMat, ViewMat);
 }
 
 EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ, double farZ)
 {
 	THROWDBG(fovy <= 0.0 || M_PI / 2.0 <= fovy || aspectX <= 0.0 || aspectY <= 0.0 || nearZ <= 0.0 || farZ <= nearZ, 0xe9170006);
 	double tan_theta = tan(fovy / 2.0);
-	ProjMtx[0][0] = -1.0 / ((aspectX / aspectY) * tan_theta);
-	ProjMtx[0][1] = 0.0;
-	ProjMtx[0][2] = 0.0;
-	ProjMtx[0][3] = 0.0;
-	ProjMtx[1][0] = 0.0;
-	ProjMtx[1][1] = 1.0 / tan_theta;
-	ProjMtx[1][2] = 0.0;
-	ProjMtx[1][3] = 0.0;
-	ProjMtx[2][0] = 0.0;
-	ProjMtx[2][1] = 0.0;
-	ProjMtx[2][2] = farZ / (farZ - nearZ);
-	ProjMtx[2][3] = 1.0;
-	ProjMtx[3][0] = 0.0;
-	ProjMtx[3][1] = 0.0;
-	ProjMtx[3][2] = -farZ * nearZ / (farZ - nearZ);
-	ProjMtx[3][3] = 0.0;
+	ProjMat[0][0] = -1.0 / ((aspectX / aspectY) * tan_theta);
+	ProjMat[0][1] = 0.0;
+	ProjMat[0][2] = 0.0;
+	ProjMat[0][3] = 0.0;
+	ProjMat[1][0] = 0.0;
+	ProjMat[1][1] = 1.0 / tan_theta;
+	ProjMat[1][2] = 0.0;
+	ProjMat[1][3] = 0.0;
+	ProjMat[2][0] = 0.0;
+	ProjMat[2][1] = 0.0;
+	ProjMat[2][2] = farZ / (farZ - nearZ);
+	ProjMat[2][3] = 1.0;
+	ProjMat[3][0] = 0.0;
+	ProjMat[3][1] = 0.0;
+	ProjMat[3][2] = -farZ * nearZ / (farZ - nearZ);
+	ProjMat[3][3] = 0.0;
 
-	Draw::SetProjViewMtx(ObjVsConstBuf.ProjView, ProjMtx, ViewMtx);
+	Draw::SetProjViewMat(ObjVsConstBuf.ProjView, ProjMat, ViewMat);
 }
 
 EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
@@ -1069,8 +1116,8 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 	SObj* me2 = (SObj*)me_;
 	me2->ElementKinds = NULL;
 	me2->Elements = NULL;
-	Draw::IdentityFloat(me2->Mtx);
-	Draw::IdentityFloat(me2->NormMtx);
+	Draw::IdentityFloat(me2->Mat);
+	Draw::IdentityFloat(me2->NormMat);
 	{
 		Bool correct = True;
 		U8* buf = NULL;
@@ -1272,8 +1319,8 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass*
 				THROWDBG(element2->JointNum < 0 && JointMax < element2->JointNum, 0xe9170006);
 				Bool joint = element2->JointNum != 0;
 
-				memcpy(ObjVsConstBuf.World, me2->Mtx, sizeof(float[4][4]));
-				memcpy(ObjVsConstBuf.NormWorld, me2->NormMtx, sizeof(float[4][4]));
+				memcpy(ObjVsConstBuf.World, me2->Mat, sizeof(float[4][4]));
+				memcpy(ObjVsConstBuf.NormWorld, me2->NormMat, sizeof(float[4][4]));
 #if defined(_DEBUG)
 				ObjPsConstBuf.Mode[0] = 0;
 #endif
@@ -1283,14 +1330,14 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass*
 					{
 						for (int i = 0; i < element2->JointNum; i++)
 						{
-							int mtx_a = static_cast<int>(frame);
-							int mtx_b = mtx_a + 1;
+							int mat_a = static_cast<int>(frame);
+							int mat_b = mat_a + 1;
 							float rate_b = static_cast<float>(frame - static_cast<double>(static_cast<int>(frame)));
 							float rate_a = 1.0f - rate_b;
 							for (int j = 0; j < 4; j++)
 							{
 								for (int k = 0; k < 4; k++)
-									ObjVsConstBuf.Joint[i][j][k] = rate_a * element2->Joints[mtx_a][j][k] + rate_b * element2->Joints[mtx_b][j][k];
+									ObjVsConstBuf.Joint[i][j][k] = rate_a * element2->Joints[mat_a][j][k] + rate_b * element2->Joints[mat_b][j][k];
 							}
 						}
 					}
@@ -1310,47 +1357,47 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass*
 	}
 }
 
-EXPORT_CPP void _objMtx(SClass* me_, const U8* mtx, const U8* normMtx)
+EXPORT_CPP void _objMat(SClass* me_, const U8* mat, const U8* normMat)
 {
 	SObj* me2 = (SObj*)me_;
-	THROWDBG(*(S64*)(mtx + 0x08) != 16 || *(S64*)(normMtx + 0x08) != 16, 0xe9170006);
+	THROWDBG(*(S64*)(mat + 0x08) != 16 || *(S64*)(normMat + 0x08) != 16, 0xe9170006);
 	{
-		const double* ptr = reinterpret_cast<const double*>(mtx + 0x10);
-		me2->Mtx[0][0] = static_cast<float>(ptr[0]);
-		me2->Mtx[0][1] = static_cast<float>(ptr[1]);
-		me2->Mtx[0][2] = static_cast<float>(ptr[2]);
-		me2->Mtx[0][3] = static_cast<float>(ptr[3]);
-		me2->Mtx[1][0] = static_cast<float>(ptr[4]);
-		me2->Mtx[1][1] = static_cast<float>(ptr[5]);
-		me2->Mtx[1][2] = static_cast<float>(ptr[6]);
-		me2->Mtx[1][3] = static_cast<float>(ptr[7]);
-		me2->Mtx[2][0] = static_cast<float>(ptr[8]);
-		me2->Mtx[2][1] = static_cast<float>(ptr[9]);
-		me2->Mtx[2][2] = static_cast<float>(ptr[10]);
-		me2->Mtx[2][3] = static_cast<float>(ptr[11]);
-		me2->Mtx[3][0] = static_cast<float>(ptr[12]);
-		me2->Mtx[3][1] = static_cast<float>(ptr[13]);
-		me2->Mtx[3][2] = static_cast<float>(ptr[14]);
-		me2->Mtx[3][3] = static_cast<float>(ptr[15]);
+		const double* ptr = reinterpret_cast<const double*>(mat + 0x10);
+		me2->Mat[0][0] = static_cast<float>(ptr[0]);
+		me2->Mat[0][1] = static_cast<float>(ptr[1]);
+		me2->Mat[0][2] = static_cast<float>(ptr[2]);
+		me2->Mat[0][3] = static_cast<float>(ptr[3]);
+		me2->Mat[1][0] = static_cast<float>(ptr[4]);
+		me2->Mat[1][1] = static_cast<float>(ptr[5]);
+		me2->Mat[1][2] = static_cast<float>(ptr[6]);
+		me2->Mat[1][3] = static_cast<float>(ptr[7]);
+		me2->Mat[2][0] = static_cast<float>(ptr[8]);
+		me2->Mat[2][1] = static_cast<float>(ptr[9]);
+		me2->Mat[2][2] = static_cast<float>(ptr[10]);
+		me2->Mat[2][3] = static_cast<float>(ptr[11]);
+		me2->Mat[3][0] = static_cast<float>(ptr[12]);
+		me2->Mat[3][1] = static_cast<float>(ptr[13]);
+		me2->Mat[3][2] = static_cast<float>(ptr[14]);
+		me2->Mat[3][3] = static_cast<float>(ptr[15]);
 	}
 	{
-		const double* ptr = reinterpret_cast<const double*>(normMtx + 0x10);
-		me2->NormMtx[0][0] = static_cast<float>(ptr[0]);
-		me2->NormMtx[0][1] = static_cast<float>(ptr[1]);
-		me2->NormMtx[0][2] = static_cast<float>(ptr[2]);
-		me2->NormMtx[0][3] = static_cast<float>(ptr[3]);
-		me2->NormMtx[1][0] = static_cast<float>(ptr[4]);
-		me2->NormMtx[1][1] = static_cast<float>(ptr[5]);
-		me2->NormMtx[1][2] = static_cast<float>(ptr[6]);
-		me2->NormMtx[1][3] = static_cast<float>(ptr[7]);
-		me2->NormMtx[2][0] = static_cast<float>(ptr[8]);
-		me2->NormMtx[2][1] = static_cast<float>(ptr[9]);
-		me2->NormMtx[2][2] = static_cast<float>(ptr[10]);
-		me2->NormMtx[2][3] = static_cast<float>(ptr[11]);
-		me2->NormMtx[3][0] = static_cast<float>(ptr[12]);
-		me2->NormMtx[3][1] = static_cast<float>(ptr[13]);
-		me2->NormMtx[3][2] = static_cast<float>(ptr[14]);
-		me2->NormMtx[3][3] = static_cast<float>(ptr[15]);
+		const double* ptr = reinterpret_cast<const double*>(normMat + 0x10);
+		me2->NormMat[0][0] = static_cast<float>(ptr[0]);
+		me2->NormMat[0][1] = static_cast<float>(ptr[1]);
+		me2->NormMat[0][2] = static_cast<float>(ptr[2]);
+		me2->NormMat[0][3] = static_cast<float>(ptr[3]);
+		me2->NormMat[1][0] = static_cast<float>(ptr[4]);
+		me2->NormMat[1][1] = static_cast<float>(ptr[5]);
+		me2->NormMat[1][2] = static_cast<float>(ptr[6]);
+		me2->NormMat[1][3] = static_cast<float>(ptr[7]);
+		me2->NormMat[2][0] = static_cast<float>(ptr[8]);
+		me2->NormMat[2][1] = static_cast<float>(ptr[9]);
+		me2->NormMat[2][2] = static_cast<float>(ptr[10]);
+		me2->NormMat[2][3] = static_cast<float>(ptr[11]);
+		me2->NormMat[3][0] = static_cast<float>(ptr[12]);
+		me2->NormMat[3][1] = static_cast<float>(ptr[13]);
+		me2->NormMat[3][2] = static_cast<float>(ptr[14]);
+		me2->NormMat[3][3] = static_cast<float>(ptr[15]);
 	}
 }
 
@@ -1363,41 +1410,41 @@ EXPORT_CPP void _objPos(SClass* me_, double scaleX, double scaleY, double scaleZ
 	double sin_y = sin(rotY);
 	double cos_z = cos(rotZ);
 	double sin_z = sin(rotZ);
-	me2->Mtx[0][0] = static_cast<float>(scaleX * (cos_y * cos_z));
-	me2->Mtx[0][1] = static_cast<float>(scaleX * (cos_y * sin_z));
-	me2->Mtx[0][2] = static_cast<float>(scaleX * (-sin_y));
-	me2->Mtx[0][3] = 0.0f;
-	me2->Mtx[1][0] = static_cast<float>(scaleY * (sin_x * sin_y * cos_z - cos_x * sin_z));
-	me2->Mtx[1][1] = static_cast<float>(scaleY * (sin_x * sin_y * sin_z + cos_x * cos_z));
-	me2->Mtx[1][2] = static_cast<float>(scaleY * (sin_x * cos_y));
-	me2->Mtx[1][3] = 0.0f;
-	me2->Mtx[2][0] = static_cast<float>(scaleZ * (cos_x * sin_y * cos_z + sin_x * sin_z));
-	me2->Mtx[2][1] = static_cast<float>(scaleZ * (cos_x * sin_y * sin_z - sin_x * cos_z));
-	me2->Mtx[2][2] = static_cast<float>(scaleZ * (cos_x * cos_y));
-	me2->Mtx[2][3] = 0.0f;
-	me2->Mtx[3][0] = static_cast<float>(transX);
-	me2->Mtx[3][1] = static_cast<float>(transY);
-	me2->Mtx[3][2] = static_cast<float>(transZ);
-	me2->Mtx[3][3] = 1.0f;
+	me2->Mat[0][0] = static_cast<float>(scaleX * (cos_y * cos_z));
+	me2->Mat[0][1] = static_cast<float>(scaleX * (cos_y * sin_z));
+	me2->Mat[0][2] = static_cast<float>(scaleX * (-sin_y));
+	me2->Mat[0][3] = 0.0f;
+	me2->Mat[1][0] = static_cast<float>(scaleY * (sin_x * sin_y * cos_z - cos_x * sin_z));
+	me2->Mat[1][1] = static_cast<float>(scaleY * (sin_x * sin_y * sin_z + cos_x * cos_z));
+	me2->Mat[1][2] = static_cast<float>(scaleY * (sin_x * cos_y));
+	me2->Mat[1][3] = 0.0f;
+	me2->Mat[2][0] = static_cast<float>(scaleZ * (cos_x * sin_y * cos_z + sin_x * sin_z));
+	me2->Mat[2][1] = static_cast<float>(scaleZ * (cos_x * sin_y * sin_z - sin_x * cos_z));
+	me2->Mat[2][2] = static_cast<float>(scaleZ * (cos_x * cos_y));
+	me2->Mat[2][3] = 0.0f;
+	me2->Mat[3][0] = static_cast<float>(transX);
+	me2->Mat[3][1] = static_cast<float>(transY);
+	me2->Mat[3][2] = static_cast<float>(transZ);
+	me2->Mat[3][3] = 1.0f;
 	scaleX = 1.0 / scaleX;
 	scaleY = 1.0 / scaleY;
 	scaleZ = 1.0 / scaleZ;
-	me2->NormMtx[0][0] = static_cast<float>(scaleX * (cos_y * cos_z));
-	me2->NormMtx[0][1] = static_cast<float>(scaleX * (cos_y * sin_z));
-	me2->NormMtx[0][2] = static_cast<float>(scaleX * (-sin_y));
-	me2->NormMtx[0][3] = 0.0f;
-	me2->NormMtx[1][0] = static_cast<float>(scaleY * (sin_x * sin_y * cos_z - cos_x * sin_z));
-	me2->NormMtx[1][1] = static_cast<float>(scaleY * (sin_x * sin_y * sin_z + cos_x * cos_z));
-	me2->NormMtx[1][2] = static_cast<float>(scaleY * (sin_x * cos_y));
-	me2->NormMtx[1][3] = 0.0f;
-	me2->NormMtx[2][0] = static_cast<float>(scaleZ * (cos_x * sin_y * cos_z + sin_x * sin_z));
-	me2->NormMtx[2][1] = static_cast<float>(scaleZ * (cos_x * sin_y * sin_z - sin_x * cos_z));
-	me2->NormMtx[2][2] = static_cast<float>(scaleZ * (cos_x * cos_y));
-	me2->NormMtx[2][3] = 0.0f;
-	me2->NormMtx[3][0] = 0.0f;
-	me2->NormMtx[3][1] = 0.0f;
-	me2->NormMtx[3][2] = 0.0f;
-	me2->NormMtx[3][3] = 1.0f;
+	me2->NormMat[0][0] = static_cast<float>(scaleX * (cos_y * cos_z));
+	me2->NormMat[0][1] = static_cast<float>(scaleX * (cos_y * sin_z));
+	me2->NormMat[0][2] = static_cast<float>(scaleX * (-sin_y));
+	me2->NormMat[0][3] = 0.0f;
+	me2->NormMat[1][0] = static_cast<float>(scaleY * (sin_x * sin_y * cos_z - cos_x * sin_z));
+	me2->NormMat[1][1] = static_cast<float>(scaleY * (sin_x * sin_y * sin_z + cos_x * cos_z));
+	me2->NormMat[1][2] = static_cast<float>(scaleY * (sin_x * cos_y));
+	me2->NormMat[1][3] = 0.0f;
+	me2->NormMat[2][0] = static_cast<float>(scaleZ * (cos_x * sin_y * cos_z + sin_x * sin_z));
+	me2->NormMat[2][1] = static_cast<float>(scaleZ * (cos_x * sin_y * sin_z - sin_x * cos_z));
+	me2->NormMat[2][2] = static_cast<float>(scaleZ * (cos_x * cos_y));
+	me2->NormMat[2][3] = 0.0f;
+	me2->NormMat[3][0] = 0.0f;
+	me2->NormMat[3][1] = 0.0f;
+	me2->NormMat[3][2] = 0.0f;
+	me2->NormMat[3][3] = 1.0f;
 }
 
 EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, double atY, double atZ, double upX, double upY, double upZ, Bool fixUp)
@@ -1415,38 +1462,38 @@ EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, 
 		Draw::Cross(up, at, right);
 	else
 		Draw::Cross(at, right, up);
-	me2->Mtx[0][0] = static_cast<float>(right[0]);
-	me2->Mtx[0][1] = static_cast<float>(right[1]);
-	me2->Mtx[0][2] = static_cast<float>(right[2]);
-	me2->Mtx[0][3] = 0.0f;
-	me2->Mtx[1][0] = static_cast<float>(up[0]);
-	me2->Mtx[1][1] = static_cast<float>(up[1]);
-	me2->Mtx[1][2] = static_cast<float>(up[2]);
-	me2->Mtx[1][3] = 0.0f;
-	me2->Mtx[2][0] = static_cast<float>(at[0]);
-	me2->Mtx[2][1] = static_cast<float>(at[1]);
-	me2->Mtx[2][2] = static_cast<float>(at[2]);
-	me2->Mtx[2][3] = 0.0f;
-	me2->Mtx[3][0] = static_cast<float>(x);
-	me2->Mtx[3][1] = static_cast<float>(y);
-	me2->Mtx[3][2] = static_cast<float>(z);
-	me2->Mtx[3][3] = 1.0f;
-	me2->NormMtx[0][0] = static_cast<float>(right[0]);
-	me2->NormMtx[0][1] = static_cast<float>(right[1]);
-	me2->NormMtx[0][2] = static_cast<float>(right[2]);
-	me2->NormMtx[0][3] = 0.0f;
-	me2->NormMtx[1][0] = static_cast<float>(up[0]);
-	me2->NormMtx[1][1] = static_cast<float>(up[1]);
-	me2->NormMtx[1][2] = static_cast<float>(up[2]);
-	me2->NormMtx[1][3] = 0.0f;
-	me2->NormMtx[2][0] = static_cast<float>(at[0]);
-	me2->NormMtx[2][1] = static_cast<float>(at[1]);
-	me2->NormMtx[2][2] = static_cast<float>(at[2]);
-	me2->NormMtx[2][3] = 0.0f;
-	me2->NormMtx[3][0] = 0.0f;
-	me2->NormMtx[3][1] = 0.0f;
-	me2->NormMtx[3][2] = 0.0f;
-	me2->NormMtx[3][3] = 1.0f;
+	me2->Mat[0][0] = static_cast<float>(right[0]);
+	me2->Mat[0][1] = static_cast<float>(right[1]);
+	me2->Mat[0][2] = static_cast<float>(right[2]);
+	me2->Mat[0][3] = 0.0f;
+	me2->Mat[1][0] = static_cast<float>(up[0]);
+	me2->Mat[1][1] = static_cast<float>(up[1]);
+	me2->Mat[1][2] = static_cast<float>(up[2]);
+	me2->Mat[1][3] = 0.0f;
+	me2->Mat[2][0] = static_cast<float>(at[0]);
+	me2->Mat[2][1] = static_cast<float>(at[1]);
+	me2->Mat[2][2] = static_cast<float>(at[2]);
+	me2->Mat[2][3] = 0.0f;
+	me2->Mat[3][0] = static_cast<float>(x);
+	me2->Mat[3][1] = static_cast<float>(y);
+	me2->Mat[3][2] = static_cast<float>(z);
+	me2->Mat[3][3] = 1.0f;
+	me2->NormMat[0][0] = static_cast<float>(right[0]);
+	me2->NormMat[0][1] = static_cast<float>(right[1]);
+	me2->NormMat[0][2] = static_cast<float>(right[2]);
+	me2->NormMat[0][3] = 0.0f;
+	me2->NormMat[1][0] = static_cast<float>(up[0]);
+	me2->NormMat[1][1] = static_cast<float>(up[1]);
+	me2->NormMat[1][2] = static_cast<float>(up[2]);
+	me2->NormMat[1][3] = 0.0f;
+	me2->NormMat[2][0] = static_cast<float>(at[0]);
+	me2->NormMat[2][1] = static_cast<float>(at[1]);
+	me2->NormMat[2][2] = static_cast<float>(at[2]);
+	me2->NormMat[2][3] = 0.0f;
+	me2->NormMat[3][0] = 0.0f;
+	me2->NormMat[3][1] = 0.0f;
+	me2->NormMat[3][2] = 0.0f;
+	me2->NormMat[3][3] = 1.0f;
 }
 
 EXPORT_CPP void _objLookCamera(SClass* me_, double x, double y, double z, double upX, double upY, double upZ, Bool fixUp)
@@ -1474,6 +1521,16 @@ EXPORT_CPP void _dirLight(double atX, double atY, double atZ, double r, double g
 	ObjPsConstBuf.DirColor[0] = static_cast<float>(r);
 	ObjPsConstBuf.DirColor[1] = static_cast<float>(g);
 	ObjPsConstBuf.DirColor[2] = static_cast<float>(b);
+}
+
+EXPORT_CPP S64 _argbToColor(double a, double r, double g, double b)
+{
+	return Draw::ArgbToColor(a, r, g, b);
+}
+
+EXPORT_CPP void _colorToArgb(S64 color, double* a, double* r, double* g, double* b)
+{
+	Draw::ColorToArgb(a, r, g, b, color);
 }
 
 namespace Draw
@@ -1886,6 +1943,50 @@ void Init()
 		}
 	}
 
+	// Initialize 'Filter'.
+	{
+		{
+			float vertices[] =
+			{
+				-1.0f, -1.0f,
+				1.0f, -1.0f,
+				-1.0f, 1.0f,
+				1.0f, 1.0f,
+			};
+
+			U32 idces[] =
+			{
+				0, 1, 2,
+				3, 2, 1,
+			};
+
+			FilterVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+		}
+
+		{
+			ELayoutType layout_types[1] =
+			{
+				LayoutType_Float2,
+			};
+
+			const Char* layout_semantics[1] =
+			{
+				L"K_POSITION",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetFilterVsBin(&size);
+				FilterVs = MakeShaderBuf(ShaderKind_Vs, size, bin, 0, 1, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetFilterPsBin(&size);
+				FilterPs = MakeShaderBuf(ShaderKind_Ps, size, bin, 0, 0, NULL, NULL);
+			}
+		}
+	}
+
 	for (int i = 0; i < TexEvenNum; i++)
 	{
 		float img[4];
@@ -1945,12 +2046,6 @@ void Init()
 		}
 	}
 
-	for (int i = 0; i < 256; i++)
-	{
-		double value = 1.0 - (double)i / 255.0;
-		StrongMap[i] = (U8)((1.0 - value * value) * 255.0 + 0.5);
-	}
-
 	memset(&ObjVsConstBuf, 0, sizeof(SObjVsConstBuf));
 	memset(&ObjPsConstBuf, 0, sizeof(SObjPsConstBuf));
 	ObjPsConstBuf.AmbTopColor[3] = 0.0f;
@@ -1978,6 +2073,12 @@ void Fin()
 		if (TexEven[i] != NULL)
 			TexEven[i]->Release();
 	}
+	if (FilterPs != NULL)
+		FinShaderBuf(FilterPs);
+	if (FilterVs != NULL)
+		FinShaderBuf(FilterVs);
+	if (FilterVertex != NULL)
+		FinVertexBuf(FilterVertex);
 	if (ObjPs != NULL)
 		FinShaderBuf(ObjPs);
 	if (ObjJointVs != NULL)
@@ -2033,7 +2134,7 @@ void Fin()
 		Device->Release();
 }
 
-void* MakeDrawBuf(int tex_width, int tex_height, int scr_width, int scr_height, HWND wnd, void* old)
+void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_height, HWND wnd, void* old)
 {
 	SWndBuf* old2 = static_cast<SWndBuf*>(old);
 	FLOAT clear_color[4];
@@ -2054,8 +2155,8 @@ void* MakeDrawBuf(int tex_width, int tex_height, int scr_width, int scr_height, 
 	memcpy(wnd_buf->ClearColor, clear_color, sizeof(FLOAT) * 4);
 	wnd_buf->TexWidth = tex_width;
 	wnd_buf->TexHeight = tex_height;
-	wnd_buf->ScrWidth = scr_width;
-	wnd_buf->ScrHeight = scr_height;
+	wnd_buf->ScreenWidth = screen_width;
+	wnd_buf->ScreenHeight = screen_height;
 
 	// Create a swap chain.
 	{
@@ -2140,6 +2241,38 @@ void* MakeDrawBuf(int tex_width, int tex_height, int scr_width, int scr_height, 
 			THROW(0xe9170009);
 	}
 
+	// Create a temporary texture.
+	{
+		{
+			D3D10_TEXTURE2D_DESC desc;
+			desc.Width = static_cast<UINT>(tex_width);
+			desc.Height = static_cast<UINT>(tex_height);
+			desc.MipLevels = 1;
+			desc.ArraySize = 1;
+			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
+			desc.Usage = D3D10_USAGE_DEFAULT;
+			desc.BindFlags = D3D10_BIND_RENDER_TARGET | D3D10_BIND_SHADER_RESOURCE;
+			desc.CPUAccessFlags = 0;
+			desc.MiscFlags = 0;
+			if (FAILED(Device->CreateTexture2D(&desc, NULL, &wnd_buf->TmpTex)))
+				THROW(0xe9170009);
+		}
+		{
+			D3D10_SHADER_RESOURCE_VIEW_DESC desc;
+			memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+			desc.Texture2D.MostDetailedMip = 0;
+			desc.Texture2D.MipLevels = 1;
+			if (FAILED(Device->CreateShaderResourceView(wnd_buf->TmpTex, &desc, &wnd_buf->TmpShaderResView)))
+				THROW(0xe9170009);
+		}
+		if (FAILED(Device->CreateRenderTargetView(wnd_buf->TmpTex, NULL, &wnd_buf->TmpRenderTargetView)))
+			THROW(0xe9170009);
+	}
+
 	ActiveDrawBuf(wnd_buf);
 	_resetViewport();
 	return wnd_buf;
@@ -2150,6 +2283,12 @@ void FinDrawBuf(void* wnd_buf)
 	if (CurWndBuf == wnd_buf)
 		CurWndBuf = NULL;
 	SWndBuf* wnd_buf2 = static_cast<SWndBuf*>(wnd_buf);
+	if (wnd_buf2->TmpRenderTargetView != NULL)
+		wnd_buf2->TmpRenderTargetView->Release();
+	if (wnd_buf2->TmpShaderResView != NULL)
+		wnd_buf2->TmpShaderResView->Release();
+	if (wnd_buf2->TmpTex != NULL)
+		wnd_buf2->TmpTex->Release();
 	if (wnd_buf2->DepthView != NULL)
 		wnd_buf2->DepthView->Release();
 	if (wnd_buf2->RenderTargetView != NULL)
@@ -2165,7 +2304,7 @@ void ActiveDrawBuf(void* wnd_buf)
 	{
 		SWndBuf* wnd_buf2 = static_cast<SWndBuf*>(wnd_buf);
 		CurWndBuf = wnd_buf2;
-		Device->OMSetRenderTargets(1, &CurWndBuf->RenderTargetView, CurWndBuf->DepthView);
+		Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
 		_resetViewport();
 	}
 }
@@ -2195,6 +2334,9 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 	shader_buf->Kind = kind;
 	shader_buf->ConstBufSize = const_buf_size;
 
+	if (const_buf_size == 0)
+		shader_buf->ConstBuf = NULL;
+	else
 	{
 		D3D10_BUFFER_DESC desc;
 		desc.ByteWidth = static_cast<UINT>(const_buf_size);
@@ -2310,11 +2452,14 @@ void FinShaderBuf(void* shader_buf)
 void ConstBuf(void* shader_buf, const void* data)
 {
 	SShaderBuf* shader_buf2 = static_cast<SShaderBuf*>(shader_buf);
-	void* buf;
-	if (shader_buf2->ConstBuf->Map(D3D10_MAP_WRITE_DISCARD, 0, &buf))
-		return;
-	memcpy(buf, data, shader_buf2->ConstBufSize);
-	shader_buf2->ConstBuf->Unmap();
+	if (data != NULL)
+	{
+		void* buf;
+		if (shader_buf2->ConstBuf->Map(D3D10_MAP_WRITE_DISCARD, 0, &buf))
+			return;
+		memcpy(buf, data, shader_buf2->ConstBufSize);
+		shader_buf2->ConstBuf->Unmap();
+	}
 
 	switch (shader_buf2->Kind)
 	{
@@ -2401,44 +2546,44 @@ void FinVertexBuf(void* vertex_buf)
 	FreeMem(vertex_buf);
 }
 
-void Identity(double mtx[4][4])
+void Identity(double mat[4][4])
 {
-	mtx[0][0] = 1.0;
-	mtx[0][1] = 0.0;
-	mtx[0][2] = 0.0;
-	mtx[0][3] = 0.0;
-	mtx[1][0] = 0.0;
-	mtx[1][1] = 1.0;
-	mtx[1][2] = 0.0;
-	mtx[1][3] = 0.0;
-	mtx[2][0] = 0.0;
-	mtx[2][1] = 0.0;
-	mtx[2][2] = 1.0;
-	mtx[2][3] = 0.0;
-	mtx[3][0] = 0.0;
-	mtx[3][1] = 0.0;
-	mtx[3][2] = 0.0;
-	mtx[3][3] = 1.0;
+	mat[0][0] = 1.0;
+	mat[0][1] = 0.0;
+	mat[0][2] = 0.0;
+	mat[0][3] = 0.0;
+	mat[1][0] = 0.0;
+	mat[1][1] = 1.0;
+	mat[1][2] = 0.0;
+	mat[1][3] = 0.0;
+	mat[2][0] = 0.0;
+	mat[2][1] = 0.0;
+	mat[2][2] = 1.0;
+	mat[2][3] = 0.0;
+	mat[3][0] = 0.0;
+	mat[3][1] = 0.0;
+	mat[3][2] = 0.0;
+	mat[3][3] = 1.0;
 }
 
-void IdentityFloat(float mtx[4][4])
+void IdentityFloat(float mat[4][4])
 {
-	mtx[0][0] = 1.0f;
-	mtx[0][1] = 0.0f;
-	mtx[0][2] = 0.0f;
-	mtx[0][3] = 0.0f;
-	mtx[1][0] = 0.0f;
-	mtx[1][1] = 1.0f;
-	mtx[1][2] = 0.0f;
-	mtx[1][3] = 0.0f;
-	mtx[2][0] = 0.0f;
-	mtx[2][1] = 0.0f;
-	mtx[2][2] = 1.0f;
-	mtx[2][3] = 0.0f;
-	mtx[3][0] = 0.0f;
-	mtx[3][1] = 0.0f;
-	mtx[3][2] = 0.0f;
-	mtx[3][3] = 1.0f;
+	mat[0][0] = 1.0f;
+	mat[0][1] = 0.0f;
+	mat[0][2] = 0.0f;
+	mat[0][3] = 0.0f;
+	mat[1][0] = 0.0f;
+	mat[1][1] = 1.0f;
+	mat[1][2] = 0.0f;
+	mat[1][3] = 0.0f;
+	mat[2][0] = 0.0f;
+	mat[2][1] = 0.0f;
+	mat[2][2] = 1.0f;
+	mat[2][3] = 0.0f;
+	mat[3][0] = 0.0f;
+	mat[3][1] = 0.0f;
+	mat[3][2] = 0.0f;
+	mat[3][3] = 1.0f;
 }
 
 double Normalize(double vec[3])
@@ -2465,7 +2610,7 @@ void Cross(double out[3], const double a[3], const double b[3])
 	out[2] = a[0] * b[1] - a[1] * b[0];
 }
 
-void SetProjViewMtx(float out[4][4], const double proj[4][4], const double view[4][4])
+void SetProjViewMat(float out[4][4], const double proj[4][4], const double view[4][4])
 {
 	out[0][0] = static_cast<float>(proj[0][0] * view[0][0] + proj[1][0] * view[0][1] + proj[2][0] * view[0][2] + proj[3][0] * view[0][3]);
 	out[0][1] = static_cast<float>(proj[0][1] * view[0][0] + proj[1][1] * view[0][1] + proj[2][1] * view[0][2] + proj[3][1] * view[0][3]);
@@ -2499,12 +2644,44 @@ void ColorToArgb(double* a, double* r, double* g, double* b, S64 color)
 	*b = Gamma(static_cast<double>(color & 0xff) / 255.0);
 }
 
+S64 ArgbToColor(double a, double r, double g, double b)
+{
+	if (a < 0.0)
+		a = 0.0;
+	else if (a > 1.0)
+		a = 1.0;
+	if (r < 0.0)
+		r = 0.0;
+	else if (r > 1.0)
+		r = 1.0;
+	if (g < 0.0)
+		g = 0.0;
+	else if (g > 1.0)
+		g = 1.0;
+	if (b < 0.0)
+		b = 0.0;
+	else if (b > 1.0)
+		b = 1.0;
+	return (static_cast<S64>(a * 255.0 + 0.5) << 24) |
+		(static_cast<S64>(Degamma(r) * 255.0 + 0.5) << 16) |
+		(static_cast<S64>(Degamma(g) * 255.0 + 0.5) << 8) |
+		static_cast<S64>(Degamma(b) * 255.0 + 0.5);
+}
+
 double Gamma(double value)
 {
 	return value * (value * (value * 0.305306011 + 0.682171111) + 0.012522878);
 }
 
-U8* AdjustTexSize(U8* rgba, int* width, int* height)
+double Degamma(double value)
+{
+	value = 1.055 * pow(value, 0.416666667) - 0.055;
+	if (value < 0.0)
+		value = 0.0;
+	return value;
+}
+
+U8* AdjustTexSize(U8* argb, int* width, int* height)
 {
 	int width2 = 1;
 	int height2 = 1;
@@ -2516,11 +2693,11 @@ U8* AdjustTexSize(U8* rgba, int* width, int* height)
 	U8* rgba2 = static_cast<U8*>(AllocMem(static_cast<size_t>(width2 * height2 * 4)));
 	memset(rgba2, 0, static_cast<size_t>(width2 * height2 * 4));
 	for (int i = 0; i < *height; i++)
-		memcpy(rgba2 + width2 * 4 * i, rgba + *width * 4 * i, *width * 4);
+		memcpy(rgba2 + width2 * 4 * i, argb + *width * 4 * i, *width * 4);
 
 	*width = width2;
 	*height = height2;
-	FreeMem(rgba);
+	FreeMem(argb);
 	return rgba2;
 }
 

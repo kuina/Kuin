@@ -3,7 +3,7 @@
 #include "mem.h"
 #include "util.h"
 
-#define MSG_NUM (441 / 3)
+#define MSG_NUM (444 / 3)
 #define MSG_MAX (128)
 #define LANG_NUM (2)
 
@@ -115,7 +115,6 @@ void Err(const Char* code, const SPos* pos, ...)
 		LastErrSrc = pos->SrcName;
 		LastErrRow = pos->Row;
 	}
-	// TODO: Abort the process when the number of errors exceeds 100.
 	{
 		U32 code2 = 0;
 		ASSERT(wcslen(code) == 6);

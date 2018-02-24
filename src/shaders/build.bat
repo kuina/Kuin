@@ -15,4 +15,6 @@ set fxc_path="C:\Program Files (x86)\Windows Kits\8.1\bin\x64\fxc.exe"
 %fxc_path% obj_vs.fx /T vs_4_0 /Fo obj_joint_dbg.vs /DJOINT /DDBG
 %fxc_path% obj_ps.fx /T ps_4_0 /Fo obj.ps
 %fxc_path% obj_ps.fx /T ps_4_0 /Fo obj_dbg.ps /DDBG
+%fxc_path% filter_vs.fx /T vs_4_0 /Fo filter.vs
+%fxc_path% filter_ps.fx /T ps_4_0 /Fo filter.ps
 pause

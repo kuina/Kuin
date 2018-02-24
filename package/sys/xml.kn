@@ -33,6 +33,12 @@ end func
 end func
 
 +class Node()
+	+*func cmp(t: @Node): int
+		var a: int :: me.root $ bool ?(0, me.node)
+		var b: int :: t.root $ bool ?(0, t.node)
+		ret a - b
+	end func
+
 	*func [d1003.knd, _xmlNodeDtor, _force] _dtor()
 	end func
 
@@ -102,6 +108,6 @@ end func
 	+func [d1003.knd, _xmlNodeGetAttr] getAttr(attrName: []char): []char
 	end func
 
-	var root: int
-	var node: int
+	+var root: int
+	+var node: int
 end class

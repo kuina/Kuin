@@ -35,8 +35,8 @@ struct SHuffmanTree
 	U32 Data, Weight, Depth;
 };
 
-static void Decode(SPngData* png_data, U8* rgba);
-static void Output(SPngData* png_data, U8* rgba, U8 data);
+static void Decode(SPngData* png_data, U8* argb);
+static void Output(SPngData* png_data, U8* argb, U8 data);
 static U32 GetNextBit(SPngData* png_data, int* cur_data, U32* byte_ptr, U32* bit_ptr);
 static U32 GetNextMultiBit(SPngData* png_data, int* cur_data, U32* byte_ptr, U32* bit_ptr, int n);
 static SHuffmanTree* MakeHuffmanTree(int n, U32* h_length, U32* h_code);
@@ -117,12 +117,12 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 	if (png_data.Height == 0)
 		THROW(0xe9170008);
 
-	U8* rgba = static_cast<U8*>(AllocMem(png_data.Width * png_data.Height * 4));
-	Decode(&png_data, rgba);
-	return rgba;
+	U8* argb = static_cast<U8*>(AllocMem(png_data.Width * png_data.Height * 4));
+	Decode(&png_data, argb);
+	return argb;
 }
 
-static void Decode(SPngData* png_data, U8* rgba)
+static void Decode(SPngData* png_data, U8* argb)
 {
 	{
 		if (png_data->BitDepth != 8)
@@ -199,7 +199,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 				Step(png_data, &cur_data, &byte_ptr, 3);
 				for (int i = 0; i < len; i++)
 				{
-					Output(png_data, rgba, png_data->Data[cur_data][byte_ptr]);
+					Output(png_data, argb, png_data->Data[cur_data][byte_ptr]);
 					Step(png_data, &cur_data, &byte_ptr, 1);
 				}
 			}
@@ -330,7 +330,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 								png_data->WindowBuf[window_used] = static_cast<U8>(value);
 								window_used++;
 								window_used &= window_size - 1;
-								Output(png_data, rgba, static_cast<U8>(value));
+								Output(png_data, argb, static_cast<U8>(value));
 							}
 							else if (value == 256)
 								break;
@@ -386,7 +386,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 								for (int i = 0; i < static_cast<int>(copy_length); i++)
 								{
 									U8 data = png_data->WindowBuf[(window_used - back_dist) & (window_size - 1)];
-									Output(png_data, rgba, data);
+									Output(png_data, argb, data);
 									png_data->WindowBuf[window_used] = data;
 									window_used++;
 									window_used &= window_size - 1;
@@ -413,7 +413,7 @@ static void Decode(SPngData* png_data, U8* rgba)
 	png_data->TwoLine = NULL;
 }
 
-static void Output(SPngData* png_data, U8* rgba, U8 data)
+static void Output(SPngData* png_data, U8* argb, U8 data)
 {
 	if (png_data->Y > png_data->Height)
 		THROW(0xe9170008);
@@ -437,10 +437,10 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				if (png_data->InpixelCnt == 1)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 1, png_data->Filter);
-					rgba[png_data->Idx + 0] = png_data->CurLine[png_data->X];
-					rgba[png_data->Idx + 1] = png_data->CurLine[png_data->X];
-					rgba[png_data->Idx + 2] = png_data->CurLine[png_data->X];
-					rgba[png_data->Idx + 3] = 255;
+					argb[png_data->Idx + 0] = png_data->CurLine[png_data->X];
+					argb[png_data->Idx + 1] = png_data->CurLine[png_data->X];
+					argb[png_data->Idx + 2] = png_data->CurLine[png_data->X];
+					argb[png_data->Idx + 3] = 255;
 					png_data->Idx += 4;
 					png_data->X++;
 					png_data->InlineCnt++;
@@ -451,10 +451,10 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				if (png_data->InpixelCnt == 3)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 3, png_data->Filter);
-					rgba[png_data->Idx + 0] = png_data->CurLine[png_data->InlineCnt + 0];
-					rgba[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt + 1];
-					rgba[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt + 2];
-					rgba[png_data->Idx + 3] = 255;
+					argb[png_data->Idx + 0] = png_data->CurLine[png_data->InlineCnt + 0];
+					argb[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt + 1];
+					argb[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt + 2];
+					argb[png_data->Idx + 3] = 255;
 					png_data->Idx += 4;
 					png_data->X++;
 					png_data->InlineCnt += 3;
@@ -465,10 +465,10 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				if (png_data->InpixelCnt == 2)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 2, png_data->Filter);
-					rgba[png_data->Idx + 0] = png_data->CurLine[png_data->InlineCnt];
-					rgba[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt];
-					rgba[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt];
-					rgba[png_data->Idx + 3] = png_data->CurLine[png_data->InlineCnt + 1];
+					argb[png_data->Idx + 0] = png_data->CurLine[png_data->InlineCnt];
+					argb[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt];
+					argb[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt];
+					argb[png_data->Idx + 3] = png_data->CurLine[png_data->InlineCnt + 1];
 					png_data->Idx += 4;
 					png_data->X++;
 					png_data->InlineCnt += 2;
@@ -479,10 +479,10 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				if (png_data->InpixelCnt == 4)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 4, png_data->Filter);
-					rgba[png_data->Idx + 0] = png_data->CurLine[png_data->InlineCnt + 0];
-					rgba[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt + 1];
-					rgba[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt + 2];
-					rgba[png_data->Idx + 3] = png_data->CurLine[png_data->InlineCnt + 3];
+					argb[png_data->Idx + 0] = png_data->CurLine[png_data->InlineCnt + 0];
+					argb[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt + 1];
+					argb[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt + 2];
+					argb[png_data->Idx + 3] = png_data->CurLine[png_data->InlineCnt + 3];
 					png_data->Idx += 4;
 					png_data->X++;
 					png_data->InlineCnt += 4;
@@ -566,10 +566,10 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 1, png_data->Filter);
 					png_data->Idx = ilx * 4 + ily * png_data->Width * 4;
-					rgba[png_data->Idx] = png_data->CurLine[png_data->X];
-					rgba[png_data->Idx + 1] = png_data->CurLine[png_data->X];
-					rgba[png_data->Idx + 2] = png_data->CurLine[png_data->X];
-					rgba[png_data->Idx + 3] = 255;
+					argb[png_data->Idx] = png_data->CurLine[png_data->X];
+					argb[png_data->Idx + 1] = png_data->CurLine[png_data->X];
+					argb[png_data->Idx + 2] = png_data->CurLine[png_data->X];
+					argb[png_data->Idx + 3] = 255;
 					png_data->X++;
 					png_data->InlineCnt++;
 					png_data->InpixelCnt = 0;
@@ -580,10 +580,10 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 3, png_data->Filter);
 					png_data->Idx = ilx * 4 + ily * png_data->Width * 4;
-					rgba[png_data->Idx] = png_data->CurLine[png_data->InlineCnt];
-					rgba[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt + 1];
-					rgba[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt + 2];
-					rgba[png_data->Idx + 3] = 255;
+					argb[png_data->Idx] = png_data->CurLine[png_data->InlineCnt];
+					argb[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt + 1];
+					argb[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt + 2];
+					argb[png_data->Idx + 3] = 255;
 					png_data->X++;
 					png_data->InlineCnt += 3;
 					png_data->InpixelCnt = 0;
@@ -594,10 +594,10 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 2, png_data->Filter);
 					png_data->Idx = ilx * 4 + ily * png_data->Width * 4;
-					rgba[png_data->Idx] = png_data->CurLine[png_data->InlineCnt];
-					rgba[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt];
-					rgba[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt];
-					rgba[png_data->Idx + 3] = png_data->CurLine[png_data->InlineCnt + 1];
+					argb[png_data->Idx] = png_data->CurLine[png_data->InlineCnt];
+					argb[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt];
+					argb[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt];
+					argb[png_data->Idx + 3] = png_data->CurLine[png_data->InlineCnt + 1];
 					png_data->X++;
 					png_data->InlineCnt += 2;
 					png_data->InpixelCnt = 0;
@@ -608,10 +608,10 @@ static void Output(SPngData* png_data, U8* rgba, U8 data)
 				{
 					Filter8(png_data->CurLine, png_data->PrvLine, png_data->X, png_data->Y, 4, png_data->Filter);
 					png_data->Idx = ilx * 4 + ily * png_data->Width * 4;
-					rgba[png_data->Idx] = png_data->CurLine[png_data->InlineCnt];
-					rgba[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt + 1];
-					rgba[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt + 2];
-					rgba[png_data->Idx + 3] = png_data->CurLine[png_data->InlineCnt + 3];
+					argb[png_data->Idx] = png_data->CurLine[png_data->InlineCnt];
+					argb[png_data->Idx + 1] = png_data->CurLine[png_data->InlineCnt + 1];
+					argb[png_data->Idx + 2] = png_data->CurLine[png_data->InlineCnt + 2];
+					argb[png_data->Idx + 3] = png_data->CurLine[png_data->InlineCnt + 3];
 					png_data->X++;
 					png_data->InlineCnt += 4;
 					png_data->InpixelCnt = 0;

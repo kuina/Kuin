@@ -1,0 +1,208 @@
+var wndCompletion: wnd@Wnd
+var wndCompletionListKeywords: wnd@List
+var wndCompletionEditFunc: wnd@EditMulti
+var oldX: int
+var oldY: int
+var keywords: list<[]char>
+
++func init()
+	do @oldX :: -1
+	do @oldY :: -1
+end func
+
++func show(src: kuin@Class, srcName: []char, posX: int, posY: int, word: []char)
+	if(@wndCompletion <>& null)
+		if(@oldX <> posX | @oldY <> posY)
+			do @close()
+			assert @wndCompletion =& null
+		end if
+	end if
+	if(@wndCompletion =& null)
+		do @keywords :: #list<[]char>
+		do \dll@getKeywords(src, srcName, posX, posY, getKeywordsCallback)
+		if(^@keywords = 0)
+			do @close()
+			ret
+		end if
+		do @keywords.sort()
+
+		do @wndCompletion :: wnd@makeWnd(\form@wndMain, (%popup $ wnd@WndStyle).or(%layered), 250, 82, null)
+		do @wndCompletion.setAlpha(230)
+		do @wndCompletion.onClose :: wndCompletionOnClose
+		do @wndCompletionListKeywords :: wnd@makeList(@wndCompletion, 0, 0, 250, 58, %fix, %fix)
+		do @wndCompletionListKeywords.onSel :: @wndCompletionListKeywordsOnSel
+		do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
+		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 52, 250, 30, %fix, %fix)
+		do @wndCompletionEditFunc.readonly(true)
+		{
+			; TODO:
+		if(^funcHint = 0)
+		}
+			do @wndCompletionEditFunc.setText(\common@langEn ?("Select...Up/Down\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Up/Down\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
+		{
+			; TODO:
+		else
+			do @wndCompletionEditFunc.setText(funcHint)
+		end if
+		}
+
+		do @wndCompletionListKeywords.setRedraw(false)
+		do @wndCompletionListKeywords.clear()
+		do @keywords.head()
+		while(!@keywords.term())
+			do @wndCompletionListKeywords.add(@keywords.get())
+			do @keywords.next()
+		end while
+		do @wndCompletionListKeywords.setRedraw(true)
+	end if
+
+	do @oldX :: posX
+	do @oldY :: posY
+
+	block
+		var best: int :: -1
+		var cnt: int :: 0
+		do @keywords.head()
+		while loop(!@keywords.term())
+			var keyword: []char :: @keywords.get()
+			if(^keyword >= ^word & keyword[0] = word[0] & keyword.sub(0, ^word) = word)
+				do best :: cnt
+				break loop
+			end if
+			do @keywords.next()
+			do cnt :+ 1
+		end while
+		do @wndCompletionListKeywords.setRedraw(false)
+		do @wndCompletionListKeywords.setSel(best)
+		do @wndCompletionListKeywords.setRedraw(true)
+	end block
+
+	block
+		var x: int
+		var y: int
+		do wnd@getCaretPos(&x, &y)
+		if(x < 0 | y < 0)
+			ret
+		end if
+		var x2: int
+		var y2: int
+		do \form@drawEditor.getPosScreen(&x2, &y2, &, &)
+		do @wndCompletion.setPos(x + x2, y + y2 + \common@cellHeight * 2, 250, 82)
+		do \form@focusDrawEditor()
+	end block
+
+	func wndCompletionOnClose(wnd: wnd@Wnd): bool
+		do @wndCompletion :: null
+		do @wndCompletionListKeywords :: null
+		do @wndCompletionEditFunc :: null
+		do @oldX :: -1
+		do @oldY :: -1
+		ret true
+	end func
+
+	func getKeywordsCallback(keyword: []char)
+		do @keywords.add(##keyword)
+	end func
+end func
+
++func wndCompletionListKeywordsOnSel(wnd: wnd@List)
+	{
+		; TODO:
+	var sel: int :: wnd.getSel()
+	if(sel = -1)
+		do @wndCompletionEditHint.setText("")
+	else
+		do @wndCompletionHintPos :: #\src@Pos
+		var hintSrc: []char
+		var wordHint: []char :: \dll@getHint(0, @wndCompletionSrc, @wndCompletionRow, @wndCompletionListKeywords.getText(sel), &hintSrc, &@wndCompletionHintPos.row, &@wndCompletionHintPos.col)
+		if(hintSrc =& null)
+			do @wndCompletionHintPos :: null
+		else
+			do @wndCompletionHintPos.src :: ##hintSrc
+		end if
+		if(wordHint =& null)
+			do @wndCompletionHintPos :: null
+		else
+			do @wndCompletionEditHint.setText(wordHint)
+		end if
+	end if
+	}
+end func
+
+func wndCompletionListKeywordsOnMouseDoubleClick(wnd: wnd@List)
+	if(\src@curDoc =$ \doc_src@DocSrc)
+		do (\src@curDoc $ \doc_src@DocSrc).complementDecision()
+	end if
+end func
+
++func close()
+	if(@wndCompletion <>& null)
+		do @wndCompletion.close()
+	end if
+	do @oldX :: -1
+	do @oldY :: -1
+	do @keywords :: null
+end func
+
++func displayed(): bool
+	ret @wndCompletion <>& null
+end func
+
++func setAlpha(alpha: int)
+	do @wndCompletion.setAlpha(alpha)
+end func
+
++func focused(): bool
+	ret @wndCompletion <>& null & @wndCompletion.focusedWnd()
+end func
+
++func moveCursorUp(): bool
+	if(@wndCompletionListKeywords <>& null & @wndCompletionListKeywords.len() <> 0)
+		var sel: int :: @wndCompletionListKeywords.getSel()
+		if(sel = -1)
+			do sel :: 0
+		elif(sel <> 0)
+			do sel :- 1
+		end if
+		do @wndCompletionListKeywords.setSel(sel)
+		do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+		ret true
+	end if
+	ret false
+end func
+
++func moveCursorDown(): bool
+	if(@wndCompletionListKeywords <>& null)
+		var len: int :: @wndCompletionListKeywords.len()
+		if(len <> 0)
+			var sel: int :: @wndCompletionListKeywords.getSel()
+			if(sel = -1)
+				do sel :: 0
+			elif(sel <> len - 1)
+				do sel :+ 1
+			end if
+			do @wndCompletionListKeywords.setSel(sel)
+			do @wndCompletionListKeywordsOnSel(@wndCompletionListKeywords)
+		end if
+		ret true
+	end if
+	ret false
+end func
+
++func getDefinitionPos(): \src@Pos
+	{
+	; TODO:
+	ret @wndCompletionHintPos
+	}
+end func
+
++func getSelWord(): []char
+	if(@wndCompletion =& null | @wndCompletionListKeywords =& null)
+		ret null
+	end if
+	var sel: int :: @wndCompletionListKeywords.getSel()
+	if(sel = -1)
+		ret null
+	end if
+	ret @wndCompletionListKeywords.getText(sel)
+end func

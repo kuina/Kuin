@@ -22,6 +22,8 @@
     <ClCompile Include="wav.cpp" />
     <ClCompile Include="font_ps.c" />
     <ClCompile Include="tex_rot_vs.c" />
+    <ClCompile Include="filter_ps.c" />
+    <ClCompile Include="filter_vs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />

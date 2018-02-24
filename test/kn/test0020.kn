@@ -40,4 +40,44 @@ func main()
 			do cui@print(lib@hermite(pos, (i $ float) / 10.0).toStr())
 		end for
 	end block
+
+	if(false)
+		do cui@print("No")
+	end if
+	
+	if(true)
+		do cui@print("Yes")
+	end if
+
+	if(false)
+		var s: []char :: "A"
+		do cui@print(s)
+	elif(true)
+		var s: []char :: "B"
+		do cui@print(s)
+		if(false)
+			var t: []char :: "C"
+			do cui@print(t)
+		elif(false)
+			var t: []char :: "D"
+			do cui@print(t)
+		else
+			var t: []char :: "E"
+			do cui@print(t)
+		end if
+	else
+		var s: []char :: "F"
+		do cui@print(s)
+	end if
+
+	for i(0, 1)
+		switch(i)
+		case 0
+			var n: int :: 2
+			do cui@print(n.toStr())
+		case 1
+			var n: int :: 3
+			do cui@print(n.toStr())
+		end switch
+	end for
 end func

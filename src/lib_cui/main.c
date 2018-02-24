@@ -25,7 +25,8 @@ EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_fla
 	Instance = (HINSTANCE)GetModuleHandle(NULL);
 
 	wprintf(L""); // Open 'stdout'
-	_setmode(_fileno(stdout), _O_U16TEXT); // Set the output format to UTF-16.
+	_setmode(_fileno(stdin), _O_U8TEXT); // Set the input format to UTF-8.
+	_setmode(_fileno(stdout), _O_U8TEXT); // Set the output format to UTF-8.
 }
 
 EXPORT void _fin(void)

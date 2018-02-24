@@ -1,0 +1,32 @@
++func [d0917.knd, InitCompiler] initCompiler(lang: int)
+end func
+
++func [d0917.knd, FinCompiler] finCompiler()
+end func
+
++func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>, lang: int, appCode: int): bool
+end func
+
++func [d0917.knd, Interpret1] interpret1(src: kuin@Class, line: int, me_: kuin@Class, replaceFunc: func<(kuin@Class, int, []char)>, cursorX: int, cursorY: int, newCursorX: &int, oldLine: int, newLine: int)
+end func
+
++func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env: []char, funcLog: func<([][]char, int, int)>, lang: int): bool
+end func
+
++func [d0917.knd, Version] version(major: &int, minor: &int, micro: &int)
+end func
+
++func [d0917.knd, ResetMemAllocator] resetMemAllocator()
+end func
+
+; TODO: +func [d0917.knd, GetHint] getHint(bufIdx: int, src: []char, row: int, keyword: []char, hintSrc: &[]char, hintRow: &int, hintCol: &int): []char
+; end func
+
++func [d0917.knd, GetKeywords] getKeywords(src: kuin@Class, srcName: []char, x: int, y: int, callback: func<([]char)>)
+end func
+
++func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>): bool
+end func
+
++func [d0917.knd, Archive] archive(dst: []char, src: []char, appCode: int): bool
+end func

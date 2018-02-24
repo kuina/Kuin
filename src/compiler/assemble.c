@@ -2033,7 +2033,7 @@ static void AssembleIf(SAstStatIf* ast)
 	{
 		// Optimized code.
 		ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
-		AssembleStats(ast->Stats);
+		AssembleBlock(ast->StatBlock);
 		ListAdd(PackAsm->Asms, ((SAstStatBreakable*)ast)->BreakPoint);
 	}
 	else
@@ -2045,7 +2045,7 @@ static void AssembleIf(SAstStatIf* ast)
 		ToValue(ast->Cond, 0, 0);
 		ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[0]), ValImmU(1, 0x00)));
 		ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-		AssembleStats(ast->Stats);
+		AssembleBlock(ast->StatBlock);
 		ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 		ListAdd(PackAsm->Asms, lbl1);
 		{
@@ -2058,13 +2058,14 @@ static void AssembleIf(SAstStatIf* ast)
 				ToValue(elif->Cond, 0, 0);
 				ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[0]), ValImmU(1, 0x00)));
 				ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl3)->Addr, True))));
-				AssembleStats(elif->Stats);
+				AssembleBlock(elif->StatBlock);
 				ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 				ListAdd(PackAsm->Asms, lbl3);
 				ptr = ptr->Next;
 			}
 		}
-		AssembleStats(ast->ElseStats);
+		if (ast->ElseStatBlock != NULL)
+			AssembleBlock(ast->ElseStatBlock);
 		ListAdd(PackAsm->Asms, lbl2);
 		ListAdd(PackAsm->Asms, ((SAstStatBreakable*)ast)->BreakPoint);
 	}
@@ -2223,7 +2224,8 @@ static void AssembleSwitch(SAstStatSwitch* ast)
 			idx++;
 		}
 	}
-	AssembleStats(ast->DefaultStats);
+	if (ast->DefaultStatBlock != NULL)
+		AssembleBlock(ast->DefaultStatBlock);
 	ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 	{
 		SListNode* ptr = ast->Cases->Top;
@@ -2231,7 +2233,7 @@ static void AssembleSwitch(SAstStatSwitch* ast)
 		while (ptr != NULL)
 		{
 			ListAdd(PackAsm->Asms, lbl1[idx]);
-			AssembleStats(((SAstStatCase*)ptr->Data)->Stats);
+			AssembleBlock(((SAstStatCase*)ptr->Data)->StatBlock);
 			if (ptr->Next != NULL)
 				ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 			ptr = ptr->Next;
@@ -2332,7 +2334,7 @@ static void AssembleTry(SAstStatTry* ast)
 	SExcptTableTry* scope_finally = NULL;
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
 	ListAdd(PackAsm->Asms, AsmNOP());
-	if (ast->FinallyStats != NULL)
+	if (ast->FinallyStatBlock != NULL)
 	{
 		scope_finally = (SExcptTableTry*)Alloc(sizeof(SExcptTableTry));
 		scope_finally->Begin = AsmLabel();
@@ -2350,7 +2352,7 @@ static void AssembleTry(SAstStatTry* ast)
 		ListAdd(((SExcptTable*)PackAsm->ExcptTables->Bottom->Data)->TryScopes, scope_catch);
 		ListAdd(PackAsm->Asms, scope_catch->Begin);
 	}
-	AssembleStats(ast->Stats);
+	AssembleBlock(ast->StatBlock);
 	if (scope_catch != NULL)
 	{
 		// 'catch'
@@ -2361,7 +2363,7 @@ static void AssembleTry(SAstStatTry* ast)
 			ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_AX), ValMem(8, ValReg(8, Reg_SP), NULL, RefValueAddr(RefLocalVar(((SAstStatBreakable*)ast)->BlockVar), False))));
 			// The statements of 'catch'
 			if (ast->Catches->Len == 1)
-				AssembleStats(((SAstStatCatch*)ast->Catches->Top->Data)->Stats);
+				AssembleBlock(((SAstStatCatch*)ast->Catches->Top->Data)->StatBlock);
 			else
 			{
 				SAsmLabel** lbl2 = (SAsmLabel**)Alloc(sizeof(SAsmLabel*) * (size_t)(ast->Catches->Len - 1));
@@ -2403,7 +2405,7 @@ static void AssembleTry(SAstStatTry* ast)
 						idx++;
 					}
 				}
-				AssembleStats(((SAstStatCatch*)ast->Catches->Bottom->Data)->Stats);
+				AssembleBlock(((SAstStatCatch*)ast->Catches->Bottom->Data)->StatBlock);
 				ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl3)->Addr, True))));
 				{
 					SListNode* ptr = ast->Catches->Top;
@@ -2411,7 +2413,7 @@ static void AssembleTry(SAstStatTry* ast)
 					while (ptr->Next != NULL)
 					{
 						ListAdd(PackAsm->Asms, lbl2[idx]);
-						AssembleStats(((SAstStatCatch*)ptr->Data)->Stats);
+						AssembleBlock(((SAstStatCatch*)ptr->Data)->StatBlock);
 						if (ptr->Next->Next != NULL)
 							ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl3)->Addr, True))));
 						ptr = ptr->Next;
@@ -2499,7 +2501,7 @@ static void AssembleTry(SAstStatTry* ast)
 		// 'finally'
 		ListAdd(PackAsm->Asms, AsmNOP());
 		ListAdd(PackAsm->Asms, scope_finally->End);
-		AssembleStats(ast->FinallyStats);
+		AssembleBlock(ast->FinallyStatBlock);
 		// Throw the exception again.
 		{
 			SAsmLabel* lbl1 = AsmLabel();
@@ -2555,7 +2557,9 @@ static void AssembleBlock(SAstStatBlock* ast)
 {
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
 	AssembleStats(ast->Stats);
-	ListAdd(PackAsm->Asms, ((SAstStatBreakable*)ast)->BreakPoint);
+	SAsmLabel* break_point = ((SAstStatBreakable*)ast)->BreakPoint;
+	if (break_point != NULL)
+		ListAdd(PackAsm->Asms, break_point);
 }
 
 static void AssembleRet(SAstStatRet* ast)
@@ -3689,6 +3693,9 @@ static void AssembleExprArray(SAstExprArray* ast, int reg_i, int reg_f)
 		ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, RegI[reg_i + 1]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08)));
 		ListAdd(PackAsm->Asms, AsmJL(ValImm(4, RefValueAddr(((SAsm*)lbl2)->Addr, True))));
 		ListAdd(PackAsm->Asms, lbl1);
+#if defined(_DEBUG)
+		ListAdd(PackAsm->Asms, AsmINT(ValImmU(8, 0x03)));
+#endif
 		RaiseExcpt(0xe9170002);
 		ListAdd(PackAsm->Asms, lbl2);
 	}
