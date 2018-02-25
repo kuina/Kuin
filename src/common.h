@@ -96,6 +96,7 @@ Bool IsPowerOf2(U64 n);
 U32 XorShift(U32* seed);
 char* Utf16ToUtf8(const U8* str);
 U8* Utf8ToUtf16(const char* str);
+Bool IsResUsed(S64 idx);
 
 #define THROW(code) ThrowImpl(code)
 #if defined(DBG)

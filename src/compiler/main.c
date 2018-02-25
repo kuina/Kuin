@@ -230,7 +230,8 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 		MakeOption(&option, (const Char*)(path + 0x10), NULL, sys_dir2, NULL, False, env == NULL ? NULL : (const Char*)(env + 0x10), False);
 		if (!ErrOccurred())
 		{
-			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option);
+			U8 use_res_flags[USE_RES_FLAGS_LEN] = { 0 };
+			asts = Parse(BuildMemWfopen, BuildMemFclose, BuildMemFgetwc, BuildMemGetSize, &option, use_res_flags);
 			if (asts != NULL)
 			{
 				Analyze(asts, &option, &dlls);
@@ -693,6 +694,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 {
 	SOption option;
 	SDict* asts;
+	U8 use_res_flags[USE_RES_FLAGS_LEN] = { 0 };
 	SAstFunc* entry;
 	SDict* dlls;
 	U32 begin_time;
@@ -717,7 +719,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0000", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
-	asts = Parse(func_wfopen, func_fclose, func_fgetwc, func_size, &option);
+	asts = Parse(func_wfopen, func_fclose, func_fgetwc, func_size, &option, use_res_flags);
 	if (asts == NULL || option.Rls && ErrOccurred())
 		goto ERR;
 	Err(L"IK0001", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
@@ -725,7 +727,7 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0002", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
-	Assemble(&PackAsm, entry, &option, dlls, app_code);
+	Assemble(&PackAsm, entry, &option, dlls, app_code, use_res_flags);
 	if (ErrOccurred())
 		goto ERR;
 	Err(L"IK0003", NULL, (double)(timeGetTime() - begin_time) / 1000.0);

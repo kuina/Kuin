@@ -1801,6 +1801,7 @@ void Init()
 	}
 
 	// Initialize 'Circle'.
+	if (IsResUsed(1))
 	{
 		{
 			float vertices[] =

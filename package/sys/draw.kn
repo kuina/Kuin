@@ -53,7 +53,7 @@ end func
 +func [d0001.knd, _rectLine] rectLine(x: float, y: float, w: float, h: float, color: int)
 end func
 
-+func [d0001.knd, _circle] circle(x: float, y: float, radiusX: float, radiusY: float, color: int)
++func [d0001.knd, _circle, _1] circle(x: float, y: float, radiusX: float, radiusY: float, color: int)
 end func
 
 +class Tex()
