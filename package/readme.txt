@@ -43,27 +43,32 @@ v.2018.2.17
 4. 変更履歴
 -------------------------------------------------------------------------------
 
+v.2018.3.17
+    - 細かな不具合の修正
+        - aliasの定義が循環していた場合に不明なエラーが発生する不具合の修正
+        - 型定義が不正な場合にエディタが終了する不具合の修正
+
 v.2018.2.17
-	- ソースコードの自動整形機能の追加
-	- 補完機能の挙動を全面的に改良
-	- elif、else、case、default、catch、finallyがスコープ扱いになるように変更
+    - ソースコードの自動整形機能の追加
+    - 補完機能の挙動を全面的に改良
+    - elif、else、case、default、catch、finallyがスコープ扱いになるように変更
 
 v.2018.1.17
-	- ウインドウを視覚的にデザインできる機能の追加
-	- Kuinエディタが強制終了することがある不具合の修正
-	- draw@render(0)を実行すると垂直同期を待ち、実際には60FPS程度になっていた
-	  不具合の修正
-	- include文の追加
+    - ウインドウを視覚的にデザインできる機能の追加
+    - Kuinエディタが強制終了することがある不具合の修正
+    - draw@render(0)を実行すると垂直同期を待ち、実際には60FPS程度になっていた
+      不具合の修正
+    - include文の追加
     - 不透明度(アルファ)が本来よりも透明に描画されていた不具合の修正
     - 互換性が失われる変更
-      - wnd@Keyの要素mouseCをmouseMに変更
-      - draw@Obj.mtxをdraw@Obj.matに変更
-      - regex@Regex.matchの引数の変更
-      - wnd@WndBase.getPosScrをwnd@WndBase.getPosScreenに変更
-      - draw@makeFontの引数の変更
+        - wnd@Keyの要素mouseCをmouseMに変更
+        - draw@Obj.mtxをdraw@Obj.matに変更
+        - regex@Regex.matchの引数の変更
+        - wnd@WndBase.getPosScrをwnd@WndBase.getPosScreenに変更
+        - draw@makeFontの引数の変更
     - 細かな機能追加
-      - draw@argbToColor、draw@colorToArgb、input@mousePos関数の追加
-      - draw@Font.maxWidth、draw@Font.maxHeight、draw@Font.calcWidthメソッドの追加
+        - draw@argbToColor、draw@colorToArgb、input@mousePos関数の追加
+        - draw@Font.maxWidth、draw@Font.maxHeight、draw@Font.calcWidthメソッドの追加
 
 v.2017.12.17
     - リリースビルド時に、resフォルダをres.kndファイルにアーカイブする機能の
@@ -72,11 +77,11 @@ v.2017.12.17
     - Kuinエディタの操作感の改善
     - 不透明度(アルファ)が本来よりも不透明に描画されていた不具合の修正
     - 互換性が失われる変更
-      - draw@makeFontの引数の変更
+        - draw@makeFontの引数の変更
     - 細かな機能追加
-      - lib@lerp、lib@qerp、lib@cerp、lib@hermite、file@ext関数の追加
+        - lib@lerp、lib@qerp、lib@cerp、lib@hermite、file@ext関数の追加
     - 細かな不具合の修正
-      - draw@Font.drawで座標が小数の場合に線が描画されることがある不具合の修正
+        - draw@Font.drawで座標が小数の場合に線が描画されることがある不具合の修正
 
 v.2017.11.17
     - ヘッダ情報が多すぎる.pngファイルの読み込みに失敗する不具合の修正
