@@ -2626,7 +2626,10 @@ static SAstType* ParseType(void)
 							if (c == L')')
 								break;
 							if (c != L',')
+							{
 								NextCharErr(L',', c);
+								break;
+							}
 						}
 					}
 					c = ReadChar();
