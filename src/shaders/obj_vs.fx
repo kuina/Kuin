@@ -6,7 +6,7 @@ cbuffer ConstBuf: register(b0)
 	float4 Eye;
 	float4 Dir;
 #ifdef JOINT
-	float4x4 Joint[64];
+	float4x4 Joint[256];
 #endif
 };
 

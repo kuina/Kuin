@@ -441,11 +441,9 @@ static void WriteNode(FbxNode* root)
 							WriteFloat(points[i].TexV);
 
 							for (int j = 0; j < 4; j++)
-							{
 								WriteFloat(points[i].JointWeight[j]);
+							for (int j = 0; j < 4; j++)
 								WriteInt(points[i].Joint[j]);
-							}
-
 						}
 					}
 
@@ -488,14 +486,15 @@ static void WriteNode(FbxNode* root)
 
 							// Inverse matrix of initial pose.
 							FbxAMatrix default_mat;
-							default_mat = cluster->GetTransformLinkMatrix(default_mat).Inverse();
+							cluster->GetTransformLinkMatrix(default_mat);
+							default_mat = default_mat.Inverse();
 
 							// Write animations.
 							for (int j = begin; j <= end; j++)
 							{
 								FbxAMatrix mat;
 								mat = cluster->GetLink()->GetAnimationEvaluator()->GetNodeGlobalTransform(cluster->GetLink(), period * j);
-								mat = default_mat * mat;
+								mat = mat * default_mat;
 								for (int k = 0; k < 4; k++)
 								{
 									for (int l = 0; l < 4; l++)

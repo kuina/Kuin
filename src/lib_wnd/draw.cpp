@@ -13,7 +13,7 @@
 static const int DepthNum = 4;
 static const int BlendNum = 5;
 static const int SamplerNum = 2;
-static const int JointMax = 64;
+static const int JointMax = 256;
 static const int FontBitmapSize = 1024;
 static const int TexEvenNum = 3;
 static const double DiscardAlpha = 0.02;
@@ -1224,7 +1224,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 							element->End = *reinterpret_cast<int*>(buf + ptr);
 							ptr += sizeof(int);
 							element->Joints = static_cast<float(*)[4][4]>(AllocMem(sizeof(float[4][4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1))));
-							if (ptr + sizeof(float[4 * 4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1)) > size)
+							if (ptr + sizeof(float[4][4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1)) > size)
 							{
 								correct = False;
 								break;
@@ -1316,7 +1316,7 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass*
 			{
 				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
 				THROWDBG(frame < static_cast<double>(element2->Begin) || static_cast<double>(element2->End) <= frame, 0xe9170006);
-				THROWDBG(element2->JointNum < 0 && JointMax < element2->JointNum, 0xe9170006);
+				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, 0xe9170006);
 				Bool joint = element2->JointNum != 0;
 
 				memcpy(ObjVsConstBuf.World, me2->Mat, sizeof(float[4][4]));
@@ -1330,6 +1330,7 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass*
 					{
 						for (int i = 0; i < element2->JointNum; i++)
 						{
+							int offset = i * (element2->End - element2->Begin + 1);
 							int mat_a = static_cast<int>(frame);
 							int mat_b = mat_a + 1;
 							float rate_b = static_cast<float>(frame - static_cast<double>(static_cast<int>(frame)));
@@ -1337,7 +1338,7 @@ EXPORT_CPP void _objDraw(SClass* me_, SClass* diffuse, SClass* specular, SClass*
 							for (int j = 0; j < 4; j++)
 							{
 								for (int k = 0; k < 4; k++)
-									ObjVsConstBuf.Joint[i][j][k] = rate_a * element2->Joints[mat_a][j][k] + rate_b * element2->Joints[mat_b][j][k];
+									ObjVsConstBuf.Joint[i][j][k] = rate_a * element2->Joints[offset + mat_a][j][k] + rate_b * element2->Joints[offset + mat_b][j][k];
 							}
 						}
 					}
@@ -2373,15 +2374,15 @@ void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const
 				switch (layout_types[i])
 				{
 					case LayoutType_Int1:
-						fmt = DXGI_FORMAT_R8_SINT;
+						fmt = DXGI_FORMAT_R32_SINT;
 						size2 = sizeof(int);
 						break;
 					case LayoutType_Int2:
-						fmt = DXGI_FORMAT_R8G8_SINT;
+						fmt = DXGI_FORMAT_R32G32_SINT;
 						size2 = sizeof(int) * 2;
 						break;
 					case LayoutType_Int4:
-						fmt = DXGI_FORMAT_R8G8B8A8_SINT;
+						fmt = DXGI_FORMAT_R32G32B32A32_SINT;
 						size2 = sizeof(int) * 4;
 						break;
 					case LayoutType_Float1:
