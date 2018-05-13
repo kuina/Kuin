@@ -535,14 +535,14 @@ EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 		if (StrCmpIgnoreCase(path2 + path_len - 4, L".png"))
 		{
 			img = DecodePng(size, bin, &width, &height);
-			fmt = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			fmt = wcscmp(path2, L"res/normal.png") == 0 ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
 				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
 		}
 		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".jpg"))
 		{
 			img = DecodeJpg(size, bin, &width, &height);
-			fmt = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			fmt = wcscmp(path2, L"res/normal.png") == 0 ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
 				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
 		}

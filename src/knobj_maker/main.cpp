@@ -458,7 +458,7 @@ static void WriteNode(FbxNode* root)
 					{
 						FbxSkin* skin = static_cast<FbxSkin*>(mesh->GetDeformer(0, FbxDeformer::eSkin));
 						FbxTime::EMode time_mode = Scene->GetGlobalSettings().GetTimeMode();
-						if (time_mode != FbxTime::eFrames60)
+						if (time_mode != FbxTime::eFrames30 && time_mode != FbxTime::eFrames60)
 							Err("Wrong time mode.");
 						int begin = 0, end = 0;
 						FbxTime period;

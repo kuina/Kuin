@@ -1,4 +1,4 @@
-#include "../common.h"
+﻿#include "../common.h"
 
 #if defined(_DEBUG)
 const U8* GetObjVsBin(size_t* size)
