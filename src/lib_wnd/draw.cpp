@@ -532,102 +532,12 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 
 EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
-	S64 path_len = *reinterpret_cast<const S64*>(path + 0x08);
-	const Char* path2 = reinterpret_cast<const Char*>(path + 0x10);
-	STex* me2 = reinterpret_cast<STex*>(me_);
-	void* bin = NULL;
-	void* img = NULL;
-	Bool img_ref = False; // Set to true when 'img' should not be released.
-	DXGI_FORMAT fmt;
-	int width;
-	int height;
-	{
-		size_t size;
-		bin = LoadFileAll(path2, &size);
-		if (bin == NULL)
-		{
-			THROW(0xe9170007);
-			return NULL;
-		}
-		THROWDBG(path_len < 4, 0xe9170006);
-		if (StrCmpIgnoreCase(path2 + path_len - 4, L".png"))
-		{
-			img = DecodePng(size, bin, &width, &height);
-			fmt = wcscmp(path2, L"res/normal.png") == 0 ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // TODO:
-			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
-				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
-		}
-		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".jpg"))
-		{
-			img = DecodeJpg(size, bin, &width, &height);
-			fmt = wcscmp(path2, L"res/normal.png") == 0 ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // TODO:
-			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
-				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
-		}
-		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".dds"))
-		{
-			img = DecodeBc(size, bin, &width, &height);
-			img_ref = True;
-			fmt = DXGI_FORMAT_BC3_UNORM_SRGB;
-			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
-				THROW(0xe9170008);
-		}
-		else
-		{
-			THROWDBG(True, 0xe9170006);
-			fmt = DXGI_FORMAT_UNKNOWN;
-			width = 0;
-			height = 0;
-		}
-	}
-	me2->Width = width;
-	me2->Height = height;
-	{
-		Bool success = False;
-		for (; ; )
-		{
-			{
-				D3D10_TEXTURE2D_DESC desc;
-				D3D10_SUBRESOURCE_DATA sub;
-				desc.Width = static_cast<UINT>(me2->Width);
-				desc.Height = static_cast<UINT>(me2->Height);
-				desc.MipLevels = 1;
-				desc.ArraySize = 1;
-				desc.Format = fmt;
-				desc.SampleDesc.Count = 1;
-				desc.SampleDesc.Quality = 0;
-				desc.Usage = D3D10_USAGE_IMMUTABLE;
-				desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-				desc.CPUAccessFlags = 0;
-				desc.MiscFlags = 0;
-				sub.pSysMem = img;
-				sub.SysMemPitch = static_cast<UINT>(me2->Width * 4);
-				sub.SysMemSlicePitch = 0;
-				if (FAILED(Device->CreateTexture2D(&desc, &sub, &me2->Tex)))
-					break;
-			}
-			{
-				D3D10_SHADER_RESOURCE_VIEW_DESC desc;
-				memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-				desc.Format = fmt;
-				desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-				desc.Texture2D.MostDetailedMip = 0;
-				desc.Texture2D.MipLevels = 1;
-				if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
-					break;
-			}
-			success = True;
-			break;
-		}
-		if (img != NULL && !img_ref)
-			FreeMem(img);
-		if (bin != NULL)
-			FreeMem(bin);
-		if (!success)
-			THROW(0xe9170009);
-	}
-	return me_;
+	return Draw::MakeTexImpl(me_, path, False);
+}
+
+EXPORT_CPP SClass* _makeTexArgb(SClass* me_, const U8* path)
+{
+	return Draw::MakeTexImpl(me_, path, True);
 }
 
 EXPORT_CPP SClass* _makeTexEvenArgb(SClass* me_, double a, double r, double g, double b)
@@ -2825,6 +2735,106 @@ void SetJointMat(const void* element, double frame, float (*joint)[4][4])
 				joint[i][j][k] = rate_a * element2->Joints[offset + mat_a][j][k] + rate_b * element2->Joints[offset + mat_b][j][k];
 		}
 	}
+}
+
+SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb)
+{
+	THROWDBG(path == NULL, 0xc0000005);
+	S64 path_len = *reinterpret_cast<const S64*>(path + 0x08);
+	const Char* path2 = reinterpret_cast<const Char*>(path + 0x10);
+	STex* me2 = reinterpret_cast<STex*>(me_);
+	void* bin = NULL;
+	void* img = NULL;
+	Bool img_ref = False; // Set to true when 'img' should not be released.
+	DXGI_FORMAT fmt;
+	int width;
+	int height;
+	{
+		size_t size;
+		bin = LoadFileAll(path2, &size);
+		if (bin == NULL)
+		{
+			THROW(0xe9170007);
+			return NULL;
+		}
+		THROWDBG(path_len < 4, 0xe9170006);
+		if (StrCmpIgnoreCase(path2 + path_len - 4, L".png"))
+		{
+			img = DecodePng(size, bin, &width, &height);
+			fmt = as_argb ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
+				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
+		}
+		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".jpg"))
+		{
+			img = DecodeJpg(size, bin, &width, &height);
+			fmt = as_argb ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
+				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
+		}
+		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".dds"))
+		{
+			img = DecodeBc(size, bin, &width, &height);
+			img_ref = True;
+			fmt = as_argb ? DXGI_FORMAT_BC3_UNORM : DXGI_FORMAT_BC3_UNORM_SRGB;
+			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
+				THROW(0xe9170008);
+		}
+		else
+		{
+			THROWDBG(True, 0xe9170006);
+			fmt = DXGI_FORMAT_UNKNOWN;
+			width = 0;
+			height = 0;
+		}
+	}
+	me2->Width = width;
+	me2->Height = height;
+	{
+		Bool success = False;
+		for (; ; )
+		{
+			{
+				D3D10_TEXTURE2D_DESC desc;
+				D3D10_SUBRESOURCE_DATA sub;
+				desc.Width = static_cast<UINT>(me2->Width);
+				desc.Height = static_cast<UINT>(me2->Height);
+				desc.MipLevels = 1;
+				desc.ArraySize = 1;
+				desc.Format = fmt;
+				desc.SampleDesc.Count = 1;
+				desc.SampleDesc.Quality = 0;
+				desc.Usage = D3D10_USAGE_IMMUTABLE;
+				desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+				desc.CPUAccessFlags = 0;
+				desc.MiscFlags = 0;
+				sub.pSysMem = img;
+				sub.SysMemPitch = static_cast<UINT>(me2->Width * 4);
+				sub.SysMemSlicePitch = 0;
+				if (FAILED(Device->CreateTexture2D(&desc, &sub, &me2->Tex)))
+					break;
+			}
+			{
+				D3D10_SHADER_RESOURCE_VIEW_DESC desc;
+				memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+				desc.Format = fmt;
+				desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+				desc.Texture2D.MostDetailedMip = 0;
+				desc.Texture2D.MipLevels = 1;
+				if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
+					break;
+			}
+			success = True;
+			break;
+		}
+		if (img != NULL && !img_ref)
+			FreeMem(img);
+		if (bin != NULL)
+			FreeMem(bin);
+		if (!success)
+			THROW(0xe9170009);
+	}
+	return me_;
 }
 
 } // namespace Draw

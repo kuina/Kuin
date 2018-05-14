@@ -16,6 +16,7 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color);
 EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color);
 EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 color);
 EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path);
+EXPORT_CPP SClass* _makeTexArgb(SClass* me_, const U8* path);
 EXPORT_CPP SClass* _makeTexEvenArgb(SClass* me_, double a, double r, double g, double b);
 EXPORT_CPP SClass* _makeTexEvenColor(SClass* me_, S64 color);
 EXPORT_CPP void _texDtor(SClass* me_);
@@ -88,4 +89,5 @@ namespace Draw
 	double Degamma(double value);
 	U8* AdjustTexSize(U8* argb, int* width, int* height);
 	void SetJointMat(const void* element, double frame, float (*joint)[4][4]);
+	SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb);
 }
