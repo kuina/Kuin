@@ -163,7 +163,10 @@ end func
 		throw 16#E9170005
 	end func
 
-	+func [d0001.knd, _objDraw] draw(diffuse: @Tex, specular: @Tex, normal: @Tex, element: int, frame: float)
+	+func [d0001.knd, _objDraw] draw(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)
+	end func
+
+	+func [d0001.knd, _objDrawOutline] drawOutline(element: int, frame: float, width: float, color: int)
 	end func
 
 	+func [d0001.knd, _objMat] mat(mat_: []float, normMat: []float)
