@@ -35,6 +35,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path);
 EXPORT_CPP void _objDtor(SClass* me_);
 EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, S64 color);
 EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal);
+EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal);
 EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double width, S64 color);
 EXPORT_CPP void _objMat(SClass* me_, const U8* mat, const U8* normMat);
 EXPORT_CPP void _objPos(SClass* me_, double scaleX, double scaleY, double scaleZ, double rotX, double rotY, double rotZ, double transX, double transY, double transZ);

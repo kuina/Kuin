@@ -169,6 +169,9 @@ end func
 	+func [d0001.knd, _objDraw] draw(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)
 	end func
 
+	+func [d0001.knd, _objDrawToon] drawToon(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)
+	end func
+
 	+func [d0001.knd, _objDrawOutline] drawOutline(element: int, frame: float, width: float, color: int)
 	end func
 

@@ -12,6 +12,7 @@ set fxc_path="C:\Program Files (x86)\Windows Kits\8.1\bin\x64\fxc.exe"
 %fxc_path% obj_vs.fx /T vs_4_0 /Fo obj.vs
 %fxc_path% obj_vs.fx /T vs_4_0 /Fo obj_joint.vs /DJOINT
 %fxc_path% obj_ps.fx /T ps_4_0 /Fo obj.ps
+%fxc_path% obj_toon_ps.fx /T ps_4_0 /Fo obj_toon.ps
 %fxc_path% obj_outline_vs.fx /T vs_4_0 /Fo obj_outline.vs
 %fxc_path% obj_outline_vs.fx /T vs_4_0 /Fo obj_outline_joint.vs /DJOINT
 %fxc_path% obj_outline_ps.fx /T ps_4_0 /Fo obj_outline.ps

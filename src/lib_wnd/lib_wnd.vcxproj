@@ -159,6 +159,7 @@
     <ClCompile Include="obj_outline_ps.c" />
     <ClCompile Include="obj_outline_vs.c" />
     <ClCompile Include="obj_ps.c" />
+    <ClCompile Include="obj_toon_ps.c" />
     <ClCompile Include="obj_vs.c" />
     <ClCompile Include="png_decoder.cpp" />
     <ClCompile Include="rect_vs.c" />
@@ -166,6 +167,7 @@
     <ClCompile Include="tex_ps.c" />
     <ClCompile Include="tex_rot_vs.c" />
     <ClCompile Include="tex_vs.c" />
+    <ClCompile Include="toon_ramp_png.c" />
     <ClCompile Include="tri_ps.c" />
     <ClCompile Include="tri_vs.c" />
     <ClCompile Include="wav.cpp" />

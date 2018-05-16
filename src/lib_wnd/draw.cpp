@@ -154,11 +154,13 @@ const U8* GetTexPsBin(size_t* size);
 const U8* GetObjVsBin(size_t* size);
 const U8* GetObjJointVsBin(size_t* size);
 const U8* GetObjPsBin(size_t* size);
+const U8* GetObjToonPsBin(size_t* size);
 const U8* GetObjOutlineVsBin(size_t* size);
 const U8* GetObjOutlineJointVsBin(size_t* size);
 const U8* GetObjOutlinePsBin(size_t* size);
 const U8* GetFilterVsBin(size_t* size);
 const U8* GetFilterPsBin(size_t* size);
+const U8* GetToonRampPngBin(size_t* size);
 
 static S64 Cnt;
 static U32 PrevTime;
@@ -186,6 +188,7 @@ static void* FontPs = NULL;
 static void* ObjVs = NULL;
 static void* ObjJointVs = NULL;
 static void* ObjPs = NULL;
+static void* ObjToonPs = NULL;
 static void* ObjOutlineVs = NULL;
 static void* ObjOutlineJointVs = NULL;
 static void* ObjOutlinePs = NULL;
@@ -199,6 +202,8 @@ static SObjPsConstBuf ObjPsConstBuf;
 static int CurZBuf = -1;
 static int CurBlend = -1;
 static int CurSampler = -1;
+ID3D10Texture2D* TexToonRamp;
+ID3D10ShaderResourceView* ViewToonRamp;
 ID3D10Texture2D* TexEven[TexEvenNum];
 ID3D10ShaderResourceView* ViewEven[TexEvenNum];
 
@@ -1244,7 +1249,7 @@ EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse
 		case 0: // Polygon.
 			{
 				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
-				THROWDBG(frame < static_cast<double>(element2->Begin) || static_cast<double>(element2->End) <= frame, 0xe9170006);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), 0xe9170006);
 				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, 0xe9170006);
 				Bool joint = element2->JointNum != 0;
 
@@ -1269,6 +1274,41 @@ EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse
 	}
 }
 
+EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal)
+{
+	SObj* me2 = (SObj*)me_;
+	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, 0xe9170006);
+	switch (me2->ElementKinds[element])
+	{
+		case 0: // Polygon.
+			{
+				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), 0xe9170006);
+				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, 0xe9170006);
+				Bool joint = element2->JointNum != 0;
+
+				memcpy(ObjVsConstBuf.CommonParam.World, me2->Mat, sizeof(float[4][4]));
+				memcpy(ObjVsConstBuf.CommonParam.NormWorld, me2->NormMat, sizeof(float[4][4]));
+				if (joint && frame >= 0.0f)
+				{
+					Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+					Draw::ConstBuf(ObjJointVs, &ObjVsConstBuf);
+				}
+				else
+					Draw::ConstBuf(ObjVs, &ObjVsConstBuf);
+				Device->GSSetShader(NULL);
+				Draw::ConstBuf(ObjToonPs, &ObjPsConstBuf);
+				Draw::VertexBuf(element2->VertexBuf);
+				Device->PSSetShaderResources(0, 1, diffuse == NULL ? &ViewEven[0] : &reinterpret_cast<STex*>(diffuse)->View);
+				Device->PSSetShaderResources(1, 1, specular == NULL ? &ViewEven[1] : &reinterpret_cast<STex*>(specular)->View);
+				Device->PSSetShaderResources(2, 1, normal == NULL ? &ViewEven[2] : &reinterpret_cast<STex*>(normal)->View);
+				Device->PSSetShaderResources(3, 1, &ViewToonRamp);
+				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
+			}
+			break;
+	}
+}
+
 EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double width, S64 color)
 {
 	SObj* me2 = (SObj*)me_;
@@ -1278,21 +1318,21 @@ EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double w
 		case 0: // Polygon.
 			{
 				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
-				THROWDBG(frame < static_cast<double>(element2->Begin) || static_cast<double>(element2->End) <= frame, 0xe9170006);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), 0xe9170006);
 				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, 0xe9170006);
 				Bool joint = element2->JointNum != 0;
 
 				SObjOutlineVsConstBuf vs_const_buf;
 				SObjOutlinePsConstBuf ps_const_buf;
 				vs_const_buf.CommonParam = ObjVsConstBuf.CommonParam;
-				vs_const_buf.OutlineParam[0] = width;
+				vs_const_buf.OutlineParam[0] = static_cast<float>(width);
 				{
 					double r, g, b, a;
 					Draw::ColorToArgb(&a, &r, &g, &b, color);
-					ps_const_buf.OutlineColor[0] = r;
-					ps_const_buf.OutlineColor[1] = g;
-					ps_const_buf.OutlineColor[2] = b;
-					ps_const_buf.OutlineColor[3] = a;
+					ps_const_buf.OutlineColor[0] = static_cast<float>(r);
+					ps_const_buf.OutlineColor[1] = static_cast<float>(g);
+					ps_const_buf.OutlineColor[2] = static_cast<float>(b);
+					ps_const_buf.OutlineColor[3] = static_cast<float>(a);
 				}
 
 				if (joint && frame >= 0.0f)
@@ -1870,6 +1910,11 @@ void Init()
 				const U8* bin = GetObjPsBin(&size);
 				ObjPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
 			}
+			{
+				size_t size;
+				const U8* bin = GetObjToonPsBin(&size);
+				ObjToonPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
+			}
 		}
 		{
 			ELayoutType layout_types[7] =
@@ -2003,6 +2048,58 @@ void Init()
 		}
 	}
 
+	// Initialize the toon ramp texture.
+	{
+		void* img = NULL;
+		Bool success = False;
+		for (; ; )
+		{
+			size_t size;
+			int width;
+			int height;
+			const U8* bin = GetToonRampPngBin(&size);
+			img = DecodePng(size, bin, &width, &height);
+			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
+				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
+			{
+				D3D10_TEXTURE2D_DESC desc;
+				D3D10_SUBRESOURCE_DATA sub;
+				desc.Width = static_cast<UINT>(width);
+				desc.Height = static_cast<UINT>(height);
+				desc.MipLevels = 1;
+				desc.ArraySize = 1;
+				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				desc.SampleDesc.Count = 1;
+				desc.SampleDesc.Quality = 0;
+				desc.Usage = D3D10_USAGE_IMMUTABLE;
+				desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+				desc.CPUAccessFlags = 0;
+				desc.MiscFlags = 0;
+				sub.pSysMem = img;
+				sub.SysMemPitch = 4;
+				sub.SysMemSlicePitch = 0;
+				if (FAILED(Device->CreateTexture2D(&desc, &sub, &TexToonRamp)))
+					break;
+			}
+			{
+				D3D10_SHADER_RESOURCE_VIEW_DESC desc;
+				memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+				desc.Texture2D.MostDetailedMip = 0;
+				desc.Texture2D.MipLevels = 1;
+				if (FAILED(Device->CreateShaderResourceView(TexToonRamp, &desc, &ViewToonRamp)))
+					break;
+			}
+			success = True;
+			break;
+		}
+		if (img != NULL)
+			FreeMem(img);
+		if (!success)
+			THROW(0xe9170009);
+	}
+
 	for (int i = 0; i < TexEvenNum; i++)
 	{
 		float img[4];
@@ -2089,12 +2186,24 @@ void Fin()
 		if (TexEven[i] != NULL)
 			TexEven[i]->Release();
 	}
+	if (ViewToonRamp != NULL)
+		ViewToonRamp->Release();
+	if (TexToonRamp != NULL)
+		TexToonRamp->Release();
 	if (FilterPs != NULL)
 		FinShaderBuf(FilterPs);
 	if (FilterVs != NULL)
 		FinShaderBuf(FilterVs);
 	if (FilterVertex != NULL)
 		FinVertexBuf(FilterVertex);
+	if (ObjOutlinePs != NULL)
+		FinShaderBuf(ObjOutlinePs);
+	if (ObjOutlineJointVs != NULL)
+		FinShaderBuf(ObjOutlineJointVs);
+	if (ObjOutlineVs != NULL)
+		FinShaderBuf(ObjOutlineVs);
+	if (ObjToonPs != NULL)
+		FinShaderBuf(ObjToonPs);
 	if (ObjPs != NULL)
 		FinShaderBuf(ObjPs);
 	if (ObjJointVs != NULL)
@@ -2726,7 +2835,7 @@ void SetJointMat(const void* element, double frame, float (*joint)[4][4])
 	{
 		int offset = i * (element2->End - element2->Begin + 1);
 		int mat_a = static_cast<int>(frame);
-		int mat_b = mat_a + 1;
+		int mat_b = mat_a == element2->End ? mat_a : mat_a + 1;
 		float rate_b = static_cast<float>(frame - static_cast<double>(static_cast<int>(frame)));
 		float rate_a = 1.0f - rate_b;
 		for (int j = 0; j < 4; j++)
