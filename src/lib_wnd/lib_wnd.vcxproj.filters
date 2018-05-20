@@ -24,6 +24,11 @@
     <ClCompile Include="tex_rot_vs.c" />
     <ClCompile Include="filter_ps.c" />
     <ClCompile Include="filter_vs.c" />
+    <ClCompile Include="obj_outline_joint_vs.c" />
+    <ClCompile Include="obj_outline_ps.c" />
+    <ClCompile Include="obj_outline_vs.c" />
+    <ClCompile Include="obj_toon_ps.c" />
+    <ClCompile Include="toon_ramp_png.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />

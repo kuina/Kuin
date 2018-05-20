@@ -93,6 +93,7 @@ static SDict* Dlls;
 static SList* Funcs;
 static SStack* LocalVars;
 static SStack* RefFuncArgNums;
+static const U8* MakeUseResFlags;
 
 static Bool LoadResources(void);
 static SList* GetExceptionFunc(void);
@@ -159,11 +160,12 @@ static void AssembleExprValue(SAstExprValue* ast, int reg_i, int reg_f);
 static void AssembleExprValueArray(SAstExprValueArray* ast, int reg_i, int reg_f);
 static void AssembleExprRef(SAstExpr* ast, int reg_i, int reg_f);
 
-void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, SDict* dlls, S64 app_code)
+void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, SDict* dlls, S64 app_code, const U8* use_res_flags)
 {
 	PackAsm = pack_asm;
 	Option = option;
 	Dlls = dlls;
+	MakeUseResFlags = use_res_flags;
 
 	PackAsm->Asms = ListNew();
 	PackAsm->ReadonlyData = ListNew();
@@ -179,7 +181,6 @@ void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, 
 	PackAsm->FuncAddrs = NULL;
 	PackAsm->ClassTables = ListNew();
 	PackAsm->AppCode = app_code;
-	memset(PackAsm->UseResFlags, 0, USE_RES_FLAGS_LEN);
 
 	ASSERT(Option->IconFile != NULL);
 	if (!LoadResources())
@@ -1682,7 +1683,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 #endif
 				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_R8), ValImmS(8, PackAsm->AppCode)));
 				{
-					S64* addr = AddReadonlyData((int)USE_RES_FLAGS_LEN, PackAsm->UseResFlags, False);
+					S64* addr = AddReadonlyData((int)USE_RES_FLAGS_LEN, MakeUseResFlags, False);
 					ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, Reg_R9), ValRIP(8, RefValueAddr(addr, True))));
 				}
 			}

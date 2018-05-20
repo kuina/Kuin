@@ -23,7 +23,7 @@ struct SPoint
 	double PosX, PosY, PosZ;
 	double NormalX, NormalY, NormalZ;
 	double TangentX, TangentY, TangentZ;
-	double BinormalX, BinormalY, BinormalZ;
+	// double BinormalX, BinormalY, BinormalZ;
 	double TexU, TexV;
 	double JointWeight[4];
 	int Joint[4];
@@ -102,7 +102,7 @@ static SPoint MirrorPoint(const SPoint* p)
 	SPoint result = *p;
 	result.PosZ = -result.PosZ;
 	result.NormalZ = -result.NormalZ;
-	result.BinormalZ = -result.BinormalZ;
+	// result.BinormalZ = -result.BinormalZ;
 	result.TangentZ = -result.TangentZ;
 	result.TexV = result.TexV * 2.0 - 1.0;
 	return result;
@@ -131,9 +131,11 @@ static Bool CmpPoints(const SPoint* a, const SPoint* b)
 	flag &= Same(a->TangentX, b->TangentX);
 	flag &= Same(a->TangentY, b->TangentY);
 	flag &= Same(a->TangentZ, b->TangentZ);
+	/*
 	flag &= Same(a->BinormalX, b->BinormalX);
 	flag &= Same(a->BinormalY, b->BinormalY);
 	flag &= Same(a->BinormalZ, b->BinormalZ);
+	*/
 	flag &= Same(a->TexU, b->TexU);
 	flag &= Same(a->TexV, b->TexV);
 	for (int i = 0; i < 4; i++)
@@ -369,6 +371,7 @@ static void WriteNode(FbxNode* root)
 						points[i * 3 + 2].TangentX = tangents[6];
 						points[i * 3 + 2].TangentY = tangents[7];
 						points[i * 3 + 2].TangentZ = tangents[8];
+						/*
 						points[i * 3 + 0].BinormalX = binormals[0];
 						points[i * 3 + 0].BinormalY = binormals[1];
 						points[i * 3 + 0].BinormalZ = binormals[2];
@@ -378,6 +381,7 @@ static void WriteNode(FbxNode* root)
 						points[i * 3 + 2].BinormalX = binormals[6];
 						points[i * 3 + 2].BinormalY = binormals[7];
 						points[i * 3 + 2].BinormalZ = binormals[8];
+						*/
 					}
 
 					// Invert the Z axis.
@@ -433,19 +437,19 @@ static void WriteNode(FbxNode* root)
 							WriteFloat(points[i].TangentY);
 							WriteFloat(points[i].TangentZ);
 
+							/*
 							WriteFloat(points[i].BinormalX);
 							WriteFloat(points[i].BinormalY);
 							WriteFloat(points[i].BinormalZ);
+							*/
 
 							WriteFloat(points[i].TexU);
 							WriteFloat(points[i].TexV);
 
 							for (int j = 0; j < 4; j++)
-							{
 								WriteFloat(points[i].JointWeight[j]);
+							for (int j = 0; j < 4; j++)
 								WriteInt(points[i].Joint[j]);
-							}
-
 						}
 					}
 
@@ -460,7 +464,7 @@ static void WriteNode(FbxNode* root)
 					{
 						FbxSkin* skin = static_cast<FbxSkin*>(mesh->GetDeformer(0, FbxDeformer::eSkin));
 						FbxTime::EMode time_mode = Scene->GetGlobalSettings().GetTimeMode();
-						if (time_mode != FbxTime::eFrames60)
+						if (time_mode != FbxTime::eFrames30 && time_mode != FbxTime::eFrames60)
 							Err("Wrong time mode.");
 						int begin = 0, end = 0;
 						FbxTime period;
@@ -488,14 +492,15 @@ static void WriteNode(FbxNode* root)
 
 							// Inverse matrix of initial pose.
 							FbxAMatrix default_mat;
-							default_mat = cluster->GetTransformLinkMatrix(default_mat).Inverse();
+							cluster->GetTransformLinkMatrix(default_mat);
+							default_mat = default_mat.Inverse();
 
 							// Write animations.
 							for (int j = begin; j <= end; j++)
 							{
 								FbxAMatrix mat;
 								mat = cluster->GetLink()->GetAnimationEvaluator()->GetNodeGlobalTransform(cluster->GetLink(), period * j);
-								mat = default_mat * mat;
+								mat = mat * default_mat;
 								for (int k = 0; k < 4; k++)
 								{
 									for (int l = 0; l < 4; l++)

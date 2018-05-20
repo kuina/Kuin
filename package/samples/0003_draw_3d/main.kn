@@ -22,10 +22,10 @@ func main()
 	while(wnd@act())
 		do angle :+ lib@pi / 120.0 {4秒間に1周させる}
 		do draw@camera(15.0 * lib@sin(angle), 4.0, 15.0 * lib@cos(angle), 0.0, 0.0, 0.0, 0.0, 1.0, 0.0) {カメラの設定}
-		do objBoard.draw(texBoard, null, null, 0, 0.0) {板モデルの描画}
-		do objBox.draw(texBox, null, null, 0, 0.0) {箱モデルの描画}
-		do objSphere.draw(texSphere, null, null, 0, 0.0) {球モデルの描画}
-		do objCone.draw(texCone, texConeSpecular, null, 0, 0.0) {コーンモデルの描画}
+		do objBoard.draw(0, 0.0, texBoard, null, null) {板モデルの描画}
+		do objBox.draw(0, 0.0, texBox, null, null) {箱モデルの描画}
+		do objSphere.draw(0, 0.0, texSphere, null, null) {球モデルの描画}
+		do objCone.draw(0, 0.0, texCone, texConeSpecular, null) {コーンモデルの描画}
 		do draw@render(60)
 	end while
 end func

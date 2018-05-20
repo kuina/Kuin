@@ -53,7 +53,7 @@ end func
 +func [d0001.knd, _rectLine] rectLine(x: float, y: float, w: float, h: float, color: int)
 end func
 
-+func [d0001.knd, _circle] circle(x: float, y: float, radiusX: float, radiusY: float, color: int)
++func [d0001.knd, _circle, _1] circle(x: float, y: float, radiusX: float, radiusY: float, color: int)
 end func
 
 +class Tex()
@@ -87,6 +87,9 @@ end func
 end class
 
 +func [d0001.knd, _makeTex, _make_instance] makeTex(me2: @Tex, path: []char): @Tex
+end func
+
++func [d0001.knd, _makeTexArgb, _make_instance] makeTexArgb(me2: @Tex, path: []char): @Tex
 end func
 
 +func [d0001.knd, _makeTexEvenArgb, _make_instance] makeTexEvenArgb(me2: @Tex, a: float, r: float, g: float, b: float): @Tex
@@ -163,7 +166,13 @@ end func
 		throw 16#E9170005
 	end func
 
-	+func [d0001.knd, _objDraw] draw(diffuse: @Tex, specular: @Tex, normal: @Tex, element: int, frame: float)
+	+func [d0001.knd, _objDraw] draw(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)
+	end func
+
+	+func [d0001.knd, _objDrawToon] drawToon(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)
+	end func
+
+	+func [d0001.knd, _objDrawOutline] drawOutline(element: int, frame: float, width: float, color: int)
 	end func
 
 	+func [d0001.knd, _objMat] mat(mat_: []float, normMat: []float)

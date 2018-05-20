@@ -97,7 +97,7 @@ static void RebuildRoot(SAstRoot* ast);
 static void RebuildFunc(SAstFunc* ast);
 static void RebuildVar(SAstVar* ast);
 static void RebuildConst(SAstConst* ast);
-static void RebuildAlias(SAstAlias* ast);
+static void RebuildAlias(SAstAlias* ast, SAstAlias* parent);
 static void RebuildClass(SAstClass* ast);
 static void RebuildEnum(SAstEnum* ast);
 static void RebuildEnumElement(SAstExpr* enum_element, SAstType* type);
@@ -115,7 +115,7 @@ static SAstStat* RebuildDo(SAstStatDo* ast);
 static SAstStat* RebuildBreak(SAstStat* ast, SAstType* ret_type);
 static SAstStat* RebuildSkip(SAstStat* ast, SAstType* ret_type);
 static SAstStat* RebuildAssert(SAstStatAssert* ast);
-static SAstType* RebuildType(SAstType* ast);
+static SAstType* RebuildType(SAstType* ast, SAstAlias* parent_alias);
 static SAstExpr* RebuildExpr(SAstExpr* ast, Bool nullable);
 static SAstExpr* RebuildExpr1(SAstExpr1* ast);
 static SAstExpr* RebuildExpr2(SAstExpr2* ast);
@@ -1023,7 +1023,7 @@ static void RebuildFunc(SAstFunc* ast)
 		}
 	}
 	if (ast->Ret != NULL)
-		ast->Ret = RebuildType(ast->Ret);
+		ast->Ret = RebuildType(ast->Ret, NULL);
 	ast->Stats = RefreshStats(ast->Stats, ast->Ret);
 }
 
@@ -1043,12 +1043,20 @@ static void RebuildConst(SAstConst* ast)
 	RebuildArg(ast->Var);
 }
 
-static void RebuildAlias(SAstAlias* ast)
+static void RebuildAlias(SAstAlias* ast, SAstAlias* parent)
 {
+	// Make sure that the enum references do not circulate.
+	if (ast == parent)
+	{
+		Err(L"EA0065", ((SAst*)parent)->Pos, ((SAst*)parent)->Name);
+		ast->Type = NULL;
+		return;
+	}
+
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
-	ast->Type = RebuildType(ast->Type);
+	ast->Type = RebuildType(ast->Type, ast);
 }
 
 static void RebuildClass(SAstClass* ast)
@@ -1761,7 +1769,7 @@ static void RebuildArg(SAstArg* ast)
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
-	ast->Type = RebuildType(ast->Type);
+	ast->Type = RebuildType(ast->Type, NULL);
 	if (ast->Expr != NULL)
 	{
 		ast->Expr = RebuildExpr(ast->Expr, False);
@@ -2140,7 +2148,7 @@ static SAstStat* RebuildAssert(SAstStatAssert* ast)
 	return (SAstStat*)ast;
 }
 
-static SAstType* RebuildType(SAstType* ast)
+static SAstType* RebuildType(SAstType* ast, SAstAlias* parent_alias)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstType*)((SAst*)ast)->AnalyzedCache;
@@ -2160,7 +2168,7 @@ static SAstType* RebuildType(SAstType* ast)
 						RebuildEnum((SAstEnum*)ref_item);
 					else if (ref_item->TypeId == AstTypeId_Alias)
 					{
-						RebuildAlias((SAstAlias*)ref_item);
+						RebuildAlias((SAstAlias*)ref_item, parent_alias);
 						((SAst*)ast)->AnalyzedCache = (SAst*)((SAstAlias*)ref_item)->Type;
 						ast = ((SAstAlias*)ref_item)->Type;
 					}
@@ -2172,7 +2180,7 @@ static SAstType* RebuildType(SAstType* ast)
 				}
 				break;
 			case AstTypeId_TypeArray:
-				((SAstTypeArray*)ast)->ItemType = RebuildType(((SAstTypeArray*)ast)->ItemType);
+				((SAstTypeArray*)ast)->ItemType = RebuildType(((SAstTypeArray*)ast)->ItemType, parent_alias);
 				break;
 			case AstTypeId_TypeFunc:
 				{
@@ -2181,19 +2189,19 @@ static SAstType* RebuildType(SAstType* ast)
 					while (ptr != NULL)
 					{
 						SAstTypeFuncArg* arg = (SAstTypeFuncArg*)ptr->Data;
-						arg->Arg = RebuildType(arg->Arg);
+						arg->Arg = RebuildType(arg->Arg, parent_alias);
 						ptr = ptr->Next;
 					}
 					if (ast2->Ret != NULL)
-						ast2->Ret = RebuildType(ast2->Ret);
+						ast2->Ret = RebuildType(ast2->Ret, parent_alias);
 				}
 				break;
 			case AstTypeId_TypeGen:
-				((SAstTypeGen*)ast)->ItemType = RebuildType(((SAstTypeGen*)ast)->ItemType);
+				((SAstTypeGen*)ast)->ItemType = RebuildType(((SAstTypeGen*)ast)->ItemType, parent_alias);
 				break;
 			case AstTypeId_TypeDict:
-				((SAstTypeDict*)ast)->ItemTypeKey = RebuildType(((SAstTypeDict*)ast)->ItemTypeKey);
-				((SAstTypeDict*)ast)->ItemTypeValue = RebuildType(((SAstTypeDict*)ast)->ItemTypeValue);
+				((SAstTypeDict*)ast)->ItemTypeKey = RebuildType(((SAstTypeDict*)ast)->ItemTypeKey, parent_alias);
+				((SAstTypeDict*)ast)->ItemTypeValue = RebuildType(((SAstTypeDict*)ast)->ItemTypeValue, parent_alias);
 				break;
 			default:
 				ASSERT(type == AstTypeId_TypeBit || type == AstTypeId_TypePrim || type == AstTypeId_TypeNull);
@@ -2875,7 +2883,7 @@ static SAstExpr* RebuildExprNew(SAstExprNew* ast)
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstExpr*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
-	ast->ItemType = RebuildType(ast->ItemType);
+	ast->ItemType = RebuildType(ast->ItemType, NULL);
 	if (ast->ItemType == NULL)
 		return NULL;
 	if (!(((SAst*)ast->ItemType)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->ItemType)->TypeId == AstTypeId_TypeDict || IsClass(ast->ItemType)))
@@ -2906,7 +2914,7 @@ static SAstExpr* RebuildExprNewArray(SAstExprNewArray* ast)
 			ptr = ptr->Next;
 		}
 	}
-	ast->ItemType = RebuildType(ast->ItemType);
+	ast->ItemType = RebuildType(ast->ItemType, NULL);
 	if (ast->ItemType == NULL)
 		return NULL;
 	{
@@ -2933,7 +2941,7 @@ static SAstExpr* RebuildExprAs(SAstExprAs* ast)
 	ast->Child = RebuildExpr(ast->Child, False);
 	if (ast->Child == NULL)
 		return NULL;
-	ast->ChildType = RebuildType(ast->ChildType);
+	ast->ChildType = RebuildType(ast->ChildType, NULL);
 	if (ast->ChildType == NULL)
 		return NULL;
 	ASSERT(((SAstExpr*)ast)->Type == NULL);

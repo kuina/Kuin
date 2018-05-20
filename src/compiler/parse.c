@@ -115,6 +115,7 @@ static Char FileBufTmp; // For single line comments and line breaking.
 static Bool IsLast;
 static SStack* Scope;
 static U32 UniqueCnt;
+static U8* MakeUseResFlags;
 
 static const Char* GetKeywordsEnd; 
 static const Char* GetKeywordsSrcName;
@@ -230,13 +231,14 @@ static void GetKeywordsAddEnum(void);
 static void GetKeywordsAddMember(void);
 static void GetKeywordsAddKeywords(Char kind);
 
-SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const SOption* option)
+SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const SOption* option, U8* use_res_flags)
 {
 	Bool end_flag = False;
 	FuncWfopen = func_wfopen;
 	FuncFclose = func_fclose;
 	FuncFgetwc = func_fgetwc;
 	FuncSize = func_size;
+	MakeUseResFlags = use_res_flags;
 
 #if defined(_DEBUG)
 	{
@@ -1478,6 +1480,14 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfDictKey);
 					else if (wcscmp(func_attr2, L"ret_array_of_dict_value") == 0 && (ast->FuncAttr & FuncAttr_RetArrayOfDictValue) == 0)
 						ast->FuncAttr = (EFuncAttr)(ast->FuncAttr | FuncAttr_RetArrayOfDictValue);
+					else if (L'0' <= func_attr2[0] && func_attr2[0] <= L'9')
+					{
+						Char* ptr;
+						S64 value = (S64)wcstoll(func_attr2, &ptr, 10);
+						S64 value2 = (value - 1) / 8;
+						if (*ptr == L'\0' && 1 <= value && value2 < USE_RES_FLAGS_LEN)
+							MakeUseResFlags[value2] |= 1 << ((value - 1) % 8);
+					}
 					else if (ast->DllName == NULL)
 						ast->DllName = func_attr;
 					else if (ast->DllFuncName == NULL)
@@ -2616,7 +2626,10 @@ static SAstType* ParseType(void)
 							if (c == L')')
 								break;
 							if (c != L',')
+							{
 								NextCharErr(L',', c);
+								break;
+							}
 						}
 					}
 					c = ReadChar();
