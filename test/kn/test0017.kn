@@ -9,14 +9,16 @@ func main()
 			end class
 
 			class ObjB(ObjA)
-				+**func f(str: []char): int
+				+*func f(str: []char): int
+					do super(me, str)
 					do cui@print("B" ~ str)
 					ret 2
 				end func
 			end class
 
 			class ObjC(ObjB)
-				+**func f(str: []char): int
+				+*func f(str: []char): int
+					do super(me, str)
 					do cui@print("C" ~ str)
 					ret 3
 				end func

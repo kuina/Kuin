@@ -502,7 +502,7 @@ static void DumpAstClass(const SAstClass* ast)
 				const SAstClassItem* item = (const SAstClassItem*)ptr->Data;
 				PrintTab(); fwprintf(FilePtr, L"<ClassItem");
 				fwprintf(FilePtr, L" Public=\"%s\"", item->Public ? L"True" : L"False");
-				fwprintf(FilePtr, L" Override=\"%d\"", item->Override);
+				fwprintf(FilePtr, L" Override=\"%s\"", item->Override ? L"True" : L"False");
 				fwprintf(FilePtr, L" ParentItem=\"%s\"", item->ParentItem == NULL ? L"(Null)" : L"(Ptr)");
 				fwprintf(FilePtr, L" />\n");
 				ASSERT(item->Def != NULL);

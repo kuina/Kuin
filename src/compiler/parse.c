@@ -50,6 +50,7 @@ static const Char* Reserved[] =
 	L"ret",
 	L"skip",
 	L"stack",
+	L"super",
 	L"switch",
 	L"throw",
 	L"to",
@@ -153,7 +154,7 @@ static void AddSrc(const Char* name);
 static Bool IsReserved(const Char* word);
 static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_id, EAstTypeId type_id, SAst* block);
 static SAstRoot* ParseRoot(SAstRoot* ast);
-static SAstFunc* ParseFunc(const Char* parent_class);
+static SAstFunc* ParseFunc(const Char* parent_class, Bool overridden);
 static SAstVar* ParseVar(EAstArgKind kind, const Char* parent_class);
 static SAstConst* ParseConst(void);
 static SAstAlias* ParseAlias(void);
@@ -1393,7 +1394,7 @@ static SAstRoot* ParseRoot(SAstRoot* ast)
 				int col = Col;
 				const Char* id = ReadIdentifier(True, False);
 				if (wcscmp(id, L"func") == 0)
-					child = (SAst*)ParseFunc(NULL);
+					child = (SAst*)ParseFunc(NULL, False);
 				else if (wcscmp(id, L"var") == 0)
 					child = (SAst*)ParseVar(AstArgKind_Global, NULL);
 				else if (wcscmp(id, L"const") == 0)
@@ -1432,7 +1433,7 @@ static SAstRoot* ParseRoot(SAstRoot* ast)
 	return ast;
 }
 
-static SAstFunc* ParseFunc(const Char* parent_class)
+static SAstFunc* ParseFunc(const Char* parent_class, Bool overridden)
 {
 	SAstFunc* ast = (SAstFunc*)Alloc(sizeof(SAstFunc));
 	ast->DllName = NULL;
@@ -1580,6 +1581,49 @@ static SAstFunc* ParseFunc(const Char* parent_class)
 		if (c != L'\n')
 			NextCharErr(L'\n', c);
 	}
+	if (overridden)
+	{
+		SAstStatVar* stat_var = (SAstStatVar*)Alloc(sizeof(SAstStatVar));
+		{
+			InitAst((SAst*)stat_var, AstTypeId_StatVar, ((SAst*)ast)->Pos, NULL, False, False);
+			SAstVar* var = (SAstVar*)Alloc(sizeof(SAstVar));
+			{
+				InitAst((SAst*)var, AstTypeId_Var, ((SAst*)ast)->Pos, NULL, False, False);
+				SAstArg* arg = (SAstArg*)Alloc(sizeof(SAstArg));
+				{
+					InitAst((SAst*)arg, AstTypeId_Arg, ((SAst*)ast)->Pos, NULL, False, False);
+					((SAst*)arg)->Name = L"super";
+					arg->Addr = NewAddr();
+					arg->Expr = NULL;
+					arg->Kind = AstArgKind_LocalArg;
+					arg->RefVar = False;
+					AddScopeName((SAst*)arg, False);
+					{
+						SAstTypeFunc* type = (SAstTypeFunc*)Alloc(sizeof(SAstTypeFunc));
+						InitAst((SAst*)type, AstTypeId_TypeFunc, ((SAst*)ast)->Pos, NULL, False, False);
+						type->FuncAttr = ast->FuncAttr;
+						type->Args = ListNew();
+						{
+							SListNode* ptr = ast->Args->Top;
+							while (ptr != NULL)
+							{
+								SAstTypeFuncArg* arg2 = (SAstTypeFuncArg*)Alloc(sizeof(SAstTypeFuncArg));
+								arg2->RefVar = ((SAstArg*)ptr->Data)->RefVar;
+								arg2->Arg = ((SAstArg*)ptr->Data)->Type;
+								ListAdd(type->Args, arg2);
+								ptr = ptr->Next;
+							}
+						}
+						type->Ret = ast->Ret;
+						arg->Type = (SAstType*)type;
+					}
+				}
+				var->Var = arg;
+			}
+			stat_var->Def = var;
+		}
+		ListAdd(ast->Stats, stat_var);
+	}
 	for (; ; )
 	{
 		SAstStat* stat = ParseStat((SAst*)ast);
@@ -1683,7 +1727,7 @@ static SAstClass* ParseClass(void)
 			int col = Col;
 			SAstClassItem* item = (SAstClassItem*)Alloc(sizeof(SAstClassItem));
 			item->Public = False;
-			item->Override = 0;
+			item->Override = False;
 			item->ParentItem = NULL;
 			item->Addr = -1;
 			if (c == L'+')
@@ -1692,24 +1736,17 @@ static SAstClass* ParseClass(void)
 				FileBuf = c;
 			c = ReadChar();
 			if (c == L'*')
-			{
-				item->Override = 1;
-				c = ReadChar();
-				if (c == L'*')
-					item->Override = 2;
-				else
-					FileBuf = c;
-			}
+				item->Override = True;
 			else
 				FileBuf = c;
 			{
 				const Char* s = ReadIdentifier(True, False);
 				const Char* class_name = ((SAst*)ast)->ScopeParent->TypeId == AstTypeId_Root ? NewStr(NULL, L"@%s", ((SAst*)ast)->Name) : ((SAst*)ast)->Name;
 				if (wcscmp(s, L"func") == 0)
-					item->Def = (SAst*)ParseFunc(class_name);
+					item->Def = (SAst*)ParseFunc(class_name, item->Override);
 				else if (wcscmp(s, L"var") == 0)
 				{
-					if (item->Override != 0)
+					if (item->Override)
 						Err(L"EP0028", NewPos(SrcName, row, col), s);
 					item->Def = (SAst*)ParseVar(AstArgKind_Member, class_name);
 				}
@@ -1717,7 +1754,7 @@ static SAstClass* ParseClass(void)
 				{
 					if (item->Public)
 						Err(L"EP0029", NewPos(SrcName, row, col), s);
-					if (item->Override != 0)
+					if (item->Override)
 						Err(L"EP0028", NewPos(SrcName, row, col), s);
 					if (wcscmp(s, L"end") == 0)
 					{
@@ -2010,7 +2047,7 @@ static SAstStat* ParseStatFunc(void)
 {
 	SAstStatFunc* ast = (SAstStatFunc*)Alloc(sizeof(SAstStatFunc));
 	InitAst((SAst*)ast, AstTypeId_StatFunc, NULL, NULL, False, False);
-	ast->Def = ParseFunc(NULL);
+	ast->Def = ParseFunc(NULL, False);
 	return (SAstStat*)ast;
 }
 
@@ -5506,6 +5543,7 @@ static Bool GetKeywordsReadExprValue(const Char** str)
 					GetKeywordsAdd(L"false");
 					GetKeywordsAdd(L"inf");
 					GetKeywordsAdd(L"null");
+					GetKeywordsAdd(L"super");
 					GetKeywordsAdd(L"true");
 					GetKeywordsAddKeywords(L'e');
 					return True;

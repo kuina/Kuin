@@ -77,7 +77,7 @@ static SAstFunc* SearchMain(void);
 static const void* ResolveIdentifierCallback(const Char* key, const void* value, void* param);
 static void ResolveIdentifierRecursion(const Char* src, const SAst* scope);
 static void InitAst(SAst* ast, EAstTypeId type_id, const SPos* pos);
-static SList* RefreshStats(SList* stats, SAstType* ret_type);
+static SList* RefreshStats(SList* stats, SAstType* ret_type, SAstFunc* parent_func);
 static Bool CmpType(const SAstType* type1, const SAstType* type2);
 static Bool IsComparable(const SAstType* type, Bool less_or_greater);
 static U64 BitCast(int size, U64 n);
@@ -102,18 +102,18 @@ static void RebuildClass(SAstClass* ast);
 static void RebuildEnum(SAstEnum* ast);
 static void RebuildEnumElement(SAstExpr* enum_element, SAstType* type);
 static void RebuildArg(SAstArg* ast);
-static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type);
-static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type);
-static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type);
-static SAstStat* RebuildWhile(SAstStatWhile* ast, SAstType* ret_type);
-static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type);
-static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type);
+static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type, SAstFunc* parent_func);
+static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type, SAstFunc* parent_func);
+static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type, SAstFunc* parent_func);
+static SAstStat* RebuildWhile(SAstStatWhile* ast, SAstType* ret_type, SAstFunc* parent_func);
+static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type, SAstFunc* parent_func);
+static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type, SAstFunc* parent_func);
 static SAstStat* RebuildThrow(SAstStatThrow* ast);
-static SAstStat* RebuildBlock(SAstStatBlock* ast, SAstType* ret_type);
+static SAstStat* RebuildBlock(SAstStatBlock* ast, SAstType* ret_type, SAstFunc* parent_func);
 static SAstStat* RebuildRet(SAstStatRet* ast, SAstType* ret_type);
 static SAstStat* RebuildDo(SAstStatDo* ast);
-static SAstStat* RebuildBreak(SAstStat* ast, SAstType* ret_type);
-static SAstStat* RebuildSkip(SAstStat* ast, SAstType* ret_type);
+static SAstStat* RebuildBreak(SAstStat* ast, SAstType* ret_type, SAstFunc* parent_func);
+static SAstStat* RebuildSkip(SAstStat* ast, SAstType* ret_type, SAstFunc* parent_func);
 static SAstStat* RebuildAssert(SAstStatAssert* ast);
 static SAstType* RebuildType(SAstType* ast, SAstAlias* parent_alias);
 static SAstExpr* RebuildExpr(SAstExpr* ast, Bool nullable);
@@ -348,14 +348,14 @@ static void InitAstExpr(SAstExpr* ast, EAstTypeId type_id, const SPos* pos)
 	ast->VarKind = AstExprVarKind_Unknown;
 }
 
-static SList* RefreshStats(SList* stats, SAstType* ret_type)
+static SList* RefreshStats(SList* stats, SAstType* ret_type, SAstFunc* parent_func)
 {
 	SList* stats2 = ListNew();
 	{
 		SListNode* ptr = stats->Top;
 		while (ptr != NULL)
 		{
-			SAstStat* stat = RebuildStat((SAstStat*)ptr->Data, ret_type);
+			SAstStat* stat = RebuildStat((SAstStat*)ptr->Data, ret_type, parent_func);
 			if (stat != NULL)
 				ListAdd(stats2, stat);
 			ptr = ptr->Next;
@@ -389,8 +389,6 @@ static Bool CmpType(const SAstType* type1, const SAstType* type2)
 		SAstTypeFunc* func2 = (SAstTypeFunc*)type2;
 		SListNode* ptr1 = func1->Args->Top;
 		SListNode* ptr2 = func2->Args->Top;
-		if (func1->FuncAttr != func2->FuncAttr)
-			return False;
 		while (ptr1 != NULL && ptr2 != NULL)
 		{
 			SAstTypeFuncArg* arg1 = (SAstTypeFuncArg*)ptr1->Data;
@@ -520,7 +518,7 @@ static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name)
 	{
 		// These functions override functions of the root class.
 		SAstClassItem* item = (SAstClassItem*)Alloc(sizeof(SAstClassItem));
-		item->Override = 1;
+		item->Override = True;
 		item->Def = (SAst*)func;
 		item->ParentItem = NULL;
 		item->Addr = -1;
@@ -946,10 +944,10 @@ static void RebuildRoot(SAstRoot* ast)
 								assign->Children[1] = var->Var->Expr;
 								do_->Expr = (SAstExpr*)assign;
 							}
-							ListAdd(init_vars->Stats, RebuildStat((SAstStat*)do_, NULL));
+							ListAdd(init_vars->Stats, RebuildStat((SAstStat*)do_, NULL, NULL));
 						}
 					}
-					if (IsRef(var->Var->Type))
+					if (var->Var->Type != NULL && IsRef(var->Var->Type))
 					{
 						// Add finalization processing of global variables to '_finVars'.
 						SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
@@ -978,7 +976,7 @@ static void RebuildRoot(SAstRoot* ast)
 							}
 							do_->Expr = (SAstExpr*)assign;
 						}
-						ListAdd(fin_vars->Stats, RebuildStat((SAstStat*)do_, NULL));
+						ListAdd(fin_vars->Stats, RebuildStat((SAstStat*)do_, NULL, NULL));
 					}
 				}
 				else
@@ -1024,7 +1022,7 @@ static void RebuildFunc(SAstFunc* ast)
 	}
 	if (ast->Ret != NULL)
 		ast->Ret = RebuildType(ast->Ret, NULL);
-	ast->Stats = RefreshStats(ast->Stats, ast->Ret);
+	ast->Stats = RefreshStats(ast->Stats, ast->Ret, ast);
 }
 
 static void RebuildVar(SAstVar* ast)
@@ -1133,7 +1131,7 @@ static void RebuildClass(SAstClass* ast)
 					}
 					if (parent_item == NULL)
 					{
-						if (item->Override != 0)
+						if (item->Override)
 						{
 							Err(L"EA0005", item->Def->Pos, member_name);
 							return;
@@ -1141,7 +1139,7 @@ static void RebuildClass(SAstClass* ast)
 					}
 					else
 					{
-						if (item->Override == 0)
+						if (!item->Override)
 						{
 							Err(L"EA0006", item->Def->Pos, member_name);
 							return;
@@ -1188,7 +1186,7 @@ static void RebuildClass(SAstClass* ast)
 				if (wcscmp(member_name, L"_dtor") == 0 || wcscmp(member_name, L"_copy") == 0 || wcscmp(member_name, L"_toBin") == 0 || wcscmp(member_name, L"_fromBin") == 0)
 				{
 					ASSERT(item->Def->TypeId == AstTypeId_Func);
-					if (item->Override != 0 && (((SAstFunc*)item->Def)->FuncAttr & FuncAttr_Force) == 0)
+					if (item->Override && (((SAstFunc*)item->Def)->FuncAttr & FuncAttr_Force) == 0)
 					{
 						Err(L"EA0010", item->Def->Pos, member_name);
 						return;
@@ -1210,49 +1208,7 @@ static void RebuildClass(SAstClass* ast)
 					// Analyze functions and variables in classes because they can be referred to as instances.
 					SAst* def = item->Def;
 					if (def->TypeId == AstTypeId_Func)
-					{
-						if (item->Override == 2)
-						{
-							// Call its parent's function.
-							SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
-							InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
-							{
-								SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
-								InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, ((SAst*)ast)->Pos);
-								{
-									SAstExpr* expr = (SAstExpr*)Alloc(sizeof(SAstExpr));
-									InitAstExpr(expr, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
-									((SAst*)expr)->RefItem = item->ParentItem->Def;
-									call->Func = expr;
-								}
-								call->Args = ListNew();
-								{
-									SListNode* node = ((SAstFunc*)item->Def)->Args->Top;
-									while (node != NULL)
-									{
-										SAstArg* arg = (SAstArg*)node->Data;
-										{
-											SAstExprCallArg* expr = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
-											{
-												SAstExpr* expr2 = (SAstExpr*)Alloc(sizeof(SAstExpr));
-												InitAstExpr(expr2, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
-												((SAst*)expr2)->RefName = ((SAst*)arg)->Name;
-												((SAst*)expr2)->RefItem = (SAst*)arg;
-												expr->Arg = expr2;
-												expr->RefVar = arg->RefVar;
-												expr->SkipVar = NULL;
-											}
-											ListAdd(call->Args, expr);
-										}
-										node = node->Next;
-									}
-								}
-								do_->Expr = (SAstExpr*)call;
-							}
-							ListIns(((SAstFunc*)def)->Stats, ((SAstFunc*)def)->Stats->Top, do_);
-						}
 						RebuildFunc((SAstFunc*)def);
-					}
 					else if (def->TypeId == AstTypeId_Var)
 						RebuildVar((SAstVar*)def);
 				}
@@ -1786,7 +1742,7 @@ static void RebuildArg(SAstArg* ast)
 	}
 }
 
-static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type)
+static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type, SAstFunc* parent_func)
 {
 	switch (((SAst*)ast)->TypeId)
 	{
@@ -1799,9 +1755,30 @@ static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type)
 		case AstTypeId_StatVar:
 			{
 				SAstStatVar* ast2 = (SAstStatVar*)ast;
-				if (ast2->Def->Var->Expr == NULL)
-					return NULL;
 				RebuildVar(ast2->Def);
+				if (((SAst*)ast2->Def->Var)->Name != NULL && wcscmp(((SAst*)ast2->Def->Var)->Name, L"super") == 0)
+				{
+					ASSERT(parent_func != NULL && ((SAst*)parent_func)->Name != NULL);
+					ASSERT(((SAst*)((SAstArg*)ast2->Def->Var)->Type)->TypeId == AstTypeId_TypeFunc);
+					SAstClass* ref_class = (SAstClass*)((SAst*)((SAstTypeFuncArg*)((SAstTypeFunc*)((SAstArg*)ast2->Def->Var)->Type)->Args->Top->Data)->Arg)->RefItem;
+					ASSERT(((SAst*)ref_class)->TypeId == AstTypeId_Class);
+					SListNode* ptr = ref_class->Items->Top;
+					while (ptr != NULL)
+					{
+						const SAstClassItem* item = (const SAstClassItem*)ptr->Data;
+						if (item->Def->Name != NULL && wcscmp(item->Def->Name, ((SAst*)parent_func)->Name) == 0) // TODO:
+						{
+							ASSERT(item->Override);
+							SAstExpr* ast_ref = (SAstExpr*)Alloc(sizeof(SAstExpr));
+							InitAstExpr(ast_ref, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+							((SAst*)ast_ref)->RefItem = item->ParentItem->Def;
+							ast2->Def->Var->Expr = ast_ref;
+							break;
+						}
+						ptr = ptr->Next;
+					}
+					ASSERT(ptr != NULL);
+				}
 				if (ast2->Def->Var->Expr == NULL)
 					return NULL;
 				{
@@ -1822,21 +1799,21 @@ static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type)
 						ast_do->Expr = (SAstExpr*)ast_assign;
 					}
 					ast2->Def->Var->Expr = NULL;
-					ast = RebuildStat((SAstStat*)ast_do, ret_type);
+					ast = RebuildStat((SAstStat*)ast_do, ret_type, parent_func);
 				}
 			}
 			break;
-		case AstTypeId_StatIf: ast = RebuildIf((SAstStatIf*)ast, ret_type); break;
-		case AstTypeId_StatSwitch: ast = RebuildSwitch((SAstStatSwitch*)ast, ret_type); break;
-		case AstTypeId_StatWhile: ast = RebuildWhile((SAstStatWhile*)ast, ret_type); break;
-		case AstTypeId_StatFor: ast = RebuildFor((SAstStatFor*)ast, ret_type); break;
-		case AstTypeId_StatTry: ast = RebuildTry((SAstStatTry*)ast, ret_type); break;
+		case AstTypeId_StatIf: ast = RebuildIf((SAstStatIf*)ast, ret_type, parent_func); break;
+		case AstTypeId_StatSwitch: ast = RebuildSwitch((SAstStatSwitch*)ast, ret_type, parent_func); break;
+		case AstTypeId_StatWhile: ast = RebuildWhile((SAstStatWhile*)ast, ret_type, parent_func); break;
+		case AstTypeId_StatFor: ast = RebuildFor((SAstStatFor*)ast, ret_type, parent_func); break;
+		case AstTypeId_StatTry: ast = RebuildTry((SAstStatTry*)ast, ret_type, parent_func); break;
 		case AstTypeId_StatThrow: ast = RebuildThrow((SAstStatThrow*)ast); break;
-		case AstTypeId_StatBlock: ast = RebuildBlock((SAstStatBlock*)ast, ret_type); break;
+		case AstTypeId_StatBlock: ast = RebuildBlock((SAstStatBlock*)ast, ret_type, parent_func); break;
 		case AstTypeId_StatRet: ast = RebuildRet((SAstStatRet*)ast, ret_type); break;
 		case AstTypeId_StatDo: ast = RebuildDo((SAstStatDo*)ast); break;
-		case AstTypeId_StatBreak: ast = RebuildBreak((SAstStat*)ast, ret_type); break;
-		case AstTypeId_StatSkip: ast = RebuildSkip((SAstStat*)ast, ret_type); break;
+		case AstTypeId_StatBreak: ast = RebuildBreak((SAstStat*)ast, ret_type, parent_func); break;
+		case AstTypeId_StatSkip: ast = RebuildSkip((SAstStat*)ast, ret_type, parent_func); break;
 		case AstTypeId_StatAssert: ast = RebuildAssert((SAstStatAssert*)ast); break;
 		default:
 			ASSERT(False);
@@ -1848,7 +1825,7 @@ static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type)
 	return ast;
 }
 
-static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
+static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type, SAstFunc* parent_func)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
@@ -1856,7 +1833,7 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
 	ast->Cond = RebuildExpr(ast->Cond, False);
 	if (ast->Cond != NULL && !IsBool(ast->Cond->Type))
 		Err(L"EA0016", ((SAst*)ast->Cond)->Pos);
-	ast->StatBlock = (SAstStatBlock*)RebuildBlock(ast->StatBlock, ret_type);
+	ast->StatBlock = (SAstStatBlock*)RebuildBlock(ast->StatBlock, ret_type, parent_func);
 	{
 		SListNode* ptr = ast->ElIfs->Top;
 		while (ptr != NULL)
@@ -1865,12 +1842,12 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
 			elif->Cond = RebuildExpr(elif->Cond, False);
 			if (elif->Cond != NULL && !IsBool(elif->Cond->Type))
 				Err(L"EA0017", ((SAst*)elif->Cond)->Pos);
-			elif->StatBlock = (SAstStatBlock*)RebuildBlock(elif->StatBlock, ret_type);
+			elif->StatBlock = (SAstStatBlock*)RebuildBlock(elif->StatBlock, ret_type, parent_func);
 			ptr = ptr->Next;
 		}
 	}
 	if (ast->ElseStatBlock != NULL)
-		ast->ElseStatBlock = (SAstStatBlock*)RebuildBlock(ast->ElseStatBlock, ret_type);
+		ast->ElseStatBlock = (SAstStatBlock*)RebuildBlock(ast->ElseStatBlock, ret_type, parent_func);
 	if (ast->Cond != NULL)
 	{
 		// Optimize the code.
@@ -1917,7 +1894,7 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type)
 	return (SAstStat*)ast;
 }
 
-static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type)
+static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type, SAstFunc* parent_func)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
@@ -1959,16 +1936,16 @@ static SAstStat* RebuildSwitch(SAstStatSwitch* ast, SAstType* ret_type)
 				}
 				ptr2 = ptr2->Next;
 			}
-			case_->StatBlock = (SAstStatBlock*)RebuildBlock(case_->StatBlock, ret_type);
+			case_->StatBlock = (SAstStatBlock*)RebuildBlock(case_->StatBlock, ret_type, parent_func);
 			ptr = ptr->Next;
 		}
 	}
 	if (ast->DefaultStatBlock != NULL)
-		ast->DefaultStatBlock = (SAstStatBlock*)RebuildBlock(ast->DefaultStatBlock, ret_type);
+		ast->DefaultStatBlock = (SAstStatBlock*)RebuildBlock(ast->DefaultStatBlock, ret_type, parent_func);
 	return (SAstStat*)ast;
 }
 
-static SAstStat* RebuildWhile(SAstStatWhile* ast, SAstType* ret_type)
+static SAstStat* RebuildWhile(SAstStatWhile* ast, SAstType* ret_type, SAstFunc* parent_func)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
@@ -1979,11 +1956,11 @@ static SAstStat* RebuildWhile(SAstStatWhile* ast, SAstType* ret_type)
 		if (ast->Cond != NULL && !IsBool(ast->Cond->Type))
 			Err(L"EA0020", ((SAst*)ast->Cond)->Pos);
 	}
-	ast->Stats = RefreshStats(ast->Stats, ret_type);
+	ast->Stats = RefreshStats(ast->Stats, ret_type, parent_func);
 	return (SAstStat*)ast;
 }
 
-static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type)
+static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type, SAstFunc* parent_func)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
@@ -2008,17 +1985,17 @@ static SAstStat* RebuildFor(SAstStatFor* ast, SAstType* ret_type)
 		if (*((S64*)((SAstExprValue*)ast->Step)->Value) == 0)
 			Err(L"EA0025", ((SAst*)ast->Step)->Pos);
 	}
-	ast->Stats = RefreshStats(ast->Stats, ret_type);
+	ast->Stats = RefreshStats(ast->Stats, ret_type, parent_func);
 	return (SAstStat*)ast;
 }
 
-static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type)
+static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type, SAstFunc* parent_func)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	RebuildArg(((SAstStatBreakable*)ast)->BlockVar);
-	ast->StatBlock = (SAstStatBlock*)RebuildBlock(ast->StatBlock, ret_type);
+	ast->StatBlock = (SAstStatBlock*)RebuildBlock(ast->StatBlock, ret_type, parent_func);
 	if (ast->Catches->Len != 0)
 	{
 		SListNode* ptr = ast->Catches->Top;
@@ -2040,12 +2017,12 @@ static SAstStat* RebuildTry(SAstStatTry* ast, SAstType* ret_type)
 				}
 				ptr2 = ptr2->Next;
 			}
-			catch_->StatBlock = (SAstStatBlock*)RebuildBlock(catch_->StatBlock, ret_type);
+			catch_->StatBlock = (SAstStatBlock*)RebuildBlock(catch_->StatBlock, ret_type, parent_func);
 			ptr = ptr->Next;
 		}
 	}
 	if (ast->FinallyStatBlock != NULL)
-		ast->FinallyStatBlock = (SAstStatBlock*)RebuildBlock(ast->FinallyStatBlock, ret_type);
+		ast->FinallyStatBlock = (SAstStatBlock*)RebuildBlock(ast->FinallyStatBlock, ret_type, parent_func);
 	return (SAstStat*)ast;
 }
 
@@ -2060,12 +2037,12 @@ static SAstStat* RebuildThrow(SAstStatThrow* ast)
 	return (SAstStat*)ast;
 }
 
-static SAstStat* RebuildBlock(SAstStatBlock* ast, SAstType* ret_type)
+static SAstStat* RebuildBlock(SAstStatBlock* ast, SAstType* ret_type, SAstFunc* parent_func)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
-	ast->Stats = RefreshStats(ast->Stats, ret_type);
+	ast->Stats = RefreshStats(ast->Stats, ret_type, parent_func);
 	return (SAstStat*)ast;
 }
 
@@ -2107,7 +2084,7 @@ static SAstStat* RebuildDo(SAstStatDo* ast)
 	return (SAstStat*)ast;
 }
 
-static SAstStat* RebuildBreak(SAstStat* ast, SAstType* ret_type)
+static SAstStat* RebuildBreak(SAstStat* ast, SAstType* ret_type, SAstFunc* parent_func)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
@@ -2117,11 +2094,11 @@ static SAstStat* RebuildBreak(SAstStat* ast, SAstType* ret_type)
 		Err(L"EA0033", ((SAst*)ast)->Pos);
 		return (SAstStat*)DummyPtr;
 	}
-	((SAst*)ast)->RefItem = (SAst*)RebuildStat((SAstStat*)((SAst*)ast)->RefItem, ret_type);
+	((SAst*)ast)->RefItem = (SAst*)RebuildStat((SAstStat*)((SAst*)ast)->RefItem, ret_type, parent_func);
 	return (SAstStat*)ast;
 }
 
-static SAstStat* RebuildSkip(SAstStat* ast, SAstType* ret_type)
+static SAstStat* RebuildSkip(SAstStat* ast, SAstType* ret_type, SAstFunc* parent_func)
 {
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
@@ -2131,7 +2108,7 @@ static SAstStat* RebuildSkip(SAstStat* ast, SAstType* ret_type)
 		Err(L"EA0034", ((SAst*)ast)->Pos);
 		return (SAstStat*)DummyPtr;
 	}
-	((SAst*)ast)->RefItem = (SAst*)RebuildStat((SAstStat*)((SAst*)ast)->RefItem, ret_type);
+	((SAst*)ast)->RefItem = (SAst*)RebuildStat((SAstStat*)((SAst*)ast)->RefItem, ret_type, parent_func);
 	return (SAstStat*)ast;
 }
 
