@@ -1,5 +1,6 @@
 +class DocArBase(\doc@Doc)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.scrollOffsetX :: 10
 		do me.scrollOffsetY :: 40
 		do me.pageX :: -me.scrollOffsetX
@@ -63,8 +64,8 @@
 
 		func drawRecursion(obj: @Obj2d, pageX: int, pageY: int, hold: @Obj2d)
 			if(hold =& obj)
-				do draw@rectLine((obj.absX - 3 - pageX) $ float, (obj.absY - 3 - pageY) $ float, (obj.width + 6) $ float, (obj.height + 6) $ float, 16#FF6666FF)
-				do draw@rectLine((obj.absX - 4 - pageX) $ float, (obj.absY - 4 - pageY) $ float, (obj.width + 8) $ float, (obj.height + 8) $ float, 16#FF6666FF)
+				do draw@rectLine((obj.absX - 3 - pageX) $ float, (obj.absY - 3 - pageY) $ float, (obj.width + 6) $ float, (obj.height + 6) $ float, 0xFF6666FF)
+				do draw@rectLine((obj.absX - 4 - pageX) $ float, (obj.absY - 4 - pageY) $ float, (obj.width + 8) $ float, (obj.height + 8) $ float, 0xFF6666FF)
 			end if
 			do obj.draw(pageX, pageY)
 			do obj.children.head()
@@ -626,7 +627,8 @@
 end class
 
 +class Obj2d()
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.init("root", 0, 0, 800, 450)
 	end func
 

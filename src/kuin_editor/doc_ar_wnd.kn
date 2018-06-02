@@ -1,5 +1,6 @@
 +class DocArWnd(\doc_ar@DocArBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.obj2dRoot :: #@Obj2dWnd
 	end func
 
@@ -32,7 +33,8 @@
 		ret null
 	end func
 
-	**func addCtrlList(ctrlList: wnd@List)
+	*func addCtrlList(ctrlList: wnd@List)
+		do super(me, ctrlList)
 		do ctrlList.add("button")
 		do ctrlList.add("check")
 		do ctrlList.add("group")
@@ -48,7 +50,8 @@
 end class
 
 class Obj2dWnd(\doc_ar@Obj2dRoot)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.style :: 0
 		do me.layered :: false
 		do me.noMinimize :: false
@@ -62,11 +65,13 @@ class Obj2dWnd(\doc_ar@Obj2dRoot)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 		do me.setProps(node, ["style", "layered", "no_minimize", "text"])
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 		do node.setAttr("style", me.style.toStr())
 		do node.setAttr("layered", me.layered.toStr())
 		do node.setAttr("no_minimize", me.noMinimize.toStr())
@@ -78,13 +83,14 @@ class Obj2dWnd(\doc_ar@Obj2dRoot)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 16#FFF0F0F0)
-		do draw@rect(x, y - 30.0, width, 30.0, 16#FFFFFFFF)
-		do draw@rectLine(x - 1.0, y - 31.0, width + 2.0, height + 32.0, 16#FF1883D7)
+		do draw@rect(x, y, width, height, 0xFFF0F0F0)
+		do draw@rect(x, y - 30.0, width, 30.0, 0xFFFFFFFF)
+		do draw@rectLine(x - 1.0, y - 31.0, width + 2.0, height + 32.0, 0xFF1883D7)
 		do \common@fontP.draw(x + 30.0, y - 30.0 + 6.0, me.text, draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 		var idx: int :: listView.len()
 		do listView.add("style")
 		do listView.setText(idx + 0, 1, style(me.style))
@@ -109,7 +115,8 @@ class Obj2dWnd(\doc_ar@Obj2dRoot)
 		end func
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 		switch(prop)
 		case "style"
 			do me.style :: style(value)
@@ -142,24 +149,28 @@ class Obj2dWnd(\doc_ar@Obj2dRoot)
 end class
 
 class Obj2dWndBase(\doc_ar@Obj2d)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.anchorX :: 0
 		do me.enabled :: true
 		do me.visible :: true
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 		do me.setProps(node, ["anchor_x", "anchor_y", "enabled", "visible"])
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 		do node.setAttr("anchor_x", me.anchorX.toStr())
 		do node.setAttr("anchor_y", me.anchorY.toStr())
 		do node.setAttr("enabled", me.enabled.toStr())
 		do node.setAttr("visible", me.visible.toStr())
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 		var idx: int :: listView.len()
 		do listView.add("anchor_x")
 		do listView.setText(idx + 0, 1, anchor(me.anchorX))
@@ -182,7 +193,8 @@ class Obj2dWndBase(\doc_ar@Obj2d)
 		end func
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 		switch(prop)
 		case "anchor_x"
 			do me.anchorX :: anchor(value)
@@ -213,7 +225,8 @@ class Obj2dWndBase(\doc_ar@Obj2d)
 end class
 
 class Obj2dBtn(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.text :: "button"
 	end func
 
@@ -228,11 +241,13 @@ class Obj2dBtn(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 		do me.setProps(node, ["text"])
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 		do node.setAttr("text", me.text)
 	end func
 
@@ -241,18 +256,20 @@ class Obj2dBtn(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 16#FFE1E1E1)
-		do draw@rectLine(x, y, width, height, 16#FFADADAD)
+		do draw@rect(x, y, width, height, 0xFFE1E1E1)
+		do draw@rectLine(x, y, width, height, 0xFFADADAD)
 		do \common@fontP.draw(lib@floor(x + (width - \common@fontP.calcWidth(me.text)) / 2.0), lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), me.text, draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 		var idx: int :: listView.len()
 		do listView.add("text")
 		do listView.setText(idx + 0, 1, me.text)
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 		switch(prop)
 		case "text"
 			do me.text :: value
@@ -263,7 +280,8 @@ class Obj2dBtn(@Obj2dWndBase)
 end class
 
 class Obj2dChk(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.text :: "check"
 	end func
 
@@ -278,11 +296,13 @@ class Obj2dChk(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 		do me.setProps(node, ["text"])
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 		do node.setAttr("text", me.text)
 	end func
 
@@ -291,18 +311,20 @@ class Obj2dChk(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 16#FFFFFFFF)
-		do draw@rectLine(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 16#FF333333)
+		do draw@rect(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 0xFFFFFFFF)
+		do draw@rectLine(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 0xFF333333)
 		do \common@fontP.draw(x + 18.0, lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), me.text, draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 		var idx: int :: listView.len()
 		do listView.add("text")
 		do listView.setText(idx + 0, 1, me.text)
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 		switch(prop)
 		case "text"
 			do me.text :: value
@@ -313,7 +335,8 @@ class Obj2dChk(@Obj2dWndBase)
 end class
 
 class Obj2dGroup(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.text :: "group"
 	end func
 
@@ -328,11 +351,13 @@ class Obj2dGroup(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 		do me.setProps(node, ["text"])
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 		do node.setAttr("text", me.text)
 	end func
 
@@ -341,17 +366,19 @@ class Obj2dGroup(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rectLine(x, y + 6.0, width, height - 6.0, 16#FFDCDCDC)
+		do draw@rectLine(x, y + 6.0, width, height - 6.0, 0xFFDCDCDC)
 		do \common@fontP.draw(x + 8.0, y + 0.0, me.text, draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 		var idx: int :: listView.len()
 		do listView.add("text")
 		do listView.setText(idx + 0, 1, me.text)
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 		switch(prop)
 		case "text"
 			do me.text :: value
@@ -362,7 +389,8 @@ class Obj2dGroup(@Obj2dWndBase)
 end class
 
 class Obj2dLabel(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.text :: "label"
 	end func
 
@@ -377,11 +405,13 @@ class Obj2dLabel(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 		do me.setProps(node, ["text"])
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 		do node.setAttr("text", me.text)
 	end func
 
@@ -390,17 +420,19 @@ class Obj2dLabel(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 16#FFEEEEEE)
+		do draw@rect(x, y, width, height, 0xFFEEEEEE)
 		do \common@fontP.draw(x, y, me.text, draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 		var idx: int :: listView.len()
 		do listView.add("text")
 		do listView.setText(idx + 0, 1, me.text)
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 		switch(prop)
 		case "text"
 			do me.text :: value
@@ -411,7 +443,8 @@ class Obj2dLabel(@Obj2dWndBase)
 end class
 
 class Obj2dList(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 	end func
 
 	+*func getName(): []char
@@ -425,10 +458,12 @@ class Obj2dList(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 	end func
 
 	+*func draw(pageX: int, pageY: int)
@@ -436,20 +471,23 @@ class Obj2dList(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 16#FFFFFFFF)
-		do draw@rectLine(x, y, width, height, 16#FF828790)
+		do draw@rect(x, y, width, height, 0xFFFFFFFF)
+		do draw@rectLine(x, y, width, height, 0xFF828790)
 		do \common@fontP.draw(x + 5.0, y + 3.0, "list", draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 	end func
 end class
 
 class Obj2dListView(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 	end func
 
 	+*func getName(): []char
@@ -463,10 +501,12 @@ class Obj2dListView(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 	end func
 
 	+*func draw(pageX: int, pageY: int)
@@ -474,20 +514,23 @@ class Obj2dListView(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 16#FFFFFFFF)
-		do draw@rectLine(x, y, width, height, 16#FF828790)
+		do draw@rect(x, y, width, height, 0xFFFFFFFF)
+		do draw@rectLine(x, y, width, height, 0xFF828790)
 		do \common@fontP.draw(x + 5.0, y + 3.0, "list_view", draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 	end func
 end class
 
 class Obj2dDraw(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.equalMagnification :: false
 	end func
 
@@ -502,11 +545,13 @@ class Obj2dDraw(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 		do me.setProps(node, ["equal_magnification"])
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 		do node.setAttr("equal_magnification", me.equalMagnification.toStr())
 	end func
 
@@ -515,16 +560,18 @@ class Obj2dDraw(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 16#FF000000)
+		do draw@rect(x, y, width, height, 0xFF000000)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 		var idx: int :: listView.len()
 		do listView.add("equal_magnification")
 		do listView.setText(idx + 0, 1, me.equalMagnification.toStr())
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 		switch(prop)
 		case "equal_magnification"
 			do me.equalMagnification :: value = "true"
@@ -535,7 +582,8 @@ class Obj2dDraw(@Obj2dWndBase)
 end class
 
 class Obj2dRadio(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.text :: "radio"
 	end func
 
@@ -550,11 +598,13 @@ class Obj2dRadio(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 		do me.setProps(node, ["text"])
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 		do node.setAttr("text", me.text)
 	end func
 
@@ -563,18 +613,20 @@ class Obj2dRadio(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@circle(x + 6.5, y + height / 2.0, 6.5, 6.5, 16#FF333333)
-		do draw@circle(x + 6.5, y + height / 2.0, 5.5, 5.5, 16#FFFFFFFF)
+		do draw@circle(x + 6.5, y + height / 2.0, 6.5, 6.5, 0xFF333333)
+		do draw@circle(x + 6.5, y + height / 2.0, 5.5, 5.5, 0xFFFFFFFF)
 		do \common@fontP.draw(x + 18.0, lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), me.text, draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 		var idx: int :: listView.len()
 		do listView.add("text")
 		do listView.setText(idx + 0, 1, me.text)
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 		switch(prop)
 		case "text"
 			do me.text :: value
@@ -585,7 +637,8 @@ class Obj2dRadio(@Obj2dWndBase)
 end class
 
 class Obj2dEdit(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.readonly :: false
 	end func
 
@@ -600,11 +653,13 @@ class Obj2dEdit(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 		do me.setProps(node, ["readonly"])
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 		do node.setAttr("readonly", me.readonly.toStr())
 	end func
 
@@ -613,18 +668,20 @@ class Obj2dEdit(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 16#FFFFFFFF)
-		do draw@rectLine(x, y, width, height, 16#FF7A7A7A)
+		do draw@rect(x, y, width, height, 0xFFFFFFFF)
+		do draw@rectLine(x, y, width, height, 0xFF7A7A7A)
 		do \common@fontP.draw(x + 5.0, y + 3.0, "edit", draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 		var idx: int :: listView.len()
 		do listView.add("readonly")
 		do listView.setText(idx + 0, 1, me.readonly.toStr())
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 		switch(prop)
 		case "readonly"
 			do me.readonly :: value = "true"
@@ -635,7 +692,8 @@ class Obj2dEdit(@Obj2dWndBase)
 end class
 
 class Obj2dEditMulti(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.readonly :: false
 	end func
 
@@ -650,11 +708,13 @@ class Obj2dEditMulti(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 		do me.setProps(node, ["readonly"])
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 		do node.setAttr("readonly", me.readonly.toStr())
 	end func
 
@@ -663,18 +723,20 @@ class Obj2dEditMulti(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 16#FFFFFFFF)
-		do draw@rectLine(x, y, width, height, 16#FF7A7A7A)
+		do draw@rect(x, y, width, height, 0xFFFFFFFF)
+		do draw@rectLine(x, y, width, height, 0xFF7A7A7A)
 		do \common@fontP.draw(x + 5.0, y + 3.0, "edit_multi", draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 		var idx: int :: listView.len()
 		do listView.add("readonly")
 		do listView.setText(idx + 0, 1, me.readonly.toStr())
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 		switch(prop)
 		case "readonly"
 			do me.readonly :: value = "true"
@@ -685,7 +747,8 @@ class Obj2dEditMulti(@Obj2dWndBase)
 end class
 
 class Obj2dTree(@Obj2dWndBase)
-	**func ctor()
+	*func ctor()
+		do super(me)
 	end func
 
 	+*func getName(): []char
@@ -698,10 +761,12 @@ class Obj2dTree(@Obj2dWndBase)
 		do maxHeight :: lib@intMax
 	end func
 
-	+**func load(node: xml@Node)
+	+*func load(node: xml@Node)
+		do super(me, node)
 	end func
 
-	+**func save(node: xml@Node)
+	+*func save(node: xml@Node)
+		do super(me, node)
 	end func
 
 	+*func draw(pageX: int, pageY: int)
@@ -709,14 +774,16 @@ class Obj2dTree(@Obj2dWndBase)
 		var y: float :: (me.absY - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 16#FFFFFFFF)
-		do draw@rectLine(x, y, width, height, 16#FF828790)
+		do draw@rect(x, y, width, height, 0xFFFFFFFF)
+		do draw@rectLine(x, y, width, height, 0xFF828790)
 		do \common@fontP.draw(x + 5.0, y + 3.0, "tree", draw@black)
 	end func
 
-	+**func updateProp(listView: wnd@ListView, x: int, y: int)
+	+*func updateProp(listView: wnd@ListView, x: int, y: int)
+		do super(me, listView, x, y)
 	end func
 
-	+**func setProp(prop: []char, value: []char)
+	+*func setProp(prop: []char, value: []char)
+		do super(me, prop, value)
 	end func
 end class

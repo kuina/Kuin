@@ -6,7 +6,7 @@
 	end func
 
 	+func cmp(t: @Class): int
-		throw 16#E9170004
+		throw 0xE9170004
 	end func
 
 	func _copy(): @Class

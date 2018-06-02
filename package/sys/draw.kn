@@ -1,5 +1,5 @@
-+const white: int :: 16#FFFFFFFF
-+const black: int :: 16#FF000000
++const white: int :: 0xFFFFFFFF
++const black: int :: 0xFF000000
 
 +func [d0001.knd, _target] target(drawCtrl: wnd@Draw)
 end func
@@ -61,15 +61,15 @@ end func
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0001.knd, _texDraw] draw(dstX: float, dstY: float, srcX: float, srcY: float, srcW: float, srcH: float, color: int)
@@ -103,15 +103,15 @@ end func
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0001.knd, _fontDraw] draw(dstX: float, dstY: float, text: []char, color: int)
@@ -155,15 +155,15 @@ end func
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0001.knd, _objDraw] draw(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)

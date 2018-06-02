@@ -3647,7 +3647,7 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 		int bit_size = 0; // The size for bit types.
 		for (; ; )
 		{
-			if (c == L'#')
+			if (c == L'x')
 			{
 				if (change_base || float_type)
 				{
@@ -3655,19 +3655,14 @@ static SAstExpr* ParseExprNumber(int row, int col, Char c)
 					ReadUntilRet(c);
 					return NULL;
 				}
+				if (len != 1 || buf[0] != L'0')
 				{
-					Char* end_ptr;
-					errno = 0;
-					buf[len] = L'\0';
-					base = wcstol(buf, &end_ptr, 10);
-					if (*end_ptr != L'\0' || errno == ERANGE || !(base == 2 || base == 8 || base == 16))
-					{
-						Err(L"EP0019", NewPos(SrcName, row, col), base);
-						ReadUntilRet(c);
-						return NULL;
-					}
+					Err(L"EP0019", NewPos(SrcName, row, col));
+					ReadUntilRet(c);
+					return NULL;
 				}
 				len = 0;
+				base = 16;
 				change_base = True;
 			}
 			else if (c == L'.')
@@ -3908,7 +3903,7 @@ static void InterpretImpl1Color(int* ptr, int str_level, const Char* str, U8* co
 				{
 					color[*ptr] = new_color;
 					(*ptr)++;
-				} while (L'0' <= str[*ptr] && str[*ptr] <= L'9' || L'A' <= str[*ptr] && str[*ptr] <= L'F' || str[*ptr] == L'#' || str[*ptr] == L'.');
+				} while (L'0' <= str[*ptr] && str[*ptr] <= L'9' || L'A' <= str[*ptr] && str[*ptr] <= L'F' || str[*ptr] == L'x' || str[*ptr] == L'.');
 				if (str[*ptr] == L'e')
 				{
 					color[*ptr] = new_color;
@@ -4311,7 +4306,7 @@ static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_lev
 					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
 					InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
 					(*ptr_str)++;
-				} while (L'0' <= str[*ptr_str] && str[*ptr_str] <= L'9' || L'A' <= str[*ptr_str] && str[*ptr_str] <= L'F' || str[*ptr_str] == L'#' || str[*ptr_str] == L'.');
+				} while (L'0' <= str[*ptr_str] && str[*ptr_str] <= L'9' || L'A' <= str[*ptr_str] && str[*ptr_str] <= L'F' || str[*ptr_str] == L'x' || str[*ptr_str] == L'.');
 				if (str[*ptr_str] == L'e')
 				{
 					Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
@@ -5560,7 +5555,7 @@ static Bool GetKeywordsReadExprNumber(const Char** str, Char c)
 {
 	for (; ; )
 	{
-		if (!(c == L'#' || c == L'.' || L'0' <= c && c <= L'9' || L'A' <= c && c <= L'F'))
+		if (!(c == L'x' || c == L'.' || L'0' <= c && c <= L'9' || L'A' <= c && c <= L'F'))
 			break;
 		c = GetKeywordsRead(str);
 		if (c == L'\0')

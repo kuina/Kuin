@@ -49,13 +49,13 @@ func main()
 			do cui@print((n $ int).toStr() ~ ", " ~ (n = %f).toStr() ~ ", " ~ (n <> %f).toStr() ~ ", " ~ (n < %e).toStr() ~ ", " ~ (n > %e).toStr())
 			do n :: 1234 $ A
 			do cui@print((n $ int).toStr())
-			do n :: 16#FFb8 $ A
+			do n :: 0xFFb8 $ A
 			do cui@print((n $ int).toStr())
-			do n :: 16#FFb16 $ A
+			do n :: 0xFFb16 $ A
 			do cui@print((n $ int).toStr())
-			do n :: 16#FFb32 $ A
+			do n :: 0xFFb32 $ A
 			do cui@print((n $ int).toStr())
-			do n :: 16#FFb64 $ A
+			do n :: 0xFFb64 $ A
 			do cui@print((n $ int).toStr())
 		end block
 	end for

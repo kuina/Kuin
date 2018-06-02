@@ -33,10 +33,10 @@ func main()
 		end block
 
 		block
-			do cui@print((16#12b8).endian().toStr())
-			do cui@print((16#1234b16).endian().toStr())
-			do cui@print((16#12345678b32).endian().toStr())
-			do cui@print((16#12345678ABCDEF01b64).endian().toStr())
+			do cui@print((0x12b8).endian().toStr())
+			do cui@print((0x1234b16).endian().toStr())
+			do cui@print((0x12345678b32).endian().toStr())
+			do cui@print((0x12345678ABCDEF01b64).endian().toStr())
 		end block
 
 		block
@@ -59,7 +59,7 @@ func main()
 			end for
 			var before: []bit8 :: #[14]bit8
 			for i(0, 13)
-				do before[i] :: (i * 16#11) $ bit8
+				do before[i] :: (i * 0x11) $ bit8
 			end for
 			var coded: []bit8 :: lib@encrypt(before, key)
 			do cui@print((^coded).toStr())

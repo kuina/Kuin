@@ -1317,7 +1317,7 @@ static void RebuildClass(SAstClass* ast)
 								}
 								do_->Expr = (SAstExpr*)assign;
 							}
-							ListAdd(dtor->Stats, do_);
+							ListAdd(dtor->Stats, RebuildStat((SAstStat*)do_, dtor->Ret, dtor));
 						}
 						ptr2 = ptr2->Next;
 					}
@@ -1355,7 +1355,7 @@ static void RebuildClass(SAstClass* ast)
 						}
 						var->Def = var2;
 					}
-					ListAdd(copy->Stats, var);
+					ListAdd(copy->Stats, RebuildStat((SAstStat*)var, copy->Ret, copy));
 					{
 						result = (SAstExpr*)Alloc(sizeof(SAstExpr));
 						InitAstExpr(result, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
@@ -1410,7 +1410,7 @@ static void RebuildClass(SAstClass* ast)
 										}
 										do_->Expr = (SAstExpr*)assign;
 									}
-									ListAdd(copy->Stats, do_);
+									ListAdd(copy->Stats, RebuildStat((SAstStat*)do_, copy->Ret, copy));
 								}
 							}
 							ptr2 = ptr2->Next;
@@ -1429,7 +1429,7 @@ static void RebuildClass(SAstClass* ast)
 						as->ChildType = copy->Ret;
 						ret->Value = (SAstExpr*)as;
 					}
-					ListAdd(copy->Stats, ret);
+					ListAdd(copy->Stats, RebuildStat((SAstStat*)ret, copy->Ret, copy));
 				}
 			}
 			// The '_toBin' function.
@@ -1486,7 +1486,7 @@ static void RebuildClass(SAstClass* ast)
 						}
 						var->Def = var2;
 					}
-					ListAdd(to_bin->Stats, var);
+					ListAdd(to_bin->Stats, RebuildStat((SAstStat*)var, to_bin->Ret, to_bin));
 					{
 						result = (SAstExpr*)Alloc(sizeof(SAstExpr));
 						InitAstExpr(result, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
@@ -1537,7 +1537,7 @@ static void RebuildClass(SAstClass* ast)
 										}
 										do_->Expr = (SAstExpr*)assign;
 									}
-									ListAdd(to_bin->Stats, do_);
+									ListAdd(to_bin->Stats, RebuildStat((SAstStat*)do_, to_bin->Ret, to_bin));
 								}
 							}
 							ptr2 = ptr2->Next;
@@ -1549,7 +1549,7 @@ static void RebuildClass(SAstClass* ast)
 					SAstStatRet* ret = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
 					InitAst((SAst*)ret, AstTypeId_StatRet, ((SAst*)ast)->Pos);
 					ret->Value = result;
-					ListAdd(to_bin->Stats, ret);
+					ListAdd(to_bin->Stats, RebuildStat((SAstStat*)ret, to_bin->Ret, to_bin));
 				}
 			}
 			// The '_fromBin' function.
@@ -1578,7 +1578,7 @@ static void RebuildClass(SAstClass* ast)
 						}
 						var->Def = var2;
 					}
-					ListAdd(from_bin->Stats, var);
+					ListAdd(from_bin->Stats, RebuildStat((SAstStat*)var, from_bin->Ret, from_bin));
 					{
 						result = (SAstExpr*)Alloc(sizeof(SAstExpr));
 						InitAstExpr(result, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
@@ -1638,7 +1638,7 @@ static void RebuildClass(SAstClass* ast)
 										}
 										do_->Expr = (SAstExpr*)assign;
 									}
-									ListAdd(from_bin->Stats, do_);
+									ListAdd(from_bin->Stats, RebuildStat((SAstStat*)do_, from_bin->Ret, from_bin));
 								}
 							}
 							ptr2 = ptr2->Next;
@@ -1650,7 +1650,7 @@ static void RebuildClass(SAstClass* ast)
 					SAstStatRet* ret = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
 					InitAst((SAst*)ret, AstTypeId_StatRet, ((SAst*)ast)->Pos);
 					ret->Value = result;
-					ListAdd(from_bin->Stats, ret);
+					ListAdd(from_bin->Stats, RebuildStat((SAstStat*)ret, from_bin->Ret, from_bin));
 				}
 			}
 			RebuildFunc(dtor);

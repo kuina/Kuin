@@ -74,41 +74,41 @@ var drag: bool
 	do @listFile.onSel :: @listFileOnSel
 	do @menuMain :: wnd@makeMenu()
 	do @popupMainFile :: wnd@makePopup()
-	do @popupMainFile.add(16#0001, \common@langEn ?("&New\tCtrl+N", "新規作成(&N)\tCtrl+N"))
-	do @popupMainFile.add(16#0002, \common@langEn ?("&Load...\tCtrl+O", "開く(&O)\tCtrl+O"))
+	do @popupMainFile.add(0x0001, \common@langEn ?("&New\tCtrl+N", "新規作成(&N)\tCtrl+N"))
+	do @popupMainFile.add(0x0002, \common@langEn ?("&Load...\tCtrl+O", "開く(&O)\tCtrl+O"))
 	do @popupMainFile.addLine()
-	do @popupMainFile.add(16#0003, \common@langEn ?("&Save All\tCtrl+S", "すべて保存(&S)\tCtrl+S"))
-	do @popupMainFile.add(16#0004, \common@langEn ?("Save &As...\tCtrl+Shift+S", "名前を付けて保存(&A)\tCtrl+Shift+S"))
+	do @popupMainFile.add(0x0003, \common@langEn ?("&Save All\tCtrl+S", "すべて保存(&S)\tCtrl+S"))
+	do @popupMainFile.add(0x0004, \common@langEn ?("Save &As...\tCtrl+Shift+S", "名前を付けて保存(&A)\tCtrl+Shift+S"))
 	do @popupMainFile.addLine()
-	do @popupMainFile.add(16#0005, \common@langEn ?("E&xit\tCtrl+Q", "終了(&E)\tCtrl+Q"))
+	do @popupMainFile.add(0x0005, \common@langEn ?("E&xit\tCtrl+Q", "終了(&E)\tCtrl+Q"))
 	do @menuMain.addPopup(\common@langEn ?("&File", "ファイル(&F)"), @popupMainFile)
 	do @popupMainEdit :: wnd@makePopup()
-	do @popupMainEdit.add(16#0030, \common@langEn ?("Add Ne&w File\tCtrl+Shift+A", "新しいファイルを追加(&W)\tCtrl+Shift+A"))
-	do @popupMainEdit.add(16#0031, \common@langEn ?("Add Existin&g File", "既存のファイルを追加(&G)"))
+	do @popupMainEdit.add(0x0030, \common@langEn ?("Add Ne&w File\tCtrl+Shift+A", "新しいファイルを追加(&W)\tCtrl+Shift+A"))
+	do @popupMainEdit.add(0x0031, \common@langEn ?("Add Existin&g File", "既存のファイルを追加(&G)"))
 	do @popupMainEdit.addLine()
-	do @popupMainEdit.add(16#0032, \common@langEn ?("&Undo\tCtrl+Z", "元に戻す(&U)\tCtrl+Z"))
-	do @popupMainEdit.add(16#0033, \common@langEn ?("&Redo\tCtrl+Shift+Z, Ctrl+Y", "やり直し(&R)\tCtrl+Shift+Z, Ctrl+Y"))
+	do @popupMainEdit.add(0x0032, \common@langEn ?("&Undo\tCtrl+Z", "元に戻す(&U)\tCtrl+Z"))
+	do @popupMainEdit.add(0x0033, \common@langEn ?("&Redo\tCtrl+Shift+Z, Ctrl+Y", "やり直し(&R)\tCtrl+Shift+Z, Ctrl+Y"))
 	do @popupMainEdit.addLine()
-	do @popupMainEdit.add(16#0034, \common@langEn ?("Cu&t\tCtrl+X", "切り取り(&T)\tCtrl+X"))
-	do @popupMainEdit.add(16#0035, \common@langEn ?("&Copy\tCtrl+C", "コピー(&C)\tCtrl+C"))
-	do @popupMainEdit.add(16#0036, \common@langEn ?("&Paste\tCtrl+V", "貼り付け(&P)\tCtrl+V"))
-	do @popupMainEdit.add(16#0037, \common@langEn ?("&Delete\tDel", "削除(&D)\tDel"))
-	do @popupMainEdit.add(16#0038, \common@langEn ?("Select &All\tCtrl+A", "すべて選択(&A)\tCtrl+A"))
+	do @popupMainEdit.add(0x0034, \common@langEn ?("Cu&t\tCtrl+X", "切り取り(&T)\tCtrl+X"))
+	do @popupMainEdit.add(0x0035, \common@langEn ?("&Copy\tCtrl+C", "コピー(&C)\tCtrl+C"))
+	do @popupMainEdit.add(0x0036, \common@langEn ?("&Paste\tCtrl+V", "貼り付け(&P)\tCtrl+V"))
+	do @popupMainEdit.add(0x0037, \common@langEn ?("&Delete\tDel", "削除(&D)\tDel"))
+	do @popupMainEdit.add(0x0038, \common@langEn ?("Select &All\tCtrl+A", "すべて選択(&A)\tCtrl+A"))
 	do @popupMainEdit.addLine()
-	do @popupMainEdit.add(16#0039, \common@langEn ?("&Find\tCtrl+F", "検索(&F)\tCtrl+F"))
-	do @popupMainEdit.add(16#003A, \common@langEn ?("&Replace\tCtrl+H", "置換(&R)\tCtrl+H"))
-	do @popupMainEdit.add(16#003B, \common@langEn ?("Find Pre&vious\tShift+F3", "前を検索(&V)\tShift+F3"))
-	do @popupMainEdit.add(16#003C, \common@langEn ?("Find &Next\tF3", "次を検索(&N)\tF3"))
+	do @popupMainEdit.add(0x0039, \common@langEn ?("&Find\tCtrl+F", "検索(&F)\tCtrl+F"))
+	do @popupMainEdit.add(0x003A, \common@langEn ?("&Replace\tCtrl+H", "置換(&R)\tCtrl+H"))
+	do @popupMainEdit.add(0x003B, \common@langEn ?("Find Pre&vious\tShift+F3", "前を検索(&V)\tShift+F3"))
+	do @popupMainEdit.add(0x003C, \common@langEn ?("Find &Next\tF3", "次を検索(&N)\tF3"))
 	do @menuMain.addPopup(\common@langEn ?("&Edit", "編集(&E)"), @popupMainEdit)
 	do @popupMainBuild :: wnd@makePopup()
-	do @popupMainBuild.add(16#0020, \common@langEn ?("&Compile && Run\tF5", "コンパイル＆実行(&C)\tF5"))
+	do @popupMainBuild.add(0x0020, \common@langEn ?("&Compile && Run\tF5", "コンパイル＆実行(&C)\tF5"))
 	do @popupMainBuild.addLine()
-	do @popupMainBuild.add(16#0021, \common@langEn ?("&Release Build...\tCtrl+Shift+B", "リリースビルド(&R)...\tCtrl+Shift+B"))
+	do @popupMainBuild.add(0x0021, \common@langEn ?("&Release Build...\tCtrl+Shift+B", "リリースビルド(&R)...\tCtrl+Shift+B"))
 	do @menuMain.addPopup(\common@langEn ?("&Build", "ビルド(&B)"), @popupMainBuild)
 	do @popupMainHelp :: wnd@makePopup()
-	do @popupMainHelp.add(16#0010, \common@langEn ?("&View Help\tF1", "ヘルプの表示(&V)\tF1"))
+	do @popupMainHelp.add(0x0010, \common@langEn ?("&View Help\tF1", "ヘルプの表示(&V)\tF1"))
 	do @popupMainHelp.addLine()
-	do @popupMainHelp.add(16#0011, \common@langEn ?("&About Kuin...", "Kuinについて(&A)..."))
+	do @popupMainHelp.add(0x0011, \common@langEn ?("&About Kuin...", "Kuinについて(&A)..."))
 	do @menuMain.addPopup(\common@langEn ?("&Help", "ヘルプ(&H)"), @popupMainHelp)
 	do @wndMain.setMenu(@menuMain)
 
@@ -151,22 +151,22 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 				do \find@wndFind.close()
 				ret true
 			case %f3
-				do @wndMainOnPushMenu(@wndMain, 16#003C)
+				do @wndMainOnPushMenu(@wndMain, 0x003C)
 				ret true
 			end switch
 		case %shift
 			switch(key)
 			case %f3
-				do @wndMainOnPushMenu(@wndMain, 16#003B)
+				do @wndMainOnPushMenu(@wndMain, 0x003B)
 				ret true
 			end switch
 		case %ctrl
 			switch(key)
 			case %f
-				do @wndMainOnPushMenu(@wndMain, 16#0039)
+				do @wndMainOnPushMenu(@wndMain, 0x0039)
 				ret true
 			case %h
-				do @wndMainOnPushMenu(@wndMain, 16#003A)
+				do @wndMainOnPushMenu(@wndMain, 0x003A)
 				ret true
 			end switch
 		end switch
@@ -180,7 +180,7 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			switch(key)
 			case %del
 				if(!editFocused)
-					do @wndMainOnPushMenu(@wndMain, 16#0037)
+					do @wndMainOnPushMenu(@wndMain, 0x0037)
 					ret true
 				end if
 			case %esc
@@ -192,13 +192,13 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 					ret true
 				end if
 			case %f1
-				do @wndMainOnPushMenu(@wndMain, 16#0010)
+				do @wndMainOnPushMenu(@wndMain, 0x0010)
 				ret true
 			case %f3
-				do @wndMainOnPushMenu(@wndMain, 16#003C)
+				do @wndMainOnPushMenu(@wndMain, 0x003C)
 				ret true
 			case %f5
-				do @wndMainOnPushMenu(@wndMain, 16#0020)
+				do @wndMainOnPushMenu(@wndMain, 0x0020)
 				ret true
 			case %f12
 				var definitionPos: \src@Pos :: \completion@getDefinitionPos()
@@ -209,73 +209,73 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		case %shift
 			switch(key)
 			case %f3
-				do @wndMainOnPushMenu(@wndMain, 16#003B)
+				do @wndMainOnPushMenu(@wndMain, 0x003B)
 				ret true
 			end switch
 		case %ctrl
 			switch(key)
 			case %a
 				if(!editFocused)
-					do @wndMainOnPushMenu(@wndMain, 16#0038)
+					do @wndMainOnPushMenu(@wndMain, 0x0038)
 					ret true
 				end if
 			case %c
 				if(!editFocused)
-					do @wndMainOnPushMenu(@wndMain, 16#0035)
+					do @wndMainOnPushMenu(@wndMain, 0x0035)
 					ret true
 				end if
 			case %f
-				do @wndMainOnPushMenu(@wndMain, 16#0039)
+				do @wndMainOnPushMenu(@wndMain, 0x0039)
 				ret true
 			case %h
-				do @wndMainOnPushMenu(@wndMain, 16#003A)
+				do @wndMainOnPushMenu(@wndMain, 0x003A)
 				ret true
 			case %n
-				do @wndMainOnPushMenu(@wndMain, 16#0001)
+				do @wndMainOnPushMenu(@wndMain, 0x0001)
 				ret true
 			case %o
-				do @wndMainOnPushMenu(@wndMain, 16#0002)
+				do @wndMainOnPushMenu(@wndMain, 0x0002)
 				ret true
 			case %s
-				do @wndMainOnPushMenu(@wndMain, 16#0003)
+				do @wndMainOnPushMenu(@wndMain, 0x0003)
 				ret true
 			case %q
-				do @wndMainOnPushMenu(@wndMain, 16#0005)
+				do @wndMainOnPushMenu(@wndMain, 0x0005)
 				ret true
 			case %v
 				if(!editFocused)
-					do @wndMainOnPushMenu(@wndMain, 16#0036)
+					do @wndMainOnPushMenu(@wndMain, 0x0036)
 					ret true
 				end if
 			case %x
 				if(!editFocused)
-					do @wndMainOnPushMenu(@wndMain, 16#0034)
+					do @wndMainOnPushMenu(@wndMain, 0x0034)
 					ret true
 				end if
 			case %y
 				if(!editFocused)
-					do @wndMainOnPushMenu(@wndMain, 16#0033)
+					do @wndMainOnPushMenu(@wndMain, 0x0033)
 					ret true
 				end if
 			case %z
 				if(!editFocused)
-					do @wndMainOnPushMenu(@wndMain, 16#0032)
+					do @wndMainOnPushMenu(@wndMain, 0x0032)
 					ret true
 				end if
 			end switch
 		case (%shift $ wnd@ShiftCtrl).or(%ctrl)
 			switch(key)
 			case %a
-				do @wndMainOnPushMenu(@wndMain, 16#0030)
+				do @wndMainOnPushMenu(@wndMain, 0x0030)
 			case %b
-				do @wndMainOnPushMenu(@wndMain, 16#0021)
+				do @wndMainOnPushMenu(@wndMain, 0x0021)
 				ret true
 			case %s
-				do @wndMainOnPushMenu(@wndMain, 16#0004)
+				do @wndMainOnPushMenu(@wndMain, 0x0004)
 				ret true
 			case %z
 				if(!editFocused)
-					do @wndMainOnPushMenu(@wndMain, 16#0033)
+					do @wndMainOnPushMenu(@wndMain, 0x0033)
 					ret true
 				end if
 			end switch
@@ -312,7 +312,7 @@ end func
 
 func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	switch(id)
-	case 16#0001
+	case 0x0001
 		if(@lockingEditor)
 			do @showMsgRunning()
 			ret
@@ -320,7 +320,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		if (\src@chkChanged())
 			do \src@newMainSrc()
 		end if
-	case 16#0002
+	case 0x0002
 		if(@lockingEditor)
 			do @showMsgRunning()
 			ret
@@ -331,15 +331,15 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 				do \src@openMainSrc(file)
 			end if
 		end if
-	case 16#0003
+	case 0x0003
 		do \src@saveAll()
-	case 16#0004
+	case 0x0004
 		do \src@saveMainSrc()
-	case 16#0005
+	case 0x0005
 		do @wndMain.close()
-	case 16#0010
+	case 0x0010
 		do task@open("http://kuina.ch/kuin")
-	case 16#0011
+	case 0x0011
 		block
 			var major: int
 			var minor: int
@@ -347,51 +347,51 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			do \dll@version(&major, &minor, &micro)
 			do wnd@msgBox(@wndMain, "Kuin Programming Language\nVersion \{major}.\{minor}.\{micro}\n(C)Kuina-chan", \common@title, %info, %ok)
 		end block
-	case 16#0020
+	case 0x0020
 		if(@lockingEditor)
 			do @showMsgRunning()
 			ret
 		end if
 		do @btnCompileOnPush(@btnCompile)
-	case 16#0021
+	case 0x0021
 		if(@lockingEditor)
 			do @showMsgRunning()
 			ret
 		end if
 		do @btnRlsOnPush(@btnRls)
-	case 16#0030
+	case 0x0030
 		if(@lockingEditor)
 			do @showMsgRunning()
 			ret
 		end if
 		do \add_file@addNewFile()
-	case 16#0031
+	case 0x0031
 		if(@lockingEditor)
 			do @showMsgRunning()
 			ret
 		end if
 		do \add_file@addExistingFile()
-	case 16#0032
+	case 0x0032
 		do \src@curDoc.cmdUndo()
-	case 16#0033
+	case 0x0033
 		do \src@curDoc.cmdRedo()
-	case 16#0034
+	case 0x0034
 		do \src@curDoc.cmdCut()
-	case 16#0035
+	case 0x0035
 		do \src@curDoc.cmdCopy()
-	case 16#0036
+	case 0x0036
 		do \src@curDoc.cmdPaste()
-	case 16#0037
+	case 0x0037
 		do \src@curDoc.cmdDel()
-	case 16#0038
+	case 0x0038
 		do \src@curDoc.cmdSelAll()
-	case 16#0039
+	case 0x0039
 		do \find@show(false)
-	case 16#003A
+	case 0x003A
 		do \find@show(true)
-	case 16#003B
+	case 0x003B
 		do \find@findPrev()
-	case 16#003C
+	case 0x003C
 		do \find@findNext()
 	end switch
 end func

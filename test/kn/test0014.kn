@@ -16,7 +16,7 @@ func main()
 
 		block
 			var f: file@Writer :: file@makeWriter("test_file.bin", false)
-			var b: []bit8 :: [16#01b8, 16#02b8, 16#03b8, 16#04b8, 16#05b8, 16#06b8, 16#07b8]
+			var b: []bit8 :: [0x01b8, 0x02b8, 0x03b8, 0x04b8, 0x05b8, 0x06b8, 0x07b8]
 			do f.write(b)
 			do f.fin()
 		end block

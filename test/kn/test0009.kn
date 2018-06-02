@@ -54,8 +54,8 @@ func main()
 		end block
 
 		block
-			var n: bit8 :: 16#F6b8
-			var m: bit8 :: 16#0Ab8
+			var n: bit8 :: 0xF6b8
+			var m: bit8 :: 0x0Ab8
 			do cui@print(n.or(m).toStr())
 			do cui@print(n.and(m).toStr())
 			do cui@print(n.xor(m).toStr())
@@ -66,8 +66,8 @@ func main()
 		end block
 
 		block
-			var n: bit16 :: 16#F6F6b16
-			var m: bit16 :: 16#0A0Ab16
+			var n: bit16 :: 0xF6F6b16
+			var m: bit16 :: 0x0A0Ab16
 			do cui@print(n.or(m).toStr())
 			do cui@print(n.and(m).toStr())
 			do cui@print(n.xor(m).toStr())
@@ -78,8 +78,8 @@ func main()
 		end block
 
 		block
-			var n: bit32 :: 16#F6F6F6F6b32
-			var m: bit32 :: 16#0A0A0A0Ab32
+			var n: bit32 :: 0xF6F6F6F6b32
+			var m: bit32 :: 0x0A0A0A0Ab32
 			do cui@print(n.or(m).toStr())
 			do cui@print(n.and(m).toStr())
 			do cui@print(n.xor(m).toStr())
@@ -90,8 +90,8 @@ func main()
 		end block
 
 		block
-			var n: bit64 :: 16#F6F6F6F6F6F6F6F6b64
-			var m: bit64 :: 16#0A0A0A0A0A0A0A0Ab64
+			var n: bit64 :: 0xF6F6F6F6F6F6F6F6b64
+			var m: bit64 :: 0x0A0A0A0A0A0A0A0Ab64
 			do cui@print(n.or(m).toStr())
 			do cui@print(n.and(m).toStr())
 			do cui@print(n.xor(m).toStr())

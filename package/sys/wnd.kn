@@ -18,8 +18,8 @@ end func
 	dock
 	dockChild
 }
-	layered :: 16#10000
-	noMinimize :: 16#20000
+	layered :: 0x10000
+	noMinimize :: 0x20000
 end enum
 
 +enum Anchor
@@ -33,15 +33,15 @@ end enum
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0001.knd, _wndBaseGetPos] getPos(x: &int, y: &int, width: &int, height: &int)
@@ -81,7 +81,7 @@ end enum
 	+func find(name: []char): @WndBase
 		if(dbg)
 			if(name =& null)
-				throw 16#E9170006
+				throw 0xE9170006
 			end if
 		end if
 		ret findRecursion(me, name)
@@ -172,8 +172,8 @@ end class
 
 +enum ShiftCtrl
 	none
-	shift :: 16#01
-	ctrl :: 16#02
+	shift :: 0x01
+	ctrl :: 0x02
 end enum
 
 +class Draw(@WndBase)
@@ -511,15 +511,15 @@ end class
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0001.knd, _treeNodeAddChild, _make_instance] addChild(me2: @TreeNode, name: []char): @TreeNode
@@ -588,10 +588,10 @@ end class
 
 +enum MsgBoxIcon
 	none
-	err :: 16#10
-	question :: 16#20
-	warn :: 16#30
-	info :: 16#40
+	err :: 0x10
+	question :: 0x20
+	warn :: 0x30
+	info :: 0x40
 end enum
 
 +enum MsgBoxBtn
@@ -807,15 +807,15 @@ end func
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0001.knd, _menuAdd] add(id: int, text: []char)
@@ -850,15 +850,15 @@ end func
 
 +class TabOrder()
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0001.knd, _tabOrderChk] chk(key: @Key, shiftCtrl: @ShiftCtrl): bool
@@ -874,18 +874,18 @@ end func
 end func
 
 +enum Key
-	mouseL :: 16#01
+	mouseL :: 0x01
 	mouseR
-	mouseM :: 16#04
-	bs :: 16#08
+	mouseM :: 0x04
+	bs :: 0x08
 	tab
-	enter :: 16#0D
-	shift :: 16#10
+	enter :: 0x0D
+	shift :: 0x10
 	ctrl
 	alt
 	pause
-	esc :: 16#1B
-	space :: 16#20
+	esc :: 0x1B
+	space :: 0x20
 	pageUp
 	pageDown
 	end_
@@ -894,9 +894,9 @@ end func
 	up
 	right
 	down
-	ins :: 16#2D
+	ins :: 0x2D
 	del
-	_0 :: 16#30
+	_0 :: 0x30
 	_1
 	_2
 	_3
@@ -906,7 +906,7 @@ end func
 	_7
 	_8
 	_9
-	a :: 16#41
+	a :: 0x41
 	b
 	c
 	d
@@ -932,7 +932,7 @@ end func
 	x
 	y
 	z
-	f1 :: 16#70
+	f1 :: 0x70
 	f2
 	f3
 	f4

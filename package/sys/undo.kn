@@ -14,7 +14,7 @@ end class
 	+func recordBegin()
 		if(dbg & me.state <> 0)
 			do wnd@msgBox(null, "a", "piyo", %none, %ok)
-			throw 16#E917000A
+			throw 0xE917000A
 		end if
 		do me.state :: 1
 	end func
@@ -22,7 +22,7 @@ end class
 	+func add(undo: @Cmd, redo: @Cmd)
 		if(dbg & me.state = 0)
 			do wnd@msgBox(null, "b", "piyo", %none, %ok)
-			throw 16#E917000A
+			throw 0xE917000A
 		end if
 		do me.bufPtr :: me.bufPtrNext(me.bufPtr)
 		do me.undoBuf[me.bufPtr] :: undo
@@ -33,7 +33,7 @@ end class
 	+func recordEnd()
 		if(dbg & me.state = 0)
 			do wnd@msgBox(null, "c", "piyo", %none, %ok)
-			throw 16#E917000A
+			throw 0xE917000A
 		end if
 		if(me.state = 2)
 			do me.bufPtr :: me.bufPtrNext(me.bufPtr)
@@ -53,7 +53,7 @@ end class
 	+func undo()
 		if(dbg & me.state <> 0)
 			do wnd@msgBox(null, "d", "piyo", %none, %ok)
-			throw 16#E917000A
+			throw 0xE917000A
 		end if
 		if(me.undoBuf[me.bufPtrPrev(me.bufPtr)] =& null)
 			ret
@@ -70,7 +70,7 @@ end class
 	+func redo()
 		if(dbg & me.state <> 0)
 			do wnd@msgBox(null, "e", "piyo", %none, %ok)
-			throw 16#E917000A
+			throw 0xE917000A
 		end if
 		if(me.redoBuf[me.bufPtrNext(me.bufPtr)] =& null)
 			ret

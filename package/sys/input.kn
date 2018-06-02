@@ -18,7 +18,7 @@
 end enum
 
 +enum Key
-	esc :: 16#01
+	esc :: 0x01
 	_1
 	_2
 	_3
@@ -101,31 +101,31 @@ end enum
 	num3
 	num0
 	numPeriod
-	f11 :: 16#57
+	f11 :: 0x57
 	f12
-	kana :: 16#70
-	convert :: 16#79
-	noConvert :: 16#7B
-	yen :: 16#7D
-	circumflex :: 16#90
-	kanji :: 16#94
-	numEnter :: 16#9C
+	kana :: 0x70
+	convert :: 0x79
+	noConvert :: 0x7B
+	yen :: 0x7D
+	circumflex :: 0x90
+	kanji :: 0x94
+	numEnter :: 0x9C
 	ctrlR
-	numSlash :: 16#B5
-	sysRq :: 16#B7
+	numSlash :: 0xB5
+	sysRq :: 0xB7
 	altR
-	pause :: 16#C5
-	home :: 16#C7
+	pause :: 0xC5
+	home :: 0xC7
 	up
 	pageUp
-	left :: 16#CB
-	right :: 16#CD
-	end_ :: 16#CF
+	left :: 0xCB
+	right :: 0xCD
+	end_ :: 0xCF
 	down
 	pageDown
 	ins
 	del
-	winL :: 16#DB
+	winL :: 0xDB
 	winR
 	menu
 end enum

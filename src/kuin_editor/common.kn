@@ -4,7 +4,7 @@
 +const langEn: bool :: false
 +const untitledSrcName: []char :: "_untitled_.kn"
 +const untitledInternalName: []char :: "\\_untitled_"
-+const colorBack: int :: 16#FFFFF5F5
++const colorBack: int :: 0xFFFFF5F5
 
 +var title: []char
 +var font: draw@Font
