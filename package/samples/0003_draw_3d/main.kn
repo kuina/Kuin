@@ -12,7 +12,7 @@ func main()
 	var objCone: draw@Obj :: draw@makeObj("res/cone.knobj") {コーンモデルの読み込み}
 	var texCone: draw@Tex :: draw@makeTexEvenArgb(1.0, 0.7, 0.2, 0.1)
 	var texConeSpecular: draw@Tex :: draw@makeTexEvenArgb(2.0, 0.3, 0.3, 0.3)
-	do draw@clearColor(16#FF999999) {背景色の設定}
+	do draw@clearColor(0xFF999999) {背景色の設定}
 	do draw@depth(true, true) {Zバッファの設定}
 	do objBoard.pos(20.0, 20.0, 20.0, 0.0, 0.0, 0.0, 0.0, 0.0, -15.0) {板モデルの位置設定}
 	do objBox.pos(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0) {箱モデルの位置設定}

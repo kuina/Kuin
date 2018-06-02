@@ -64,8 +64,8 @@ end func
 ; 暗号化の鍵を生成する関数
 func getKey(): []bit8
 	; 鍵は32byteでなければならない
-	ret[16#12b8, 16#34b8, 16#56b8, 16#78b8, 16#9Ab8, 16#BCb8, 16#DEb8, 16#F0b8,
-	|16#75b8, 16#38b8, 16#9Bb8, 16#C4b8, 16#21b8, 16#A0b8, 16#DFb8, 16#E6b8,
-	|16#49b8, 16#2Fb8, 16#B5b8, 16#3Db8, 16#01b8, 16#68b8, 16#7Ab8, 16#CEb8,
-	|16#F0b8, 16#52b8, 16#CAb8, 16#E6b8, 16#89b8, 16#D7b8, 16#4Bb8, 16#31b8]
+	ret[0x12b8, 0x34b8, 0x56b8, 0x78b8, 0x9Ab8, 0xBCb8, 0xDEb8, 0xF0b8,
+	|0x75b8, 0x38b8, 0x9Bb8, 0xC4b8, 0x21b8, 0xA0b8, 0xDFb8, 0xE6b8,
+	|0x49b8, 0x2Fb8, 0xB5b8, 0x3Db8, 0x01b8, 0x68b8, 0x7Ab8, 0xCEb8,
+	|0xF0b8, 0x52b8, 0xCAb8, 0xE6b8, 0x89b8, 0xD7b8, 0x4Bb8, 0x31b8]
 end func

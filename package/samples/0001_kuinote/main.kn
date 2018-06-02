@@ -14,12 +14,12 @@ func main()
 	var menuMain: wnd@Menu :: wnd@makeMenu()
 	var popupMainFile: wnd@Popup :: wnd@makePopup()
 	do menuMain.addPopup("&File", popupMainFile)
-	do popupMainFile.add(16#0001, "&New")
+	do popupMainFile.add(0x0001, "&New")
 	do popupMainFile.addLine()
-	do popupMainFile.add(16#0002, "E&xit")
+	do popupMainFile.add(0x0002, "E&xit")
 	var popupMainHelp: wnd@Popup :: wnd@makePopup()
 	do menuMain.addPopup("&Help", popupMainHelp)
-	do popupMainHelp.add(16#1001, "&About Kuinote...")
+	do popupMainHelp.add(0x1001, "&About Kuinote...")
 	; メニューの登録
 	do @wndMain.setMenu(menuMain)
 	; ユーザが操作を行うのを待機する
@@ -40,11 +40,11 @@ end func
 ; メニューが選択されたときに呼ばれるイベント関数
 func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	switch(id)
-	case 16#0001 {New}
+	case 0x0001 {New}
 		do @editText.setText("") {テキストを空にする}
-	case 16#0002 {Exit}
+	case 0x0002 {Exit}
 		do @wndMain.close() {ウインドウを閉じる}
-	case 16#1001 {About Kuinote}
+	case 0x1001 {About Kuinote}
 		do wnd@msgBox(@wndMain, "Kuinote\nVersion 1.0.0\n(C)Kuina-chan", "Kuinote", %info, %ok)
 	end switch
 end func
