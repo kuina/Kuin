@@ -1,0 +1,21 @@
+Begin: ../../test/output/output0021.exe
+Excpt: 80000003
+> 3
+> 5
+> Not found.
+> 3
+> Not found.
+> Not found.
+> 3
+> 5
+> Not found.
+> 3
+> Not found.
+> Not found.
+> 3
+> 5
+> Not found.
+> 3
+> Not found.
+> Not found.
+end: ../../test/output/output0021.exe

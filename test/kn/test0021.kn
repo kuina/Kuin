@@ -1,0 +1,41 @@
+func main()
+	for(1, 3)
+		block
+			var a: list<int> :: #list<int>
+			do a.add(3)
+			do a.add(5)
+			do a.head()
+			if(a.find(3))
+				do cui@print(a.get().toStr())
+			else
+				do cui@print("Not found.")
+			end if
+			if(a.find(5))
+				do cui@print(a.get().toStr())
+			else
+				do cui@print("Not found.")
+			end if
+			if(a.find(7))
+				do cui@print(a.get().toStr())
+			else
+				do cui@print("Not found.")
+			end if
+			do a.tail()
+			if(a.findLast(3))
+				do cui@print(a.get().toStr())
+			else
+				do cui@print("Not found.")
+			end if
+			if(a.findLast(5))
+				do cui@print(a.get().toStr())
+			else
+				do cui@print("Not found.")
+			end if
+			if(a.findLast(7))
+				do cui@print(a.get().toStr())
+			else
+				do cui@print("Not found.")
+			end if
+		end block
+	end for
+end func

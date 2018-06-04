@@ -125,10 +125,16 @@ end func
 func [d0000.knd, _any_type] _sortDescList(me_: []bit8, type: int)
 end func
 
-func [d0000.knd, _any_type, _take_child] _find(me_: []bit8, type: int, item: []bit8, start: int): int
+func [d0000.knd, _any_type, _take_child] _findArray(me_: []bit8, type: int, item: []bit8, start: int): int
 end func
 
-func [d0000.knd, _any_type, _take_child] _findLast(me_: []bit8, type: int, item: []bit8, start: int): int
+func [d0000.knd, _any_type, _take_child] _findList(me_: []bit8, type: int, item: []bit8): bool
+end func
+
+func [d0000.knd, _any_type, _take_child] _findLastArray(me_: []bit8, type: int, item: []bit8, start: int): int
+end func
+
+func [d0000.knd, _any_type, _take_child] _findLastList(me_: []bit8, type: int, item: []bit8): bool
 end func
 
 func [d0000.knd, _any_type, _take_child] _findBin(me_: []bit8, type: int, item: []bit8): int

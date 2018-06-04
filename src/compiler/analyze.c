@@ -18,9 +18,9 @@ static const Char* BuildInFuncs[] =
 	L"endian\0       \x04",
 	L"exist\0        \x0d",
 	L"fill\0         \x05",
-	L"find\0         \x05",
+	L"find\0         \x0e",
 	L"findBin\0      \x05",
-	L"findLast\0     \x05",
+	L"findLast\0     \x0e",
 	L"findStr\0      \x06",
 	L"findStrEx\0    \x06",
 	L"findStrLast\0  \x06",
@@ -3449,6 +3449,10 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 						member = L"sortArray";
 					else if (wcscmp(member, L"sortDesc") == 0)
 						member = L"sortDescArray";
+					else if (wcscmp(member, L"find") == 0)
+						member = L"findArray";
+					else if (wcscmp(member, L"findLast") == 0)
+						member = L"findLastArray";
 					else
 						ASSERT(False);
 				}
@@ -3459,6 +3463,10 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 						member = L"sortList";
 					else if (wcscmp(member, L"sortDesc") == 0)
 						member = L"sortDescList";
+					else if (wcscmp(member, L"find") == 0)
+						member = L"findList";
+					else if (wcscmp(member, L"findLast") == 0)
+						member = L"findLastList";
 					else
 						ASSERT(False);
 				}
