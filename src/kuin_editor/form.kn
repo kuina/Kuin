@@ -1,5 +1,5 @@
 +var wndMain: wnd@Wnd
-+var treeItem: wnd@Tree
++var treeItem: wnd@TreeMulti
 +var listInfo: wnd@List
 var editFile: wnd@Edit
 +var drawEditor: wnd@Draw
@@ -34,7 +34,7 @@ var drag: bool
 	do @wndMain.onClose :: @wndMainOnClose
 	do @wndMain.onActivate :: @wndMainOnActivate
 	do @wndMain.onPushMenu :: @wndMainOnPushMenu
-	do @treeItem :: wnd@makeTree(@wndMain, 12, 12, 244, 466, %fix, %fix)
+	do @treeItem :: wnd@makeTreeMulti(@wndMain, 12, 12, 244, 466, %fix, %fix)
 	do @treeItem.draggable(true)
 	do @treeItem.allowDraggingToRoot(false)
 	do @treeItem.onSel :: @treeItemOnSel

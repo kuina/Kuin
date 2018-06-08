@@ -474,7 +474,7 @@ end class
 	+var onSel: func<(@WndBase)>
 end class
 
-+class Tree(@WndBase)
++class TreeBase(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
@@ -493,16 +493,42 @@ end class
 	+func [d0001.knd, _treeAllowDraggingToRoot] allowDraggingToRoot(enabled: bool)
 	end func
 
+	var draggable_: int
+	var draggingItem: int
+	+var onSel: func<(@WndBase)>
+	+var onMoveNode: func<(@WndBase)>
+end class
+
++class Tree(@TreeBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
 	+func [d0001.knd, _treeSetSel] setSel(node: @TreeNode)
 	end func
 
 	+func [d0001.knd, _treeGetSel, _make_instance] getSel(me2: @TreeNode): @TreeNode
 	end func
+end class
 
-	var draggable_: int
-	var draggingItem: int
-	+var onSel: func<(@WndBase)>
-	+var onMoveNode: func<(@WndBase)>
++class TreeMulti(@TreeBase)
+	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _treeMultiSetSel] setSel(nodes: []@TreeNode)
+	end func
+
+	+func getSel(): []@TreeNode
+		var result: list<@TreeNode> :: #list<@TreeNode>
+		var node: @TreeNode :: me.getSelImpl(null)
+		while(node <>& null)
+			do result.add(node)
+			do node :: me.getSelImpl(node)
+		end while
+		ret result.toArray()
+	end func
+
+	func [d0001.knd, _treeMultiGetSel, _make_instance] getSelImpl(me2: @TreeNode, node: @TreeNode): @TreeNode
+	end func
 end class
 
 +class TreeNode()
@@ -773,6 +799,12 @@ end func
 end func
 
 +func [d0001.knd, _makeTree, _make_instance] makeTree(me2: @Tree, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Tree
+	if(parent <>& null)
+		do parent.addChild(me2)
+	end if
+end func
+
++func [d0001.knd, _makeTreeMulti, _make_instance] makeTreeMulti(me2: @TreeMulti, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @TreeMulti
 	if(parent <>& null)
 		do parent.addChild(me2)
 	end if

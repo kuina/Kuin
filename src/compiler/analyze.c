@@ -1170,7 +1170,9 @@ static void RebuildClass(SAstClass* ast)
 								{
 									SAstArg* arg1 = (SAstArg*)node1->Data;
 									SAstArg* arg2 = (SAstArg*)node2->Data;
-									if (!CmpType(arg1->Type, arg2->Type) || ((SAst*)arg1)->Name != NULL && ((SAst*)arg2)->Name != NULL && wcscmp(((SAst*)arg1)->Name, ((SAst*)arg2)->Name) != 0 || arg1->RefVar != arg2->RefVar)
+									if (((SAst*)arg1->Type)->TypeId == AstTypeId_TypeUser && ((SAst*)arg1->Type)->RefItem == NULL ||
+										((SAst*)arg2->Type)->TypeId == AstTypeId_TypeUser && ((SAst*)arg2->Type)->RefItem == NULL ||
+										!CmpType(arg1->Type, arg2->Type) || ((SAst*)arg1)->Name != NULL && ((SAst*)arg2)->Name != NULL && wcscmp(((SAst*)arg1)->Name, ((SAst*)arg2)->Name) != 0 || arg1->RefVar != arg2->RefVar)
 									{
 										Err(L"EA0009", item->Def->Pos, member_name);
 										return;

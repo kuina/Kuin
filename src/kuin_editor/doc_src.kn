@@ -192,7 +192,7 @@ end func
 		end while
 	end func
 
-	+*func updateTree(tree: wnd@Tree)
+	+*func updateTree(tree: wnd@TreeMulti)
 		; TODO:
 	end func
 
