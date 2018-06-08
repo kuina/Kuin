@@ -933,7 +933,6 @@ static void GcDec(int reg_i, int reg_f, const SAstType* type)
 	ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 	ListAdd(PackAsm->Asms, AsmDEC(ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
 #if defined(_DEBUG)
-	/*
 	{
 		// Since reference counters rarely exceeds 0x10, it is regarded as memory corruption.
 		SAsmLabel* lbl2 = AsmLabel();
@@ -942,7 +941,6 @@ static void GcDec(int reg_i, int reg_f, const SAstType* type)
 		ListAdd(PackAsm->Asms, AsmINT(ValImmU(8, 0x03)));
 		ListAdd(PackAsm->Asms, lbl2);
 	}
-	*/
 #endif
 	ListAdd(PackAsm->Asms, AsmCMP(ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00), ValImmU(8, 0x00)));
 	ListAdd(PackAsm->Asms, AsmJNE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
