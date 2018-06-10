@@ -25,6 +25,7 @@ var popupMainHelp: wnd@Popup
 
 var lockingEditor: bool
 var lockPropOnChange: bool
+var lockTreeItemOnSel: bool
 var textLog: []char
 var drag: bool
 
@@ -116,6 +117,7 @@ var drag: bool
 
 	do @lockingEditor :: false
 	do @lockPropOnChange :: false
+	do @lockTreeItemOnSel :: false
 	do @textLog :: ""
 	do @drag :: false
 end func
@@ -397,6 +399,9 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 end func
 
 func treeItemOnSel(wnd: wnd@WndBase)
+	if(@lockTreeItemOnSel)
+		ret
+	end if
 	do \src@curDoc.treeItemOnSel()
 end func
 
@@ -693,11 +698,13 @@ end func
 end func
 
 +func updateTree()
+	do @lockTreeItemOnSel :: true
 	do @treeItem.setRedraw(false)
 	do @treeItem.clear()
 	do \src@curDoc.updateTree(@treeItem)
 	do @treeItem.expand(true)
 	do @treeItem.setRedraw(true)
+	do @lockTreeItemOnSel :: false
 end func
 
 +func updateList()

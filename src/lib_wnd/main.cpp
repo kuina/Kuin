@@ -1586,14 +1586,7 @@ EXPORT_CPP void _treeMultiSetSel(SClass* me_, void* nodes)
 		if (i == 0)
 			TreeView_Select(me2->WndHandle, node2->Item, TVGN_CARET);
 		else
-		{
-			TVITEM ti;
-			ti.mask = TVIF_STATE;
-			ti.hItem = node2->Item;
-			ti.state = LVIS_SELECTED;
-			ti.stateMask = LVIS_SELECTED;
-			TreeView_SetItem(me2->WndHandle, &ti);
-		}
+			TreeView_SetItemState(me2->WndHandle, node2->Item, TVIS_SELECTED, TVIS_SELECTED);
 	}
 }
 
@@ -2278,8 +2271,22 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 								}
 								break;
 							case TVN_SELCHANGED:
-								if (tree->OnSel != NULL)
-									Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), tree->OnSel);
+								if (wnd_ctrl2->Kind == WndKind_Tree)
+								{
+									if (tree->OnSel != NULL)
+										Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), tree->OnSel);
+								}
+								break;
+							case TVN_ITEMCHANGED:
+								if (wnd_ctrl2->Kind == WndKind_TreeMulti)
+								{
+									if (tree->OnSel != NULL)
+									{
+										NMTVITEMCHANGE* param = reinterpret_cast<NMTVITEMCHANGE*>(l_param);
+										if ((param->uStateOld & TVIS_SELECTED) != (param->uStateNew & TVIS_SELECTED))
+											Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), tree->OnSel);
+									}
+								}
 								break;
 						}
 					}
