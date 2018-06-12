@@ -61,6 +61,9 @@
 	+*func draw(width: int, height: int)
 		do draw@rect(0.0, 0.0, width $ float, height $ float, \common@colorBack)
 		do drawRecursion(me.obj2dRoot, me.pageX, me.pageY, me.holds)
+		if(me.mode = %select)
+			do draw@rectLine((me.holdOffsetX - me.pageX) $ float, (me.holdOffsetY - me.pageY) $ float, (me.selectOffsetX - me.holdOffsetX) $ float, (me.selectOffsetY - me.holdOffsetY) $ float, 0xFF6666FF)
+		end if
 
 		func drawRecursion(obj: @Obj2d, pageX: int, pageY: int, holds: list<@Obj2d>)
 			do holds.head()
@@ -94,17 +97,19 @@
 	end func
 
 	+*func updateTree(tree: wnd@TreeMulti)
-		do updateTreeRecursion(me.holds, tree, tree.root(), me.obj2dRoot)
+		var sels: list<wnd@TreeNode> :: #list<wnd@TreeNode>
+		do updateTreeRecursion(me.holds, tree.root(), me.obj2dRoot, sels)
+		do tree.setSel(sels.toArray())
 
-		func updateTreeRecursion(holds: list<@Obj2d>, tree: wnd@TreeMulti, node: wnd@TreeNode, obj: @Obj2d)
+		func updateTreeRecursion(holds: list<@Obj2d>, node: wnd@TreeNode, obj: @Obj2d, sels: list<wnd@TreeNode>)
 			var node2: wnd@TreeNode :: node.addChild(obj.objName)
 			do holds.head()
 			if(holds.find(obj))
-				do tree.setSel([node2])
+				do sels.add(node2)
 			end if
 			do obj.children.head()
 			while(!obj.children.term())
-				do updateTreeRecursion(holds, tree, node2, obj.children.get())
+				do updateTreeRecursion(holds, node2, obj.children.get(), sels)
 				do obj.children.next()
 			end while
 		end func
@@ -260,7 +265,11 @@
 				do me.holdOffsetX :: obj.absX + obj.width - x2
 				do me.holdOffsetY :: obj.absY + obj.height - y2
 			elif(obj =& me.obj2dRoot)
-				do me.mode :: %none
+				do me.mode :: %select
+				do me.holdOffsetX :: x2
+				do me.holdOffsetY :: y2
+				do me.selectOffsetX :: x2
+				do me.selectOffsetY :: y2
 			else
 				do me.mode :: %move
 				do me.holdOffsetX :: obj.absX - x2
@@ -348,7 +357,39 @@
 			do \form@updateTree()
 			do \form@updateProp()
 			do \form@paintDrawEditor()
+		case %select
+			var x1: int :: me.holdOffsetX
+			var y1: int :: me.holdOffsetY
+			var x2: int :: x + me.pageX
+			var y2: int :: y + me.pageY
+			if(x1 > x2)
+				do x1 :$ x2
+			end if
+			if(y1 > y2)
+				do y1 :$ y2
+			end if
+			do me.holds :: #list<@Obj2d>
+			do selRecursion(me.obj2dRoot, me.obj2dRoot, x1, y1, x2, y2, me.holds)
+			if(^me.holds = 0)
+				do me.holds.add(me.obj2dRoot)
+			end if
+			do me.mode :: %none
+			do \form@updateTree()
+			do \form@updateProp()
+			do \form@paintDrawEditor()
 		end switch
+
+		func selRecursion(root: @Obj2d, obj: @Obj2d, x: int, y: int, x2: int, y2: int, sels: list<@Obj2d>)
+			var result: @Obj2d :: null
+			if(obj <>& root & obj.absX <= x2 & x <= obj.absX + obj.width & obj.absY <= y2 & y <= obj.absY + obj.height)
+				do sels.add(obj)
+			end if
+			do obj.children.head()
+			while(!obj.children.term())
+				do selRecursion(root, obj.children.get(), x, y, x2, y2, sels)
+				do obj.children.next()
+			end while
+		end func
 	end func
 
 	+*func mouseDoubleClick(x: int, y: int)
@@ -377,6 +418,10 @@
 				ret
 			end if
 			do me.resizeObj2d(x + me.pageX, y + me.pageY)
+			do \form@paintDrawEditor()
+		case %select
+			do me.selectOffsetX :: x + me.pageX
+			do me.selectOffsetY :: y + me.pageY
 			do \form@paintDrawEditor()
 		end switch
 	end func
@@ -446,6 +491,8 @@
 			ret %move
 		case %resize
 			ret %resizeLTRD
+		case %select
+			ret %cross
 		default
 			assert false
 		end switch
@@ -519,6 +566,7 @@
 		put
 		move
 		resize
+		select
 	end enum
 
 	var src: [][]char
@@ -532,6 +580,8 @@
 	var holdOffsetY: int
 	var scrollOffsetX: int
 	var scrollOffsetY: int
+	var selectOffsetX: int
+	var selectOffsetY: int
 
 	+func makeObj2d(name: []char): @Obj2d
 	end func
