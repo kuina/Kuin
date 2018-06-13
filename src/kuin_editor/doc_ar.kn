@@ -260,24 +260,25 @@
 				do obj :: me.obj2dRoot
 			end if
 			
+			do me.holdOffsetX :: x2
+			do me.holdOffsetY :: y2
 			if(obj.absX + obj.width - resizeArea <= x2 & obj.absY + obj.height - resizeArea <= y2)
 				do me.mode :: %resize
-				do me.holdOffsetX :: obj.absX + obj.width - x2
-				do me.holdOffsetY :: obj.absY + obj.height - y2
 			elif(obj =& me.obj2dRoot)
 				do me.mode :: %select
-				do me.holdOffsetX :: x2
-				do me.holdOffsetY :: y2
 				do me.selectOffsetX :: x2
 				do me.selectOffsetY :: y2
 			else
 				do me.mode :: %move
-				do me.holdOffsetX :: obj.absX - x2
-				do me.holdOffsetY :: obj.absY - y2
 			end if
 
-			do me.holds :: #list<@Obj2d>
-			do me.holds.add(obj)
+			var found: bool :: me.holds.find(obj)
+			if(!wnd@key(%shift) & !wnd@key(%ctrl) & !found)
+				do me.holds :: #list<@Obj2d>
+			end if
+			if(!found)
+				do me.holds.add(obj)
+			end if
 		else
 			if (\form@getLockingEditor())
 				do \form@showMsgRunning()
@@ -285,8 +286,8 @@
 			end if
 			var name: []char :: \form@listInfo.getText(me.ctrl)
 			do me.mode :: %put
-			do me.holdOffsetX :: 0
-			do me.holdOffsetY :: 0
+			do me.holdOffsetX :: x2
+			do me.holdOffsetY :: y2
 			var obj: @Obj2d :: me.makeObj2d(name)
 			var minWidth: int
 			var minHeight: int
@@ -404,6 +405,8 @@
 				ret
 			end if
 			do me.resizeObj2d(x + me.pageX, y + me.pageY)
+			do me.holdOffsetX :: x + me.pageX
+			do me.holdOffsetY :: y + me.pageY
 			do \form@paintDrawEditor()
 		case %move
 			if (\form@getLockingEditor())
@@ -411,6 +414,8 @@
 				ret
 			end if
 			do me.moveObj2d(x + me.pageX, y + me.pageY)
+			do me.holdOffsetX :: x + me.pageX
+			do me.holdOffsetY :: y + me.pageY
 			do \form@paintDrawEditor()
 		case %resize
 			if (\form@getLockingEditor())
@@ -418,6 +423,8 @@
 				ret
 			end if
 			do me.resizeObj2d(x + me.pageX, y + me.pageY)
+			do me.holdOffsetX :: x + me.pageX
+			do me.holdOffsetY :: y + me.pageY
 			do \form@paintDrawEditor()
 		case %select
 			do me.selectOffsetX :: x + me.pageX
@@ -630,8 +637,8 @@
 		do me.holds.head()
 		while(!me.holds.term())
 			var obj: @Obj2d :: me.holds.get()
-			var width: int :: x - obj.absX + me.holdOffsetX
-			var height: int :: y - obj.absY + me.holdOffsetY
+			var width: int :: obj.width + x - me.holdOffsetX
+			var height: int :: obj.height + y - me.holdOffsetY
 			var minWidth: int
 			var minHeight: int
 			var maxWidth: int
@@ -659,8 +666,8 @@
 		do me.holds.head()
 		while(!me.holds.term())
 			var obj: @Obj2d :: me.holds.get()
-			do obj.absX :: x + me.holdOffsetX
-			do obj.absY :: y + me.holdOffsetY
+			do obj.absX :+ x - me.holdOffsetX
+			do obj.absY :+ y - me.holdOffsetY
 			do me.stick(&obj.absX, &obj.absY)
 			do me.holds.next()
 		end while
