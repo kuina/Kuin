@@ -269,6 +269,10 @@ EXPORT S64 _knapsack(const void* weights, const void* values, S64 max_weight, Bo
 	const S64* values2 = (S64*)((U8*)values + 0x10);
 	S64* dp = (S64*)AllocMem(sizeof(S64) * (size_t)(max_weight + 1));
 	S64 i, j;
+#if defined(DBG)
+	for (i = 0; i < len; i++)
+		THROWDBG(weights2[i] <= 0, 0xe9170006);
+#endif
 	memset(dp, 0, sizeof(S64) * (size_t)(max_weight + 1));
 	if (reuse)
 	{
