@@ -256,20 +256,21 @@
 		var y2: int :: y + me.pageY
 		if(me.ctrl <= 0)
 			var obj: @Obj2d :: selRecursion(me.obj2dRoot, x2, y2)
-			if(obj =& null)
-				do obj :: me.obj2dRoot
-			end if
 			
 			do me.holdOffsetX :: x2
 			do me.holdOffsetY :: y2
-			if(obj.absX + obj.width - resizeArea <= x2 & obj.absY + obj.height - resizeArea <= y2)
+			if(obj <>& null & obj.absX + obj.width - resizeArea <= x2 & obj.absY + obj.height - resizeArea <= y2)
 				do me.mode :: %resize
-			elif(obj =& me.obj2dRoot)
+			elif(obj =& null | obj =& me.obj2dRoot)
 				do me.mode :: %select
 				do me.selectOffsetX :: x2
 				do me.selectOffsetY :: y2
 			else
 				do me.mode :: %move
+			end if
+
+			if(obj =& null)
+				do obj :: me.obj2dRoot
 			end if
 
 			var found: bool :: me.holds.find(obj)

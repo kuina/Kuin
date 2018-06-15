@@ -1512,7 +1512,6 @@ EXPORT_CPP SClass* _makeTreeMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64
 {
 	STree* me2 = reinterpret_cast<STree*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_TreeMulti, WC_TREEVIEW, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | TVS_HASBUTTONS | TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_LINESATROOT, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
-	TreeView_SetExtendedStyle(reinterpret_cast<SWndBase*>(me2)->WndHandle, TVS_EX_MULTISELECT, TVS_EX_MULTISELECT);
 	reinterpret_cast<STreeBase*>(me2)->Draggable = False;
 	reinterpret_cast<STreeBase*>(me2)->AllowDraggingToRoot = False;
 	reinterpret_cast<STreeBase*>(me2)->DraggingItem = NULL;
