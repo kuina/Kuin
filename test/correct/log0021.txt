@@ -7,6 +7,7 @@ Excpt: 80000003
 > Not found.
 > Not found.
 > 7
+> 10
 > 3
 > 5
 > Not found.
@@ -14,6 +15,7 @@ Excpt: 80000003
 > Not found.
 > Not found.
 > 7
+> 10
 > 3
 > 5
 > Not found.
@@ -21,4 +23,5 @@ Excpt: 80000003
 > Not found.
 > Not found.
 > 7
+> 10
 end: ../../test/output/output0021.exe

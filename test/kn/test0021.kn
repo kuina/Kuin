@@ -39,7 +39,8 @@ func main()
 		end block
 
 		block
-			do cui@print(math@knapsack([2, 1, 3, 2], [3, 2, 4, 2], 5).toStr())
+			do cui@print(math@knapsack([2, 1, 3, 2], [3, 2, 4, 2], 5, false).toStr())
+			do cui@print(math@knapsack([3, 4, 2], [4, 5, 3], 7, true).toStr())
 		end block
 	end for
 end func

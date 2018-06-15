@@ -28,7 +28,7 @@ end func
 +func [d0003.knd, _factInt] factInt(n: int): int
 end func
 
-+func [d0003.knd, _knapsack] knapsack(weights: []int, values: []int, maxWeight: int): int
++func [d0003.knd, _knapsack] knapsack(weights: []int, values: []int, maxWeight: int, reuse: bool): int
 end func
 
 +class Mat()
