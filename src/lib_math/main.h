@@ -13,5 +13,6 @@ EXPORT void* _primeFactors(S64 n);
 EXPORT double _gamma(double n);
 EXPORT double _fact(double n);
 EXPORT S64 _factInt(S64 n);
+EXPORT S64 _knapsack(const void* weights, const void* values, S64 max_weight);
 EXPORT SClass* _makeMat(SClass* me_, S64 row, S64 col);
 EXPORT void _matDtor(SClass* me_);

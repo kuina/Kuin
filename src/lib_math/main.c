@@ -260,6 +260,41 @@ EXPORT S64 _factInt(S64 n)
 	return Facts[n];
 }
 
+EXPORT S64 _knapsack(const void* weights, const void* values, S64 max_weight)
+{
+	THROWDBG(weights == NULL || values == NULL, 0xc0000005);
+	THROWDBG(*(S64*)((U8*)weights + 0x08) != *(S64*)((U8*)values + 0x08), 0xe9170006);
+	S64 len = *(S64*)((U8*)weights + 0x08);
+	const S64* weights2 = (S64*)((U8*)weights + 0x10);
+	const S64* values2 = (S64*)((U8*)values + 0x10);
+	S64* dp = (S64*)AllocMem(sizeof(S64) * (size_t)((max_weight + 1) * 2));
+	S64* dp_a = dp;
+	S64* dp_b = dp + (max_weight + 1);
+	S64 i, j;
+	memset(dp_a, 0, sizeof(S64) * (size_t)(max_weight + 1));
+	for (i = 0; i < len; i++)
+	{
+		for (j = 0; j <= max_weight; j++)
+		{
+			if (j < weights2[i])
+				dp_b[j] = dp_a[j];
+			else
+			{
+				S64 value = dp_a[j - weights2[i]] + values2[i];
+				dp_b[j] = dp_a[j] < value ? value : dp_a[j];
+			}
+		}
+		{
+			S64* tmp = dp_a;
+			dp_a = dp_b;
+			dp_b = tmp;
+		}
+	}
+	S64 result = dp_a[max_weight];
+	FreeMem(dp);
+	return result;
+}
+
 EXPORT SClass* _makeMat(SClass* me_, S64 row, S64 col)
 {
 	THROWDBG(row <= 0 || col <= 0, 0xe9170006);

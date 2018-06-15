@@ -6,16 +6,19 @@ Excpt: 80000003
 > 3
 > Not found.
 > Not found.
+> 7
 > 3
 > 5
 > Not found.
 > 3
 > Not found.
 > Not found.
+> 7
 > 3
 > 5
 > Not found.
 > 3
 > Not found.
 > Not found.
+> 7
 end: ../../test/output/output0021.exe
