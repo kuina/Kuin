@@ -56,6 +56,12 @@ end func
 +func [d0001.knd, _circle, _1] circle(x: float, y: float, radiusX: float, radiusY: float, color: int)
 end func
 
++func [d0001.knd, _filterNone] filterNone()
+end func
+
++func [d0001.knd, _filterMonotone, _2] filterMonotone(color: int, rate: float)
+end func
+
 +class Tex()
 	*func [d0001.knd, _texDtor, _force] _dtor()
 	end func

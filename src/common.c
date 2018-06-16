@@ -25,10 +25,6 @@ void* Heap;
 S64* HeapCnt;
 S64 AppCode;
 const U8* UseResFlags;
-/*
-	UseResFlags:
-	1 = draw@circle
-*/
 HINSTANCE Instance;
 
 #if !defined(DBG)
@@ -302,8 +298,9 @@ U8* Utf8ToUtf16(const char* str)
 	return buf;
 }
 
-Bool IsResUsed(S64 idx)
+Bool IsResUsed(EUseResFlagsKind kind)
 {
+	S64 idx = (S64)kind;
 	ASSERT(1 <= idx && (idx - 1) / 8 < USE_RES_FLAGS_LEN);
 	return (UseResFlags[(idx - 1) / 8] & (1 << ((idx - 1) % 8))) != 0;
 }
