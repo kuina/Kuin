@@ -74,7 +74,7 @@ static void* DummyPtr = (void*)1i64; // An invalid pointer used to point to non-
 typedef enum EUseResFlagsKind
 {
 	UseResFlagsKind_Draw_Circle = 1,
-	UseResFlagsKind_Draw_FilterMonotone = 2,
+	UseResFlagsKind_Draw_FilterMonotone,
 } EUseResFlagsKind;
 #define USE_RES_FLAGS_LEN (1)
 

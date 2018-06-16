@@ -227,7 +227,7 @@ EXPORT_CPP void _render(S64 fps)
 		{
 			Draw::ConstBuf(FilterVs, NULL);
 			Device->GSSetShader(NULL);
-			Draw::ConstBuf(FilterPs[FilterIdx], FilterParam);
+			Draw::ConstBuf(FilterPs[FilterIdx], FilterIdx == 0 ? NULL : FilterParam);
 			Draw::VertexBuf(FilterVertex);
 			Device->PSSetShaderResources(0, 1, &CurWndBuf->TmpShaderResView);
 		}
