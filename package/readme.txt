@@ -50,7 +50,8 @@ v.2018.6.17
         - 16進数リテラルの構文を「16#」から「0x」に変更
     - 細かな機能追加
         - list.find、list.findLastメソッドの追加
-        - math@knapsack、draw@filterNone、draw@filterMonotone関数の追加
+        - math@knapsack、math@dijkstra、math@bellmanFord、math@floydWarshall、
+          draw@filterNone、draw@filterMonotone関数の追加
 
 v.2018.5.17
     - 輪郭線を描画するメソッドdraw@Obj.drawOutlineの追加

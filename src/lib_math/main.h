@@ -14,5 +14,8 @@ EXPORT double _gamma(double n);
 EXPORT double _fact(double n);
 EXPORT S64 _factInt(S64 n);
 EXPORT S64 _knapsack(const void* weights, const void* values, S64 max_weight, Bool reuse);
+EXPORT void* _dijkstra(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values, S64 begin_node);
+EXPORT void* _bellmanFord(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values, S64 begin_node);
+EXPORT void* _floydWarshall(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values);
 EXPORT SClass* _makeMat(SClass* me_, S64 row, S64 col);
 EXPORT void _matDtor(SClass* me_);

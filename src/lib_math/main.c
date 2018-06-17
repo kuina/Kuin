@@ -303,6 +303,200 @@ EXPORT S64 _knapsack(const void* weights, const void* values, S64 max_weight, Bo
 	return result;
 }
 
+EXPORT void* _dijkstra(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values, S64 begin_node)
+{
+	THROWDBG(from_nodes == NULL || to_nodes == NULL || values == NULL, 0xc0000005);
+	THROWDBG(*(S64*)((U8*)from_nodes + 0x08) != *(S64*)((U8*)to_nodes + 0x08) || *(S64*)((U8*)to_nodes + 0x08) != *(S64*)((U8*)values + 0x08), 0xe9170006);
+	THROWDBG(node_num <= 0 || begin_node < 0 || node_num <= begin_node, 0xe9170006);
+	const S64* from_nodes2 = (S64*)((U8*)from_nodes + 0x10);
+	const S64* to_nodes2 = (S64*)((U8*)to_nodes + 0x10);
+	const S64* values2 = (S64*)((U8*)values + 0x10);
+	S64 len = *(S64*)((U8*)from_nodes + 0x08);
+	S64 i;
+#if defined(DBG)
+	for (i = 0; i < len; i++)
+		THROWDBG(from_nodes2[i] < 0 || node_num <= from_nodes2[i] || to_nodes2[i] < 0 || node_num <= to_nodes2[i] || values2[i] < 0, 0xe9170006);
+#endif
+
+	U8* result = (U8*)AllocMem(0x10 + sizeof(S64) * (size_t)node_num);
+	((S64*)result)[0] = DefaultRefCntFunc;
+	((S64*)result)[1] = node_num;
+	S64* distance = (S64*)(result + 0x10);
+	for (i = 0; i < node_num; i++)
+		distance[i] = LLONG_MAX;
+	distance[begin_node] = 0;
+
+	S64* heap = (S64*)AllocMem(sizeof(S64) * (2 * (size_t)(node_num * len) + 2));
+	int heap_cnt = 1;
+	heap[0] = begin_node;
+	heap[1] = 0;
+	while (heap_cnt > 0)
+	{
+		S64 item_node = heap[0];
+		S64 item_value = heap[1];
+		heap_cnt--;
+		heap[0] = heap[heap_cnt * 2];
+		heap[1] = heap[heap_cnt * 2 + 1];
+		{
+			S64 del_idx = 0;
+			for (; ; )
+			{
+				if ((del_idx + 1) * 2 - 1 < heap_cnt && heap[del_idx * 2 + 1] > heap[((del_idx + 1) * 2 - 1) * 2 + 1])
+				{
+					S64 tmp;
+					tmp = heap[del_idx * 2];
+					heap[del_idx * 2] = heap[((del_idx + 1) * 2 - 1) * 2];
+					heap[((del_idx + 1) * 2 - 1) * 2] = tmp;
+					tmp = heap[del_idx * 2 + 1];
+					heap[del_idx * 2 + 1] = heap[((del_idx + 1) * 2 - 1) * 2 + 1];
+					heap[((del_idx + 1) * 2 - 1) * 2 + 1] = tmp;
+					del_idx = (del_idx + 1) * 2 - 1;
+				}
+				else if ((del_idx + 1) * 2 < heap_cnt && heap[del_idx * 2 + 1] > heap[((del_idx + 1) * 2) * 2 + 1])
+				{
+					S64 tmp;
+					tmp = heap[del_idx * 2];
+					heap[del_idx * 2] = heap[((del_idx + 1) * 2) * 2];
+					heap[((del_idx + 1) * 2) * 2] = tmp;
+					tmp = heap[del_idx * 2 + 1];
+					heap[del_idx * 2 + 1] = heap[((del_idx + 1) * 2) * 2 + 1];
+					heap[((del_idx + 1) * 2) * 2 + 1] = tmp;
+					del_idx = (del_idx + 1) * 2;
+				}
+				else
+					break;
+			}
+		}
+		if (distance[item_node] < item_value)
+			continue;
+		for (i = 0; i < len; i++)
+		{
+			if (from_nodes2[i] != item_node)
+				continue;
+			if (distance[to_nodes2[i]] > distance[item_node] + values2[i])
+			{
+				distance[to_nodes2[i]] = distance[item_node] + values2[i];
+				heap[heap_cnt * 2] = to_nodes2[i];
+				heap[heap_cnt * 2 + 1] = distance[to_nodes2[i]];
+				{
+					S64 ins_idx = heap_cnt;
+					for (; ; )
+					{
+						if (ins_idx > 0 && heap[ins_idx * 2 + 1] < heap[(ins_idx - 1) / 2 * 2 + 1])
+						{
+							S64 tmp;
+							tmp = heap[ins_idx * 2];
+							heap[ins_idx * 2] = heap[(ins_idx - 1) / 2 * 2];
+							heap[(ins_idx - 1) / 2 * 2] = tmp;
+							tmp = heap[ins_idx * 2 + 1];
+							heap[ins_idx * 2 + 1] = heap[(ins_idx - 1) / 2 * 2 + 1];
+							heap[(ins_idx - 1) / 2 * 2 + 1] = tmp;
+							ins_idx = (ins_idx - 1) / 2;
+						}
+						else
+							break;
+					}
+				}
+				heap_cnt++;
+			}
+		}
+	}
+	FreeMem(heap);
+
+	return result;
+}
+
+EXPORT void* _bellmanFord(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values, S64 begin_node)
+{
+	THROWDBG(from_nodes == NULL || to_nodes == NULL || values == NULL, 0xc0000005);
+	THROWDBG(*(S64*)((U8*)from_nodes + 0x08) != *(S64*)((U8*)to_nodes + 0x08) || *(S64*)((U8*)to_nodes + 0x08) != *(S64*)((U8*)values + 0x08), 0xe9170006);
+	THROWDBG(node_num <= 0 || begin_node < 0 || node_num <= begin_node, 0xe9170006);
+	const S64* from_nodes2 = (S64*)((U8*)from_nodes + 0x10);
+	const S64* to_nodes2 = (S64*)((U8*)to_nodes + 0x10);
+	const S64* values2 = (S64*)((U8*)values + 0x10);
+	S64 len = *(S64*)((U8*)from_nodes + 0x08);
+	S64 i;
+#if defined(DBG)
+	for (i = 0; i < len; i++)
+		THROWDBG(from_nodes2[i] < 0 || node_num <= from_nodes2[i] || to_nodes2[i] < 0 || node_num <= to_nodes2[i], 0xe9170006);
+#endif
+
+	U8* result = (U8*)AllocMem(0x10 + sizeof(S64) * (size_t)node_num);
+	((S64*)result)[0] = DefaultRefCntFunc;
+	((S64*)result)[1] = node_num;
+	S64* distance = (S64*)(result + 0x10);
+	for (i = 0; i < node_num; i++)
+		distance[i] = LLONG_MAX;
+	distance[begin_node] = 0;
+
+	Bool found;
+	do
+	{
+		found = False;
+		for (i = 0; i < len; i++)
+		{
+			S64 from_distance = distance[from_nodes2[i]];
+			if (from_distance != LLONG_MAX && distance[to_nodes2[i]] > from_distance + values2[i])
+			{
+				distance[to_nodes2[i]] = from_distance + values2[i];
+				found = True;
+			}
+		}
+	} while (found);
+	return result;
+}
+
+EXPORT void* _floydWarshall(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values)
+{
+	THROWDBG(from_nodes == NULL || to_nodes == NULL || values == NULL, 0xc0000005);
+	THROWDBG(*(S64*)((U8*)from_nodes + 0x08) != *(S64*)((U8*)to_nodes + 0x08) || *(S64*)((U8*)to_nodes + 0x08) != *(S64*)((U8*)values + 0x08), 0xe9170006);
+	THROWDBG(node_num <= 0, 0xe9170006);
+	const S64* from_nodes2 = (S64*)((U8*)from_nodes + 0x10);
+	const S64* to_nodes2 = (S64*)((U8*)to_nodes + 0x10);
+	const S64* values2 = (S64*)((U8*)values + 0x10);
+	S64 len = *(S64*)((U8*)from_nodes + 0x08);
+	S64 i, j, k;
+#if defined(DBG)
+	for (i = 0; i < len; i++)
+		THROWDBG(from_nodes2[i] < 0 || node_num <= from_nodes2[i] || to_nodes2[i] < 0 || node_num <= to_nodes2[i], 0xe9170006);
+#endif
+
+	U8* result = (U8*)AllocMem(0x10 + sizeof(void**) * (size_t)node_num);
+	((S64*)result)[0] = DefaultRefCntFunc;
+	((S64*)result)[1] = node_num;
+	void** ptr = (void**)(result + 0x10);
+	for (i = 0; i < node_num; i++)
+	{
+		void* item = AllocMem(0x10 + sizeof(S64) * (size_t)node_num);
+		((S64*)item)[0] = 1;
+		((S64*)item)[1] = node_num;
+		S64* ptr2 = (S64*)item + 2;
+		for (j = 0; j < node_num; j++)
+			ptr2[j] = i == j ? 0 : LLONG_MAX;
+		ptr[i] = item;
+	}
+	for (i = 0; i < len; i++)
+		((S64*)ptr[from_nodes2[i]] + 2)[to_nodes2[i]] = values2[i];
+	for (i = 0; i < node_num; i++)
+	{
+		for (j = 0; j < node_num; j++)
+		{
+			for (k = 0; k < node_num; k++)
+			{
+				S64 a = ((S64*)ptr[j] + 2)[i];
+				S64 b = ((S64*)ptr[i] + 2)[k];
+				if (a == LLONG_MAX || b == LLONG_MAX)
+					continue;
+				S64 value = a + b;
+				if (((S64*)ptr[j] + 2)[k] > value)
+					((S64*)ptr[j] + 2)[k] = value;
+			}
+		}
+	}
+
+	return result;
+}
+
 EXPORT SClass* _makeMat(SClass* me_, S64 row, S64 col)
 {
 	THROWDBG(row <= 0 || col <= 0, 0xe9170006);

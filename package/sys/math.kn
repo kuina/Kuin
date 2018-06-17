@@ -31,6 +31,15 @@ end func
 +func [d0003.knd, _knapsack] knapsack(weights: []int, values: []int, maxWeight: int, reuse: bool): int
 end func
 
++func [d0003.knd, _dijkstra] dijkstra(nodeNum: int, fromNodes: []int, toNodes: []int, values: []int, beginNode: int): []int
+end func
+
++func [d0003.knd, _bellmanFord] bellmanFord(nodeNum: int, fromNodes: []int, toNodes: []int, values: []int, beginNode: int): []int
+end func
+
++func [d0003.knd, _floydWarshall] floydWarshall(nodeNum: int, fromNodes: []int, toNodes: []int, values: []int): [][]int
+end func
+
 +class Mat()
 	*func [d0003.knd, _matDtor, _force] _dtor()
 	end func
