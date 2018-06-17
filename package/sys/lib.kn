@@ -8,8 +8,8 @@ end func
 
 +func [_exit_code] exitCode(code: int)
 	if(dbg)
-		if(code < 0 | 16#FFFFFFFF < code)
-			throw 16#E9170006
+		if(code < 0 | 0xFFFFFFFF < code)
+			throw 0xE9170006
 		end if
 	end if
 end func
@@ -19,15 +19,15 @@ end func
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0000.knd, _rndRnd] rnd(min: int, max: int): int
@@ -176,15 +176,15 @@ end func
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0000.knd, _bmSearchFind] find(text: []char, start: int): int

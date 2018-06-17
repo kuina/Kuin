@@ -1413,7 +1413,7 @@ EXPORT void _sortDescList(void* me_, const U8* type)
 	MergeSortList(me_, type, False);
 }
 
-EXPORT S64 _find(const void* me_, const U8* type, const void* item, S64 start)
+EXPORT S64 _findArray(const void* me_, const U8* type, const void* item, S64 start)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
@@ -1438,7 +1438,28 @@ EXPORT S64 _find(const void* me_, const U8* type, const void* item, S64 start)
 	return -1;
 }
 
-EXPORT S64 _findLast(const void* me_, const U8* type, const void* item, S64 start)
+EXPORT Bool _findList(const void* me_, const U8* type, const void* item)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	size_t size = GetSize(type[1]);
+	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
+	if (cmp == NULL)
+		THROW(0xe9170004);
+	for (; ; )
+	{
+		void* cur = *(void**)((U8*)me_ + 0x20);
+		if (cur == NULL)
+			break;
+		void* value = NULL;
+		memcpy(&value, (U8*)cur + 0x10, size);
+		if (cmp(value, item) == 0)
+			return True;
+		*(void**)((U8*)me_ + 0x20) = *(void**)((U8*)cur + 0x08);
+	}
+	return False;
+}
+
+EXPORT S64 _findLastArray(const void* me_, const U8* type, const void* item, S64 start)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
 	size_t size = GetSize(type[1]);
@@ -1461,6 +1482,27 @@ EXPORT S64 _findLast(const void* me_, const U8* type, const void* item, S64 star
 		ptr -= size;
 	}
 	return -1;
+}
+
+EXPORT Bool _findLastList(const void* me_, const U8* type, const void* item)
+{
+	THROWDBG(me_ == NULL, 0xc0000005);
+	size_t size = GetSize(type[1]);
+	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
+	if (cmp == NULL)
+		THROW(0xe9170004);
+	for (; ; )
+	{
+		void* cur = *(void**)((U8*)me_ + 0x20);
+		if (cur == NULL)
+			break;
+		void* value = NULL;
+		memcpy(&value, (U8*)cur + 0x10, size);
+		if (cmp(value, item) == 0)
+			return True;
+		*(void**)((U8*)me_ + 0x20) = *(void**)cur;
+	}
+	return False;
 }
 
 EXPORT S64 _findBin(const void* me_, const U8* type, const void* item)

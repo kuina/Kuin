@@ -71,7 +71,13 @@ static const S64 DefaultRefCntOpe = 1; // For 'GcInstance'.
 
 static void* DummyPtr = (void*)1i64; // An invalid pointer used to point to non-NULL.
 
+typedef enum EUseResFlagsKind
+{
+	UseResFlagsKind_Draw_Circle = 1,
+	UseResFlagsKind_Draw_FilterMonotone,
+} EUseResFlagsKind;
 #define USE_RES_FLAGS_LEN (1)
+
 extern void* Heap;
 extern S64* HeapCnt;
 extern S64 AppCode;
@@ -96,7 +102,7 @@ Bool IsPowerOf2(U64 n);
 U32 XorShift(U32* seed);
 char* Utf16ToUtf8(const U8* str);
 U8* Utf8ToUtf16(const char* str);
-Bool IsResUsed(S64 idx);
+Bool IsResUsed(EUseResFlagsKind kind);
 
 #define THROW(code) ThrowImpl(code)
 #if defined(DBG)

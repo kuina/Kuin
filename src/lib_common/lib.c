@@ -20,7 +20,7 @@ EXPORT void* _cmdLine(void)
 	{
 		int i;
 		void** ptr;
-		U8* result = (U8*)AllocMem(0x10 + sizeof(Char*) * (size_t)(num - 1));
+		U8* result = (U8*)AllocMem(0x10 + sizeof(void**) * (size_t)(num - 1));
 		((S64*)result)[0] = DefaultRefCntFunc;
 		((S64*)result)[1] = (S64)(num - 1);
 		ptr = (void**)(result + 0x10);

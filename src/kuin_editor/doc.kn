@@ -24,7 +24,7 @@
 	+func updateProp(listView: wnd@ListView)
 	end func
 
-	+func updateTree(tree: wnd@Tree)
+	+func updateTree(tree: wnd@TreeMulti)
 	end func
 
 	+func updateList(list_: wnd@List)

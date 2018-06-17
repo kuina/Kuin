@@ -17,6 +17,7 @@ static const int JointMax = 256;
 static const int FontBitmapSize = 1024;
 static const int TexEvenNum = 3;
 static const double DiscardAlpha = 0.02;
+static const int FilterNum = 2;
 
 struct SWndBuf
 {
@@ -159,7 +160,8 @@ const U8* GetObjOutlineVsBin(size_t* size);
 const U8* GetObjOutlineJointVsBin(size_t* size);
 const U8* GetObjOutlinePsBin(size_t* size);
 const U8* GetFilterVsBin(size_t* size);
-const U8* GetFilterPsBin(size_t* size);
+const U8* GetFilterNonePsBin(size_t* size);
+const U8* GetFilterMonotonePsBin(size_t* size);
 const U8* GetToonRampPngBin(size_t* size);
 
 static S64 Cnt;
@@ -194,7 +196,7 @@ static void* ObjOutlineJointVs = NULL;
 static void* ObjOutlinePs = NULL;
 static void* FilterVertex = NULL;
 static void* FilterVs = NULL;
-static void* FilterPs = NULL;
+static void* FilterPs[FilterNum] = { NULL };
 static double ViewMat[4][4];
 static double ProjMat[4][4];
 static SObjVsConstBuf ObjVsConstBuf;
@@ -206,6 +208,8 @@ ID3D10Texture2D* TexToonRamp;
 ID3D10ShaderResourceView* ViewToonRamp;
 ID3D10Texture2D* TexEven[TexEvenNum];
 ID3D10ShaderResourceView* ViewEven[TexEvenNum];
+static int FilterIdx = 0;
+static float FilterParam[4][4];
 
 EXPORT_CPP void _render(S64 fps)
 {
@@ -223,7 +227,7 @@ EXPORT_CPP void _render(S64 fps)
 		{
 			Draw::ConstBuf(FilterVs, NULL);
 			Device->GSSetShader(NULL);
-			Draw::ConstBuf(FilterPs, NULL);
+			Draw::ConstBuf(FilterPs[FilterIdx], FilterIdx == 0 ? NULL : FilterParam);
 			Draw::VertexBuf(FilterVertex);
 			Device->PSSetShaderResources(0, 1, &CurWndBuf->TmpShaderResView);
 		}
@@ -533,6 +537,27 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 		Draw::VertexBuf(CircleVertex);
 	}
 	Device->DrawIndexed(6, 0, 0);
+}
+
+EXPORT_CPP void _filterNone()
+{
+	FilterIdx = 0;
+}
+
+EXPORT_CPP void _filterMonotone(S64 color, double rate)
+{
+	double r, g, b, a;
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
+	if (rate < 0.0)
+		rate = 0.0;
+	else if (rate > 1.0)
+		rate = 1.0;
+
+	FilterIdx = 1;
+	FilterParam[0][0] = static_cast<float>(r);
+	FilterParam[0][1] = static_cast<float>(g);
+	FilterParam[0][2] = static_cast<float>(b);
+	FilterParam[0][3] = static_cast<float>(rate);
 }
 
 EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path)
@@ -1801,7 +1826,7 @@ void Init()
 	}
 
 	// Initialize 'Circle'.
-	if (IsResUsed(1))
+	if (IsResUsed(UseResFlagsKind_Draw_Circle))
 	{
 		{
 			float vertices[] =
@@ -2042,8 +2067,14 @@ void Init()
 			}
 			{
 				size_t size;
-				const U8* bin = GetFilterPsBin(&size);
-				FilterPs = MakeShaderBuf(ShaderKind_Ps, size, bin, 0, 0, NULL, NULL);
+				const U8* bin = GetFilterNonePsBin(&size);
+				FilterPs[0] = MakeShaderBuf(ShaderKind_Ps, size, bin, 0, 0, NULL, NULL);
+			}
+			if (IsResUsed(UseResFlagsKind_Draw_FilterMonotone))
+			{
+				size_t size;
+				const U8* bin = GetFilterMonotonePsBin(&size);
+				FilterPs[1] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
 			}
 		}
 	}
@@ -2190,8 +2221,11 @@ void Fin()
 		ViewToonRamp->Release();
 	if (TexToonRamp != NULL)
 		TexToonRamp->Release();
-	if (FilterPs != NULL)
-		FinShaderBuf(FilterPs);
+	for (int i = 0; i < FilterNum; i++)
+	{
+		if (FilterPs[i] != NULL)
+			FinShaderBuf(FilterPs[i]);
+	}
 	if (FilterVs != NULL)
 		FinShaderBuf(FilterVs);
 	if (FilterVertex != NULL)

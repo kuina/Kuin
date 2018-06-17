@@ -411,8 +411,8 @@ end func
 			var y: int :: pos.row - 1
 			var color: bit8
 			if(moveWordTop(doc2.src.src, doc2.src.color, &x, &y, &color))
-				while(x < ^doc2.src.color[y] & doc2.src.color[y][x].and(16#7Fb8) = color)
-					do doc2.src.color[y][x] :: doc2.src.color[y][x].or(16#80b8)
+				while(x < ^doc2.src.color[y] & doc2.src.color[y][x].and(0x7Fb8) = color)
+					do doc2.src.color[y][x] :: doc2.src.color[y][x].or(0x80b8)
 					do x :+ 1
 				end while
 			end if
@@ -425,7 +425,7 @@ end func
 			elif(^srcColor <= y)
 				do y :: ^srcColor - 1
 			end if
-			if(1 <= x & x < ^srcColor[y] & (src[y][x] = ' ' | src[y][x] = '\t' | srcColor[y][x].and(16#7Fb8) = %comment $ \doc_src@CharColor $ bit8 | srcColor[y][x].and(16#7Fb8) = %symbol $ \doc_src@CharColor $ bit8))
+			if(1 <= x & x < ^srcColor[y] & (src[y][x] = ' ' | src[y][x] = '\t' | srcColor[y][x].and(0x7Fb8) = %comment $ \doc_src@CharColor $ bit8 | srcColor[y][x].and(0x7Fb8) = %symbol $ \doc_src@CharColor $ bit8))
 				do x :- 1
 			end if
 			if(x < 0)
@@ -434,8 +434,8 @@ end func
 				do x :: ^srcColor[y] - 1
 			end if
 			if(^srcColor[y] <> 0)
-				do color :: srcColor[y][x].and(16#7Fb8)
-				while(x >= 1 & srcColor[y][x - 1].and(16#7Fb8) = color)
+				do color :: srcColor[y][x].and(0x7Fb8)
+				while(x >= 1 & srcColor[y][x - 1].and(0x7Fb8) = color)
 					do x :- 1
 				end while
 				ret true

@@ -36,7 +36,7 @@ func main()
 		do font.draw(100.0, 700.0, "'Right' button ('Right' key): " ~ input@pad(0, %right).toStr(), draw@white)
 		do font.draw(100.0, 750.0, "'Up' button    ('Up' key):    " ~ input@pad(0, %up).toStr(), draw@white)
 		do font.draw(100.0, 800.0, "'Down' button  ('Down' key):  " ~ input@pad(0, %down).toStr(), draw@white)
-		do draw@circle(@mouseX $ float, @mouseY $ float, 20.0, 20.0, @mouseDownL ?(16#FF0000FF, 16#FFFFFF00))
+		do draw@circle(@mouseX $ float, @mouseY $ float, 20.0, 20.0, @mouseDownL ?(0xFF0000FF, 0xFFFFFF00))
 		do font.draw(800.0, 50.0, "Key: " ~ @keyBuf, draw@white)
 		do draw@render(60)
 	end while
@@ -67,11 +67,11 @@ end func
 
 func drawMainOnMouseEnter(wnd: wnd@Draw, x: int, y: int)
 	do @mouseDownL :: wnd@key(%mouseL) {左ボタンを押したままウインドウ外に出て入りなおす場合の対処}
-	do draw@clearColor(16#FFFF9999) {ウインドウ内に入ったら背景色をピンクにする}
+	do draw@clearColor(0xFFFF9999) {ウインドウ内に入ったら背景色をピンクにする}
 end func
 
 func drawMainOnMouseLeave(wnd: wnd@Draw)
-	do draw@clearColor(16#FF000000) {ウインドウ外に出たら背景色を黒にする}
+	do draw@clearColor(0xFF000000) {ウインドウ外に出たら背景色を黒にする}
 end func
 
 func drawMainOnKeyChar(wnd: wnd@Draw, key: char)

@@ -25,20 +25,21 @@ var srcCharColor: []int
 
 +func init()
 	do @srcCharColor :: #[%max $ @CharColor $ int]int
-	do @srcCharColor[%none $ @CharColor $ int] :: 16#FF999999
-	do @srcCharColor[%identifier $ @CharColor $ int] :: 16#FF009BEA
-	do @srcCharColor[%global $ @CharColor $ int] :: 16#FFCC00F6
-	do @srcCharColor[%reserved $ @CharColor $ int] :: 16#FF1400F6
-	do @srcCharColor[%num $ @CharColor $ int] :: 16#FFEA0062
-	do @srcCharColor[%str $ @CharColor $ int] :: 16#FFEA0062
-	do @srcCharColor[%char_ $ @CharColor $ int] :: 16#FFEA0062
-	do @srcCharColor[%lineComment $ @CharColor $ int] :: 16#FF1EB000
-	do @srcCharColor[%comment $ @CharColor $ int] :: 16#FF1EB000
-	do @srcCharColor[%symbol $ @CharColor $ int] :: 16#FF666666
+	do @srcCharColor[%none $ @CharColor $ int] :: 0xFF999999
+	do @srcCharColor[%identifier $ @CharColor $ int] :: 0xFF009BEA
+	do @srcCharColor[%global $ @CharColor $ int] :: 0xFFCC00F6
+	do @srcCharColor[%reserved $ @CharColor $ int] :: 0xFF1400F6
+	do @srcCharColor[%num $ @CharColor $ int] :: 0xFFEA0062
+	do @srcCharColor[%str $ @CharColor $ int] :: 0xFFEA0062
+	do @srcCharColor[%char_ $ @CharColor $ int] :: 0xFFEA0062
+	do @srcCharColor[%lineComment $ @CharColor $ int] :: 0xFF1EB000
+	do @srcCharColor[%comment $ @CharColor $ int] :: 0xFF1EB000
+	do @srcCharColor[%symbol $ @CharColor $ int] :: 0xFF666666
 end func
 
 +class DocSrc(\doc@Doc)
-	**func ctor()
+	*func ctor()
+		do super(me)
 		do me.src :: #Src
 		do me.src.src :: null
 		do me.src.color :: null
@@ -123,7 +124,7 @@ end func
 			var left: int :: me.lineNumWidth - me.pageX * \common@cellWidth
 			var x: int :: 0
 			for j(0, ^str)
-				assert j = ^str | str[j] <> 16#01 $ char & str[j] <> '\n'
+				assert j = ^str | str[j] <> 0x01 $ char & str[j] <> '\n'
 				var x2: int :: left + x * \common@cellWidth
 				if(x2 >= width)
 					break j
@@ -159,11 +160,11 @@ end func
 						if(inArea)
 							do draw@rect(textX, textY, (\common@cellWidth * (charWidth <= 0 ?(1, charWidth))) $ float, \common@cellHeight $ float, colorAreaBack)
 							do color :: draw@white
-						elif(me.src.color[me.pageY + i][j].and(16#80b8) <> 0 $ @CharColor $ bit8)
+						elif(me.src.color[me.pageY + i][j].and(0x80b8) <> 0 $ @CharColor $ bit8)
 							do draw@rect(textX, textY, (\common@cellWidth * (charWidth <= 0 ?(1, charWidth))) $ float, \common@cellHeight $ float, colorErrBack)
 							do color :: draw@white
 						else
-							do color :: @srcCharColor[me.src.color[me.pageY + i][j].and(16#7Fb8) $ int]
+							do color :: @srcCharColor[me.src.color[me.pageY + i][j].and(0x7Fb8) $ int]
 						end if
 						switch(str[j])
 						case '\t'
@@ -191,7 +192,7 @@ end func
 		end while
 	end func
 
-	+*func updateTree(tree: wnd@Tree)
+	+*func updateTree(tree: wnd@TreeMulti)
 		; TODO:
 	end func
 
@@ -250,11 +251,11 @@ end func
 			end if
 		end if
 		if(^me.src.src[me.cursorY] > 0)
-			var color: bit8 :: me.src.color[me.areaY][me.areaX].and(16#7Fb8)
-			while(me.areaX > 0 & me.src.color[me.areaY][me.areaX - 1].and(16#7Fb8) = color)
+			var color: bit8 :: me.src.color[me.areaY][me.areaX].and(0x7Fb8)
+			while(me.areaX > 0 & me.src.color[me.areaY][me.areaX - 1].and(0x7Fb8) = color)
 				do me.areaX :- 1
 			end while
-			while(me.cursorX < ^me.src.src[me.cursorY] & me.src.color[me.cursorY][me.cursorX].and(16#7Fb8) = color)
+			while(me.cursorX < ^me.src.src[me.cursorY] & me.src.color[me.cursorY][me.cursorX].and(0x7Fb8) = color)
 				do me.cursorX :+ 1
 			end while
 		end if
@@ -822,13 +823,13 @@ end func
 		end if
 	end func
 
-	const colorLineNum: int :: 16#FFFF7F7F
-	const colorAreaBack: int :: 16#FF808080
-	const colorErrBack: int :: 16#FFFF3333
+	const colorLineNum: int :: 0xFFFF7F7F
+	const colorAreaBack: int :: 0xFF808080
+	const colorErrBack: int :: 0xFFFF3333
 
 	enum LineFlag
-		none :: 16#00
-		nextLine :: 16#01
+		none :: 0x00
+		nextLine :: 0x01
 	end enum
 
 	class Src()
@@ -883,11 +884,11 @@ end func
 	func charWidth(c: char, x: int): int
 		if(c = '\t')
 			ret 4 - x % 4
-		elif(c $ int <= 16#1F)
+		elif(c $ int <= 0x1F)
 			ret 0
-		elif(c $ int <= 16#7E)
+		elif(c $ int <= 0x7E)
 			ret 1
-		elif(c $ int <= 16#A0)
+		elif(c $ int <= 0xA0)
 			ret 0
 		end if
 		ret 2
@@ -1428,7 +1429,7 @@ end func
 		ret me.src.src[y].sub(first, last - first).trim()
 
 		func keyword(color: bit8): bool
-			do color :: color.and(16#7Fb8)
+			do color :: color.and(0x7Fb8)
 			ret color = %identifier $ @CharColor $ bit8 | color = %global $ @CharColor $ bit8 | color = %reserved $ @CharColor $ bit8
 		end func
 	end func

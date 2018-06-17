@@ -130,6 +130,7 @@ static void SetTypeId(EReg reg, const SAstType* type);
 static int SetTypeIdRecursion(U8* ptr, int idx, const SAstType* type);
 static void SetTypeIdForFromBin(EReg reg, const SAstType* type);
 static void SetTypeIdForFromBinRecursion(int* idx_type, U8* data_type, int* idx_class, S64** data_class, const SAstType* type);
+static void ExpandMe(SAstExprDot* dot, int reg_i);
 static void AssembleFunc(SAstFunc* ast, Bool entry);
 static void AssembleStats(SList* asts);
 static void AssembleIf(SAstStatIf* ast);
@@ -773,7 +774,7 @@ static S64* RefClass(SAstClass* class_)
 				SAstClassItem* item = (SAstClassItem*)ptr->Data;
 				if ((item->Def->TypeId & AstTypeId_Func) == AstTypeId_Func)
 				{
-					if (item->Override != 0)
+					if (item->Override)
 						item->Addr = item->ParentItem->Addr;
 					else
 					{
@@ -1541,6 +1542,13 @@ static void SetTypeIdForFromBinRecursion(int* idx_type, U8* data_type, int* idx_
 Err:
 	Err(L"EK9999", ((SAst*)type)->Pos);
 	return;
+}
+
+static void ExpandMe(SAstExprDot* dot, int reg_i)
+{
+	ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08)));
+	ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08 + dot->ClassItem->Addr)));
+	ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
 }
 
 static void AssembleFunc(SAstFunc* ast, Bool entry)
@@ -3597,9 +3605,7 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 					ASSERT(IsRef(((SAstExprCallArg*)ptr->Data)->Arg->Type) && !((SAstExprCallArg*)ptr->Data)->RefVar);
 					GcInc(0);
 					// Expand 'me'.
-					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x08)));
-					ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x08 + ((SAstExprDot*)ast->Func)->ClassItem->Addr)));
-					ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x00)));
+					ExpandMe((SAstExprDot*)ast->Func, 0);
 				}
 				else if ((((SAstTypeFunc*)ast->Func->Type)->FuncAttr & FuncAttr_AnyType) != 0 && ptr == ast->Args->Top->Next)
 				{
@@ -3729,9 +3735,7 @@ static void AssembleExprDot(SAstExprDot* ast, int reg_i, int reg_f, Bool expand_
 			if (expand_me)
 			{
 				// In case of method call, 'me' should not be expanded.
-				ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x08)));
-				ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x08 + ast->ClassItem->Addr)));
-				ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[0]), ValMemS(8, ValReg(8, RegI[0]), NULL, 0x00)));
+				ExpandMe(ast, reg_i);
 			}
 		}
 	}

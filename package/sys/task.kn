@@ -3,15 +3,15 @@
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0000.knd, _processRun] run(waitUntilExit: bool): int
@@ -32,15 +32,15 @@ end func
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0000.knd, _threadRun] run()
@@ -63,15 +63,15 @@ end func
 	end func
 
 	*func [_force] _copy(): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _toBin(): []bit8
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 16#E9170005
+		throw 0xE9170005
 	end func
 
 	+func [d0000.knd, _mutexLock] lock()

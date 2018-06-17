@@ -46,7 +46,7 @@ func main()
 
 
 		block
-			var n: bit8 :: 16#12b8
+			var n: bit8 :: 0x12b8
 			var m: bit8
 			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
@@ -55,7 +55,7 @@ func main()
 		end block
 
 		block
-			var n: bit16 :: 16#1234b16
+			var n: bit16 :: 0x1234b16
 			var m: bit16
 			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
@@ -64,7 +64,7 @@ func main()
 		end block
 
 		block
-			var n: bit32 :: 16#12345678b32
+			var n: bit32 :: 0x12345678b32
 			var m: bit32
 			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
@@ -73,7 +73,7 @@ func main()
 		end block
 
 		block
-			var n: bit64 :: 16#F012345678ABCDEFb64
+			var n: bit64 :: 0xF012345678ABCDEFb64
 			var m: bit64
 			var bin: []bit8 :: n $> []bit8
 			do @dump(bin)
