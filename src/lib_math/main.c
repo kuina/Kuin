@@ -101,7 +101,7 @@ EXPORT S64 _lcm(S64 a, S64 b)
 		a = -a;
 	if (b < 0)
 		b = -b;
-	return a * b / _gcd(a, b);
+	return a / _gcd(a, b) * b;
 }
 
 EXPORT S64 _modPow(S64 value, S64 exponent, S64 modulus)
