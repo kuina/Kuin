@@ -1,2 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<snippets />
+<snippets>
+	<snippet>
+		<name>main関数と空のウインドウ</name>
+		<removable>false</removable>
+		<code>var wndMain: wnd@Wnd
+
+func main()
+do @wndMain :: wnd@makeWnd(null, %normal, 800, 450, "Title")
+
+while(wnd@act())
+end while
+end func
+</code>
+	</snippet>
+	<snippet>
+		<name>main関数とdrawコントロール</name>
+		<removable>false</removable>
+		<code>var wndMain: wnd@Wnd
+var drawMain: wnd@Draw
+
+func main()
+do @wndMain :: wnd@makeWnd(null, %aspect, 1600, 900, "Title")
+do @drawMain :: wnd@makeDraw(@wndMain, 0, 0, 1600, 900, %scale, %scale, false)
+
+while(wnd@act())
+do draw@rect(0.0, 0.0, 1600.0, 900.0, 0xFF333333)
+do draw@render(60)
+end while
+end func
+</code>
+	</snippet>
+</snippets>
