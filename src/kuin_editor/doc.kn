@@ -111,6 +111,9 @@
 	+func undoImpl(undo2: @UndoCmd)
 	end func
 
+	+func getSelCode(): []char
+	end func
+
 	+var changed: bool
 	var undo: undo@Undo
 end class

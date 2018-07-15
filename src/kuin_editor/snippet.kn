@@ -1,0 +1,119 @@
+var snippets: dict<[]char, @Snippet>
+
+class Snippet()
+	+var removable: bool
+	+var comment: []char
+	+var code: []char
+end class
+
++func load()
+	do @snippets :: #dict<[]char, @Snippet>
+	try
+		var prop: xml@Xml :: xml@makeXml(file@exeDir() ~  "sys/snippet.knd")
+		if(prop =& null)
+			ret
+		end if
+		var root: xml@Node :: prop.root()
+		var snippets: xml@Node :: root.findChild("snippets")
+		try
+			var node: xml@Node :: snippets.firstChild()
+			while(node <>& null)
+				var name: []char :: node.getName()
+				var item: @Snippet :: #@Snippet
+				do item.removable :: node.findChild("removable").getValue() = "true"
+				do item.comment :: node.findChild("comment").getValue()
+				if(item.comment =& null)
+					do item.comment :: ""
+				end if
+				do item.code :: node.findChild("code").getValue()
+				if(item.code =& null)
+					do item.code :: ""
+				end if
+				do @snippets.add(name, item)
+				do node :: node.next()
+			end while
+		catch
+		end try
+	catch
+	end try
+end func
+
+func save()
+	var path: []char :: file@exeDir() ~  "sys/snippet.knd"
+	do file@delFile(path)
+	var prop: xml@Xml :: xml@makeXmlEmpty()
+	var root: xml@Node :: prop.root()
+	var snippets: xml@Node :: root.addChild("snippets")
+	do @snippets.forEach(write, snippets)
+	do prop.save(path, false)
+
+	func write(key: []char, value: @Snippet, data: xml@Node): bool
+		if(value =& null)
+			ret true
+		end if
+		var node: xml@Node :: data.addChild(key)
+		do node.addChild("removable").setValue(value.removable ?("true", "false"))
+		do node.addChild("comment").setValue(value.comment)
+		do node.addChild("code").setValue(value.code)
+		ret true
+	end func
+end func
+
++func add(code: []char)
+	if(code =& null)
+		ret
+	end if
+
+	var name: []char :: wndex@inputBox(\form@wndMain, \common@langEn ?("Input the snippet name.", "スニペットの名前を入力してください。"), \common@title, null, validate)
+	if(name <>& null)
+		do name :: name.trim()
+		if(name <> "")
+			var comment: []char :: wndex@inputBox(\form@wndMain, \common@langEn ?("Input the description.", "説明文を入力してください。"), \common@title, null, null)
+			if (comment <>& null)
+				var snippet: @Snippet :: #@Snippet
+				do snippet.removable :: true
+				do snippet.comment :: comment
+				do snippet.code :: code
+				do @snippets.add(name, snippet)
+				do @save()
+			end if
+		end if
+	end if
+
+	func validate(name: []char): bool
+		ret !@snippets.exist(name)
+	end func
+end func
+
++func updateList(list_: wnd@List)
+	do @snippets.forEach(update, list_)
+
+	func update(key: []char, value: @Snippet, data: wnd@List): bool
+		if(value =& null)
+			ret true
+		end if
+		do data.add(key)
+		ret true
+	end func
+end func
+
++func getCode(name: []char): []char
+	var snippet: @Snippet :: @snippets.get(name)
+	if(snippet =& null)
+		ret null
+	end if
+	var result: wnd@MsgBoxResult :: wnd@msgBox(\form@wndMain, (\common@langEn ?("Insert the following code?", "以下のコードを挿入しますか？")) ~ "\n\n" ~ name ~ "\n" ~ snippet.comment ~ "\n\n" ~ snippet.code, \common@title, %question, %yesNoCancel)
+	switch(result)
+	case %yes
+		ret snippet.code
+	case %no
+		do result :: wnd@msgBox(\form@wndMain, (\common@langEn ?("Delete [\{name}] snippet?", "スニペット[\{name}]を削除しますか？")), \common@title, %question, %yesNoCancel)
+		if(result = %yes)
+			do @snippets.add(name, null)
+			do @save()
+		end if
+		ret null
+	case %cancel
+		ret null
+	end switch
+end func
