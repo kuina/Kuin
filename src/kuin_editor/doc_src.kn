@@ -208,19 +208,19 @@ end func
 		; TODO:
 	end func
 
-	+*func listInfoOnSel()
-		; TODO:
-		{
-		var sel: int :: \form@listInfo.getSel()
-		if(sel <> -1 & sel < ^me.listInfoItem)
-			do me.listInfoItem.head()
-			var item: @ErrListItem :: me.listInfoItem.getOffset(sel)
-			if(\src@jumpSrc(item.pos))
-				do me.propText :: item.text
-				do \form@updateProp()
-			end if
+	+*func listObjOnSel()
+	end func
+
+	+*func listPropOnSel(listView: wnd@ListView)
+	end func
+
+	+*func listPropOnMouseClick(listView: wnd@ListView)
+		var sel: int :: listView.getSel()
+		if(sel <> -1 & sel < ^me.errList)
+			do me.errList.head()
+			var item: @ErrListItem :: me.errList.getOffset(sel)
+			do \src@jumpSrc(item.pos)
 		end if
-		}
 	end func
 
 	+*func mouseDownL(x: int, y: int)

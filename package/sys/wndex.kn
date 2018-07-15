@@ -111,7 +111,7 @@ end func
 		do result.name :: parseStr(node, "name")
 		if(!isRoot)
 			if(!parseBool(node, "enabled"))
-				do result.enable(false)
+				do result.setEnabled(false)
 			end if
 			if(!parseBool(node, "visible"))
 				do result.setVisible(false)

@@ -22,10 +22,12 @@ EXPORT_CPP void _wndBaseGetPos(SClass* me_, S64* x, S64* y, S64* width, S64* hei
 EXPORT_CPP void _wndBaseGetPosScreen(SClass* me_, S64* x, S64* y, S64* width, S64* height);
 EXPORT_CPP void _wndBaseFocus(SClass* me_);
 EXPORT_CPP Bool _wndBaseFocused(SClass* me_);
-EXPORT_CPP void _wndBaseEnable(SClass* me_, Bool is_enabled);
+EXPORT_CPP void _wndBaseSetEnabled(SClass* me_, Bool is_enabled);
+EXPORT_CPP Bool _wndBaseGetEnabled(SClass* me_);
 EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height);
 EXPORT_CPP void _wndBaseSetRedraw(SClass* me_, Bool is_enabled);
 EXPORT_CPP void _wndBaseSetVisible(SClass* me_, Bool is_visible);
+EXPORT_CPP Bool _wndBaseGetVisible(SClass* me_);
 EXPORT_CPP void _wndBaseClientToScreen(SClass* me_, S64* screenX, S64* screenY, S64 clientX, S64 clientY);
 EXPORT_CPP void _wndBaseScreenToClient(SClass* me_, S64* clientX, S64* clientY, S64 screenX, S64 screenY);
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight);

@@ -56,7 +56,10 @@ end enum
 	+func [d0001.knd, _wndBaseFocused] focused(): bool
 	end func
 
-	+func [d0001.knd, _wndBaseEnable] enable(isEnabled: bool)
+	+func [d0001.knd, _wndBaseSetEnabled] setEnabled(isEnabled: bool)
+	end func
+
+	+func [d0001.knd, _wndBaseGetEnabled] getEnabled(): bool
 	end func
 
 	+func [d0001.knd, _wndBaseSetPos] setPos(x: int, y: int, width: int, height: int)
@@ -66,6 +69,9 @@ end enum
 	end func
 
 	+func [d0001.knd, _wndBaseSetVisible] setVisible(isVisible: bool)
+	end func
+
+	+func [d0001.knd, _wndBaseGetVisible] getVisible(): bool
 	end func
 
 	+func [d0001.knd, _wndBaseClientToScreen] clientToScreen(screenX: &int, screenY: &int, clientX: int, clientY: int)
@@ -429,6 +435,9 @@ end class
 	+func [d0001.knd, _listViewLenColumn] lenColumn(): int
 	end func
 
+	+func [d0001.knd, _listViewClearColumn] clearColumn()
+	end func
+
 	+func [d0001.knd, _listViewSetText] setText(idx: int, column: int, text: []char)
 	end func
 
@@ -444,7 +453,9 @@ end class
 	+func [d0001.knd, _listViewGetSel] getSel(): int
 	end func
 
+	+var onSel: func<(@WndBase)>
 	+var onMouseDoubleClick: func<(@WndBase)>
+	+var onMouseClick: func<(@WndBase)>
 end class
 
 +class Pager(@WndBase)
