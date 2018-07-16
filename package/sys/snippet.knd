@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <snippets>
 	<snippet>
-		<name>main関数と空のウインドウ</name>
+		<name>mainと空のウインドウ</name>
 		<removable>false</removable>
 		<code>var wndMain: wnd@Wnd
 
@@ -14,7 +14,7 @@ end func
 </code>
 	</snippet>
 	<snippet>
-		<name>main関数とdrawコントロール</name>
+		<name>mainとdrawコントロール</name>
 		<removable>false</removable>
 		<code>var wndMain: wnd@Wnd
 var drawMain: wnd@Draw
@@ -27,6 +27,27 @@ while(wnd@act())
 do draw@rect(0.0, 0.0, 1600.0, 900.0, 0xFF333333)
 do draw@render(60)
 end while
+end func
+</code>
+	</snippet>
+	<snippet>
+		<name>listの走査</name>
+		<removable>false</removable>
+		<code>do _0.head()
+while(!_0.term())
+var _1: _2 :: _0.get()
+
+do _0.next()
+end while
+</code>
+	</snippet>
+	<snippet>
+		<name>dictの走査</name>
+		<removable>false</removable>
+		<code>do _0.forEach(_1, null)
+
+func _1(key: _2, value: _3, data: kuin@Class): bool
+ret true
 end func
 </code>
 	</snippet>
