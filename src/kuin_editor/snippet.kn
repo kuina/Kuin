@@ -8,14 +8,17 @@ end class
 
 +func load()
 	do @snippets :: #list<@Snippet>
-	try
-		var prop: xml@Xml :: xml@makeXml(file@exeDir() ~  "sys/snippet.knd")
-		if(prop =& null)
-			ret
-		end if
-		var root: xml@Node :: prop.root()
-		var snippets: xml@Node :: root.findChild("snippets")
+	do loadXml(file@exeDir() ~  "sys/snippet.knd", false)
+	do loadXml(file@exeDir() ~  "sys/snippet_user.knd", true)
+
+	func loadXml(path: []char, removable: bool)
 		try
+			var prop: xml@Xml :: xml@makeXml(path)
+			if(prop =& null)
+				ret
+			end if
+			var root: xml@Node :: prop.root()
+			var snippets: xml@Node :: root.findChild("snippets")
 			var node: xml@Node :: snippets.firstChild()
 			while(node <>& null)
 				var item: @Snippet :: #@Snippet
@@ -23,7 +26,7 @@ end class
 				if(item.name =& null)
 					do item.name :: ""
 				end if
-				do item.removable :: node.findChild("removable").getValue() = "true"
+				do item.removable :: removable
 				do item.code :: node.findChild("code").getValue()
 				if(item.code =& null)
 					do item.code :: ""
@@ -33,26 +36,30 @@ end class
 			end while
 		catch
 		end try
-	catch
-	end try
+	end func
 end func
 
 func save()
-	var path: []char :: file@exeDir() ~  "sys/snippet.knd"
-	do file@delFile(path)
-	var prop: xml@Xml :: xml@makeXmlEmpty()
-	var root: xml@Node :: prop.root()
-	var snippets: xml@Node :: root.addChild("snippets")
-	do @snippets.head()
-	while(!@snippets.term())
-		var snippet: @Snippet :: @snippets.get()
-		var node: xml@Node :: snippets.addChild("snippet")
-		do node.addChild("name").setValue(snippet.name)
-		do node.addChild("removable").setValue(snippet.removable ?("true", "false"))
-		do node.addChild("code").setValue(snippet.code)
-		do @snippets.next()
-	end while
-	do prop.save(path, false)
+	do saveXml(file@exeDir() ~  "sys/snippet.knd", false)
+	do saveXml(file@exeDir() ~  "sys/snippet_user.knd", true)
+
+	func saveXml(path: []char, removable: bool)
+		do file@delFile(path)
+		var prop: xml@Xml :: xml@makeXmlEmpty()
+		var root: xml@Node :: prop.root()
+		var snippets: xml@Node :: root.addChild("snippets")
+		do @snippets.head()
+		while(!@snippets.term())
+			var snippet: @Snippet :: @snippets.get()
+			if(snippet.removable = removable)
+				var node: xml@Node :: snippets.addChild("snippet")
+				do node.addChild("name").setValue(snippet.name)
+				do node.addChild("code").setValue(snippet.code)
+			end if
+			do @snippets.next()
+		end while
+		do prop.save(path, false)
+	end func
 end func
 
 +func add(code: []char)

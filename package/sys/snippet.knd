@@ -2,7 +2,6 @@
 <snippets>
 	<snippet>
 		<name>mainと空のウインドウ</name>
-		<removable>false</removable>
 		<code>var wndMain: wnd@Wnd
 
 func main()
@@ -15,7 +14,6 @@ end func
 	</snippet>
 	<snippet>
 		<name>mainとdrawコントロール</name>
-		<removable>false</removable>
 		<code>var wndMain: wnd@Wnd
 var drawMain: wnd@Draw
 
@@ -32,7 +30,6 @@ end func
 	</snippet>
 	<snippet>
 		<name>listの走査</name>
-		<removable>false</removable>
 		<code>do _0.head()
 while(!_0.term())
 var _1: _2 :: _0.get()
@@ -43,7 +40,6 @@ end while
 	</snippet>
 	<snippet>
 		<name>dictの走査</name>
-		<removable>false</removable>
 		<code>do _0.forEach(_1, null)
 
 func _1(key: _2, value: _3, data: kuin@Class): bool
