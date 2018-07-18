@@ -1,6 +1,6 @@
 +var wndMain: wnd@Wnd
 +var treeItem: wnd@TreeMulti
-+var listInfo: wnd@List
++var listObj: wnd@List
 var editFile: wnd@Edit
 +var drawEditor: wnd@Draw
 +var scrollXSrc: wnd@ScrollX
@@ -35,13 +35,13 @@ var drag: bool
 	do @wndMain.onClose :: @wndMainOnClose
 	do @wndMain.onActivate :: @wndMainOnActivate
 	do @wndMain.onPushMenu :: @wndMainOnPushMenu
-	do @treeItem :: wnd@makeTreeMulti(@wndMain, 12, 12, 244, 466, %fix, %fix)
+	do @treeItem :: wnd@makeTreeMulti(@wndMain, 12, 290, 244, 466, %fix, %scale)
 	do @treeItem.draggable(true)
 	do @treeItem.allowDraggingToRoot(false)
 	do @treeItem.onSel :: @treeItemOnSel
 	do @treeItem.onMoveNode :: @treeItemOnMoveNode
-	do @listInfo :: wnd@makeList(@wndMain, 12, 484, 244, 272, %fix, %scale)
-	do @listInfo.onSel :: @listInfoOnSel
+	do @listObj :: wnd@makeList(@wndMain, 12, 12, 244, 272, %fix, %fix)
+	do @listObj.onSel :: @listObjOnSel
 	do @editFile :: wnd@makeEdit(@wndMain, 262, 12, 759, 15, %scale, %fix)
 	do @editFile.readonly(true)
 	do @drawEditor :: wnd@makeDraw(@wndMain, 262, 33, 759, 582, %scale, %scale, true)
@@ -50,9 +50,9 @@ var drag: bool
 	do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 742, 0, 17, 565, %move, %scale)
 	do @scrollYSrc.setState(0, 0, 1, 0)
 	do @listProp :: wnd@makeListView(@wndMain, 262, 621, 391, 135, %scale, %move)
-	do @listProp.addColumn(\common@langEn ?("Property", "プロパティ"))
-	do @listProp.addColumn(\common@langEn ?("Value", "値"))
+	do @listProp.onSel :: @listPropOnSel
 	do @listProp.onMouseDoubleClick :: @listPropOnMouseDoubleClick
+	do @listProp.onMouseClick :: @listPropOnMouseClick
 	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
 	do @editLog.readonly(true)
 	do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, \common@langEn ?("Compile && Run", "コンパイル＆実行"))
@@ -95,6 +95,8 @@ var drag: bool
 	do @popupMainEdit.add(0x0036, \common@langEn ?("&Paste\tCtrl+V", "貼り付け(&P)\tCtrl+V"))
 	do @popupMainEdit.add(0x0037, \common@langEn ?("&Delete\tDel", "削除(&D)\tDel"))
 	do @popupMainEdit.add(0x0038, \common@langEn ?("Select &All\tCtrl+A", "すべて選択(&A)\tCtrl+A"))
+	do @popupMainEdit.addLine()
+	do @popupMainEdit.add(0x003D, \common@langEn ?("Add &Selection To Snippet", "選択範囲をスニペットに追加(&S)"))
 	do @popupMainEdit.addLine()
 	do @popupMainEdit.add(0x0039, \common@langEn ?("&Find\tCtrl+F", "検索(&F)\tCtrl+F"))
 	do @popupMainEdit.add(0x003A, \common@langEn ?("&Replace\tCtrl+H", "置換(&R)\tCtrl+H"))
@@ -395,6 +397,9 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		do \find@findPrev()
 	case 0x003C
 		do \find@findNext()
+	case 0x003D
+		do \snippet@add(\src@curDoc.getSelCode())
+		do @updateList()
 	end switch
 end func
 
@@ -409,8 +414,8 @@ func treeItemOnMoveNode(wnd: wnd@WndBase)
 	do \src@curDoc.treeItemOnMoveNode()
 end func
 
-func listInfoOnSel(wnd: wnd@WndBase)
-	do \src@curDoc.listInfoOnSel()
+func listObjOnSel(wnd: wnd@WndBase)
+	do \src@curDoc.listObjOnSel()
 end func
 
 func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
@@ -470,6 +475,14 @@ end func
 
 func drawEditorOnSetMouseImg(wnd: wnd@WndBase): wnd@MouseImg
 	ret \src@curDoc.setMouseImg()
+end func
+
+func listPropOnSel(wnd: wnd@WndBase)
+	do \src@curDoc.listPropOnSel(@listProp)
+end func
+
+func listPropOnMouseClick(wnd: wnd@WndBase)
+	do \src@curDoc.listPropOnMouseClick(@listProp)
 end func
 
 func listPropOnMouseDoubleClick(wnd: wnd@WndBase)
@@ -692,6 +705,13 @@ end func
 +func updateProp()
 	do @listProp.setRedraw(false)
 	do @listProp.clear()
+	do @listProp.clearColumn()
+	if(\src@curDoc =$ \doc_src@DocSrc)
+		do @listProp.addColumn(\common@langEn ?("Error", "エラー"))
+	else
+		do @listProp.addColumn(\common@langEn ?("Property", "プロパティ"))
+		do @listProp.addColumn(\common@langEn ?("Value", "値"))
+	end if
 	do \src@curDoc.updateProp(@listProp)
 	do @listProp.adjustWidth()
 	do @listProp.setRedraw(true)
@@ -708,10 +728,10 @@ end func
 end func
 
 +func updateList()
-	do @listInfo.setRedraw(false)
-	do @listInfo.clear()
-	do \src@curDoc.updateList(@listInfo)
-	do @listInfo.setRedraw(true)
+	do @listObj.setRedraw(false)
+	do @listObj.clear()
+	do \src@curDoc.updateList(@listObj)
+	do @listObj.setRedraw(true)
 end func
 
 +func updateUi()
@@ -723,10 +743,10 @@ end func
 
 func lockEditor(lock: bool)
 	do @lockingEditor :: lock
-	do @btnCompile.enable(!lock)
-	do @btnRls.enable(!lock)
-	do @editIcon.enable(!lock)
-	do @btnIcon.enable(!lock)
+	do @btnCompile.setEnabled(!lock)
+	do @btnRls.setEnabled(!lock)
+	do @editIcon.setEnabled(!lock)
+	do @btnIcon.setEnabled(!lock)
 end func
 
 +func setEditIconDirectly(icon: []char)

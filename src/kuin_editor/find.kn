@@ -87,16 +87,16 @@ end func
 		do @wndFind.activate()
 	end if
 	do @wndFindTabFind.setSel(replace ?(1, 0))
-	do @wndFindEditReplace.enable(replace)
-	do @wndFindBtnReplace.enable(replace)
-	do @wndFindBtnReplaceAll.enable(replace)
+	do @wndFindEditReplace.setEnabled(replace)
+	do @wndFindBtnReplace.setEnabled(replace)
+	do @wndFindBtnReplaceAll.setEnabled(replace)
 	do wndFindChkRegularExpressionOnPush(null)
 	do @wndFindEditPattern.focus()
 	do @wndFindEditPattern.setSel(0, -1)
 
 	; TODO:
-	do @wndFindRadioAll.enable(false)
-	do @wndFindRadioSel.enable(false)
+	do @wndFindRadioAll.setEnabled(false)
+	do @wndFindRadioSel.setEnabled(false)
 
 	func wndFindOnClose(wnd: wnd@Wnd): bool
 		do @tabOrderFind :: null
@@ -137,9 +137,9 @@ end func
 			ret
 		end if
 		var replace: bool :: sel = 1
-		do @wndFindEditReplace.enable(replace)
-		do @wndFindBtnReplace.enable(replace)
-		do @wndFindBtnReplaceAll.enable(replace)
+		do @wndFindEditReplace.setEnabled(replace)
+		do @wndFindBtnReplace.setEnabled(replace)
+		do @wndFindBtnReplaceAll.setEnabled(replace)
 	end func
 
 	func wndFindEditPatternOnChange(wnd: wnd@Edit)
@@ -160,8 +160,8 @@ end func
 
 	func wndFindChkRegularExpressionOnPush(wnd: wnd@Chk)
 		do @wndFindChkRegularExpressionLast :: @wndFindChkRegularExpression.getChk()
-		do @wndFindChkDistinguishCase.enable(!@wndFindChkRegularExpressionLast)
-		do @wndFindChkOnlyWord.enable(!@wndFindChkRegularExpressionLast)
+		do @wndFindChkDistinguishCase.setEnabled(!@wndFindChkRegularExpressionLast)
+		do @wndFindChkOnlyWord.setEnabled(!@wndFindChkRegularExpressionLast)
 	end func
 
 	func wndFindBtnReplaceOnPush(wnd: wnd@Btn)

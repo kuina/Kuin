@@ -52,7 +52,7 @@ EXPORT_CPP SClass* _makeXml(SClass* me_, const U8* path)
 	if (file_ptr == NULL)
 		return NULL;
 	me2->Tree = static_cast<tinyxml2::XMLDocument*>(AllocMem(sizeof(tinyxml2::XMLDocument)));
-	new(me2->Tree)tinyxml2::XMLDocument(true, tinyxml2::COLLAPSE_WHITESPACE);
+	new(me2->Tree)tinyxml2::XMLDocument(true, tinyxml2::PRESERVE_WHITESPACE);
 	tinyxml2::XMLError result = me2->Tree->LoadFile(file_ptr);
 	fclose(file_ptr);
 	if (result != tinyxml2::XML_SUCCESS)
@@ -69,7 +69,7 @@ EXPORT_CPP SClass* _makeXmlEmpty(SClass* me_)
 {
 	SXml* me2 = reinterpret_cast<SXml*>(me_);
 	me2->Tree = static_cast<tinyxml2::XMLDocument*>(AllocMem(sizeof(tinyxml2::XMLDocument)));
-	new(me2->Tree)tinyxml2::XMLDocument(true, tinyxml2::COLLAPSE_WHITESPACE);
+	new(me2->Tree)tinyxml2::XMLDocument(true, tinyxml2::PRESERVE_WHITESPACE);
 	me2->Tree->InsertEndChild(me2->Tree->NewDeclaration());
 	return me_;
 }

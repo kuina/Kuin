@@ -36,7 +36,13 @@
 	+func treeItemOnMoveNode()
 	end func
 
-	+func listInfoOnSel()
+	+func listObjOnSel()
+	end func
+
+	+func listPropOnSel(listView: wnd@ListView)
+	end func
+
+	+func listPropOnMouseClick(listView: wnd@ListView)
 	end func
 
 	+func listPropOnMouseDoubleClick(listView: wnd@ListView)
@@ -103,6 +109,9 @@
 	end func
 
 	+func undoImpl(undo2: @UndoCmd)
+	end func
+
+	+func getSelCode(): []char
 	end func
 
 	+var changed: bool

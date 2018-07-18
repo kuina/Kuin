@@ -220,7 +220,9 @@ struct SLabelLink
 struct SListView
 {
 	SWndBase WndBase;
+	void* OnSel;
 	void* OnMouseDoubleClick;
+	void* OnMouseClick;
 };
 
 struct SPager
@@ -816,9 +818,14 @@ EXPORT_CPP Bool _wndBaseFocused(SClass* me_)
 	return GetFocus() == reinterpret_cast<SWndBase*>(me_)->WndHandle;
 }
 
-EXPORT_CPP void _wndBaseEnable(SClass* me_, Bool is_enabled)
+EXPORT_CPP void _wndBaseSetEnabled(SClass* me_, Bool is_enabled)
 {
 	EnableWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_enabled ? TRUE : FALSE);
+}
+
+EXPORT_CPP Bool _wndBaseGetEnabled(SClass* me_)
+{
+	return IsWindowEnabled(reinterpret_cast<SWndBase*>(me_)->WndHandle);
 }
 
 EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height)
@@ -841,6 +848,11 @@ EXPORT_CPP void _wndBaseSetRedraw(SClass* me_, Bool is_enabled)
 EXPORT_CPP void _wndBaseSetVisible(SClass* me_, Bool is_visible)
 {
 	ShowWindow(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_visible ? SW_SHOW : SW_HIDE);
+}
+
+EXPORT_CPP Bool _wndBaseGetVisible(SClass* me_)
+{
+	return IsWindowVisible(reinterpret_cast<SWndBase*>(me_)->WndHandle);
 }
 
 EXPORT_CPP void _wndBaseClientToScreen(SClass* me_, S64* screenX, S64* screenY, S64 clientX, S64 clientY)
@@ -1298,7 +1310,9 @@ EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 
 	DWORD ex = ListView_GetExtendedListViewStyle(wnd);
 	ListView_SetExtendedListViewStyle(wnd, ex | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
 	SetWindowLongPtr(ListView_GetHeader(wnd), GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me_));
+	me2->OnSel = NULL;
 	me2->OnMouseDoubleClick = NULL;
+	me2->OnMouseClick = NULL;
 	return me_;
 }
 
@@ -1387,6 +1401,13 @@ EXPORT_CPP void _listViewDelColumn(SClass* me_, S64 column)
 EXPORT_CPP S64 _listViewLenColumn(SClass* me_)
 {
 	return static_cast<S64>(Header_GetItemCount(ListView_GetHeader(reinterpret_cast<SWndBase*>(me_)->WndHandle)));
+}
+
+EXPORT_CPP void _listViewClearColumn(SClass* me_)
+{
+	S64 len = _listViewLenColumn(me_);
+	for (S64 i = 0; i < len; i++)
+		_listViewDelColumn(me_, 0);
 }
 
 EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* text)
@@ -2286,6 +2307,26 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 											Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), tree->OnSel);
 									}
 								}
+								break;
+						}
+					}
+					break;
+				case WndKind_ListView:
+					{
+						SListView* list_view = reinterpret_cast<SListView*>(wnd_ctrl2);
+						switch (reinterpret_cast<LPNMHDR>(l_param)->code)
+						{
+							case LVN_ITEMCHANGED:
+								if (list_view->OnSel != NULL)
+								{
+									NMLISTVIEW* param = reinterpret_cast<NMLISTVIEW*>(l_param);
+									if ((param->uOldState & LVIS_SELECTED) != (param->uNewState & LVIS_SELECTED))
+										Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), list_view->OnSel);
+								}
+								break;
+							case NM_CLICK:
+								if (list_view->OnMouseClick != NULL)
+									Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), list_view->OnMouseClick);
 								break;
 						}
 					}

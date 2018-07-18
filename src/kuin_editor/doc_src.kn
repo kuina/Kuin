@@ -197,7 +197,7 @@ end func
 	end func
 
 	+*func updateList(list_: wnd@List)
-		; TODO:
+		do \snippet@updateList(list_)
 	end func
 
 	+*func treeItemOnSel()
@@ -208,19 +208,37 @@ end func
 		; TODO:
 	end func
 
-	+*func listInfoOnSel()
-		; TODO:
-		{
-		var sel: int :: \form@listInfo.getSel()
-		if(sel <> -1 & sel < ^me.listInfoItem)
-			do me.listInfoItem.head()
-			var item: @ErrListItem :: me.listInfoItem.getOffset(sel)
-			if(\src@jumpSrc(item.pos))
-				do me.propText :: item.text
-				do \form@updateProp()
-			end if
+	+*func listObjOnSel()
+		var sel: int :: \form@listObj.getSel()
+		if(sel = -1)
+			ret
 		end if
-		}
+		var code: []char :: \snippet@getCode(\form@listObj.getText(sel))
+		if(code =& null)
+			do \form@updateList()
+			ret
+		end if
+		do me.undo.recordBegin()
+		if(me.areaSel())
+			do me.delAreaStr()
+		end if
+		do me.ins(me.cursorX, me.cursorY, code, true)
+		do me.interpret1SetDirty(me.cursorY, true)
+		do me.undo.recordEnd()
+		do me.refreshCursor(false, true)
+		do \form@paintDrawEditor()
+	end func
+
+	+*func listPropOnSel(listView: wnd@ListView)
+	end func
+
+	+*func listPropOnMouseClick(listView: wnd@ListView)
+		var sel: int :: listView.getSel()
+		if(sel <> -1 & sel < ^me.errList)
+			do me.errList.head()
+			var item: @ErrListItem :: me.errList.getOffset(sel)
+			do \src@jumpSrc(item.pos)
+		end if
 	end func
 
 	+*func mouseDownL(x: int, y: int)
@@ -632,6 +650,31 @@ end func
 		else
 			assert false
 		end if
+	end func
+
+	+*func getSelCode(): []char
+		if(!me.areaSel())
+			ret null
+		end if
+		var x1: int :: me.areaX
+		var y1: int :: me.areaY
+		var x2: int :: me.cursorX
+		var y2: int :: me.cursorY
+		if(y1 > y2 | y1 = y2 & x1 > x2)
+			do x1 :$ x2
+			do y1 :$ y2
+		end if
+		var str: []char
+		if(y1 = y2)
+			do str :: me.src.src[y1].sub(x1, x2 - x1).trim()
+		else
+			do str :: me.src.src[y1].sub(x1, -1).trim() ~ "\n"
+			for i(y1 + 1, y2 - 1)
+				do str :~ me.src.src[i].trim() ~ "\n"
+			end for
+			do str :~ me.src.src[y2].sub(0, x2).trim()
+		end if
+		ret str
 	end func
 
 	func setSrc(src: [][]char)

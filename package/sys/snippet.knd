@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<snippets>
+	<snippet>
+		<name>mainと空のウインドウ</name>
+		<code>var wndMain: wnd@Wnd
+
+func main()
+do @wndMain :: wnd@makeWnd(null, %normal, 800, 450, "Title")
+
+while(wnd@act())
+end while
+end func
+</code>
+	</snippet>
+	<snippet>
+		<name>mainとdrawコントロール</name>
+		<code>var wndMain: wnd@Wnd
+var drawMain: wnd@Draw
+
+func main()
+do @wndMain :: wnd@makeWnd(null, %aspect, 1600, 900, "Title")
+do @drawMain :: wnd@makeDraw(@wndMain, 0, 0, 1600, 900, %scale, %scale, false)
+
+while(wnd@act())
+do draw@render(60)
+end while
+end func
+</code>
+	</snippet>
+	<snippet>
+		<name>listの走査</name>
+		<code>do _0.head()
+while(!_0.term())
+var _1: _2 :: _0.get()
+
+do _0.next()
+end while
+</code>
+	</snippet>
+	<snippet>
+		<name>dictの走査</name>
+		<code>do _0.forEach(_1, null)
+
+func _1(key: _2, value: _3, data: kuin@Class): bool
+ret true
+end func
+</code>
+	</snippet>
+</snippets>

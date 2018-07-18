@@ -187,9 +187,15 @@
 		end func
 	end func
 
-	+*func listInfoOnSel()
-		var sel: int :: \form@listInfo.getSel()
+	+*func listObjOnSel()
+		var sel: int :: \form@listObj.getSel()
 		do me.ctrl :: sel < 0 ?(0, sel)
+	end func
+
+	+*func listPropOnSel(listView: wnd@ListView)
+	end func
+
+	+*func listPropOnMouseClick(listView: wnd@ListView)
 	end func
 
 	+*func listPropOnMouseDoubleClick(listView: wnd@ListView)
@@ -285,7 +291,7 @@
 				do \form@showMsgRunning()
 				ret
 			end if
-			var name: []char :: \form@listInfo.getText(me.ctrl)
+			var name: []char :: \form@listObj.getText(me.ctrl)
 			do me.mode :: %put
 			do me.holdOffsetX :: x2
 			do me.holdOffsetY :: y2
