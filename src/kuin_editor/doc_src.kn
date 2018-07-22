@@ -782,6 +782,67 @@ end func
 		ret false
 	end func
 
+	+func findSel(list_: wnd@List, poses: list<\src@Pos>, srcName: []char, pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+		if(!me.areaSel())
+			ret
+		end if
+		var areaX1: int :: me.cursorX
+		var areaY1: int :: me.cursorY
+		var areaX2: int :: me.areaX
+		var areaY2: int :: me.areaY
+		if(areaY1 > areaY2 | areaY1 = areaY2 & areaX1 > areaX2)
+			do areaX1 :$ areaX2
+			do areaY1 :$ areaY2
+		end if
+		do me.cursorX :: areaX1
+		do me.cursorY :: areaY1
+		do me.areaX :: -1
+		do me.areaY :: -1
+		while loop(true)
+			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
+			var oldY: int :: me.cursorY
+			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
+				break loop
+			end if
+			var newX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
+			var newY: int :: me.cursorY
+			if(newY < oldY | newY = oldY & newX <= oldX | newY > areaY2 | newY = areaY2 & newX + ^pattern > areaX2)
+				break loop
+			end if
+			do list_.add("[" ~ srcName ~ ": " ~ (newY + 1).toStr() ~ ", " ~ (newX + 1).toStr() ~ "]")
+			var pos: \src@Pos :: #\src@Pos
+			do pos.src :: srcName
+			do pos.row :: newY + 1
+			do pos.col :: newX + 1
+			do poses.add(pos)
+		end while
+	end func
+
+	+func findAll(list_: wnd@List, poses: list<\src@Pos>, srcName: []char, pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
+		do me.cursorX :: 0
+		do me.cursorY :: 0
+		do me.areaX :: -1
+		do me.areaY :: -1
+		while loop(true)
+			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
+			var oldY: int :: me.cursorY
+			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
+				break loop
+			end if
+			var newX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
+			var newY: int :: me.cursorY
+			if(newY < oldY | newY = oldY & newX <= oldX)
+				break loop
+			end if
+			do list_.add("[" ~ srcName ~ ": " ~ (newY + 1).toStr() ~ ", " ~ (newX + 1).toStr() ~ "]")
+			var pos: \src@Pos :: #\src@Pos
+			do pos.src :: srcName
+			do pos.row :: newY + 1
+			do pos.col :: newX + 1
+			do poses.add(pos)
+		end while
+	end func
+
 	+func replaceOne(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool)
 		if(!me.areaSel() | me.areaY <> me.cursorY)
 			ret
@@ -810,6 +871,40 @@ end func
 			do me.interpret1SetDirty(me.cursorY, true)
 			do me.undo.recordEnd()
 		end if
+	end func
+
+	+func replaceSel(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): int
+		if(!me.areaSel())
+			ret 0
+		end if
+		var areaX1: int :: me.cursorX
+		var areaY1: int :: me.cursorY
+		var areaX2: int :: me.areaX
+		var areaY2: int :: me.areaY
+		if(areaY1 > areaY2 | areaY1 = areaY2 & areaX1 > areaX2)
+			do areaX1 :$ areaX2
+			do areaY1 :$ areaY2
+		end if
+		do me.cursorX :: areaX1
+		do me.cursorY :: areaY1
+		do me.areaX :: -1
+		do me.areaY :: -1
+		var cnt: int :: 0
+		while loop(true)
+			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
+			var oldY: int :: me.cursorY
+			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
+				break loop
+			end if
+			var newX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
+			var newY: int :: me.cursorY
+			if(newY < oldY | newY = oldY & newX <= oldX | newY > areaY2 | newY = areaY2 & newX + ^pattern > areaX2)
+				break loop
+			end if
+			do me.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+			do cnt :+ 1
+		end while
+		ret cnt
 	end func
 
 	+func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): int
