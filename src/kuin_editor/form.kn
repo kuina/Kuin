@@ -76,16 +76,18 @@ var drag: bool
 	do @menuMain :: wnd@makeMenu()
 	do @popupMainFile :: wnd@makePopup()
 	do @popupMainFile.add(0x0001, \common@langEn ?("&New\tCtrl+N", "新規作成(&N)\tCtrl+N"))
-	do @popupMainFile.add(0x0002, \common@langEn ?("&Load...\tCtrl+O", "開く(&O)\tCtrl+O"))
+	do @popupMainFile.add(0x0002, \common@langEn ?("&Load...\tCtrl+O", "開く(&O)...\tCtrl+O"))
 	do @popupMainFile.addLine()
 	do @popupMainFile.add(0x0003, \common@langEn ?("&Save All\tCtrl+S", "すべて保存(&S)\tCtrl+S"))
-	do @popupMainFile.add(0x0004, \common@langEn ?("Save &As...\tCtrl+Shift+S", "名前を付けて保存(&A)\tCtrl+Shift+S"))
+	do @popupMainFile.add(0x0004, \common@langEn ?("Save &As...\tCtrl+Shift+S", "名前を付けて保存(&A)...\tCtrl+Shift+S"))
 	do @popupMainFile.addLine()
 	do @popupMainFile.add(0x0005, \common@langEn ?("E&xit\tCtrl+Q", "終了(&E)\tCtrl+Q"))
 	do @menuMain.addPopup(\common@langEn ?("&File", "ファイル(&F)"), @popupMainFile)
 	do @popupMainEdit :: wnd@makePopup()
-	do @popupMainEdit.add(0x0030, \common@langEn ?("Add Ne&w File\tCtrl+Shift+A", "新しいファイルを追加(&W)\tCtrl+Shift+A"))
-	do @popupMainEdit.add(0x0031, \common@langEn ?("Add Existin&g File", "既存のファイルを追加(&G)"))
+	do @popupMainEdit.add(0x0030, \common@langEn ?("Add Ne&w File...\tCtrl+Shift+A", "新しいファイルを追加(&W)...\tCtrl+Shift+A"))
+	do @popupMainEdit.add(0x0031, \common@langEn ?("Add Existin...&g File", "既存のファイルを追加(&G)..."))
+	do @popupMainEdit.addLine()
+	do @popupMainEdit.add(0x003E, \common@langEn ?("&Open \"res\" Folder...\tCtrl+Shift+R", "「res」フォルダを開く(&O)...\tCtrl+Shift+R"))
 	do @popupMainEdit.addLine()
 	do @popupMainEdit.add(0x0032, \common@langEn ?("&Undo\tCtrl+Z", "元に戻す(&U)\tCtrl+Z"))
 	do @popupMainEdit.add(0x0033, \common@langEn ?("&Redo\tCtrl+Shift+Z, Ctrl+Y", "やり直し(&R)\tCtrl+Shift+Z, Ctrl+Y"))
@@ -96,10 +98,10 @@ var drag: bool
 	do @popupMainEdit.add(0x0037, \common@langEn ?("&Delete\tDel", "削除(&D)\tDel"))
 	do @popupMainEdit.add(0x0038, \common@langEn ?("Select &All\tCtrl+A", "すべて選択(&A)\tCtrl+A"))
 	do @popupMainEdit.addLine()
-	do @popupMainEdit.add(0x003D, \common@langEn ?("Add &Selection To Snippet", "選択範囲をスニペットに追加(&S)"))
+	do @popupMainEdit.add(0x003D, \common@langEn ?("Add &Selection To Snippet...", "選択範囲をスニペットに追加(&S)..."))
 	do @popupMainEdit.addLine()
-	do @popupMainEdit.add(0x0039, \common@langEn ?("&Find\tCtrl+F", "検索(&F)\tCtrl+F"))
-	do @popupMainEdit.add(0x003A, \common@langEn ?("&Replace\tCtrl+H", "置換(&R)\tCtrl+H"))
+	do @popupMainEdit.add(0x0039, \common@langEn ?("&Find...\tCtrl+F", "検索(&F)...\tCtrl+F"))
+	do @popupMainEdit.add(0x003A, \common@langEn ?("&Replace...\tCtrl+H", "置換(&R)...\tCtrl+H"))
 	do @popupMainEdit.add(0x003B, \common@langEn ?("Find Pre&vious\tShift+F3", "前を検索(&V)\tShift+F3"))
 	do @popupMainEdit.add(0x003C, \common@langEn ?("Find &Next\tF3", "次を検索(&N)\tF3"))
 	do @menuMain.addPopup(\common@langEn ?("&Edit", "編集(&E)"), @popupMainEdit)
@@ -271,8 +273,12 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			switch(key)
 			case %a
 				do @wndMainOnPushMenu(@wndMain, 0x0030)
+				ret true
 			case %b
 				do @wndMainOnPushMenu(@wndMain, 0x0021)
+				ret true
+			case %r
+				do @wndMainOnPushMenu(@wndMain, 0x003E)
 				ret true
 			case %s
 				do @wndMainOnPushMenu(@wndMain, 0x0004)
@@ -400,6 +406,12 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	case 0x003D
 		do \snippet@add(\src@curDoc.getSelCode())
 		do @updateList()
+	case 0x003E
+		if(@lockingEditor)
+			do @showMsgRunning()
+			ret
+		end if
+		do @openResFolder()
 	end switch
 end func
 
@@ -822,4 +834,16 @@ end func
 
 +func getIconPath(): []char
 	ret @editIcon.getText()
+end func
+
+func openResFolder()
+	if(\src@mainSrcDir = "")
+		do wnd@msgBox(@wndMain, \common@langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), \common@title, %err, %ok)
+		ret
+	end if
+	var path: []char :: file@dir(\src@mainSrcDir) ~ "res/"
+	if(!file@exist(path))
+		do file@makeDir(path)
+	end if
+	do task@open(path)
 end func
