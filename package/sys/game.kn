@@ -1,0 +1,80 @@
+func [d1004.knd, _init] _init()
+end func
+
++class Map()
+	*func [d1004.knd, _mapDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 0xE9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 0xE9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 0xE9170005
+	end func
+
+	+func get(x: int, y: int): int
+	end func
+
+	+func set(x: int, y: int, value: int)
+	end func
+
+	+func find(x: &int, y: &int): bool
+	end func
+
+	var width: int
+	var height: int
+	var buf: int
+end class
+
++class Rect()
+	+func [d1004.knd, _rectMove] move()
+	end func
+
+	+func [d1004.knd, _rectUpdate] update()
+	end func
+
+	+var x: float
+	+var y: float
+	+var width: float
+	+var height: float
+	+var veloX: float
+	+var veloY: float
+	+var weight: float
+	var buf0: float
+	var buf1: float
+	var buf2: float
+	var buf3: float
+	var buf4: float
+	var buf5: float
+	var buf6: float
+	var buf7: float
+end class
+
++func [d1004.knd, _makeRect, _make_instance] makeRect(me2: @Rect, x: float, y: float, width: float, height: float, weight: float): @Rect
+end func
+
++func makeMap(path: []char): @Map
+	var handle: file@Reader :: file@makeReader(path)
+	do handle.delimiter([','])
+	var width: int :: handle.readInt()
+	var height: int :: handle.readInt()
+	var buf: []int :: #[width * height]int
+	for i(0, width * height - 1)
+		do buf[i] :: handle.readInt()
+	end for
+	ret makeMapImpl(width, height, buf)
+
+	func [d1004.knd, _makeMapImpl, _make_instance] makeMapImpl(me2: @Map, width, height, data: []int): @Map
+	end func
+end func
+
++func [d1004.knd, _makeMapEmpty, _make_instance] makeMapEmpty(me2: @Map, width: int, height: int): @Map
+end func
+
++func [d1004.knd, _hitMapRect] hitMapRect(map: @Map, rect: @Rect, callback: func<(&float, &float, float)>)
+end func
