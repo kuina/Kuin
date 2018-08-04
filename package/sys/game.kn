@@ -74,11 +74,11 @@ end func
 	var mapWidth: int
 	var mapHeight: int
 	var buf: int
-	var blockWidth: float
-	var blockHeight: float
+	var chipWidth: float
+	var chipHeight: float
 end class
 
-+func makeMap(path: []char, blockWidth: float, blockHeight: float): @Map
++func makeMap(path: []char, chipWidth: float, chipHeight: float): @Map
 	var handle: file@Reader :: file@makeReader(path)
 	do handle.delimiter([','])
 	var mapWidth: int :: handle.readInt()
@@ -87,13 +87,13 @@ end class
 	for i(0, mapWidth * mapHeight - 1)
 		do buf[i] :: handle.readInt()
 	end for
-	ret makeMapImpl(mapWidth, mapHeight, buf, blockWidth, blockHeight)
+	ret makeMapImpl(mapWidth, mapHeight, buf, chipWidth, chipHeight)
 
-	func [d1004.knd, _makeMapImpl, _make_instance] makeMapImpl(me2: @Map, mapWidth: int, mapHeight: int, data: []int, blockWidth: float, blockHeight: float): @Map
+	func [d1004.knd, _makeMapImpl, _make_instance] makeMapImpl(me2: @Map, mapWidth: int, mapHeight: int, data: []int, chipWidth: float, chipHeight: float): @Map
 	end func
 end func
 
-+func [d1004.knd, _makeMapEmpty, _make_instance] makeMapEmpty(me2: @Map, mapWidth: int, mapHeight: int, blockWidth: float, blockHeight: float): @Map
++func [d1004.knd, _makeMapEmpty, _make_instance] makeMapEmpty(me2: @Map, mapWidth: int, mapHeight: int, chipWidth: float, chipHeight: float): @Map
 end func
 
 +enum Shape
@@ -105,7 +105,7 @@ end func
 	triRightBottom
 end enum
 
-+class BlockInfo()
++class ChipInfo()
 	+var shape: @Shape
 	+var backFriction: float
 	+var solidFriction: float
@@ -113,9 +113,9 @@ end enum
 	+var repulsion: float
 end class
 
-+func hitMapRect(map: @Map, rect: @Rect, callback: func<(int, @BlockInfo)>)
++func hitMapRect(map: @Map, rect: @Rect, callback: func<(int, @ChipInfo)>)
 	do hitMapRectImpl(map, rect, callback)
 
-	func [d1004.knd, _hitMapRectImpl, _make_instance] hitMapRectImpl(me2: @BlockInfo, map: @Map, rect: @Rect, callback: func<(int, @BlockInfo)>): @BlockInfo
+	func [d1004.knd, _hitMapRectImpl, _make_instance] hitMapRectImpl(me2: @ChipInfo, map: @Map, rect: @Rect, callback: func<(int, @ChipInfo)>): @ChipInfo
 	end func
 end func
