@@ -30,8 +30,7 @@ end func
 	+var height: float
 	+var veloX: float
 	+var veloY: float
-	+var weight: float
-	+var flags: bit64
+	var flags: bit64
 	var buf0: float
 	var buf1: float
 	var buf2: float
@@ -42,9 +41,6 @@ end func
 	var buf7: float
 	var buf8: float
 end class
-
-+func [d1004.knd, _makeRect, _make_instance] makeRect(me2: @Rect, x: float, y: float, width: float, height: float, weight: float): @Rect
-end func
 
 +class Map()
 	*func [d1004.knd, _mapDtor, _force] _dtor()
@@ -103,6 +99,10 @@ end func
 	triRightTop
 	triLeftBottom
 	triRightBottom
+	oneWayLeft
+	oneWayTop
+	oneWayRight
+	oneWayBottom
 end enum
 
 +class ChipInfo()
@@ -111,11 +111,20 @@ end enum
 	+var solidFriction: float
 	+var fluidFriction: float
 	+var repulsion: float
+	+var flowX: float
+	+var flowY: float
 end class
 
-+func hitMapRect(map: @Map, rect: @Rect, callback: func<(int, @ChipInfo)>)
-	do hitMapRectImpl(map, rect, callback)
++enum Direction
+	left :: 1
+	top :: 2
+	right :: 4
+	bottom :: 8
+end enum
 
-	func [d1004.knd, _hitMapRectImpl, _make_instance] hitMapRectImpl(me2: @ChipInfo, map: @Map, rect: @Rect, callback: func<(int, @ChipInfo)>): @ChipInfo
++func hitMapRect(map: @Map, rect: @Rect, chipInfoCallback: func<(int, @ChipInfo)>, hitCallback: func<(int, int, @Direction)>)
+	do hitMapRectImpl(map, rect, chipInfoCallback, hitCallback)
+
+	func [d1004.knd, _hitMapRectImpl, _make_instance] hitMapRectImpl(me2: @ChipInfo, map: @Map, rect: @Rect, chipInfoCallback: func<(int, @ChipInfo)>, hitCallback: func<(int, int, @Direction)>): @ChipInfo
 	end func
 end func
