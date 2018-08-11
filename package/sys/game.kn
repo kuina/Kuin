@@ -128,3 +128,51 @@ end enum
 	func [d1004.knd, _hitMapRectImpl, _make_instance] hitMapRectImpl(me2: @ChipInfo, map: @Map, rect: @Rect, chipInfoCallback: func<(int, @ChipInfo)>, hitCallback: func<(int, int, @Direction)>): @ChipInfo
 	end func
 end func
+
++class Roll()
+	*func [d1004.knd, _rollDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 0xE9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 0xE9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 0xE9170005
+	end func
+
+	+func [d1004.knd, _rollProceed] proceed(speed: float): bool
+	end func
+
+	+func [d1004.knd, _rollReset] reset()
+	end func
+
+	var rollCallback: func<(float, [][]char)>
+	var pos_: float
+	var buf: int
+	var idx: int
+end class
+
++func makeRoll(path: []char, rollCallback: func<(float, [][]char)>): @Roll
+	var handle: file@Reader :: file@makeReader(path)
+	do handle.delimiter([','])
+	var itemNum: int :: handle.readInt()
+	var timings: []float :: #[itemNum]float
+	var params: [][][]char :: #[itemNum][][]char
+	for i(0, itemNum - 1)
+		do timings[i] :: handle.readFloat()
+		var paramsNum: int :: handle.readInt()
+		do params[i] :: #[paramsNum][]char
+		for j(0, paramsNum - 1)
+			do params[i][j] :: handle.readStr()
+		end for
+	end for
+	ret makeRollImpl(timings, params, rollCallback)
+
+	func [d1004.knd, _makeRollImpl, _make_instance] makeRollImpl(me2: @Roll, timings: []float, params: [][][]char, rollCallback: func<(float, [][]char)>): @Roll
+	end func
+end func

@@ -13,3 +13,7 @@ EXPORT S64 _mapGet(SClass* me_, S64 x, S64 y);
 EXPORT void _mapSet(SClass* me_, S64 x, S64 y, S64 value);
 EXPORT Bool _mapFind(SClass* me_, S64* x, S64* y, S64 value);
 EXPORT SClass* _hitMapRectImpl(SClass* me2, SClass* map, SClass* rect, const void* chip_info_callback, const void* hit_callback);
+EXPORT void _rollDtor(SClass* me_);
+EXPORT Bool _rollProceed(SClass* me_, double speed);
+EXPORT void _rollReset(SClass* me_);
+EXPORT SClass* _makeRollImpl(SClass* me_, const void* timings, const void* params, const void* roll_callback);
