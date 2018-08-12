@@ -228,3 +228,70 @@ end func
 
 +func [d0001.knd, _colorToArgb] colorToArgb(color: int, a: &float, r: &float, g: &float, b: &float)
 end func
+
++class Particle()
+	*func [d0001.knd, _particleDtor, _force] _dtor()
+	end func
+
+	*func [_force] _copy(): kuin@Class
+		throw 0xE9170005
+	end func
+
+	*func [_force] _toBin(): []bit8
+		throw 0xE9170005
+	end func
+
+	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
+		throw 0xE9170005
+	end func
+
+	+func [d0001.knd, _particleDraw] draw(x: float, y: float, z: float, tex: @Tex)
+	end func
+
+	+func [d0001.knd, _particleDraw2d] draw2d(x: float, y: float, tex: @Tex)
+	end func
+
+	var texParam1: int
+	var viewParam1: int
+	var texParam2: int
+	var viewParam2: int
+	var useTexParam1: int
+	var intervalRest: int
+	+var particleParam: @ParticleParam
+end class
+
++class ParticleParam()
+	*func ctor()
+	end func
+
+	+var intervalMin: int
+	+var intervalMax: int
+	+var veloXMin: float
+	+var veloXMax: float
+	+var veloYMin: float
+	+var veloYMax: float
+	+var accelXMin: float
+	+var accelXMax: float
+	+var accelYMin: float
+	+var accelYMax: float
+	+var lifespanMin: int
+	+var lifespanMax: int
+	+var color1: int
+	+var color2: int
+	+var sizeMin: float
+	+var sizeMax: float
+	+var sizeVeloMin: float
+	+var sizeVeloMax: float
+	+var sizeAccelMin: float
+	+var sizeAccelMax: float
+	+var rotMin: float
+	+var rotMax: float
+	+var rotVeloMin: float
+	+var rotVeloMax: float
+	+var rotAccelMin: float
+	+var rotAccelMax: float
+end class
+
++func [d0001.knd, _makeParticle, _make_instance] makeParticle(me2: @Particle, particleParam: @ParticleParam): @Particle
+	do me2.particleParam :: particleParam
+end func

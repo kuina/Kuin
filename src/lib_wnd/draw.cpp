@@ -141,6 +141,48 @@ struct SObjOutlinePsConstBuf
 	float OutlineColor[4];
 };
 
+struct SParticleParam
+{
+	SClass Class;
+	S64 IntervalMin;
+	S64 IntervalMax;
+	double VeloXMin;
+	double VeloXMax;
+	double VeloYMin;
+	double VeloYMax;
+	double AccelXMin;
+	double AccelXMax;
+	double AccelYMin;
+	double AccelYMax;
+	S64 LifespanMin;
+	S64 LifespanMax;
+	S64 Color1;
+	S64 Color2;
+	double SizeMin;
+	double SizeMax;
+	double SizeVeloMin;
+	double SizeVeloMax;
+	double SizeAccelMin;
+	double SizeAccelMax;
+	double RotMin;
+	double RotMax;
+	double RotVeloMin;
+	double RotVeloMax;
+	double RotAccelMin;
+	double RotAccelMax;
+};
+
+struct SParticle
+{
+	ID3D10Texture2D* TexParam1;
+	ID3D10ShaderResourceView* ViewParam1;
+	ID3D10Texture2D* TexParam2;
+	ID3D10ShaderResourceView* ViewParam2;
+	Bool UseTexParam1;
+	S64 IntervalRest;
+	SParticleParam* ParticleParam;
+};
+
 static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 const U8* GetTriVsBin(size_t* size);
@@ -1553,6 +1595,32 @@ EXPORT_CPP S64 _argbToColor(double a, double r, double g, double b)
 EXPORT_CPP void _colorToArgb(S64 color, double* a, double* r, double* g, double* b)
 {
 	Draw::ColorToArgb(a, r, g, b, color);
+}
+
+EXPORT_CPP void _particleDtor(SClass* me_)
+{
+	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
+	// TODO:
+}
+
+EXPORT_CPP void _particleDraw(SClass* me_, double x, double y, double z, SClass* tex)
+{
+	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
+	// TODO:
+}
+
+EXPORT_CPP void _particleDraw2d(SClass* me_, double x, double y, SClass* tex)
+{
+	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
+	// TODO:
+}
+
+EXPORT_CPP SClass* _makeParticle(SClass* me_, SClass* particle_param)
+{
+	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
+	// TODO:
+	me2->UseTexParam1 = True;
+	return me_;
 }
 
 namespace Draw
