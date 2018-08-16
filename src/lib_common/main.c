@@ -166,6 +166,8 @@ EXPORT void _err(S64 excpt)
 	}
 	swprintf(str, 1024, L"An exception '0x%08X' occurred.\r\n\r\n> %s", (U32)excpt, text);
 	MessageBox(0, str, NULL, 0);
+#else
+	UNUSED(excpt);
 #endif
 }
 
@@ -965,6 +967,7 @@ EXPORT U8* _toStr(const void* me_, const U8* type)
 			return (U8*)me_;
 			break;
 		default:
+			len = 0;
 			ASSERT(False);
 			break;
 	}

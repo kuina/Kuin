@@ -41,6 +41,7 @@ EXPORT_CPP Bool _wndActivated(SClass* me_);
 EXPORT_CPP Bool _wndFocusedWnd(SClass* me_);
 EXPORT_CPP void _wndSetAlpha(SClass* me_, S64 alpha);
 EXPORT_CPP S64 _wndGetAlpha(SClass* me_);
+EXPORT_CPP void _wndAcceptDraggedFiles(SClass* me_, Bool is_accepted);
 EXPORT_CPP void _wndSetModalLock(SClass* me_);
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification);
 EXPORT_CPP void _drawDtor(SClass* me_);

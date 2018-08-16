@@ -160,6 +160,9 @@ end class
 	+func [d0001.knd, _wndGetAlpha] getAlpha(): int
 	end func
 
+	+func [d0001.knd, _wndAcceptDraggedFiles] acceptDraggedFiles(isAccepted: bool)
+	end func
+
 	+func modal()
 		do me.setModalLock()
 		while(@act() & me.modalLock)
@@ -173,6 +176,7 @@ end class
 	+var onClose: func<(@WndBase): bool>
 	+var onActivate: func<(@WndBase, bool, bool)>
 	+var onPushMenu: func<(@WndBase, int)>
+	+var onDropFiles: func<(@WndBase, [][]char)>
 	var modalLock: bool
 end class
 

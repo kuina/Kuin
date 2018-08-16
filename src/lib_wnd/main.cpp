@@ -87,6 +87,7 @@ struct SWnd
 	void* OnClose;
 	void* OnActivate;
 	void* OnPushMenu;
+	void* OnDropFiles;
 	Bool ModalLock;
 };
 
@@ -307,6 +308,7 @@ static Char* ParseFilter(const U8* filter, int* num);
 static void TreeExpandAllRecursion(HWND wnd_handle, HTREEITEM node, int flag);
 static void CopyTreeNodeRecursion(HWND tree_wnd, HTREEITEM dst, HTREEITEM src, Char* buf);
 static void ListViewAdjustWidth(HWND wnd);
+static LRESULT CALLBACK CommonWndProc(HWND wnd, SWndBase* wnd2, SWnd* wnd3, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -772,6 +774,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 		me3->OnClose = NULL;
 		me3->OnActivate = NULL;
 		me3->OnPushMenu = NULL;
+		me3->OnDropFiles = NULL;
 		me3->ModalLock = False;
 	}
 	SendMessage(me2->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
@@ -825,7 +828,7 @@ EXPORT_CPP void _wndBaseSetEnabled(SClass* me_, Bool is_enabled)
 
 EXPORT_CPP Bool _wndBaseGetEnabled(SClass* me_)
 {
-	return IsWindowEnabled(reinterpret_cast<SWndBase*>(me_)->WndHandle);
+	return IsWindowEnabled(reinterpret_cast<SWndBase*>(me_)->WndHandle) != FALSE;
 }
 
 EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height)
@@ -852,7 +855,7 @@ EXPORT_CPP void _wndBaseSetVisible(SClass* me_, Bool is_visible)
 
 EXPORT_CPP Bool _wndBaseGetVisible(SClass* me_)
 {
-	return IsWindowVisible(reinterpret_cast<SWndBase*>(me_)->WndHandle);
+	return IsWindowVisible(reinterpret_cast<SWndBase*>(me_)->WndHandle) != FALSE;
 }
 
 EXPORT_CPP void _wndBaseClientToScreen(SClass* me_, S64* screenX, S64* screenY, S64 clientX, S64 clientY)
@@ -957,6 +960,11 @@ EXPORT_CPP S64 _wndGetAlpha(SClass* me_)
 	BYTE alpha;
 	GetLayeredWindowAttributes(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, &alpha, NULL);
 	return static_cast<S64>(alpha);
+}
+
+EXPORT_CPP void _wndAcceptDraggedFiles(SClass* me_, Bool is_accepted)
+{
+	DragAcceptFiles(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_accepted ? TRUE : FALSE);
 }
 
 EXPORT_CPP void _wndSetModalLock(SClass* me_)
@@ -2421,13 +2429,8 @@ static void ListViewAdjustWidth(HWND wnd)
 		ListView_SetColumnWidth(wnd, i, LVSCW_AUTOSIZE_USEHEADER);
 }
 
-static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
+static LRESULT CALLBACK CommonWndProc(HWND wnd, SWndBase* wnd2, SWnd* wnd3, UINT msg, WPARAM w_param, LPARAM l_param)
 {
-	SWndBase* wnd2 = ToWnd(wnd);
-	SWnd* wnd3 = reinterpret_cast<SWnd*>(wnd2);
-	if (wnd2 == NULL)
-		return DefWindowProc(wnd, msg, w_param, l_param);
-	ASSERT(wnd2->Kind == WndKind_WndNormal);
 	switch (msg)
 	{
 		case WM_CLOSE:
@@ -2451,6 +2454,52 @@ static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPA
 				wnd3->ModalLock = False;
 			}
 			return 0;
+		case WM_ACTIVATE:
+			if (wnd3->OnActivate != NULL)
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(w_param) != 0)), reinterpret_cast<void*>(static_cast<S64>(HIWORD(w_param) != 0)), wnd3->OnActivate);
+			return 0;
+		case WM_DROPFILES:
+			if (wnd3->OnDropFiles != NULL)
+			{
+				HDROP drop = reinterpret_cast<HDROP>(w_param);
+				UINT num = DragQueryFile(drop, 0xffffffff, NULL, 0);
+				void* buf = AllocMem(0x10 + sizeof(void*) * static_cast<size_t>(num));
+				(static_cast<S64*>(buf))[0] = 1;
+				(static_cast<S64*>(buf))[1] = static_cast<S64>(num);
+				void** ptr = reinterpret_cast<void**>(static_cast<U8*>(buf) + 0x10);
+				for (UINT i = 0; i < num; i++)
+				{
+					UINT len = DragQueryFile(drop, i, NULL, 0);
+					void* buf2 = AllocMem(0x10 + sizeof(Char) * static_cast<size_t>(len + 1));
+					(static_cast<S64*>(buf2))[0] = 1;
+					(static_cast<S64*>(buf2))[1] = static_cast<S64>(len);
+					Char* str = static_cast<Char*>(buf2) + 0x08;
+					DragQueryFile(drop, i, str, len + 1);
+					for (UINT j = 0; j < len; j++)
+						str[j] = str[j] == L'\\' ? L'/' : str[j];
+					ptr[i] = buf2;
+				}
+				DragFinish(drop);
+				Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), buf, wnd3->OnDropFiles);
+			}
+			return 0;
+		case WM_COMMAND:
+		case WM_NOTIFY:
+			CommandAndNotify(wnd, msg, w_param, l_param);
+			return 0;
+	}
+	return DefWindowProc(wnd, msg, w_param, l_param);
+}
+
+static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
+{
+	SWndBase* wnd2 = ToWnd(wnd);
+	SWnd* wnd3 = reinterpret_cast<SWnd*>(wnd2);
+	if (wnd2 == NULL)
+		return DefWindowProc(wnd, msg, w_param, l_param);
+	ASSERT(wnd2->Kind == WndKind_WndNormal);
+	switch (msg)
+	{
 		case WM_SIZE:
 			EnumChildWindows(wnd, ResizeCallback, NULL);
 			return 0;
@@ -2467,16 +2516,8 @@ static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPA
 					info->ptMaxTrackSize.y = static_cast<LONG>(wnd3->MaxHeight);
 			}
 			return 0;
-		case WM_ACTIVATE:
-			if (wnd3->OnActivate)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(w_param) != 0)), reinterpret_cast<void*>(static_cast<S64>(HIWORD(w_param) != 0)), wnd3->OnActivate);
-			return 0;
-		case WM_COMMAND:
-		case WM_NOTIFY:
-			CommandAndNotify(wnd, msg, w_param, l_param);
-			return 0;
 	}
-	return DefWindowProc(wnd, msg, w_param, l_param);
+	return CommonWndProc(wnd, wnd2, wnd3, msg, w_param, l_param);
 }
 
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
@@ -2486,39 +2527,7 @@ static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 	if (wnd2 == NULL)
 		return DefWindowProc(wnd, msg, w_param, l_param);
 	ASSERT(wnd2->Kind == WndKind_WndFix || wnd2->Kind == WndKind_WndPopup);
-	switch (msg)
-	{
-		case WM_CLOSE:
-			if (wnd3->OnClose != NULL)
-			{
-				if (!static_cast<Bool>(reinterpret_cast<U64>(Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnClose))))
-					return 0;
-			}
-			DestroyWindow(wnd);
-			return 0;
-		case WM_DESTROY:
-			WndCnt--;
-			if (wnd3->ModalLock)
-			{
-				HWND parent = GetWindow(wnd2->WndHandle, GW_OWNER);
-				if (parent != NULL)
-				{
-					EnableWindow(parent, TRUE);
-					SetActiveWindow(parent);
-				}
-				wnd3->ModalLock = False;
-			}
-			return 0;
-		case WM_ACTIVATE:
-			if (wnd3->OnActivate)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(w_param) != 0)), reinterpret_cast<void*>(static_cast<S64>(HIWORD(w_param) != 0)), wnd3->OnActivate);
-			return 0;
-		case WM_COMMAND:
-		case WM_NOTIFY:
-			CommandAndNotify(wnd, msg, w_param, l_param);
-			return 0;
-	}
-	return DefWindowProc(wnd, msg, w_param, l_param);
+	return CommonWndProc(wnd, wnd2, wnd3, msg, w_param, l_param);
 }
 
 static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
@@ -2530,27 +2539,6 @@ static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPA
 	ASSERT(wnd2->Kind == WndKind_WndAspect);
 	switch (msg)
 	{
-		case WM_CLOSE:
-			if (wnd3->OnClose != NULL)
-			{
-				if (!static_cast<Bool>(reinterpret_cast<U64>(Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnClose))))
-					return 0;
-			}
-			DestroyWindow(wnd);
-			return 0;
-		case WM_DESTROY:
-			WndCnt--;
-			if (wnd3->ModalLock)
-			{
-				HWND parent = GetWindow(wnd2->WndHandle, GW_OWNER);
-				if (parent != NULL)
-				{
-					EnableWindow(parent, TRUE);
-					SetActiveWindow(parent);
-				}
-				wnd3->ModalLock = False;
-			}
-			return 0;
 		case WM_SIZE:
 			EnumChildWindows(wnd, ResizeCallback, NULL);
 			return 0;
@@ -2566,14 +2554,6 @@ static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPA
 				if (wnd3->MaxHeight != -1)
 					info->ptMaxTrackSize.y = static_cast<LONG>(wnd3->MaxHeight);
 			}
-			return 0;
-		case WM_ACTIVATE:
-			if (wnd3->OnActivate)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(w_param) != 0)), reinterpret_cast<void*>(static_cast<S64>(HIWORD(w_param) != 0)), wnd3->OnActivate);
-			return 0;
-		case WM_COMMAND:
-		case WM_NOTIFY:
-			CommandAndNotify(wnd, msg, w_param, l_param);
 			return 0;
 		case WM_SIZING:
 			{
@@ -2620,7 +2600,7 @@ static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPA
 			}
 			break;
 	}
-	return DefWindowProc(wnd, msg, w_param, l_param);
+	return CommonWndProc(wnd, wnd2, wnd3, msg, w_param, l_param);
 }
 
 static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)

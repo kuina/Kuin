@@ -32,9 +32,11 @@ var drag: bool
 +func makeWnd()
 	do @wndMain :: wnd@makeWnd(null, %normal, 1224, 768, \common@title)
 	do @wndMain.minMax(930, 640, -1, -1)
+	do @wndMain.acceptDraggedFiles(true)
 	do @wndMain.onClose :: @wndMainOnClose
 	do @wndMain.onActivate :: @wndMainOnActivate
 	do @wndMain.onPushMenu :: @wndMainOnPushMenu
+	do @wndMain.onDropFiles :: @wndMainOnDropFiles
 	do @treeItem :: wnd@makeTreeMulti(@wndMain, 12, 290, 244, 466, %fix, %scale)
 	do @treeItem.draggable(true)
 	do @treeItem.allowDraggingToRoot(false)
@@ -413,6 +415,19 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		end if
 		do @openResFolder()
 	end switch
+end func
+
+func wndMainOnDropFiles(wnd: wnd@WndBase, files: [][]char)
+	if(^files <= 0 | file@ext(files[0]) <> "kn")
+		ret
+	end if
+	if(@lockingEditor)
+		do @showMsgRunning()
+		ret
+	end if
+	if (\src@chkChanged())
+		do \src@openMainSrc(files[0])
+	end if
 end func
 
 func treeItemOnSel(wnd: wnd@WndBase)
