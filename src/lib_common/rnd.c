@@ -117,21 +117,19 @@ void RndInit(SRndState* rnd_, U32 seed)
 
 S64 RndGet(SRndState* rnd_, S64 min, S64 max)
 {
+	U64 n = (U64)(max - min + 1);
+	U64 m = 0 - ((0 - n) % n);
+	U64 r;
+	if (m == 0)
+		r = RndGetBit64(rnd_);
+	else
 	{
-		U64 n = (U64)(max - min + 1);
-		U64 m = 0 - ((0 - n) % n);
-		U64 r;
-		if (m == 0)
-			r = RndGetBit64(rnd_);
-		else
+		do
 		{
-			do
-			{
-				r = RndGetBit64(rnd_);
-			} while (m <= r);
-		}
-		return (S64)(r % n) + min;
+			r = RndGetBit64(rnd_);
+		} while (m <= r);
 	}
+	return (S64)(r % n) + min;
 }
 
 double RndGetFloat(SRndState* rnd_, double min, double max)

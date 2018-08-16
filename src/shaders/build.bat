@@ -19,4 +19,8 @@ set fxc_path="C:\Program Files (x86)\Windows Kits\8.1\bin\x64\fxc.exe"
 %fxc_path% filter_vs.fx /T vs_4_0 /Fo filter.vs
 %fxc_path% filter_none_ps.fx /T ps_4_0 /Fo filter_none.ps
 %fxc_path% filter_monotone_ps.fx /T ps_4_0 /Fo filter_monotone.ps
+%fxc_path% particle_2d_vs.fx /T vs_4_0 /Fo particle_2d.vs
+%fxc_path% particle_2d_ps.fx /T ps_4_0 /Fo particle_2d.ps
+%fxc_path% particle_updating_vs.fx /T vs_4_0 /Fo particle_updating.vs
+%fxc_path% particle_updating_ps.fx /T ps_4_0 /Fo particle_updating.ps
 pause

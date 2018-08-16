@@ -18,6 +18,8 @@ static const int FontBitmapSize = 1024;
 static const int TexEvenNum = 3;
 static const double DiscardAlpha = 0.02;
 static const int FilterNum = 2;
+static const int ParticleNum = 256;
+static const int ParticleTexNum = 3;
 
 struct SWndBuf
 {
@@ -146,44 +148,66 @@ struct SParticleParam
 	SClass Class;
 	S64 IntervalMin;
 	S64 IntervalMax;
+	S64 EmissionNumMin;
+	S64 EmissionNumMax;
 	double VeloXMin;
 	double VeloXMax;
 	double VeloYMin;
 	double VeloYMax;
-	double AccelXMin;
-	double AccelXMax;
-	double AccelYMin;
-	double AccelYMax;
-	S64 LifespanMin;
-	S64 LifespanMax;
+	double VeloZMin;
+	double VeloZMax;
+	double Friction;
+	double AccelX;
+	double AccelY;
+	double AccelZ;
+	S64 Lifespan;
 	S64 Color1;
 	S64 Color2;
 	double SizeMin;
 	double SizeMax;
 	double SizeVeloMin;
 	double SizeVeloMax;
-	double SizeAccelMin;
-	double SizeAccelMax;
+	double SizeAccel;
 	double RotMin;
 	double RotMax;
 	double RotVeloMin;
 	double RotVeloMax;
-	double RotAccelMin;
-	double RotAccelMax;
+	double RotAccel;
+};
+
+struct SParticleTexSet
+{
+	ID3D10Texture2D* TexParam;
+	ID3D10ShaderResourceView* ViewParam;
+	ID3D10RenderTargetView* RenderTargetViewParam;
 };
 
 struct SParticle
 {
-	ID3D10Texture2D* TexParam1;
-	ID3D10ShaderResourceView* ViewParam1;
-	ID3D10Texture2D* TexParam2;
-	ID3D10ShaderResourceView* ViewParam2;
-	Bool UseTexParam1;
+	SClass Class;
+	S64 ParticlePtr;
+	SParticleTexSet* TexSet;
+	ID3D10Texture2D* TexTmp;
+	Bool Draw1To2;
 	S64 IntervalRest;
-	SParticleParam* ParticleParam;
+	const SParticleParam* ParticleParam;
+};
+
+struct SParticlePsConstBuf
+{
+	float Color1[4];
+	float Color2[4];
+};
+
+struct SParticleUpdatingPsConstBuf
+{
+	float AccelAndFriction[4];
+	float SizeAccelAndRotAccel[4];
 };
 
 static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+static const D3D10_VIEWPORT ParticleViewport = { 0, 0, static_cast<UINT>(ParticleNum), 1, 0.0f, 1.0f };
 
 const U8* GetTriVsBin(size_t* size);
 const U8* GetTriPsBin(size_t* size);
@@ -205,6 +229,10 @@ const U8* GetFilterVsBin(size_t* size);
 const U8* GetFilterNonePsBin(size_t* size);
 const U8* GetFilterMonotonePsBin(size_t* size);
 const U8* GetToonRampPngBin(size_t* size);
+const U8* GetParticle2dVsBin(size_t* size);
+const U8* GetParticle2dPsBin(size_t* size);
+const U8* GetParticleUpdatingVsBin(size_t* size);
+const U8* GetParticleUpdatingPsBin(size_t* size);
 
 static S64 Cnt;
 static U32 PrevTime;
@@ -239,6 +267,12 @@ static void* ObjOutlinePs = NULL;
 static void* FilterVertex = NULL;
 static void* FilterVs = NULL;
 static void* FilterPs[FilterNum] = { NULL };
+static void* ParticleVertex = NULL;
+static void* Particle2dVs = NULL;
+static void* Particle2dPs = NULL;
+static void* ParticleUpdatingVertex = NULL;
+static void* ParticleUpdatingVs = NULL;
+static void* ParticleUpdatingPs = NULL;
 static double ViewMat[4][4];
 static double ProjMat[4][4];
 static SObjVsConstBuf ObjVsConstBuf;
@@ -252,6 +286,11 @@ ID3D10Texture2D* TexEven[TexEvenNum];
 ID3D10ShaderResourceView* ViewEven[TexEvenNum];
 static int FilterIdx = 0;
 static float FilterParam[4][4];
+static U32 RndSeed = 0;
+
+static Bool MakeTexWithImg(ID3D10Texture2D** tex, ID3D10ShaderResourceView** view, ID3D10RenderTargetView** render_target_view, int width, int height, const void* img, size_t pitch, DXGI_FORMAT fmt, D3D10_USAGE usage, UINT cpu_access_flag, Bool render_target);
+static void ResetParticleRest(SParticle* particle);
+static void DoParticle(SParticle* particle, double x, double y, double z);
 
 EXPORT_CPP void _render(S64 fps)
 {
@@ -618,36 +657,8 @@ EXPORT_CPP SClass* _makeTexEvenArgb(SClass* me_, double a, double r, double g, d
 	float img[4] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a) };
 	me2->Width = 1;
 	me2->Height = 1;
-	{
-		D3D10_TEXTURE2D_DESC desc;
-		D3D10_SUBRESOURCE_DATA sub;
-		desc.Width = 1;
-		desc.Height = 1;
-		desc.MipLevels = 1;
-		desc.ArraySize = 1;
-		desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
-		desc.Usage = D3D10_USAGE_IMMUTABLE;
-		desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-		desc.CPUAccessFlags = 0;
-		desc.MiscFlags = 0;
-		sub.pSysMem = img;
-		sub.SysMemPitch = static_cast<UINT>(sizeof(img));
-		sub.SysMemSlicePitch = 0;
-		if (FAILED(Device->CreateTexture2D(&desc, &sub, &me2->Tex)))
-			THROW(0xe9170009);
-	}
-	{
-		D3D10_SHADER_RESOURCE_VIEW_DESC desc;
-		memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-		desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-		desc.Texture2D.MostDetailedMip = 0;
-		desc.Texture2D.MipLevels = 1;
-		if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
-			THROW(0xe9170009);
-	}
+	if (!MakeTexWithImg(&me2->Tex, &me2->View, NULL, 1, 1, img, sizeof(img), DXGI_FORMAT_R32G32B32A32_FLOAT, D3D10_USAGE_IMMUTABLE, 0, False))
+		THROW(0xe9170009);
 	return me_;
 }
 
@@ -1332,9 +1343,11 @@ EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse
 				Device->GSSetShader(NULL);
 				Draw::ConstBuf(ObjPs, &ObjPsConstBuf);
 				Draw::VertexBuf(element2->VertexBuf);
-				Device->PSSetShaderResources(0, 1, diffuse == NULL ? &ViewEven[0] : &reinterpret_cast<STex*>(diffuse)->View);
-				Device->PSSetShaderResources(1, 1, specular == NULL ? &ViewEven[1] : &reinterpret_cast<STex*>(specular)->View);
-				Device->PSSetShaderResources(2, 1, normal == NULL ? &ViewEven[2] : &reinterpret_cast<STex*>(normal)->View);
+				ID3D10ShaderResourceView* views[3];
+				views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+				views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
+				views[2] = normal == NULL ? ViewEven[2] : reinterpret_cast<STex*>(normal)->View;
+				Device->PSSetShaderResources(0, 3, views);
 				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
 			}
 			break;
@@ -1366,10 +1379,12 @@ EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* dif
 				Device->GSSetShader(NULL);
 				Draw::ConstBuf(ObjToonPs, &ObjPsConstBuf);
 				Draw::VertexBuf(element2->VertexBuf);
-				Device->PSSetShaderResources(0, 1, diffuse == NULL ? &ViewEven[0] : &reinterpret_cast<STex*>(diffuse)->View);
-				Device->PSSetShaderResources(1, 1, specular == NULL ? &ViewEven[1] : &reinterpret_cast<STex*>(specular)->View);
-				Device->PSSetShaderResources(2, 1, normal == NULL ? &ViewEven[2] : &reinterpret_cast<STex*>(normal)->View);
-				Device->PSSetShaderResources(3, 1, &ViewToonRamp);
+				ID3D10ShaderResourceView* views[4];
+				views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+				views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
+				views[2] = normal == NULL ? ViewEven[2] : reinterpret_cast<STex*>(normal)->View;
+				views[3] = ViewToonRamp;
+				Device->PSSetShaderResources(0, 4, views);
 				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
 			}
 			break;
@@ -1600,27 +1615,268 @@ EXPORT_CPP void _colorToArgb(S64 color, double* a, double* r, double* g, double*
 EXPORT_CPP void _particleDtor(SClass* me_)
 {
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
-	// TODO:
+	if (me2->TexSet != NULL)
+	{
+		for (int i = 0; i < ParticleTexNum * 2; i++)
+		{
+			if (me2->TexSet[i].RenderTargetViewParam != NULL)
+				me2->TexSet[i].RenderTargetViewParam->Release();
+			if (me2->TexSet[i].ViewParam != NULL)
+				me2->TexSet[i].ViewParam->Release();
+			if (me2->TexSet[i].TexParam != NULL)
+				me2->TexSet[i].TexParam->Release();
+		}
+		FreeMem(me2->TexSet);
+	}
+	if (me2->TexTmp != NULL)
+		me2->TexTmp->Release();
 }
 
 EXPORT_CPP void _particleDraw(SClass* me_, double x, double y, double z, SClass* tex)
 {
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
+	DoParticle(me2, x, y, z);
 	// TODO:
 }
 
 EXPORT_CPP void _particleDraw2d(SClass* me_, double x, double y, SClass* tex)
 {
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
-	// TODO:
+	DoParticle(me2, x, y, 0.0);
+
+	SParticlePsConstBuf ps_const_buf;
+	const SParticleParam* param = me2->ParticleParam;
+	{
+		double a, r, g, b;
+		_colorToArgb(param->Color1, &a, &r, &g, &b);
+		ps_const_buf.Color1[0] = static_cast<float>(r);
+		ps_const_buf.Color1[1] = static_cast<float>(g);
+		ps_const_buf.Color1[2] = static_cast<float>(b);
+		ps_const_buf.Color1[3] = static_cast<float>(a);
+	}
+	{
+		double a, r, g, b;
+		_colorToArgb(param->Color2, &a, &r, &g, &b);
+		ps_const_buf.Color2[0] = static_cast<float>(r);
+		ps_const_buf.Color2[1] = static_cast<float>(g);
+		ps_const_buf.Color2[2] = static_cast<float>(b);
+		ps_const_buf.Color2[3] = static_cast<float>(a);
+	}
+	float screen[4] =
+	{
+		1.0f / static_cast<float>(CurWndBuf->ScreenWidth),
+		1.0f / static_cast<float>(CurWndBuf->ScreenHeight),
+		0.0f,
+		static_cast<float>(param->Lifespan)
+	};
+	Draw::ConstBuf(Particle2dVs, screen);
+	Device->GSSetShader(NULL);
+	Draw::ConstBuf(Particle2dPs, &ps_const_buf);
+	Draw::VertexBuf(ParticleVertex);
+	ID3D10ShaderResourceView* views[2];
+	views[0] = me2->Draw1To2 ? me2->TexSet[0].ViewParam : me2->TexSet[ParticleTexNum + 0].ViewParam;
+	views[1] = me2->Draw1To2 ? me2->TexSet[2].ViewParam : me2->TexSet[ParticleTexNum + 2].ViewParam;
+	Device->VSSetShaderResources(0, 2, views);
+	Device->PSSetShaderResources(0, 1, &(reinterpret_cast<STex*>(tex))->View);
+	Device->DrawIndexed(ParticleNum * 6, 0, 0);
 }
 
 EXPORT_CPP SClass* _makeParticle(SClass* me_, SClass* particle_param)
 {
+	UNUSED(particle_param);
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
-	// TODO:
-	me2->UseTexParam1 = True;
+	const SParticleParam* param = me2->ParticleParam;
+	THROWDBG(param->IntervalMin < 0 || param->IntervalMin > param->IntervalMax, 0xe9170006);
+	THROWDBG(param->EmissionNumMin <= 0 || param->EmissionNumMin > param->EmissionNumMax, 0xe9170006);
+	THROWDBG(param->VeloXMin > param->VeloXMax, 0xe9170006);
+	THROWDBG(param->VeloYMin > param->VeloYMax, 0xe9170006);
+	THROWDBG(param->VeloZMin > param->VeloZMax, 0xe9170006);
+	THROWDBG(param->Friction < 0.0, 0xe9170006);
+	THROWDBG(param->Lifespan <= 0, 0xe9170006);
+	THROWDBG(param->SizeMin > param->SizeMax, 0xe9170006);
+	THROWDBG(param->SizeVeloMin > param->SizeVeloMax, 0xe9170006);
+	THROWDBG(param->RotMin > param->RotMax, 0xe9170006);
+	THROWDBG(param->RotVeloMin > param->RotVeloMax, 0xe9170006);
+	me2->ParticlePtr = 0;
+	{
+		Bool success = True;
+		void* img = AllocMem(sizeof(float) * ParticleNum * 4);
+		memset(img, 0, sizeof(float) * ParticleNum * 4);
+		me2->TexSet = reinterpret_cast<SParticleTexSet*>(AllocMem(sizeof(SParticleTexSet) * ParticleTexNum * 2));
+		for (int i = 0; i < ParticleTexNum * 2; i++)
+		{
+			if (!MakeTexWithImg(&me2->TexSet[i].TexParam, &me2->TexSet[i].ViewParam, &me2->TexSet[i].RenderTargetViewParam, ParticleNum, 1, img, sizeof(float) * ParticleNum * 4, DXGI_FORMAT_R32G32B32A32_FLOAT, D3D10_USAGE_DEFAULT, 0, True))
+			{
+				success = False;
+				break;
+			}
+		}
+		FreeMem(img);
+		if (!success)
+			return NULL;
+	}
+	{
+		D3D10_TEXTURE2D_DESC desc;
+		desc.Width = static_cast<UINT>(ParticleNum);
+		desc.Height = 1;
+		desc.MipLevels = 1;
+		desc.ArraySize = 1;
+		desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Usage = D3D10_USAGE_STAGING;
+		desc.BindFlags = 0;
+		desc.CPUAccessFlags = D3D10_CPU_ACCESS_READ | D3D10_CPU_ACCESS_WRITE;
+		desc.MiscFlags = 0;
+		if (FAILED(Device->CreateTexture2D(&desc, NULL, &me2->TexTmp)))
+			return False;
+	}
+	me2->Draw1To2 = True;
+	ResetParticleRest(me2);
 	return me_;
+}
+
+static Bool MakeTexWithImg(ID3D10Texture2D** tex, ID3D10ShaderResourceView** view, ID3D10RenderTargetView** render_target_view, int width, int height, const void* img, size_t pitch, DXGI_FORMAT fmt, D3D10_USAGE usage, UINT cpu_access_flag, Bool render_target)
+{
+	{
+		D3D10_TEXTURE2D_DESC desc;
+		D3D10_SUBRESOURCE_DATA sub;
+		desc.Width = static_cast<UINT>(width);
+		desc.Height = static_cast<UINT>(height);
+		desc.MipLevels = 1;
+		desc.ArraySize = 1;
+		desc.Format = fmt;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Usage = usage;
+		desc.BindFlags = render_target ? (D3D10_BIND_RENDER_TARGET | D3D10_BIND_SHADER_RESOURCE) : D3D10_BIND_SHADER_RESOURCE;
+		desc.CPUAccessFlags = cpu_access_flag;
+		desc.MiscFlags = 0;
+		sub.pSysMem = img;
+		sub.SysMemPitch = static_cast<UINT>(pitch);
+		sub.SysMemSlicePitch = 0;
+		if (FAILED(Device->CreateTexture2D(&desc, &sub, tex)))
+			return False;
+	}
+	{
+		D3D10_SHADER_RESOURCE_VIEW_DESC desc;
+		memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+		desc.Format = fmt;
+		desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+		desc.Texture2D.MostDetailedMip = 0;
+		desc.Texture2D.MipLevels = 1;
+		if (FAILED(Device->CreateShaderResourceView(*tex, &desc, view)))
+			return False;
+	}
+	if (render_target_view != NULL)
+	{
+		if (FAILED(Device->CreateRenderTargetView(*tex, NULL, render_target_view)))
+			return False;
+	}
+	return True;
+}
+
+static void ResetParticleRest(SParticle* particle)
+{
+	const SParticleParam* param = particle->ParticleParam;
+	particle->IntervalRest = XorShiftInt(&RndSeed, param->IntervalMin, param->IntervalMax);
+}
+
+static void DoParticle(SParticle* particle, double x, double y, double z)
+{
+	// Update particles.
+	{
+		int old_z_buf = CurZBuf;
+		int old_blend = CurBlend;
+		int old_sampler = CurSampler;
+		_depth(False, False);
+		_blend(0);
+		_sampler(0);
+
+		ID3D10RenderTargetView* targets[ParticleTexNum];
+		const int particle_tex_idx = particle->Draw1To2 ? ParticleTexNum : 0;
+		for (int i = 0; i < ParticleTexNum; i++)
+			targets[i] = particle->TexSet[particle_tex_idx + i].RenderTargetViewParam;
+		Device->OMSetRenderTargets(static_cast<UINT>(ParticleTexNum), targets, NULL);
+		Device->RSSetViewports(1, &ParticleViewport);
+		{
+			const SParticleParam* param = particle->ParticleParam;
+			SParticleUpdatingPsConstBuf const_buf;
+			const_buf.AccelAndFriction[0] = static_cast<float>(param->AccelX);
+			const_buf.AccelAndFriction[1] = static_cast<float>(param->AccelY);
+			const_buf.AccelAndFriction[2] = static_cast<float>(param->AccelZ);
+			const_buf.AccelAndFriction[3] = static_cast<float>(param->Friction);
+			const_buf.SizeAccelAndRotAccel[0] = static_cast<float>(param->SizeAccel);
+			const_buf.SizeAccelAndRotAccel[1] = static_cast<float>(param->RotAccel);
+			Draw::ConstBuf(ParticleUpdatingVs, NULL);
+			Device->GSSetShader(NULL);
+			Draw::ConstBuf(ParticleUpdatingPs, &const_buf);
+			Draw::VertexBuf(ParticleUpdatingVertex);
+			ID3D10ShaderResourceView* views[3];
+			views[0] = particle->Draw1To2 ? particle->TexSet[0].ViewParam : particle->TexSet[ParticleTexNum + 0].ViewParam;
+			views[1] = particle->Draw1To2 ? particle->TexSet[1].ViewParam : particle->TexSet[ParticleTexNum + 1].ViewParam;
+			views[2] = particle->Draw1To2 ? particle->TexSet[2].ViewParam : particle->TexSet[ParticleTexNum + 2].ViewParam;
+			Device->PSSetShaderResources(0, 3, views);
+		}
+		Device->DrawIndexed(6, 0, 0);
+
+		_depth((old_z_buf & 2) != 0, (old_z_buf & 1) != 0);
+		_blend(old_blend);
+		_sampler(old_sampler);
+
+		Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
+		_resetViewport();
+
+		particle->Draw1To2 = !particle->Draw1To2;
+	}
+
+	particle->IntervalRest--;
+	if (particle->IntervalRest <= 0)
+	{
+		const SParticleParam* param = particle->ParticleParam;
+		S64 emission_num = XorShiftInt(&RndSeed, param->EmissionNumMin, param->EmissionNumMax);
+		for (S64 i = 0; i < emission_num; i++)
+		{
+			for (int j = 0; j < ParticleTexNum; j++)
+			{
+				ID3D10Texture2D* tex = particle->Draw1To2 ? particle->TexSet[j].TexParam : particle->TexSet[ParticleTexNum + j].TexParam;
+				D3D10_MAPPED_TEXTURE2D map;
+				Device->CopyResource(particle->TexTmp, tex);
+				particle->TexTmp->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_READ_WRITE, 0, &map);
+				float* dst = static_cast<float*>(map.pData);
+				float* ptr = dst + particle->ParticlePtr * 4;
+				switch (j)
+				{
+					case 0:
+						ptr[0] = static_cast<float>(x);
+						ptr[1] = static_cast<float>(y);
+						ptr[2] = static_cast<float>(z);
+						ptr[3] = static_cast<float>(param->Lifespan);
+						break;
+					case 1:
+						ptr[0] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloXMin, param->VeloXMax));
+						ptr[1] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloYMin, param->VeloYMax));
+						ptr[2] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloZMin, param->VeloZMax));
+						ptr[3] = 0.0f;
+						break;
+					case 2:
+						ptr[0] = static_cast<float>(XorShiftFloat(&RndSeed, param->SizeMin, param->SizeMax));
+						ptr[1] = static_cast<float>(XorShiftFloat(&RndSeed, param->SizeVeloMin, param->SizeVeloMax));
+						ptr[2] = static_cast<float>(XorShiftFloat(&RndSeed, param->RotMin, param->RotMax));
+						ptr[3] = static_cast<float>(XorShiftFloat(&RndSeed, param->RotVeloMin, param->RotVeloMax));
+						break;
+				}
+				particle->TexTmp->Unmap(D3D10CalcSubresource(0, 0, 1));
+				Device->CopyResource(tex, particle->TexTmp);
+			}
+
+			particle->ParticlePtr++;
+			if (particle->ParticlePtr >= ParticleNum)
+				particle->ParticlePtr = 0;
+		}
+
+		ResetParticleRest(particle);
+	}
 }
 
 namespace Draw
@@ -1633,6 +1889,7 @@ void Init()
 
 	Cnt = 0;
 	PrevTime = static_cast<U32>(timeGetTime());
+	RndSeed = MakeSeed(0x839ab093);
 
 	// Create a rasterizer state.
 	{
@@ -1698,15 +1955,13 @@ void Init()
 		D3D10_BLEND_DESC desc;
 		memset(&desc, 0, sizeof(desc));
 		desc.AlphaToCoverageEnable = FALSE;
-		desc.BlendEnable[0] = TRUE;
 		desc.SrcBlendAlpha = D3D10_BLEND_ONE;
 		desc.DestBlendAlpha = D3D10_BLEND_INV_SRC_ALPHA;
 		desc.BlendOpAlpha = D3D10_BLEND_OP_ADD;
-		desc.RenderTargetWriteMask[0] = D3D10_COLOR_WRITE_ENABLE_ALL;
-		for (int j = 1; j < 8; j++)
+		for (int j = 0; j < 8; j++)
 		{
-			desc.BlendEnable[j] = FALSE;
-			desc.RenderTargetWriteMask[j] = 0;
+			desc.BlendEnable[j] = TRUE;
+			desc.RenderTargetWriteMask[j] = D3D10_COLOR_WRITE_ENABLE_ALL;
 		}
 		switch (i)
 		{
@@ -2147,6 +2402,102 @@ void Init()
 		}
 	}
 
+	// Initialize 'Particle'.
+	if (IsResUsed(UseResFlagsKind_Draw_Particle))
+	{
+		{
+			float vertices[ParticleNum * 4 * 3];
+			U32 idces[ParticleNum * 6];
+			for (int i = 0; i < ParticleNum; i++)
+			{
+				const float idx = (static_cast<float>(i) + 0.5f) / static_cast<float>(ParticleNum);
+				vertices[i * 4 * 3 + 0] = -1.0f;
+				vertices[i * 4 * 3 + 1] = -1.0f;
+				vertices[i * 4 * 3 + 2] = idx;
+				vertices[i * 4 * 3 + 3] = 1.0f;
+				vertices[i * 4 * 3 + 4] = -1.0f;
+				vertices[i * 4 * 3 + 5] = idx;
+				vertices[i * 4 * 3 + 6] = -1.0f;
+				vertices[i * 4 * 3 + 7] = 1.0f;
+				vertices[i * 4 * 3 + 8] = idx;
+				vertices[i * 4 * 3 + 9] = 1.0f;
+				vertices[i * 4 * 3 + 10] = 1.0f;
+				vertices[i * 4 * 3 + 11] = idx;
+				idces[i * 6 + 0] = i * 4 + 0;
+				idces[i * 6 + 1] = i * 4 + 1;
+				idces[i * 6 + 2] = i * 4 + 2;
+				idces[i * 6 + 3] = i * 4 + 3;
+				idces[i * 6 + 4] = i * 4 + 2;
+				idces[i * 6 + 5] = i * 4 + 1;
+			}
+
+			ParticleVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 3, sizeof(idces), idces);
+		}
+		{
+			ELayoutType layout_types[2] =
+			{
+				LayoutType_Float2,
+				LayoutType_Float1,
+			};
+
+			const Char* layout_semantics[2] =
+			{
+				L"K_POSITION",
+				L"K_IDX",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetParticle2dVsBin(&size);
+				Particle2dVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4, 2, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetParticle2dPsBin(&size);
+				Particle2dPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SParticlePsConstBuf), 0, NULL, NULL);
+			}
+		}
+		{
+			float vertices[] =
+			{
+				-1.0f, -1.0f,
+				1.0f, -1.0f,
+				-1.0f, 1.0f,
+				1.0f, 1.0f,
+			};
+
+			U32 idces[] =
+			{
+				0, 1, 2,
+				3, 2, 1,
+			};
+
+			ParticleUpdatingVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+		}
+		{
+			ELayoutType layout_types[1] =
+			{
+				LayoutType_Float2,
+			};
+
+			const Char* layout_semantics[1] =
+			{
+				L"K_POSITION",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetParticleUpdatingVsBin(&size);
+				ParticleUpdatingVs = MakeShaderBuf(ShaderKind_Vs, size, bin, 0, 1, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetParticleUpdatingPsBin(&size);
+				ParticleUpdatingPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SParticleUpdatingPsConstBuf), 0, NULL, NULL);
+			}
+		}
+	}
+
 	// Initialize the toon ramp texture.
 	{
 		void* img = NULL;
@@ -2160,36 +2511,8 @@ void Init()
 			img = DecodePng(size, bin, &width, &height);
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
 				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
-			{
-				D3D10_TEXTURE2D_DESC desc;
-				D3D10_SUBRESOURCE_DATA sub;
-				desc.Width = static_cast<UINT>(width);
-				desc.Height = static_cast<UINT>(height);
-				desc.MipLevels = 1;
-				desc.ArraySize = 1;
-				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				desc.SampleDesc.Count = 1;
-				desc.SampleDesc.Quality = 0;
-				desc.Usage = D3D10_USAGE_IMMUTABLE;
-				desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-				desc.CPUAccessFlags = 0;
-				desc.MiscFlags = 0;
-				sub.pSysMem = img;
-				sub.SysMemPitch = 4;
-				sub.SysMemSlicePitch = 0;
-				if (FAILED(Device->CreateTexture2D(&desc, &sub, &TexToonRamp)))
-					break;
-			}
-			{
-				D3D10_SHADER_RESOURCE_VIEW_DESC desc;
-				memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-				desc.Texture2D.MostDetailedMip = 0;
-				desc.Texture2D.MipLevels = 1;
-				if (FAILED(Device->CreateShaderResourceView(TexToonRamp, &desc, &ViewToonRamp)))
-					break;
-			}
+			if (!MakeTexWithImg(&TexToonRamp, &ViewToonRamp, NULL, width, height, img, 4, DXGI_FORMAT_R8G8B8A8_UNORM, D3D10_USAGE_IMMUTABLE, 0, False))
+				break;
 			success = True;
 			break;
 		}
@@ -2226,36 +2549,8 @@ void Init()
 				ASSERT(False);
 				break;
 		}
-		{
-			D3D10_TEXTURE2D_DESC desc;
-			D3D10_SUBRESOURCE_DATA sub;
-			desc.Width = 1;
-			desc.Height = 1;
-			desc.MipLevels = 1;
-			desc.ArraySize = 1;
-			desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			desc.SampleDesc.Count = 1;
-			desc.SampleDesc.Quality = 0;
-			desc.Usage = D3D10_USAGE_IMMUTABLE;
-			desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-			desc.CPUAccessFlags = 0;
-			desc.MiscFlags = 0;
-			sub.pSysMem = img;
-			sub.SysMemPitch = static_cast<UINT>(sizeof(img));
-			sub.SysMemSlicePitch = 0;
-			if (FAILED(Device->CreateTexture2D(&desc, &sub, &TexEven[i])))
-				THROW(0xe9170009);
-		}
-		{
-			D3D10_SHADER_RESOURCE_VIEW_DESC desc;
-			memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-			desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-			desc.Texture2D.MostDetailedMip = 0;
-			desc.Texture2D.MipLevels = 1;
-			if (FAILED(Device->CreateShaderResourceView(TexEven[i], &desc, &ViewEven[i])))
-				THROW(0xe9170009);
-		}
+		if (!MakeTexWithImg(&TexEven[i], &ViewEven[i], NULL, 1, 1, img, sizeof(img), DXGI_FORMAT_R32G32B32A32_FLOAT, D3D10_USAGE_IMMUTABLE, 0, False))
+			THROW(0xe9170009);
 	}
 
 	memset(&ObjVsConstBuf, 0, sizeof(SObjVsConstBuf));
@@ -2294,6 +2589,18 @@ void Fin()
 		if (FilterPs[i] != NULL)
 			FinShaderBuf(FilterPs[i]);
 	}
+	if (ParticleUpdatingPs != NULL)
+		FinShaderBuf(ParticleUpdatingPs);
+	if (ParticleUpdatingVs != NULL)
+		FinShaderBuf(ParticleUpdatingVs);
+	if (ParticleUpdatingVertex != NULL)
+		FinVertexBuf(ParticleUpdatingVertex);
+	if (Particle2dPs != NULL)
+		FinShaderBuf(Particle2dPs);
+	if (Particle2dVs != NULL)
+		FinShaderBuf(Particle2dVs);
+	if (ParticleVertex != NULL)
+		FinVertexBuf(ParticleVertex);
 	if (FilterVs != NULL)
 		FinShaderBuf(FilterVs);
 	if (FilterVertex != NULL)
@@ -3005,36 +3312,8 @@ SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb)
 		Bool success = False;
 		for (; ; )
 		{
-			{
-				D3D10_TEXTURE2D_DESC desc;
-				D3D10_SUBRESOURCE_DATA sub;
-				desc.Width = static_cast<UINT>(me2->Width);
-				desc.Height = static_cast<UINT>(me2->Height);
-				desc.MipLevels = 1;
-				desc.ArraySize = 1;
-				desc.Format = fmt;
-				desc.SampleDesc.Count = 1;
-				desc.SampleDesc.Quality = 0;
-				desc.Usage = D3D10_USAGE_IMMUTABLE;
-				desc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-				desc.CPUAccessFlags = 0;
-				desc.MiscFlags = 0;
-				sub.pSysMem = img;
-				sub.SysMemPitch = static_cast<UINT>(me2->Width * 4);
-				sub.SysMemSlicePitch = 0;
-				if (FAILED(Device->CreateTexture2D(&desc, &sub, &me2->Tex)))
-					break;
-			}
-			{
-				D3D10_SHADER_RESOURCE_VIEW_DESC desc;
-				memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-				desc.Format = fmt;
-				desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-				desc.Texture2D.MostDetailedMip = 0;
-				desc.Texture2D.MipLevels = 1;
-				if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
-					break;
-			}
+			if (!MakeTexWithImg(&me2->Tex, &me2->View, NULL, me2->Width, me2->Height, img, me2->Width * 4, fmt, D3D10_USAGE_IMMUTABLE, 0, False))
+				break;
 			success = True;
 			break;
 		}

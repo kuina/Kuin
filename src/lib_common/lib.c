@@ -490,5 +490,5 @@ void LibInit(void)
 		}
 	}
 #endif
-	RndInit(&GlobalRnd, (U32)(time(NULL)) ^ (U32)timeGetTime() ^ 0x2971c37b);
+	RndInit(&GlobalRnd, MakeSeed(0x2971c37b));
 }

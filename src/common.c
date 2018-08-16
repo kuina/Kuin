@@ -253,6 +253,11 @@ Bool IsPowerOf2(U64 n)
 	return (n & (n - 1)) == 0;
 }
 
+U32 MakeSeed(U32 key)
+{
+	return (U32)(time(NULL)) ^ (U32)timeGetTime() ^ key;
+}
+
 U32 XorShift(U32* seed)
 {
 	U32 x = *seed;
@@ -261,6 +266,35 @@ U32 XorShift(U32* seed)
 	x ^= x << 5;
 	*seed = x;
 	return x;
+}
+
+U64 XorShift64(U32* seed)
+{
+	U32 a = XorShift(seed);
+	U32 b = XorShift(seed);
+	return ((U64)a << 32) | (U64)b;
+}
+
+S64 XorShiftInt(U32* seed, S64 min, S64 max)
+{
+	U64 n = (U64)(max - min + 1);
+	U64 m = 0 - ((0 - n) % n);
+	U64 r;
+	if (m == 0)
+		r = XorShift64(seed);
+	else
+	{
+		do
+		{
+			r = XorShift64(seed);
+		} while (m <= r);
+	}
+	return (S64)(r % n) + min;
+}
+
+double XorShiftFloat(U32* seed, double min, double max)
+{
+	return (double)(XorShift64(seed)) / 18446744073709551616.0 * (max - min) + min;
 }
 
 char* Utf16ToUtf8(const U8* str)

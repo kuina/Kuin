@@ -74,7 +74,8 @@ static void* DummyPtr = (void*)1i64; // An invalid pointer used to point to non-
 typedef enum EUseResFlagsKind
 {
 	UseResFlagsKind_Draw_Circle = 1,
-	UseResFlagsKind_Draw_FilterMonotone,
+	UseResFlagsKind_Draw_FilterMonotone = 2,
+	UseResFlagsKind_Draw_Particle = 3,
 } EUseResFlagsKind;
 #define USE_RES_FLAGS_LEN (1)
 
@@ -99,7 +100,11 @@ U16 SwapEndianU16(U16 n);
 U32 SwapEndianU32(U32 n);
 U64 SwapEndianU64(U64 n);
 Bool IsPowerOf2(U64 n);
+U32 MakeSeed(U32 key);
 U32 XorShift(U32* seed);
+U64 XorShift64(U32* seed);
+S64 XorShiftInt(U32* seed, S64 min, S64 max);
+double XorShiftFloat(U32* seed, double min, double max);
 char* Utf16ToUtf8(const U8* str);
 U8* Utf8ToUtf16(const char* str);
 Bool IsResUsed(EUseResFlagsKind kind);

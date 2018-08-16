@@ -162,6 +162,10 @@
     <ClCompile Include="obj_ps.c" />
     <ClCompile Include="obj_toon_ps.c" />
     <ClCompile Include="obj_vs.c" />
+    <ClCompile Include="particle_2d_ps.c" />
+    <ClCompile Include="particle_2d_vs.c" />
+    <ClCompile Include="particle_updating_ps.c" />
+    <ClCompile Include="particle_updating_vs.c" />
     <ClCompile Include="png_decoder.cpp" />
     <ClCompile Include="rect_vs.c" />
     <ClCompile Include="snd.cpp" />
