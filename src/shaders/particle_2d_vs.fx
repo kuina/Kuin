@@ -44,7 +44,7 @@ VS_OUTPUT main(VS_INPUT input)
 		output.Pos.x = x2;
 		output.Pos.y = y2;
 		output.Pos.xy += tex0.xy;
-		output.Pos.xy *= Screen.xy;
+		output.Pos.xy = output.Pos.xy * Screen.xy * 2.0f - 1.0f;
 		output.Lifespan = tex0.w / Screen.w;
 	}
 	output.Pos.z = tex0.z;

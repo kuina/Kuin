@@ -146,10 +146,6 @@ struct SObjOutlinePsConstBuf
 struct SParticleParam
 {
 	SClass Class;
-	S64 IntervalMin;
-	S64 IntervalMax;
-	S64 EmissionNumMin;
-	S64 EmissionNumMax;
 	double VeloXMin;
 	double VeloXMax;
 	double VeloYMin;
@@ -189,7 +185,6 @@ struct SParticle
 	SParticleTexSet* TexSet;
 	ID3D10Texture2D* TexTmp;
 	Bool Draw1To2;
-	S64 IntervalRest;
 	const SParticleParam* ParticleParam;
 };
 
@@ -289,8 +284,7 @@ static float FilterParam[4][4];
 static U32 RndSeed = 0;
 
 static Bool MakeTexWithImg(ID3D10Texture2D** tex, ID3D10ShaderResourceView** view, ID3D10RenderTargetView** render_target_view, int width, int height, const void* img, size_t pitch, DXGI_FORMAT fmt, D3D10_USAGE usage, UINT cpu_access_flag, Bool render_target);
-static void ResetParticleRest(SParticle* particle);
-static void DoParticle(SParticle* particle, double x, double y, double z);
+static void UpdateParticles(SParticle* particle);
 
 EXPORT_CPP void _render(S64 fps)
 {
@@ -1632,17 +1626,17 @@ EXPORT_CPP void _particleDtor(SClass* me_)
 		me2->TexTmp->Release();
 }
 
-EXPORT_CPP void _particleDraw(SClass* me_, double x, double y, double z, SClass* tex)
+EXPORT_CPP void _particleDraw(SClass* me_, SClass* tex)
 {
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
-	DoParticle(me2, x, y, z);
+	UpdateParticles(me2);
 	// TODO:
 }
 
-EXPORT_CPP void _particleDraw2d(SClass* me_, double x, double y, SClass* tex)
+EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex)
 {
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
-	DoParticle(me2, x, y, 0.0);
+	UpdateParticles(me2);
 
 	SParticlePsConstBuf ps_const_buf;
 	const SParticleParam* param = me2->ParticleParam;
@@ -1681,13 +1675,53 @@ EXPORT_CPP void _particleDraw2d(SClass* me_, double x, double y, SClass* tex)
 	Device->DrawIndexed(ParticleNum * 6, 0, 0);
 }
 
+EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z)
+{
+	SParticle* particle = reinterpret_cast<SParticle*>(me_);
+	const SParticleParam* param = particle->ParticleParam;
+	for (int i = 0; i < ParticleTexNum; i++)
+	{
+		ID3D10Texture2D* tex = particle->Draw1To2 ? particle->TexSet[i].TexParam : particle->TexSet[ParticleTexNum + i].TexParam;
+		D3D10_MAPPED_TEXTURE2D map;
+		Device->CopyResource(particle->TexTmp, tex);
+		particle->TexTmp->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_READ_WRITE, 0, &map);
+		float* dst = static_cast<float*>(map.pData);
+		float* ptr = dst + particle->ParticlePtr * 4;
+		switch (i)
+		{
+			case 0:
+				ptr[0] = static_cast<float>(x);
+				ptr[1] = static_cast<float>(y);
+				ptr[2] = static_cast<float>(z);
+				ptr[3] = static_cast<float>(param->Lifespan);
+				break;
+			case 1:
+				ptr[0] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloXMin, param->VeloXMax));
+				ptr[1] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloYMin, param->VeloYMax));
+				ptr[2] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloZMin, param->VeloZMax));
+				ptr[3] = 0.0f;
+				break;
+			case 2:
+				ptr[0] = static_cast<float>(XorShiftFloat(&RndSeed, param->SizeMin, param->SizeMax));
+				ptr[1] = static_cast<float>(XorShiftFloat(&RndSeed, param->SizeVeloMin, param->SizeVeloMax));
+				ptr[2] = static_cast<float>(XorShiftFloat(&RndSeed, param->RotMin, param->RotMax));
+				ptr[3] = static_cast<float>(XorShiftFloat(&RndSeed, param->RotVeloMin, param->RotVeloMax));
+				break;
+		}
+		particle->TexTmp->Unmap(D3D10CalcSubresource(0, 0, 1));
+		Device->CopyResource(tex, particle->TexTmp);
+	}
+
+	particle->ParticlePtr++;
+	if (particle->ParticlePtr >= ParticleNum)
+		particle->ParticlePtr = 0;
+}
+
 EXPORT_CPP SClass* _makeParticle(SClass* me_, SClass* particle_param)
 {
 	UNUSED(particle_param);
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
 	const SParticleParam* param = me2->ParticleParam;
-	THROWDBG(param->IntervalMin < 0 || param->IntervalMin > param->IntervalMax, 0xe9170006);
-	THROWDBG(param->EmissionNumMin <= 0 || param->EmissionNumMin > param->EmissionNumMax, 0xe9170006);
 	THROWDBG(param->VeloXMin > param->VeloXMax, 0xe9170006);
 	THROWDBG(param->VeloYMin > param->VeloYMax, 0xe9170006);
 	THROWDBG(param->VeloZMin > param->VeloZMax, 0xe9170006);
@@ -1732,7 +1766,6 @@ EXPORT_CPP SClass* _makeParticle(SClass* me_, SClass* particle_param)
 			return False;
 	}
 	me2->Draw1To2 = True;
-	ResetParticleRest(me2);
 	return me_;
 }
 
@@ -1776,107 +1809,50 @@ static Bool MakeTexWithImg(ID3D10Texture2D** tex, ID3D10ShaderResourceView** vie
 	return True;
 }
 
-static void ResetParticleRest(SParticle* particle)
+static void UpdateParticles(SParticle* particle)
 {
-	const SParticleParam* param = particle->ParticleParam;
-	particle->IntervalRest = XorShiftInt(&RndSeed, param->IntervalMin, param->IntervalMax);
-}
+	int old_z_buf = CurZBuf;
+	int old_blend = CurBlend;
+	int old_sampler = CurSampler;
+	_depth(False, False);
+	_blend(0);
+	_sampler(0);
 
-static void DoParticle(SParticle* particle, double x, double y, double z)
-{
-	// Update particles.
-	{
-		int old_z_buf = CurZBuf;
-		int old_blend = CurBlend;
-		int old_sampler = CurSampler;
-		_depth(False, False);
-		_blend(0);
-		_sampler(0);
-
-		ID3D10RenderTargetView* targets[ParticleTexNum];
-		const int particle_tex_idx = particle->Draw1To2 ? ParticleTexNum : 0;
-		for (int i = 0; i < ParticleTexNum; i++)
-			targets[i] = particle->TexSet[particle_tex_idx + i].RenderTargetViewParam;
-		Device->OMSetRenderTargets(static_cast<UINT>(ParticleTexNum), targets, NULL);
-		Device->RSSetViewports(1, &ParticleViewport);
-		{
-			const SParticleParam* param = particle->ParticleParam;
-			SParticleUpdatingPsConstBuf const_buf;
-			const_buf.AccelAndFriction[0] = static_cast<float>(param->AccelX);
-			const_buf.AccelAndFriction[1] = static_cast<float>(param->AccelY);
-			const_buf.AccelAndFriction[2] = static_cast<float>(param->AccelZ);
-			const_buf.AccelAndFriction[3] = static_cast<float>(param->Friction);
-			const_buf.SizeAccelAndRotAccel[0] = static_cast<float>(param->SizeAccel);
-			const_buf.SizeAccelAndRotAccel[1] = static_cast<float>(param->RotAccel);
-			Draw::ConstBuf(ParticleUpdatingVs, NULL);
-			Device->GSSetShader(NULL);
-			Draw::ConstBuf(ParticleUpdatingPs, &const_buf);
-			Draw::VertexBuf(ParticleUpdatingVertex);
-			ID3D10ShaderResourceView* views[3];
-			views[0] = particle->Draw1To2 ? particle->TexSet[0].ViewParam : particle->TexSet[ParticleTexNum + 0].ViewParam;
-			views[1] = particle->Draw1To2 ? particle->TexSet[1].ViewParam : particle->TexSet[ParticleTexNum + 1].ViewParam;
-			views[2] = particle->Draw1To2 ? particle->TexSet[2].ViewParam : particle->TexSet[ParticleTexNum + 2].ViewParam;
-			Device->PSSetShaderResources(0, 3, views);
-		}
-		Device->DrawIndexed(6, 0, 0);
-
-		_depth((old_z_buf & 2) != 0, (old_z_buf & 1) != 0);
-		_blend(old_blend);
-		_sampler(old_sampler);
-
-		Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
-		_resetViewport();
-
-		particle->Draw1To2 = !particle->Draw1To2;
-	}
-
-	particle->IntervalRest--;
-	if (particle->IntervalRest <= 0)
+	ID3D10RenderTargetView* targets[ParticleTexNum];
+	const int particle_tex_idx = particle->Draw1To2 ? ParticleTexNum : 0;
+	for (int i = 0; i < ParticleTexNum; i++)
+		targets[i] = particle->TexSet[particle_tex_idx + i].RenderTargetViewParam;
+	Device->OMSetRenderTargets(static_cast<UINT>(ParticleTexNum), targets, NULL);
+	Device->RSSetViewports(1, &ParticleViewport);
 	{
 		const SParticleParam* param = particle->ParticleParam;
-		S64 emission_num = XorShiftInt(&RndSeed, param->EmissionNumMin, param->EmissionNumMax);
-		for (S64 i = 0; i < emission_num; i++)
-		{
-			for (int j = 0; j < ParticleTexNum; j++)
-			{
-				ID3D10Texture2D* tex = particle->Draw1To2 ? particle->TexSet[j].TexParam : particle->TexSet[ParticleTexNum + j].TexParam;
-				D3D10_MAPPED_TEXTURE2D map;
-				Device->CopyResource(particle->TexTmp, tex);
-				particle->TexTmp->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_READ_WRITE, 0, &map);
-				float* dst = static_cast<float*>(map.pData);
-				float* ptr = dst + particle->ParticlePtr * 4;
-				switch (j)
-				{
-					case 0:
-						ptr[0] = static_cast<float>(x);
-						ptr[1] = static_cast<float>(y);
-						ptr[2] = static_cast<float>(z);
-						ptr[3] = static_cast<float>(param->Lifespan);
-						break;
-					case 1:
-						ptr[0] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloXMin, param->VeloXMax));
-						ptr[1] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloYMin, param->VeloYMax));
-						ptr[2] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloZMin, param->VeloZMax));
-						ptr[3] = 0.0f;
-						break;
-					case 2:
-						ptr[0] = static_cast<float>(XorShiftFloat(&RndSeed, param->SizeMin, param->SizeMax));
-						ptr[1] = static_cast<float>(XorShiftFloat(&RndSeed, param->SizeVeloMin, param->SizeVeloMax));
-						ptr[2] = static_cast<float>(XorShiftFloat(&RndSeed, param->RotMin, param->RotMax));
-						ptr[3] = static_cast<float>(XorShiftFloat(&RndSeed, param->RotVeloMin, param->RotVeloMax));
-						break;
-				}
-				particle->TexTmp->Unmap(D3D10CalcSubresource(0, 0, 1));
-				Device->CopyResource(tex, particle->TexTmp);
-			}
-
-			particle->ParticlePtr++;
-			if (particle->ParticlePtr >= ParticleNum)
-				particle->ParticlePtr = 0;
-		}
-
-		ResetParticleRest(particle);
+		SParticleUpdatingPsConstBuf const_buf;
+		const_buf.AccelAndFriction[0] = static_cast<float>(param->AccelX);
+		const_buf.AccelAndFriction[1] = static_cast<float>(param->AccelY);
+		const_buf.AccelAndFriction[2] = static_cast<float>(param->AccelZ);
+		const_buf.AccelAndFriction[3] = static_cast<float>(param->Friction);
+		const_buf.SizeAccelAndRotAccel[0] = static_cast<float>(param->SizeAccel);
+		const_buf.SizeAccelAndRotAccel[1] = static_cast<float>(param->RotAccel);
+		Draw::ConstBuf(ParticleUpdatingVs, NULL);
+		Device->GSSetShader(NULL);
+		Draw::ConstBuf(ParticleUpdatingPs, &const_buf);
+		Draw::VertexBuf(ParticleUpdatingVertex);
+		ID3D10ShaderResourceView* views[3];
+		views[0] = particle->Draw1To2 ? particle->TexSet[0].ViewParam : particle->TexSet[ParticleTexNum + 0].ViewParam;
+		views[1] = particle->Draw1To2 ? particle->TexSet[1].ViewParam : particle->TexSet[ParticleTexNum + 1].ViewParam;
+		views[2] = particle->Draw1To2 ? particle->TexSet[2].ViewParam : particle->TexSet[ParticleTexNum + 2].ViewParam;
+		Device->PSSetShaderResources(0, 3, views);
 	}
+	Device->DrawIndexed(6, 0, 0);
+
+	_depth((old_z_buf & 2) != 0, (old_z_buf & 1) != 0);
+	_blend(old_blend);
+	_sampler(old_sampler);
+
+	Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
+	_resetViewport();
+
+	particle->Draw1To2 = !particle->Draw1To2;
 }
 
 namespace Draw
@@ -1960,14 +1936,13 @@ void Init()
 		desc.BlendOpAlpha = D3D10_BLEND_OP_ADD;
 		for (int j = 0; j < 8; j++)
 		{
-			desc.BlendEnable[j] = TRUE;
+			desc.BlendEnable[j] = i == 0 ? FALSE : TRUE;
 			desc.RenderTargetWriteMask[j] = D3D10_COLOR_WRITE_ENABLE_ALL;
 		}
 		switch (i)
 		{
 			// None: S * 1 + D * 0.
 			case 0:
-				desc.BlendEnable[0] = FALSE;
 				desc.SrcBlend = D3D10_BLEND_ONE;
 				desc.DestBlend = D3D10_BLEND_ZERO;
 				desc.BlendOp = D3D10_BLEND_OP_ADD;

@@ -129,6 +129,9 @@ end enum
 	end func
 end func
 
++func [d1004.knd, _hitRectRect] hitRectRect(rect1: @Rect, rect2: @Rect, weight1: float, weight2: float, repulsion: float, solidFriction: float): @Direction
+end func
+
 +class Roll()
 	*func [d1004.knd, _rollDtor, _force] _dtor()
 	end func

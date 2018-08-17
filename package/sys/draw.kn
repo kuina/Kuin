@@ -245,26 +245,24 @@ end func
 		throw 0xE9170005
 	end func
 
-	+func [d0001.knd, _particleDraw] draw(x: float, y: float, z: float, tex: @Tex)
+	+func [d0001.knd, _particleDraw] draw(tex: @Tex)
 	end func
 
-	+func [d0001.knd, _particleDraw2d] draw2d(x: float, y: float, tex: @Tex)
+	+func [d0001.knd, _particleDraw2d] draw2d(tex: @Tex)
+	end func
+
+	+func [d0001.knd, _particleEmit] emit(x: float, y: float, z: float)
 	end func
 
 	var particlePtr: int
 	var texSet: int
 	var texTmp: int
 	var draw1To2: int
-	var intervalRest: int
 	+var particleParam: @ParticleParam
 end class
 
 +class ParticleParam()
 	*func ctor()
-		do me.intervalMin :: 30
-		do me.intervalMax :: 30
-		do me.emissionNumMin :: 1
-		do me.emissionNumMax :: 1
 		do me.veloXMin :: -5.0
 		do me.veloXMax :: 5.0
 		do me.veloYMin :: -5.0
@@ -277,10 +275,6 @@ end class
 		do me.sizeMax :: 50.0
 	end func
 
-	+var intervalMin: int
-	+var intervalMax: int
-	+var emissionNumMin: int
-	+var emissionNumMax: int
 	+var veloXMin: float
 	+var veloXMax: float
 	+var veloYMin: float
