@@ -60,7 +60,7 @@ end func
 
 	+*func update()
 		do me.dirtyLineForce :: true
-		do me.interpret1SetDirty(-1, false)
+		do me.interpret1SetDirty(-1, false, false)
 	end func
 
 	+*func load(path: []char): bool
@@ -223,7 +223,7 @@ end func
 			do me.delAreaStr()
 		end if
 		do me.ins(me.cursorX, me.cursorY, code, true)
-		do me.interpret1SetDirty(me.cursorY, true)
+		do me.interpret1SetDirty(me.cursorY, true, false)
 		do me.undo.recordEnd()
 		do me.refreshCursor(false, true)
 		do \form@paintDrawEditor()
@@ -249,7 +249,7 @@ end func
 			do me.areaX :: me.cursorX
 			do me.areaY :: me.cursorY
 		end if
-		do me.interpret1SetDirty(me.cursorY, false)
+		do me.interpret1SetDirty(me.cursorY, false, false)
 		do \form@paintDrawEditor()
 	end func
 
@@ -277,7 +277,7 @@ end func
 				do me.cursorX :+ 1
 			end while
 		end if
-		do me.interpret1SetDirty(me.cursorY, false)
+		do me.interpret1SetDirty(me.cursorY, false, false)
 		do \form@paintDrawEditor()
 	end func
 
@@ -285,7 +285,7 @@ end func
 		if(\form@dragging())
 			do me.mousePosToCharPos(x, y)
 			do me.refreshCursor(false, true)
-			do me.interpret1SetDirty(me.cursorY, false)
+			do me.interpret1SetDirty(me.cursorY, false, false)
 			do \form@paintDrawEditor()
 		end if
 	end func
@@ -318,7 +318,7 @@ end func
 				else
 					do me.bs(me.cursorX, me.cursorY, 1, true)
 				end if
-				do me.interpret1SetDirty(me.cursorY, true)
+				do me.interpret1SetDirty(me.cursorY, true, true)
 				do me.undo.recordEnd()
 				do me.refreshCursor(false, true)
 				do \form@paintDrawEditor()
@@ -334,7 +334,7 @@ end func
 				if(!me.areaSel())
 					do me.undo.recordBegin()
 					do me.ins(me.cursorX, me.cursorY, "\t", true)
-					do me.interpret1SetDirty(me.cursorY, true)
+					do me.interpret1SetDirty(me.cursorY, true, false)
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true)
 					do \form@paintDrawEditor()
@@ -368,7 +368,7 @@ end func
 						do me.delAreaStr()
 					end if
 					do me.ins(me.cursorX, me.cursorY, "\n", true)
-					do me.interpret1SetDirty(me.cursorY, true)
+					do me.interpret1SetDirty(me.cursorY, true, false)
 					do me.undo.recordEnd()
 					do me.refreshCursor(false, true)
 					do \form@paintDrawEditor()
@@ -387,7 +387,7 @@ end func
 					do me.cursorY :- height / \common@cellHeight
 					do me.setAbsoluteX(absoluteX)
 					do me.refreshCursor(false, true)
-					do me.interpret1SetDirty(me.cursorY, false)
+					do me.interpret1SetDirty(me.cursorY, false, false)
 				end if
 				ret true
 			end block
@@ -403,7 +403,7 @@ end func
 					do me.cursorY :+ height / \common@cellHeight
 					do me.setAbsoluteX(absoluteX)
 					do me.refreshCursor(false, true)
-					do me.interpret1SetDirty(me.cursorY, false)
+					do me.interpret1SetDirty(me.cursorY, false, false)
 				end if
 				ret true
 			end block
@@ -414,7 +414,7 @@ end func
 				do me.cursorY :: lib@intMax
 			end if
 			do me.refreshCursor(false, true)
-			do me.interpret1SetDirty(me.cursorY, false)
+			do me.interpret1SetDirty(me.cursorY, false, false)
 			ret true
 		case %home
 			do me.setArea(shiftCtrl)
@@ -423,7 +423,7 @@ end func
 				do me.cursorY :: 0
 			end if
 			do me.refreshCursor(false, true)
-			do me.interpret1SetDirty(me.cursorY, false)
+			do me.interpret1SetDirty(me.cursorY, false, false)
 			ret true
 		case %left
 			if(shiftCtrl = %ctrl)
@@ -432,7 +432,7 @@ end func
 				do me.setArea(shiftCtrl)
 				do me.cursorX :- 1
 				do me.refreshCursor(false, true)
-				do me.interpret1SetDirty(me.cursorY, false)
+				do me.interpret1SetDirty(me.cursorY, false, false)
 			end if
 			ret true
 		case %up
@@ -446,7 +446,7 @@ end func
 				do me.cursorY :- 1
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
-				do me.interpret1SetDirty(me.cursorY, false)
+				do me.interpret1SetDirty(me.cursorY, false, false)
 			end if
 			ret true
 		case %right
@@ -456,7 +456,7 @@ end func
 				do me.setArea(shiftCtrl)
 				do me.cursorX :+ 1
 				do me.refreshCursor(true, true)
-				do me.interpret1SetDirty(me.cursorY, false)
+				do me.interpret1SetDirty(me.cursorY, false, false)
 			end if
 			ret true
 		case %down
@@ -470,7 +470,7 @@ end func
 				do me.cursorY :+ 1
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
-				do me.interpret1SetDirty(me.cursorY, false)
+				do me.interpret1SetDirty(me.cursorY, false, false)
 			end if
 			ret true
 		case %ins
@@ -505,7 +505,7 @@ end func
 			do me.delAreaStr()
 		end if
 		do me.ins(me.cursorX, me.cursorY, [key], true)
-		do me.interpret1SetDirty(me.cursorY, true)
+		do me.interpret1SetDirty(me.cursorY, true, true)
 		do me.undo.recordEnd()
 		do me.refreshCursor(false, true)
 		do \form@paintDrawEditor()
@@ -570,7 +570,7 @@ end func
 			do me.copyAreaStr()
 			do me.undo.recordBegin()
 			do me.delAreaStr()
-			do me.interpret1SetDirty(me.cursorY, true)
+			do me.interpret1SetDirty(me.cursorY, true, false)
 			do me.undo.recordEnd()
 			do me.refreshCursor(false, true)
 			do \form@paintDrawEditor()
@@ -595,7 +595,7 @@ end func
 				do me.delAreaStr()
 			end if
 			do me.ins(me.cursorX, me.cursorY, str, true)
-			do me.interpret1SetDirty(me.cursorY, true)
+			do me.interpret1SetDirty(me.cursorY, true, false)
 			do me.undo.recordEnd()
 			do me.refreshCursor(false, true)
 			do \form@paintDrawEditor()
@@ -613,7 +613,7 @@ end func
 		else
 			do me.del(me.cursorX, me.cursorY, 1, true)
 		end if
-		do me.interpret1SetDirty(me.cursorY, true)
+		do me.interpret1SetDirty(me.cursorY, true, true)
 		do me.undo.recordEnd()
 		do me.refreshCursor(false, true)
 		do \form@paintDrawEditor()
@@ -625,7 +625,7 @@ end func
 		do me.cursorX :: lib@intMax
 		do me.cursorY :: lib@intMax
 		do me.refreshCursor(false, true)
-		do me.interpret1SetDirty(me.cursorY, false)
+		do me.interpret1SetDirty(me.cursorY, false, false)
 		do \form@paintDrawEditor()
 	end func
 
@@ -720,7 +720,7 @@ end func
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true)
-				do me.interpret1SetDirty(me.cursorY, false)
+				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor()
 				ret true
 			end if
@@ -733,7 +733,7 @@ end func
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true)
-				do me.interpret1SetDirty(me.cursorY, false)
+				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor()
 				ret true
 			end if
@@ -761,7 +761,7 @@ end func
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true)
-				do me.interpret1SetDirty(me.cursorY, false)
+				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor()
 				ret true
 			end if
@@ -774,7 +774,7 @@ end func
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
 				do me.refreshCursor(false, true)
-				do me.interpret1SetDirty(me.cursorY, false)
+				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor()
 				ret true
 			end if
@@ -868,7 +868,7 @@ end func
 			do me.undo.recordBegin()
 			do me.del(x1, me.cursorY, ^found, true)
 			do me.ins(x1, me.cursorY, replaceStr, true)
-			do me.interpret1SetDirty(me.cursorY, true)
+			do me.interpret1SetDirty(me.cursorY, true, false)
 			do me.undo.recordEnd()
 		end if
 	end func
@@ -936,7 +936,7 @@ end func
 		do me.areaX :: -1
 		do me.areaY :: -1
 		do me.refreshCursor(false, true)
-		do me.interpret1SetDirty(me.cursorY, false)
+		do me.interpret1SetDirty(me.cursorY, false, false)
 	end func
 
 	+func complementDecision(): bool
@@ -1282,7 +1282,7 @@ end func
 				do me.ins(0, i, "\t", true)
 			end if
 		end for
-		do me.interpret1SetDirty(y2, true)
+		do me.interpret1SetDirty(y2, true, false)
 		do me.undo.recordEnd()
 		do me.areaX :: oldAreaX
 		do me.areaY :: oldAreaY
@@ -1319,7 +1319,7 @@ end func
 				do me.del(0, i, 1, true)
 			end if
 		end for
-		do me.interpret1SetDirty(y2, true)
+		do me.interpret1SetDirty(y2, true, false)
 		do me.undo.recordEnd()
 		do me.areaX :: oldAreaX
 		do me.areaY :: oldAreaY
@@ -1492,7 +1492,7 @@ end func
 		ret x = ^me.src.src[y] ?(-1, x)
 	end func
 
-	func interpret1SetDirty(line: int, modified: bool)
+	func interpret1SetDirty(line: int, modified: bool, showCompletion: bool)
 		var record: bool :: !me.undo.recording()
 		if(record)
 			do me.undo.recordBegin()
@@ -1540,7 +1540,7 @@ end func
 			do me.undo.recordEnd()
 		end if
 
-		if(modified)
+		if(showCompletion & modified)
 			var first: int
 			var word: []char :: me.parseWord(me.cursorX, me.cursorY, &first)
 			if(word =& null)
