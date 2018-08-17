@@ -50,8 +50,8 @@ EXPORT_CPP void _colorToArgb(S64 color, double* a, double* r, double* g, double*
 EXPORT_CPP void _particleDtor(SClass* me_);
 EXPORT_CPP void _particleDraw(SClass* me_, SClass* tex);
 EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex);
-EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z);
-EXPORT_CPP SClass* _makeParticle(SClass* me_, SClass* particle_param);
+EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z, double velo_x, double velo_y, double velo_z, double size, double size_velo, double rot, double rot_velo);
+EXPORT_CPP SClass* _makeParticle(SClass* me_);
 
 namespace Draw
 {

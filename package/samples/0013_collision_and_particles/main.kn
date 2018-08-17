@@ -8,12 +8,9 @@ func main()
 	const itemNum: int :: 15
 	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Collision and Particles Sample") {ウインドウの生成}
 	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
-	var particleParam: draw@ParticleParam :: #draw@ParticleParam
-	do particleParam.sizeMin :: 100.0
-	do particleParam.sizeMax :: 150.0
-	do particleParam.sizeAccel :: 0.005
-	do particleParam.color1 :: 0x99FFFFFF
-	var particle: draw@Particle :: draw@makeParticle(particleParam)
+	var particle: draw@Particle :: draw@makeParticle()
+	do particle.lifespan :: 30
+	do particle.color2 :: 0x00FFFFFF
 	var texParticle: draw@Tex :: draw@makeTex("res/tex_particle.png")
 	var rects: []Item :: #[itemNum]Item
 	for i(0, itemNum - 1)
@@ -47,9 +44,9 @@ func main()
 		do rects[i].veloY :: lib@rndFloat(-10.0, 10.0)
 		do rects[i].weight :: 1.0
 	end for
+	
 	do draw@clearColor(0xFF333333) {背景色の設定}
 	while(wnd@act())
-		do particle.emit(800.0, 450.0, 0.0)
 		do draw@blend(%add)
 		do particle.draw2d(texParticle)
 		do draw@blend(%alpha)
@@ -58,7 +55,11 @@ func main()
 		end for
 		for i(0, itemNum - 1)
 			for j(0, i - 1)
-				do game@hitRectRect(rects[i], rects[j], rects[i].weight, rects[j].weight, 1.0, 0.0)
+				if(game@hitRectRect(rects[i], rects[j], rects[i].weight, rects[j].weight, 1.0, 0.0) <> %none)
+					for k(0, 19)
+						do particle.emit(rects[i].x, rects[i].y, 0.0, lib@rndFloat(-3.0, 3.0), lib@rndFloat(-3.0, 3.0), 0.0, 150.0, 0.5, 0.0, lib@rndFloat(-lib@pi / 30.0, lib@pi / 30.0))
+					end for
+				end if
 			end for
 		end for
 		for i(0, itemNum - 1)

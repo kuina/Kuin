@@ -143,34 +143,6 @@ struct SObjOutlinePsConstBuf
 	float OutlineColor[4];
 };
 
-struct SParticleParam
-{
-	SClass Class;
-	double VeloXMin;
-	double VeloXMax;
-	double VeloYMin;
-	double VeloYMax;
-	double VeloZMin;
-	double VeloZMax;
-	double Friction;
-	double AccelX;
-	double AccelY;
-	double AccelZ;
-	S64 Lifespan;
-	S64 Color1;
-	S64 Color2;
-	double SizeMin;
-	double SizeMax;
-	double SizeVeloMin;
-	double SizeVeloMax;
-	double SizeAccel;
-	double RotMin;
-	double RotMax;
-	double RotVeloMin;
-	double RotVeloMax;
-	double RotAccel;
-};
-
 struct SParticleTexSet
 {
 	ID3D10Texture2D* TexParam;
@@ -181,11 +153,19 @@ struct SParticleTexSet
 struct SParticle
 {
 	SClass Class;
+	S64 Lifespan;
+	double Friction;
+	double AccelX;
+	double AccelY;
+	double AccelZ;
+	S64 Color1;
+	S64 Color2;
+	double SizeAccel;
+	double RotAccel;
 	S64 ParticlePtr;
 	SParticleTexSet* TexSet;
 	ID3D10Texture2D* TexTmp;
 	Bool Draw1To2;
-	const SParticleParam* ParticleParam;
 };
 
 struct SParticlePsConstBuf
@@ -281,7 +261,6 @@ ID3D10Texture2D* TexEven[TexEvenNum];
 ID3D10ShaderResourceView* ViewEven[TexEvenNum];
 static int FilterIdx = 0;
 static float FilterParam[4][4];
-static U32 RndSeed = 0;
 
 static Bool MakeTexWithImg(ID3D10Texture2D** tex, ID3D10ShaderResourceView** view, ID3D10RenderTargetView** render_target_view, int width, int height, const void* img, size_t pitch, DXGI_FORMAT fmt, D3D10_USAGE usage, UINT cpu_access_flag, Bool render_target);
 static void UpdateParticles(SParticle* particle);
@@ -1639,10 +1618,9 @@ EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex)
 	UpdateParticles(me2);
 
 	SParticlePsConstBuf ps_const_buf;
-	const SParticleParam* param = me2->ParticleParam;
 	{
 		double a, r, g, b;
-		_colorToArgb(param->Color1, &a, &r, &g, &b);
+		_colorToArgb(me2->Color1, &a, &r, &g, &b);
 		ps_const_buf.Color1[0] = static_cast<float>(r);
 		ps_const_buf.Color1[1] = static_cast<float>(g);
 		ps_const_buf.Color1[2] = static_cast<float>(b);
@@ -1650,7 +1628,7 @@ EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex)
 	}
 	{
 		double a, r, g, b;
-		_colorToArgb(param->Color2, &a, &r, &g, &b);
+		_colorToArgb(me2->Color2, &a, &r, &g, &b);
 		ps_const_buf.Color2[0] = static_cast<float>(r);
 		ps_const_buf.Color2[1] = static_cast<float>(g);
 		ps_const_buf.Color2[2] = static_cast<float>(b);
@@ -1661,7 +1639,7 @@ EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex)
 		1.0f / static_cast<float>(CurWndBuf->ScreenWidth),
 		1.0f / static_cast<float>(CurWndBuf->ScreenHeight),
 		0.0f,
-		static_cast<float>(param->Lifespan)
+		static_cast<float>(me2->Lifespan - 1.0f)
 	};
 	Draw::ConstBuf(Particle2dVs, screen);
 	Device->GSSetShader(NULL);
@@ -1675,10 +1653,11 @@ EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex)
 	Device->DrawIndexed(ParticleNum * 6, 0, 0);
 }
 
-EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z)
+EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z, double velo_x, double velo_y, double velo_z, double size, double size_velo, double rot, double rot_velo)
 {
 	SParticle* particle = reinterpret_cast<SParticle*>(me_);
-	const SParticleParam* param = particle->ParticleParam;
+	THROWDBG(particle->Lifespan <= 0, 0xe917000a);
+	THROWDBG(particle->Friction < 0.0, 0xe917000a);
 	for (int i = 0; i < ParticleTexNum; i++)
 	{
 		ID3D10Texture2D* tex = particle->Draw1To2 ? particle->TexSet[i].TexParam : particle->TexSet[ParticleTexNum + i].TexParam;
@@ -1693,19 +1672,19 @@ EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z)
 				ptr[0] = static_cast<float>(x);
 				ptr[1] = static_cast<float>(y);
 				ptr[2] = static_cast<float>(z);
-				ptr[3] = static_cast<float>(param->Lifespan);
+				ptr[3] = static_cast<float>(particle->Lifespan);
 				break;
 			case 1:
-				ptr[0] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloXMin, param->VeloXMax));
-				ptr[1] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloYMin, param->VeloYMax));
-				ptr[2] = static_cast<float>(XorShiftFloat(&RndSeed, param->VeloZMin, param->VeloZMax));
+				ptr[0] = static_cast<float>(velo_x);
+				ptr[1] = static_cast<float>(velo_y);
+				ptr[2] = static_cast<float>(velo_z);
 				ptr[3] = 0.0f;
 				break;
 			case 2:
-				ptr[0] = static_cast<float>(XorShiftFloat(&RndSeed, param->SizeMin, param->SizeMax));
-				ptr[1] = static_cast<float>(XorShiftFloat(&RndSeed, param->SizeVeloMin, param->SizeVeloMax));
-				ptr[2] = static_cast<float>(XorShiftFloat(&RndSeed, param->RotMin, param->RotMax));
-				ptr[3] = static_cast<float>(XorShiftFloat(&RndSeed, param->RotVeloMin, param->RotVeloMax));
+				ptr[0] = static_cast<float>(size);
+				ptr[1] = static_cast<float>(size_velo);
+				ptr[2] = static_cast<float>(rot);
+				ptr[3] = static_cast<float>(rot_velo);
 				break;
 		}
 		particle->TexTmp->Unmap(D3D10CalcSubresource(0, 0, 1));
@@ -1717,21 +1696,20 @@ EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z)
 		particle->ParticlePtr = 0;
 }
 
-EXPORT_CPP SClass* _makeParticle(SClass* me_, SClass* particle_param)
+EXPORT_CPP SClass* _makeParticle(SClass* me_)
 {
-	UNUSED(particle_param);
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
-	const SParticleParam* param = me2->ParticleParam;
-	THROWDBG(param->VeloXMin > param->VeloXMax, 0xe9170006);
-	THROWDBG(param->VeloYMin > param->VeloYMax, 0xe9170006);
-	THROWDBG(param->VeloZMin > param->VeloZMax, 0xe9170006);
-	THROWDBG(param->Friction < 0.0, 0xe9170006);
-	THROWDBG(param->Lifespan <= 0, 0xe9170006);
-	THROWDBG(param->SizeMin > param->SizeMax, 0xe9170006);
-	THROWDBG(param->SizeVeloMin > param->SizeVeloMax, 0xe9170006);
-	THROWDBG(param->RotMin > param->RotMax, 0xe9170006);
-	THROWDBG(param->RotVeloMin > param->RotVeloMax, 0xe9170006);
+	me2->Lifespan = 120;
+	me2->Friction = 1.0;
+	me2->AccelX = 0.0;
+	me2->AccelY = 0.0;
+	me2->AccelZ = 0.0;
+	me2->Color1 = 0xffffffff;
+	me2->Color2 = 0xffffffff;
+	me2->SizeAccel = 0.0;
+	me2->RotAccel = 0.0;
 	me2->ParticlePtr = 0;
+	me2->Draw1To2 = True;
 	{
 		Bool success = True;
 		void* img = AllocMem(sizeof(float) * ParticleNum * 4);
@@ -1765,7 +1743,6 @@ EXPORT_CPP SClass* _makeParticle(SClass* me_, SClass* particle_param)
 		if (FAILED(Device->CreateTexture2D(&desc, NULL, &me2->TexTmp)))
 			return False;
 	}
-	me2->Draw1To2 = True;
 	return me_;
 }
 
@@ -1825,14 +1802,13 @@ static void UpdateParticles(SParticle* particle)
 	Device->OMSetRenderTargets(static_cast<UINT>(ParticleTexNum), targets, NULL);
 	Device->RSSetViewports(1, &ParticleViewport);
 	{
-		const SParticleParam* param = particle->ParticleParam;
 		SParticleUpdatingPsConstBuf const_buf;
-		const_buf.AccelAndFriction[0] = static_cast<float>(param->AccelX);
-		const_buf.AccelAndFriction[1] = static_cast<float>(param->AccelY);
-		const_buf.AccelAndFriction[2] = static_cast<float>(param->AccelZ);
-		const_buf.AccelAndFriction[3] = static_cast<float>(param->Friction);
-		const_buf.SizeAccelAndRotAccel[0] = static_cast<float>(param->SizeAccel);
-		const_buf.SizeAccelAndRotAccel[1] = static_cast<float>(param->RotAccel);
+		const_buf.AccelAndFriction[0] = static_cast<float>(particle->AccelX);
+		const_buf.AccelAndFriction[1] = static_cast<float>(particle->AccelY);
+		const_buf.AccelAndFriction[2] = static_cast<float>(particle->AccelZ);
+		const_buf.AccelAndFriction[3] = static_cast<float>(particle->Friction);
+		const_buf.SizeAccelAndRotAccel[0] = static_cast<float>(particle->SizeAccel);
+		const_buf.SizeAccelAndRotAccel[1] = static_cast<float>(particle->RotAccel);
 		Draw::ConstBuf(ParticleUpdatingVs, NULL);
 		Device->GSSetShader(NULL);
 		Draw::ConstBuf(ParticleUpdatingPs, &const_buf);
@@ -1865,7 +1841,6 @@ void Init()
 
 	Cnt = 0;
 	PrevTime = static_cast<U32>(timeGetTime());
-	RndSeed = MakeSeed(0x839ab093);
 
 	// Create a rasterizer state.
 	{

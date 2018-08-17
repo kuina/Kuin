@@ -37,15 +37,16 @@ VS_OUTPUT main(VS_INPUT input)
 	{
 		float cos_th = cos(tex2.z);
 		float sin_th = sin(tex2.z);
-		output.Pos.xy = input.Pos * tex2.x;
+		output.Pos.xy = input.Pos * tex2.x / 2.0f;
 		float x2, y2;
 		x2 = cos_th * output.Pos.x + sin_th * output.Pos.y;
 		y2 = -sin_th * output.Pos.x + cos_th * output.Pos.y;
 		output.Pos.x = x2;
 		output.Pos.y = y2;
-		output.Pos.xy += tex0.xy;
+		output.Pos.x += tex0.x;
+		output.Pos.y += 1.0f / Screen.y - tex0.y;
 		output.Pos.xy = output.Pos.xy * Screen.xy * 2.0f - 1.0f;
-		output.Lifespan = tex0.w / Screen.w;
+		output.Lifespan = clamp((tex0.w - 1.0f) / Screen.w, 0.0f, 1.0f);
 	}
 	output.Pos.z = tex0.z;
 	output.Pos.w = 1.0f;
