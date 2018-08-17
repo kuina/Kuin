@@ -5433,6 +5433,7 @@ static Bool GetKeywordsReadExprCall(const Char** str)
 
 static Bool GetKeywordsReadExprValue(const Char** str)
 {
+	const Char* old = *str;
 	Char c = GetKeywordsReadChar(str);
 	if (c == L'\0')
 		return True;
@@ -5547,7 +5548,7 @@ static Bool GetKeywordsReadExprValue(const Char** str)
 			}
 			break;
 	}
-	(*str)--;
+	*str = old;
 	return False;
 }
 
