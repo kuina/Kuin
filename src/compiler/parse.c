@@ -123,6 +123,7 @@ static Bool IsLast;
 static SStack* Scope;
 static U32 UniqueCnt;
 static U8* MakeUseResFlags;
+static S64 GlobalHeapCnt;
 
 static const Char* GetKeywordsEnd; 
 static const Char* GetKeywordsSrcName;
@@ -241,6 +242,7 @@ static void GetKeywordsAddEnum(void);
 static void GetKeywordsAddMember(const Char* type);
 static void GetKeywordsAddKeywords(Char kind);
 static Char* NewKeywordType(const Char* keyword_type);
+static Char* NewKeywordTypeWithLen(const Char* keyword_type, size_t len);
 static Char* CatKeywordType(const Char* keyword_type1, const Char* keyword_type2);
 static Char* GetKeywordType(const Char* identifier);
 static Char* GetKeywordTypeRecursion(const SAstType* type);
@@ -389,6 +391,7 @@ Bool InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, int x, int y, U64 flags, void* callback, int keyword_list_num, const void* keyword_list)
 {
 	Heap = GetProcessHeap();
+	HeapCnt = &GlobalHeapCnt;
 
 	SKeywordTypeList* item = (SKeywordTypeList*)AllocMem(sizeof(SKeywordTypeList));
 	item->Next = NULL;
@@ -5878,19 +5881,15 @@ static void GetKeywordsAddMember(const Char* type)
 		}
 		else if (type[1] == L'c')
 		{
-			// TODO:
-			/*
-			if (GetKeywordsKeywordList == NULL)
-			return;
-			int i;
-			for (i = 0; i < GetKeywordsKeywordListNum; i++)
+			SAstClass* ast = (SAstClass*)*(void**)(type + 2);
+			SListNode* ptr = ast->Items->Top;
+			while (ptr != NULL)
 			{
-			const SKeywordListItem* item = GetKeywordsKeywordList[i];
-			if (item->Name[0] != L'.')
-			continue;
-			GetKeywordsAdd(GetKeywordsKeywordList[i]->Name);
+				const SAstClassItem* item = (const SAstClassItem*)ptr->Data;
+				if (item->Def->Name != NULL && item->Public)
+					GetKeywordsAdd(item->Def->Name);
+				ptr = ptr->Next;
 			}
-			*/
 		}
 		else if (type[1] == L'd')
 		{
@@ -5991,7 +5990,11 @@ static void GetKeywordsAddKeywords(Char kind)
 
 static Char* NewKeywordType(const Char* keyword_type)
 {
-	size_t len = wcslen(keyword_type);
+	return NewKeywordTypeWithLen(keyword_type, wcslen(keyword_type));
+}
+
+static Char* NewKeywordTypeWithLen(const Char* keyword_type, size_t len)
+{
 	Char* buf = (Char*)AllocMem(sizeof(Char) * (len + 1));
 	memcpy(buf, keyword_type, sizeof(Char) * (len + 1));
 	SKeywordTypeList* item = (SKeywordTypeList*)AllocMem(sizeof(SKeywordTypeList));
@@ -6056,6 +6059,15 @@ static Char* GetKeywordType(const Char* identifier)
 	SAstType* type = NULL;
 	if (ast->TypeId == AstTypeId_Arg)
 		type = ((SAstArg*)ast)->Type;
+	else if (ast->TypeId == AstTypeId_Class)
+	{
+		Char buf[1024];
+		buf[0] = L'&';
+		buf[1] = L'c';
+		*(void**)(buf + 2) = (void*)ast;
+		buf[6] = L'\0';
+		return NewKeywordTypeWithLen(buf, 6);
+	}
 	if (type == NULL)
 		return L"";
 	return GetKeywordTypeRecursion(type);
@@ -6113,7 +6125,7 @@ static Char* GetKeywordTypeRecursion(const SAstType* type)
 				return L"bool";
 			break;
 		case AstTypeId_TypeUser:
-			return L"";
+			return GetKeywordType(((SAst*)type)->RefName);
 	}
 	return L"";
 }
