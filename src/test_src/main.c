@@ -54,7 +54,7 @@ int wmain(void)
 			}
 			{
 				FILE* file_ptr;
-				DEBUG_EVENT debug_event;
+				DEBUG_EVENT debug_event = { 0 };
 				Bool end = False;
 				file_ptr = _wfopen(log_path, L"w, ccs=UTF-8");
 				if (file_ptr == NULL)

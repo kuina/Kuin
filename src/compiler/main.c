@@ -314,12 +314,11 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 		free(cmd_line_buf);
 
 	{
-		DEBUG_EVENT debug_event;
+		DEBUG_EVENT debug_event = { 0 };
 		Bool end = False;
 		DbgStartAddr = 0;
 		ResumeThread(process_info.hThread);
 		S64 excpt_last_occurred = _time64(NULL) - 2;
-		Char dbg_code = L'\0';
 		while (!end)
 		{
 			DWORD continue_status = DBG_EXCEPTION_NOT_HANDLED;
@@ -511,19 +510,18 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 							((S64*)buf)[1] = (S64)debug_event.u.DebugString.nDebugStringLength - 1;
 						}
 						*((S64*)buf) = 2;
-						if (((S64*)buf)[1] >= 5)
+						if (((S64*)buf)[1] >= 4)
 						{
 							const Char* ptr = (const Char*)((U8*)buf + 0x10);
-							if (ptr[0] == L'd' && ptr[1] == L'b' && ptr[2] == L'g' && L'0' <= ptr[3] && ptr[3] <= L'9' && ptr[3] != dbg_code && ptr[4] == L'!')
-							{
-								dbg_code = ptr[3];
+							if (ptr[0] == L'd' && ptr[1] == L'b' && ptr[2] == L'g' && ptr[3] == L'!')
 								Call2Asm(0, buf, event_func);
-							}
 						}
 						free(buf);
 					}
+					continue_status = DBG_CONTINUE;
 					break;
 			}
+			Sleep(1);
 			ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, continue_status);
 		}
 	}

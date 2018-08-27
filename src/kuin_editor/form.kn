@@ -583,7 +583,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	func eventFunc(type: int, str: []char): int
 		switch(type)
 		case 0
-			do @textLog :~ str.sub(5, -1)
+			do @textLog :~ str.sub(4, -1)
 			do @updateLog()
 		end switch
 	end func
@@ -700,7 +700,9 @@ end func
 end func
 
 func updateLog()
+	do @editLog.setRedraw(false)
 	do @editLog.setText(@textLog)
+	do @editLog.setRedraw(true)
 end func
 
 +func updateFile()
