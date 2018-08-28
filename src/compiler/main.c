@@ -890,7 +890,7 @@ static const void* AddrToPosCallback(U64 key, const void* value, void* param)
 			while (ptr != NULL)
 			{
 				SAstStat* stat = (SAstStat*)ptr->Data;
-				if ((U64)*stat->Asm->Addr + DbgStartAddr <= addr && (*result == NULL || ((SAst*)stat)->Pos != NULL && (*result)->Row < ((SAst*)stat)->Pos->Row))
+				if (stat->Asm != NULL && stat->Asm->Addr != NULL && (U64)*stat->Asm->Addr + DbgStartAddr <= addr && (*result == NULL || ((SAst*)stat)->Pos != NULL && (*result)->Row < ((SAst*)stat)->Pos->Row))
 					*result = (SPos*)((SAst*)stat)->Pos;
 				ptr = ptr->Next;
 			}
