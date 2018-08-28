@@ -885,6 +885,16 @@ static const void* AddrToPosCallback(U64 key, const void* value, void* param)
 	if ((U64)*func->AddrTop + DbgStartAddr <= addr && addr <= (U64)func->AddrBottom + DbgStartAddr)
 	{
 		*result = (SPos*)((SAst*)func)->Pos;
+		{
+			SListNode* ptr = func->Stats->Top;
+			while (ptr != NULL)
+			{
+				SAstStat* stat = (SAstStat*)ptr->Data;
+				if ((U64)*stat->Asm->Addr + DbgStartAddr <= addr && (*result == NULL || ((SAst*)stat)->Pos != NULL && (*result)->Row < ((SAst*)stat)->Pos->Row))
+					*result = (SPos*)((SAst*)stat)->Pos;
+				ptr = ptr->Next;
+			}
+		}
 		if (*result != NULL)
 			swprintf(name, 255, L"%s@%s", (*result)->SrcName, ((SAst*)func)->Name);
 		else

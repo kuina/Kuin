@@ -207,6 +207,7 @@ typedef struct SAstArg
 typedef struct SAstStat
 {
 	SAst Ast;
+	SAsm* Asm;
 } SAstStat;
 
 typedef struct SAstStatBreakable

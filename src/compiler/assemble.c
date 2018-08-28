@@ -131,6 +131,7 @@ static int SetTypeIdRecursion(U8* ptr, int idx, const SAstType* type);
 static void SetTypeIdForFromBin(EReg reg, const SAstType* type);
 static void SetTypeIdForFromBinRecursion(int* idx_type, U8* data_type, int* idx_class, S64** data_class, const SAstType* type);
 static void ExpandMe(SAstExprDot* dot, int reg_i);
+static void SetStatAsm(SAstStat* ast, SListNode* asms_bottom);
 static void AssembleFunc(SAstFunc* ast, Bool entry);
 static void AssembleStats(SList* asts);
 static void AssembleIf(SAstStatIf* ast);
@@ -1553,6 +1554,20 @@ static void ExpandMe(SAstExprDot* dot, int reg_i)
 	ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
 }
 
+static void SetStatAsm(SAstStat* ast, SListNode* asms_bottom)
+{
+	if (asms_bottom == NULL)
+	{
+		if (PackAsm->Asms->Top != NULL)
+			ast->Asm = (SAsm*)PackAsm->Asms->Top->Data;
+	}
+	else
+	{
+		if (asms_bottom->Next != NULL)
+			ast->Asm = (SAsm*)asms_bottom->Next->Data;
+	}
+}
+
 static void AssembleFunc(SAstFunc* ast, Bool entry)
 {
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
@@ -2016,6 +2031,7 @@ static void AssembleStats(SList* asts)
 	while (ptr != NULL)
 	{
 		SAstStat* ast = (SAstStat*)ptr->Data;
+		SListNode* asms_bottom = PackAsm->Asms->Bottom;
 		switch (((SAst*)ast)->TypeId)
 		{
 			case AstTypeId_StatIf: AssembleIf((SAstStatIf*)ast); break;
@@ -2034,6 +2050,8 @@ static void AssembleStats(SList* asts)
 				ASSERT(False);
 				break;
 		}
+		if (((SAst*)ast)->TypeId != AstTypeId_StatBlock)
+			SetStatAsm(ast, asms_bottom);
 		ptr = ptr->Next;
 	}
 }
@@ -2567,10 +2585,12 @@ static void AssembleThrow(SAstStatThrow* ast)
 static void AssembleBlock(SAstStatBlock* ast)
 {
 	ASSERT(((SAst*)ast)->AnalyzedCache != NULL);
+	SListNode* asms_bottom = PackAsm->Asms->Bottom;
 	AssembleStats(ast->Stats);
 	SAsmLabel* break_point = ((SAstStatBreakable*)ast)->BreakPoint;
 	if (break_point != NULL)
 		ListAdd(PackAsm->Asms, break_point);
+	SetStatAsm((SAstStat*)ast, asms_bottom);
 }
 
 static void AssembleRet(SAstStatRet* ast)
