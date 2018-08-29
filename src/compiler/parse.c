@@ -360,7 +360,7 @@ Bool InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 				flags2 = (U64*)((U8*)flags + 0x10 + 0x08 * (size_t)i);
 			}
 			*comment_level2 = comment_level_context;
-			*flags2 = flags_context;
+			*flags2 = (*flags2 & 0x02) | flags_context;
 
 			{
 				int ptr = 0;

@@ -105,7 +105,13 @@ end func
 				skip i
 			end if
 			var str: []char :: (me.pageY + i + 1).toStr()
-			do \common@font.draw((me.lineNumWidth - (^str + 1) * \common@cellWidth + \common@cellWidth / 2) $ float, y, str, colorLineNum)
+			var flags: LineFlag :: me.pageY + i >= ^me.src.flags ?(%none, me.src.flags[me.pageY + i])
+			if(flags.and(%breakPoint) <> %none)
+				do draw@rect(1.0, y + 1.0, lineX - 2.0, \common@cellHeight $ float - 2.0, colorBreakPointBack)
+				do \common@font.draw((me.lineNumWidth - (^str + 1) * \common@cellWidth + \common@cellWidth / 2) $ float, y, str, colorBreakPoint)
+			else
+				do \common@font.draw((me.lineNumWidth - (^str + 1) * \common@cellWidth + \common@cellWidth / 2) $ float, y, str, colorLineNum)
+			end if
 		end for
 
 		var areaX1: int :: me.areaX
@@ -475,6 +481,14 @@ end func
 			ret true
 		case %ins
 			; TODO: Insert mode.
+		case %f9
+			if(0 <= me.cursorY & me.cursorY < ^me.src.flags)
+				if(me.src.flags[me.cursorY].and(%breakPoint) = %none)
+					do me.src.flags[me.cursorY] :: me.src.flags[me.cursorY].or(%breakPoint)
+				else
+					do me.src.flags[me.cursorY] :: me.src.flags[me.cursorY].and((%breakPoint $ LineFlag).not())
+				end if
+			end if
 		end switch
 		ret false
 	end func
@@ -964,10 +978,13 @@ end func
 	const colorLineNum: int :: 0xFFFF7F7F
 	const colorAreaBack: int :: 0xFF808080
 	const colorErrBack: int :: 0xFFFF3333
+	const colorBreakPointBack: int :: 0xFFFF9999
+	const colorBreakPoint: int :: 0xFFFFFFFF
 
 	enum LineFlag
 		none :: 0x00
 		nextLine :: 0x01
+		breakPoint :: 0x02
 	end enum
 
 	class Src()
