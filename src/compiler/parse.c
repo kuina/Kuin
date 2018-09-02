@@ -123,7 +123,6 @@ static Bool IsLast;
 static SStack* Scope;
 static U32 UniqueCnt;
 static U8* MakeUseResFlags;
-static S64 GlobalHeapCnt;
 
 static const Char* GetKeywordsEnd; 
 static const Char* GetKeywordsSrcName;
@@ -390,9 +389,6 @@ Bool InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 
 void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, int x, int y, U64 flags, void* callback, int keyword_list_num, const void* keyword_list)
 {
-	Heap = GetProcessHeap();
-	HeapCnt = &GlobalHeapCnt;
-
 	SKeywordTypeList* item = (SKeywordTypeList*)AllocMem(sizeof(SKeywordTypeList));
 	item->Next = NULL;
 	item->Type = (Char*)AllocMem(sizeof(Char));

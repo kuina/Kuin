@@ -92,6 +92,12 @@ typedef struct SKeywordListCallbackParam
 	EAstTypeId ParentType;
 } SKeywordListCallbackParam;
 
+typedef struct SBreakPointAddr
+{
+	U64 Addr;
+	U8 Ope;
+} SBreakPointAddr;
+
 static const void*(*FuncGetSrc)(const U8*) = NULL;
 static void(*FuncLog)(const void*, S64, S64) = NULL;
 static const void* Src = NULL;
@@ -105,6 +111,11 @@ static Char HintBuf[HINT_MSG_NUM][0x08 + HINT_MSG_MAX + 1];
 static Char HintSrcBuf[0x08 + KUIN_MAX_PATH + 1];
 static int KeywordListNum = 0;
 static const SKeywordListItem** KeywordList = NULL;
+static S64 GlobalHeapCnt = 0;
+static S64 BreakPointNum = 0;
+static SPos* BreakPointPoses = NULL;
+static int BreakPointAddrNum = 0;
+static SBreakPointAddr* BreakPointAddrs = NULL;
 
 // Assembly functions.
 void* Call0Asm(void* func);
@@ -123,6 +134,8 @@ static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int 
 static size_t BuildFileGetSize(FILE* file_ptr);
 static SPos* AddrToPos(U64 addr, Char* name);
 static const void* AddrToPosCallback(U64 key, const void* value, void* param);
+static U64 PosToAddr(const SPos* pos);
+static const void* PosToAddrCallback(U64 key, const void* value, void* param);
 static SArchiveFileList* SearchFiles(int* len, const Char* src);
 static Bool SearchFilesRecursion(int* len, size_t src_base_len, const Char* src, SArchiveFileList** top, SArchiveFileList** bottom);
 static U8 GetKey(U64 key, U8 data, U64 pos);
@@ -130,6 +143,9 @@ static void MakeKeywordList(SDict* asts);
 static const void* MakeKeywordListCallback(const Char* key, const void* value, void* param);
 static void MakeKeywordListRecursion(SKeywordListCallbackParam* param, const SAst* ast);
 static int CmpKeywordListItem(const void* a, const void* b);
+static void FreeBreakPoints(void);
+static void SetBreakPointOpes(HANDLE process_handle);
+static void UnsetBreakPointOpes(HANDLE process_handle);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -144,10 +160,21 @@ EXPORT void InitCompiler(S64 lang)
 	InitAllocator();
 	if (lang >= 0)
 		LoadExcptMsg(lang);
+
+	Heap = GetProcessHeap();
+	HeapCnt = &GlobalHeapCnt;
+
+	BreakPointNum = 0;
+	BreakPointPoses = NULL;
+	BreakPointAddrs = NULL;
 }
 
 EXPORT void FinCompiler(void)
 {
+	if (BreakPointAddrs != NULL)
+		FreeMem(BreakPointAddrs);
+	FreeBreakPoints();
+
 	FinAllocator();
 }
 
@@ -279,7 +306,7 @@ EXPORT void GetKeywords(void* src, const U8* src_name, S64 x, S64 y, void* callb
 	GetKeywordsRoot(&str3, str3 + x + 1, (const Char*)(src_name + 0x10), (int)x, (int)y, flags2, callback, KeywordListNum, (const void*)KeywordList);
 }
 
-EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func)
+EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func, void* break_points_func, void* break_func)
 {
 	const Char* path2 = (const Char*)(path + 0x10);
 	Char cur_dir[KUIN_MAX_PATH + 1];
@@ -318,17 +345,28 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 		Bool end = False;
 		DbgStartAddr = 0;
 		ResumeThread(process_info.hThread);
-		S64 excpt_last_occurred = _time64(NULL) - 2;
 		while (!end)
 		{
 			DWORD continue_status = DBG_EXCEPTION_NOT_HANDLED;
 			Call0Asm(idle_func);
-			WaitForDebugEvent(&debug_event, 0);
+			Sleep(1);
+			for (; ; )
+			{
+				WaitForDebugEvent(&debug_event, 0);
+				if (debug_event.dwThreadId != process_info.dwThreadId)
+				{
+					ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
+					continue;
+				}
+				break;
+			}
 			switch (debug_event.dwDebugEventCode)
 			{
 				case CREATE_PROCESS_DEBUG_EVENT:
 					DbgStartAddr = (U64)debug_event.u.CreateProcessInfo.lpBaseOfImage;
 					CloseHandle(debug_event.u.CreateProcessInfo.hFile);
+					Call0Asm(break_points_func);
+					SetBreakPointOpes(process_info.hProcess);
 					break;
 				case LOAD_DLL_DEBUG_EVENT:
 					CloseHandle(debug_event.u.LoadDll.hFile);
@@ -337,148 +375,212 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 					end = True;
 					break;
 				case EXCEPTION_DEBUG_EVENT:
-					/*
-					if (debug_event.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003)
-						break;
-					*/
-					if ((debug_event.u.Exception.ExceptionRecord.ExceptionCode & 0xffff0000) != 0xc0000000 && (debug_event.u.Exception.ExceptionRecord.ExceptionCode & 0xffff0000) != 0xe9170000)
-						break;
-					if (_time64(NULL) - excpt_last_occurred < 2)
-						break;
 					{
-						Char str[EXCPT_MSG_MAX + 1];
-						size_t len2;
-						CONTEXT context;
-						STACKFRAME64 stack;
-						IMAGEHLP_SYMBOL64 symbol;
-						memset(&context, 0, sizeof(context));
-						context.ContextFlags = CONTEXT_FULL;
-						if (!GetThreadContext(process_info.hThread, &context))
-							break;
-						memset(&stack, 0, sizeof(stack));
-						stack.AddrPC.Offset = context.Rip;
-						stack.AddrPC.Mode = AddrModeFlat;
-						stack.AddrStack.Offset = context.Rsp;
-						stack.AddrStack.Mode = AddrModeFlat;
-						stack.AddrFrame.Offset = context.Rbp;
-						stack.AddrFrame.Mode = AddrModeFlat;
-						SymInitialize(process_info.hProcess, NULL, TRUE);
+						const DWORD excpt_code = debug_event.u.Exception.ExceptionRecord.ExceptionCode;
+						if (excpt_code == EXCEPTION_SINGLE_STEP)
 						{
-							DWORD code = debug_event.u.Exception.ExceptionRecord.ExceptionCode;
-#if defined(_DEBUG)
-							PVOID addr = debug_event.u.Exception.ExceptionRecord.ExceptionAddress;
-#endif
-							const Char* text = ExcptMsgs[0].Msg;
-							if (code <= 0x0000ffff)
-								text = ExcptMsgs[1].Msg;
-							else
+							CONTEXT context;
+							context.ContextFlags = CONTEXT_CONTROL;
+							GetThreadContext(process_info.hThread, &context);
+							Call0Asm(break_points_func);
+							SetBreakPointOpes(process_info.hProcess);
+							context.EFlags &= ~0x00000100;
+							SetThreadContext(process_info.hThread, &context);
+							continue_status = DBG_CONTINUE;
+							break;
+						}
+						int break_point_idx = -1;
+						if (excpt_code == EXCEPTION_BREAKPOINT)
+						{
+							if (BreakPointAddrs != NULL)
 							{
-								int min = 0;
-								int max = MSG_NUM - 1;
-								int found = -1;
-								while (min <= max)
+								int i;
+								for (i = 0; i < BreakPointAddrNum; i++)
 								{
-									int mid = (min + max) / 2;
-									if ((S64)code < ExcptMsgs[mid].Code)
-										max = mid - 1;
-									else if ((S64)code > ExcptMsgs[mid].Code)
-										min = mid + 1;
-									else
+									if (BreakPointAddrs[i].Addr != 0 && BreakPointAddrs[i].Addr == (U64)debug_event.u.Exception.ExceptionRecord.ExceptionAddress)
 									{
-										found = mid;
+										break_point_idx = i;
 										break;
 									}
 								}
-								if (found != -1)
-									text = ExcptMsgs[found].Msg;
 							}
-#if defined(_DEBUG)
-							len2 = swprintf(str, EXCPT_MSG_MAX, L"An exception '0x%08X' occurred at '0x%016I64X'.\r\n\r\n> %s\r\n\r\n", code, (U64)addr, text);
-#else
-							len2 = swprintf(str, EXCPT_MSG_MAX, L"An exception '0x%08X' occurred.\r\n\r\n> %s\r\n\r\n", code, text);
-#endif
 						}
-
-						for (; ; )
+						if (break_point_idx == -1 && (excpt_code & 0xffff0000) != 0xc0000000 && (excpt_code & 0xffff0000) != 0xe9170000)
+							break;
 						{
-							if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process_info.hProcess, process_info.hThread, &stack, &context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL))
+							Char str_buf[0x08 + EXCPT_MSG_MAX + 1];
+							Char* str = str_buf + 0x08;
+							size_t len2;
+							CONTEXT context;
+							CONTEXT context2;
+							STACKFRAME64 stack;
+							IMAGEHLP_SYMBOL64 symbol;
+							memset(&context, 0, sizeof(context));
+							context.ContextFlags = CONTEXT_FULL;
+							if (!GetThreadContext(process_info.hThread, &context))
 								break;
-
-#if defined(_DEBUG)
-							if (len2 < EXCPT_MSG_MAX)
-								len2 += swprintf(str + len2, EXCPT_MSG_MAX - len2, L"0x%016I64X: \t", context.Rip);
-#endif
-
-							symbol.SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
-							symbol.MaxNameLength = 255;
-							DWORD64 displacement;
-							if (SymGetSymFromAddr64(process_info.hProcess, (DWORD64)stack.AddrPC.Offset, &displacement, &symbol))
+							context2 = context;
+							memset(&stack, 0, sizeof(stack));
+							stack.AddrPC.Offset = context2.Rip;
+							stack.AddrPC.Mode = AddrModeFlat;
+							stack.AddrStack.Offset = context2.Rsp;
+							stack.AddrStack.Mode = AddrModeFlat;
+							stack.AddrFrame.Offset = context2.Rbp;
+							stack.AddrFrame.Mode = AddrModeFlat;
+							SymInitialize(process_info.hProcess, NULL, TRUE);
 							{
+								DWORD code = excpt_code;
 #if defined(_DEBUG)
-								char name[1024];
-								UnDecorateSymbolName(symbol.Name, (PSTR)name, 1024, UNDNAME_COMPLETE);
+								PVOID addr = debug_event.u.Exception.ExceptionRecord.ExceptionAddress;
+#endif
+								const Char* text = ExcptMsgs[0].Msg;
+								if (code <= 0x0000ffff)
+									text = ExcptMsgs[1].Msg;
+								else
 								{
-									char* src = name;
-									if (len2 < EXCPT_MSG_MAX)
+									int min = 0;
+									int max = MSG_NUM - 1;
+									int found = -1;
+									while (min <= max)
 									{
-										str[len2] = L'(';
-										len2++;
+										int mid = (min + max) / 2;
+										if ((S64)code < ExcptMsgs[mid].Code)
+											max = mid - 1;
+										else if ((S64)code > ExcptMsgs[mid].Code)
+											min = mid + 1;
+										else
+										{
+											found = mid;
+											break;
+										}
 									}
-									while (*src != L'\0')
-									{
-										if (len2 < EXCPT_MSG_MAX)
-											str[len2] = (Char)*src;
-										len2++;
-										src++;
-									}
-									if (len2 < EXCPT_MSG_MAX)
-									{
-										str[len2] = L')';
-										len2++;
-									}
-									if (len2 < EXCPT_MSG_MAX)
-									{
-										str[len2] = L'\r';
-										len2++;
-									}
-									if (len2 < EXCPT_MSG_MAX)
-									{
-										str[len2] = L'\n';
-										len2++;
-									}
+									if (found != -1)
+										text = ExcptMsgs[found].Msg;
 								}
+#if defined(_DEBUG)
+								len2 = swprintf(str, EXCPT_MSG_MAX, L"An exception '0x%08X' occurred at '0x%016I64X'.\r\n\r\n> %s\r\n\r\n", code, (U64)addr, text);
+#else
+								len2 = swprintf(str, EXCPT_MSG_MAX, L"An exception '0x%08X' occurred.\r\n\r\n> %s\r\n\r\n", code, text);
 #endif
 							}
-							else
+
+							SPos* excpt_pos = NULL;
+							for (; ; )
 							{
-								Char name[256];
-								SPos* pos = AddrToPos((U64)context.Rip, name);
-								if (pos != NULL)
+								if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process_info.hProcess, process_info.hThread, &stack, &context2, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL))
+									break;
+
+#if defined(_DEBUG)
+								if (len2 < EXCPT_MSG_MAX)
+									len2 += swprintf(str + len2, EXCPT_MSG_MAX - len2, L"0x%016I64X: \t", context2.Rip);
+#endif
+
+								symbol.SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
+								symbol.MaxNameLength = 255;
+								DWORD64 displacement;
+								if (SymGetSymFromAddr64(process_info.hProcess, (DWORD64)stack.AddrPC.Offset, &displacement, &symbol))
 								{
-									if (len2 < EXCPT_MSG_MAX)
-										len2 += swprintf(str + len2, EXCPT_MSG_MAX - len2, L"%s (%s: %d, %d)\r\n", name, pos->SrcName, pos->Row, pos->Col);
+#if defined(_DEBUG)
+									char name[1024];
+									UnDecorateSymbolName(symbol.Name, (PSTR)name, 1024, UNDNAME_COMPLETE);
+									{
+										char* src = name;
+										if (len2 < EXCPT_MSG_MAX)
+										{
+											str[len2] = L'(';
+											len2++;
+										}
+										while (*src != L'\0')
+										{
+											if (len2 < EXCPT_MSG_MAX)
+												str[len2] = (Char)*src;
+											len2++;
+											src++;
+										}
+										if (len2 < EXCPT_MSG_MAX)
+										{
+											str[len2] = L')';
+											len2++;
+										}
+										if (len2 < EXCPT_MSG_MAX)
+										{
+											str[len2] = L'\r';
+											len2++;
+										}
+										if (len2 < EXCPT_MSG_MAX)
+										{
+											str[len2] = L'\n';
+											len2++;
+										}
+									}
+#endif
 								}
 								else
 								{
-									if (len2 < EXCPT_MSG_MAX)
+									Char name[256];
+									SPos* pos = AddrToPos((U64)context2.Rip, name);
+									if (excpt_pos == NULL)
+										excpt_pos = pos;
+									if (pos != NULL)
 									{
-										str[len2] = L'\r';
-										len2++;
+										if (len2 < EXCPT_MSG_MAX)
+											len2 += swprintf(str + len2, EXCPT_MSG_MAX - len2, L"%s (%s: %d, %d)\r\n", name, pos->SrcName, pos->Row, pos->Col);
 									}
-									if (len2 < EXCPT_MSG_MAX)
+									else
 									{
-										str[len2] = L'\n';
-										len2++;
+										if (len2 < EXCPT_MSG_MAX)
+										{
+											str[len2] = L'\r';
+											len2++;
+										}
+										if (len2 < EXCPT_MSG_MAX)
+										{
+											str[len2] = L'\n';
+											len2++;
+										}
 									}
 								}
+								if (stack.AddrPC.Offset == 0)
+									break;
 							}
-							if (stack.AddrPC.Offset == 0)
-								break;
+							str[len2] = L'\0';
+							{
+								void* pos_ptr = NULL;
+								Char pos_name[0x08 + 256];
+								U8 pos_buf[0x28];
+								if (excpt_pos != NULL)
+								{
+									size_t pos_name_len = wcslen(excpt_pos->SrcName);
+									((S64*)pos_name)[0] = 1;
+									((S64*)pos_name)[1] = (S64)pos_name_len;
+									memcpy((U8*)pos_name + 0x10, excpt_pos->SrcName, sizeof(Char) * (pos_name_len + 1));
+
+									((S64*)pos_buf)[0] = 2;
+									((S64*)pos_buf)[1] = 0;
+									((void**)pos_buf)[2] = pos_name;
+									((S64*)pos_buf)[3] = excpt_pos->Row;
+									((S64*)pos_buf)[4] = excpt_pos->Col;
+									pos_ptr = pos_buf;
+								}
+								((S64*)str_buf)[0] = 2;
+								((S64*)str_buf)[1] = wcslen(str);
+								Call2Asm(pos_ptr, str_buf, break_func);
+							}
+							UnsetBreakPointOpes(process_info.hProcess);
+							if (break_point_idx != -1)
+							{
+								context.Rip--;
+								context.EFlags |= 0x00000100;
+								SetThreadContext(process_info.hThread, &context);
+								continue_status = DBG_CONTINUE;
+							}
+							else
+							{
+								Call0Asm(break_points_func);
+								SetBreakPointOpes(process_info.hProcess);
+							}
 						}
-						str[len2] = L'\0';
-						MessageBox(NULL, str, NULL, MB_ICONEXCLAMATION | MB_SETFOREGROUND);
 					}
-					excpt_last_occurred = _time64(NULL);
 					break;
 				case OUTPUT_DEBUG_STRING_EVENT:
 					{
@@ -521,7 +623,6 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 					continue_status = DBG_CONTINUE;
 					break;
 			}
-			Sleep(1);
 			ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, continue_status);
 		}
 	}
@@ -536,6 +637,29 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 	if (process_info.hProcess != NULL)
 		CloseHandle(process_info.hProcess);
 	return True;
+}
+
+EXPORT void SetBreakPoints(const void* break_points)
+{
+	S64 len = ((S64*)break_points)[1];
+	FreeBreakPoints();
+	BreakPointNum = len;
+	BreakPointPoses = (SPos*)AllocMem(sizeof(SPos) * (size_t)len);
+
+	void** ptr = (void**)((U8*)break_points + 0x10);
+	S64 i;
+	for (i = 0; i < len; i++)
+	{
+		Char* src_name = (Char*)((U8*)*(void**)((U8*)ptr[i] + 0x10) + 0x10);
+		S64 row = *(S64*)((U8*)ptr[i] + 0x18);
+		S64 col = *(S64*)((U8*)ptr[i] + 0x20);
+		S64 name_len = ((S64*)*(void**)((U8*)ptr[i] + 0x10))[1];
+		Char* buf = (Char*)AllocMem(sizeof(Char) * (size_t)(name_len + 1));
+		memcpy(buf, src_name, sizeof(Char) * (size_t)(name_len + 1));
+		BreakPointPoses[i].SrcName = buf;
+		BreakPointPoses[i].Row = (int)row;
+		BreakPointPoses[i].Col = (int)col;
+	}
 }
 
 EXPORT Bool Archive(const U8* dst, const U8* src, S64 app_code)
@@ -881,7 +1005,6 @@ static const void* AddrToPosCallback(U64 key, const void* value, void* param)
 	SPos** result = (SPos**)params[0];
 	U64 addr = (U64)params[1];
 	Char* name = (Char*)params[2];
-	UNUSED(value);
 	if ((U64)*func->AddrTop + DbgStartAddr <= addr && addr <= (U64)func->AddrBottom + DbgStartAddr)
 	{
 		*result = (SPos*)((SAst*)func)->Pos;
@@ -900,6 +1023,45 @@ static const void* AddrToPosCallback(U64 key, const void* value, void* param)
 		else
 			wcscpy(name, ((SAst*)func)->Name);
 	}
+	return value;
+}
+
+static U64 PosToAddr(const SPos* pos)
+{
+	U64 addr = 0;
+	void* params[2];
+	params[0] = &addr;
+	params[1] = (void*)pos;
+	DictIForEach(PackAsm.FuncAddrs, PosToAddrCallback, params);
+	return addr;
+}
+
+static const void* PosToAddrCallback(U64 key, const void* value, void* param)
+{
+	SAstFunc* func = (SAstFunc*)key;
+	void** params = (void**)param;
+	U64* addr = (U64*)params[0];
+	const SPos* pos = (const SPos*)params[1];
+	const SPos* func_pos = ((SAst*)func)->Pos;
+	if (func->Stats->Len > 0 && wcscmp(func_pos->SrcName, pos->SrcName) == 0 && func_pos->Row <= pos->Row && pos->Row <= ((SAst*)func->Stats->Bottom->Data)->Pos->Row)
+	{
+		SListNode* ptr = func->Stats->Top;
+		U64 break_addr = 0;
+		while (ptr != NULL)
+		{
+			SAstStat* stat = (SAstStat*)ptr->Data;
+			const SPos* stat_pos = ((SAst*)stat)->Pos;
+			if (stat->Asm != NULL && stat->Asm->Addr != NULL && wcscmp(stat_pos->SrcName, pos->SrcName) == 0 && stat_pos->Row >= pos->Row)
+			{
+				break_addr = (U64)*stat->Asm->Addr;
+				break;
+			}
+			ptr = ptr->Next;
+		}
+		if (break_addr != 0)
+			*addr = break_addr + DbgStartAddr;
+	}
+
 	return value;
 }
 
@@ -1095,4 +1257,56 @@ static int CmpKeywordListItem(const void* a, const void* b)
 			cmp = *b2->Last - *a2->Last;
 	}
 	return cmp;
+}
+
+static void FreeBreakPoints(void)
+{
+	if (BreakPointPoses != NULL)
+	{
+		S64 i;
+		for (i = 0; i < BreakPointNum; i++)
+			FreeMem((void*)BreakPointPoses[i].SrcName);
+		FreeMem(BreakPointPoses);
+	}
+}
+
+static void SetBreakPointOpes(HANDLE process_handle)
+{
+	if (BreakPointAddrs != NULL)
+		FreeMem(BreakPointAddrs);
+	BreakPointAddrNum = (int)BreakPointNum;
+	BreakPointAddrs = (SBreakPointAddr*)AllocMem(sizeof(SBreakPointAddr) * (size_t)(BreakPointNum));
+	S64 i;
+	for (i = 0; i < BreakPointNum; i++)
+	{
+		U64 addr = PosToAddr(&BreakPointPoses[i]);
+		if (addr == 0)
+		{
+			BreakPointAddrs[i].Addr = 0;
+			BreakPointAddrs[i].Ope = 0;
+			continue;
+		}
+		U8 old_code;
+		U8 int3_code = 0xcc;
+		ReadProcessMemory(process_handle, (LPVOID)addr, &old_code, 1, NULL);
+		WriteProcessMemory(process_handle, (LPVOID)addr, &int3_code, 1, NULL);
+		BreakPointAddrs[i].Addr = addr;
+		BreakPointAddrs[i].Ope = old_code;
+	}
+	FlushInstructionCache(process_handle, NULL, 0);
+}
+
+static void UnsetBreakPointOpes(HANDLE process_handle)
+{
+	if (BreakPointAddrs == NULL)
+		return;
+	S64 i;
+	for (i = 0; i < BreakPointNum; i++)
+	{
+		if (BreakPointAddrs[i].Addr == 0)
+			continue;
+		U8 new_code = BreakPointAddrs[i].Ope;
+		WriteProcessMemory(process_handle, (LPVOID)BreakPointAddrs[i].Addr, &new_code, 1, NULL);
+	}
+	FlushInstructionCache(process_handle, NULL, 0);
 }

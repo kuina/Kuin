@@ -108,8 +108,14 @@ end func
 			var flags: LineFlag :: me.pageY + i >= ^me.src.flags ?(%none, me.src.flags[me.pageY + i])
 			if(flags.and(%breakPoint) <> %none)
 				do draw@rect(1.0, y + 1.0, lineX - 2.0, \common@cellHeight $ float - 2.0, colorBreakPointBack)
+				if(\src@breakPos <>& null & \src@breakPos.src = \src@curDocInternalName & \src@breakPos.row = me.pageY + i + 1)
+					do draw@rect(1.0, y + 1.0, (lineX - 2.0) / 2.0, \common@cellHeight $ float - 2.0, colorBreakBack)
+				end if
 				do \common@font.draw((me.lineNumWidth - (^str + 1) * \common@cellWidth + \common@cellWidth / 2) $ float, y, str, colorBreakPoint)
 			else
+				if(\src@breakPos <>& null & \src@breakPos.src = \src@curDocInternalName & \src@breakPos.row = me.pageY + i + 1)
+					do draw@rect(1.0, y + 1.0, (lineX - 2.0) / 2.0, \common@cellHeight $ float - 2.0, colorBreakBack)
+				end if
 				do \common@font.draw((me.lineNumWidth - (^str + 1) * \common@cellWidth + \common@cellWidth / 2) $ float, y, str, colorLineNum)
 			end if
 		end for
@@ -481,14 +487,6 @@ end func
 			ret true
 		case %ins
 			; TODO: Insert mode.
-		case %f9
-			if(0 <= me.cursorY & me.cursorY < ^me.src.flags)
-				if(me.src.flags[me.cursorY].and(%breakPoint) = %none)
-					do me.src.flags[me.cursorY] :: me.src.flags[me.cursorY].or(%breakPoint)
-				else
-					do me.src.flags[me.cursorY] :: me.src.flags[me.cursorY].and((%breakPoint $ LineFlag).not())
-				end if
-			end if
 		end switch
 		ret false
 	end func
@@ -689,6 +687,17 @@ end func
 			do str :~ me.src.src[y2].sub(0, x2).trim()
 		end if
 		ret str
+	end func
+
+	+func toggleBreakPoint()
+		if(0 <= me.cursorY & me.cursorY < ^me.src.flags)
+			if(me.src.flags[me.cursorY].and(%breakPoint) = %none)
+				do me.src.flags[me.cursorY] :: me.src.flags[me.cursorY].or(%breakPoint)
+			else
+				do me.src.flags[me.cursorY] :: me.src.flags[me.cursorY].and((%breakPoint $ LineFlag).not())
+			end if
+			do \form@paintDrawEditor()
+		end if
 	end func
 
 	func setSrc(src: [][]char)
@@ -975,11 +984,24 @@ end func
 		end if
 	end func
 
+	+func getBreakPoints(srcName: []char, poses: list<\src@Pos>)
+		for i(0, ^me.src.flags - 1)
+			if(me.src.flags[i].and(%breakPoint) <> %none)
+				var pos: \src@Pos :: #\src@Pos
+				do pos.src :: srcName
+				do pos.row :: i + 1
+				do pos.col :: 1
+				do poses.add(pos)
+			end if
+		end for
+	end func
+
 	const colorLineNum: int :: 0xFFFF7F7F
 	const colorAreaBack: int :: 0xFF808080
 	const colorErrBack: int :: 0xFFFF3333
 	const colorBreakPointBack: int :: 0xFFFF9999
 	const colorBreakPoint: int :: 0xFFFFFFFF
+	const colorBreakBack: int :: 0xFFCCCC99
 
 	enum LineFlag
 		none :: 0x00

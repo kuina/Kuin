@@ -11,5 +11,6 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 EXPORT void Version(S64* major, S64* minor, S64* micro);
 EXPORT void ResetMemAllocator(void);
 EXPORT void GetKeywords(void* src, const U8* src_name, S64 x, S64 y, void* callback);
-EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func);
+EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func, void* break_points_func, void* break_func);
+EXPORT void SetBreakPoints(const void* break_points);
 EXPORT Bool Archive(const U8* dst, const U8* src, S64 app_code);

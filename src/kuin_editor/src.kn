@@ -6,6 +6,7 @@
 +var sysDir: []char
 var runningFiles: list<[]char>
 var errList: dict<@Pos, []char>
++var breakPos: @Pos
 
 +class Pos()
 	+var src: []char
@@ -28,6 +29,7 @@ end class
 +func init()
 	do @sysDir :: file@exeDir() ~ "sys/"
 	do @runningFiles :: #list<[]char>
+	do @breakPos :: null
 end func
 
 +func fin()

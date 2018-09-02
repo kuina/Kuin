@@ -21,6 +21,7 @@ var menuMain: wnd@Menu
 var popupMainEdit: wnd@Popup
 var popupMainFile: wnd@Popup
 var popupMainBuild: wnd@Popup
+var popupMainDbg: wnd@Popup
 var popupMainHelp: wnd@Popup
 
 var lockingEditor: bool
@@ -112,6 +113,9 @@ var drag: bool
 	do @popupMainBuild.addLine()
 	do @popupMainBuild.add(0x0021, \common@langEn ?("&Release Build...\tCtrl+Shift+B", "リリースビルド(&R)...\tCtrl+Shift+B"))
 	do @menuMain.addPopup(\common@langEn ?("&Build", "ビルド(&B)"), @popupMainBuild)
+	do @popupMainDbg :: wnd@makePopup()
+	do @popupMainDbg.add(0x0040, \common@langEn ?("Toggle &Breakpoint\tF9", "ブレークポイントの設定/解除(&B)\tF9"))
+	do @menuMain.addPopup(\common@langEn ?("&Debug", "デバッグ(&D)"), @popupMainDbg)
 	do @popupMainHelp :: wnd@makePopup()
 	do @popupMainHelp.add(0x0010, \common@langEn ?("&View Help\tF1", "ヘルプの表示(&V)\tF1"))
 	do @popupMainHelp.addLine()
@@ -207,6 +211,9 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 				ret true
 			case %f5
 				do @wndMainOnPushMenu(@wndMain, 0x0020)
+				ret true
+			case %f9
+				do @wndMainOnPushMenu(@wndMain, 0x0040)
 				ret true
 			case %f12
 				var definitionPos: \src@Pos :: \completion@getDefinitionPos()
@@ -360,10 +367,6 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			do wnd@msgBox(@wndMain, "Kuin Programming Language\nVersion \{major}.\{minor}.\{micro}\n(C)Kuina-chan", \common@title, %info, %ok)
 		end block
 	case 0x0020
-		if(@lockingEditor)
-			do @showMsgRunning()
-			ret
-		end if
 		do @btnCompileOnPush(@btnCompile)
 	case 0x0021
 		if(@lockingEditor)
@@ -414,6 +417,14 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			ret
 		end if
 		do @openResFolder()
+	case 0x0040
+		if (\src@curDoc =$ \doc_src@DocSrc)
+			if(@lockingEditor)
+				do @showMsgRunning()
+				ret
+			end if
+			do (\src@curDoc $ \doc_src@DocSrc).toggleBreakPoint()
+		end if
 	end switch
 end func
 
@@ -518,6 +529,10 @@ end func
 
 func btnCompileOnPush(wnd: wnd@WndBase)
 	if(@lockingEditor)
+		if(\src@breakPos <>& null)
+			do \src@breakPos :: null
+			ret
+		end if
 		do @showMsgRunning()
 		ret
 	end if
@@ -559,7 +574,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 			end if
 			do @textLog :~ \common@langEn ?("IK9999: Run.", "IK9999: 実行。\n")
 			do @updateLog()
-			if(\dll@runDbg(cmd, cmdLine, idleFunc, eventFunc))
+			if(\dll@runDbg(cmd, cmdLine, idleFunc, eventFunc, breakPointsFunc, breakFunc))
 				do @textLog :~ \common@langEn ?("\nIK9999: Succees.\n", "\nIK9999: 正常終了。\n")
 				do @updateLog()
 			else
@@ -586,6 +601,47 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 			do @textLog :~ str.sub(4, -1)
 			do @updateLog()
 		end switch
+	end func
+
+	func breakPointsFunc()
+		class BreakPoint()
+			+var items: list<\src@Pos>
+		end class
+
+		var breakPoint: BreakPoint :: #BreakPoint
+		do breakPoint.items :: #list<\src@Pos>
+		do \src@docs.forEach(callback, breakPoint)
+		do \dll@setBreakPoints(breakPoint.items.toArray())
+
+		func callback(key: []char, value: \doc@Doc, data: BreakPoint): bool
+			var srcName: []char :: \src@srcNameToInternalName(key)
+			if(value =$ \doc_src@DocSrc & srcName[0] = '\\')
+				do (value $ \doc_src@DocSrc).getBreakPoints(srcName, data.items)
+			end if
+			ret true
+		end func
+	end func
+
+	func breakFunc(pos: \src@Pos, call_stack: []char)
+		do wnd@msgBox(null, "\{call_stack}", "piyo", %none, %ok)
+		if(pos =& null)
+			ret
+		end if
+		var pos2: \src@Pos :: #\src@Pos
+		do pos2.src :: ##pos.src
+		do pos2.row :: pos.row
+		do pos2.col :: pos.col
+		do \src@breakPos :: pos2
+		do @btnCompile.setText(\common@langEn ?("Continue", "続行"))
+		do @btnCompile.setEnabled(true)
+		if (!\src@jumpSrc(pos))
+			do @paintDrawEditor()
+			do @focusDrawEditor()
+		end if
+		while(\src@breakPos <>& null & wnd@act())
+		end while
+		do @btnCompile.setEnabled(false)
+		do @btnCompile.setText(\common@langEn ?("Compile && Run", "コンパイル＆実行"))
 	end func
 end func
 

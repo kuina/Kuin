@@ -259,7 +259,7 @@ func wndFindBtnPrevOnPush(wnd: wnd@Btn)
 end func
 
 +func findNext()
-	if(!@wndFindRadioDoc.getChk())
+	if(@wndFindRadioDoc <>& null & !@wndFindRadioDoc.getChk())
 		ret
 	end if
 	do @findNextImpl(@wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
