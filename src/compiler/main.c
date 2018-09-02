@@ -134,8 +134,10 @@ static void BuildMemLog(const Char* code, const Char* msg, const Char* src, int 
 static size_t BuildFileGetSize(FILE* file_ptr);
 static SPos* AddrToPos(U64 addr, Char* name);
 static const void* AddrToPosCallback(U64 key, const void* value, void* param);
+static SPos* AddrToPosCallbackRecursion(const SList* stats, U64 addr);
 static U64 PosToAddr(const SPos* pos);
 static const void* PosToAddrCallback(U64 key, const void* value, void* param);
+static U64 PosToAddrCallbackRecursion(const SList* stats, const SPos* target_pos);
 static SArchiveFileList* SearchFiles(int* len, const Char* src);
 static Bool SearchFilesRecursion(int* len, size_t src_base_len, const Char* src, SArchiveFileList** top, SArchiveFileList** bottom);
 static U8 GetKey(U64 key, U8 data, U64 pos);
@@ -1009,21 +1011,127 @@ static const void* AddrToPosCallback(U64 key, const void* value, void* param)
 	{
 		*result = (SPos*)((SAst*)func)->Pos;
 		{
-			SListNode* ptr = func->Stats->Top;
-			while (ptr != NULL)
+			SPos* result2 = AddrToPosCallbackRecursion(func->Stats, addr);
+			if (result2 != NULL)
 			{
-				SAstStat* stat = (SAstStat*)ptr->Data;
-				if (stat->Asm != NULL && stat->Asm->Addr != NULL && (U64)*stat->Asm->Addr + DbgStartAddr <= addr && (*result == NULL || ((SAst*)stat)->Pos != NULL && (*result)->Row < ((SAst*)stat)->Pos->Row))
-					*result = (SPos*)((SAst*)stat)->Pos;
-				ptr = ptr->Next;
+				*result = result2;
+				swprintf(name, 255, L"%s@%s", (*result)->SrcName, ((SAst*)func)->Name);
 			}
+			else
+				wcscpy(name, ((SAst*)func)->Name);
 		}
-		if (*result != NULL)
-			swprintf(name, 255, L"%s@%s", (*result)->SrcName, ((SAst*)func)->Name);
-		else
-			wcscpy(name, ((SAst*)func)->Name);
 	}
 	return value;
+}
+
+static SPos* AddrToPosCallbackRecursion(const SList* stats, U64 addr)
+{
+	SListNode* ptr = stats->Top;
+	while (ptr != NULL)
+	{
+		SAstStat* stat = (SAstStat*)ptr->Data;
+		SPos* result;
+		if (stat->AsmTop != NULL && stat->AsmBottom != NULL && stat->AsmTop->Addr != NULL && stat->AsmBottom->Addr != NULL && (U64)*stat->AsmTop->Addr + DbgStartAddr <= addr && addr <= (U64)*stat->AsmBottom->Addr + DbgStartAddr)
+		{
+			SListNode* ptr2;
+			switch (((SAst*)stat)->TypeId)
+			{
+				case AstTypeId_StatIf:
+					{
+						SAstStatIf* stat2 = (SAstStatIf*)stat;
+						result = AddrToPosCallbackRecursion(stat2->StatBlock->Stats, addr);
+						if (result != NULL)
+							return result;
+						ptr2 = stat2->ElIfs->Top;
+						while (ptr2 != NULL)
+						{
+							SAstStatElIf* elif = (SAstStatElIf*)ptr2->Data;
+							result = AddrToPosCallbackRecursion(elif->StatBlock->Stats, addr);
+							if (result != NULL)
+								return result;
+							ptr2 = ptr2->Next;
+						}
+						if (stat2->ElseStatBlock != NULL)
+						{
+							result = AddrToPosCallbackRecursion(stat2->ElseStatBlock->Stats, addr);
+							if (result != NULL)
+								return result;
+						}
+					}
+					break;
+				case AstTypeId_StatSwitch:
+					{
+						SAstStatSwitch* stat2 = (SAstStatSwitch*)stat;
+						ptr2 = stat2->Cases->Top;
+						while (ptr2 != NULL)
+						{
+							SAstStatCase* case_ = (SAstStatCase*)ptr2->Data;
+							result = AddrToPosCallbackRecursion(case_->StatBlock->Stats, addr);
+							if (result != NULL)
+								return result;
+							ptr2 = ptr2->Next;
+						}
+						if (stat2->DefaultStatBlock != NULL)
+						{
+							result = AddrToPosCallbackRecursion(stat2->DefaultStatBlock->Stats, addr);
+							if (result != NULL)
+								return result;
+						}
+					}
+					break;
+				case AstTypeId_StatWhile:
+					{
+						SAstStatWhile* stat2 = (SAstStatWhile*)stat;
+						result = AddrToPosCallbackRecursion(stat2->Stats, addr);
+						if (result != NULL)
+							return result;
+					}
+					break;
+				case AstTypeId_StatFor:
+					{
+						SAstStatFor* stat2 = (SAstStatFor*)stat;
+						result = AddrToPosCallbackRecursion(stat2->Stats, addr);
+						if (result != NULL)
+							return result;
+					}
+					break;
+				case AstTypeId_StatTry:
+					{
+						SAstStatTry* stat2 = (SAstStatTry*)stat;
+						result = AddrToPosCallbackRecursion(stat2->StatBlock->Stats, addr);
+						if (result != NULL)
+							return result;
+						ptr2 = stat2->Catches->Top;
+						while (ptr2 != NULL)
+						{
+							SAstStatCatch* catch_ = (SAstStatCatch*)ptr2->Data;
+							result = AddrToPosCallbackRecursion(catch_->StatBlock->Stats, addr);
+							if (result != NULL)
+								return result;
+							ptr2 = ptr2->Next;
+						}
+						if (stat2->FinallyStatBlock != NULL)
+						{
+							result = AddrToPosCallbackRecursion(stat2->FinallyStatBlock->Stats, addr);
+							if (result != NULL)
+								return result;
+						}
+					}
+					break;
+				case AstTypeId_StatBlock:
+					{
+						SAstStatBlock* stat2 = (SAstStatBlock*)stat;
+						result = AddrToPosCallbackRecursion(stat2->Stats, addr);
+						if (result != NULL)
+							return result;
+					}
+					break;
+			}
+			return (SPos*)((SAst*)stat)->Pos;
+		}
+		ptr = ptr->Next;
+	}
+	return NULL;
 }
 
 static U64 PosToAddr(const SPos* pos)
@@ -1043,26 +1151,120 @@ static const void* PosToAddrCallback(U64 key, const void* value, void* param)
 	U64* addr = (U64*)params[0];
 	const SPos* pos = (const SPos*)params[1];
 	const SPos* func_pos = ((SAst*)func)->Pos;
-	if (func->Stats->Len > 0 && wcscmp(func_pos->SrcName, pos->SrcName) == 0 && func_pos->Row <= pos->Row && pos->Row <= ((SAst*)func->Stats->Bottom->Data)->Pos->Row)
-	{
-		SListNode* ptr = func->Stats->Top;
-		U64 break_addr = 0;
-		while (ptr != NULL)
-		{
-			SAstStat* stat = (SAstStat*)ptr->Data;
-			const SPos* stat_pos = ((SAst*)stat)->Pos;
-			if (stat->Asm != NULL && stat->Asm->Addr != NULL && wcscmp(stat_pos->SrcName, pos->SrcName) == 0 && stat_pos->Row >= pos->Row)
-			{
-				break_addr = (U64)*stat->Asm->Addr;
-				break;
-			}
-			ptr = ptr->Next;
-		}
-		if (break_addr != 0)
-			*addr = break_addr + DbgStartAddr;
-	}
-
+	if (*addr == 0 && func_pos != NULL && wcscmp(func_pos->SrcName, pos->SrcName) == 0 && func_pos->Row <= pos->Row && pos->Row <= func->PosRowBottom)
+		*addr = PosToAddrCallbackRecursion(func->Stats, pos);
 	return value;
+}
+
+static U64 PosToAddrCallbackRecursion(const SList* stats, const SPos* target_pos)
+{
+	SListNode* ptr = stats->Top;
+	while (ptr != NULL)
+	{
+		SAstStat* stat = (SAstStat*)ptr->Data;
+		const SPos* stat_pos = ((SAst*)stat)->Pos;
+		if (stat_pos != NULL && wcscmp(stat_pos->SrcName, target_pos->SrcName) == 0 && stat_pos->Row <= target_pos->Row && target_pos->Row <= stat->PosRowBottom)
+		{
+			U64 result;
+			SListNode* ptr2;
+			switch (((SAst*)stat)->TypeId)
+			{
+				case AstTypeId_StatIf:
+					{
+						SAstStatIf* stat2 = (SAstStatIf*)stat;
+						result = PosToAddrCallbackRecursion(stat2->StatBlock->Stats, target_pos);
+						if (result != 0)
+							return result;
+						ptr2 = stat2->ElIfs->Top;
+						while (ptr2 != NULL)
+						{
+							SAstStatElIf* elif = (SAstStatElIf*)ptr2->Data;
+							result = PosToAddrCallbackRecursion(elif->StatBlock->Stats, target_pos);
+							if (result != 0)
+								return result;
+							ptr2 = ptr2->Next;
+						}
+						if (stat2->ElseStatBlock != NULL)
+						{
+							result = PosToAddrCallbackRecursion(stat2->ElseStatBlock->Stats, target_pos);
+							if (result != 0)
+								return result;
+						}
+					}
+					break;
+				case AstTypeId_StatSwitch:
+					{
+						SAstStatSwitch* stat2 = (SAstStatSwitch*)stat;
+						ptr2 = stat2->Cases->Top;
+						while (ptr2 != NULL)
+						{
+							SAstStatCase* case_ = (SAstStatCase*)ptr2->Data;
+							result = PosToAddrCallbackRecursion(case_->StatBlock->Stats, target_pos);
+							if (result != 0)
+								return result;
+							ptr2 = ptr2->Next;
+						}
+						if (stat2->DefaultStatBlock != NULL)
+						{
+							result = PosToAddrCallbackRecursion(stat2->DefaultStatBlock->Stats, target_pos);
+							if (result != 0)
+								return result;
+						}
+					}
+					break;
+				case AstTypeId_StatWhile:
+					{
+						SAstStatWhile* stat2 = (SAstStatWhile*)stat;
+						result = PosToAddrCallbackRecursion(stat2->Stats, target_pos);
+						if (result != 0)
+							return result;
+					}
+					break;
+				case AstTypeId_StatFor:
+					{
+						SAstStatFor* stat2 = (SAstStatFor*)stat;
+						result = PosToAddrCallbackRecursion(stat2->Stats, target_pos);
+						if (result != 0)
+							return result;
+					}
+					break;
+				case AstTypeId_StatTry:
+					{
+						SAstStatTry* stat2 = (SAstStatTry*)stat;
+						result = PosToAddrCallbackRecursion(stat2->StatBlock->Stats, target_pos);
+						if (result != 0)
+							return result;
+						ptr2 = stat2->Catches->Top;
+						while (ptr2 != NULL)
+						{
+							SAstStatCatch* catch_ = (SAstStatCatch*)ptr2->Data;
+							result = PosToAddrCallbackRecursion(catch_->StatBlock->Stats, target_pos);
+							if (result != 0)
+								return result;
+							ptr2 = ptr2->Next;
+						}
+						if (stat2->FinallyStatBlock != NULL)
+						{
+							result = PosToAddrCallbackRecursion(stat2->FinallyStatBlock->Stats, target_pos);
+							if (result != 0)
+								return result;
+						}
+					}
+					break;
+				case AstTypeId_StatBlock:
+					{
+						SAstStatBlock* stat2 = (SAstStatBlock*)stat;
+						result = PosToAddrCallbackRecursion(stat2->Stats, target_pos);
+						if (result != 0)
+							return result;
+					}
+					break;
+			}
+			return (U64)*stat->AsmTop->Addr + DbgStartAddr;
+		}
+		ptr = ptr->Next;
+	}
+	return 0;
 }
 
 static SArchiveFileList* SearchFiles(int* len, const Char* src)
@@ -1277,9 +1479,15 @@ static void SetBreakPointOpes(HANDLE process_handle)
 	BreakPointAddrNum = (int)BreakPointNum;
 	BreakPointAddrs = (SBreakPointAddr*)AllocMem(sizeof(SBreakPointAddr) * (size_t)(BreakPointNum));
 	S64 i;
+	Char str[4096] = L"";
 	for (i = 0; i < BreakPointNum; i++)
 	{
 		U64 addr = PosToAddr(&BreakPointPoses[i]);
+		{
+			Char buf[4096];
+			swprintf(buf, 4096, L"(%s: %d) - %I64X\r\n", BreakPointPoses[i].SrcName, BreakPointPoses[i].Row, addr);
+			wcscat(str, buf);
+		}
 		if (addr == 0)
 		{
 			BreakPointAddrs[i].Addr = 0;
@@ -1294,6 +1502,7 @@ static void SetBreakPointOpes(HANDLE process_handle)
 		BreakPointAddrs[i].Ope = old_code;
 	}
 	FlushInstructionCache(process_handle, NULL, 0);
+	MessageBox(NULL, str, L"piyo", 0);
 }
 
 static void UnsetBreakPointOpes(HANDLE process_handle)
@@ -1301,7 +1510,7 @@ static void UnsetBreakPointOpes(HANDLE process_handle)
 	if (BreakPointAddrs == NULL)
 		return;
 	S64 i;
-	for (i = 0; i < BreakPointNum; i++)
+	for (i = BreakPointNum - 1; i >= 0; i--)
 	{
 		if (BreakPointAddrs[i].Addr == 0)
 			continue;

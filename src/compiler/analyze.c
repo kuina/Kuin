@@ -493,6 +493,7 @@ static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name)
 	((SAst*)func)->Name = name;
 	func->AddrTop = NewAddr();
 	func->AddrBottom = -1;
+	func->PosRowBottom = -1;
 	func->DllName = NULL;
 	func->DllFuncName = NULL;
 	func->FuncAttr = FuncAttr_None;
@@ -677,6 +678,7 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 	((SAst*)func)->Name = L"$";
 	func->AddrTop = NewAddr();
 	func->AddrBottom = -1;
+	func->PosRowBottom = -1;
 	func->DllName = NULL;
 	func->DllFuncName = NULL;
 	func->FuncAttr = FuncAttr_None;
@@ -687,7 +689,9 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 	{
 		SAstStatTry* try_ = (SAstStatTry*)Alloc(sizeof(SAstStatTry));
 		InitAst((SAst*)try_, AstTypeId_StatTry, pos);
-		((SAstStat*)try_)->Asm = NULL;
+		((SAstStat*)try_)->AsmTop = NULL;
+		((SAstStat*)try_)->AsmBottom = NULL;
+		((SAstStat*)try_)->PosRowBottom = -1;
 		{
 			SAstArg* var = (SAstArg*)Alloc(sizeof(SAstArg));
 			InitAst((SAst*)var, AstTypeId_Arg, pos);
@@ -708,7 +712,9 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 		{
 			SAstStatBlock* block = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
 			InitAst((SAst*)block, AstTypeId_StatBlock, pos);
-			((SAstStat*)block)->Asm = NULL;
+			((SAstStat*)block)->AsmTop = NULL;
+			((SAstStat*)block)->AsmBottom = NULL;
+			((SAstStat*)block)->PosRowBottom = -1;
 			((SAst*)block)->Name = L"$";
 			((SAstStatBreakable*)block)->BlockVar = NULL;
 			((SAstStatBreakable*)block)->BreakPoint = NULL;
@@ -719,7 +725,9 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 		{
 			SAstStatBlock* block = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
 			InitAst((SAst*)block, AstTypeId_StatBlock, pos);
-			((SAstStat*)block)->Asm = NULL;
+			((SAstStat*)block)->AsmTop = NULL;
+			((SAstStat*)block)->AsmBottom = NULL;
+			((SAstStat*)block)->PosRowBottom = -1;
 			((SAst*)block)->Name = L"$";
 			((SAstStatBreakable*)block)->BlockVar = NULL;
 			((SAstStatBreakable*)block)->BreakPoint = NULL;
@@ -751,7 +759,9 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 				{
 					SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 					InitAst((SAst*)do_, AstTypeId_StatDo, pos);
-					((SAstStat*)do_)->Asm = NULL;
+					((SAstStat*)do_)->AsmTop = NULL;
+					((SAstStat*)do_)->AsmBottom = NULL;
+					((SAstStat*)do_)->PosRowBottom = -1;
 					{
 						SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
 						InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, pos);
@@ -772,12 +782,16 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 		{
 			SAstStatCatch* catch_ = (SAstStatCatch*)Alloc(sizeof(SAstStatCatch));
 			InitAst((SAst*)catch_, AstTypeId_StatCatch, pos);
-			((SAstStat*)catch_)->Asm = NULL;
+			((SAstStat*)catch_)->AsmTop = NULL;
+			((SAstStat*)catch_)->AsmBottom = NULL;
+			((SAstStat*)catch_)->PosRowBottom = -1;
 			catch_->Conds = ListNew();
 			{
 				SAstStatBlock* block = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
 				InitAst((SAst*)block, AstTypeId_StatBlock, pos);
-				((SAstStat*)block)->Asm = NULL;
+				((SAstStat*)block)->AsmTop = NULL;
+				((SAstStat*)block)->AsmBottom = NULL;
+				((SAstStat*)block)->PosRowBottom = -1;
 				((SAst*)block)->Name = L"$";
 				((SAstStatBreakable*)block)->BlockVar = NULL;
 				((SAstStatBreakable*)block)->BreakPoint = NULL;
@@ -816,7 +830,9 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 				// Make the program to call 'err'.
 				SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 				InitAst((SAst*)do_, AstTypeId_StatDo, pos);
-				((SAstStat*)do_)->Asm = NULL;
+				((SAstStat*)do_)->AsmTop = NULL;
+				((SAstStat*)do_)->AsmBottom = NULL;
+				((SAstStat*)do_)->PosRowBottom = -1;
 				{
 					SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
 					InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, pos);
@@ -869,7 +885,9 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 				{
 					SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 					InitAst((SAst*)do_, AstTypeId_StatDo, pos);
-					((SAstStat*)do_)->Asm = NULL;
+					((SAstStat*)do_)->AsmTop = NULL;
+					((SAstStat*)do_)->AsmBottom = NULL;
+					((SAstStat*)do_)->PosRowBottom = -1;
 					{
 						SAstExprCall* call = (SAstExprCall*)Alloc(sizeof(SAstExprCall));
 						InitAstExpr((SAstExpr*)call, AstTypeId_ExprCall, pos);
@@ -939,7 +957,9 @@ static void RebuildRoot(SAstRoot* ast)
 						{
 							SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 							InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
-							((SAstStat*)do_)->Asm = NULL;
+							((SAstStat*)do_)->AsmTop = NULL;
+							((SAstStat*)do_)->AsmBottom = NULL;
+							((SAstStat*)do_)->PosRowBottom = -1;
 							{
 								SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
 								InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
@@ -962,7 +982,9 @@ static void RebuildRoot(SAstRoot* ast)
 						// Add finalization processing of global variables to '_finVars'.
 						SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 						InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
-						((SAstStat*)do_)->Asm = NULL;
+						((SAstStat*)do_)->AsmTop = NULL;
+						((SAstStat*)do_)->AsmBottom = NULL;
+						((SAstStat*)do_)->PosRowBottom = -1;
 						{
 							SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
 							InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
@@ -1312,7 +1334,9 @@ static void RebuildClass(SAstClass* ast)
 						{
 							SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 							InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
-							((SAstStat*)do_)->Asm = NULL;
+							((SAstStat*)do_)->AsmTop = NULL;
+							((SAstStat*)do_)->AsmBottom = NULL;
+							((SAstStat*)do_)->PosRowBottom = -1;
 							{
 								SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
 								InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
@@ -1344,7 +1368,9 @@ static void RebuildClass(SAstClass* ast)
 				{
 					SAstStatVar* var = (SAstStatVar*)Alloc(sizeof(SAstStatVar));
 					InitAst((SAst*)var, AstTypeId_StatVar, ((SAst*)ast)->Pos);
-					((SAstStat*)var)->Asm = NULL;
+					((SAstStat*)var)->AsmTop = NULL;
+					((SAstStat*)var)->AsmBottom = NULL;
+					((SAstStat*)var)->PosRowBottom = -1;
 					{
 						SAstVar* var2 = (SAstVar*)Alloc(sizeof(SAstVar));
 						InitAst((SAst*)var2, AstTypeId_Var, ((SAst*)ast)->Pos);
@@ -1398,7 +1424,9 @@ static void RebuildClass(SAstClass* ast)
 								{
 									SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 									InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
-									((SAstStat*)do_)->Asm = NULL;
+									((SAstStat*)do_)->AsmTop = NULL;
+									((SAstStat*)do_)->AsmBottom = NULL;
+									((SAstStat*)do_)->PosRowBottom = -1;
 									{
 										SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
 										InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
@@ -1437,7 +1465,9 @@ static void RebuildClass(SAstClass* ast)
 				{
 					SAstStatRet* ret = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
 					InitAst((SAst*)ret, AstTypeId_StatRet, ((SAst*)ast)->Pos);
-					((SAstStat*)ret)->Asm = NULL;
+					((SAstStat*)ret)->AsmTop = NULL;
+					((SAstStat*)ret)->AsmBottom = NULL;
+					((SAstStat*)ret)->PosRowBottom = -1;
 					{
 						SAstExprAs* as = (SAstExprAs*)Alloc(sizeof(SAstExprAs));
 						InitAstExpr((SAstExpr*)as, AstTypeId_ExprAs, ((SAst*)ast)->Pos);
@@ -1455,7 +1485,9 @@ static void RebuildClass(SAstClass* ast)
 				{
 					SAstStatVar* var = (SAstStatVar*)Alloc(sizeof(SAstStatVar));
 					InitAst((SAst*)var, AstTypeId_StatVar, ((SAst*)ast)->Pos);
-					((SAstStat*)var)->Asm = NULL;
+					((SAstStat*)var)->AsmTop = NULL;
+					((SAstStat*)var)->AsmBottom = NULL;
+					((SAstStat*)var)->PosRowBottom = -1;
 					{
 						SAstVar* var2 = (SAstVar*)Alloc(sizeof(SAstVar));
 						InitAst((SAst*)var2, AstTypeId_Var, ((SAst*)ast)->Pos);
@@ -1531,7 +1563,9 @@ static void RebuildClass(SAstClass* ast)
 								{
 									SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 									InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
-									((SAstStat*)do_)->Asm = NULL;
+									((SAstStat*)do_)->AsmTop = NULL;
+									((SAstStat*)do_)->AsmBottom = NULL;
+									((SAstStat*)do_)->PosRowBottom = -1;
 									{
 										SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
 										InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
@@ -1567,7 +1601,9 @@ static void RebuildClass(SAstClass* ast)
 				{
 					SAstStatRet* ret = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
 					InitAst((SAst*)ret, AstTypeId_StatRet, ((SAst*)ast)->Pos);
-					((SAstStat*)ret)->Asm = NULL;
+					((SAstStat*)ret)->AsmTop = NULL;
+					((SAstStat*)ret)->AsmBottom = NULL;
+					((SAstStat*)ret)->PosRowBottom = -1;
 					ret->Value = result;
 					ListAdd(to_bin->Stats, RebuildStat((SAstStat*)ret, to_bin->Ret, to_bin));
 				}
@@ -1578,7 +1614,9 @@ static void RebuildClass(SAstClass* ast)
 				{
 					SAstStatVar* var = (SAstStatVar*)Alloc(sizeof(SAstStatVar));
 					InitAst((SAst*)var, AstTypeId_StatVar, ((SAst*)ast)->Pos);
-					((SAstStat*)var)->Asm = NULL;
+					((SAstStat*)var)->AsmTop = NULL;
+					((SAstStat*)var)->AsmBottom = NULL;
+					((SAstStat*)var)->PosRowBottom = -1;
 					{
 						SAstVar* var2 = (SAstVar*)Alloc(sizeof(SAstVar));
 						InitAst((SAst*)var2, AstTypeId_Var, ((SAst*)ast)->Pos);
@@ -1627,7 +1665,9 @@ static void RebuildClass(SAstClass* ast)
 								{
 									SAstStatDo* do_ = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 									InitAst((SAst*)do_, AstTypeId_StatDo, ((SAst*)ast)->Pos);
-									((SAstStat*)do_)->Asm = NULL;
+									((SAstStat*)do_)->AsmTop = NULL;
+									((SAstStat*)do_)->AsmBottom = NULL;
+									((SAstStat*)do_)->PosRowBottom = -1;
 									{
 										SAstExpr2* assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
 										InitAstExpr((SAstExpr*)assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
@@ -1671,7 +1711,9 @@ static void RebuildClass(SAstClass* ast)
 				{
 					SAstStatRet* ret = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
 					InitAst((SAst*)ret, AstTypeId_StatRet, ((SAst*)ast)->Pos);
-					((SAstStat*)ret)->Asm = NULL;
+					((SAstStat*)ret)->AsmTop = NULL;
+					((SAstStat*)ret)->AsmBottom = NULL;
+					((SAstStat*)ret)->PosRowBottom = -1;
 					ret->Value = result;
 					ListAdd(from_bin->Stats, RebuildStat((SAstStat*)ret, from_bin->Ret, from_bin));
 				}
@@ -1808,7 +1850,9 @@ static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type, SAstFunc* parent
 					// Replace initializers with assignment operators.
 					SAstStatDo* ast_do = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
 					InitAst((SAst*)ast_do, AstTypeId_StatDo, ((SAst*)ast)->Pos);
-					((SAstStat*)ast_do)->Asm = NULL;
+					((SAstStat*)ast_do)->AsmTop = NULL;
+					((SAstStat*)ast_do)->AsmBottom = NULL;
+					((SAstStat*)ast_do)->PosRowBottom = -1;
 					{
 						SAstExpr2* ast_assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
 						InitAst((SAst*)ast_assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
@@ -1901,7 +1945,9 @@ static SAstStat* RebuildIf(SAstStatIf* ast, SAstType* ret_type, SAstFunc* parent
 				{
 					SAstStatBlock* block = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
 					InitAst((SAst*)block, AstTypeId_StatBlock, ((SAst*)ast)->Pos);
-					((SAstStat*)block)->Asm = NULL;
+					((SAstStat*)block)->AsmTop = NULL;
+					((SAstStat*)block)->AsmBottom = NULL;
+					((SAstStat*)block)->PosRowBottom = -1;
 					((SAst*)block)->AnalyzedCache = (SAst*)block;
 					((SAst*)block)->Name = L"$";
 					((SAstStatBreakable*)block)->BlockVar = NULL;

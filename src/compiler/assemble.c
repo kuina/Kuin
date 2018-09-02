@@ -131,7 +131,7 @@ static int SetTypeIdRecursion(U8* ptr, int idx, const SAstType* type);
 static void SetTypeIdForFromBin(EReg reg, const SAstType* type);
 static void SetTypeIdForFromBinRecursion(int* idx_type, U8* data_type, int* idx_class, S64** data_class, const SAstType* type);
 static void ExpandMe(SAstExprDot* dot, int reg_i);
-static void SetStatAsm(SAstStat* ast, SListNode* asms_bottom);
+static void SetStatAsm(SAstStat* ast, SListNode* asms_top, SListNode* asms_bottom);
 static void AssembleFunc(SAstFunc* ast, Bool entry);
 static void AssembleStats(SList* asts);
 static void AssembleIf(SAstStatIf* ast);
@@ -200,6 +200,7 @@ void Assemble(SPackAsm* pack_asm, const SAstFunc* entry, const SOption* option, 
 		((SAst*)func)->AnalyzedCache = (SAst*)func;
 		((SAstFunc*)func)->AddrTop = NewAddr();
 		((SAstFunc*)func)->AddrBottom = -1;
+		((SAstFunc*)func)->PosRowBottom = -1;
 		((SAstFunc*)func)->DllName = NULL;
 		((SAstFunc*)func)->DllFuncName = NULL;
 		((SAstFunc*)func)->FuncAttr = FuncAttr_None;
@@ -1554,18 +1555,20 @@ static void ExpandMe(SAstExprDot* dot, int reg_i)
 	ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x00)));
 }
 
-static void SetStatAsm(SAstStat* ast, SListNode* asms_bottom)
+static void SetStatAsm(SAstStat* ast, SListNode* asms_top, SListNode* asms_bottom)
 {
-	if (asms_bottom == NULL)
+	if (asms_top == NULL)
 	{
 		if (PackAsm->Asms->Top != NULL)
-			ast->Asm = (SAsm*)PackAsm->Asms->Top->Data;
+			ast->AsmTop = (SAsm*)PackAsm->Asms->Top->Data;
 	}
 	else
 	{
-		if (asms_bottom->Next != NULL)
-			ast->Asm = (SAsm*)asms_bottom->Next->Data;
+		if (asms_top->Next != NULL)
+			ast->AsmTop = (SAsm*)asms_top->Next->Data;
 	}
+	if (asms_bottom != NULL)
+		ast->AsmBottom = (SAsm*)asms_bottom->Data;
 }
 
 static void AssembleFunc(SAstFunc* ast, Bool entry)
@@ -1894,6 +1897,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 					((SAst*)func)->AnalyzedCache = (SAst*)func;
 					((SAstFunc*)func)->AddrTop = NewAddr();
 					((SAstFunc*)func)->AddrBottom = -1;
+					((SAstFunc*)func)->PosRowBottom = -1;
 					((SAstFunc*)func)->DllName = NULL;
 					((SAstFunc*)func)->DllFuncName = NULL;
 					((SAstFunc*)func)->FuncAttr = FuncAttr_None;
@@ -2051,7 +2055,7 @@ static void AssembleStats(SList* asts)
 				break;
 		}
 		if (((SAst*)ast)->TypeId != AstTypeId_StatBlock)
-			SetStatAsm(ast, asms_bottom);
+			SetStatAsm(ast, asms_bottom, PackAsm->Asms->Bottom);
 		ptr = ptr->Next;
 	}
 }
@@ -2464,6 +2468,7 @@ static void AssembleTry(SAstStatTry* ast)
 			((SAst*)func)->AnalyzedCache = (SAst*)func;
 			((SAstFunc*)func)->AddrTop = NewAddr();
 			((SAstFunc*)func)->AddrBottom = -1;
+			((SAstFunc*)func)->PosRowBottom = -1;
 			((SAstFunc*)func)->DllName = NULL;
 			((SAstFunc*)func)->DllFuncName = NULL;
 			((SAstFunc*)func)->FuncAttr = FuncAttr_None;
@@ -2551,6 +2556,7 @@ static void AssembleTry(SAstStatTry* ast)
 			((SAst*)func)->AnalyzedCache = (SAst*)func;
 			((SAstFunc*)func)->AddrTop = NewAddr();
 			((SAstFunc*)func)->AddrBottom = -1;
+			((SAstFunc*)func)->PosRowBottom = -1;
 			((SAstFunc*)func)->DllName = NULL;
 			((SAstFunc*)func)->DllFuncName = NULL;
 			((SAstFunc*)func)->FuncAttr = FuncAttr_None;
@@ -2590,7 +2596,7 @@ static void AssembleBlock(SAstStatBlock* ast)
 	SAsmLabel* break_point = ((SAstStatBreakable*)ast)->BreakPoint;
 	if (break_point != NULL)
 		ListAdd(PackAsm->Asms, break_point);
-	SetStatAsm((SAstStat*)ast, asms_bottom);
+	SetStatAsm((SAstStat*)ast, asms_bottom, PackAsm->Asms->Bottom);
 }
 
 static void AssembleRet(SAstStatRet* ast)

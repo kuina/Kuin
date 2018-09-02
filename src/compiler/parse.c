@@ -1300,7 +1300,8 @@ static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_
 {
 	SAstStatBlock* ast = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
 	InitAst((SAst*)ast, AstTypeId_StatBlock, NewPos(SrcName, Row, Col), NULL, False, True);
-	((SAstStat*)ast)->Asm = NULL;
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = NULL;
 	ast->Stats = ListNew();
@@ -1420,6 +1421,7 @@ static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_
 		}
 		ListAdd(ast->Stats, stat);
 	}
+	((SAstStat*)ast)->PosRowBottom = Row;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
@@ -1650,7 +1652,9 @@ static SAstFunc* ParseFunc(const Char* parent_class, Bool overridden)
 		SAstStatVar* stat_var = (SAstStatVar*)Alloc(sizeof(SAstStatVar));
 		{
 			InitAst((SAst*)stat_var, AstTypeId_StatVar, ((SAst*)ast)->Pos, NULL, False, False);
-			((SAstStat*)stat_var)->Asm = NULL;
+			((SAstStat*)stat_var)->AsmTop = NULL;
+			((SAstStat*)stat_var)->AsmBottom = NULL;
+			((SAstStat*)stat_var)->PosRowBottom = -1;
 			SAstVar* var = (SAstVar*)Alloc(sizeof(SAstVar));
 			{
 				InitAst((SAst*)var, AstTypeId_Var, ((SAst*)ast)->Pos, NULL, False, False);
@@ -1703,6 +1707,7 @@ static SAstFunc* ParseFunc(const Char* parent_class, Bool overridden)
 			break;
 		ListAdd(ast->Stats, stat);
 	}
+	ast->PosRowBottom = Row;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
@@ -2061,7 +2066,9 @@ static SAstStat* ParseStatEnd(int row, int col, SAst* block)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
 	InitAst((SAst*)ast, AstTypeId_StatEnd, NewPos(SrcName, row, col), NULL, False, False);
-	ast->Asm = NULL;
+	ast->AsmTop = NULL;
+	ast->AsmBottom = NULL;
+	ast->PosRowBottom = row;
 	{
 		const Char* s = ReadIdentifier(True, False);
 		Bool err = False;
@@ -2113,7 +2120,9 @@ static SAstStat* ParseStatFunc(void)
 {
 	SAstStatFunc* ast = (SAstStatFunc*)Alloc(sizeof(SAstStatFunc));
 	InitAst((SAst*)ast, AstTypeId_StatFunc, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = -1;
 	ast->Def = ParseFunc(NULL, False);
 	return (SAstStat*)ast;
 }
@@ -2122,7 +2131,9 @@ static SAstStat* ParseStatVar(void)
 {
 	SAstStatVar* ast = (SAstStatVar*)Alloc(sizeof(SAstStatVar));
 	InitAst((SAst*)ast, AstTypeId_StatVar, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = -1;
 	ast->Def = ParseVar(AstArgKind_LocalVar, NULL);
 	return (SAstStat*)ast;
 }
@@ -2131,7 +2142,9 @@ static SAstStat* ParseStatConst(void)
 {
 	SAstStatConst* ast = (SAstStatConst*)Alloc(sizeof(SAstStatConst));
 	InitAst((SAst*)ast, AstTypeId_StatConst, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = -1;
 	ast->Def = ParseConst();
 	return (SAstStat*)ast;
 }
@@ -2140,7 +2153,9 @@ static SAstStat* ParseStatAlias(void)
 {
 	SAstStatAlias* ast = (SAstStatAlias*)Alloc(sizeof(SAstStatAlias));
 	InitAst((SAst*)ast, AstTypeId_StatAlias, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = -1;
 	ast->Def = ParseAlias();
 	return (SAstStat*)ast;
 }
@@ -2149,7 +2164,9 @@ static SAstStat* ParseStatClass(void)
 {
 	SAstStatClass* ast = (SAstStatClass*)Alloc(sizeof(SAstStatClass));
 	InitAst((SAst*)ast, AstTypeId_StatClass, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = -1;
 	ast->Def = ParseClass();
 	return (SAstStat*)ast;
 }
@@ -2158,7 +2175,9 @@ static SAstStat* ParseStatEnum(void)
 {
 	SAstStatEnum* ast = (SAstStatEnum*)Alloc(sizeof(SAstStatEnum));
 	InitAst((SAst*)ast, AstTypeId_StatEnum, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = -1;
 	ast->Def = ParseEnum();
 	return (SAstStat*)ast;
 }
@@ -2166,8 +2185,9 @@ static SAstStat* ParseStatEnum(void)
 static SAstStat* ParseStatIf(void)
 {
 	SAstStatIf* ast = (SAstStatIf*)Alloc(sizeof(SAstStatIf));
-	InitAst((SAst*)ast, AstTypeId_StatIf, NULL, NULL, False, True);
-	((SAstStat*)ast)->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatIf, NewPos(SrcName, Row, Col), NULL, False, True);
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->StatBlock = NULL;
@@ -2192,6 +2212,7 @@ static SAstStat* ParseStatIf(void)
 			ast->ElseStatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatElse, (SAst*)ast);
 		ASSERT(type_id == AstTypeId_StatEnd);
 	}
+	((SAstStat*)ast)->PosRowBottom = Row;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2201,7 +2222,9 @@ static SAstStat* ParseStatElIf(int row, int col, const SAst* block)
 {
 	SAstStatElIf* ast = (SAstStatElIf*)Alloc(sizeof(SAstStatElIf));
 	InitAst((SAst*)ast, AstTypeId_StatElIf, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = -1;
 	ast->StatBlock = NULL;
 	if (block->TypeId != AstTypeId_StatIf)
 	{
@@ -2220,7 +2243,9 @@ static SAstStat* ParseStatElse(int row, int col, const SAst* block)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
 	InitAst((SAst*)ast, AstTypeId_StatElse, NULL, NULL, False, False);
-	ast->Asm = NULL;
+	ast->AsmTop = NULL;
+	ast->AsmBottom = NULL;
+	ast->PosRowBottom = -1;
 	if (block->TypeId != AstTypeId_StatIf)
 	{
 		Err(L"EP0043", NewPos(SrcName, row, col));
@@ -2234,8 +2259,9 @@ static SAstStat* ParseStatElse(int row, int col, const SAst* block)
 static SAstStat* ParseStatSwitch(int row, int col)
 {
 	SAstStatSwitch* ast = (SAstStatSwitch*)Alloc(sizeof(SAstStatSwitch));
-	InitAst((SAst*)ast, AstTypeId_StatSwitch, NULL, NULL, False, True);
-	((SAstStat*)ast)->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatSwitch, NewPos(SrcName, Row, Col), NULL, False, True);
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
 	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->Cases = ListNew();
@@ -2273,6 +2299,7 @@ static SAstStat* ParseStatSwitch(int row, int col)
 			ast->DefaultStatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatDefault, (SAst*)ast);
 		ASSERT(type_id == AstTypeId_StatEnd);
 	}
+	((SAstStat*)ast)->PosRowBottom = Row;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2282,7 +2309,9 @@ static SAstStat* ParseStatCase(int row, int col, const SAst* block)
 {
 	SAstStatCase* ast = (SAstStatCase*)Alloc(sizeof(SAstStatCase));
 	InitAst((SAst*)ast, AstTypeId_StatCase, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = -1;
 	ast->Conds = ListNew();
 	ast->StatBlock = NULL;
 	if (block->TypeId != AstTypeId_StatSwitch)
@@ -2337,7 +2366,9 @@ static SAstStat* ParseStatDefault(int row, int col, const SAst* block)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
 	InitAst((SAst*)ast, AstTypeId_StatDefault, NULL, NULL, False, False);
-	ast->Asm = NULL;
+	ast->AsmTop = NULL;
+	ast->AsmBottom = NULL;
+	ast->PosRowBottom = -1;
 	if (block->TypeId != AstTypeId_StatSwitch)
 	{
 		Err(L"EP0048", NewPos(SrcName, row, col));
@@ -2351,8 +2382,9 @@ static SAstStat* ParseStatDefault(int row, int col, const SAst* block)
 static SAstStat* ParseStatWhile(void)
 {
 	SAstStatWhile* ast = (SAstStatWhile*)Alloc(sizeof(SAstStatWhile));
-	InitAst((SAst*)ast, AstTypeId_StatWhile, NULL, NULL, False, True);
-	((SAstStat*)ast)->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatWhile, NewPos(SrcName, Row, Col), NULL, False, True);
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	((SAstStatSkipable*)ast)->SkipPoint = AsmLabel();
@@ -2389,6 +2421,7 @@ static SAstStat* ParseStatWhile(void)
 			break;
 		ListAdd(ast->Stats, stat);
 	}
+	((SAstStat*)ast)->PosRowBottom = Row;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2397,8 +2430,9 @@ static SAstStat* ParseStatWhile(void)
 static SAstStat* ParseStatFor(int row, int col)
 {
 	SAstStatFor* ast = (SAstStatFor*)Alloc(sizeof(SAstStatFor));
-	InitAst((SAst*)ast, AstTypeId_StatFor, NULL, NULL, False, True);
-	((SAstStat*)ast)->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatFor, NewPos(SrcName, Row, Col), NULL, False, True);
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
 	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	((SAstStatSkipable*)ast)->SkipPoint = AsmLabel();
@@ -2441,6 +2475,7 @@ static SAstStat* ParseStatFor(int row, int col)
 			break;
 		ListAdd(ast->Stats, stat);
 	}
+	((SAstStat*)ast)->PosRowBottom = Row;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2449,8 +2484,9 @@ static SAstStat* ParseStatFor(int row, int col)
 static SAstStat* ParseStatTry(int row, int col)
 {
 	SAstStatTry* ast = (SAstStatTry*)Alloc(sizeof(SAstStatTry));
-	InitAst((SAst*)ast, AstTypeId_StatTry, NULL, NULL, False, True);
-	((SAstStat*)ast)->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatTry, NewPos(SrcName, Row, Col), NULL, False, True);
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
 	((SAstStatBreakable*)ast)->BlockVar = MakeBlockVar(row, col);
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->StatBlock = NULL;
@@ -2489,6 +2525,7 @@ static SAstStat* ParseStatTry(int row, int col)
 			ast->FinallyStatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatFinally, (SAst*)ast);
 		ASSERT(type_id == AstTypeId_StatEnd);
 	}
+	((SAstStat*)ast)->PosRowBottom = Row;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2498,7 +2535,9 @@ static SAstStat* ParseStatCatch(int row, int col, const SAst* block)
 {
 	SAstStatCatch* ast = (SAstStatCatch*)Alloc(sizeof(SAstStatCatch));
 	InitAst((SAst*)ast, AstTypeId_StatCatch, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = -1;
 	ast->Conds = ListNew();
 	ast->StatBlock = NULL;
 	if (block->TypeId != AstTypeId_StatTry)
@@ -2565,7 +2604,9 @@ static SAstStat* ParseStatFinally(int row, int col, const SAst* block)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
 	InitAst((SAst*)ast, AstTypeId_StatFinally, NULL, NULL, False, False);
-	ast->Asm = NULL;
+	ast->AsmTop = NULL;
+	ast->AsmBottom = NULL;
+	ast->PosRowBottom = -1;
 	if (block->TypeId != AstTypeId_StatTry)
 	{
 		Err(L"EP0052", NewPos(SrcName, row, col));
@@ -2579,8 +2620,10 @@ static SAstStat* ParseStatFinally(int row, int col, const SAst* block)
 static SAstStat* ParseStatThrow(void)
 {
 	SAstStatThrow* ast = (SAstStatThrow*)Alloc(sizeof(SAstStatThrow));
-	InitAst((SAst*)ast, AstTypeId_StatThrow, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatThrow, NewPos(SrcName, Row, Col), NULL, False, False);
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = Row;
 	ast->Code = ParseExpr();
 	AssertNextChar(L'\n', True);
 	return (SAstStat*)ast;
@@ -2589,8 +2632,9 @@ static SAstStat* ParseStatThrow(void)
 static SAstStat* ParseStatBlock(void)
 {
 	SAstStatBlock* ast = (SAstStatBlock*)Alloc(sizeof(SAstStatBlock));
-	InitAst((SAst*)ast, AstTypeId_StatBlock, NULL, NULL, False, True);
-	((SAstStat*)ast)->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatBlock, NewPos(SrcName, Row, Col), NULL, False, True);
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
 	((SAstStatBreakable*)ast)->BlockVar = NULL;
 	((SAstStatBreakable*)ast)->BreakPoint = AsmLabel();
 	ast->Stats = ListNew();
@@ -2621,6 +2665,7 @@ static SAstStat* ParseStatBlock(void)
 			break;
 		ListAdd(ast->Stats, stat);
 	}
+	((SAstStat*)ast)->PosRowBottom = Row;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2629,8 +2674,10 @@ static SAstStat* ParseStatBlock(void)
 static SAstStat* ParseStatRet(void)
 {
 	SAstStatRet* ast = (SAstStatRet*)Alloc(sizeof(SAstStatRet));
-	InitAst((SAst*)ast, AstTypeId_StatRet, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatRet, NewPos(SrcName, Row, Col), NULL, False, False);
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = Row;
 	{
 		Char c = ReadChar();
 		if (c != L'\n')
@@ -2648,8 +2695,10 @@ static SAstStat* ParseStatRet(void)
 static SAstStat* ParseStatDo(void)
 {
 	SAstStatDo* ast = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
-	InitAst((SAst*)ast, AstTypeId_StatDo, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatDo, NewPos(SrcName, Row, Col), NULL, False, False);
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = Row;
 	ast->Expr = ParseExpr();
 	AssertNextChar(L'\n', True);
 	return (SAstStat*)ast;
@@ -2658,8 +2707,10 @@ static SAstStat* ParseStatDo(void)
 static SAstStat* ParseStatBreak(void)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
-	InitAst((SAst*)ast, AstTypeId_StatBreak, NULL, NULL, False, False);
-	ast->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatBreak, NewPos(SrcName, Row, Col), NULL, False, False);
+	ast->AsmTop = NULL;
+	ast->AsmBottom = NULL;
+	ast->PosRowBottom = Row;
 	((SAst*)ast)->RefName = ReadIdentifier(True, False);
 	AddScopeRefeds((SAst*)ast);
 	AssertNextChar(L'\n', True);
@@ -2669,8 +2720,10 @@ static SAstStat* ParseStatBreak(void)
 static SAstStat* ParseStatSkip(void)
 {
 	SAstStat* ast = (SAstStat*)Alloc(sizeof(SAstStat));
-	InitAst((SAst*)ast, AstTypeId_StatSkip, NULL, NULL, False, False);
-	ast->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatSkip, NewPos(SrcName, Row, Col), NULL, False, False);
+	ast->AsmTop = NULL;
+	ast->AsmBottom = NULL;
+	ast->PosRowBottom = Row;
 	((SAst*)ast)->RefName = ReadIdentifier(True, False);
 	AddScopeRefeds((SAst*)ast);
 	AssertNextChar(L'\n', True);
@@ -2680,8 +2733,10 @@ static SAstStat* ParseStatSkip(void)
 static SAstStat* ParseStatAssert(void)
 {
 	SAstStatAssert* ast = (SAstStatAssert*)Alloc(sizeof(SAstStatAssert));
-	InitAst((SAst*)ast, AstTypeId_StatAssert, NULL, NULL, False, False);
-	((SAstStat*)ast)->Asm = NULL;
+	InitAst((SAst*)ast, AstTypeId_StatAssert, NewPos(SrcName, Row, Col), NULL, False, False);
+	((SAstStat*)ast)->AsmTop = NULL;
+	((SAstStat*)ast)->AsmBottom = NULL;
+	((SAstStat*)ast)->PosRowBottom = Row;
 	ast->Cond = ParseExpr();
 	AssertNextChar(L'\n', True);
 	return (SAstStat*)ast;

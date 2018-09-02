@@ -125,6 +125,7 @@ typedef struct SAstFunc
 	SAst Ast;
 	S64* AddrTop;
 	S64 AddrBottom;
+	S64 PosRowBottom;
 	const Char* DllName;
 	const Char* DllFuncName;
 	EFuncAttr FuncAttr;
@@ -207,7 +208,9 @@ typedef struct SAstArg
 typedef struct SAstStat
 {
 	SAst Ast;
-	SAsm* Asm;
+	SAsm* AsmTop;
+	SAsm* AsmBottom;
+	S64 PosRowBottom;
 } SAstStat;
 
 typedef struct SAstStatBreakable
