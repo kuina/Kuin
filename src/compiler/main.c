@@ -653,14 +653,50 @@ EXPORT void SetBreakPoints(const void* break_points)
 	for (i = 0; i < len; i++)
 	{
 		Char* src_name = (Char*)((U8*)*(void**)((U8*)ptr[i] + 0x10) + 0x10);
-		S64 row = *(S64*)((U8*)ptr[i] + 0x18);
-		S64 col = *(S64*)((U8*)ptr[i] + 0x20);
+		int row = (int)*(S64*)((U8*)ptr[i] + 0x18);
+		int col = (int)*(S64*)((U8*)ptr[i] + 0x20);
 		S64 name_len = ((S64*)*(void**)((U8*)ptr[i] + 0x10))[1];
+
+		Bool success = False;
+		for (; ; )
+		{
+			Char name[256];
+			U64 addr;
+			SPos pos;
+			pos.SrcName = src_name;
+			pos.Row = row;
+			pos.Col = col;
+			addr = PosToAddr(&pos);
+			if (addr != 0)
+			{
+				SPos* pos2 = AddrToPos(addr, name);
+				if (pos2 != NULL && wcscmp(pos.SrcName, pos2->SrcName) == 0)
+				{
+					if (pos.Row != pos2->Row)
+					{
+						row = pos2->Row;
+						*(S64*)((U8*)ptr[i] + 0x18) = (S64)pos2->Row;
+						continue;
+					}
+					success = True;
+				}
+			}
+			break;
+		}
+		if (!success)
+		{
+			BreakPointPoses[i].SrcName = L"";
+			BreakPointPoses[i].Row = -1;
+			BreakPointPoses[i].Col = -1;
+			*(S64*)((U8*)ptr[i] + 0x18) = -1;
+			continue;
+		}
+
 		Char* buf = (Char*)AllocMem(sizeof(Char) * (size_t)(name_len + 1));
 		memcpy(buf, src_name, sizeof(Char) * (size_t)(name_len + 1));
 		BreakPointPoses[i].SrcName = buf;
-		BreakPointPoses[i].Row = (int)row;
-		BreakPointPoses[i].Col = (int)col;
+		BreakPointPoses[i].Row = row;
+		BreakPointPoses[i].Col = col;
 	}
 }
 
@@ -1467,7 +1503,10 @@ static void FreeBreakPoints(void)
 	{
 		S64 i;
 		for (i = 0; i < BreakPointNum; i++)
-			FreeMem((void*)BreakPointPoses[i].SrcName);
+		{
+			if (BreakPointPoses[i].SrcName[0] != L'\0')
+				FreeMem((void*)BreakPointPoses[i].SrcName);
+		}
 		FreeMem(BreakPointPoses);
 	}
 }
@@ -1479,15 +1518,9 @@ static void SetBreakPointOpes(HANDLE process_handle)
 	BreakPointAddrNum = (int)BreakPointNum;
 	BreakPointAddrs = (SBreakPointAddr*)AllocMem(sizeof(SBreakPointAddr) * (size_t)(BreakPointNum));
 	S64 i;
-	Char str[4096] = L"";
 	for (i = 0; i < BreakPointNum; i++)
 	{
 		U64 addr = PosToAddr(&BreakPointPoses[i]);
-		{
-			Char buf[4096];
-			swprintf(buf, 4096, L"(%s: %d) - %I64X\r\n", BreakPointPoses[i].SrcName, BreakPointPoses[i].Row, addr);
-			wcscat(str, buf);
-		}
 		if (addr == 0)
 		{
 			BreakPointAddrs[i].Addr = 0;
@@ -1502,7 +1535,6 @@ static void SetBreakPointOpes(HANDLE process_handle)
 		BreakPointAddrs[i].Ope = old_code;
 	}
 	FlushInstructionCache(process_handle, NULL, 0);
-	MessageBox(NULL, str, L"piyo", 0);
 }
 
 static void UnsetBreakPointOpes(HANDLE process_handle)

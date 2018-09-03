@@ -1852,7 +1852,7 @@ static SAstStat* RebuildStat(SAstStat* ast, SAstType* ret_type, SAstFunc* parent
 					InitAst((SAst*)ast_do, AstTypeId_StatDo, ((SAst*)ast)->Pos);
 					((SAstStat*)ast_do)->AsmTop = NULL;
 					((SAstStat*)ast_do)->AsmBottom = NULL;
-					((SAstStat*)ast_do)->PosRowBottom = -1;
+					((SAstStat*)ast_do)->PosRowBottom = ((SAst*)ast_do)->Pos->Row;
 					{
 						SAstExpr2* ast_assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
 						InitAst((SAst*)ast_assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);

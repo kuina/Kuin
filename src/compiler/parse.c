@@ -1421,7 +1421,7 @@ static SAstStatBlock* ParseDummyBlock(SAstStat** out_stat, EAstTypeId* out_type_
 		}
 		ListAdd(ast->Stats, stat);
 	}
-	((SAstStat*)ast)->PosRowBottom = Row;
+	((SAstStat*)ast)->PosRowBottom = Row - 1;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
@@ -1707,7 +1707,7 @@ static SAstFunc* ParseFunc(const Char* parent_class, Bool overridden)
 			break;
 		ListAdd(ast->Stats, stat);
 	}
-	ast->PosRowBottom = Row;
+	ast->PosRowBottom = Row - 1;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return ast;
@@ -2212,7 +2212,7 @@ static SAstStat* ParseStatIf(void)
 			ast->ElseStatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatElse, (SAst*)ast);
 		ASSERT(type_id == AstTypeId_StatEnd);
 	}
-	((SAstStat*)ast)->PosRowBottom = Row;
+	((SAstStat*)ast)->PosRowBottom = Row - 1;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2299,7 +2299,7 @@ static SAstStat* ParseStatSwitch(int row, int col)
 			ast->DefaultStatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatDefault, (SAst*)ast);
 		ASSERT(type_id == AstTypeId_StatEnd);
 	}
-	((SAstStat*)ast)->PosRowBottom = Row;
+	((SAstStat*)ast)->PosRowBottom = Row - 1;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2421,7 +2421,7 @@ static SAstStat* ParseStatWhile(void)
 			break;
 		ListAdd(ast->Stats, stat);
 	}
-	((SAstStat*)ast)->PosRowBottom = Row;
+	((SAstStat*)ast)->PosRowBottom = Row - 1;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2475,7 +2475,7 @@ static SAstStat* ParseStatFor(int row, int col)
 			break;
 		ListAdd(ast->Stats, stat);
 	}
-	((SAstStat*)ast)->PosRowBottom = Row;
+	((SAstStat*)ast)->PosRowBottom = Row - 1;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2525,7 +2525,7 @@ static SAstStat* ParseStatTry(int row, int col)
 			ast->FinallyStatBlock = ParseDummyBlock(&stat, &type_id, AstTypeId_StatFinally, (SAst*)ast);
 		ASSERT(type_id == AstTypeId_StatEnd);
 	}
-	((SAstStat*)ast)->PosRowBottom = Row;
+	((SAstStat*)ast)->PosRowBottom = Row - 1;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;
@@ -2665,7 +2665,7 @@ static SAstStat* ParseStatBlock(void)
 			break;
 		ListAdd(ast->Stats, stat);
 	}
-	((SAstStat*)ast)->PosRowBottom = Row;
+	((SAstStat*)ast)->PosRowBottom = Row - 1;
 	AddEndPosScope();
 	Scope = StackPop(Scope);
 	return (SAstStat*)ast;

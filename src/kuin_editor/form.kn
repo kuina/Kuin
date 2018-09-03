@@ -611,7 +611,17 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		var breakPoint: BreakPoint :: #BreakPoint
 		do breakPoint.items :: #list<\src@Pos>
 		do \src@docs.forEach(callback, breakPoint)
-		do \dll@setBreakPoints(breakPoint.items.toArray())
+		var itemsArray: []\src@Pos :: breakPoint.items.toArray()
+		for i(0, ^itemsArray - 1)
+			do (\src@docs.get(\src@internalNameToSrcName(itemsArray[i].src)) $ \doc_src@DocSrc).unsetBreakPoint(itemsArray[i].row - 1)
+		end for
+		do \dll@setBreakPoints(itemsArray)
+		for i(0, ^itemsArray - 1)
+			if(itemsArray[i].row <> -1)
+				do (\src@docs.get(\src@internalNameToSrcName(itemsArray[i].src)) $ \doc_src@DocSrc).setBreakPoint(itemsArray[i].row - 1)
+			end if
+		end for
+		do @paintDrawEditor()
 
 		func callback(key: []char, value: \doc@Doc, data: BreakPoint): bool
 			var srcName: []char :: \src@srcNameToInternalName(key)

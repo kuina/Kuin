@@ -700,6 +700,18 @@ end func
 		end if
 	end func
 
+	+func setBreakPoint(y: int)
+		if(0 <= y & y < ^me.src.flags)
+			do me.src.flags[y] :: me.src.flags[y].or(%breakPoint)
+		end if
+	end func
+
+	+func unsetBreakPoint(y: int)
+		if(0 <= y & y < ^me.src.flags)
+			do me.src.flags[y] :: me.src.flags[y].and((%breakPoint $ LineFlag).not())
+		end if
+	end func
+
 	func setSrc(src: [][]char)
 		if(src =& null | ^src = 0)
 			do me.src.src :: [""]
