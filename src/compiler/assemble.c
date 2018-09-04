@@ -1557,18 +1557,27 @@ static void ExpandMe(SAstExprDot* dot, int reg_i)
 
 static void SetStatAsm(SAstStat* ast, SListNode* asms_top, SListNode* asms_bottom)
 {
-	if (asms_top == NULL)
+	if (asms_top == NULL || asms_top->Next == NULL)
 	{
 		if (PackAsm->Asms->Top != NULL)
 			ast->AsmTop = (SAsm*)PackAsm->Asms->Top->Data;
 	}
 	else
-	{
-		if (asms_top->Next != NULL)
-			ast->AsmTop = (SAsm*)asms_top->Next->Data;
-	}
+		ast->AsmTop = (SAsm*)asms_top->Next->Data;
 	if (asms_bottom != NULL)
-		ast->AsmBottom = (SAsm*)asms_bottom->Data;
+	{
+		SListNode* ptr = asms_bottom;
+		while (ptr != NULL)
+		{
+			SAsm* item = (SAsm*)ptr->Data;
+			if (item->TypeId != AsmTypeId_Label)
+			{
+				ast->AsmBottom = item;
+				break;
+			}
+			ptr = ptr->Prev;
+		}
+	}
 }
 
 static void AssembleFunc(SAstFunc* ast, Bool entry)
