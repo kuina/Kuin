@@ -3907,6 +3907,7 @@ static void AssembleExprRef(SAstExpr* ast, int reg_i, int reg_f)
 					ASSERT(ast2->Name != NULL && wcscmp(ast2->Name, L"$") != 0);
 					{
 						S64* addr = AddWritableData(NewStr(NULL, L"%s@%s", ast2->Pos->SrcName, ast2->Name), size);
+						((SAstArg*)ast2)->Addr = addr;
 						ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[reg_i]), ValRIP(8, RefValueAddr(addr, True))));
 					}
 					break;

@@ -406,6 +406,65 @@ void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, in
 	}
 }
 
+void GetDbgVars(int keyword_list_num, const void* keyword_list, const Char* pos_name, int pos_row, HANDLE process_handle, U64 start_addr, const CONTEXT* context)
+{
+	const SKeywordListItem** keyword_list2 = (const SKeywordListItem**)keyword_list;
+	if (keyword_list2 == NULL)
+	{
+		MessageBox(NULL, L"null", L"piyo", 0);
+		return;
+	}
+	int i;
+	Char str[10000] = L"";
+	Char buf[256];
+	const Char* name;
+	U64 addr;
+	for (i = 0; i < keyword_list_num; i++)
+	{
+		const SKeywordListItem* item = keyword_list2[i];
+		if (item->Name[0] == L'%' || item->Name[0] == L'.' || item->Ast->TypeId != AstTypeId_Arg)
+			continue;
+		if (item->Name[0] == L'@')
+		{
+			if (wcscmp(pos_name, item->Ast->Pos->SrcName) == 0)
+				name = item->Name;
+			else
+			{
+				if (!item->Ast->Public)
+					continue;
+				wcscpy(buf, item->Ast->Pos->SrcName);
+				wcscat(buf, item->Name);
+				name = buf;
+			}
+		}
+		else if (wcscmp(pos_name, item->Ast->Pos->SrcName) == 0 && *item->First <= pos_row && pos_row <= *item->Last)
+			name = item->Name;
+		else
+			continue;
+		const SAstArg* arg = (const SAstArg*)item->Ast;
+		switch (arg->Kind)
+		{
+			case AstArgKind_Global:
+				addr = start_addr + *arg->Addr;
+				break;
+			case AstArgKind_LocalArg:
+			case AstArgKind_LocalVar:
+				addr = context->Rsp + *arg->Addr;
+				break;
+			default:
+				continue;
+		}
+		U64 value = 0;
+		ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+		{
+			Char buf2[1024];
+			swprintf(buf2, 1024, L"%s = %I64X\n", name, value);
+			wcscat(str, buf2);
+		}
+	}
+	MessageBox(NULL, str, L"piyo", 0);
+}
+
 static void GetKeywordsRootImpl(const Char** str, const Char* end, const Char* src_name, int x, int y, U64 flags, void* callback, int keyword_list_num, const void* keyword_list)
 {
 	GetKeywordsEnd = end;
@@ -6032,15 +6091,15 @@ static void GetKeywordsAddKeywords(Char kind)
 			continue;
 		switch (kind)
 		{
-			case L't':
+			case L't': // Types
 				if (item->Ast->TypeId != AstTypeId_Class && item->Ast->TypeId != AstTypeId_Enum && item->Ast->TypeId != AstTypeId_Alias)
 					continue;
 				break;
-			case L'e':
+			case L'e': // Expressions
 				if (item->Ast->TypeId == AstTypeId_Class || item->Ast->TypeId == AstTypeId_Enum || item->Ast->TypeId == AstTypeId_Alias)
 					continue;
 				break;
-			case L'c':
+			case L'c': // Class Names
 				if (item->Ast->TypeId != AstTypeId_Class)
 					continue;
 				break;

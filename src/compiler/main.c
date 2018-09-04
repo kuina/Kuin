@@ -546,6 +546,8 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 									break;
 							}
 							str[len2] = L'\0';
+							if (excpt_pos != NULL)
+								GetDbgVars(KeywordListNum, KeywordList, excpt_pos->SrcName, excpt_pos->Row, process_info.hProcess, DbgStartAddr, &context);
 							{
 								void* pos_ptr = NULL;
 								Char pos_name[0x08 + 256];
@@ -886,6 +888,8 @@ static Bool Build(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclos
 	entry = Analyze(asts, &option, &dlls);
 	if (ErrOccurred())
 		goto ERR;
+	if (!option.Rls)
+		MakeKeywordList(asts);
 	Err(L"IK0002", NULL, (double)(timeGetTime() - begin_time) / 1000.0);
 	Assemble(&PackAsm, entry, &option, dlls, app_code, use_res_flags);
 	if (ErrOccurred())
