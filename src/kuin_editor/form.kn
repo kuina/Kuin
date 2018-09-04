@@ -419,7 +419,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		do @openResFolder()
 	case 0x0040
 		if (\src@curDoc =$ \doc_src@DocSrc)
-			if(@lockingEditor)
+			if(\src@breakPos =& null & @lockingEditor)
 				do @showMsgRunning()
 				ret
 			end if
