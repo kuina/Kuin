@@ -56,6 +56,9 @@ end func
 		do me.resetListInfoItem()
 		do me.dirtyLine :: -1
 		do me.dirtyLineForce :: false
+		do me.caretX :: -1
+		do me.caretY :: -1
+		do me.caretShown :: false
 	end func
 
 	+*func update()
@@ -193,6 +196,8 @@ end func
 				end if
 			end for
 		end for
+
+		do draw@rect(me.caretX $ float, me.caretY $ float, 2.0, \common@cellHeight $ float, 0xFF000000)
 	end func
 
 	+*func updateProp(listView: wnd@ListView)
@@ -304,10 +309,10 @@ end func
 
 	+*func focus(isFocus: bool)
 		if(isFocus)
-			do \form@drawEditor.showCaret(\common@cellHeight, \common@font)
+			do me.caretShown :: true
 			do me.refreshCursor(false, true)
 		else
-			do \form@drawEditor.hideCaret()
+			do me.caretShown :: false
 		end if
 	end func
 
@@ -401,6 +406,7 @@ end func
 					do me.refreshCursor(false, true)
 					do me.interpret1SetDirty(me.cursorY, false, false)
 				end if
+				do \form@paintDrawEditor()
 				ret true
 			end block
 		case %pageDown
@@ -417,6 +423,7 @@ end func
 					do me.refreshCursor(false, true)
 					do me.interpret1SetDirty(me.cursorY, false, false)
 				end if
+				do \form@paintDrawEditor()
 				ret true
 			end block
 		case %end_
@@ -426,6 +433,7 @@ end func
 				do me.cursorY :: lib@intMax
 			end if
 			do me.refreshCursor(false, true)
+			do \form@paintDrawEditor()
 			do me.interpret1SetDirty(me.cursorY, false, false)
 			ret true
 		case %home
@@ -435,6 +443,7 @@ end func
 				do me.cursorY :: 0
 			end if
 			do me.refreshCursor(false, true)
+			do \form@paintDrawEditor()
 			do me.interpret1SetDirty(me.cursorY, false, false)
 			ret true
 		case %left
@@ -446,12 +455,14 @@ end func
 				do me.refreshCursor(false, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
 			end if
+			do \form@paintDrawEditor()
 			ret true
 		case %up
 			if(shiftCtrl = %none & \completion@displayed() & \completion@moveCursorUp())
 				; Do nothing.
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(-1)
+				do \form@paintDrawEditor()
 			else
 				do me.setArea(shiftCtrl)
 				var absoluteX: int :: me.getAbsoluteX()
@@ -459,6 +470,7 @@ end func
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
+				do \form@paintDrawEditor()
 			end if
 			ret true
 		case %right
@@ -470,12 +482,14 @@ end func
 				do me.refreshCursor(true, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
 			end if
+			do \form@paintDrawEditor()
 			ret true
 		case %down
 			if(shiftCtrl = %none & \completion@displayed() & \completion@moveCursorDown())
 				; Do nothing.
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(1)
+				do \form@paintDrawEditor()
 			else
 				do me.setArea(shiftCtrl)
 				var absoluteX: int :: me.getAbsoluteX()
@@ -483,6 +497,7 @@ end func
 				do me.setAbsoluteX(absoluteX)
 				do me.refreshCursor(false, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
+				do \form@paintDrawEditor()
 			end if
 			ret true
 		case %ins
@@ -498,7 +513,6 @@ end func
 				do \completion@setAlpha(230)
 			end if
 		end switch
-		do \form@paintDrawEditor()
 	end func
 
 	+*func keyChar(key: char)
@@ -1065,6 +1079,9 @@ end func
 	+var errList: list<@ErrListItem>
 	var dirtyLine: int
 	var dirtyLineForce: bool
+	var caretX: int
+	var caretY: int
+	var caretShown: bool
 
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
@@ -1207,11 +1224,17 @@ end func
 			do x :: me.lineNumWidth + (x - me.pageX) * \common@cellWidth
 			var y: int :: (me.cursorY - me.pageY) * \common@cellHeight
 			if(x + 2 <= 0 | scrWidth - 17 <= x | y + \common@cellHeight <= 0 | scrHeight - 17 <= y)
+				do me.caretX :: -1
+				do me.caretY :: -1
 				do \form@drawEditor.moveCaret(-1, -1)
 			else
+				do me.caretX :: x
+				do me.caretY :: y
 				do \form@drawEditor.moveCaret(x, y)
 			end if
 		end block
+
+		do \completion@updatePos()
 
 		func log10(n: int): int
 			var result: int :: 0
@@ -1597,7 +1620,9 @@ end func
 			if(word =& null)
 				do \completion@close()
 			else
+				do \form@drawEditor.showCaret(\common@cellHeight, \common@font)
 				do \completion@show(me.src, \src@curDocInternalName, first, me.cursorY, word)
+				do \form@drawEditor.hideCaret()
 			end if
 		end if
 	end func

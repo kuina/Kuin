@@ -589,7 +589,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	catch
 		do wnd@msgBox(@wndMain, \common@langEn ?("Unexpected error.", "予期せぬエラーです。"), \common@title, %err, %ok)
 	end try
-	do \dbgwnd@clear()
+	do \dbgwnd@wndDbg.close()
 	do @updateUi()
 	do @lockEditor(false)
 
