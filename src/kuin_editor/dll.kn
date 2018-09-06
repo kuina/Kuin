@@ -25,7 +25,7 @@ end func
 +func [d0917.knd, GetKeywords] getKeywords(src: kuin@Class, srcName: []char, x: int, y: int, callback: func<([]char)>)
 end func
 
-+func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>, breakPointsFunc: func<()>, breakFunc: func<(\src@Pos, []char)>): bool
++func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>, breakPointsFunc: func<()>, breakFunc: func<(int, \src@Pos, []char)>, dbgFunc: func<(int, []char, []char)>): bool
 end func
 
 +func [d0917.knd, SetBreakPoints] setBreakPoints(breakPoints: []\src@Pos)

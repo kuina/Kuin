@@ -25,7 +25,7 @@
 
 #pragma comment(lib, "DbgHelp.lib")
 
-#define MSG_NUM (57 / 3)
+#define MSG_NUM (60 / 3)
 #define FUNC_NAME_MAX (128)
 #define MSG_MAX (128)
 #define LANG_NUM (2)
@@ -308,7 +308,7 @@ EXPORT void GetKeywords(void* src, const U8* src_name, S64 x, S64 y, void* callb
 	GetKeywordsRoot(&str3, str3 + x + 1, (const Char*)(src_name + 0x10), (int)x, (int)y, flags2, callback, KeywordListNum, (const void*)KeywordList);
 }
 
-EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func, void* break_points_func, void* break_func)
+EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func, void* break_points_func, void* break_func, void* dbg_func)
 {
 	const Char* path2 = (const Char*)(path + 0x10);
 	Char cur_dir[KUIN_MAX_PATH + 1];
@@ -409,10 +409,10 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 						}
 						if (break_point_idx == -1 && (excpt_code & 0xffff0000) != 0xc0000000 && (excpt_code & 0xffff0000) != 0xe9170000)
 							break;
+						Call3Asm((void*)0, NULL, NULL, dbg_func);
 						{
 							Char str_buf[0x08 + EXCPT_MSG_MAX + 1];
 							Char* str = str_buf + 0x08;
-							size_t len2;
 							CONTEXT context;
 							CONTEXT context2;
 							STACKFRAME64 stack;
@@ -431,12 +431,8 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 							stack.AddrFrame.Mode = AddrModeFlat;
 							SymInitialize(process_info.hProcess, NULL, TRUE);
 							{
-								DWORD code = excpt_code;
-#if defined(_DEBUG)
-								PVOID addr = debug_event.u.Exception.ExceptionRecord.ExceptionAddress;
-#endif
 								const Char* text = ExcptMsgs[0].Msg;
-								if (code <= 0x0000ffff)
+								if (excpt_code <= 0x0000ffff)
 									text = ExcptMsgs[1].Msg;
 								else
 								{
@@ -446,9 +442,9 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 									while (min <= max)
 									{
 										int mid = (min + max) / 2;
-										if ((S64)code < ExcptMsgs[mid].Code)
+										if ((S64)excpt_code < ExcptMsgs[mid].Code)
 											max = mid - 1;
-										else if ((S64)code > ExcptMsgs[mid].Code)
+										else if ((S64)excpt_code > ExcptMsgs[mid].Code)
 											min = mid + 1;
 										else
 										{
@@ -459,11 +455,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 									if (found != -1)
 										text = ExcptMsgs[found].Msg;
 								}
-#if defined(_DEBUG)
-								len2 = swprintf(str, EXCPT_MSG_MAX, L"An exception '0x%08X' occurred at '0x%016I64X'.\r\n\r\n> %s\r\n\r\n", code, (U64)addr, text);
-#else
-								len2 = swprintf(str, EXCPT_MSG_MAX, L"An exception '0x%08X' occurred.\r\n\r\n> %s\r\n\r\n", code, text);
-#endif
+								swprintf(str, EXCPT_MSG_MAX, L"%s\nAn exception '0x%08X' occurred.", text, excpt_code);
 							}
 
 							SPos* excpt_pos = NULL;
@@ -471,51 +463,15 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 							{
 								if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process_info.hProcess, process_info.hThread, &stack, &context2, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL))
 									break;
-
-#if defined(_DEBUG)
-								if (len2 < EXCPT_MSG_MAX)
-									len2 += swprintf(str + len2, EXCPT_MSG_MAX - len2, L"0x%016I64X: \t", context2.Rip);
-#endif
-
 								symbol.SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
 								symbol.MaxNameLength = 255;
 								DWORD64 displacement;
 								if (SymGetSymFromAddr64(process_info.hProcess, (DWORD64)stack.AddrPC.Offset, &displacement, &symbol))
 								{
-#if defined(_DEBUG)
+									/*
 									char name[1024];
 									UnDecorateSymbolName(symbol.Name, (PSTR)name, 1024, UNDNAME_COMPLETE);
-									{
-										char* src = name;
-										if (len2 < EXCPT_MSG_MAX)
-										{
-											str[len2] = L'(';
-											len2++;
-										}
-										while (*src != L'\0')
-										{
-											if (len2 < EXCPT_MSG_MAX)
-												str[len2] = (Char)*src;
-											len2++;
-											src++;
-										}
-										if (len2 < EXCPT_MSG_MAX)
-										{
-											str[len2] = L')';
-											len2++;
-										}
-										if (len2 < EXCPT_MSG_MAX)
-										{
-											str[len2] = L'\r';
-											len2++;
-										}
-										if (len2 < EXCPT_MSG_MAX)
-										{
-											str[len2] = L'\n';
-											len2++;
-										}
-									}
-#endif
+									*/
 								}
 								else
 								{
@@ -525,29 +481,18 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 										excpt_pos = pos;
 									if (pos != NULL)
 									{
-										if (len2 < EXCPT_MSG_MAX)
-											len2 += swprintf(str + len2, EXCPT_MSG_MAX - len2, L"%s (%s: %d, %d)\r\n", name, pos->SrcName, pos->Row, pos->Col);
-									}
-									else
-									{
-										if (len2 < EXCPT_MSG_MAX)
-										{
-											str[len2] = L'\r';
-											len2++;
-										}
-										if (len2 < EXCPT_MSG_MAX)
-										{
-											str[len2] = L'\n';
-											len2++;
-										}
+										Char buf[0x08 + 1024];
+										swprintf(buf + 0x08, 1024, L"%s (%s: %d, %d)", name, pos->SrcName, pos->Row, pos->Col);
+										((S64*)buf)[0] = 2;
+										((S64*)buf)[1] = (S64)wcslen(buf + 0x08);
+										Call3Asm((void*)2, buf, NULL, dbg_func);
 									}
 								}
 								if (stack.AddrPC.Offset == 0)
 									break;
 							}
-							str[len2] = L'\0';
 							if (excpt_pos != NULL)
-								GetDbgVars(KeywordListNum, KeywordList, excpt_pos->SrcName, excpt_pos->Row, process_info.hProcess, DbgStartAddr, &context);
+								GetDbgVars(KeywordListNum, KeywordList, excpt_pos->SrcName, excpt_pos->Row, process_info.hProcess, DbgStartAddr, &context, dbg_func);
 							{
 								void* pos_ptr = NULL;
 								Char pos_name[0x08 + 256];
@@ -568,7 +513,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 								}
 								((S64*)str_buf)[0] = 2;
 								((S64*)str_buf)[1] = wcslen(str);
-								Call2Asm(pos_ptr, str_buf, break_func);
+								Call3Asm((void*)(U64)excpt_code, pos_ptr, str_buf, break_func);
 							}
 							UnsetBreakPointOpes(process_info.hProcess);
 							if (break_point_idx != -1)

@@ -574,7 +574,8 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 			end if
 			do @textLog :~ \common@langEn ?("IK9999: Run.", "IK9999: 実行。\n")
 			do @updateLog()
-			if(\dll@runDbg(cmd, cmdLine, idleFunc, eventFunc, breakPointsFunc, breakFunc))
+			do \dbgwnd@show()
+			if(\dll@runDbg(cmd, cmdLine, idleFunc, eventFunc, breakPointsFunc, breakFunc, dbgFunc))
 				do @textLog :~ \common@langEn ?("\nIK9999: Succees.\n", "\nIK9999: 正常終了。\n")
 				do @updateLog()
 			else
@@ -588,6 +589,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	catch
 		do wnd@msgBox(@wndMain, \common@langEn ?("Unexpected error.", "予期せぬエラーです。"), \common@title, %err, %ok)
 	end try
+	do \dbgwnd@clear()
 	do @updateUi()
 	do @lockEditor(false)
 
@@ -632,8 +634,11 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		end func
 	end func
 
-	func breakFunc(pos: \src@Pos, call_stack: []char)
-		do wnd@msgBox(null, "\{call_stack}", "piyo", %none, %ok)
+	func breakFunc(code: int, pos: \src@Pos, msg: []char)
+		do \dbgwnd@setMsg(msg)
+		if(code <> 0x80000003)
+			do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
+		end if
 		if(pos =& null)
 			ret
 		end if
@@ -652,6 +657,17 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		end while
 		do @btnCompile.setEnabled(false)
 		do @btnCompile.setText(\common@langEn ?("Compile && Run", "コンパイル＆実行"))
+	end func
+
+	func dbgFunc(mode: int, str1: []char, str2: []char)
+		switch(mode)
+		case 0
+			do \dbgwnd@clear()
+		case 1
+			do \dbgwnd@addWatch(str1, str2)
+		case 2
+			do \dbgwnd@addCallStack(str1)
+		end switch
 	end func
 end func
 

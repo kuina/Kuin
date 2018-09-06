@@ -1,0 +1,73 @@
+class CallStack()
+end class
+
+class Watch()
+end class
+
++var wndDbg: wnd@Wnd
+var wndDbgEditMsg: wnd@EditMulti
+var wndDbgListCallStack: wnd@List
+var wndDbgListWatch: wnd@ListView
+var callStacks: list<@CallStack>
+var watchs: list<@Watch>
+
++func show()
+	var x: int
+	var y: int
+	var w: int
+	do \form@drawEditor.getPosScreen(&x, &y, &w, &)
+	if(@wndDbg =& null)
+		do @wndDbg :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 480, 392, \common@langEn ?("Debug", "デバッグ"))
+		do @wndDbg.onClose :: wndDbgOnClose
+		do @wndDbgEditMsg :: wnd@makeEditMulti(@wndDbg, 12, 12, 456, 42, %scale, %fix)
+		do @wndDbgEditMsg.readonly(true)
+		do @wndDbgListCallStack :: wnd@makeList(@wndDbg, 12, 60, 225, 320, %fix, %scale)
+		do @wndDbgListWatch :: wnd@makeListView(@wndDbg, 243, 60, 225, 320, %scale, %scale)
+		do @wndDbgListWatch.addColumn(\common@langEn ?("Variable Name", "変数名"))
+		do @wndDbgListWatch.addColumn(\common@langEn ?("Value", "値"))
+	end if
+
+	func wndDbgOnClose(wnd: wnd@Wnd): bool
+		do @wndDbg :: null
+		do @wndDbgListCallStack :: null
+		do @wndDbgListWatch :: null
+		do @callStacks :: null
+		do @watchs :: null
+		ret true
+	end func
+end func
+
++func clear()
+	if(@wndDbg =& null)
+		ret
+	end if
+
+	do @wndDbgEditMsg.setText("")
+	do @wndDbgListCallStack.clear()
+	do @wndDbgListWatch.clear()
+end func
+
++func setMsg(str: []char)
+	if(@wndDbg =& null)
+		ret
+	end if
+
+	do @wndDbgEditMsg.setText(str)
+end func
+
++func addCallStack(str: []char)
+	if(@wndDbg =& null)
+		ret
+	end if
+
+	do @wndDbgListCallStack.add(str)
+end func
+
++func addWatch(str1: []char, str2: []char)
+	if(@wndDbg =& null)
+		ret
+	end if
+
+	do @wndDbgListWatch.add(str1)
+	do @wndDbgListWatch.setText(@wndDbgListWatch.len() - 1, 1, str2)
+end func

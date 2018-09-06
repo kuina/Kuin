@@ -406,18 +406,14 @@ void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, in
 	}
 }
 
-void GetDbgVars(int keyword_list_num, const void* keyword_list, const Char* pos_name, int pos_row, HANDLE process_handle, U64 start_addr, const CONTEXT* context)
+void GetDbgVars(int keyword_list_num, const void* keyword_list, const Char* pos_name, int pos_row, HANDLE process_handle, U64 start_addr, const CONTEXT* context, void* callback)
 {
 	const SKeywordListItem** keyword_list2 = (const SKeywordListItem**)keyword_list;
-	if (keyword_list2 == NULL)
-	{
-		MessageBox(NULL, L"null", L"piyo", 0);
-		return;
-	}
 	int i;
-	Char str[10000] = L"";
-	Char buf[256];
-	const Char* name;
+	Char buf1[0x08 + 256];
+	Char buf2[0x08 + 1024];
+	Char* str1 = buf1 + 0x08;
+	Char* str2 = buf2 + 0x08;
 	U64 addr;
 	for (i = 0; i < keyword_list_num; i++)
 	{
@@ -427,18 +423,17 @@ void GetDbgVars(int keyword_list_num, const void* keyword_list, const Char* pos_
 		if (item->Name[0] == L'@')
 		{
 			if (wcscmp(pos_name, item->Ast->Pos->SrcName) == 0)
-				name = item->Name;
+				wcscpy(str1, item->Name);
 			else
 			{
 				if (!item->Ast->Public)
 					continue;
-				wcscpy(buf, item->Ast->Pos->SrcName);
-				wcscat(buf, item->Name);
-				name = buf;
+				wcscpy(str1, item->Ast->Pos->SrcName);
+				wcscat(str1, item->Name);
 			}
 		}
 		else if (wcscmp(pos_name, item->Ast->Pos->SrcName) == 0 && *item->First <= pos_row && pos_row <= *item->Last)
-			name = item->Name;
+			wcscpy(str1, item->Name);
 		else
 			continue;
 		const SAstArg* arg = (const SAstArg*)item->Ast;
@@ -454,15 +449,101 @@ void GetDbgVars(int keyword_list_num, const void* keyword_list, const Char* pos_
 			default:
 				continue;
 		}
-		U64 value = 0;
-		ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+		switch (((SAst*)arg->Type)->TypeId)
 		{
-			Char buf2[1024];
-			swprintf(buf2, 1024, L"%s = %I64X\n", name, value);
-			wcscat(str, buf2);
+			case AstTypeId_TypePrim:
+				switch (((SAstTypePrim*)arg->Type)->Kind)
+				{
+					case AstTypePrimKind_Int:
+						{
+							U64 value = 0;
+							ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+							swprintf(str2, 1024, L"0x%016I64X", value);
+						}
+						break;
+					case AstTypePrimKind_Float:
+						{
+							double value = 0.0;
+							ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+							swprintf(str2, 1024, L"%g", value);
+						}
+						break;
+					case AstTypePrimKind_Char:
+						{
+							Char value = 0;
+							ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+							swprintf(str2, 1024, L"'%c' %d (0x%04X)", value, value, value);
+						}
+						break;
+					case AstTypePrimKind_Bool:
+						{
+							Bool value = 0;
+							ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+							swprintf(str2, 1024, L"%s", value ? L"true" : L"false");
+						}
+						break;
+					default:
+						ASSERT(False);
+						break;
+				}
+				break;
+			case AstTypeId_TypeBit:
+				switch (((SAstTypeBit*)arg->Type)->Size)
+				{
+					case 1:
+						{
+							U8 value = 0;
+							ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+							swprintf(str2, 1024, L"%u (0x%02X)", value, value);
+						}
+						break;
+					case 2:
+						{
+							U16 value = 0;
+							ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+							swprintf(str2, 1024, L"%u (0x%04X)", value, value);
+						}
+						break;
+					case 4:
+						{
+							U32 value = 0;
+							ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+							swprintf(str2, 1024, L"%u (0x%08X)", value, value);
+						}
+						break;
+					case 8:
+						{
+							U64 value = 0;
+							ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+							swprintf(str2, 1024, L"%I64u (0x%016I64X)", value, value);
+						}
+						break;
+					default:
+						ASSERT(False);
+						break;
+				}
+				break;
+			default:
+				if (IsEnum(arg->Type))
+				{
+					U64 value = 0;
+					ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+					swprintf(str2, 1024, L"%I64d (0x%016I64X)", value, value);
+				}
+				else
+				{
+					U64 value = 0;
+					ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
+					swprintf(str2, 1024, L"0x%016I64X", value);
+				}
+				break;
 		}
+		((S64*)buf1)[0] = 2;
+		((S64*)buf1)[1] = (S64)wcslen(str1);
+		((S64*)buf2)[0] = 2;
+		((S64*)buf2)[1] = (S64)wcslen(str2);
+		Call3Asm((void*)1, buf1, buf2, callback);
 	}
-	MessageBox(NULL, str, L"piyo", 0);
 }
 
 static void GetKeywordsRootImpl(const Char** str, const Char* end, const Char* src_name, int x, int y, U64 flags, void* callback, int keyword_list_num, const void* keyword_list)

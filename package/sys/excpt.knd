@@ -4,6 +4,9 @@ Unknown exception.
 none
 ユーザ定義例外です。
 User defined exception.
+80000003
+ブレークポイントにより停止しました。
+Stopped due to a breakpoint.
 c0000005
 不正なメモリアドレスを参照しました。
 Access violation.
