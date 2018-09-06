@@ -282,7 +282,7 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 EXPORT void Version(S64* major, S64* minor, S64* micro)
 {
 	*major = 2018;
-	*minor = 8;
+	*minor = 9;
 	*micro = 17;
 }
 
@@ -1148,7 +1148,7 @@ static U64 PosToAddrCallbackRecursion(const SList* stats, const SPos* target_pos
 	{
 		SAstStat* stat = (SAstStat*)ptr->Data;
 		const SPos* stat_pos = ((SAst*)stat)->Pos;
-		if (stat_pos != NULL && wcscmp(stat_pos->SrcName, target_pos->SrcName) == 0 && stat_pos->Row <= target_pos->Row && target_pos->Row <= stat->PosRowBottom)
+		if (stat->AsmTop != NULL && stat_pos != NULL && wcscmp(stat_pos->SrcName, target_pos->SrcName) == 0 && stat_pos->Row <= target_pos->Row && target_pos->Row <= stat->PosRowBottom)
 		{
 			U64 result;
 			SListNode* ptr2;
