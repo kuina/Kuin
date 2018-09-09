@@ -366,12 +366,23 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 			{
 				case CREATE_PROCESS_DEBUG_EVENT:
 					DbgStartAddr = (U64)debug_event.u.CreateProcessInfo.lpBaseOfImage;
-					CloseHandle(debug_event.u.CreateProcessInfo.hFile);
+					if (debug_event.u.CreateProcessInfo.hFile != 0)
+						CloseHandle(debug_event.u.CreateProcessInfo.hFile);
 					Call0Asm(break_points_func);
 					SetBreakPointOpes(process_info.hProcess);
 					break;
 				case LOAD_DLL_DEBUG_EVENT:
-					CloseHandle(debug_event.u.LoadDll.hFile);
+					if (debug_event.u.LoadDll.hFile != 0)
+					{
+						__try
+						{
+							CloseHandle(debug_event.u.LoadDll.hFile);
+						}
+						__except (EXCEPTION_EXECUTE_HANDLER)
+						{
+							// Do nothing.
+						}
+					}
 					break;
 				case EXIT_PROCESS_DEBUG_EVENT:
 					end = True;

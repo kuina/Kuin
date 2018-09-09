@@ -68,10 +68,12 @@ int wmain(void)
 					switch (debug_event.dwDebugEventCode)
 					{
 						case CREATE_PROCESS_DEBUG_EVENT:
-							CloseHandle(debug_event.u.CreateProcessInfo.hFile);
+							if (debug_event.u.CreateProcessInfo.hFile != 0)
+								CloseHandle(debug_event.u.CreateProcessInfo.hFile);
 							break;
 						case LOAD_DLL_DEBUG_EVENT:
-							CloseHandle(debug_event.u.LoadDll.hFile);
+							if (debug_event.u.LoadDll.hFile != 0)
+								CloseHandle(debug_event.u.LoadDll.hFile);
 							break;
 						case EXIT_PROCESS_DEBUG_EVENT:
 							end = True;

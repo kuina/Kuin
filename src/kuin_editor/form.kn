@@ -565,6 +565,9 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end if
 	try
 		do \src@resetErrList()
+		if(\src@curDoc =$ \doc_src@DocSrc)
+			do (\src@curDoc $ \doc_src@DocSrc).update()
+		end if
 		if(\dll@build(\src@mainSrcName, \src@getSrc, null, out, @editIcon.getText().trim(), false, @getEnv(), @log, \common@langEn ?(1, 0), 0))
 			if (\src@mainSrcName <> \common@untitledSrcName)
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
@@ -589,7 +592,9 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	catch
 		do wnd@msgBox(@wndMain, \common@langEn ?("Unexpected error.", "予期せぬエラーです。"), \common@title, %err, %ok)
 	end try
-	do \dbgwnd@wndDbg.close()
+	if(\dbgwnd@wndDbg <>& null)
+		do \dbgwnd@wndDbg.close()
+	end if
 	do @updateUi()
 	do @lockEditor(false)
 

@@ -456,9 +456,9 @@ void GetDbgVars(int keyword_list_num, const void* keyword_list, const Char* pos_
 				{
 					case AstTypePrimKind_Int:
 						{
-							U64 value = 0;
+							S64 value = 0;
 							ReadProcessMemory(process_handle, (LPVOID)addr, &value, sizeof(value), NULL);
-							swprintf(str2, 1024, L"0x%016I64X", value);
+							swprintf(str2, 1024, L"%I64d (0x%016I64X)", value, (U64)value);
 						}
 						break;
 					case AstTypePrimKind_Float:
