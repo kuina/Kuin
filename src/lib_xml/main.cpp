@@ -48,13 +48,14 @@ EXPORT_CPP SClass* _makeXml(SClass* me_, const U8* path)
 	THROWDBG(path == NULL, 0xc0000005);
 	SXml* me2 = reinterpret_cast<SXml*>(me_);
 	const Char* path2 = reinterpret_cast<const Char*>(path + 0x10);
-	FILE* file_ptr = _wfopen(path2, L"rb");
-	if (file_ptr == NULL)
+	size_t size;
+	void* buf = LoadFileAll(path2, &size);
+	if (buf == NULL)
 		return NULL;
 	me2->Tree = static_cast<tinyxml2::XMLDocument*>(AllocMem(sizeof(tinyxml2::XMLDocument)));
 	new(me2->Tree)tinyxml2::XMLDocument(true, tinyxml2::PRESERVE_WHITESPACE);
-	tinyxml2::XMLError result = me2->Tree->LoadFile(file_ptr);
-	fclose(file_ptr);
+	tinyxml2::XMLError result = me2->Tree->Parse(static_cast<char*>(buf), size);
+	FreeMem(buf);
 	if (result != tinyxml2::XML_SUCCESS)
 	{
 		me2->Tree->~XMLDocument();
