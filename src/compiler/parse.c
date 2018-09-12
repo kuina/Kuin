@@ -6022,7 +6022,7 @@ static void GetKeywordsAddMember(const Char* type)
 		return;
 	if (type[0] == L'b' && type[1] == L'i' && type[2] == L't')
 	{
-		if (type[3] == L'1' && type[4] == L'6' || type[3] == L'3' && type[3] == L'2' || type[3] == L'6' && type[3] == L'4' || type[3] == L'8')
+		if (type[3] == L'1' && type[4] == L'6' || type[3] == L'3' && type[4] == L'2' || type[3] == L'6' && type[4] == L'4' || type[3] == L'8')
 		{
 			GetKeywordsAdd(L"and");
 			GetKeywordsAdd(L"endian");
