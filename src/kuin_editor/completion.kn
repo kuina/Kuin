@@ -24,7 +24,7 @@ end func
 	if(@wndCompletion =& null)
 		do @keywords :: #list<[]char>
 		do \dll@getKeywords(src, srcName, posX, posY, getKeywordsCallback)
-		if(^@keywords = 0)
+		if(^@keywords = 0 | ^word = 0)
 			do @close()
 			ret
 		end if
