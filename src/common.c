@@ -59,7 +59,7 @@ void ThrowImpl(U32 code)
 void* LoadFileAll(const Char* path, size_t* size)
 {
 #if !defined(DBG)
-	if (path[0] == L'r' || path[1] == L'e' || path[2] == L's' || path[3] == L'/')
+	if (path[0] == L'r' && path[1] == L'e' && path[2] == L's' && path[3] == L'/')
 	{
 		SFile* handle = OpenPackFile(path + 4);
 		if (handle == NULL)
@@ -103,7 +103,7 @@ void* LoadFileAll(const Char* path, size_t* size)
 void* OpenFileStream(const Char* path)
 {
 #if !defined(DBG)
-	if (path[0] == L'r' || path[1] == L'e' || path[2] == L's' || path[3] == L'/')
+	if (path[0] == L'r' && path[1] == L'e' && path[2] == L's' && path[3] == L'/')
 	{
 		SFile* handle = OpenPackFile(path + 4);
 		if (handle == NULL)
