@@ -489,7 +489,12 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 									Char name[256];
 									SPos* pos = AddrToPos((U64)context2.Rip, name);
 									if (excpt_pos == NULL)
-										excpt_pos = pos;
+									{
+										if (wcschr(name, L'@') == NULL)
+											break;
+										else
+											excpt_pos = pos;
+									}
 									if (pos != NULL)
 									{
 										Char buf[0x08 + 1024];
@@ -503,30 +508,31 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 									break;
 							}
 							if (excpt_pos != NULL)
-								GetDbgVars(KeywordListNum, KeywordList, excpt_pos->SrcName, excpt_pos->Row, process_info.hProcess, DbgStartAddr, &context, dbg_func);
 							{
-								void* pos_ptr = NULL;
-								Char pos_name[0x08 + 256];
-								U8 pos_buf[0x28];
-								if (excpt_pos != NULL)
+								GetDbgVars(KeywordListNum, KeywordList, excpt_pos->SrcName, excpt_pos->Row, process_info.hProcess, DbgStartAddr, &context, dbg_func);
 								{
-									size_t pos_name_len = wcslen(excpt_pos->SrcName);
-									((S64*)pos_name)[0] = 1;
-									((S64*)pos_name)[1] = (S64)pos_name_len;
-									memcpy((U8*)pos_name + 0x10, excpt_pos->SrcName, sizeof(Char) * (pos_name_len + 1));
+									void* pos_ptr = NULL;
+									Char pos_name[0x08 + 256];
+									U8 pos_buf[0x28];
+									{
+										size_t pos_name_len = wcslen(excpt_pos->SrcName);
+										((S64*)pos_name)[0] = 1;
+										((S64*)pos_name)[1] = (S64)pos_name_len;
+										memcpy((U8*)pos_name + 0x10, excpt_pos->SrcName, sizeof(Char) * (pos_name_len + 1));
 
-									((S64*)pos_buf)[0] = 2;
-									((S64*)pos_buf)[1] = 0;
-									((void**)pos_buf)[2] = pos_name;
-									((S64*)pos_buf)[3] = excpt_pos->Row;
-									((S64*)pos_buf)[4] = excpt_pos->Col;
-									pos_ptr = pos_buf;
+										((S64*)pos_buf)[0] = 2;
+										((S64*)pos_buf)[1] = 0;
+										((void**)pos_buf)[2] = pos_name;
+										((S64*)pos_buf)[3] = excpt_pos->Row;
+										((S64*)pos_buf)[4] = excpt_pos->Col;
+										pos_ptr = pos_buf;
+									}
+									((S64*)str_buf)[0] = 2;
+									((S64*)str_buf)[1] = wcslen(str);
+									Call3Asm((void*)(U64)excpt_code, pos_ptr, str_buf, break_func);
 								}
-								((S64*)str_buf)[0] = 2;
-								((S64*)str_buf)[1] = wcslen(str);
-								Call3Asm((void*)(U64)excpt_code, pos_ptr, str_buf, break_func);
+								UnsetBreakPointOpes(process_info.hProcess);
 							}
-							UnsetBreakPointOpes(process_info.hProcess);
 							if (break_point_idx != -1)
 							{
 								context.Rip--;
