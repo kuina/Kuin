@@ -355,7 +355,7 @@ EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* ev
 			for (; ; )
 			{
 				WaitForDebugEvent(&debug_event, 0);
-				if (debug_event.dwThreadId != process_info.dwThreadId)
+				if (debug_event.dwProcessId != process_info.dwProcessId)
 				{
 					ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
 					continue;

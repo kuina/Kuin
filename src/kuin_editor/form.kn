@@ -577,7 +577,9 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 			end if
 			do @textLog :~ \common@langEn ?("IK9999: Run.", "IK9999: 実行。\n")
 			do @updateLog()
-			do \dbgwnd@show()
+			if(@radioEnvWnd.getChk())
+				do \dbgwnd@show()
+			end if
 			if(\dll@runDbg(cmd, cmdLine, idleFunc, eventFunc, breakPointsFunc, breakFunc, dbgFunc))
 				do @textLog :~ \common@langEn ?("\nIK9999: Succees.\n", "\nIK9999: 正常終了。\n")
 				do @updateLog()
