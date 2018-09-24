@@ -15,6 +15,10 @@ var keywords: list<[]char>
 end func
 
 +func show(src: kuin@Class, srcName: []char, posX: int, posY: int, word: []char)
+	if(^word = 0)
+		do @close()
+		ret
+	end if
 	if(@wndCompletion <>& null)
 		if(@oldX <> posX | @oldY <> posY)
 			do @close()
@@ -24,7 +28,7 @@ end func
 	if(@wndCompletion =& null)
 		do @keywords :: #list<[]char>
 		do \dll@getKeywords(src, srcName, posX, posY, getKeywordsCallback)
-		if(^@keywords = 0 | ^word = 0)
+		if(^@keywords = 0)
 			do @close()
 			ret
 		end if
