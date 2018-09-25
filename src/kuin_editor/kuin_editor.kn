@@ -14,7 +14,8 @@ func main()
 
 	if(^lib@cmdLine() > 0)
 		do \src@openMainSrc(lib@cmdLine()[0].replace("\\", "/"))
-	else
+	end if
+	if(\src@curDoc =& null)
 		do \src@newMainSrc()
 	end if
 
