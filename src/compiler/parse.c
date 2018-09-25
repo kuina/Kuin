@@ -241,10 +241,11 @@ static void GetKeywordsAddEnum(void);
 static void GetKeywordsAddMember(const Char* type);
 static void GetKeywordsAddKeywords(Char kind);
 static Char* NewKeywordType(const Char* keyword_type);
-static Char* NewKeywordTypeWithLen(const Char* keyword_type, size_t len);
 static Char* CatKeywordType(const Char* keyword_type1, const Char* keyword_type2);
 static Char* GetKeywordType(const Char* identifier);
 static Char* GetKeywordTypeRecursion(const SAstType* type);
+static void PtrToStr(Char* str, const void* ptr);
+static void StrToPtr(void* ptr, const Char* str);
 
 SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const SOption* option, U8* use_res_flags)
 {
@@ -6099,7 +6100,9 @@ static void GetKeywordsAddMember(const Char* type)
 		}
 		else if (type[1] == L'c')
 		{
-			SAstClass* ast = (SAstClass*)*(void**)(type + 2);
+			void* ast_ptr;
+			StrToPtr(&ast_ptr, type + 2);
+			SAstClass* ast = (SAstClass*)ast_ptr;
 			SListNode* ptr = ast->Items->Top;
 			while (ptr != NULL)
 			{
@@ -6208,11 +6211,7 @@ static void GetKeywordsAddKeywords(Char kind)
 
 static Char* NewKeywordType(const Char* keyword_type)
 {
-	return NewKeywordTypeWithLen(keyword_type, wcslen(keyword_type));
-}
-
-static Char* NewKeywordTypeWithLen(const Char* keyword_type, size_t len)
-{
+	size_t len = wcslen(keyword_type);
 	Char* buf = (Char*)AllocMem(sizeof(Char) * (len + 1));
 	memcpy(buf, keyword_type, sizeof(Char) * (len + 1));
 	SKeywordTypeList* item = (SKeywordTypeList*)AllocMem(sizeof(SKeywordTypeList));
@@ -6282,9 +6281,9 @@ static Char* GetKeywordType(const Char* identifier)
 		Char buf[1024];
 		buf[0] = L'&';
 		buf[1] = L'c';
-		*(void**)(buf + 2) = (void*)ast;
-		buf[6] = L'\0';
-		return NewKeywordTypeWithLen(buf, 6);
+		PtrToStr(buf + 2, &ast);
+		buf[10] = L'\0';
+		return NewKeywordType(buf);
 	}
 	if (type == NULL)
 		return L"";
@@ -6346,4 +6345,26 @@ static Char* GetKeywordTypeRecursion(const SAstType* type)
 			return GetKeywordType(((SAst*)type)->RefName);
 	}
 	return L"";
+}
+
+static void PtrToStr(Char* str, const void* ptr)
+{
+	const U8* src = (const U8*)ptr;
+	U8* dst = (U8*)str;
+	int i;
+	for (i = 0; i < 8; i++)
+	{
+		U8 value = src[i];
+		dst[i * 2 + 0] = ((value & 0x0f) << 4) | 0x0f;
+		dst[i * 2 + 1] = (value & 0xf0) | 0x0f;
+	}
+}
+
+static void StrToPtr(void* ptr, const Char* str)
+{
+	const U8* src = (const U8*)str;
+	U8* dst = (U8*)ptr;
+	int i;
+	for (i = 0; i < 8; i++)
+		dst[i] = (src[i * 2 + 0] >> 4) | (src[i * 2 + 1] & 0xf0);
 }
