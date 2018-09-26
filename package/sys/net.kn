@@ -8,18 +8,6 @@ end func
 	*func [d0004.knd, _tcpServerDtor, _force] _dtor()
 	end func
 
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
-	end func
-
 	+func [d0004.knd, _tcpServerFin] fin()
 	end func
 
@@ -39,18 +27,6 @@ end func
 
 +class Tcp()
 	*func [d0004.knd, _tcpDtor, _force] _dtor()
-	end func
-
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
 	end func
 
 	+func [d0004.knd, _tcpFin] fin()
@@ -78,18 +54,6 @@ end func
 
 +class Http()
 	*func [d0004.knd, _httpDtor, _force] _dtor()
-	end func
-
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
 	end func
 
 	+func [d0004.knd, _httpFin] fin()

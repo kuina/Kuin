@@ -32,18 +32,6 @@ end enum
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
-	end func
-
 	+func [d0001.knd, _wndBaseGetPos] getPos(x: &int, y: &int, width: &int, height: &int)
 	end func
 
@@ -551,18 +539,6 @@ end class
 		ret me.item - t.item
 	end func
 
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
-	end func
-
 	+func [d0001.knd, _treeNodeAddChild, _make_instance] addChild(me2: @TreeNode, name: []char): @TreeNode
 	end func
 
@@ -853,18 +829,6 @@ end func
 	*func [d0001.knd, _menuDtor, _force] _dtor()
 	end func
 
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
-	end func
-
 	+func [d0001.knd, _menuAdd] add(id: int, text: []char)
 	end func
 
@@ -896,16 +860,7 @@ end func
 end func
 
 +class TabOrder()
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
+	*func [_force] _dtor()
 	end func
 
 	+func [d0001.knd, _tabOrderChk] chk(key: @Key, shiftCtrl: @ShiftCtrl): bool

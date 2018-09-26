@@ -177,6 +177,7 @@ typedef struct SAstClass
 	int VarSize;
 	int FuncSize;
 	SList* Items;
+	Bool IndirectCreation;
 } SAstClass;
 
 typedef struct SAstEnum
@@ -520,6 +521,7 @@ typedef struct SAstExprNew
 {
 	SAstExpr AstExpr;
 	SAstType* ItemType;
+	Bool AutoCreated;
 } SAstExprNew;
 
 typedef struct SAstExprNewArray

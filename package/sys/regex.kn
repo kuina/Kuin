@@ -5,18 +5,6 @@ end func
 	*func [d1002.knd, _regexDtor, _force] _dtor()
 	end func
 
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
-	end func
-
 	+func [d1002.knd, _regexFind] find(pos: &int, text: []char, start: int): [][]char
 	end func
 

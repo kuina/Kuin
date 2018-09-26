@@ -11,7 +11,6 @@
 +const dbgArrayIdxOutOfRange: int :: 0xE9170002
 +const dbgIntOverflow: int :: 0xE9170003
 +const invalidCmp: int :: 0xE9170004
-+const libClassInvalidOperation: int :: 0xE9170005
 +const dbgArgOutDomain: int :: 0xE9170006
 +const fileReadFailed: int :: 0xE9170007
 +const invalidDataFmt: int :: 0xE9170008

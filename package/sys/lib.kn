@@ -18,18 +18,6 @@ end func
 	*func [d0000.knd, _rndDtor, _force] _dtor()
 	end func
 
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
-	end func
-
 	+func [d0000.knd, _rndRnd] rnd(min: int, max: int): int
 	end func
 
@@ -173,18 +161,6 @@ end func
 
 +class BmSearch()
 	*func [d0000.knd, _bmSearchDtor, _force] _dtor()
-	end func
-
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
 	end func
 
 	+func [d0000.knd, _bmSearchFind] find(text: []char, start: int): int

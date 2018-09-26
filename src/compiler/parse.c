@@ -1903,6 +1903,7 @@ static SAstClass* ParseClass(void)
 	ast->VarSize = 0;
 	ast->FuncSize = 0;
 	ast->Items = ListNew();
+	ast->IndirectCreation = False;
 	AssertNextChar(L'(', True);
 	{
 		Char c = ReadChar();
@@ -3476,6 +3477,7 @@ static SAstExpr* ParseExprPlus(void)
 					SAstExprNew* ast2 = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
 					InitAstExpr((SAstExpr*)ast2, AstTypeId_ExprNew, NewPos(SrcName, row, col));
 					ast2->ItemType = ParseType();
+					ast2->AutoCreated = False;
 					ast = (SAstExpr*)ast2;
 				}
 			}

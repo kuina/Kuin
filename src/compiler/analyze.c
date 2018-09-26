@@ -1228,7 +1228,11 @@ static void RebuildClass(SAstClass* ast)
 					}
 					switch (member_name[1])
 					{
-						case L'd': dtor = (SAstFunc*)item->Def; break;
+						case L'd':
+							dtor = (SAstFunc*)item->Def;
+							if (item->Override)
+								ast->IndirectCreation = True;
+							break;
 						case L'c': copy = (SAstFunc*)item->Def; break;
 						case L't': to_bin = (SAstFunc*)item->Def; break;
 						case L'f': from_bin = (SAstFunc*)item->Def; break;
@@ -1363,6 +1367,7 @@ static void RebuildClass(SAstClass* ast)
 				}
 			}
 			// The '_copy' function.
+			if (!ast->IndirectCreation)
 			{
 				SAstExpr* result;
 				{
@@ -1390,6 +1395,7 @@ static void RebuildClass(SAstClass* ast)
 								SAstExprNew* new_ = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
 								InitAstExpr((SAstExpr*)new_, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
 								new_->ItemType = arg->Type;
+								new_->AutoCreated = True;
 								arg->Expr = (SAstExpr*)new_;
 							}
 							var2->Var = arg;
@@ -1480,6 +1486,7 @@ static void RebuildClass(SAstClass* ast)
 				}
 			}
 			// The '_toBin' function.
+			if (!ast->IndirectCreation)
 			{
 				SAstExpr* result;
 				{
@@ -1609,6 +1616,7 @@ static void RebuildClass(SAstClass* ast)
 				}
 			}
 			// The '_fromBin' function.
+			if (!ast->IndirectCreation)
 			{
 				SAstExpr* result;
 				{
@@ -1631,6 +1639,7 @@ static void RebuildClass(SAstClass* ast)
 								SAstExprNew* new_ = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
 								InitAstExpr((SAstExpr*)new_, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
 								new_->ItemType = arg->Type;
+								new_->AutoCreated = True;
 								arg->Expr = (SAstExpr*)new_;
 							}
 							var2->Var = arg;
@@ -2361,7 +2370,16 @@ static SAstExpr* RebuildExpr1(SAstExpr1* ast)
 			}
 			break;
 		case AstExpr1Kind_Copy:
-			if (((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeArray || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeDict || IsClass(ast->Child->Type))
+			if (IsClass(ast->Child->Type))
+			{
+				if (((SAstClass*)((SAst*)ast->Child->Type)->RefItem)->IndirectCreation)
+				{
+					Err(L"EA0066", ((SAst*)ast)->Pos, ((SAst*)ast->Child->Type)->RefItem->Name);
+					return NULL;
+				}
+				((SAstExpr*)ast)->Type = ast->Child->Type;
+			}
+			else if (((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeArray || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->Child->Type)->TypeId == AstTypeId_TypeDict)
 				((SAstExpr*)ast)->Type = ast->Child->Type;
 			break;
 		case AstExpr1Kind_Len:
@@ -2934,7 +2952,15 @@ static SAstExpr* RebuildExprNew(SAstExprNew* ast)
 	ast->ItemType = RebuildType(ast->ItemType, NULL);
 	if (ast->ItemType == NULL)
 		return NULL;
-	if (!(((SAst*)ast->ItemType)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->ItemType)->TypeId == AstTypeId_TypeDict || IsClass(ast->ItemType)))
+	if (IsClass(ast->ItemType))
+	{
+		if (!ast->AutoCreated && ((SAstClass*)((SAst*)ast->ItemType)->RefItem)->IndirectCreation)
+		{
+			Err(L"EA0066", ((SAst*)ast)->Pos, ((SAst*)ast->ItemType)->RefItem->Name);
+			return NULL;
+		}
+	}
+	else if (!(((SAst*)ast->ItemType)->TypeId == AstTypeId_TypeGen || ((SAst*)ast->ItemType)->TypeId == AstTypeId_TypeDict))
 	{
 		Err(L"EA0044", ((SAst*)ast)->Pos);
 		return NULL;
@@ -3144,6 +3170,14 @@ static SAstExpr* RebuildExprToBin(SAstExprToBin* ast)
 		Err(L"EA0056", ((SAst*)ast)->Pos);
 		return NULL;
 	}
+	if (IsClass(ast->Child->Type))
+	{
+		if (((SAstClass*)((SAst*)ast->Child->Type)->RefItem)->IndirectCreation)
+		{
+			Err(L"EA0066", ((SAst*)ast)->Pos, ((SAst*)ast->Child->Type)->RefItem->Name);
+			return NULL;
+		}
+	}
 	if (((SAst*)ast->ChildType)->TypeId != AstTypeId_TypeArray || ((SAst*)((SAstTypeArray*)ast->ChildType)->ItemType)->TypeId != AstTypeId_TypeBit || ((SAstTypeBit*)((SAstTypeArray*)ast->ChildType)->ItemType)->Size != 1)
 	{
 		Err(L"EA0056", ((SAst*)ast)->Pos);
@@ -3166,6 +3200,14 @@ static SAstExpr* RebuildExprFromBin(SAstExprFromBin* ast)
 	{
 		Err(L"EA0056", ((SAst*)ast)->Pos);
 		return NULL;
+	}
+	if (IsClass(ast->ChildType))
+	{
+		if (((SAstClass*)((SAst*)ast->ChildType)->RefItem)->IndirectCreation)
+		{
+			Err(L"EA0066", ((SAst*)ast)->Pos, ((SAst*)ast->ChildType)->RefItem->Name);
+			return NULL;
+		}
 	}
 	((SAstExpr*)ast)->Type = ast->ChildType;
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
@@ -3192,6 +3234,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				SAstExprNew* expr = (SAstExprNew*)Alloc(sizeof(SAstExprNew));
 				InitAstExpr((SAstExpr*)expr, AstTypeId_ExprNew, ((SAst*)ast)->Pos);
 				expr->ItemType = type->Ret;
+				expr->AutoCreated = True;
 				value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
 			}
 			value_type->RefVar = False;

@@ -66,18 +66,6 @@ end func
 	*func [d0001.knd, _texDtor, _force] _dtor()
 	end func
 
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
-	end func
-
 	+func [d0001.knd, _texDraw] draw(dstX: float, dstY: float, srcX: float, srcY: float, srcW: float, srcH: float, color: int)
 	end func
 
@@ -106,18 +94,6 @@ end func
 
 +class Font()
 	*func [d0001.knd, _fontDtor, _force] _dtor()
-	end func
-
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
 	end func
 
 	+func [d0001.knd, _fontDraw] draw(dstX: float, dstY: float, text: []char, color: int)
@@ -158,18 +134,6 @@ end func
 
 +class Obj()
 	*func [d0001.knd, _objDtor, _force] _dtor()
-	end func
-
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
 	end func
 
 	+func [d0001.knd, _objDraw] draw(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)
@@ -231,18 +195,6 @@ end func
 
 +class Particle()
 	*func [d0001.knd, _particleDtor, _force] _dtor()
-	end func
-
-	*func [_force] _copy(): kuin@Class
-		throw 0xE9170005
-	end func
-
-	*func [_force] _toBin(): []bit8
-		throw 0xE9170005
-	end func
-
-	*func [_force] _fromBin(bin: []bit8, idx: &int): kuin@Class
-		throw 0xE9170005
 	end func
 
 	+func [d0001.knd, _particleDraw] draw(tex: @Tex)
