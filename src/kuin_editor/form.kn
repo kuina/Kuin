@@ -599,6 +599,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end if
 	do @updateUi()
 	do @lockEditor(false)
+	do @wndMain.activate()
 
 	func idleFunc()
 		do wnd@act()

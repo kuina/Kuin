@@ -214,6 +214,11 @@ end enum
 	+var onSetMouseImg: func<(@WndBase): @MouseImg>
 end class
 
++class DrawEditable(@Draw)
+	*func [d0001.knd, _drawDtor, _force] _dtor()
+	end func
+end class
+
 +class Btn(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
@@ -664,6 +669,12 @@ end func
 end func
 
 +func [d0001.knd, _makeDraw, _make_instance] makeDraw(me2: @Draw, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, equalMagnification: bool): @Draw
+	if(parent <>& null)
+		do parent.addChild(me2)
+	end if
+end func
+
++func [d0001.knd, _makeDrawEditable, _make_instance] makeDrawEditable(me2: @DrawEditable, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, equalMagnification: bool): @DrawEditable
 	if(parent <>& null)
 		do parent.addChild(me2)
 	end if

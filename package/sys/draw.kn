@@ -41,6 +41,15 @@ end func
 +func [d0001.knd, _clearColor] clearColor(color: int)
 end func
 
++func [d0001.knd, _autoClear] autoClear(enabled: bool)
+end func
+
++func [d0001.knd, _clear] clear()
+end func
+
++func [d0001.knd, _editPixels] editPixels(callback: func<(int, int, []bit32)>)
+end func
+
 +func [d0001.knd, _tri] tri(x1: float, y1: float, x2: float, y2: float, x3: float, y3: float, color: int)
 end func
 

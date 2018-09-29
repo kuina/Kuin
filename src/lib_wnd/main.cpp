@@ -97,6 +97,7 @@ struct SDraw
 	Bool EqualMagnification;
 	Bool DrawTwice;
 	Bool Enter;
+	Bool Editable;
 	S16 WheelX;
 	S16 WheelY;
 	void* DrawBuf;
@@ -308,6 +309,7 @@ static Char* ParseFilter(const U8* filter, int* num);
 static void TreeExpandAllRecursion(HWND wnd_handle, HTREEITEM node, int flag);
 static void CopyTreeNodeRecursion(HWND tree_wnd, HTREEITEM dst, HTREEITEM src, Char* buf);
 static void ListViewAdjustWidth(HWND wnd);
+static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchor_x, S64 anchor_y, Bool equal_magnification, Bool editable);
 static LRESULT CALLBACK CommonWndProc(HWND wnd, SWndBase* wnd2, SWnd* wnd3, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -977,36 +979,12 @@ EXPORT_CPP void _wndSetModalLock(SClass* me_)
 
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification)
 {
-	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
-	SDraw* me3 = reinterpret_cast<SDraw*>(me_);
-	SetCtrlParam(me2, reinterpret_cast<SWndBase*>(parent), WndKind_Draw, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_NOTIFY | WS_CLIPCHILDREN, x, y, width, height, L"", WndProcDraw, anchorX, anchorY);
-	me3->EqualMagnification = equalMagnification;
-	me3->DrawTwice = True;
-	me3->Enter = False;
-	me3->WheelX = 0;
-	me3->WheelY = 0;
-	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), static_cast<int>(width), static_cast<int>(height), me2->WndHandle, NULL);
-	me3->OnPaint = NULL;
-	me3->OnMouseDownL = NULL;
-	me3->OnMouseDownR = NULL;
-	me3->OnMouseDownM = NULL;
-	me3->OnMouseDoubleClick = NULL;
-	me3->OnMouseUpL = NULL;
-	me3->OnMouseUpR = NULL;
-	me3->OnMouseUpM = NULL;
-	me3->OnMouseMove = NULL;
-	me3->OnMouseEnter = NULL;
-	me3->OnMouseLeave = NULL;
-	me3->OnMouseWheelX = NULL;
-	me3->OnMouseWheelY = NULL;
-	me3->OnFocus = NULL;
-	me3->OnKeyDown = NULL;
-	me3->OnKeyUp = NULL;
-	me3->OnKeyChar = NULL;
-	me3->OnScrollX = NULL;
-	me3->OnScrollY = NULL;
-	me3->OnSetMouseImg = NULL;
-	return me_;
+	return MakeDrawImpl(me_, parent, x, y, width, height, anchorX, anchorY, equalMagnification, False);
+}
+
+EXPORT_CPP SClass* _makeDrawEditable(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification)
+{
+	return MakeDrawImpl(me_, parent, x, y, width, height, anchorX, anchorY, equalMagnification, True);
 }
 
 EXPORT_CPP void _drawDtor(SClass* me_)
@@ -2429,6 +2407,41 @@ static void ListViewAdjustWidth(HWND wnd)
 		ListView_SetColumnWidth(wnd, i, LVSCW_AUTOSIZE_USEHEADER);
 }
 
+static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchor_x, S64 anchor_y, Bool equal_magnification, Bool editable)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	SDraw* me3 = reinterpret_cast<SDraw*>(me_);
+	SetCtrlParam(me2, reinterpret_cast<SWndBase*>(parent), WndKind_Draw, WC_STATIC, 0, WS_VISIBLE | WS_CHILD | SS_NOTIFY | WS_CLIPCHILDREN, x, y, width, height, L"", WndProcDraw, anchor_x, anchor_y);
+	me3->EqualMagnification = equal_magnification;
+	me3->DrawTwice = True;
+	me3->Enter = False;
+	me3->Editable = editable;
+	me3->WheelX = 0;
+	me3->WheelY = 0;
+	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), static_cast<int>(width), static_cast<int>(height), me2->WndHandle, NULL, editable);
+	me3->OnPaint = NULL;
+	me3->OnMouseDownL = NULL;
+	me3->OnMouseDownR = NULL;
+	me3->OnMouseDownM = NULL;
+	me3->OnMouseDoubleClick = NULL;
+	me3->OnMouseUpL = NULL;
+	me3->OnMouseUpR = NULL;
+	me3->OnMouseUpM = NULL;
+	me3->OnMouseMove = NULL;
+	me3->OnMouseEnter = NULL;
+	me3->OnMouseLeave = NULL;
+	me3->OnMouseWheelX = NULL;
+	me3->OnMouseWheelY = NULL;
+	me3->OnFocus = NULL;
+	me3->OnKeyDown = NULL;
+	me3->OnKeyUp = NULL;
+	me3->OnKeyChar = NULL;
+	me3->OnScrollX = NULL;
+	me3->OnScrollY = NULL;
+	me3->OnSetMouseImg = NULL;
+	return me_;
+}
+
 static LRESULT CALLBACK CommonWndProc(HWND wnd, SWndBase* wnd2, SWnd* wnd3, UINT msg, WPARAM w_param, LPARAM l_param)
 {
 	switch (msg)
@@ -2761,7 +2774,7 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				{
 					int screen_width = wnd3->EqualMagnification ? width : wnd2->DefaultWidth;
 					int screen_height = wnd3->EqualMagnification ? height : wnd2->DefaultHeight;
-					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, screen_width, screen_height, wnd2->WndHandle, wnd3->DrawBuf);
+					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, screen_width, screen_height, wnd2->WndHandle, wnd3->DrawBuf, wnd3->Editable);
 					wnd3->DrawTwice = True;
 				}
 			}

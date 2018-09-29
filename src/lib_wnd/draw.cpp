@@ -32,8 +32,11 @@ struct SWndBuf
 	int ScreenWidth;
 	int ScreenHeight;
 	ID3D10Texture2D* TmpTex;
+	ID3D10Texture2D* EditableTex;
 	ID3D10ShaderResourceView* TmpShaderResView;
 	ID3D10RenderTargetView* TmpRenderTargetView;
+	Bool AutoClear;
+	Bool Editable;
 };
 
 struct SShaderBuf
@@ -294,8 +297,8 @@ EXPORT_CPP void _render(S64 fps)
 
 	CurWndBuf->SwapChain->Present(fps == 0 ? 0 : 1, 0);
 	Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
-	Device->ClearRenderTargetView(CurWndBuf->TmpRenderTargetView, CurWndBuf->ClearColor);
-	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
+	if (CurWndBuf->AutoClear)
+		Draw::Clear();
 	Device->RSSetState(RasterizerState);
 
 	if (fps == 0)
@@ -406,6 +409,39 @@ EXPORT_CPP void _clearColor(S64 color)
 	CurWndBuf->ClearColor[0] = static_cast<FLOAT>(r);
 	CurWndBuf->ClearColor[1] = static_cast<FLOAT>(g);
 	CurWndBuf->ClearColor[2] = static_cast<FLOAT>(b);
+}
+
+EXPORT_CPP void _autoClear(Bool enabled)
+{
+	CurWndBuf->AutoClear = enabled;
+}
+
+EXPORT_CPP void _clear()
+{
+	Draw::Clear();
+}
+
+EXPORT_CPP void _editPixels(const void* callback)
+{
+	THROWDBG(callback == NULL, 0xc0000005);
+	THROWDBG(!CurWndBuf->Editable, 0xe917000a);
+	size_t buf_size = static_cast<size_t>(CurWndBuf->TexWidth * CurWndBuf->TexHeight);
+	U8* buf = static_cast<U8*>(AllocMem(0x10 + sizeof(U32) * buf_size));
+	((S64*)buf)[0] = 2;
+	((S64*)buf)[1] = buf_size;
+	Device->CopyResource(CurWndBuf->EditableTex, CurWndBuf->TmpTex);
+	{
+		D3D10_MAPPED_TEXTURE2D map;
+		CurWndBuf->EditableTex->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_READ_WRITE, 0, &map);
+		U8* dst = static_cast<U8*>(map.pData);
+		memcpy(buf + 0x10, dst, sizeof(U32) * buf_size);
+		Call3Asm(reinterpret_cast<void*>(static_cast<U64>(CurWndBuf->TexWidth)), reinterpret_cast<void*>(static_cast<U64>(CurWndBuf->TexHeight)), buf, (void*)callback);
+		memcpy(dst, buf + 0x10, sizeof(U32) * buf_size);
+		CurWndBuf->EditableTex->Unmap(D3D10CalcSubresource(0, 0, 1));
+	}
+	Device->CopyResource(CurWndBuf->TmpTex, CurWndBuf->EditableTex);
+	THROWDBG(((S64*)buf)[0] != 1, 0xc0000005);
+	FreeMem(buf);
 }
 
 EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
@@ -2620,7 +2656,7 @@ void Fin()
 		Device->Release();
 }
 
-void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_height, HWND wnd, void* old)
+void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_height, HWND wnd, void* old, Bool editable)
 {
 	SWndBuf* old2 = static_cast<SWndBuf*>(old);
 	FLOAT clear_color[4];
@@ -2643,6 +2679,8 @@ void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_he
 	wnd_buf->TexHeight = tex_height;
 	wnd_buf->ScreenWidth = screen_width;
 	wnd_buf->ScreenHeight = screen_height;
+	wnd_buf->AutoClear = True;
+	wnd_buf->Editable = editable;
 
 	// Create a swap chain.
 	{
@@ -2758,6 +2796,25 @@ void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_he
 		if (FAILED(Device->CreateRenderTargetView(wnd_buf->TmpTex, NULL, &wnd_buf->TmpRenderTargetView)))
 			THROW(0xe9170009);
 	}
+	if (editable)
+	{
+		D3D10_TEXTURE2D_DESC desc;
+		desc.Width = static_cast<UINT>(tex_width);
+		desc.Height = static_cast<UINT>(tex_height);
+		desc.MipLevels = 1;
+		desc.ArraySize = 1;
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Usage = D3D10_USAGE_STAGING;
+		desc.BindFlags = 0;
+		desc.CPUAccessFlags = D3D10_CPU_ACCESS_READ | D3D10_CPU_ACCESS_WRITE;
+		desc.MiscFlags = 0;
+		if (FAILED(Device->CreateTexture2D(&desc, NULL, &wnd_buf->EditableTex)))
+			THROW(0xe9170009);
+	}
+	else
+		wnd_buf->EditableTex = NULL;
 
 	ActiveDrawBuf(wnd_buf);
 	_resetViewport();
@@ -3275,6 +3332,12 @@ SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb)
 			THROW(0xe9170009);
 	}
 	return me_;
+}
+
+void Clear()
+{
+	Device->ClearRenderTargetView(CurWndBuf->TmpRenderTargetView, CurWndBuf->ClearColor);
+	Device->ClearDepthStencilView(CurWndBuf->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 }
 
 } // namespace Draw

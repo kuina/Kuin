@@ -1,0 +1,50 @@
+; Edit Pixels Sample (C)Kuina-chan
+
+var x: int
+var y: int
+var vx: int
+var vy: int
+
+func main()
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 640, 707, "Edit Pixels Sample") {ウインドウの生成}
+	var drawMain: wnd@DrawEditable :: wnd@makeDrawEditable(wndMain, 0, 0, 640, 707, %scale, %scale, false) {編集可能なドローコントロールの生成}
+	do draw@autoClear(false)
+	
+	; 明示的にクリア
+	do draw@clearColor(0xFF111111)
+	do draw@clear()
+	
+	do @x :: 0
+	do @y :: 0
+	do @vx :: 1
+	do @vy :: 1
+	while(wnd@act())
+		do draw@editPixels(@updatePixels)
+		do draw@render(60)
+	end while
+end func
+
+func updatePixels(width: int, height: int, pixels: []bit32)
+	for(1, 20)
+		do @x :+ @vx
+		do @y :+ @vy
+		if(@x < 0)
+			do @x :: 0
+			do @vx :: 1
+		end if
+		if(@x >= width)
+			do @x :: width - 1
+			do @vx :: -1
+		end if
+		if(@y < 0)
+			do @y :: 0
+			do @vy :: 1
+		end if
+		if(@y >= height)
+			do @y :: height - 1
+			do @vy :: -1
+		end if
+		
+		do pixels[@y * width + @x] :: 0xFF000000b32 + (lib@rnd(0, 0xFFFFFF) $ bit32)
+	end for
+end func

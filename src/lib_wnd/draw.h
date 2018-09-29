@@ -10,6 +10,9 @@ EXPORT_CPP void _depth(Bool test, Bool write);
 EXPORT_CPP void _blend(S64 kind);
 EXPORT_CPP void _sampler(S64 kind);
 EXPORT_CPP void _clearColor(S64 color);
+EXPORT_CPP void _autoClear(Bool enabled);
+EXPORT_CPP void _clear();
+EXPORT_CPP void _editPixels(const void* callback);
 EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color);
 EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, S64 color);
 EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color);
@@ -53,6 +56,12 @@ EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex);
 EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z, double velo_x, double velo_y, double velo_z, double size, double size_velo, double rot, double rot_velo);
 EXPORT_CPP SClass* _makeParticle(SClass* me_);
 
+// Assembly functions.
+extern "C" void* Call0Asm(void* func);
+extern "C" void* Call1Asm(void* arg1, void* func);
+extern "C" void* Call2Asm(void* arg1, void* arg2, void* func);
+extern "C" void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);
+
 namespace Draw
 {
 	enum EShaderKind
@@ -75,7 +84,7 @@ namespace Draw
 
 	void Init();
 	void Fin();
-	void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_height, HWND wnd, void* old);
+	void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_height, HWND wnd, void* old, Bool editable);
 	void FinDrawBuf(void* wnd_buf);
 	void ActiveDrawBuf(void* wnd_buf);
 	void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const_buf_size, int layout_num, const ELayoutType* layout_types, const Char** layout_semantics);
@@ -98,4 +107,5 @@ namespace Draw
 	U8* AdjustTexSize(U8* argb, int* width, int* height);
 	void SetJointMat(const void* element, double frame, float (*joint)[4][4]);
 	SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb);
+	void Clear();
 }
