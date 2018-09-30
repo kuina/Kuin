@@ -6,8 +6,8 @@ var vx: int
 var vy: int
 
 func main()
-	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 640, 707, "Edit Pixels Sample") {ウインドウの生成}
-	var drawMain: wnd@DrawEditable :: wnd@makeDrawEditable(wndMain, 0, 0, 640, 707, %scale, %scale, false) {編集可能なドローコントロールの生成}
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %fix, 640, 707, "Edit Pixels Sample") {ウインドウの生成}
+	var drawMain: wnd@DrawEditable :: wnd@makeDrawEditable(wndMain, 0, 0, 640, 707, false) {編集可能なドローコントロールの生成}
 	do draw@autoClear(false)
 	
 	; 明示的にクリア

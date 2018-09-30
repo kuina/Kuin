@@ -982,9 +982,9 @@ EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	return MakeDrawImpl(me_, parent, x, y, width, height, anchorX, anchorY, equalMagnification, False);
 }
 
-EXPORT_CPP SClass* _makeDrawEditable(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification)
+EXPORT_CPP SClass* _makeDrawEditable(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, Bool equalMagnification)
 {
-	return MakeDrawImpl(me_, parent, x, y, width, height, anchorX, anchorY, equalMagnification, True);
+	return MakeDrawImpl(me_, parent, x, y, width, height, 0, 0, equalMagnification, True);
 }
 
 EXPORT_CPP void _drawDtor(SClass* me_)

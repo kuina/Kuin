@@ -674,7 +674,7 @@ end func
 	end if
 end func
 
-+func [d0001.knd, _makeDrawEditable, _make_instance] makeDrawEditable(me2: @DrawEditable, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, equalMagnification: bool): @DrawEditable
++func [d0001.knd, _makeDrawEditable, _make_instance] makeDrawEditable(me2: @DrawEditable, parent: @WndBase, x: int, y: int, width: int, height: int, equalMagnification: bool): @DrawEditable
 	if(parent <>& null)
 		do parent.addChild(me2)
 	end if
