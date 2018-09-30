@@ -604,7 +604,8 @@ EXPORT void* _toBin(const void* me_, const U8* type)
 					S64 len = *(S64*)((U8*)me_ + 0x08);
 					void** bins = (void**)AllocMem(sizeof(void*) * (size_t)len * 3); // 'key' + 'value' + 'info' per node.
 					void** ptr = bins;
-					ToBinDictRecursion(&ptr, *(void**)((U8*)me_ + 0x10), child1, child2);
+					if (len != 0)
+						ToBinDictRecursion(&ptr, *(void**)((U8*)me_ + 0x10), child1, child2);
 					return CatBin((int)len * 3, bins);
 				}
 			}
