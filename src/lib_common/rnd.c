@@ -51,12 +51,6 @@ EXPORT U64 _rndRndBit64(SClass* me_)
 	return RndGetBit64(me2->RndState);
 }
 
-EXPORT void* _rndRndUuid(SClass* me_)
-{
-	SRnd* me2 = (SRnd*)me_;
-	return RndGetUuid(me2->RndState);
-}
-
 void InitRndMask(void)
 {
 	RndMask = _mm_set_epi32(0x7ff7fb2f, 0xff777b7d, 0xef7f3f7d, 0xfdff37ff);

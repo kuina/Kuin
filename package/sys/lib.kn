@@ -27,9 +27,6 @@ end func
 	+func [d0000.knd, _rndRndBit64] rndBit64(): bit64
 	end func
 
-	+func [d0000.knd, _rndRndUuid] rndUuid(): []char
-	end func
-
 	var rndState: int
 end class
 

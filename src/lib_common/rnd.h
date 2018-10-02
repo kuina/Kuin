@@ -18,7 +18,6 @@ EXPORT void _rndDtor(SClass* me_);
 EXPORT S64 _rndRnd(SClass* me_, S64 min, S64 max);
 EXPORT double _rndRndFloat(SClass* me_, double min, double max);
 EXPORT U64 _rndRndBit64(SClass* me_);
-EXPORT void* _rndRndUuid(SClass* me_);
 void InitRndMask(void);
 void RndInit(SRndState* rnd_, U32 seed);
 S64 RndGet(SRndState* rnd_, S64 min, S64 max);
