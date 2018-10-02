@@ -45,7 +45,7 @@ func main()
 		
 		; ファイルをカンマ区切りで読み込む
 		var reader: file@Reader :: file@makeReader(@fileName) {ファイルを読み込みモードで開く}
-		do reader.delimiter([',']) {区切り文字を指定}
+		do reader.delimiter(['\n', ',']) {区切り文字を指定}
 		while(!reader.term()) {ファイル終端までループ}
 			do str :~ reader.readStr() ~ "\n" {区切った文字列を読み込み}
 		end while

@@ -32,10 +32,11 @@ EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 	if (file_ptr == NULL)
 		return NULL;
 	me2->Handle = file_ptr;
-	me2->DelimiterNum = 2;
-	me2->Delimiters = (Char*)AllocMem(sizeof(Char) * 2);
-	me2->Delimiters[0] = L' ';
-	me2->Delimiters[1] = L',';
+	me2->DelimiterNum = 3;
+	me2->Delimiters = (Char*)AllocMem(sizeof(Char) * 3);
+	me2->Delimiters[0] = L'\n';
+	me2->Delimiters[1] = L' ';
+	me2->Delimiters[2] = L',';
 	{
 		_fseeki64(me2->Handle, 0, SEEK_END);
 		me2->FileSize = _ftelli64(me2->Handle);
@@ -755,13 +756,13 @@ static Char ReadUtf8(SStream* me_, Bool replace_delimiter, int* char_cnt)
 	u2 = (Char)u;
 	if (!replace_delimiter)
 		return u2;
-	if (u2 == L'\0' || u2 == L'\r' || u2 == L'\n')
+	if (u2 == L'\0')
 		return L'\0';
 	{
 		S64 i;
 		for (i = 0; i < me_->DelimiterNum; i++)
 		{
-			if (u2 == me_->Delimiters[i])
+			if (u2 == me_->Delimiters[i] || u2 == L'\r' && me_->Delimiters[i] == L'\n')
 				return L'\0';
 		}
 	}

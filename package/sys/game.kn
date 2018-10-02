@@ -64,7 +64,7 @@ end class
 
 +func makeMap(path: []char, chipWidth: float, chipHeight: float): @Map
 	var handle: file@Reader :: file@makeReader(path)
-	do handle.delimiter([','])
+	do handle.delimiter("\n,")
 	var mapWidth: int :: handle.readInt()
 	var mapHeight: int :: handle.readInt()
 	var buf: []int :: #[mapWidth * mapHeight]int
@@ -139,7 +139,7 @@ end class
 
 +func makeRoll(path: []char, rollCallback: func<(float, [][]char)>): @Roll
 	var handle: file@Reader :: file@makeReader(path)
-	do handle.delimiter([','])
+	do handle.delimiter("\n,")
 	var itemNum: int :: handle.readInt()
 	var timings: []float :: #[itemNum]float
 	var params: [][][]char :: #[itemNum][][]char
