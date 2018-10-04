@@ -638,7 +638,10 @@ end enum
 	continue
 end enum
 
-+func [d0001.knd, _onKeyPress] onKeyPress(onKeyPressFunc: func<(@Key, @ShiftCtrl): bool>)
++func [d0001.knd, _setOnKeyPress] setOnKeyPress(onKeyPressFunc: func<(@Key, @ShiftCtrl): bool>)
+end func
+
++func [d0001.knd, _getOnKeyPress] getOnKeyPress(): func<(@Key, @ShiftCtrl): bool>
 end func
 
 +func [d0001.knd, _msgBox] msgBox(parent: @Wnd, text: []char, title: []char, icon: @MsgBoxIcon, btn: @MsgBoxBtn): @MsgBoxResult

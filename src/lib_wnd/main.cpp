@@ -477,9 +477,14 @@ EXPORT_CPP Bool _act()
 	return True;
 }
 
-EXPORT_CPP void _onKeyPress(void* onKeyPressFunc)
+EXPORT_CPP void _setOnKeyPress(void* onKeyPressFunc)
 {
 	OnKeyPress = onKeyPressFunc;
+}
+
+EXPORT_CPP void* _getOnKeyPress()
+{
+	return OnKeyPress;
 }
 
 EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon, S64 btn)
@@ -1087,7 +1092,7 @@ EXPORT_CPP SClass* _makeRadio(SClass* me_, SClass* parent, S64 x, S64 y, S64 wid
 EXPORT_CPP SClass* _makeEdit(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SEdit* me2 = reinterpret_cast<SEdit*>(me_);
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Edit, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, x, y, width, height, L"", WndProcEdit, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Edit, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL | ES_NOHIDESEL, x, y, width, height, L"", WndProcEdit, anchorX, anchorY);
 	reinterpret_cast<SEditBase*>(me2)->OnChange = NULL;
 	return me_;
 }
@@ -1127,7 +1132,7 @@ EXPORT_CPP void _editSetSel(SClass* me_, S64 start, S64 len)
 
 EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_EditMulti, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN, x, y, width, height, L"", WndProcEditMulti, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_EditMulti, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | ES_NOHIDESEL, x, y, width, height, L"", WndProcEditMulti, anchorX, anchorY);
 	return me_;
 }
 

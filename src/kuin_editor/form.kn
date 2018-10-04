@@ -123,7 +123,7 @@ var drag: bool
 	do @menuMain.addPopup(\common@langEn ?("&Help", "ヘルプ(&H)"), @popupMainHelp)
 	do @wndMain.setMenu(@menuMain)
 
-	do wnd@onKeyPress(@onKeyPress)
+	do wnd@setOnKeyPress(@onKeyPress)
 
 	do @lockingEditor :: false
 	do @lockPropOnChange :: false

@@ -5,7 +5,8 @@
 EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags);
 EXPORT_CPP void _fin();
 EXPORT_CPP Bool _act();
-EXPORT_CPP void _onKeyPress(void* onKeyPressFunc);
+EXPORT_CPP void _setOnKeyPress(void* onKeyPressFunc);
+EXPORT_CPP void* _getOnKeyPress();
 EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon, S64 btn);
 EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFilter);
 EXPORT_CPP void* _openFileDialogMulti(SClass* parent, const U8* filter, S64 defaultFilter);

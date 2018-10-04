@@ -21,12 +21,19 @@ var inputBoxResult: []char
 	do @inputBoxBtnCancel :: wnd@makeBtn(@inputBoxWndMain, 281, 41, 60, 23, %fix, %fix, "Cancel")
 	do @inputBoxBtnCancel.onPush :: btnCancelOnPush
 	do @inputBoxEditInput :: wnd@makeEdit(@inputBoxWndMain, 12, 89, 329, 19, %fix, %fix)
+	do @inputBoxEditInput.focus()
 	if(defaultValue <>& null)
 		do @inputBoxEditInput.setText(defaultValue)
 	end if
+	do @inputBoxEditInput.setSel(0, -1)
 	do @inputBoxValidate :: validate
 	do @inputBoxResult :: null
+
+	var oldOnKeyPress: func<(wnd@Key, wnd@ShiftCtrl): bool> :: wnd@getOnKeyPress()
+	do wnd@setOnKeyPress(onKeyPress)
 	do @inputBoxWndMain.modal()
+	do wnd@setOnKeyPress(oldOnKeyPress)
+
 	var result: []char :: @inputBoxResult
 	do @inputBoxWndMain :: null
 	do @inputBoxLabelText :: null
@@ -36,6 +43,17 @@ var inputBoxResult: []char
 	do @inputBoxValidate :: null
 	do @inputBoxResult :: null
 	ret result
+
+	func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+		if(shiftCtrl = %none)
+			switch(key)
+			case %enter
+				do btnOkOnPush(null)
+			case %esc
+				do btnCancelOnPush(null)
+			end switch
+		end if
+	end func
 
 	func btnOkOnPush(wnd: wnd@Btn)
 		var text: []char :: @inputBoxEditInput.getText()
