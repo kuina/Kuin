@@ -19,6 +19,7 @@ enum EWndKind
 	WndKind_WndFix,
 	WndKind_WndAspect,
 	WndKind_WndPopup,
+	WndKind_WndDialog,
 	WndKind_WndMdi,
 	WndKind_WndMdiChild,
 	WndKind_WndDock,
@@ -404,6 +405,22 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res
 		WNDCLASSEX wnd_class;
 		wnd_class.cbSize = sizeof(WNDCLASSEX);
 		wnd_class.style = CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
+		wnd_class.lpfnWndProc = WndProcWndFix;
+		wnd_class.cbClsExtra = 0;
+		wnd_class.cbWndExtra = 0;
+		wnd_class.hInstance = Instance;
+		wnd_class.hIcon = NULL;
+		wnd_class.hCursor = LoadCursor(NULL, IDC_ARROW);
+		wnd_class.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_BTNFACE + 1);
+		wnd_class.lpszMenuName = NULL;
+		wnd_class.lpszClassName = L"KuinWndDialogClass";
+		wnd_class.hIconSm = NULL;
+		RegisterClassEx(&wnd_class);
+	}
+	{
+		WNDCLASSEX wnd_class;
+		wnd_class.cbSize = sizeof(WNDCLASSEX);
+		wnd_class.style = CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
 		wnd_class.lpfnWndProc = WndProcWndAspect;
 		wnd_class.cbClsExtra = 0;
 		wnd_class.cbWndExtra = 0;
@@ -726,7 +743,10 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 			me2->WndHandle = CreateWindowEx(ex_style, L"KuinWndAspectClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), (WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		case WndKind_WndPopup:
-			me2->WndHandle = CreateWindowEx(ex_style, L"KuinWndFixClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_POPUP | WS_BORDER | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			me2->WndHandle = CreateWindowEx(ex_style | WS_EX_TOOLWINDOW, L"KuinWndDialogClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_POPUP | WS_BORDER | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
+			break;
+		case WndKind_WndDialog:
+			me2->WndHandle = CreateWindowEx(ex_style | WS_EX_TOOLWINDOW, L"KuinWndDialogClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		default:
 			THROWDBG(True, 0xe9170006);
@@ -2544,7 +2564,7 @@ static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM
 	SWnd* wnd3 = reinterpret_cast<SWnd*>(wnd2);
 	if (wnd2 == NULL)
 		return DefWindowProc(wnd, msg, w_param, l_param);
-	ASSERT(wnd2->Kind == WndKind_WndFix || wnd2->Kind == WndKind_WndPopup);
+	ASSERT(wnd2->Kind == WndKind_WndFix || wnd2->Kind == WndKind_WndPopup || wnd2->Kind == WndKind_WndDialog);
 	return CommonWndProc(wnd, wnd2, wnd3, msg, w_param, l_param);
 }
 

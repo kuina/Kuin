@@ -7,7 +7,7 @@ var inputBoxValidate: func<([]char):bool>
 var inputBoxResult: []char
 
 +func inputBox(parent: wnd@Wnd, text: []char, title: []char, defaultValue: []char, validate: func<([]char):bool>): []char
-	do @inputBoxWndMain :: wnd@makeWnd(parent, (%fix $ wnd@WndStyle).or(%noMinimize), 353, 120, title)
+	do @inputBoxWndMain :: wnd@makeWnd(parent, (%dialog $ wnd@WndStyle).or(%noMinimize), 353, 120, title)
 	var screenWidth: int
 	var screenHeight: int
 	do wnd@screenSize(&screenWidth, &screenHeight)

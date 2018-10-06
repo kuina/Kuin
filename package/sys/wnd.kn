@@ -12,6 +12,7 @@ end func
 	fix
 	aspect
 	popup
+	dialog
 {
 	mdi
 	mdiChild
