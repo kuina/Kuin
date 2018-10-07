@@ -65,7 +65,7 @@ end func
 +func [d0001.knd, _circle, _1] circle(x: float, y: float, radiusX: float, radiusY: float, color: int)
 end func
 
-+func [d0001.knd, _circleLine, _1] circleLine(x: float, y: float, radiusX: float, radiusY: float, weight: float, color: int)
++func [d0001.knd, _circleLine, _1] circleLine(x: float, y: float, radiusX: float, radiusY: float, color: int)
 end func
 
 +func [d0001.knd, _filterNone] filterNone()

@@ -600,6 +600,8 @@ EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 
 EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 color)
 {
+	if (radiusX == 0.0 || radiusY == 0.0)
+		return;
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	if (a <= DiscardAlpha)
@@ -616,15 +618,13 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 			static_cast<float>(radiusX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
 			-(static_cast<float>(radiusY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
-		double abs_x = fabs(radiusX);
-		double abs_y = fabs(radiusY);
 		float const_buf_ps[8] =
 		{
 			static_cast<float>(r),
 			static_cast<float>(g),
 			static_cast<float>(b),
 			static_cast<float>(a),
-			static_cast<float>(min(abs_x, abs_y)),
+			static_cast<float>(min(radiusX, radiusY)),
 			0.0f,
 			0.0f,
 			0.0f
@@ -637,9 +637,9 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 	Device->DrawIndexed(6, 0, 0);
 }
 
-EXPORT_CPP void _circleLine(double x, double y, double radiusX, double radiusY, double weight, S64 color)
+EXPORT_CPP void _circleLine(double x, double y, double radiusX, double radiusY, S64 color)
 {
-	if (weight <= 0.0)
+	if (radiusX == 0.0 || radiusY == 0.0)
 		return;
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
@@ -657,16 +657,14 @@ EXPORT_CPP void _circleLine(double x, double y, double radiusX, double radiusY, 
 			static_cast<float>(radiusX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
 			-(static_cast<float>(radiusY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
-		double abs_x = fabs(radiusX);
-		double abs_y = fabs(radiusY);
 		float const_buf_ps[8] =
 		{
 			static_cast<float>(r),
 			static_cast<float>(g),
 			static_cast<float>(b),
 			static_cast<float>(a),
-			static_cast<float>(min(abs_x, abs_y)),
-			static_cast<float>(weight + 0.5),
+			static_cast<float>(min(radiusX, radiusY)),
+			static_cast<float>(1.5f),
 			0.0f,
 			0.0f
 		};

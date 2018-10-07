@@ -18,7 +18,7 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color);
 EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color);
 EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 color);
-EXPORT_CPP void _circleLine(double x, double y, double radiusX, double radiusY, double weight, S64 color);
+EXPORT_CPP void _circleLine(double x, double y, double radiusX, double radiusY, S64 color);
 EXPORT_CPP void _filterNone();
 EXPORT_CPP void _filterMonotone(S64 color, double rate);
 EXPORT_CPP SClass* _makeTex(SClass* me_, const U8* path);
