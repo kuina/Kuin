@@ -614,12 +614,18 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 			static_cast<float>(radiusX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
 			-(static_cast<float>(radiusY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
 		};
-		float const_buf_ps[4] =
+		double abs_x = fabs(radiusX);
+		double abs_y = fabs(radiusY);
+		float const_buf_ps[8] =
 		{
 			static_cast<float>(r),
 			static_cast<float>(g),
 			static_cast<float>(b),
 			static_cast<float>(a),
+			static_cast<float>(min(abs_x, abs_y)),
+			0.0f,
+			0.0f,
+			0.0f
 		};
 		Draw::ConstBuf(CircleVs, const_buf_vs);
 		Device->GSSetShader(NULL);
@@ -2174,7 +2180,7 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetCirclePsBin(&size);
-				CirclePs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
+				CirclePs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 8, 0, NULL, NULL);
 			}
 		}
 	}
