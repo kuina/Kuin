@@ -11,6 +11,7 @@ EXPORT_CPP S64 _msgBox(SClass* parent, const U8* text, const U8* title, S64 icon
 EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFilter);
 EXPORT_CPP void* _openFileDialogMulti(SClass* parent, const U8* filter, S64 defaultFilter);
 EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFilter, const U8* defaultExt);
+EXPORT_CPP void _fileDialogDir(const U8* defaultDir);
 EXPORT_CPP void _setClipboardStr(const U8* str);
 EXPORT_CPP void* _getClipboardStr();
 EXPORT_CPP void _getCaretPos(S64* x, S64* y);

@@ -654,6 +654,9 @@ end func
 +func [d0001.knd, _saveFileDialog] saveFileDialog(parent: @Wnd, filter: [][]char, defaultFilter: int, defaultExt: []char): []char
 end func
 
++func [d0001.knd, _fileDialogDir] fileDialogDir(defaultDir: []char)
+end func
+
 +func [d0001.knd, _setClipboardStr] setClipboardStr(str: []char)
 end func
 

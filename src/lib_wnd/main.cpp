@@ -298,6 +298,7 @@ static void* OnKeyPress;
 static int WndCnt;
 static Bool ExitAct;
 static HFONT FontCtrl;
+static Char FileDialogDir[KUIN_MAX_PATH + 1];
 
 static const U8* NToRN(const Char* str);
 static const U8* RNToN(const Char* str);
@@ -445,6 +446,7 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res
 	Input::Init();
 
 	OnKeyPress = NULL;
+	FileDialogDir[0] = L'\0';
 }
 
 EXPORT_CPP void _fin()
@@ -524,7 +526,7 @@ EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	open_file_name.nFilterIndex = filter_num == 0 ? 0 : static_cast<DWORD>(defaultFilter + 1);
 	open_file_name.lpstrFile = path;
 	open_file_name.nMaxFile = KUIN_MAX_PATH + 1;
-	open_file_name.lpstrInitialDir = NULL;
+	open_file_name.lpstrInitialDir = FileDialogDir[0] == L'\0' ? NULL : FileDialogDir;
 	open_file_name.lpstrTitle = NULL;
 	open_file_name.Flags = OFN_FILEMUSTEXIST;
 	BOOL success = GetOpenFileName(&open_file_name);
@@ -563,7 +565,7 @@ EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	open_file_name.nFilterIndex = filter_num == 0 ? 0 : static_cast<DWORD>(defaultFilter + 1);
 	open_file_name.lpstrFile = path;
 	open_file_name.nMaxFile = KUIN_MAX_PATH + 1;
-	open_file_name.lpstrInitialDir = NULL;
+	open_file_name.lpstrInitialDir = FileDialogDir[0] == L'\0' ? NULL : FileDialogDir;
 	open_file_name.lpstrTitle = NULL;
 	open_file_name.lpstrDefExt = defaultExt == NULL ? NULL : reinterpret_cast<const Char*>(defaultExt + 0x10);
 	open_file_name.Flags = OFN_OVERWRITEPROMPT;
@@ -580,6 +582,25 @@ EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	for (size_t i = 0; i <= len; i++)
 		dst[i] = path[i] == L'\\' ? L'/' : path[i];
 	return result;
+}
+
+EXPORT_CPP void _fileDialogDir(const U8* defaultDir)
+{
+	if (defaultDir == NULL)
+	{
+		FileDialogDir[0] = L'\0';
+		return;
+	}
+	const Char* path = reinterpret_cast<const Char*>(defaultDir + 0x10);
+	size_t len = wcslen(path);
+	if (len > KUIN_MAX_PATH)
+	{
+		FileDialogDir[0] = L'\0';
+		return;
+	}
+	for (size_t i = 0; i < len; i++)
+		FileDialogDir[i] = path[i] == L'/' ? L'\\' : path[i];
+	FileDialogDir[len] = L'\0';
 }
 
 EXPORT_CPP void _setClipboardStr(const U8* str)
