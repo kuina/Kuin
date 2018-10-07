@@ -193,6 +193,7 @@ const U8* GetFontPsBin(size_t* size);
 const U8* GetRectVsBin(size_t* size);
 const U8* GetCircleVsBin(size_t* size);
 const U8* GetCirclePsBin(size_t* size);
+const U8* GetCircleLinePsBin(size_t* size);
 const U8* GetTexVsBin(size_t* size);
 const U8* GetTexRotVsBin(size_t* size);
 const U8* GetTexPsBin(size_t* size);
@@ -231,6 +232,7 @@ static void* RectVs = NULL;
 static void* CircleVertex = NULL;
 static void* CircleVs = NULL;
 static void* CirclePs = NULL;
+static void* CircleLinePs = NULL;
 static void* TexVs = NULL;
 static void* TexRotVs = NULL;
 static void* TexPs = NULL;
@@ -630,6 +632,47 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 		Draw::ConstBuf(CircleVs, const_buf_vs);
 		Device->GSSetShader(NULL);
 		Draw::ConstBuf(CirclePs, const_buf_ps);
+		Draw::VertexBuf(CircleVertex);
+	}
+	Device->DrawIndexed(6, 0, 0);
+}
+
+EXPORT_CPP void _circleLine(double x, double y, double radiusX, double radiusY, double weight, S64 color)
+{
+	if (weight <= 0.0)
+		return;
+	double r, g, b, a;
+	Draw::ColorToArgb(&a, &r, &g, &b, color);
+	if (a <= DiscardAlpha)
+		return;
+	if (radiusX < 0.0)
+		radiusX = -radiusX;
+	if (radiusY < 0.0)
+		radiusY = -radiusY;
+	{
+		float const_buf_vs[4] =
+		{
+			static_cast<float>(x) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f,
+			-(static_cast<float>(y) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f),
+			static_cast<float>(radiusX) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f,
+			-(static_cast<float>(radiusY) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f),
+		};
+		double abs_x = fabs(radiusX);
+		double abs_y = fabs(radiusY);
+		float const_buf_ps[8] =
+		{
+			static_cast<float>(r),
+			static_cast<float>(g),
+			static_cast<float>(b),
+			static_cast<float>(a),
+			static_cast<float>(min(abs_x, abs_y)),
+			static_cast<float>(weight + 0.5),
+			0.0f,
+			0.0f
+		};
+		Draw::ConstBuf(CircleVs, const_buf_vs);
+		Device->GSSetShader(NULL);
+		Draw::ConstBuf(CircleLinePs, const_buf_ps);
 		Draw::VertexBuf(CircleVertex);
 	}
 	Device->DrawIndexed(6, 0, 0);
@@ -2140,9 +2183,9 @@ void Init()
 		}
 	}
 
-	// Initialize 'Circle'.
 	if (IsResUsed(UseResFlagsKind_Draw_Circle))
 	{
+		// Initialize 'Circle'.
 		{
 			float vertices[] =
 			{
@@ -2182,6 +2225,13 @@ void Init()
 				const U8* bin = GetCirclePsBin(&size);
 				CirclePs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 8, 0, NULL, NULL);
 			}
+		}
+
+		// Initialize 'CircleLine'.
+		{
+			size_t size;
+			const U8* bin = GetCircleLinePsBin(&size);
+			CircleLinePs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 8, 0, NULL, NULL);
 		}
 	}
 

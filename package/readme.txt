@@ -56,7 +56,7 @@ v.2018.10.17
         - デバック実行の終了後にエディタウインドウをアクティブにするように改善
         - wnd@Drawクラスのクリアが手動で行える、draw@autoClear、draw@clear関数
           の追加
-        - wnd@fileDialogDir関数の追加
+        - wnd@fileDialogDir、draw@circleLine関数の追加
         - draw@circle関数の描画結果にアンチエイリアスがかかるように改善
     - 細かな不具合の修正
         - 要素数が0のdict型のtoBinメソッドを呼ぶと例外が発生する不具合の修正

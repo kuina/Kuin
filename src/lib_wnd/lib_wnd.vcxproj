@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClCompile Include="..\common.c" />
     <ClCompile Include="bc_decoder.cpp" />
+    <ClCompile Include="circle_line_ps.c" />
     <ClCompile Include="circle_ps.c" />
     <ClCompile Include="circle_vs.c" />
     <ClCompile Include="draw.cpp" />

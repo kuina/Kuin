@@ -18,6 +18,6 @@ float4 main(PS_INPUT input): SV_TARGET
 	float len = input.Tex.x * input.Tex.x + input.Tex.y * input.Tex.y;
 	if (len > 1.0f)
 		discard;
-	output.a *= min((1.0f - len) * PixelLen.x, 1.0f);
+	output.a *= 1.0f - clamp(abs((1.0f - len) * PixelLen.x - PixelLen.y) - PixelLen.y + 1.0f, 0.0f, 1.0f);
 	return output;
 }
