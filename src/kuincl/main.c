@@ -197,10 +197,14 @@ int wmain(int argc, Char** argv)
 				{
 					U8* res_output = GetDir(output == NULL ? input : output, False, L"res.knd");
 					U8* res_src = GetDir(input, False, L"res/");
-					func_init_compiler(1, -1);
-					if (!func_archive(res_output, res_src, app_code))
-						ret_code = 1;
-					func_fin_compiler();
+					if (PathFileExists((Char*)(res_src + 0x10)) != 0)
+					{
+						func_init_compiler(1, -1);
+						if (!func_archive(res_output, res_src, app_code))
+							ret_code = 1;
+						func_fin_compiler();
+					}
+					free(res_src);
 					free(res_output);
 				}
 			}
