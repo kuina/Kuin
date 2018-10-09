@@ -1222,6 +1222,24 @@ static void RebuildClass(SAstClass* ast)
 						item->ParentItem = parent_item;
 					}
 				}
+				ptr = ptr->Next;
+			}
+		}
+		{
+			SListNode* ptr = ast->Items->Top;
+			while (ptr != NULL)
+			{
+				SAstClassItem* item = (SAstClassItem*)ptr->Data;
+				const Char* member_name;
+				{
+					SAst* def = item->Def;
+					if (def->TypeId == AstTypeId_Var)
+						member_name = ((SAst*)((SAstVar*)def)->Var)->Name;
+					else if (def->TypeId == AstTypeId_Const)
+						member_name = ((SAst*)((SAstConst*)def)->Var)->Name;
+					else
+						member_name = def->Name;
+				}
 				if (wcscmp(member_name, L"_dtor") == 0 || wcscmp(member_name, L"_copy") == 0 || wcscmp(member_name, L"_toBin") == 0 || wcscmp(member_name, L"_fromBin") == 0)
 				{
 					ASSERT(item->Def->TypeId == AstTypeId_Func);
@@ -1244,9 +1262,8 @@ static void RebuildClass(SAstClass* ast)
 							ASSERT(False);
 					}
 					// Skip 'RebuildFunc' to add the contents later.
-					ptr = ptr->Next;
-					continue;
 				}
+				else
 				{
 					// Analyze functions and variables in classes because they can be referred to as instances.
 					SAst* def = item->Def;
