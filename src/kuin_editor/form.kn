@@ -950,7 +950,10 @@ func openResFolder()
 	end if
 	var path: []char :: file@dir(\src@mainSrcDir) ~ "res/"
 	if(!file@exist(path))
-		do file@makeDir(path)
+		if(!file@makeDir(path))
+			do wnd@msgBox(@wndMain, \common@langEn ?("Failed to create res folder.", "resフォルダの作成に失敗しました。"), \common@title, %err, %ok)
+			ret
+		end if
 	end if
 	do task@open(path)
 end func
