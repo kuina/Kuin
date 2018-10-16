@@ -20,6 +20,7 @@ static const double DiscardAlpha = 0.02;
 static const int FilterNum = 2;
 static const int ParticleNum = 256;
 static const int ParticleTexNum = 3;
+static const int PolyVerticesNum = 64;
 
 struct SWndBuf
 {
@@ -212,12 +213,15 @@ const U8* GetParticle2dVsBin(size_t* size);
 const U8* GetParticle2dPsBin(size_t* size);
 const U8* GetParticleUpdatingVsBin(size_t* size);
 const U8* GetParticleUpdatingPsBin(size_t* size);
+const U8* GetPolyVsBin(size_t* size);
+const U8* GetPolyPsBin(size_t* size);
 
 static S64 Cnt;
 static U32 PrevTime;
 static ID3D10Device* Device = NULL;
 static ID3D10RasterizerState* RasterizerState = NULL;
 static ID3D10RasterizerState* RasterizerStateInverted = NULL;
+static ID3D10RasterizerState* RasterizerStateNone = NULL;
 static ID3D10DepthStencilState* DepthState[DepthNum] = { NULL };
 static ID3D10BlendState* BlendState[BlendNum] = { NULL };
 static ID3D10SamplerState* Sampler[SamplerNum] = { NULL };
@@ -253,6 +257,9 @@ static void* Particle2dPs = NULL;
 static void* ParticleUpdatingVertex = NULL;
 static void* ParticleUpdatingVs = NULL;
 static void* ParticleUpdatingPs = NULL;
+static void* PolyVertex = NULL;
+static void* PolyVs = NULL;
+static void* PolyPs = NULL;
 static double ViewMat[4][4];
 static double ProjMat[4][4];
 static SObjVsConstBuf ObjVsConstBuf;
@@ -593,8 +600,8 @@ EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 		Draw::ConstBuf(TriPs, const_buf_ps);
 		Draw::VertexBuf(RectLineVertex);
 	}
-	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-	Device->DrawIndexed(8, 0, 0);
+	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
+	Device->DrawIndexed(5, 0, 0);
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
@@ -674,6 +681,78 @@ EXPORT_CPP void _circleLine(double x, double y, double radiusX, double radiusY, 
 		Draw::VertexBuf(CircleVertex);
 	}
 	Device->DrawIndexed(6, 0, 0);
+}
+
+EXPORT_CPP void _poly(const void* x, const void* y, const void* color)
+{
+	S64 len_x = static_cast<const S64*>(x)[1];
+	S64 len_y = static_cast<const S64*>(y)[1];
+	S64 len_color = static_cast<const S64*>(color)[1];
+	THROWDBG(len_x != len_y || len_y != len_color || len_x > PolyVerticesNum, 0xe9170006);
+	const double* x2 = reinterpret_cast<const double*>(static_cast<const U8*>(x) + 0x10);
+	const double* y2 = reinterpret_cast<const double*>(static_cast<const U8*>(y) + 0x10);
+	const S64* color2 = reinterpret_cast<const S64*>(static_cast<const U8*>(color) + 0x10);
+	if (len_x <= 2)
+		return;
+	float const_buf_vs[4 * PolyVerticesNum * 2];
+	for (S64 i = 0; i < len_x; i++)
+	{
+		const_buf_vs[4 * i + 0] = static_cast<float>(x2[i]) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f;
+		const_buf_vs[4 * i + 1] = -(static_cast<float>(y2[i]) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f);
+		const_buf_vs[4 * i + 2] = 0.0f;
+		const_buf_vs[4 * i + 3] = 0.0f;
+
+		double r, g, b, a;
+		Draw::ColorToArgb(&a, &r, &g, &b, color2[i]);
+		const_buf_vs[4 * PolyVerticesNum + 4 * i + 0] = static_cast<float>(r);
+		const_buf_vs[4 * PolyVerticesNum + 4 * i + 1] = static_cast<float>(g);
+		const_buf_vs[4 * PolyVerticesNum + 4 * i + 2] = static_cast<float>(b);
+		const_buf_vs[4 * PolyVerticesNum + 4 * i + 3] = static_cast<float>(a);
+	}
+	Draw::ConstBuf(PolyVs, const_buf_vs);
+	Device->GSSetShader(NULL);
+	Draw::ConstBuf(PolyPs, NULL);
+	Draw::VertexBuf(PolyVertex);
+	Device->RSSetState(RasterizerStateNone);
+	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	Device->DrawIndexed(static_cast<UINT>(len_x), 0, 0);
+	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	Device->RSSetState(RasterizerState);
+}
+
+EXPORT_CPP void _polyLine(const void* x, const void* y, const void* color)
+{
+	S64 len_x = static_cast<const S64*>(x)[1];
+	S64 len_y = static_cast<const S64*>(y)[1];
+	S64 len_color = static_cast<const S64*>(color)[1];
+	THROWDBG(len_x != len_y || len_y != len_color || len_x > PolyVerticesNum, 0xe9170006);
+	const double* x2 = reinterpret_cast<const double*>(static_cast<const U8*>(x) + 0x10);
+	const double* y2 = reinterpret_cast<const double*>(static_cast<const U8*>(y) + 0x10);
+	const S64* color2 = reinterpret_cast<const S64*>(static_cast<const U8*>(color) + 0x10);
+	if (len_x <= 1)
+		return;
+	float const_buf_vs[4 * PolyVerticesNum * 2];
+	for (S64 i = 0; i < len_x; i++)
+	{
+		const_buf_vs[4 * i + 0] = static_cast<float>(x2[i]) / static_cast<float>(CurWndBuf->ScreenWidth) * 2.0f - 1.0f;
+		const_buf_vs[4 * i + 1] = -(static_cast<float>(y2[i]) / static_cast<float>(CurWndBuf->ScreenHeight) * 2.0f - 1.0f);
+		const_buf_vs[4 * i + 2] = 0.0f;
+		const_buf_vs[4 * i + 3] = 0.0f;
+
+		double r, g, b, a;
+		Draw::ColorToArgb(&a, &r, &g, &b, color2[i]);
+		const_buf_vs[4 * PolyVerticesNum + 4 * i + 0] = static_cast<float>(r);
+		const_buf_vs[4 * PolyVerticesNum + 4 * i + 1] = static_cast<float>(g);
+		const_buf_vs[4 * PolyVerticesNum + 4 * i + 2] = static_cast<float>(b);
+		const_buf_vs[4 * PolyVerticesNum + 4 * i + 3] = static_cast<float>(a);
+	}
+	Draw::ConstBuf(PolyVs, const_buf_vs);
+	Device->GSSetShader(NULL);
+	Draw::ConstBuf(PolyPs, NULL);
+	Draw::VertexBuf(PolyVertex);
+	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
+	Device->DrawIndexed(static_cast<UINT>(len_x), 0, 0);
+	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 EXPORT_CPP void _filterNone()
@@ -1944,6 +2023,9 @@ void Init()
 		desc.CullMode = D3D10_CULL_BACK;
 		if (FAILED(Device->CreateRasterizerState(&desc, &RasterizerStateInverted)))
 			THROW(0xe9170009);
+		desc.CullMode = D3D10_CULL_NONE;
+		if (FAILED(Device->CreateRasterizerState(&desc, &RasterizerStateNone)))
+			THROW(0xe9170009);
 	}
 
 	// Create depth buffer modes.
@@ -2153,10 +2235,7 @@ void Init()
 
 			U32 idces[] =
 			{
-				0, 1,
-				1, 2,
-				2, 3,
-				3, 0,
+				0, 1, 2, 3, 0
 			};
 
 			RectLineVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
@@ -2538,6 +2617,44 @@ void Init()
 		}
 	}
 
+	// Initialize 'Particle'.
+	if (IsResUsed(UseResFlagsKind_Draw_Poly))
+	{
+		{
+			int vertex_idx[PolyVerticesNum];
+			U32 idces[PolyVerticesNum];
+			for (int i = 0; i < PolyVerticesNum; i++)
+			{
+				vertex_idx[i] = i;
+				idces[i] = i;
+			}
+
+			PolyVertex = MakeVertexBuf(sizeof(vertex_idx), vertex_idx, sizeof(int), sizeof(idces), idces);
+		}
+		{
+			ELayoutType layout_types[2] =
+			{
+				LayoutType_Int1,
+			};
+
+			const Char* layout_semantics[2] =
+			{
+				L"K_IDX",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetPolyVsBin(&size);
+				PolyVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4 * 64 + sizeof(float) * 4 * 64, 1, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetPolyPsBin(&size);
+				PolyPs = MakeShaderBuf(ShaderKind_Ps, size, bin, 0, 0, NULL, NULL);
+			}
+		}
+	}
+
 	// Initialize the toon ramp texture.
 	{
 		void* img = NULL;
@@ -2629,6 +2746,12 @@ void Fin()
 		if (FilterPs[i] != NULL)
 			FinShaderBuf(FilterPs[i]);
 	}
+	if (PolyPs != NULL)
+		FinShaderBuf(PolyPs);
+	if (PolyVs != NULL)
+		FinShaderBuf(PolyVs);
+	if (PolyVertex != NULL)
+		FinVertexBuf(PolyVertex);
 	if (ParticleUpdatingPs != NULL)
 		FinShaderBuf(ParticleUpdatingPs);
 	if (ParticleUpdatingVs != NULL)
@@ -2702,6 +2825,8 @@ void Fin()
 		if (DepthState[i] != NULL)
 			DepthState[i]->Release();
 	}
+	if (RasterizerStateNone != NULL)
+		RasterizerStateNone->Release();
 	if (RasterizerStateInverted != NULL)
 		RasterizerStateInverted->Release();
 	if (RasterizerState != NULL)

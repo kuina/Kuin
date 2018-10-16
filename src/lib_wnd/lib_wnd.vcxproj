@@ -168,6 +168,8 @@
     <ClCompile Include="particle_updating_ps.c" />
     <ClCompile Include="particle_updating_vs.c" />
     <ClCompile Include="png_decoder.cpp" />
+    <ClCompile Include="poly_ps.c" />
+    <ClCompile Include="poly_vs.c" />
     <ClCompile Include="rect_vs.c" />
     <ClCompile Include="snd.cpp" />
     <ClCompile Include="tex_ps.c" />

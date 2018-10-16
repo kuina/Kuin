@@ -76,6 +76,7 @@ typedef enum EUseResFlagsKind
 	UseResFlagsKind_Draw_Circle = 1,
 	UseResFlagsKind_Draw_FilterMonotone = 2,
 	UseResFlagsKind_Draw_Particle = 3,
+	UseResFlagsKind_Draw_Poly = 4,
 } EUseResFlagsKind;
 #define USE_RES_FLAGS_LEN (1)
 

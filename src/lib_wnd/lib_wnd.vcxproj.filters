@@ -35,6 +35,8 @@
     <ClCompile Include="particle_updating_ps.c" />
     <ClCompile Include="particle_updating_vs.c" />
     <ClCompile Include="circle_line_ps.c" />
+    <ClCompile Include="poly_ps.c" />
+    <ClCompile Include="poly_vs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />
