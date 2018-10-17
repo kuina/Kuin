@@ -4430,8 +4430,6 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, Char* buf, const Cha
 						InterpretImpl1Write(ptr_buf, buf, L'\t');
 				}
 				{
-					if (new_cursor_x != NULL)
-						*new_cursor_x = (S64)*ptr_buf;
 					if (access_public != -1)
 					{
 						if (new_cursor_x != NULL && cursor_x == (S64)access_public)
