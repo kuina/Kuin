@@ -438,9 +438,9 @@ EXPORT Bool _makeDir(const U8* path)
 	if (!DelDirRecursion((const Char*)(path + 0x10)))
 		return False;
 	{
-		Char path2[KUIN_MAX_PATH + 2];
-		wcscpy(path2, (const Char*)(path + 0x10));
-		NormPathBackSlash(path2, True);
+		Char path2[KUIN_MAX_PATH + 1];
+		if (GetFullPathName((const Char*)(path + 0x10), KUIN_MAX_PATH, path2, NULL) == 0)
+			return False;
 		return SHCreateDirectory(NULL, path2) == ERROR_SUCCESS;
 	}
 }
