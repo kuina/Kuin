@@ -26,6 +26,7 @@ S64* HeapCnt;
 S64 AppCode;
 const U8* UseResFlags;
 HINSTANCE Instance;
+Char ResRoot[KUIN_MAX_PATH];
 
 #if !defined(DBG)
 static SFile* OpenPackFile(const Char* path);
@@ -342,9 +343,15 @@ Bool IsResUsed(EUseResFlagsKind kind)
 #if !defined(DBG)
 static SFile* OpenPackFile(const Char* path)
 {
-	FILE* file_ptr = _wfopen(L"res.knd", L"rb");
-	if (file_ptr == NULL)
-		return NULL;
+	FILE* file_ptr;
+	{
+		Char path2[KUIN_MAX_PATH + 1];
+		wcscpy(path2, ResRoot);
+		wcscat(path2, L"res.knd");
+		file_ptr = _wfopen(path2, L"rb");
+		if (file_ptr == NULL)
+			return NULL;
+	}
 	SFile* handle = (SFile*)AllocMem(sizeof(SFile));
 	handle->Pack = True;
 	handle->Handle = file_ptr;

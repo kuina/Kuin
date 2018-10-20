@@ -34,6 +34,8 @@ typedef struct SBinList
 	struct SBinList* Next;
 } SBinList;
 
+extern Char ResRoot[KUIN_MAX_PATH + 1];
+
 static Bool IsRef(U8 type);
 static size_t GetSize(U8 type);
 static S64 Add(S64 a, S64 b);
@@ -81,15 +83,20 @@ EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_fla
 	UseResFlags = use_res_flags;
 	Instance = (HINSTANCE)GetModuleHandle(NULL);
 
-	// Set the current directory.
+	// The resource root directory.
 	{
-		Char path[KUIN_MAX_PATH + 1];
 		Char* ptr;
-		GetModuleFileName(NULL, path, KUIN_MAX_PATH);
-		ptr = wcsrchr(path, L'\\');
+		GetModuleFileName(NULL, ResRoot, KUIN_MAX_PATH);
+		ptr = wcsrchr(ResRoot, L'\\');
 		if (ptr != NULL)
 			*(ptr + 1) = L'\0';
-		SetCurrentDirectory(path);
+		ptr = ResRoot;
+		while (*ptr != L'\0')
+		{
+			if (*ptr == L'\\')
+				*ptr = L'/';
+			ptr++;
+		}
 	}
 #if defined(DBG)
 	{
