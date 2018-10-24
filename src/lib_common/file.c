@@ -438,9 +438,9 @@ EXPORT Bool _makeDir(const U8* path)
 	if (!DelDirRecursion((const Char*)(path + 0x10)))
 		return False;
 	{
-		Char path2[KUIN_MAX_PATH + 1];
-		if (GetFullPathName((const Char*)(path + 0x10), KUIN_MAX_PATH, path2, NULL) == 0)
-			return False;
+		Char path2[KUIN_MAX_PATH + 2];
+		wcscpy(path2, (const Char*)(path + 0x10));
+		NormPathBackSlash(path2, True);
 		return SHCreateDirectory(NULL, path2) == ERROR_SUCCESS;
 	}
 }
@@ -688,28 +688,6 @@ EXPORT S64 _fileSize(const U8* path)
 	result = _ftelli64(file_ptr);
 	fclose(file_ptr);
 	return result;
-}
-
-EXPORT void _setCurDir(const U8* path)
-{
-	THROWDBG(path == NULL, 0xc0000005);
-	SetCurrentDirectory((const Char*)(path + 0x10));
-}
-
-EXPORT void* _getCurDir(void)
-{
-	Char path[KUIN_MAX_PATH + 2];
-	if (GetCurrentDirectory(KUIN_MAX_PATH + 1, path) == 0)
-		return NULL;
-	NormPath(path, True);
-	{
-		size_t len = wcslen(path);
-		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
-		*(S64*)(result + 0x00) = DefaultRefCntFunc;
-		*(S64*)(result + 0x08) = (S64)len;
-		wcscpy((Char*)(result + 0x10), path);
-		return result;
-	}
 }
 
 static Char ReadUtf8(SStream* me_, Bool replace_delimiter, int* char_cnt)

@@ -1,54 +1,39 @@
-# Kuin Programming Language
-プログラミング言語「Kuin」
+# Kuin言語 / Direct2D導入検討ブランチ
 
-## [English]
+管理者：若草春男(twitter: @HaruoWakakusa)
 
-***-- Welcome to the Labyrinth of Kuin Compiler,***  
-***where many programmers who challenged to read the code never came back. --***
+このブランチはkuina/Kuinのdevelopブランチからの派生です。
 
-This is the git repository for the Kuin programming language, developed by Kuina-chan.  
-It is still under development and the software shows only Japanese messages yet.
+## 検討内容
 
-All the files here are provided under the Kuina-chan License.  
-If you have any questions, please let me know in English or Japanese.
+### ライブラリ名：dc
 
-Kuina-chan's website: <http://kuina.ch/>  
-Kuina-chan's twitter account: <https://twitter.com/kuina_ch> (@kuina_ch)
+dcはDevice Contextの略です。Windowsプログラミング経験者であれば
+この言葉を知らない人はいないでしょう。Device ContextはDirect3D 11でも
+導入されていますが、Win32 APIのGDI、もしくは.netのWindowsフォームのような
+使いやすさを提供します。しかもGPUアクセラレートされた美しい画面描画を
+容易に実現させるということを目標としております。
 
-## [Japanese]
+### 実装方法
 
-***――Kuinコンパイラの迷宮へようこそ。***  
-***ここは、読解に挑んだ多くのプログラマが帰らぬこととなった場所です――。***
+lib_wnd(d0001.knd)にウィンドウハンドル、またはDirectX系オブジェクト(検討中)を
+渡すためのインターフェースを用意します。dcライブラリの本体である
+lib_dc(lib_dc.dll)にそれらを入力することでKuinのウィンドウシステムとの
+共存を行います。lib_wnd本体を大きく改変することなくDirect2D系ラッパーの
+実装を行うことができます。
 
-「くいなちゃん」が開発するプログラミング言語「Kuin」( <http://kuina.ch/kuin/a01> )のリポジトリです。  
+また、Direct3D系のインターフェースから実装を切り離すことによって
+ユーザーがDirect3DとDirect2Dのどちらかを選んだり、両方を用いたりすることが
+できます。これはアプリ起動時間を遅くしないようにすることを意図しています。
 
-本リポジトリでは、開発中のソースコードは「develop」ブランチにマージし、リリースするタイミングでそれらの変更を「master」ブランチにマージします。  
+## 進捗
 
-#### # 報告の方法
-不具合の報告や機能追加を要望したい場合は、下記の方法で行うことができます。  
-* 開発者(くいなちゃん)に日本語か英語で直接報告する。
-* リポジトリをForkして編集した後Pull Requestをくいなちゃん宛てに送る。
-* 修正したソースコードの断片をどこかにアップロードしてくいなちゃんに知らせる。  
-戴いたソースコードはわたしが検査して適宜修正しますので、不具合やコーディングルールの不統一があっても問題ありません。  
+* Kuin上でDirect2Dを動作させた
+* 複数画面でdcライブラリによる描画に成功
 
-#### # ビルド方法
-Kuinコンパイラを手元でビルドする場合には、Visual C++ 2015でのビルドにのみ対応しており、/kuin.slnを開いてビルドすると完了します。  
-他のバージョンのVisual C++でビルドするには調整する必要があるかもしれません。
+### その他
 
-#### # Kuinコンパイラに対するテスト
-Kuinコンパイラに対するテストプログラムを実行する場合は、下記のようにビルドします。  
-1. ソリューション構成を「Debug」でビルドする。  
-2. 「test」プロジェクトをスタートアッププロジェクトに指定して実行する。  
-3. テストに成功した場合「Success.」が、失敗した場合は「Failure.」が表示される。
+KuinのDLLではcommon.h, common.cを用いていますが、common.hをC/C++ファイルで
+共有させるための記述(extern "C")を追加しています。
 
-#### # 完成物の生成
-Kuinコンパイラの完成物を生成する場合は、下記のようにビルドします。  
-1. ソリューション構成を「Release_dbg」でリビルドする。  
-2. ソリューション構成を「Release_rls」でリビルドする。  
-3. 成功した場合は、/packageディレクトリ内に完成物がまとめて配置される。
-
-すべてのファイルは「くいなちゃんライセンス( <http://kuina.ch/others/license> )」でご自由にお使いいただけます。  
-その他、あらゆるご質問はくいなちゃんまでどうぞ。
-
-Webサイト: <http://kuina.ch/>  
-Twitterアカウント: <https://twitter.com/kuina_ch> (@kuina_ch)
+Direct2DのほかにDirectWriteも実装検討予定です。

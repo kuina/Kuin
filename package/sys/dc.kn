@@ -1,0 +1,31 @@
++class DC()
+	var renderTarget: int
+	
+	*func[lib_dc.dll, _dcDtor, _force]_dtor()
+	end func
+	
+	+func[lib_dc.dll, _dcBegin]beginDraw()
+	end func
+	
+	+func[lib_dc.dll, _dcEnd]endDraw()
+	end func
+	
+	+func[lib_dc.dll, _circleLine]circleLine(
+		|x: float, y: float, rx: float, ry: float, strokeWidth: float,
+		|color: int)
+	end func
+end class
+
+func[lib_dc.dll, _makeDCFromWindowHandle, _make_instance]
+	|makeDCFromWindowHandle(me2: @DC, hwnd: int): @DC
+end func
+
++func[d0001.knd, _windowHandle]windowHandle(wnd: wnd@WndBase): int
+end func
+
++func makeDCFromWnd(wnd: wnd@WndBase): @DC
+	ret @makeDCFromWindowHandle(@windowHandle(wnd))
+end func
+
+func main()
+end func

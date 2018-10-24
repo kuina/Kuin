@@ -147,8 +147,3 @@ end func
 +func [d0000.knd, _fileSize] fileSize(path: []char): int
 end func
 
-+func [d0000.knd, _setCurDir] setCurDir(path: []char)
-end func
-
-+func [d0000.knd, _getCurDir] getCurDir(): []char
-end func

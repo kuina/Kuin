@@ -1947,6 +1947,13 @@ EXPORT_CPP Bool _tabOrderChk(SClass* me_, S64 key, S64 shiftCtrl)
 	return False;
 }
 
+EXPORT_CPP S64 _windowHandle(SClass* me_)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	return (S64)me2->WndHandle;
+
+}
+
 static const U8* NToRN(const Char* str)
 {
 	size_t len = 0;

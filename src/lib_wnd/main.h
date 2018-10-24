@@ -140,6 +140,8 @@ EXPORT_CPP SClass* _makePopup(SClass* me_);
 EXPORT_CPP SClass* _makeTabOrder(SClass* me_, U8* ctrls);
 EXPORT_CPP Bool _tabOrderChk(SClass* me_, S64 key, S64 shiftCtrl);
 
+EXPORT_CPP S64 _windowHandle(SClass* me_);
+
 // Assembly functions.
 extern "C" void* Call0Asm(void* func);
 extern "C" void* Call1Asm(void* arg1, void* func);

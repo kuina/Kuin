@@ -86,29 +86,37 @@ extern S64 AppCode;
 extern const U8* UseResFlags;
 extern HINSTANCE Instance;
 
-void* AllocMem(size_t size);
-void FreeMem(void* ptr);
-void ThrowImpl(U32 code);
-void* LoadFileAll(const Char* path, size_t* size);
-void* OpenFileStream(const Char* path);
-void CloseFileStream(void* handle);
-size_t ReadFileStream(void* handle, size_t size, void* buf);
-Bool SeekFileStream(void* handle, S64 offset, S64 origin);
-S64 TellFileStream(void* handle);
-Bool StrCmpIgnoreCase(const Char* a, const Char* b);
-U8 SwapEndianU8(U8 n);
-U16 SwapEndianU16(U16 n);
-U32 SwapEndianU32(U32 n);
-U64 SwapEndianU64(U64 n);
-Bool IsPowerOf2(U64 n);
-U32 MakeSeed(U32 key);
-U32 XorShift(U32* seed);
-U64 XorShift64(U32* seed);
-S64 XorShiftInt(U32* seed, S64 min, S64 max);
-double XorShiftFloat(U32* seed, double min, double max);
-char* Utf16ToUtf8(const U8* str);
-U8* Utf8ToUtf16(const char* str);
-Bool IsResUsed(EUseResFlagsKind kind);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+	void* AllocMem(size_t size);
+	void FreeMem(void* ptr);
+	void ThrowImpl(U32 code);
+	void* LoadFileAll(const Char* path, size_t* size);
+	void* OpenFileStream(const Char* path);
+	void CloseFileStream(void* handle);
+	size_t ReadFileStream(void* handle, size_t size, void* buf);
+	Bool SeekFileStream(void* handle, S64 offset, S64 origin);
+	S64 TellFileStream(void* handle);
+	Bool StrCmpIgnoreCase(const Char* a, const Char* b);
+	U8 SwapEndianU8(U8 n);
+	U16 SwapEndianU16(U16 n);
+	U32 SwapEndianU32(U32 n);
+	U64 SwapEndianU64(U64 n);
+	Bool IsPowerOf2(U64 n);
+	U32 MakeSeed(U32 key);
+	U32 XorShift(U32* seed);
+	U64 XorShift64(U32* seed);
+	S64 XorShiftInt(U32* seed, S64 min, S64 max);
+	double XorShiftFloat(U32* seed, double min, double max);
+	char* Utf16ToUtf8(const U8* str);
+	U8* Utf8ToUtf16(const char* str);
+	Bool IsResUsed(EUseResFlagsKind kind);
+
+#ifdef __cplusplus
+}
+#endif
 
 #define THROW(code) ThrowImpl(code)
 #if defined(DBG)

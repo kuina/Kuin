@@ -42,5 +42,3 @@ EXPORT void* _tmpFile(void);
 EXPORT void* _sysDir(S64 kind);
 EXPORT void* _exeDir(void);
 EXPORT S64 _fileSize(const U8* path);
-EXPORT void _setCurDir(const U8* path);
-EXPORT void* _getCurDir(void);

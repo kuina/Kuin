@@ -1993,6 +1993,12 @@ static void UpdateParticles(SParticle* particle)
 	particle->Draw1To2 = !particle->Draw1To2;
 }
 
+EXPORT_CPP void* _curDxgiSwapChain()
+{
+	if (CurWndBuf == NULL) return NULL;
+	return CurWndBuf->SwapChain;
+}
+
 namespace Draw
 {
 
