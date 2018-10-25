@@ -1,9 +1,6 @@
 +class DC()
 	var renderTarget: int
 	
-	*func[lib_dc.dll, _dcDtor, _force]_dtor()
-	end func
-	
 	+func[lib_dc.dll, _dcBegin]beginDraw()
 	end func
 	
@@ -16,16 +13,37 @@
 	end func
 end class
 
-func[lib_dc.dll, _makeDCFromWindowHandle, _make_instance]
-	|makeDCFromWindowHandle(me2: @DC, hwnd: int): @DC
++class WndDC(@DC)
+	var wndRenderTarget: int
+	
+	*func[lib_dc.dll, _wndDCDtor, _force]_dtor()
+	end func
+end class
+
++class GdiDC(@DC)
+	var gdiRenderTarget: int
+	var hwnd: int
+	
+	+*func[lib_dc.dll, _gdiDCBegin]beginDraw()
+	end func
+	
+	*func[lib_dc.dll, _gdiDCDtor, _force]_dtor()
+	end func
+end class
+
+func[d0001.knd, _windowHandle]windowHandle(wnd: wnd@WndBase): int
 end func
 
-+func[d0001.knd, _windowHandle]windowHandle(wnd: wnd@WndBase): int
++func makeWndDC(wnd: wnd@WndBase): @WndDC
+	func[lib_dc.dll, _makeWndDC, _make_instance]
+		|lambda(me2: @WndDC, hwnd: int): @WndDC
+	end func
+	ret lambda(@windowHandle(wnd))
 end func
 
-+func makeDCFromWnd(wnd: wnd@WndBase): @DC
-	ret @makeDCFromWindowHandle(@windowHandle(wnd))
-end func
-
-func main()
++func makeDC(wnd: wnd@WndBase): @GdiDC
+	func[lib_dc.dll, _makeGdiDC, _make_instance]
+		|lambda(me2: @GdiDC, hwnd: int): @GdiDC
+	end func
+	ret lambda(@windowHandle(wnd))
 end func
