@@ -885,13 +885,17 @@ EXPORT S64 _powInt(S64 n, S64 m)
 				THROWDBG(n == 0, 0xe9170003);
 				return n == 1 ? 1 : 0;
 			}
+			if (m == 0)
+				return 1;
 			{
 				S64 result = 1;
-				while (m != 0)
+				for (; ; )
 				{
 					if ((m & 1) == 1)
 						result = Mul(result, n);
 					m >>= 1;
+					if (m == 0)
+						break;
 					n = Mul(n, n);
 				}
 				return result;
