@@ -159,12 +159,12 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 
 EXPORT void InitCompiler(S64 lang)
 {
+	if (!InitEnvVars(GetProcessHeap(), &GlobalHeapCnt, 0, NULL))
+		return;
+
 	InitAllocator();
 	if (lang >= 0)
 		LoadExcptMsg(lang);
-
-	Heap = GetProcessHeap();
-	HeapCnt = &GlobalHeapCnt;
 
 	BreakPointNum = 0;
 	BreakPointPoses = NULL;

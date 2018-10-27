@@ -80,12 +80,19 @@ typedef enum EUseResFlagsKind
 } EUseResFlagsKind;
 #define USE_RES_FLAGS_LEN (1)
 
-extern void* Heap;
-extern S64* HeapCnt;
-extern S64 AppCode;
-extern const U8* UseResFlags;
-extern HINSTANCE Instance;
+typedef struct SEnvVars
+{
+	void* Heap;
+#if defined(_DEBUG)
+	S64* HeapCnt;
+#endif
+	S64 AppCode;
+	const U8* UseResFlags;
+	Char ResRoot[KUIN_MAX_PATH];
+} SEnvVars;
+extern SEnvVars EnvVars;
 
+Bool InitEnvVars(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags);
 void* AllocMem(size_t size);
 void FreeMem(void* ptr);
 void ThrowImpl(U32 code);

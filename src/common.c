@@ -21,34 +21,62 @@ typedef struct SFile
 	U64 Key;
 } SFile;
 
-void* Heap;
-S64* HeapCnt;
-S64 AppCode;
-const U8* UseResFlags;
-HINSTANCE Instance;
-Char ResRoot[KUIN_MAX_PATH];
+SEnvVars EnvVars;
 
 #if !defined(DBG)
 static SFile* OpenPackFile(const Char* path);
 #endif
 static U8 GetKey(U64 key, U8 data, U64 pos);
 
+Bool InitEnvVars(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
+{
+	if (EnvVars.Heap != NULL)
+		return False;
+
+	EnvVars.Heap = heap;
+#if defined(_DEBUG)
+	EnvVars.HeapCnt = heap_cnt;
+#else
+	UNUSED(heap_cnt);
+#endif
+	EnvVars.AppCode = app_code;
+	EnvVars.UseResFlags = use_res_flags;
+
+	// The resource root directory.
+	{
+		Char* ptr;
+		GetModuleFileName(NULL, EnvVars.ResRoot, KUIN_MAX_PATH);
+		ptr = wcsrchr(EnvVars.ResRoot, L'\\');
+		if (ptr != NULL)
+			*(ptr + 1) = L'\0';
+		ptr = EnvVars.ResRoot;
+		while (*ptr != L'\0')
+		{
+			if (*ptr == L'\\')
+				*ptr = L'/';
+			ptr++;
+		}
+	}
+
+	return True;
+}
+
 void* AllocMem(size_t size)
 {
-	void* result = HeapAlloc(Heap, HEAP_GENERATE_EXCEPTIONS, (SIZE_T)size);
+	void* result = HeapAlloc(EnvVars.Heap, HEAP_GENERATE_EXCEPTIONS, (SIZE_T)size);
 #if defined(_DEBUG)
 	memset(result, 0xcd, size);
-	(*HeapCnt)++;
+	(*EnvVars.HeapCnt)++;
 #endif
 	return result;
 }
 
 void FreeMem(void* ptr)
 {
-	HeapFree(Heap, 0, ptr);
+	HeapFree(EnvVars.Heap, 0, ptr);
 #if defined(_DEBUG)
-	(*HeapCnt)--;
-	ASSERT(*HeapCnt >= 0);
+	(*EnvVars.HeapCnt)--;
+	ASSERT(*EnvVars.HeapCnt >= 0);
 #endif
 }
 
@@ -337,7 +365,7 @@ Bool IsResUsed(EUseResFlagsKind kind)
 {
 	S64 idx = (S64)kind;
 	ASSERT(1 <= idx && (idx - 1) / 8 < USE_RES_FLAGS_LEN);
-	return (UseResFlags[(idx - 1) / 8] & (1 << ((idx - 1) % 8))) != 0;
+	return (EnvVars.UseResFlags[(idx - 1) / 8] & (1 << ((idx - 1) % 8))) != 0;
 }
 
 #if !defined(DBG)
@@ -346,7 +374,7 @@ static SFile* OpenPackFile(const Char* path)
 	FILE* file_ptr;
 	{
 		Char path2[KUIN_MAX_PATH + 1];
-		wcscpy(path2, ResRoot);
+		wcscpy(path2, EnvVars.ResRoot);
 		wcscat(path2, L"res.knd");
 		file_ptr = _wfopen(path2, L"rb");
 		if (file_ptr == NULL)
@@ -362,7 +390,7 @@ static SFile* OpenPackFile(const Char* path)
 	U64 len;
 	{
 		fread(&key, sizeof(U64), 1, file_ptr);
-		key ^= (U64)AppCode * 0x9271ac8394027acb + 0x35718394ca72849e;
+		key ^= (U64)EnvVars.AppCode * 0x9271ac8394027acb + 0x35718394ca72849e;
 		handle->Key = key;
 	}
 	{

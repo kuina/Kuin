@@ -299,6 +299,7 @@ static int WndCnt;
 static Bool ExitAct;
 static HFONT FontCtrl;
 static Char FileDialogDir[KUIN_MAX_PATH + 1];
+static HINSTANCE Instance;
 
 static const U8* NToRN(const Char* str);
 static const U8* RNToN(const Char* str);
@@ -360,15 +361,13 @@ SClass* IncWndRef(SClass* wnd)
 
 EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
 {
-	Heap = heap;
-	HeapCnt = heap_cnt;
-	AppCode = app_code;
-	UseResFlags = use_res_flags;
-	Instance = static_cast<HINSTANCE>(GetModuleHandle(NULL));
+	if (!InitEnvVars(heap, heap_cnt, app_code, use_res_flags))
+		return;
 
 	WndCnt = 0;
 	ExitAct = False;
 
+	Instance = (HINSTANCE)GetModuleHandle(NULL);
 	HICON icon = LoadIcon(Instance, reinterpret_cast<LPCWSTR>(static_cast<S64>(0x65))); // 0x65 is the resource ID of the application icon.
 	{
 		WNDCLASSEX wnd_class;

@@ -18,11 +18,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 
 EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
 {
-	Heap = heap;
-	HeapCnt = heap_cnt;
-	AppCode = app_code;
-	UseResFlags = use_res_flags;
-	Instance = (HINSTANCE)GetModuleHandle(NULL);
+	if (!InitEnvVars(heap, heap_cnt, app_code, use_res_flags))
+		return;
 
 	wprintf(L""); // Open 'stdout'
 	_setmode(_fileno(stdin), _O_U8TEXT); // Set the input format to UTF-8.

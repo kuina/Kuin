@@ -82,13 +82,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 
 EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
 {
-	if (Heap != NULL)
+	if (!InitEnvVars(heap, heap_cnt, app_code, use_res_flags))
 		return;
-	Heap = heap;
-	HeapCnt = heap_cnt;
-	AppCode = app_code;
-	UseResFlags = use_res_flags;
-	Instance = (HINSTANCE)GetModuleHandle(NULL);
 
 	WsaData = (WSADATA*)AllocMem(sizeof(WSADATA));
 	if (WSAStartup(MAKEWORD(2, 2), WsaData) != 0)

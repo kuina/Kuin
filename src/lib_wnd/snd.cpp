@@ -292,6 +292,7 @@ namespace Snd
 
 void Init()
 {
+	const HINSTANCE instance = (HINSTANCE)GetModuleHandle(NULL);
 	{
 		WNDCLASSEX wnd_class;
 		wnd_class.cbSize = sizeof(WNDCLASSEX);
@@ -299,7 +300,7 @@ void Init()
 		wnd_class.lpfnWndProc = WndProc;
 		wnd_class.cbClsExtra = 0;
 		wnd_class.cbWndExtra = 0;
-		wnd_class.hInstance = Instance;
+		wnd_class.hInstance = instance;
 		wnd_class.hIcon = NULL;
 		wnd_class.hCursor = NULL;
 		wnd_class.hbrBackground = NULL;
@@ -308,7 +309,7 @@ void Init()
 		wnd_class.hIconSm = NULL;
 		RegisterClassEx(&wnd_class);
 	}
-	Wnd = CreateWindowEx(0, L"KuinSndClass", L"", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, Instance, NULL);
+	Wnd = CreateWindowEx(0, L"KuinSndClass", L"", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, instance, NULL);
 
 	if (FAILED(DirectSoundCreate8(NULL, &Device, NULL)))
 	{

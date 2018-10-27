@@ -77,27 +77,9 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 
 EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
 {
-	Heap = heap;
-	HeapCnt = heap_cnt;
-	AppCode = app_code;
-	UseResFlags = use_res_flags;
-	Instance = (HINSTANCE)GetModuleHandle(NULL);
+	if (!InitEnvVars(heap, heap_cnt, app_code, use_res_flags))
+		return;
 
-	// The resource root directory.
-	{
-		Char* ptr;
-		GetModuleFileName(NULL, ResRoot, KUIN_MAX_PATH);
-		ptr = wcsrchr(ResRoot, L'\\');
-		if (ptr != NULL)
-			*(ptr + 1) = L'\0';
-		ptr = ResRoot;
-		while (*ptr != L'\0')
-		{
-			if (*ptr == L'\\')
-				*ptr = L'/';
-			ptr++;
-		}
-	}
 #if defined(DBG)
 	{
 		const Char* cur_dir_path = L"./_curdir_.txt";
