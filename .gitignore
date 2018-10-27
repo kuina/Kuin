@@ -18,3 +18,4 @@
 *.ps
 *.opendb
 /test/output/
+*.VC.db
