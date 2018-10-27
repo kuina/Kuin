@@ -20,7 +20,7 @@
 
 	do @font :: draw@makeFont("Consolas", @fontSize, false, false, false, @cellWidth $ float)
 	do @fontP :: draw@makeFont("Consolas", @fontSize, false, false, true, 0.0)
-	do @tex :: draw@makeTex("res/tex.png")
+	do @tex :: draw@makeTex("\{file@exeDir()}res/tex.png")
 end func
 
 +func nullStr(s: []char): []char
