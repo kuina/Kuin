@@ -45,7 +45,8 @@ v.2018.11.17
 
 v.2018.11.17
     - 細かな機能追加
-        - file@setCurDir、file@getCurDir関数の追加
+        - file@setCurDir、file@getCurDir、lib@countUp関数の追加
+        - dict.delメソッドの追加
     - 細かな不具合の修正
         - カレントディレクトリがexeの位置に書き換わっていたのを、書き換えない
           ように修正

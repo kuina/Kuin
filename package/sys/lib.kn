@@ -201,6 +201,9 @@ end func
 +func [d0000.knd] sleep(ms: int)
 end func
 
++func [d0000.knd, _countUp] countUp(min: int, max: int): []int
+end func
+
 +class Int()
 	+*func cmp(t: @Int): int
 		ret (me.value - t.value).sign()

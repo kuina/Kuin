@@ -463,6 +463,21 @@ EXPORT S64 _bmSearchFind(SClass* me_, const U8* text, S64 start)
 	return -1;
 }
 
+EXPORT void* _countUp(S64 min, S64 max)
+{
+	THROWDBG(min > max, 0xe9170006);
+	S64 len = max - min + 1;
+	THROWDBG(len <= 0, 0xe9170006);
+	U8* buf = (U8*)AllocMem(0x10 + sizeof(S64) * len);
+	S64* ptr = (S64*)(buf + 0x10);
+	((S64*)buf)[0] = DefaultRefCntFunc;
+	((S64*)buf)[1] = (S64)len;
+	S64 i;
+	for (i = 0; i < len; i++)
+		ptr[i] = min + i;
+	return buf;
+}
+
 void LibInit(void)
 {
 	// Initialize the random number system.

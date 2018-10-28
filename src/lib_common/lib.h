@@ -48,4 +48,5 @@ EXPORT double _hermite(const void* pos, double rate);
 EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern);
 EXPORT void _bmSearchDtor(SClass* me_);
 EXPORT S64 _bmSearchFind(SClass* me_, const U8* text, S64 start);
+EXPORT void* _countUp(S64 min, S64 max);
 void LibInit(void);

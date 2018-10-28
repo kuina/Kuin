@@ -6115,6 +6115,7 @@ static void GetKeywordsAddMember(const Char* type)
 		else if (type[1] == L'd')
 		{
 			GetKeywordsAdd(L"add");
+			GetKeywordsAdd(L"del");
 			GetKeywordsAdd(L"exist");
 			GetKeywordsAdd(L"forEach");
 			GetKeywordsAdd(L"get");

@@ -93,6 +93,7 @@ EXPORT void* _toArrayValue(void* me_, const U8* type);
 EXPORT void* _peek(void* me_, const U8* type);
 EXPORT Bool _exist(void* me_, const U8* type, const void* key);
 EXPORT Bool _forEach(void* me_, const U8* type, const void* callback, void* data);
+EXPORT void _delDict(void* me_, const U8* type, const void* key);
 
 // Assembly functions.
 void* ToBinClassAsm(const void* me_);

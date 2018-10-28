@@ -1,0 +1,7 @@
+Begin: ../../test/output/output0022.exe
+Excpt: 80000003
+> 1001
+
+> 0
+
+end: ../../test/output/output0022.exe

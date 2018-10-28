@@ -13,7 +13,7 @@ static const Char* BuildInFuncs[] =
 	L"clamp\0        \x0b",
 	L"clampMax\0     \x0b",
 	L"clampMin\0     \x0b",
-	L"del\0          \x09",
+	L"del\0          \x0f",
 	L"delNext\0      \x09",
 	L"endian\0       \x04",
 	L"exist\0        \x0d",
@@ -3607,6 +3607,15 @@ static SAstExpr* RebuildExprDot(SAstExprDot* ast)
 						member = L"findLastList";
 					else
 						ASSERT(False);
+				}
+				break;
+			case 0x000f:
+				if (((SAst*)var_type)->TypeId == AstTypeId_TypeGen && ((SAstTypeGen*)var_type)->Kind == AstTypeGenKind_List)
+					correct = True;
+				else if (((SAst*)var_type)->TypeId == AstTypeId_TypeDict)
+				{
+					member = L"delDict";
+					correct = True;
 				}
 				break;
 		}
