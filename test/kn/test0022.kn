@@ -1,27 +1,29 @@
 func main()
 	var rndArray: []int :: lib@countUp(0, 1000)
 	do rndArray.shuffle()
-	var d: dict<int, int> :: #dict<int, int>
-	for i(0, ^rndArray - 1)
-		do d.add(rndArray[i], rndArray[i] * 2)
-	end for
-	do cui@print((^d).toStr() ~ "\n")
-	for i(0, ^rndArray - 1)
-		if(d.get(rndArray[i]) <> rndArray[i] * 2)
-			do cui@print("False: \{rndArray[i]}, \{d.get(rndArray[i])}\n")
-		end if
-	end for
-
 	var rndArray2: []int :: lib@countUp(0, 1000)
 	do rndArray2.shuffle()
-	for i(0, ^rndArray2 - 1)
-		do d.del(rndArray2[i])
-	end for
-	do cui@print((^d).toStr() ~ "\n")
+	var d: dict<[]char, []char> :: #dict<[]char, []char>
+	for(0, 2)
+		for i(0, ^rndArray - 1)
+			do d.add(rndArray[i].toStr(), (rndArray[i] * 2).toStr())
+		end for
+		do cui@print((^d).toStr() ~ "\n")
+		for i(0, ^rndArray - 1)
+			if(d.get(rndArray[i].toStr()) <> (rndArray[i] * 2).toStr())
+				do cui@print("False: \{rndArray[i]}, \{d.get(rndArray[i].toStr())}\n")
+			end if
+		end for
 
-	for i(0, ^rndArray - 1)
-		if(d.get(rndArray[i]) <> 0)
-			do cui@print("False: \{rndArray[i]}, \{d.get(rndArray[i])}\n")
-		end if
+		for i(0, ^rndArray2 - 1)
+			do d.del(rndArray2[i].toStr())
+		end for
+		do cui@print((^d).toStr() ~ "\n")
+
+		for i(0, ^rndArray - 1)
+			if(d.get(rndArray[i].toStr()) <>& null)
+				do cui@print("False: \{rndArray[i]}, \{d.get(rndArray[i].toStr())}\n")
+			end if
+		end for
 	end for
 end func

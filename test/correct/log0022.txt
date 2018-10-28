@@ -4,4 +4,13 @@ Excpt: 80000003
 
 > 0
 
+> 1001
+
+> 0
+
+> 1001
+
+> 0
+
+Excpt: 80000003
 end: ../../test/output/output0022.exe
