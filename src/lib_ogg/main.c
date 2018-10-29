@@ -43,13 +43,10 @@ EXPORT void* LoadOgg(const Char* path, S64* channel, S64* samples_per_sec, S64* 
 	return file;
 }
 
-EXPORT void init(void* heap, S64* heap_cnt, S64 app_code, const Char* use_res_flags)
+EXPORT void init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
 {
-	UNUSED(use_res_flags);
-	Heap = heap;
-	HeapCnt = heap_cnt;
-	AppCode = app_code;
-	Instance = (HINSTANCE)GetModuleHandle(NULL);
+	if (!InitEnvVars(heap, heap_cnt, app_code, use_res_flags))
+		return;
 }
 
 static size_t OggCBRead(void* ptr, size_t size, size_t nmemb, void* data)

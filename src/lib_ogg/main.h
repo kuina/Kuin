@@ -10,4 +10,4 @@
 #include <vorbis/vorbisfile.h>
 
 EXPORT void* LoadOgg(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64));
-EXPORT void init(void* heap, S64* heap_cnt, S64 app_code, const Char* app_name);
+EXPORT void init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags);

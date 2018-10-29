@@ -32,15 +32,10 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const Char* use_res_flags)
+EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags)
 {
-	UNUSED(use_res_flags);
-	if (Heap != NULL)
+	if (!InitEnvVars(heap, heap_cnt, app_code, use_res_flags))
 		return;
-	Heap = heap;
-	HeapCnt = heap_cnt;
-	AppCode = app_code;
-	Instance = (HINSTANCE)GetModuleHandle(NULL);
 }
 
 EXPORT_CPP SClass* _makeXml(SClass* me_, const U8* path)
