@@ -13,6 +13,7 @@ EXPORT_CPP void _clearColor(S64 color);
 EXPORT_CPP void _autoClear(Bool enabled);
 EXPORT_CPP void _clear();
 EXPORT_CPP void _editPixels(const void* callback);
+EXPORT_CPP Bool _capture(const U8* path);
 EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color);
 EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, S64 color);
 EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color);

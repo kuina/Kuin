@@ -434,7 +434,7 @@ EXPORT_CPP void _editPixels(const void* callback)
 {
 	THROWDBG(callback == NULL, 0xc0000005);
 	THROWDBG(!CurWndBuf->Editable, 0xe917000a);
-	size_t buf_size = static_cast<size_t>(CurWndBuf->TexWidth * CurWndBuf->TexHeight);
+	const size_t buf_size = static_cast<size_t>(CurWndBuf->TexWidth * CurWndBuf->TexHeight);
 	U8* buf = static_cast<U8*>(AllocMem(0x10 + sizeof(U32) * buf_size));
 	((S64*)buf)[0] = 2;
 	((S64*)buf)[1] = buf_size;
@@ -451,6 +451,81 @@ EXPORT_CPP void _editPixels(const void* callback)
 	Device->CopyResource(CurWndBuf->TmpTex, CurWndBuf->EditableTex);
 	THROWDBG(((S64*)buf)[0] != 1, 0xc0000005);
 	FreeMem(buf);
+}
+
+EXPORT_CPP Bool _capture(const U8* path)
+{
+	THROWDBG(path == NULL, 0xc0000005);
+	ID3D10Texture2D* tex;
+	if (CurWndBuf->Editable)
+		tex = CurWndBuf->EditableTex;
+	else
+	{
+		D3D10_TEXTURE2D_DESC desc;
+		desc.Width = static_cast<UINT>(CurWndBuf->TexWidth);
+		desc.Height = static_cast<UINT>(CurWndBuf->TexHeight);
+		desc.MipLevels = 1;
+		desc.ArraySize = 1;
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Usage = D3D10_USAGE_STAGING;
+		desc.BindFlags = 0;
+		desc.CPUAccessFlags = D3D10_CPU_ACCESS_READ;
+		desc.MiscFlags = 0;
+		if (FAILED(Device->CreateTexture2D(&desc, NULL, &tex)))
+			return False;
+	}
+	Bool result = False;
+	Device->CopyResource(tex, CurWndBuf->TmpTex);
+	{
+		FILE* file_ptr = _wfopen(reinterpret_cast<const Char*>(path + 0x10), L"wb");
+		if (file_ptr != NULL)
+		{
+			D3D10_MAPPED_TEXTURE2D map;
+			tex->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_READ, 0, &map);
+			const U8* dst = static_cast<U8*>(map.pData);
+			{
+				BITMAPFILEHEADER header;
+				BITMAPINFOHEADER info;
+				U8 buf[3];
+				header.bfType = 0x4d42;
+				header.bfSize = static_cast<DWORD>(sizeof(header) + sizeof(info) + CurWndBuf->TexWidth * CurWndBuf->TexHeight * 3);
+				header.bfReserved1 = 0;
+				header.bfReserved2 = 0;
+				header.bfOffBits = sizeof(header) + sizeof(info);
+				info.biSize = sizeof(info);
+				info.biWidth = static_cast<LONG>(CurWndBuf->TexWidth);
+				info.biHeight = static_cast<LONG>(CurWndBuf->TexHeight);
+				info.biPlanes = 1;
+				info.biBitCount = 24;
+				info.biCompression = BI_RGB;
+				info.biSizeImage = static_cast<DWORD>(CurWndBuf->TexWidth * CurWndBuf->TexHeight * 3);
+				info.biXPelsPerMeter = 0;
+				info.biYPelsPerMeter = 0;
+				info.biClrUsed = 0;
+				info.biClrImportant = 0;
+				fwrite(&header, sizeof(header), 1, file_ptr);
+				fwrite(&info, sizeof(info), 1, file_ptr);
+				for (S64 j = CurWndBuf->TexHeight - 1; j >= 0; j--)
+				{
+					for (S64 i = 0; i < CurWndBuf->TexWidth; i++)
+					{
+						buf[0] = static_cast<U8>(max(min(static_cast<int>(Draw::Degamma(static_cast<double>(dst[(j * CurWndBuf->TexWidth + i) * 4 + 0]) / 255.0) * 255.0), 255), 0));
+						buf[1] = static_cast<U8>(max(min(static_cast<int>(Draw::Degamma(static_cast<double>(dst[(j * CurWndBuf->TexWidth + i) * 4 + 1]) / 255.0) * 255.0), 255), 0));
+						buf[2] = static_cast<U8>(max(min(static_cast<int>(Draw::Degamma(static_cast<double>(dst[(j * CurWndBuf->TexWidth + i) * 4 + 2]) / 255.0) * 255.0), 255), 0));
+						fwrite(buf, sizeof(buf), 1, file_ptr);
+					}
+				}
+			}
+			tex->Unmap(D3D10CalcSubresource(0, 0, 1));
+			fclose(file_ptr);
+			result = True;
+		}
+	}
+	if (!CurWndBuf->Editable)
+		tex->Release();
+	return result;
 }
 
 EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
