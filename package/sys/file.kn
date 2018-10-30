@@ -123,6 +123,9 @@ end func
 +func [d0000.knd, _copyFile] copyFile(dst: []char, src: []char): bool
 end func
 
++func [d0000.knd, _moveDir] moveDir(dst: []char, src: []char): bool
+end func
+
 +func [d0000.knd, _moveFile] moveFile(dst: []char, src: []char): bool
 end func
 
@@ -133,6 +136,9 @@ end func
 end func
 
 +func [d0000.knd, _fileName] fileName(path: []char): []char
+end func
+
++func [d0000.knd, _fullPath] fullPath(path: []char): []char
 end func
 
 +func [d0000.knd, _delExt] delExt(path: []char): []char

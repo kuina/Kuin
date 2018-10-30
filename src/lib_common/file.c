@@ -488,7 +488,16 @@ EXPORT Bool _copyFile(const U8* dst, const U8* src)
 
 EXPORT Bool _moveDir(const U8* dst, const U8* src)
 {
-	// TODO:
+	THROWDBG(dst == NULL, 0xc0000005);
+	THROWDBG(src == NULL, 0xc0000005);
+	if (MoveFileEx((const Char*)(src + 0x10), (const Char*)(dst + 0x10), MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH | MOVEFILE_REPLACE_EXISTING) == 0)
+	{
+		if (CopyDirRecursion((const Char*)(dst + 0x10), (const Char*)(src + 0x10)) == 0)
+			return False;
+		if (DelDirRecursion((const Char*)(src + 0x10)) == 0)
+			return False;
+	}
+	return True;
 }
 
 EXPORT Bool _moveFile(const U8* dst, const U8* src)
@@ -596,8 +605,20 @@ EXPORT void* _fileName(const U8* path)
 
 EXPORT void* _fullPath(const U8* path)
 {
-	// TODO:
-	return NULL;
+	THROWDBG(path == NULL, 0xc0000005);
+	Char path2[KUIN_MAX_PATH + 2];
+	Char* file_name_pos;
+	if (GetFullPathName((const Char*)(path + 0x10), KUIN_MAX_PATH, path2, &file_name_pos) == 0)
+		return NULL;
+	NormPath(path2, file_name_pos == NULL);
+	{
+		size_t len = wcslen(path2);
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+		*(S64*)(result + 0x00) = DefaultRefCntFunc;
+		*(S64*)(result + 0x08) = (S64)len;
+		wcscpy((Char*)(result + 0x10), path2);
+		return result;
+	}
 }
 
 EXPORT void* _delExt(const U8* path)
