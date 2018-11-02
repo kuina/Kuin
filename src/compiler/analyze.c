@@ -662,11 +662,12 @@ static const void* AddInitFuncs(const Char* key, const void* value, void* param)
 	if (key[0] == L'\\')
 		return value;
 	SList* funcs = (SList*)param;
-	if (wcscmp(key, L"math") == 0 ||
+	if (wcscmp(key, L"game") == 0 ||
+		wcscmp(key, L"math") == 0 ||
 		wcscmp(key, L"net") == 0 ||
 		wcscmp(key, L"regex") == 0 ||
 		wcscmp(key, L"xml") == 0 ||
-		wcscmp(key, L"game") == 0)
+		wcscmp(key, L"zip") == 0)
 	{
 		ListAdd(funcs, SearchStdItem(key, L"_init", False));
 	}
