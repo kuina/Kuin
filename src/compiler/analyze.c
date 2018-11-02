@@ -666,6 +666,7 @@ static const void* AddInitFuncs(const Char* key, const void* value, void* param)
 		wcscmp(key, L"math") == 0 ||
 		wcscmp(key, L"net") == 0 ||
 		wcscmp(key, L"regex") == 0 ||
+		wcscmp(key, L"sql") == 0 ||
 		wcscmp(key, L"xml") == 0 ||
 		wcscmp(key, L"zip") == 0)
 	{
