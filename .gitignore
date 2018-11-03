@@ -17,4 +17,8 @@
 *.vs
 *.ps
 *.opendb
+*.knprop
+*.iobj
+*.ipdb
 /test/output/
+*.VC.db

@@ -7,8 +7,33 @@
 	+func[lib_dc.dll, _dcEnd]endDraw()
 	end func
 	
+	; 描画系メソッド
+	
+	+func[lib_dc.dll, _line]line(
+		|x1: float, y1: float, x2: float, y2: float, strokeWidth: float,
+		|color: int)
+	end func
+	
+	+func[lib_dc.dll, _rect]rect(
+		|x: float, y: float, w: float, h: float, color: int)
+	end func
+	
+	+func[lib_dc.dll, _rectLine]rectLine(
+		|x: float, y: float, w: float, h: float, strokeWidth: float,
+		|color: int)
+	end func
+	
+	+func[lib_dc.dll, _circle]circle(
+		|x: float, y: float, rx: float, ry: float, color: int)
+	end func
+	
 	+func[lib_dc.dll, _circleLine]circleLine(
 		|x: float, y: float, rx: float, ry: float, strokeWidth: float,
+		|color: int)
+	end func
+	
+	+func[lib_dc.dll, _tri]tri(
+		|x1: float, y1: float, x2: float, y2: float, x3: float, y3: float,
 		|color: int)
 	end func
 end class

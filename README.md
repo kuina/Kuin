@@ -32,6 +32,7 @@ lib_dc(lib_dc.dll)にそれらを入力することでKuinのウィンドウシ�
 * 複数画面でdcライブラリによる描画に成功
 * ID2D1HwndRenderTargetオブジェクトを作成する関数を実装
 * ID2D1DCRenderTargetオブジェクトを作成する関数を実装
+* dc@DCクラスにline, rect, rectLine, circle, circleLine, triメソッドを実装
 
 ### その他
 

@@ -4,6 +4,10 @@
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dxgi.lib")
 
+// 下記の警告を無効化(描画ライブラリでfloatを使うのは当然で、Kuinではdoubleを扱うため)
+// warning C4244: '引数': 'double' から 'FLOAT' への変換です。データが失われる可能性があります。
+#pragma warning( disable : 4244 )
+
 static ID2D1Factory* factory = NULL;
 
 static inline D2D1::ColorF colorFromS64(S64 color);
@@ -96,14 +100,7 @@ EXPORT_CPP SClass* _makeGdiDC(SClass* me_, S64 hwnd)
 	return me_;
 }
 
-/* Direct3D 10 -> Direct2D への変換は後回し
-EXPORT_CPP SClass* _makeDCFromDxgiSwapChain(SClass* me_, void* swapChain)
-{
-	SDeviceContext* me2 = reinterpret_cast<SDeviceContext*>(me_);
-	IDXGISwapChain* sc2 = reinterpret_cast<IDXGISwapChain*>(swapChain);
-	
-}
-*/
+// TODO: Direct3D 10 -> Direct2D への変換
 
 EXPORT_CPP void _wndDCDtor(SClass* me_)
 {
@@ -140,13 +137,81 @@ EXPORT_CPP void _dcEnd(SClass* me_)
 	me2->renderTarget->EndDraw();
 }
 
+EXPORT_CPP void _line(
+	SClass* me_, double x1, double y1, double x2, double y2, double strokeWidth, S64 color)
+{
+	SDeviceContext* me2 = reinterpret_cast<SDeviceContext*>(me_);
+	ID2D1SolidColorBrush *brush;
+	me2->renderTarget->CreateSolidColorBrush(colorFromS64(color), &brush);
+	me2->renderTarget->DrawLine(
+		D2D1::Point2F(x1, y1), D2D1::Point2F(x2, y2), brush, strokeWidth, NULL);
+	brush->Release();
+}
+
+EXPORT_CPP void _rect(
+	SClass* me_, double x, double y, double w, double h, S64 color)
+{
+	SDeviceContext* me2 = reinterpret_cast<SDeviceContext*>(me_);
+	ID2D1SolidColorBrush *brush;
+	me2->renderTarget->CreateSolidColorBrush(colorFromS64(color), &brush);
+	me2->renderTarget->FillRectangle(D2D1::RectF(x, y, x + w, y + h), brush);
+	brush->Release();
+}
+
+EXPORT_CPP void _rectLine(
+	SClass* me_, double x, double y, double w, double h, double strokeWidth, S64 color)
+{
+	SDeviceContext* me2 = reinterpret_cast<SDeviceContext*>(me_);
+	ID2D1SolidColorBrush *brush;
+	me2->renderTarget->CreateSolidColorBrush(colorFromS64(color), &brush);
+	me2->renderTarget->DrawRectangle(
+		D2D1::RectF(x, y, x + w, y + h), brush, strokeWidth, NULL);
+	brush->Release();
+}
+
+EXPORT_CPP void _circle(
+	SClass* me_, double x, double y, double rx, double ry, S64 color)
+{
+	SDeviceContext* me2 = reinterpret_cast<SDeviceContext*>(me_);
+	ID2D1SolidColorBrush *brush;
+	me2->renderTarget->CreateSolidColorBrush(colorFromS64(color), &brush);
+	me2->renderTarget->FillEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), rx, ry), brush);
+	brush->Release();
+}
+
 EXPORT_CPP void _circleLine(
 	SClass* me_, double x, double y, double rx, double ry, double strokeWidth, S64 color)
 {
 	SDeviceContext* me2 = reinterpret_cast<SDeviceContext*>(me_);
 	ID2D1SolidColorBrush *brush;
 	me2->renderTarget->CreateSolidColorBrush(colorFromS64(color), &brush);
-	me2->renderTarget->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), rx, ry), brush, strokeWidth);
+	me2->renderTarget->DrawEllipse(
+		D2D1::Ellipse(D2D1::Point2F(x, y), rx, ry), brush, strokeWidth, NULL);
+	brush->Release();
+}
+
+EXPORT_CPP void _tri(
+	SClass* me_, double x1, double y1, double x2, double y2, double x3, double y3, S64 color)
+{
+	SDeviceContext* me2 = reinterpret_cast<SDeviceContext*>(me_);
+	ID2D1SolidColorBrush *brush = NULL;
+	ID2D1PathGeometry *geometry = NULL;
+	ID2D1GeometrySink *sink = NULL;
+
+	me2->renderTarget->CreateSolidColorBrush(colorFromS64(color), &brush);
+	factory->CreatePathGeometry(&geometry);
+	geometry->Open(&sink);
+	sink->BeginFigure(D2D1::Point2F(x1, y1), D2D1_FIGURE_BEGIN_FILLED);
+	sink->AddLine(D2D1::Point2F(x2, y2));
+	sink->AddLine(D2D1::Point2F(x3, y3));
+	sink->EndFigure(D2D1_FIGURE_END_CLOSED);
+	sink->Close();
+
+	me2->renderTarget->FillGeometry(geometry, brush);
+
+	brush->Release();
+	geometry->Release();
+	sink->Release();
 }
 
 static inline D2D1::ColorF colorFromS64(S64 color) {
