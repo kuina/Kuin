@@ -1,0 +1,41 @@
+var dc: dc@DC
+var pink: int :: 0xFFFF8888
+
+func main()
+	var wnd: wnd@Wnd :: wnd@makeWnd(null, %aspect, 800, 600,
+	|"dcライブラリサンプル2")
+	var draw: wnd@Draw :: wnd@makeDraw(wnd, 0, 0, 800, 600,
+	|%scale, %scale, false)
+	do @dc :: dc@makeDC(draw)
+	do draw.onPaint :: @onPaint
+	while(wnd@act())
+	end while
+end func
+
+func onPaint(wnd: wnd@Wnd, width: int, height: int)
+	do @dc.beginDraw()
+	; k
+	do @dc.line(20.0, 20.0, 20.0, 100.0, 3.0, @pink)
+	do @dc.line(60.0, 40.0, 16.0, 80.0, 3.0, @pink)
+	do @dc.line(30.0, 77.0, 60.0, 100.0, 3.0, @pink)
+	; u
+	do @dc.line(80.0, 50.0, 80.0, 100.0, 3.0, @pink)
+	do @dc.line(80.0, 98.5, 120.0, 98.5, 3.0, @pink)
+	do @dc.line(120.0, 100.0, 120.0, 50.0, 3.0, @pink)
+	; i
+	do @dc.line(140.0, 40.0, 140.0, 100.0, 3.0, @pink)
+	; n
+	do @dc.line(160.0, 50.0, 160.0, 100.0, 3.0, @pink)
+	do @dc.line(160.0, 51.5, 200.0, 51.5, 3.0, @pink)
+	do @dc.line(200.0, 50.0, 200.0, 100.0, 3.0, @pink)
+	
+	do @dc.rect(250.0, 20.0, 100.0, 70.0, 0xFF5555FF)
+	do @dc.rectLine(280.0, 50.0, 100.0, 70.0, 4.0, 0xFF55FF55)
+	
+	do @dc.circle(100.0, 250.0, 75.0, 75.0, 0xFFFFFF55)
+	do @dc.circleLine(300.0, 250.0, 75.0, 75.0, 7.0, 0xFFFF55FF)
+	
+	do @dc.tri(400.0, 325.0, 475.0, 325.0 - 75.0 * lib@sqrt(3.0),
+	|550.0, 325.0, 0xFF7777FF)
+	do @dc.endDraw()
+end func

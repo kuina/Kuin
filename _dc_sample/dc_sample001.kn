@@ -1,0 +1,17 @@
+func main()
+	var wnd1: wnd@Wnd :: wnd@makeWnd(null, %normal, 800, 450, "ウィンドウ１")
+	var wnd2: wnd@Wnd :: wnd@makeWnd(null, %normal, 800, 450, "ウィンドウ２")
+	
+	var dc1: dc@DC :: dc@makeDC(wnd1)
+	var dc2: dc@DC :: dc@makeWndDC(wnd2)
+	
+	while(wnd@act())
+		do dc1.beginDraw()
+		do dc1.circleLine(100.0, 100.0, 50.0, 50.0, 1.0, 0xFFFF0000)
+		do dc1.endDraw()
+		
+		do dc2.beginDraw()
+		do dc2.circleLine(200.0, 200.0, 75.0, 75.0, 5.0, 0xFFFFFFFF)
+		do dc2.endDraw()
+	end while
+end func
