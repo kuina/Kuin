@@ -230,6 +230,16 @@ EXPORT_CPP void _geometry(SClass* me_, SClass* geometry_, S64 color)
 	brush->Release();
 }
 
+EXPORT_CPP void _geometryLine(SClass* me_, SClass* geometry_, S64 color, double strokeWidth)
+{
+	SDeviceContext* me2 = reinterpret_cast<SDeviceContext*>(me_);
+	SGeometry* geometry = reinterpret_cast<SGeometry*>(geometry_);
+	ID2D1SolidColorBrush *brush;
+	me2->renderTarget->CreateSolidColorBrush(colorFromS64(color), &brush);
+	me2->renderTarget->DrawGeometry(geometry->geometry, brush, strokeWidth);
+	brush->Release();
+}
+
 EXPORT_CPP void _tri(
 	SClass* me_, double x1, double y1, double x2, double y2, double x3, double y3, S64 color)
 {
@@ -334,6 +344,16 @@ EXPORT_CPP void _geometrySinkAddLine(SClass *me_, double x, double y)
 {
 	SGeometrySink* me2 = reinterpret_cast<SGeometrySink*>(me_);
 	me2->geometrySink->AddLine(D2D1::Point2F(x, y));
+}
+
+EXPORT_CPP void _geometrySinkAddQuadraticBezier(
+	SClass *me_, double cx, double cy, double x, double y)
+{
+	SGeometrySink* me2 = reinterpret_cast<SGeometrySink*>(me_);
+	me2->geometrySink->AddQuadraticBezier(
+		D2D1::QuadraticBezierSegment(
+			D2D1::Point2F(cx, cy),
+			D2D1::Point2F(x, y)));
 }
 
 //
