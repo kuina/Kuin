@@ -1,11 +1,24 @@
 var dc: dc@DC
 var pink: int :: 0xFFFF8888
+var geo: dc@PathGeometry
 
 func main()
 	var wnd: wnd@Wnd :: wnd@makeWnd(null, %aspect, 800, 600,
 	|"dcライブラリサンプル2")
 	var draw: wnd@Draw :: wnd@makeDraw(wnd, 0, 0, 800, 600,
 	|%scale, %scale, false)
+	
+	do @geo :: dc@makePathGeometry()
+	var sink: dc@GeometrySink :: @geo.open()
+	do sink.beginFigure(440.0, 20.0, %filled)
+	do sink.addLine(540.0, 20.0)
+	do sink.addBezier(490.0, 20.0, 490.0, 120.0, 540.0, 120.0)
+	do sink.addLine(440.0, 120.0)
+	do sink.addBezier(490.0, 120.0, 490.0, 20.0, 440.0, 20.0)
+	do sink.endFigure(%closed)
+	
+	do sink.close()
+	
 	do @dc :: dc@makeDC(draw)
 	do draw.onPaint :: @onPaint
 	while(wnd@act())
@@ -37,5 +50,7 @@ func onPaint(wnd: wnd@Wnd, width: int, height: int)
 	
 	do @dc.tri(400.0, 325.0, 475.0, 325.0 - 75.0 * lib@sqrt(3.0),
 	|550.0, 325.0, 0xFF7777FF)
+	
+	do @dc.geometry(@geo, 0xFF888844)
 	do @dc.endDraw()
 end func

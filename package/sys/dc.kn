@@ -1,3 +1,23 @@
++enum GeometrySinkFigureBegin
+	filled :: 0
+	hollow :: 1
+end enum
+
++enum GeometrySinkFigureEnd
+	open :: 0
+	closed :: 1
+end enum
+
++enum ArcSweepDirection
+	counterClockwise :: 0
+	clockwise :: 1
+end enum
+
++enum ArcSize
+	small :: 0
+	large :: 1
+end enum
+
 +class DC()
 	var renderTarget: int
 	
@@ -32,6 +52,9 @@
 		|color: int)
 	end func
 	
+	+func[lib_dc.dll, _geometry]geometry(geometry: @Geometry, color: int)
+	end func
+	
 	+func[lib_dc.dll, _tri]tri(
 		|x1: float, y1: float, x2: float, y2: float, x3: float, y3: float,
 		|color: int)
@@ -56,6 +79,53 @@ end class
 	end func
 end class
 
++class Geometry()
+end class
+
++class PathGeometry(@Geometry)
+	var geometry: int
+	var pathGeometry: int
+	
+	+func[lib_dc.dll, _pathGeometryOpen, _make_instance]
+		|open(me2: @GeometrySink): @GeometrySink
+	end func
+	
+	*func[lib_dc.dll, _pathGeometryDtor, _force]_dtor()
+	end func
+end class
+
++class GeometrySink()
+	var geometrySink: int
+	
+	+func[lib_dc.dll, _geometrySinkBeginFigure]beginFigure(
+		|x: float, y: float, figureBegin: @GeometrySinkFigureBegin)
+	end func
+	
+	+func[lib_dc.dll, _geometrySinkEndFigure]endFigure(
+		|figureEnd: @GeometrySinkFigureEnd)
+	end func
+	
+	+func[lib_dc.dll, _geometrySinkClose]close()
+	end func
+	
+	+func[lib_dc.dll, _geometrySinkAddArc]addArc(
+		|x: float, y: float, rx: float, ry: float,
+		|sweepDirection: @ArcSweepDirection,
+		|arcSize: @ArcSize)
+	end func
+	
+	+func[lib_dc.dll, _geometrySinkAddBezier]addBezier(
+		|cx1: float, cy1: float, cx2: float, cy2: float,
+		|x: float, y: float)
+	end func
+	
+	+func[lib_dc.dll, _geometrySinkAddLine]addLine(x: float, y: float)
+	end func
+	
+	*func[lib_dc.dll, _geometrySinkDtor, _force]_dtor()
+	end func
+end class
+
 func[d0001.knd, _windowHandle]windowHandle(wnd: wnd@WndBase): int
 end func
 
@@ -71,4 +141,8 @@ end func
 		|lambda(me2: @GdiDC, hwnd: int): @GdiDC
 	end func
 	ret lambda(@windowHandle(wnd))
+end func
+
++func[lib_dc.dll, _makePathGeometry, _make_instance]
+	|makePathGeometry(me2: @PathGeometry): @PathGeometry
 end func
