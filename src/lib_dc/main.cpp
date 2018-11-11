@@ -20,6 +20,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 
 	switch (reason) {
 	case DLL_PROCESS_ATTACH:
+		Heap = GetProcessHeap();
 		res = D2D1CreateFactory(
 			D2D1_FACTORY_TYPE::D2D1_FACTORY_TYPE_SINGLE_THREADED,
 			&factory);
@@ -58,7 +59,49 @@ struct SGdiDeviceContext
 };
 
 //
-// ID2D1Geomeotryおよびそのサブクラス
+// ID2D1Brushおよびそのサブクラス
+//
+
+struct SBrush
+{
+	// レンダーターゲットのポインタは利便性のために保持する。
+	// レンダーターゲットがブラシより寿命が長いことを前提とし、
+	// レンダーターゲット解放後のブラシメソッド呼び出し時の挙動についてはケアしない。
+	SClass Class;
+	ID2D1RenderTarget* renderTarget;
+	ID2D1Brush* brush;
+};
+
+struct SLinearGradientBrush
+{
+	SBrush parent;
+	ID2D1LinearGradientBrush* brush;
+};
+
+struct SRadialGradientBrush
+{
+	SBrush parent;
+	ID2D1RadialGradientBrush* brush;
+};
+
+struct SSolidColorBrush
+{
+	SBrush parent;
+	ID2D1SolidColorBrush* brush;
+};
+
+//
+// ID2D1StrokeStyle
+//
+
+struct SStrokeStyle
+{
+	SClass Class;
+	ID2D1StrokeStyle* strokeStyle;
+};
+
+//
+// ID2D1Geometryおよびそのサブクラス
 //
 
 struct SGeometry
@@ -262,6 +305,64 @@ EXPORT_CPP void _tri(
 	brush->Release();
 	geometry->Release();
 	sink->Release();
+}
+
+EXPORT_CPP SClass* _makeLinearGradientBrush(
+	SClass* me_, SClass* me2, double sx, double sy, double ex, double ey,
+	void *position, void *color, S64 gamma, S64 extendMode)
+{
+	S64 lenPos = reinterpret_cast<S64*>(position)[1];
+	S64 lenColor = reinterpret_cast<S64*>(color)[1];
+	THROWDBG(lenPos != lenColor, 0x12345678);
+	SDeviceContext* me3 = reinterpret_cast<SDeviceContext*>(me_);
+	SLinearGradientBrush* me4 = reinterpret_cast<SLinearGradientBrush*>(me2);
+	ID2D1GradientStopCollection* gradientStopCollection = NULL;
+	D2D1_GRADIENT_STOP* gradientStops =
+		(D2D1_GRADIENT_STOP*)AllocMem(sizeof(D2D1_GRADIENT_STOP) * lenPos);
+	double *pPos = reinterpret_cast<double*>(position);
+	S64 *pColor = reinterpret_cast<S64*>(color);
+	for (S64 i = 0; i != lenPos; ++i) {
+		gradientStops[i].color = colorFromS64(*(pColor + i + 2));
+		gradientStops[i].position = *(pPos + i + 2);
+	}
+	me3->renderTarget->CreateGradientStopCollection(
+		gradientStops,
+		lenPos,
+		(D2D1_GAMMA)gamma,
+		(D2D1_EXTEND_MODE)extendMode,
+		&gradientStopCollection);
+	me3->renderTarget->CreateLinearGradientBrush(
+		D2D1::LinearGradientBrushProperties(
+			D2D1::Point2F(sx, sy),
+			D2D1::Point2F(ex, ey)),
+		gradientStopCollection,
+		&me4->brush);
+	FreeMem(gradientStops);
+	me4->parent.renderTarget = me3->renderTarget;
+	me4->brush->QueryInterface(
+		__uuidof(ID2D1Brush), (LPVOID*)&me4->parent.brush);
+	return me2;
+}
+
+//
+// ID2D1Brushのコンストラクタ・デストラクタ・メソッド
+//
+
+EXPORT_CPP void _brushLine(
+	SClass* me_, double x1, double y1, double x2, double y2, double strokeWidth,
+	SClass* strokeStyle)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SStrokeStyle* strokeStyle_ = reinterpret_cast<SStrokeStyle*>(strokeStyle);
+	me2->renderTarget->DrawLine(
+		D2D1::Point2F(x1, y1), D2D1::Point2F(x2, y2), me2->brush, strokeWidth,
+		(strokeStyle ? strokeStyle_->strokeStyle : NULL));
+}
+
+EXPORT_CPP void _linearGradientBrushDtor(SClass *me_) {
+	SLinearGradientBrush* me2 = reinterpret_cast<SLinearGradientBrush*>(me_);
+	me2->parent.brush->Release();
+	me2->brush->Release();
 }
 
 //

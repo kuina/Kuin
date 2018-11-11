@@ -1,0 +1,39 @@
+var dc: dc@DC
+var lineBrush: dc@Brush
+var pink: int :: 0xFFFF8888
+
+func main()
+	var wnd: wnd@Wnd :: wnd@makeWnd(null, %aspect, 800, 600,
+	|"dcライブラリサンプル3")
+	var draw: wnd@Draw :: wnd@makeDraw(wnd, 0, 0, 800, 600,
+	|%scale, %scale, false)
+	
+	do @dc :: dc@makeDC(draw)
+	do @lineBrush :: @dc.makeLinearGradientBrush(
+	|20.0, 20.0, 200.0, 100.0,
+	|[0.0, 0.5, 1.0],
+	|[0xFFFF4444, 0xFFFFCCCC, 0xFFFF4444],
+	|%normal, %clamp)
+	do draw.onPaint :: @onPaint
+	while(wnd@act())
+	end while
+end func
+
+func onPaint(wnd: wnd@Wnd, width: int, height: int)
+	do @dc.beginDraw()
+	; k
+	do @lineBrush.line(20.0, 20.0, 20.0, 100.0, 3.0, null)
+	do @lineBrush.line(60.0, 40.0, 16.0, 80.0, 3.0, null)
+	do @lineBrush.line(30.0, 77.0, 60.0, 100.0, 3.0, null)
+	; u
+	do @lineBrush.line(80.0, 50.0, 80.0, 100.0, 3.0, null)
+	do @lineBrush.line(80.0, 98.5, 120.0, 98.5, 3.0, null)
+	do @lineBrush.line(120.0, 100.0, 120.0, 50.0, 3.0, null)
+	; i
+	do @lineBrush.line(140.0, 40.0, 140.0, 100.0, 3.0, null)
+	; n
+	do @lineBrush.line(160.0, 50.0, 160.0, 100.0, 3.0, null)
+	do @lineBrush.line(160.0, 51.5, 200.0, 51.5, 3.0, null)
+	do @lineBrush.line(200.0, 50.0, 200.0, 100.0, 3.0, null)
+	do @dc.endDraw()
+end func

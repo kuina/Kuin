@@ -18,6 +18,17 @@ end enum
 	large :: 1
 end enum
 
++enum Gamma
+	normal :: 0 {D2D1_GAMMA_2_2}
+	linear :: 1 {D2D1_GAMMA_1_0}
+end enum
+
++enum ExtendMode
+	clamp :: 0
+	wrap :: 1
+	mirror :: 2
+end enum
+
 +class DC()
 	var renderTarget: int
 	
@@ -63,6 +74,17 @@ end enum
 		|x1: float, y1: float, x2: float, y2: float, x3: float, y3: float,
 		|color: int)
 	end func
+	
+	; インスタンス生成系メソッド
+	
+	+func[lib_dc.dll, _makeLinearGradientBrush, _make_instance]
+		|makeLinearGradientBrush(
+		|me2: @LinearGradientBrush,
+		|sx: float, sy: float, ex: float, ey: float,
+		|position: []float, color: []int,
+		|gamma: @Gamma, extendMode: @ExtendMode)
+		|:@LinearGradientBrush
+	end func
 end class
 
 +class WndDC(@DC)
@@ -81,6 +103,31 @@ end class
 	
 	*func[lib_dc.dll, _gdiDCDtor, _force]_dtor()
 	end func
+end class
+
++class Brush()
+	var renderTarget: int
+	var brush: int
+	
+	; 描画系メソッド
+	
+	+func[lib_dc.dll, _brushLine]line(
+		|x1: float, y1: float, x2: float, y2: float,
+		|strokeWidth: float, strokeStyle: @StrokeStyle)
+	end func
+end class
+
++class LinearGradientBrush(@Brush)
+	var linearGradientBrush: int
+	
+	*func[lib_dc.dll, _linearGradientBrushDtor, _force]_dtor()
+	end func
+end class
+
+; ストロークスタイルクラスは未実装です。
+; ストロークスタイルにはnull(実線)を指定してください。
++class StrokeStyle()
+	var strokeStyle: int
 end class
 
 +class Geometry()
