@@ -49,10 +49,10 @@ end class
 	+func [d1004.knd, _mapGet] get(x: int, y: int): int
 	end func
 
-	+func set(x: int, y: int, value: int)
+	+func [d1004.knd, _mapSet] set(x: int, y: int, value: int)
 	end func
 
-	+func find(x: &int, y: &int, value: int): bool
+	+func [d1004.knd, _mapFind] find(x: &int, y: &int, value: int): bool
 	end func
 
 	var mapWidth: int
