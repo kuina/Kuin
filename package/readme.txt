@@ -45,6 +45,7 @@ v.2018.11.17
 
 v.2018.11.17
     - ローカルなデータベース(SQLite)が構築できるsqlライブラリの追加
+    - 高度な2D図形が描画できるdraw2dライブラリの追加
     - 細かな機能追加
         - file@setCurDir、file@getCurDir、lib@countUp、draw@capture、
           file@moveDir、file@fullPath、zip@unzip関数の追加
