@@ -29,6 +29,7 @@ func main()
 		end for
 	end block
 
+	{
 	block
 		var sql: sql@Sql :: sql@makeSql("test.db")
 		do cui@print(sql.exec("create table item(id INTEGER, name TEXT)").toStr())
@@ -44,4 +45,5 @@ func main()
 		do sql.fin()
 		do file@delFile("test.db")
 	end block
+	}
 end func

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.25123.0
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "compiler", "src\compiler\compiler.vcxproj", "{386064E7-EF36-4A2C-BAA1-0085F547AE60}"
 EndProject
@@ -29,6 +29,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_math", "src\lib_math\lib_math.vcxproj", "{548D74A2-70C8-4DA3-A06A-7818B4C132C8}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_net", "src\lib_net\lib_net.vcxproj", "{804409A7-FFE4-4BBE-8FCF-6FE250BCDC56}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_draw2d", "src\lib_draw2d\lib_draw2d.vcxproj", "{9136E651-D063-49FD-AD03-4F21EC347407}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -81,6 +83,12 @@ Global
 		{804409A7-FFE4-4BBE-8FCF-6FE250BCDC56}.Release_dbg|x64.Build.0 = Release_dbg|x64
 		{804409A7-FFE4-4BBE-8FCF-6FE250BCDC56}.Release_rls|x64.ActiveCfg = Release_rls|x64
 		{804409A7-FFE4-4BBE-8FCF-6FE250BCDC56}.Release_rls|x64.Build.0 = Release_rls|x64
+		{9136E651-D063-49FD-AD03-4F21EC347407}.Debug|x64.ActiveCfg = Debug|x64
+		{9136E651-D063-49FD-AD03-4F21EC347407}.Debug|x64.Build.0 = Debug|x64
+		{9136E651-D063-49FD-AD03-4F21EC347407}.Release_dbg|x64.ActiveCfg = Release_dbg|x64
+		{9136E651-D063-49FD-AD03-4F21EC347407}.Release_dbg|x64.Build.0 = Release_dbg|x64
+		{9136E651-D063-49FD-AD03-4F21EC347407}.Release_rls|x64.ActiveCfg = Release_rls|x64
+		{9136E651-D063-49FD-AD03-4F21EC347407}.Release_rls|x64.Build.0 = Release_rls|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

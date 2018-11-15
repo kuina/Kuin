@@ -6,15 +6,5 @@ Excpt: 80000003
 > 0
 > 1001
 > 0
-> true
-> true
-> true
-> true
-> 100
-> Apple
-> true
-> 200
-> Orange
-> false
 Excpt: 80000003
 end: ../../test/output/output0022.exe

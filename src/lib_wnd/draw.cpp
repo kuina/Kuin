@@ -1,10 +1,10 @@
 #include "draw.h"
 
 // DirectX 10 is preinstalled on Windows Vista or later.
-#pragma comment(lib, "d3d10.lib")
+#pragma comment(lib, "d3d10_1.lib")
 #pragma comment(lib, "dxgi.lib")
 
-#include <d3d10.h>
+#include <d3d10_1.h>
 
 #include "png_decoder.h"
 #include "jpg_decoder.h"
@@ -24,6 +24,7 @@ static const int PolyVerticesNum = 64;
 
 struct SWndBuf
 {
+	void* Extra;
 	IDXGISwapChain* SwapChain;
 	ID3D10RenderTargetView* RenderTargetView;
 	ID3D10DepthStencilView* DepthView;
@@ -216,9 +217,10 @@ const U8* GetParticleUpdatingPsBin(size_t* size);
 const U8* GetPolyVsBin(size_t* size);
 const U8* GetPolyPsBin(size_t* size);
 
+static void* (*Callback2d)(int kind, void* arg1, void* arg2) = NULL;
 static S64 Cnt;
 static U32 PrevTime;
-static ID3D10Device* Device = NULL;
+static ID3D10Device1* Device = NULL;
 static ID3D10RasterizerState* RasterizerState = NULL;
 static ID3D10RasterizerState* RasterizerStateInverted = NULL;
 static ID3D10RasterizerState* RasterizerStateNone = NULL;
@@ -276,9 +278,17 @@ static float FilterParam[4][4];
 
 static Bool MakeTexWithImg(ID3D10Texture2D** tex, ID3D10ShaderResourceView** view, ID3D10RenderTargetView** render_target_view, int width, int height, const void* img, size_t pitch, DXGI_FORMAT fmt, D3D10_USAGE usage, UINT cpu_access_flag, Bool render_target);
 static void UpdateParticles(SParticle* particle);
+static void WriteBack();
+
+EXPORT_CPP void _set2dCallback(void*(*callback)(int, void*, void*))
+{
+	Callback2d = callback;
+}
 
 EXPORT_CPP void _render(S64 fps)
 {
+	WriteBack();
+
 	// Draw with a filter.
 	{
 		int old_z_buf = CurZBuf;
@@ -427,6 +437,7 @@ EXPORT_CPP void _autoClear(Bool enabled)
 
 EXPORT_CPP void _clear()
 {
+	WriteBack();
 	Draw::Clear();
 }
 
@@ -434,6 +445,7 @@ EXPORT_CPP void _editPixels(const void* callback)
 {
 	THROWDBG(callback == NULL, 0xc0000005);
 	THROWDBG(!CurWndBuf->Editable, 0xe917000a);
+	WriteBack();
 	const size_t buf_size = static_cast<size_t>(CurWndBuf->TexWidth * CurWndBuf->TexHeight);
 	U8* buf = static_cast<U8*>(AllocMem(0x10 + sizeof(U32) * buf_size));
 	((S64*)buf)[0] = 2;
@@ -457,6 +469,7 @@ EXPORT_CPP Bool _capture(const U8* path)
 {
 	THROWDBG(path == NULL, 0xc0000005);
 	ID3D10Texture2D* tex;
+	WriteBack();
 	if (CurWndBuf->Editable)
 		tex = CurWndBuf->EditableTex;
 	else
@@ -2068,13 +2081,48 @@ static void UpdateParticles(SParticle* particle)
 	particle->Draw1To2 = !particle->Draw1To2;
 }
 
+static void WriteBack()
+{
+	if (Callback2d != NULL)
+		Callback2d(3, NULL, NULL);
+}
+
 namespace Draw
 {
 
 void Init()
 {
-	if (FAILED(D3D10CreateDevice(NULL, D3D10_DRIVER_TYPE_HARDWARE, NULL, 0, D3D10_SDK_VERSION, &Device)))
-		THROW(0xe9170009);
+	{
+		const D3D10_DRIVER_TYPE type[] =
+		{
+			D3D10_DRIVER_TYPE_HARDWARE,
+			D3D10_DRIVER_TYPE_WARP
+		};
+		const D3D10_FEATURE_LEVEL1 level[] =
+		{
+			D3D10_FEATURE_LEVEL_10_1,
+			D3D10_FEATURE_LEVEL_10_0,
+			D3D10_FEATURE_LEVEL_9_3,
+			D3D10_FEATURE_LEVEL_9_2,
+			D3D10_FEATURE_LEVEL_9_1
+		};
+		Bool success = False;
+		for (int i = 0; i < sizeof(type) / sizeof(type[0]); i++)
+		{
+			for (int j = 0; j < sizeof(level) / sizeof(level[0]); j++)
+			{
+				if (SUCCEEDED(D3D10CreateDevice1(NULL, type[i], NULL, D3D10_CREATE_DEVICE_BGRA_SUPPORT, level[j], D3D10_1_SDK_VERSION, &Device)))
+				{
+					success = True;
+					break;
+				}
+			}
+			if (success)
+				break;
+		}
+		if (!success)
+			THROW(0xe9170009);
+	}
 
 	Cnt = 0;
 	PrevTime = static_cast<U32>(timeGetTime());
@@ -3070,6 +3118,14 @@ void* MakeDrawBuf(int tex_width, int tex_height, int screen_width, int screen_he
 	else
 		wnd_buf->EditableTex = NULL;
 
+	if (Callback2d != NULL)
+	{
+		IDXGISurface* surface = NULL;
+		if (FAILED(wnd_buf->TmpTex->QueryInterface(&surface)))
+			THROW(0xe9170009);
+		Callback2d(0, wnd_buf, surface);
+	}
+
 	ActiveDrawBuf(wnd_buf);
 	_resetViewport();
 	return wnd_buf;
@@ -3080,6 +3136,8 @@ void FinDrawBuf(void* wnd_buf)
 	if (CurWndBuf == wnd_buf)
 		CurWndBuf = NULL;
 	SWndBuf* wnd_buf2 = static_cast<SWndBuf*>(wnd_buf);
+	if (Callback2d != NULL)
+		Callback2d(1, wnd_buf, NULL);
 	if (wnd_buf2->TmpRenderTargetView != NULL)
 		wnd_buf2->TmpRenderTargetView->Release();
 	if (wnd_buf2->TmpShaderResView != NULL)
@@ -3103,6 +3161,9 @@ void ActiveDrawBuf(void* wnd_buf)
 		CurWndBuf = wnd_buf2;
 		Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
 		_resetViewport();
+
+		if (Callback2d != NULL)
+			Callback2d(2, wnd_buf, NULL);
 	}
 }
 

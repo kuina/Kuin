@@ -1,7 +1,7 @@
 func [d0004.knd, _init] _init()
 end func
 
-func [d0004.knd, _fin] _fin()
+func [d0004.knd] _fin()
 end func
 
 +class TcpServer()

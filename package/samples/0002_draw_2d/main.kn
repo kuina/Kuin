@@ -8,12 +8,12 @@ func main()
 	var fontMonospace: draw@Font :: draw@makeFont(null, 32, false, false, false, 40.0) {等幅フォントの生成}
 	do draw@clearColor(0xFF333333) {背景色の設定}
 	while(wnd@act())
-		do draw@line(100.0, 100.0, 200.0, 200.0, 0xFFFF3333) {線分}
-		do draw@rectLine(250.0, 100.0, 100.0, 100.0, 0xFF33FF33) {四角形の枠線}
-		do draw@rect(400.0, 100.0, 100.0, 100.0, 0xFF3333FF) {四角形}
-		do draw@circle(600.0, 150.0, 50.0, 50.0, 0xFFFFFF33) {円}
-		do draw@circleLine(750.0, 150.0, 50.0, 50.0, 0xFFFFFF33) {円}
-		do draw@tri(900.0, 100.0, 850.0, 200.0, 950.0, 200.0, 0xFFFF33FF) {三角形}
+		do draw2d@line(100.0, 100.0, 200.0, 200.0, 3.0, 0xFFFF3333) {線分}
+		do draw2d@rectLine(250.0, 100.0, 100.0, 100.0, 3.0, 0xFF33FF33) {四角形の枠線}
+		do draw2d@rect(400.0, 100.0, 100.0, 100.0, 0xFF3333FF) {四角形}
+		do draw2d@circle(600.0, 150.0, 50.0, 50.0, 0xFFFFFF33) {円}
+		do draw2d@circleLine(750.0, 150.0, 50.0, 50.0, 3.0, 0xFFFFFF33) {円}
+		do draw2d@tri(900.0, 100.0, 850.0, 200.0, 950.0, 200.0, 0xFFFF33FF) {三角形}
 		do draw@polyLine([1000.0, 1000.0, 1100.0, 1100.0, 1000.0], [100.0, 200.0, 100.0, 200.0, 100.0], [0xFF33FFFF, 0xFFFFFFFF, 0xFF33FFFF, 0xFFFFFFFF, 0xFF33FFFF]) {多角形}
 		do draw@poly([1150.0, 1150.0, 1200.0, 1200.0, 1250.0, 1250.0], [100.0, 200.0, 150.0, 150.0, 100.0, 200.0], [0xFF33FFFF, 0xFF33FFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFF33FFFF, 0xFF33FFFF]) {多角形}
 		for i(0, 3)
