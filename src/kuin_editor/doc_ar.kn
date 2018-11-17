@@ -219,7 +219,9 @@
 		var value2: int
 		switch(prop)
 		case "x"
-			if(value.toInt(&value2))
+			var existed: bool
+			do value2 :: value.toInt(&existed)
+			if(existed)
 				var parentValue: int
 				if(me.holds.get().parent =& null)
 					do parentValue :: 0
@@ -231,7 +233,9 @@
 				ret
 			end if
 		case "y"
-			if(value.toInt(&value2))
+			var existed: bool
+			do value2 :: value.toInt(&existed)
+			if(existed)
 				var parentValue: int
 				if(me.holds.get().parent =& null)
 					do parentValue :: 0
@@ -792,13 +796,13 @@ end class
 		case "name"
 			do me.objName :: value
 		case "x"
-			do value.toInt(&me.absX)
+			do me.absX :: value.toInt(&)
 		case "y"
-			do value.toInt(&me.absY)
+			do me.absY :: value.toInt(&)
 		case "width"
-			do value.toInt(&me.width)
+			do me.width :: value.toInt(&)
 		case "height"
-			do value.toInt(&me.height)
+			do me.height :: value.toInt(&)
 		end switch
 	end func
 

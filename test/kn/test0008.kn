@@ -13,7 +13,11 @@ func main()
 			do n.add(9, 19)
 			do cui@print((^n).toStr())
 			for i(0, 11)
-				do cui@print(n.get(i).toStr())
+				var existed: bool
+				do cui@print(n.get(i, &existed).toStr())
+				if (!existed)
+					do cui@print("Not existed.")
+				end if
 			end for
 		end block
 
@@ -30,7 +34,11 @@ func main()
 			do n.add(9, "i")
 			do cui@print((^n).toStr())
 			for i(0, 11)
-				do cui@print(n.get(i))
+				var existed: bool
+				do cui@print(n.get(i, &existed))
+				if (!existed)
+					do cui@print("Not existed.")
+				end if
 			end for
 		end block
 
@@ -47,7 +55,11 @@ func main()
 			do n.add("i", 9)
 			do cui@print((^n).toStr())
 			for i(0, 11)
-				do cui@print(n.get((('a' $ int + i - 1) $ char).toStr()).toStr())
+				var existed: bool
+				do cui@print(n.get((('a' $ int + i - 1) $ char).toStr(), &existed).toStr())
+				if (!existed)
+					do cui@print("Not existed.")
+				end if
 			end for
 		end block
 
@@ -64,7 +76,11 @@ func main()
 			do n.add("i", "I")
 			do cui@print((^n).toStr())
 			for i(0, 11)
-				do cui@print(n.get((('a' $ int + i - 1) $ char).toStr()))
+				var existed: bool
+				do cui@print(n.get((('a' $ int + i - 1) $ char).toStr(), &existed))
+				if (!existed)
+					do cui@print("Not existed.")
+				end if
 			end for
 		end block
 	end for

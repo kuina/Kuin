@@ -48,9 +48,9 @@ func main()
 			do n.add("c", "C")
 			do n.add("b", "B")
 			var m: dict<[]char, []char> :: ##n
-			do cui@print(n.get("a") ~ n.get("b") ~ n.get("c"))
-			do cui@print(m.get("a") ~ m.get("b") ~ m.get("c"))
-			do cui@print((n.get("a") = m.get("a")).toStr() ~ ", " ~ (n.get("a") =& m.get("a")).toStr())
+			do cui@print(n.get("a", &) ~ n.get("b", &) ~ n.get("c", &))
+			do cui@print(m.get("a", &) ~ m.get("b", &) ~ m.get("c", &))
+			do cui@print((n.get("a", &) = m.get("a", &)).toStr() ~ ", " ~ (n.get("a", &) =& m.get("a", &)).toStr())
 		end block
 
 		block

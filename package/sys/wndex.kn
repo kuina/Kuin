@@ -155,7 +155,9 @@ end func
 				ret 0
 			end if
 			var result: int
-			if(attr.toInt(&result))
+			var existed: bool
+			do result :: attr.toInt(&existed)
+			if(existed)
 				ret result
 			else
 				ret 0

@@ -1657,20 +1657,22 @@ EXPORT void* _repeat(const void* me_, const U8* type, S64 len)
 	return result;
 }
 
-EXPORT Bool _toInt(const U8* me_, S64* value)
+EXPORT S64 _toInt(const U8* me_, Bool* existed)
 {
 	Char* ptr;
 	THROWDBG(me_ == NULL, 0xc0000005);
-	*value = wcstoll((const Char*)(me_ + 0x10), &ptr, 10);
-	return *ptr == L'\0';
+	S64 value = wcstoll((const Char*)(me_ + 0x10), &ptr, 10);
+	*existed = *ptr == L'\0';
+	return value;
 }
 
-EXPORT Bool _toFloat(const U8* me_, double* value)
+EXPORT double _toFloat(const U8* me_, Bool* existed)
 {
 	Char* ptr;
 	THROWDBG(me_ == NULL, 0xc0000005);
-	*value = wcstod((const Char*)(me_ + 0x10), &ptr);
-	return *ptr == L'\0';
+	double value = wcstod((const Char*)(me_ + 0x10), &ptr);
+	*existed = *ptr == L'\0';
+	return value;
 }
 
 EXPORT void* _lower(const U8* me_)
@@ -2186,7 +2188,7 @@ EXPORT void* _getQueue(void* me_, const U8* type)
 	return result;
 }
 
-EXPORT void* _getDict(void* me_, const U8* type, const void* key)
+EXPORT void* _getDict(void* me_, const U8* type, const void* key, Bool* existed)
 {
 	THROWDBG(me_ == NULL, 0xc0000005);
 	U8* child1;
@@ -2203,6 +2205,7 @@ EXPORT void* _getDict(void* me_, const U8* type, const void* key)
 			{
 				void* result = NULL;
 				Copy(&result, *child2, (U8*)node + 0x20);
+				*existed = True;
 				return result;
 			}
 			if (cmp < 0)
@@ -2211,6 +2214,7 @@ EXPORT void* _getDict(void* me_, const U8* type, const void* key)
 				node = *(void**)((U8*)node + 0x08);
 		}
 	}
+	*existed = False;
 	return NULL;
 }
 

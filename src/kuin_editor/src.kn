@@ -219,7 +219,7 @@ end func
 +func getSrc(path: []char): [][]char
 	; This function is called by the Kuin compiler.
 	var path2: []char :: (##path).replace("\\", "/")
-	var doc: \doc@Doc :: @docs.get(path2)
+	var doc: \doc@Doc :: @docs.get(path2, &)
 	if(doc <>& null)
 		var doc2: \doc_src@DocSrc :: doc $ \doc_src@DocSrc
 		ret doc2.getSrc()
@@ -263,7 +263,7 @@ end func
 	if(src =& null)
 		ret false
 	end if
-	var doc: \doc@Doc :: @docs.get(src)
+	var doc: \doc@Doc :: @docs.get(src, &)
 	if(doc =& null)
 		ret false
 	end if
@@ -406,7 +406,7 @@ end func
 		if(srcName =& null)
 			ret true
 		end if
-		var doc: \doc@Doc :: @docs.get(srcName)
+		var doc: \doc@Doc :: @docs.get(srcName, &)
 		if(doc <>& null & doc =$ \doc_src@DocSrc)
 			var doc2: \doc_src@DocSrc :: doc $ \doc_src@DocSrc
 			var x: int :: pos.col - 1

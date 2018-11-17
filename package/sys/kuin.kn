@@ -152,10 +152,10 @@ end func
 func [d0000.knd, _any_type, _ret_me] _repeat(me_: []bit8, type: int, len: int): int
 end func
 
-func [d0000.knd] _toInt(me_: []char, value: &int): bool
+func [d0000.knd] _toInt(me_: []char, existed: &bool): int
 end func
 
-func [d0000.knd] _toFloat(me_: []char, value: &float): bool
+func [d0000.knd] _toFloat(me_: []char, existed: &bool): float
 end func
 
 func [d0000.knd] _lower(me_: []char): []char
@@ -212,7 +212,7 @@ end func
 func [d0000.knd, _any_type, _ret_child] _getQueue(me_: []bit8, type: int): int
 end func
 
-func [d0000.knd, _any_type, _take_child, _ret_child] _getDict(me_: []bit8, type: int, key: []bit8): int
+func [d0000.knd, _any_type, _take_child, _ret_child] _getDict(me_: []bit8, type: int, key: []bit8, existed: &bool): int
 end func
 
 func [d0000.knd, _any_type, _ret_child] _getOffset(me_: []bit8, type: int, offset: int): int

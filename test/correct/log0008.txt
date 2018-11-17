@@ -2,158 +2,194 @@ Begin: ../../test/output/output0008.exe
 Excpt: 80000003
 > 9
 > 0
+> Not existed.
 > 11
 > 12
 > 13
 > 14
 > 0
+> Not existed.
 > 16
 > 17
 > 18
 > 19
 > 20
 > 0
+> Not existed.
 > 9
 > (null)
+> Not existed.
 > a
 > b
 > c
 > d
 > (null)
+> Not existed.
 > f
 > g
 > h
 > i
 > j
 > (null)
+> Not existed.
 > 9
 > 0
+> Not existed.
 > 1
 > 2
 > 3
 > 4
 > 0
+> Not existed.
 > 6
 > 7
 > 8
 > 9
 > 10
 > 0
+> Not existed.
 > 9
 > (null)
+> Not existed.
 > A
 > B
 > C
 > D
 > (null)
+> Not existed.
 > F
 > G
 > H
 > I
 > J
 > (null)
+> Not existed.
 > 9
 > 0
+> Not existed.
 > 11
 > 12
 > 13
 > 14
 > 0
+> Not existed.
 > 16
 > 17
 > 18
 > 19
 > 20
 > 0
+> Not existed.
 > 9
 > (null)
+> Not existed.
 > a
 > b
 > c
 > d
 > (null)
+> Not existed.
 > f
 > g
 > h
 > i
 > j
 > (null)
+> Not existed.
 > 9
 > 0
+> Not existed.
 > 1
 > 2
 > 3
 > 4
 > 0
+> Not existed.
 > 6
 > 7
 > 8
 > 9
 > 10
 > 0
+> Not existed.
 > 9
 > (null)
+> Not existed.
 > A
 > B
 > C
 > D
 > (null)
+> Not existed.
 > F
 > G
 > H
 > I
 > J
 > (null)
+> Not existed.
 > 9
 > 0
+> Not existed.
 > 11
 > 12
 > 13
 > 14
 > 0
+> Not existed.
 > 16
 > 17
 > 18
 > 19
 > 20
 > 0
+> Not existed.
 > 9
 > (null)
+> Not existed.
 > a
 > b
 > c
 > d
 > (null)
+> Not existed.
 > f
 > g
 > h
 > i
 > j
 > (null)
+> Not existed.
 > 9
 > 0
+> Not existed.
 > 1
 > 2
 > 3
 > 4
 > 0
+> Not existed.
 > 6
 > 7
 > 8
 > 9
 > 10
 > 0
+> Not existed.
 > 9
 > (null)
+> Not existed.
 > A
 > B
 > C
 > D
 > (null)
+> Not existed.
 > F
 > G
 > H
 > I
 > J
 > (null)
+> Not existed.
 end: ../../test/output/output0008.exe

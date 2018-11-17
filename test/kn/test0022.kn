@@ -11,8 +11,8 @@ func main()
 			end for
 			do cui@print((^d).toStr())
 			for i(0, ^rndArray - 1)
-				if(d.get(rndArray[i].toStr()) <> (rndArray[i] * 2).toStr())
-					do cui@print("False: \{rndArray[i]}, \{d.get(rndArray[i].toStr())}")
+				if(d.get(rndArray[i].toStr(), &) <> (rndArray[i] * 2).toStr())
+					do cui@print("False: \{rndArray[i]}, \{d.get(rndArray[i].toStr(), &)}")
 				end if
 			end for
 
@@ -22,8 +22,8 @@ func main()
 			do cui@print((^d).toStr())
 
 			for i(0, ^rndArray - 1)
-				if(d.get(rndArray[i].toStr()) <>& null)
-					do cui@print("False: \{rndArray[i]}, \{d.get(rndArray[i].toStr())}")
+				if(d.get(rndArray[i].toStr(), &) <>& null)
+					do cui@print("False: \{rndArray[i]}, \{d.get(rndArray[i].toStr(), &)}")
 				end if
 			end for
 		end for
@@ -46,4 +46,16 @@ func main()
 		do file@delFile("test.db")
 	end block
 	}
+
+	block
+		var existed: bool
+		do cui@print("123".toInt(&existed).toStr())
+		do cui@print(existed.toStr())
+		do cui@print("abc".toInt(&existed).toStr())
+		do cui@print(existed.toStr())
+		do cui@print("10.5".toFloat(&existed).toStr())
+		do cui@print(existed.toStr())
+		do cui@print("abc".toFloat(&existed).toStr())
+		do cui@print(existed.toStr())
+	end block
 end func

@@ -623,12 +623,12 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do \src@docs.forEach(callback, breakPoint)
 		var itemsArray: []\src@Pos :: breakPoint.items.toArray()
 		for i(0, ^itemsArray - 1)
-			do (\src@docs.get(\src@internalNameToSrcName(itemsArray[i].src)) $ \doc_src@DocSrc).unsetBreakPoint(itemsArray[i].row - 1)
+			do (\src@docs.get(\src@internalNameToSrcName(itemsArray[i].src), &) $ \doc_src@DocSrc).unsetBreakPoint(itemsArray[i].row - 1)
 		end for
 		do \dll@setBreakPoints(itemsArray)
 		for i(0, ^itemsArray - 1)
 			if(itemsArray[i].row <> -1)
-				do (\src@docs.get(\src@internalNameToSrcName(itemsArray[i].src)) $ \doc_src@DocSrc).setBreakPoint(itemsArray[i].row - 1)
+				do (\src@docs.get(\src@internalNameToSrcName(itemsArray[i].src), &) $ \doc_src@DocSrc).setBreakPoint(itemsArray[i].row - 1)
 			end if
 		end for
 		do @paintDrawEditor()
@@ -780,7 +780,7 @@ end func
 		var internalName: []char :: \src@removePrefix(@listFile.getText(sel))
 		if(^internalName > 0 & (internalName[0] = '\\' | internalName[0] = '!'))
 			var src: []char :: \src@internalNameToSrcName(internalName)
-			var doc: \doc@Doc :: \src@docs.get(src)
+			var doc: \doc@Doc :: \src@docs.get(src, &)
 			if(doc <>& null)
 				do \src@setCurSrc(doc)
 			end if

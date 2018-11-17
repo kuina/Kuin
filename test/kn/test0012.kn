@@ -161,7 +161,7 @@ func main()
 			var bin : []bit8 :: n $> []bit8
 			do @dump(bin)
 			do m :: bin $< dict<[]char, int>
-			do cui@print(m.get("a").toStr() ~ ", " ~ m.get("b").toStr() ~ ", " ~ m.get("c").toStr())
+			do cui@print(m.get("a", &).toStr() ~ ", " ~ m.get("b", &).toStr() ~ ", " ~ m.get("c", &).toStr())
 		end block
 
 		block
