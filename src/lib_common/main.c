@@ -1423,12 +1423,12 @@ EXPORT S64 _findArray(const void* me_, const U8* type, const void* item, S64 sta
 	if (cmp == NULL)
 		THROW(0xe9170004);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
-	U8* ptr = (U8*)me_ + 0x10;
-	S64 i;
 	if (start < -1 || len <= start)
 		return -1;
 	if (start == -1)
 		start = 0;
+	U8* ptr = (U8*)me_ + 0x10 + size * start;
+	S64 i;
 	for (i = start; i < len; i++)
 	{
 		void* value = NULL;
@@ -1469,12 +1469,12 @@ EXPORT S64 _findLastArray(const void* me_, const U8* type, const void* item, S64
 	if (cmp == NULL)
 		THROW(0xe9170004);
 	S64 len = *(S64*)((U8*)me_ + 0x08);
-	U8* ptr = (U8*)me_ + 0x10 + size * (size_t)(len - 1);
-	S64 i;
 	if (start < -1 || len <= start)
 		return -1;
 	if (start == -1)
 		start = len - 1;
+	U8* ptr = (U8*)me_ + 0x10 + size * start;
+	S64 i;
 	for (i = start; i >= 0; i--)
 	{
 		void* value = NULL;
