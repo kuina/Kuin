@@ -2463,7 +2463,16 @@ static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width
 	me3->Editable = editable;
 	me3->WheelX = 0;
 	me3->WheelY = 0;
-	me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), static_cast<int>(width), static_cast<int>(height), me2->WndHandle, NULL, editable);
+	if (equal_magnification)
+	{
+		RECT rect;
+		GetWindowRect(me2->WndHandle, &rect);
+		int width2 = static_cast<int>(rect.right - rect.left);
+		int height2 = static_cast<int>(rect.bottom - rect.top);
+		me3->DrawBuf = Draw::MakeDrawBuf(width2, height2, me2->WndHandle, NULL, editable);
+	}
+	else
+		me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), me2->WndHandle, NULL, editable);
 	me3->OnPaint = NULL;
 	me3->OnMouseDownL = NULL;
 	me3->OnMouseDownR = NULL;
@@ -2822,14 +2831,13 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<U64>(w_param)), wnd3->OnKeyChar);
 			return 0;
 		case WM_SIZE:
+			if (wnd3->EqualMagnification)
 			{
 				int width = static_cast<int>(LOWORD(l_param));
 				int height = static_cast<int>(HIWORD(l_param));
 				if (width > 0 && height > 0)
 				{
-					int screen_width = wnd3->EqualMagnification ? width : wnd2->DefaultWidth;
-					int screen_height = wnd3->EqualMagnification ? height : wnd2->DefaultHeight;
-					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, screen_width, screen_height, wnd2->WndHandle, wnd3->DrawBuf, wnd3->Editable);
+					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, wnd2->WndHandle, wnd3->DrawBuf, wnd3->Editable);
 					wnd3->DrawTwice = True;
 				}
 			}
