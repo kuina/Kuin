@@ -10,7 +10,7 @@ end func
 +func [d0001.knd, _cnt] cnt(): int
 end func
 
-+func [d0001.knd, _viewport] viewport(x: float, y: float, w: float, h: float)
++func [d0001.knd, _viewport] viewport(x: float, y: float, width: float, height: float)
 end func
 
 +func [d0001.knd, _resetViewport] resetViewport()
@@ -59,10 +59,10 @@ end func
 +func [d0001.knd, _line] line(x1: float, y1: float, x2: float, y2: float, color: int)
 end func
 
-+func [d0001.knd, _rect] rect(x: float, y: float, w: float, h: float, color: int)
++func [d0001.knd, _rect] rect(x: float, y: float, width: float, height: float, color: int)
 end func
 
-+func [d0001.knd, _rectLine] rectLine(x: float, y: float, w: float, h: float, color: int)
++func [d0001.knd, _rectLine] rectLine(x: float, y: float, width: float, height: float, color: int)
 end func
 
 +func [d0001.knd, _circle, _1] circle(x: float, y: float, radiusX: float, radiusY: float, color: int)
