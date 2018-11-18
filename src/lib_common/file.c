@@ -672,8 +672,12 @@ EXPORT void* _sysDir(S64 kind)
 EXPORT void* _exeDir(void)
 {
 	Char path[KUIN_MAX_PATH + 1];
+#if defined(DBG)
+	wcscpy(path, EnvVars.ResRoot);
+#else
 	if (!GetModuleFileName(NULL, path, KUIN_MAX_PATH))
 		return NULL;
+#endif
 	{
 		size_t len = wcslen(path);
 		U8* result;
