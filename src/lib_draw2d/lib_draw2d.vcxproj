@@ -83,7 +83,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)test\output\data\d1006.knd</Command>
+      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)test\output\data\d0005.knd</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_rls|x64'">
@@ -105,7 +105,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\rls\d1006.knd</Command>
+      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\rls\d0005.knd</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_dbg|x64'">
@@ -127,7 +127,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\dbg\d1006.knd</Command>
+      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)package\sys\dbg\d0005.knd</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

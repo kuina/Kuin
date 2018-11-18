@@ -80,6 +80,25 @@ typedef enum EUseResFlagsKind
 } EUseResFlagsKind;
 #define USE_RES_FLAGS_LEN (1)
 
+/*
+	Uncommitted Libraries:
+		d0000.knd	common
+		d0001.knd	wnd
+		d0002.knd	cui
+		d0003.knd	math
+		d0004.knd	net
+		d0005.knd	draw2d
+		d0917.knd	compiler
+
+	Committed additional libraries:
+		d1000.knd	ogg
+		d1001.knd	zip
+		d1002.knd	boost
+		d1003.knd	xml
+		d1004.knd	game
+		d1005.knd	sql
+*/
+
 typedef struct SEnvVars
 {
 	void* Heap;
