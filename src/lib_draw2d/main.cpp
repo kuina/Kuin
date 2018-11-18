@@ -167,6 +167,7 @@ EXPORT_CPP SClass* _makeBrushLinearGradient(SClass* me_, double x1, double y1, d
 	CurRenderTarget->CreateGradientStopCollection(gradient_stops, static_cast<UINT32>(lenPos), &gradient_stop_collection);
 	FreeMem(gradient_stops);
 	CurRenderTarget->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2))), gradient_stop_collection, &me2->Brush);
+	gradient_stop_collection->Release();
 	return me_;
 }
 
@@ -181,6 +182,65 @@ EXPORT_CPP void _brushLine(SClass* me_, double x1, double y1, double x2, double 
 	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
 	SStrokeStyle* strokeStyle2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
 	CurRenderTarget->DrawLine(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2)), me2->Brush, static_cast<FLOAT>(stroke_width), stroke_style != NULL ? strokeStyle2->StrokeStyle : NULL);
+}
+
+EXPORT_CPP void _brushRect(SClass* me_, double x, double y, double width, double height, SClass* stroke_style)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SStrokeStyle* strokeStyle2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
+	CurRenderTarget->FillRectangle(D2D1::RectF(static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(x + width), static_cast<FLOAT>(y + height)), me2->Brush);
+}
+
+EXPORT_CPP void _brushRectLine(SClass* me_, double x, double y, double width, double height, double stroke_width, SClass* stroke_style)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SStrokeStyle* strokeStyle2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
+	CurRenderTarget->DrawRectangle(D2D1::RectF(static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(x + width), static_cast<FLOAT>(y + height)), me2->Brush, static_cast<FLOAT>(stroke_width), stroke_style != NULL ? strokeStyle2->StrokeStyle : NULL);
+}
+
+EXPORT_CPP void _brushCircle(SClass* me_, double x, double y, double radius_x, double radius_y, SClass* stroke_style)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SStrokeStyle* strokeStyle2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
+	CurRenderTarget->FillEllipse(D2D1::Ellipse(D2D1::Point2F(static_cast<FLOAT>(x), static_cast<FLOAT>(y)), static_cast<FLOAT>(radius_x), static_cast<FLOAT>(radius_y)), me2->Brush);
+}
+
+EXPORT_CPP void _brushCircleLine(SClass* me_, double x, double y, double radius_x, double radius_y, double stroke_width, SClass* stroke_style)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SStrokeStyle* strokeStyle2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
+	CurRenderTarget->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(static_cast<FLOAT>(x), static_cast<FLOAT>(y)), static_cast<FLOAT>(radius_x), static_cast<FLOAT>(radius_y)), me2->Brush, static_cast<FLOAT>(stroke_width), stroke_style != NULL ? strokeStyle2->StrokeStyle : NULL);
+}
+
+EXPORT_CPP void _brushTri(SClass* me_, double x1, double y1, double x2, double y2, double x3, double y3)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	ID2D1PathGeometry* geometry = NULL;
+	ID2D1GeometrySink* sink = NULL;
+	Factory->CreatePathGeometry(&geometry);
+	geometry->Open(&sink);
+	sink->BeginFigure(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1_FIGURE_BEGIN_FILLED);
+	sink->AddLine(D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2)));
+	sink->AddLine(D2D1::Point2F(static_cast<FLOAT>(x3), static_cast<FLOAT>(y3)));
+	sink->EndFigure(D2D1_FIGURE_END_CLOSED);
+	sink->Close();
+	CurRenderTarget->FillGeometry(geometry, me2->Brush);
+	sink->Release();
+	geometry->Release();
+}
+
+EXPORT_CPP void _brushDraw(SClass* me_, SClass* geometry)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SGeometry* geometry2 = reinterpret_cast<SGeometry*>(geometry);
+	CurRenderTarget->FillGeometry(geometry2->Geometry, me2->Brush);
+}
+
+EXPORT_CPP void _brushDrawLine(SClass* me_, SClass* geometry, double stroke_width)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SGeometry* geometry2 = reinterpret_cast<SGeometry*>(geometry);
+	CurRenderTarget->DrawGeometry(geometry2->Geometry, me2->Brush, static_cast<FLOAT>(stroke_width));
 }
 
 EXPORT_CPP SClass* _makeGeometryPath(SClass* me_)
