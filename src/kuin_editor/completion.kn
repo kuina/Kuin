@@ -27,7 +27,7 @@ end func
 	end if
 	if(@wndCompletion =& null)
 		do @keywords :: #list<[]char>
-		do \dll@getKeywords(src, srcName, posX, posY, getKeywordsCallback)
+		var funcHint: []char :: \dll@getKeywords(src, srcName, posX, posY, getKeywordsCallback)
 		if(^@keywords = 0)
 			do @close()
 			ret
@@ -42,17 +42,11 @@ end func
 		do @wndCompletionListKeywords.onMouseDoubleClick :: @wndCompletionListKeywordsOnMouseDoubleClick
 		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 52, 250, 30, %fix, %fix)
 		do @wndCompletionEditFunc.readonly(true)
-		{
-			; TODO:
-		if(^funcHint = 0)
-		}
+		if(funcHint =& null | ^funcHint = 0)
 			do @wndCompletionEditFunc.setText(\common@langEn ?("Select...Up/Down\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Up/Down\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
-		{
-			; TODO:
 		else
 			do @wndCompletionEditFunc.setText(funcHint)
 		end if
-		}
 
 		do @wndCompletionListKeywords.setRedraw(false)
 		do @wndCompletionListKeywords.clear()

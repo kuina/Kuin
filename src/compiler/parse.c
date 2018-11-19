@@ -134,6 +134,7 @@ static int GetKeywordsKeywordListNum;
 static const SKeywordListItem** GetKeywordsKeywordList;
 static SKeywordTypeList* KeywordTypeListTop;
 static SKeywordTypeList* KeywordTypeListBottom;
+static SAstFunc* KeywordHintFunc;
 
 static void GetKeywordsRootImpl(const Char** str, const Char* end, const Char* src_name, int x, int y, U64 flags, void* callback, int keyword_list_num, const void* keyword_list);
 static const void* ParseSrc(const Char* src_name, const void* ast, void* param);
@@ -246,6 +247,7 @@ static Char* GetKeywordType(const Char* identifier);
 static Char* GetKeywordTypeRecursion(const SAstType* type);
 static void PtrToStr(Char* str, const void* ptr);
 static void StrToPtr(void* ptr, const Char* str);
+static void GetKeywordHintTypeNameRecursion(size_t* len, Char* buf, const SAstType* type);
 
 SDict* Parse(FILE*(*func_wfopen)(const Char*, const Char*), int(*func_fclose)(FILE*), U16(*func_fgetwc)(FILE*), size_t(*func_size)(FILE*), const SOption* option, U8* use_res_flags)
 {
@@ -388,7 +390,7 @@ Bool InterpretImpl1(void* str, void* color, void* comment_level, void* flags, S6
 	return True;
 }
 
-void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, int x, int y, U64 flags, void* callback, int keyword_list_num, const void* keyword_list)
+void* GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, int x, int y, U64 flags, void* callback, int keyword_list_num, const void* keyword_list)
 {
 	SKeywordTypeList* item = (SKeywordTypeList*)AllocMem(sizeof(SKeywordTypeList));
 	item->Next = NULL;
@@ -396,6 +398,7 @@ void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, in
 	item->Type[0] = L'\0';
 	KeywordTypeListTop = item;
 	KeywordTypeListBottom = item;
+	KeywordHintFunc = NULL;
 	GetKeywordsRootImpl(str, end, src_name, x, y, flags, callback, keyword_list_num, keyword_list);
 	SKeywordTypeList* ptr = KeywordTypeListTop;
 	while (ptr != NULL)
@@ -405,6 +408,38 @@ void GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, in
 		FreeMem(ptr2->Type);
 		FreeMem(ptr2);
 	}
+	if (KeywordHintFunc != NULL)
+	{
+		Char hint[AUXILIARY_BUF_SIZE + 1];
+		size_t len = 0;
+		len += swprintf(hint + len, AUXILIARY_BUF_SIZE, L"func %s@%s(", ((SAst*)KeywordHintFunc)->Pos->SrcName, ((SAst*)KeywordHintFunc)->Name);
+		SListNode* ptr2 = KeywordHintFunc->Args->Top;
+		while (ptr2 != NULL)
+		{
+			const SAstArg* arg = (const SAstArg*)ptr2->Data;
+			if (ptr2 != KeywordHintFunc->Args->Top && len < AUXILIARY_BUF_SIZE)
+				len += swprintf(hint + len, AUXILIARY_BUF_SIZE - len, L", ");
+			if (len < AUXILIARY_BUF_SIZE)
+				len += swprintf(hint + len, AUXILIARY_BUF_SIZE - len, L"%s: ", ((SAst*)arg)->Name);
+			GetKeywordHintTypeNameRecursion(&len, hint, arg->Type);
+			ptr2 = ptr2->Next;
+		}
+		if (len < AUXILIARY_BUF_SIZE)
+			len += swprintf(hint + len, AUXILIARY_BUF_SIZE - len, L")");
+		if (KeywordHintFunc->Ret != NULL)
+		{
+			if (len < AUXILIARY_BUF_SIZE)
+				len += swprintf(hint + len, AUXILIARY_BUF_SIZE - len, L": ");
+			GetKeywordHintTypeNameRecursion(&len, hint, KeywordHintFunc->Ret);
+		}
+		KeywordHintFunc = NULL;
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+		((S64*)result)[0] = 1;
+		((S64*)result)[1] = len;
+		memcpy(result + 0x10, hint, sizeof(Char) * (len + 1));
+		return result;
+	}
+	return NULL;
 }
 
 void GetDbgVars(int keyword_list_num, const void* keyword_list, const Char* pos_name, int pos_row, HANDLE process_handle, U64 start_addr, const CONTEXT* context, void* callback)
@@ -705,7 +740,6 @@ static void GetKeywordsRootImpl(const Char** str, const Char* end, const Char* s
 			return;
 		if (GetKeywordsReadIdentifier(buf, str, True, True))
 		{
-			GetKeywordsAdd(L"class_name");
 			GetKeywordsAddKeywords(L'c');
 			return;
 		}
@@ -5704,6 +5738,12 @@ static Bool GetKeywordsReadExprCall(const Char** str, Char** type)
 		switch (c)
 		{
 			case L'(':
+				if ((*type)[0] == L'&' && (*type)[1] == L'F')
+				{
+					void* type_ptr;
+					StrToPtr(&type_ptr, (*type) + 2);
+					KeywordHintFunc = (SAstFunc*)type_ptr;
+				}
 				c = GetKeywordsReadChar(str);
 				if (c == L'\0')
 					return True;
@@ -5744,7 +5784,28 @@ static Bool GetKeywordsReadExprCall(const Char** str, Char** type)
 						}
 					}
 				}
-				*type = L"";
+				if ((*type)[0] == L'&' && (*type)[1] == L'F')
+				{
+					void* type_ptr;
+					StrToPtr(&type_ptr, (*type) + 2);
+					SAstType* ret_type = ((SAstFunc*)type_ptr)->Ret;
+					if (ret_type == NULL)
+						*type = L"";
+					else
+						*type = GetKeywordTypeRecursion(ret_type);
+				}
+				else if ((*type)[0] == L'&' && (*type)[1] == L'f')
+				{
+					void* type_ptr;
+					StrToPtr(&type_ptr, (*type) + 2);
+					SAstType* ret_type = ((SAstTypeFunc*)type_ptr)->Ret;
+					if (ret_type == NULL)
+						*type = L"";
+					else
+						*type = GetKeywordTypeRecursion(ret_type);
+				}
+				else
+					*type = L"";
 				break;
 			case L'[':
 				{
@@ -6129,10 +6190,6 @@ static void GetKeywordsAddMember(const Char* type)
 			GetKeywordsAdd(L"or");
 			GetKeywordsAdd(L"xor");
 		}
-		else if (type[1] == L'f')
-		{
-			// TODO:
-		}
 		else if (type[1] == L'l')
 		{
 			GetKeywordsAdd(L"add");
@@ -6286,6 +6343,15 @@ static Char* GetKeywordType(const Char* identifier)
 		buf[10] = L'\0';
 		return NewKeywordType(buf);
 	}
+	else if (ast->TypeId == AstTypeId_Func)
+	{
+		Char buf[1024];
+		buf[0] = L'&';
+		buf[1] = L'F';
+		PtrToStr(buf + 2, &ast);
+		buf[10] = L'\0';
+		return NewKeywordType(buf);
+	}
 	if (type == NULL)
 		return L"";
 	return GetKeywordTypeRecursion(type);
@@ -6311,7 +6377,14 @@ static Char* GetKeywordTypeRecursion(const SAstType* type)
 			}
 			break;
 		case AstTypeId_TypeFunc:
-			return L"";
+			{
+				Char buf[1024];
+				buf[0] = L'&';
+				buf[1] = L'f';
+				PtrToStr(buf + 2, type);
+				buf[10] = L'\0';
+				return NewKeywordType(buf);
+			}
 		case AstTypeId_TypeGen:
 			switch (((SAstTypeGen*)type)->Kind)
 			{
@@ -6333,14 +6406,13 @@ static Char* GetKeywordTypeRecursion(const SAstType* type)
 				return NewKeywordType(buf);
 			}
 		case AstTypeId_TypePrim:
-			if (((SAstTypePrim*)type)->Kind == AstTypePrimKind_Int)
-				return L"int";
-			if (((SAstTypePrim*)type)->Kind == AstTypePrimKind_Float)
-				return L"float";
-			if (((SAstTypePrim*)type)->Kind == AstTypePrimKind_Char)
-				return L"char";
-			if (((SAstTypePrim*)type)->Kind == AstTypePrimKind_Bool)
-				return L"bool";
+			switch (((SAstTypePrim*)type)->Kind)
+			{
+				case AstTypePrimKind_Int: return L"int";
+				case AstTypePrimKind_Float: return L"float";
+				case AstTypePrimKind_Char: return L"char";
+				case AstTypePrimKind_Bool: return L"bool";
+			}
 			break;
 		case AstTypeId_TypeUser:
 			return GetKeywordType(((SAst*)type)->RefName);
@@ -6368,4 +6440,105 @@ static void StrToPtr(void* ptr, const Char* str)
 	int i;
 	for (i = 0; i < 8; i++)
 		dst[i] = (src[i * 2 + 0] >> 4) | (src[i * 2 + 1] & 0xf0);
+}
+
+static void GetKeywordHintTypeNameRecursion(size_t* len, Char* buf, const SAstType* type)
+{
+	switch (((SAst*)type)->TypeId)
+	{
+		case AstTypeId_TypeArray:
+			if (*len < AUXILIARY_BUF_SIZE)
+				*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"[]");
+			GetKeywordHintTypeNameRecursion(len, buf, ((SAstTypeArray*)type)->ItemType);
+			return;
+		case AstTypeId_TypeBit:
+			if (*len < AUXILIARY_BUF_SIZE)
+				*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"bit%d", ((SAstTypeBit*)type)->Size * 8);
+			return;
+		case AstTypeId_TypeFunc:
+			if (*len < AUXILIARY_BUF_SIZE)
+				*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"func<(");
+			{
+				SListNode* ptr = ((SAstTypeFunc*)type)->Args->Top;
+				while (ptr != NULL)
+				{
+					if (ptr != ((SAstTypeFunc*)type)->Args->Top)
+					{
+						if (*len < AUXILIARY_BUF_SIZE)
+							*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L", ");
+					}
+					SAstTypeFuncArg* arg = (SAstTypeFuncArg*)ptr->Data;
+					GetKeywordHintTypeNameRecursion(len, buf, arg->Arg);
+					ptr = ptr->Next;
+				}
+			}
+			if (*len < AUXILIARY_BUF_SIZE)
+				*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L")");
+			if (((SAstTypeFunc*)type)->Ret != NULL)
+			{
+				if (*len < AUXILIARY_BUF_SIZE)
+					*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L": ");
+				GetKeywordHintTypeNameRecursion(len, buf, ((SAstTypeFunc*)type)->Ret);
+			}
+			if (*len < AUXILIARY_BUF_SIZE)
+				*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L">");
+			return;
+		case AstTypeId_TypeGen:
+			switch (((SAstTypeGen*)type)->Kind)
+			{
+				case AstTypeGenKind_List:
+					if (*len < AUXILIARY_BUF_SIZE)
+						*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"list<");
+					break;
+				case AstTypeGenKind_Stack:
+					if (*len < AUXILIARY_BUF_SIZE)
+						*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"stack<");
+					break;
+				case AstTypeGenKind_Queue:
+					if (*len < AUXILIARY_BUF_SIZE)
+						*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"queue<");
+					break;
+			}
+			GetKeywordHintTypeNameRecursion(len, buf, ((SAstTypeGen*)type)->ItemType);
+			if (*len < AUXILIARY_BUF_SIZE)
+				*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L">");
+			return;
+		case AstTypeId_TypeDict:
+			{
+				if (*len < AUXILIARY_BUF_SIZE)
+					*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"dict<");
+				GetKeywordHintTypeNameRecursion(len, buf, ((SAstTypeDict*)type)->ItemTypeKey);
+				if (*len < AUXILIARY_BUF_SIZE)
+					*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L", ");
+				GetKeywordHintTypeNameRecursion(len, buf, ((SAstTypeDict*)type)->ItemTypeValue);
+				if (*len < AUXILIARY_BUF_SIZE)
+					*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L">");
+				return;
+			}
+		case AstTypeId_TypePrim:
+			switch (((SAstTypePrim*)type)->Kind)
+			{
+				case AstTypePrimKind_Int:
+					if (*len < AUXILIARY_BUF_SIZE)
+						*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"int");
+					return;
+				case AstTypePrimKind_Float:
+					if (*len < AUXILIARY_BUF_SIZE)
+						*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"float");
+					return;
+				case AstTypePrimKind_Char:
+					if (*len < AUXILIARY_BUF_SIZE)
+						*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"char");
+					return;
+				case AstTypePrimKind_Bool:
+					if (*len < AUXILIARY_BUF_SIZE)
+						*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"bool");
+					return;
+			}
+			break;
+		case AstTypeId_TypeUser:
+			if (*len < AUXILIARY_BUF_SIZE)
+				*len += swprintf(buf + *len, AUXILIARY_BUF_SIZE - *len, L"%s", ((SAst*)type)->RefName);
+			return;
+	}
 }

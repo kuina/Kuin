@@ -293,7 +293,7 @@ EXPORT void ResetMemAllocator(void)
 	KeywordList = NULL;
 }
 
-EXPORT void GetKeywords(void* src, const U8* src_name, S64 x, S64 y, void* callback)
+EXPORT void* GetKeywords(void* src, const U8* src_name, S64 x, S64 y, void* callback)
 {
 	void* str = *(void**)((U8*)src + 0x10);
 	// void* comment_level = *(void**)((U8*)src + 0x20);
@@ -305,7 +305,7 @@ EXPORT void GetKeywords(void* src, const U8* src_name, S64 x, S64 y, void* callb
 
 	const Char* str3 = (Char*)((U8*)*str2 + 0x10);
 
-	GetKeywordsRoot(&str3, str3 + x + 1, (const Char*)(src_name + 0x10), (int)x, (int)y, flags2, callback, KeywordListNum, (const void*)KeywordList);
+	return GetKeywordsRoot(&str3, str3 + x + 1, (const Char*)(src_name + 0x10), (int)x, (int)y, flags2, callback, KeywordListNum, (const void*)KeywordList);
 }
 
 EXPORT Bool RunDbg(const U8* path, const U8* cmd_line, void* idle_func, void* event_func, void* break_points_func, void* break_func, void* dbg_func)

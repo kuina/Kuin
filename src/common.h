@@ -81,7 +81,7 @@ typedef enum EUseResFlagsKind
 #define USE_RES_FLAGS_LEN (1)
 
 /*
-	Uncommitted Libraries:
+	Uncommitted libraries:
 		d0000.knd	common
 		d0001.knd	wnd
 		d0002.knd	cui
