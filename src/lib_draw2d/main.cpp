@@ -29,9 +29,16 @@ struct SBrush
 
 struct SBrushLinearGradient
 {
-	SClass Class;
-	ID2D1LinearGradientBrush* Brush;
+	SBrush Parent;
+	ID2D1LinearGradientBrush* BrushLinearGradient;
 };
+
+/*
+struct SBrushRadialGradient
+{
+	;
+};
+*/
 
 struct SStrokeStyle
 {
@@ -47,8 +54,8 @@ struct SGeometry
 
 struct SGeometryPath
 {
-	SClass Class;
-	ID2D1PathGeometry* Geometry;
+	SGeometry Parent;
+	ID2D1PathGeometry* GeometryPath;
 	ID2D1GeometrySink* Sink;
 };
 
@@ -166,15 +173,17 @@ EXPORT_CPP SClass* _makeBrushLinearGradient(SClass* me_, double x1, double y1, d
 	}
 	CurRenderTarget->CreateGradientStopCollection(gradient_stops, static_cast<UINT32>(lenPos), &gradient_stop_collection);
 	FreeMem(gradient_stops);
-	CurRenderTarget->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2))), gradient_stop_collection, &me2->Brush);
+	CurRenderTarget->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2))), gradient_stop_collection, &me2->BrushLinearGradient);
 	gradient_stop_collection->Release();
+	me2->BrushLinearGradient->QueryInterface(IID_ID2D1Brush, (void**)&me2->Parent.Brush);
 	return me_;
 }
 
 EXPORT_CPP void _brushLinearGradientDtor(SClass* me_)
 {
 	SBrushLinearGradient* me2 = reinterpret_cast<SBrushLinearGradient*>(me_);
-	me2->Brush->Release();
+	me2->Parent.Brush->Release();
+	me2->BrushLinearGradient->Release();
 }
 
 EXPORT_CPP void _brushLine(SClass* me_, double x1, double y1, double x2, double y2, double stroke_width, SClass* stroke_style)
@@ -246,7 +255,8 @@ EXPORT_CPP void _brushDrawLine(SClass* me_, SClass* geometry, double stroke_widt
 EXPORT_CPP SClass* _makeGeometryPath(SClass* me_)
 {
 	SGeometryPath* me2 = reinterpret_cast<SGeometryPath*>(me_);
-	Factory->CreatePathGeometry(&me2->Geometry);
+	Factory->CreatePathGeometry(&me2->GeometryPath);
+	me2->GeometryPath->QueryInterface(IID_ID2D1Geometry, (void**)&me2->Parent.Geometry);
 	me2->Sink = NULL;
 	return me_;
 }
@@ -256,13 +266,14 @@ EXPORT_CPP void _geometryPathDtor(SClass* me_)
 	SGeometryPath* me2 = reinterpret_cast<SGeometryPath*>(me_);
 	if (me2->Sink != NULL)
 		me2->Sink->Release();
-	me2->Geometry->Release();
+	me2->Parent.Geometry->Release();
+	me2->GeometryPath->Release();
 }
 
 EXPORT_CPP void _geometryPathOpen(SClass* me_)
 {
 	SGeometryPath* me2 = reinterpret_cast<SGeometryPath*>(me_);
-	me2->Geometry->Open(&me2->Sink);
+	me2->GeometryPath->Open(&me2->Sink);
 }
 
 EXPORT_CPP void _geometryPathClose(SClass* me_)

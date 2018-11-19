@@ -27,6 +27,8 @@ end func
 end class
 
 +class Brush()
+	var brush: int
+	
 	*func[_force]_dtor()
 	end func
 	
@@ -53,11 +55,11 @@ end class
 	
 	+func[d1006.knd, _brushDrawLine]drawLine(geometry: @Geometry, strokeWidth: float)
 	end func
-	
-	var brush: int
 end class
 
 +class BrushLinearGradient(@Brush)
+	var brushLinearGradient: int
+	
 	*func[d1006.knd, _brushLinearGradientDtor, _force]_dtor()
 	end func
 end class
@@ -73,6 +75,9 @@ end class
 end class
 
 +class GeometryPath(@Geometry)
+	var geometryPath: int
+	var sink: int
+	
 	*func[d1006.knd, _geometryPathDtor, _force]_dtor()
 	end func
 	
