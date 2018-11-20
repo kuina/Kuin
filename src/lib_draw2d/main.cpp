@@ -33,12 +33,11 @@ struct SBrushLinearGradient
 	ID2D1LinearGradientBrush* BrushLinearGradient;
 };
 
-/*
 struct SBrushRadialGradient
 {
-	;
+	SBrush Parent;
+	ID2D1RadialGradientBrush* BrushRadialGradient;
 };
-*/
 
 struct SStrokeStyle
 {
@@ -184,6 +183,40 @@ EXPORT_CPP void _brushLinearGradientDtor(SClass* me_)
 	SBrushLinearGradient* me2 = reinterpret_cast<SBrushLinearGradient*>(me_);
 	me2->Parent.Brush->Release();
 	me2->BrushLinearGradient->Release();
+}
+
+EXPORT_CPP SClass* _makeBrushRadialGradient(SClass* me_, double left, double top, double right, double bottom, void* color_position, void* color)
+{
+	SBrushRadialGradient* me2 = reinterpret_cast<SBrushRadialGradient*>(me_);
+	S64 lenPos = static_cast<S64*>(color_position)[1];
+	S64 lenColor = static_cast<S64*>(color)[1];
+	THROWDBG(lenPos != lenColor, 0xe9170006);
+	ID2D1GradientStopCollection* gradient_stop_collection = NULL;
+	D2D1_GRADIENT_STOP* gradient_stops = static_cast<D2D1_GRADIENT_STOP*>(AllocMem(sizeof(D2D1_GRADIENT_STOP) * lenPos));
+	for (S64 i = 0; i < lenPos; i++)
+	{
+		gradient_stops[i].color = ColorToColorF(static_cast<S64*>(color)[i + 2]);
+		gradient_stops[i].position = static_cast<FLOAT>(static_cast<double*>(color_position)[i + 2]);
+	}
+	CurRenderTarget->CreateGradientStopCollection(gradient_stops, static_cast<UINT32>(lenPos), &gradient_stop_collection);
+	FreeMem(gradient_stops);
+	CurRenderTarget->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties(D2D1::Point2F(static_cast<FLOAT>(0.5 * (right + left)), static_cast<FLOAT>(0.5 * (top + bottom))), D2D1::Point2F(0.0f, 0.0f), static_cast<FLOAT>(right - left), static_cast<FLOAT>(bottom - top)), gradient_stop_collection, &me2->BrushRadialGradient);
+	gradient_stop_collection->Release();
+	me2->BrushRadialGradient->QueryInterface(IID_ID2D1Brush, (void**)&me2->Parent.Brush);
+	return me_;
+}
+
+EXPORT_CPP void _brushRadialGradientSetGradientOriginOffset(SClass* me_, double offsetX, double offsetY)
+{
+	SBrushRadialGradient* me2 = reinterpret_cast<SBrushRadialGradient*>(me_);
+	me2->BrushRadialGradient->SetGradientOriginOffset(D2D1::Point2F(static_cast<FLOAT>(offsetX), static_cast<FLOAT>(offsetY)));
+}
+
+EXPORT_CPP void _brushRadialGradientDtor(SClass* me_)
+{
+	SBrushRadialGradient* me2 = reinterpret_cast<SBrushRadialGradient*>(me_);
+	me2->Parent.Brush->Release();
+	me2->BrushRadialGradient->Release();
 }
 
 EXPORT_CPP void _brushLine(SClass* me_, double x1, double y1, double x2, double y2, double stroke_width, SClass* stroke_style)
