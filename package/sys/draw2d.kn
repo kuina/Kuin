@@ -1,3 +1,26 @@
+enum CapStyle
+	flat :: 0
+	square :: 1
+	round :: 2
+	triangle :: 3
+end enum
+
+enum LineJoin
+	miter :: 0
+	bevel :: 1
+	round :: 2
+	miterOrBevel :: 3
+end enum
+
+enum DashStyle
+	solid :: 0
+	dash :: 1
+	dot :: 2
+	dashDot :: 3
+	dashDotDot :: 4
+	custom :: 5
+end enum
+
 func[d1006.knd, _init]_init()
 end func
 
@@ -24,6 +47,9 @@ end func
 
 +class StrokeStyle()
 	var strokeStyle: int
+	
+	*func[d1006.knd, _strokeStyleDtor, _force]_dtor()
+	end func
 end class
 
 +class Brush()
@@ -53,7 +79,14 @@ end class
 	+func[d1006.knd, _brushDraw]draw(geometry: @Geometry)
 	end func
 	
-	+func[d1006.knd, _brushDrawLine]drawLine(geometry: @Geometry, strokeWidth: float)
+	+func[d1006.knd, _brushDrawLine]drawLine(geometry: @Geometry, strokeWidth: float, strokeStyle: @StrokeStyle)
+	end func
+end class
+
++class BrushSolidColor(@Brush)
+	var brushSolidColor: int
+	
+	*func[d1006.knd, _brushSolidColorDtor, _force]_dtor()
 	end func
 end class
 
@@ -67,7 +100,7 @@ end class
 +class BrushRadialGradient(@Brush)
 	var brushRadialGradient: int
 	
-	func[d1006.knd, _brushRadialGradientSetGradientOriginOffset]setGradientOriginOffset(offsetX: float, offsetY: float)
+	+func[d1006.knd, _brushRadialGradientSetGradientOriginOffset]setGradientOriginOffset(offsetX: float, offsetY: float)
 	end func
 	
 	*func[d1006.knd, _brushRadialGradientDtor, _force]_dtor()
@@ -116,10 +149,16 @@ end class
 	end func
 end class
 
++func[d1006.knd, _makeBrushSolidColor, _make_instance]makeBrushSolidColor(me2: @BrushSolidColor, color: int): @BrushSolidColor
+end func
+
 +func[d1006.knd, _makeBrushLinearGradient, _make_instance]makeBrushLinearGradient(me2: @BrushLinearGradient, x1: float, y1: float, x2: float, y2: float, colorPosition: []float, color: []int): @BrushLinearGradient
 end func
 
 +func[d1006.knd, _makeBrushRadialGradient, _make_instance]makeBrushRadialGradient(me2: @BrushRadialGradient, left: float, top: float, right: float, bottom: float, colorPosition: []float, color: []int): @BrushRadialGradient
+end func
+
++func[d1006.knd, _makeStrokeStyle, _make_instance]makeStrokeStyle(me2: @StrokeStyle, startCap: @CapStyle, endCap: @CapStyle, dashCap: @CapStyle, lineJoin: @LineJoin, miterLimit: float, dashStyle: @DashStyle, dashOffset: float, dash: []float): @StrokeStyle
 end func
 
 +func[d1006.knd, _makeGeometryPath, _make_instance]makeGeometryPath(me2: @GeometryPath): @GeometryPath

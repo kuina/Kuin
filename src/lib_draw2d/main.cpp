@@ -27,6 +27,12 @@ struct SBrush
 	ID2D1Brush* Brush;
 };
 
+struct SBrushSolidColor
+{
+	SBrush Parent;
+	ID2D1SolidColorBrush* BrushSolidColor;
+};
+
 struct SBrushLinearGradient
 {
 	SBrush Parent;
@@ -157,6 +163,23 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 	brush->Release();
 }
 
+EXPORT_CPP SClass* _makeBrushSolidColor(SClass* me_, S64 color)
+{
+	SBrushSolidColor* me2 = reinterpret_cast<SBrushSolidColor*>(me_);
+	D2D1_COLOR_F color_ = ColorToColorF(color);
+	CurRenderTarget->CreateSolidColorBrush(color_, &me2->BrushSolidColor);
+	me2->BrushSolidColor->SetOpacity(color_.a);
+	me2->BrushSolidColor->QueryInterface(IID_ID2D1Brush, (void**)&me2->Parent.Brush);
+	return me_;
+}
+
+EXPORT_CPP void _brushSolidColorDtor(SClass* me_)
+{
+	SBrushSolidColor* me2 = reinterpret_cast<SBrushSolidColor*>(me_);
+	me2->Parent.Brush->Release();
+	me2->BrushSolidColor->Release();
+}
+
 EXPORT_CPP SClass* _makeBrushLinearGradient(SClass* me_, double x1, double y1, double x2, double y2, void* color_position, void* color)
 {
 	SBrushLinearGradient* me2 = reinterpret_cast<SBrushLinearGradient*>(me_);
@@ -226,10 +249,9 @@ EXPORT_CPP void _brushLine(SClass* me_, double x1, double y1, double x2, double 
 	CurRenderTarget->DrawLine(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2)), me2->Brush, static_cast<FLOAT>(stroke_width), stroke_style != NULL ? strokeStyle2->StrokeStyle : NULL);
 }
 
-EXPORT_CPP void _brushRect(SClass* me_, double x, double y, double width, double height, SClass* stroke_style)
+EXPORT_CPP void _brushRect(SClass* me_, double x, double y, double width, double height)
 {
 	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
-	SStrokeStyle* strokeStyle2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
 	CurRenderTarget->FillRectangle(D2D1::RectF(static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(x + width), static_cast<FLOAT>(y + height)), me2->Brush);
 }
 
@@ -240,10 +262,9 @@ EXPORT_CPP void _brushRectLine(SClass* me_, double x, double y, double width, do
 	CurRenderTarget->DrawRectangle(D2D1::RectF(static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(x + width), static_cast<FLOAT>(y + height)), me2->Brush, static_cast<FLOAT>(stroke_width), stroke_style != NULL ? strokeStyle2->StrokeStyle : NULL);
 }
 
-EXPORT_CPP void _brushCircle(SClass* me_, double x, double y, double radius_x, double radius_y, SClass* stroke_style)
+EXPORT_CPP void _brushCircle(SClass* me_, double x, double y, double radius_x, double radius_y)
 {
 	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
-	SStrokeStyle* strokeStyle2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
 	CurRenderTarget->FillEllipse(D2D1::Ellipse(D2D1::Point2F(static_cast<FLOAT>(x), static_cast<FLOAT>(y)), static_cast<FLOAT>(radius_x), static_cast<FLOAT>(radius_y)), me2->Brush);
 }
 
@@ -278,11 +299,44 @@ EXPORT_CPP void _brushDraw(SClass* me_, SClass* geometry)
 	CurRenderTarget->FillGeometry(geometry2->Geometry, me2->Brush);
 }
 
-EXPORT_CPP void _brushDrawLine(SClass* me_, SClass* geometry, double stroke_width)
+EXPORT_CPP void _brushDrawLine(SClass* me_, SClass* geometry, double stroke_width, SClass* stroke_style)
 {
 	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
 	SGeometry* geometry2 = reinterpret_cast<SGeometry*>(geometry);
-	CurRenderTarget->DrawGeometry(geometry2->Geometry, me2->Brush, static_cast<FLOAT>(stroke_width));
+	SStrokeStyle* stroke_style2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
+	CurRenderTarget->DrawGeometry(geometry2->Geometry, me2->Brush, static_cast<FLOAT>(stroke_width), stroke_style2 == NULL ? NULL : stroke_style2->StrokeStyle);
+}
+
+EXPORT_CPP SClass* _makeStrokeStyle(SClass *me_, S64 startCap, S64 endCap, S64 dashCap, S64 lineJoin, double miterLimit, S64 dashStyle, double dashOffset, void *dash)
+{
+	SStrokeStyle* me2 = reinterpret_cast<SStrokeStyle*>(me_);
+	D2D1_STROKE_STYLE_PROPERTIES prop;
+	prop.startCap = static_cast<D2D1_CAP_STYLE>(startCap);
+	prop.endCap = static_cast<D2D1_CAP_STYLE>(endCap);
+	prop.dashCap = static_cast<D2D1_CAP_STYLE>(dashCap);
+	prop.lineJoin = static_cast<D2D1_LINE_JOIN>(lineJoin);
+	prop.miterLimit = static_cast<FLOAT>(miterLimit);
+	prop.dashStyle = static_cast<D2D1_DASH_STYLE>(dashStyle);
+	prop.dashOffset = static_cast<FLOAT>(dashOffset);
+	if (dash == NULL) {
+		Factory->CreateStrokeStyle(prop, NULL, 0, &me2->StrokeStyle);
+	}
+	else {
+		S64 lenDash = reinterpret_cast<S64*>(dash)[1];
+		float* dashes = (float*)AllocMem(lenDash * sizeof(float));
+		double* dash_ = reinterpret_cast<double*>(dash);
+		for (S64 i = 0; i < lenDash; i++)
+			dashes[i] = static_cast<FLOAT>(dash_[i + 2]);
+		Factory->CreateStrokeStyle(prop, dashes, static_cast<UINT32>(lenDash), &me2->StrokeStyle);
+		FreeMem(dashes);
+	}
+	return me_;
+}
+
+EXPORT_CPP void _strokeStyleDtor(SClass* me_)
+{
+	SStrokeStyle* me2 = reinterpret_cast<SStrokeStyle*>(me_);
+	me2->StrokeStyle->Release();
 }
 
 EXPORT_CPP SClass* _makeGeometryPath(SClass* me_)
