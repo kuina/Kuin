@@ -10,6 +10,7 @@
 #include "draw.h"
 #include "snd.h"
 #include "input.h"
+#include "png_decoder.h"
 
 #pragma comment(lib, "Comctl32.lib")
 
@@ -302,6 +303,7 @@ static void TreeExpandAllRecursion(HWND wnd_handle, HTREEITEM node, int flag);
 static void CopyTreeNodeRecursion(HWND tree_wnd, HTREEITEM dst, HTREEITEM src, Char* buf);
 static void ListViewAdjustWidth(HWND wnd);
 static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchor_x, S64 anchor_y, Bool equal_magnification, Bool editable);
+static HIMAGELIST CreateImageList(const void* imgs);
 static LRESULT CALLBACK CommonWndProc(HWND wnd, SWndBase* wnd2, SWnd* wnd3, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -1322,7 +1324,7 @@ EXPORT_CPP SClass* _makeLabelLink(SClass* me_, SClass* parent, S64 x, S64 y, S64
 	return me_;
 }
 
-EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
+EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const void* small_imgs, const void* large_imgs)
 {
 	SListView* me2 = reinterpret_cast<SListView*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | LVS_REPORT | LVS_SINGLESEL | LVS_NOSORTHEADER, x, y, width, height, L"", WndProcListView, anchorX, anchorY);
@@ -1333,6 +1335,12 @@ EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 
 	me2->OnSel = NULL;
 	me2->OnMouseDoubleClick = NULL;
 	me2->OnMouseClick = NULL;
+
+	if (small_imgs != NULL)
+		ListView_SetImageList(wnd, CreateImageList(small_imgs), LVSIL_SMALL);
+	if (large_imgs != NULL)
+		ListView_SetImageList(wnd, CreateImageList(large_imgs), LVSIL_NORMAL);
+
 	return me_;
 }
 
@@ -1342,19 +1350,20 @@ EXPORT_CPP void _listViewClear(SClass* me_)
 	ListView_DeleteAllItems(me2->WndHandle);
 }
 
-EXPORT_CPP void _listViewAdd(SClass* me_, const U8* text)
+EXPORT_CPP void _listViewAdd(SClass* me_, const U8* text, S64 img)
 {
 	THROWDBG(text == NULL, 0xc0000005);
 	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
 	LVITEM item;
-	item.mask = LVIF_TEXT;
+	item.mask = LVIF_TEXT | LVIF_IMAGE;
 	item.iItem = ListView_GetItemCount(wnd);
 	item.iSubItem = 0;
+	item.iImage = static_cast<int>(img < 0 ? -1 : img);
 	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
 	ListView_InsertItem(wnd, &item);
 }
 
-EXPORT_CPP void _listViewIns(SClass* me_, S64 idx, const U8* text)
+EXPORT_CPP void _listViewIns(SClass* me_, S64 idx, const U8* text, S64 img)
 {
 	THROWDBG(text == NULL, 0xc0000005);
 #if defined(DBG)
@@ -1362,9 +1371,10 @@ EXPORT_CPP void _listViewIns(SClass* me_, S64 idx, const U8* text)
 	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 #endif
 	LVITEM item;
-	item.mask = LVIF_TEXT;
+	item.mask = LVIF_TEXT | LVIF_IMAGE;
 	item.iItem = static_cast<int>(idx);
 	item.iSubItem = 0;
+	item.iImage = static_cast<int>(img < 0 ? -1 : img);
 	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
 	ListView_InsertItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
 }
@@ -1439,7 +1449,12 @@ EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* tex
 	len = _listViewLenColumn(me_);
 	THROWDBG(column < 0 || len <= column, 0xe9170006);
 #endif
-	ListView_SetItemText(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), static_cast<int>(column), const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10)));
+	LVITEM item;
+	item.mask = LVIF_TEXT;
+	item.iItem = static_cast<int>(idx);
+	item.iSubItem = static_cast<int>(column);
+	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
+	ListView_SetItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
 }
 
 EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column)
@@ -1451,7 +1466,13 @@ EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column)
 	THROWDBG(column < 0 || len <= column, 0xe9170006);
 #endif
 	Char buf[1025];
-	ListView_GetItemText(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), static_cast<int>(column), buf, 1025);
+	LVITEM item;
+	item.mask = LVIF_TEXT;
+	item.iItem = static_cast<int>(idx);
+	item.iSubItem = static_cast<int>(column);
+	item.pszText = buf;
+	item.cchTextMax = 1025;
+	ListView_GetItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
 	buf[1024] = L'\0';
 	size_t len2 = wcslen(buf);
 	U8* result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * static_cast<size_t>(len2 + 1)));
@@ -1459,6 +1480,35 @@ EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column)
 	*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len2);
 	memcpy(result + 0x10, buf, sizeof(Char) * static_cast<size_t>(len2 + 1));
 	return result;
+}
+
+EXPORT_CPP void _listViewSetImg(SClass* me_, S64 idx, S64 img)
+{
+#if defined(DBG)
+	S64 len = _listViewLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+#endif
+	LVITEM item;
+	item.mask = LVIF_IMAGE;
+	item.iItem = static_cast<int>(idx);
+	item.iSubItem = 0;
+	item.iImage = static_cast<int>(img < 0 ? -1 : img);
+	ListView_SetItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
+}
+
+EXPORT_CPP S64 _listViewGetImg(SClass* me_, S64 idx)
+{
+#if defined(DBG)
+	S64 len = _listViewLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+#endif
+	LVITEM item;
+	item.mask = LVIF_IMAGE;
+	item.iItem = static_cast<int>(idx);
+	item.iSubItem = 0;
+	item.iImage = -1;
+	ListView_GetItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
+	return static_cast<S64>(item.iImage);
 }
 
 EXPORT_CPP void _listViewAdjustWidth(SClass* me_)
@@ -2444,6 +2494,47 @@ static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width
 	}
 
 	return me_;
+}
+
+static HIMAGELIST CreateImageList(const void* imgs)
+{
+	S64 len = static_cast<const S64*>(imgs)[1];
+	HIMAGELIST result = NULL;
+	const void*const* ptr = reinterpret_cast<void*const*>(static_cast<const U8*>(imgs) + 0x10);
+	for (S64 i = 0; i < len; i++)
+	{
+		const Char* path = reinterpret_cast<const Char*>(static_cast<const U8*>(ptr[i]) + 0x10);
+		size_t size;
+		void* bin = LoadFileAll(path, &size);
+		int width;
+		int height;
+		void* img = DecodePng(size, bin, &width, &height);
+		if (result == NULL)
+			result = ImageList_Create(width, height, ILC_COLOR32, static_cast<int>(len), 0);
+		BITMAPINFO info = { 0 };
+		info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+		info.bmiHeader.biBitCount = 32;
+		info.bmiHeader.biPlanes = 1;
+		info.bmiHeader.biWidth = static_cast<LONG>(width);
+		info.bmiHeader.biHeight = static_cast<LONG>(height);
+		void* raw;
+		HBITMAP bitmap = CreateDIBSection(NULL, &info, DIB_RGB_COLORS, &raw, NULL, 0);
+		U32* dst = static_cast<U32*>(raw);
+		const U32* src = static_cast<U32*>(img);
+		for (int j = 0; j < height; j++)
+		{
+			for (int k = 0; k < width; k++)
+			{
+				const U32 color = src[(height - 1 - j) * width + k];
+				dst[j * width + k] = (color & 0xff000000) | ((color & 0xff0000) >> 16) | (color & 0xff00) | ((color & 0xff) << 16);
+			}
+		}
+		ImageList_Add(result, bitmap, NULL);
+		DeleteObject(bitmap);
+		FreeMem(img);
+		FreeMem(bin);
+	}
+	return result;
 }
 
 static LRESULT CALLBACK CommonWndProc(HWND wnd, SWndBase* wnd2, SWnd* wnd3, UINT msg, WPARAM w_param, LPARAM l_param)

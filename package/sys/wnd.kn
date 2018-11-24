@@ -403,10 +403,10 @@ end class
 end class
 
 +enum ListViewStyle
-	largeIcon
+	large
 	report
-	smallIcon
-	list
+	small
+	list_
 end enum
 
 +class ListView(@WndBase)
@@ -416,10 +416,10 @@ end enum
 	+func [d0001.knd, _listViewClear] clear()
 	end func
 
-	+func [d0001.knd, _listViewAdd] add(text: []char)
+	+func [d0001.knd, _listViewAdd] add(text: []char, img: int)
 	end func
 
-	+func [d0001.knd, _listViewIns] ins(idx: int, text: []char)
+	+func [d0001.knd, _listViewIns] ins(idx: int, text: []char, img: int)
 	end func
 
 	+func [d0001.knd, _listViewDel] del(idx: int)
@@ -447,6 +447,12 @@ end enum
 	end func
 
 	+func [d0001.knd, _listViewGetText] getText(idx: int, column: int): []char
+	end func
+
+	+func [d0001.knd, _listViewSetImg] setImg(idx: int, img: int)
+	end func
+
+	+func [d0001.knd, _listViewGetImg] getImg(idx: int): int
 	end func
 
 	+func [d0001.knd, _listViewAdjustWidth] adjustWidth()
@@ -773,7 +779,7 @@ end func
 	end if
 end func
 
-+func [d0001.knd, _makeListView, _make_instance] makeListView(me2: @ListView, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @ListView
++func [d0001.knd, _makeListView, _make_instance] makeListView(me2: @ListView, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, smallImgs: [][]char, largeImgs: [][]char): @ListView
 	if(parent <>& null)
 		do parent.addChild(me2)
 	end if
