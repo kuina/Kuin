@@ -92,7 +92,7 @@ EXPORT_CPP void _listViewAddColumn(SClass* me_, const U8* text);
 EXPORT_CPP void _listViewInsColumn(SClass* me_, S64 column, const U8* text);
 EXPORT_CPP void _listViewDelColumn(SClass* me_, S64 column);
 EXPORT_CPP S64 _listViewLenColumn(SClass* me_);
-EXPORT_CPP void _listViewClearColumn(SClass* me_);
+EXPORT_CPP void _listViewClearAll(SClass* me_);
 EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* text, S64 img);
 EXPORT_CPP void* _listViewGetText(SClass* me_, S64* img, S64 idx, S64 column);
 EXPORT_CPP void _listViewAdjustWidth(SClass* me_);

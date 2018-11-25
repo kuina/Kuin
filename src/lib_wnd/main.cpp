@@ -1441,7 +1441,7 @@ EXPORT_CPP S64 _listViewLenColumn(SClass* me_)
 	return static_cast<S64>(Header_GetItemCount(ListView_GetHeader(reinterpret_cast<SWndBase*>(me_)->WndHandle)));
 }
 
-EXPORT_CPP void _listViewClearColumn(SClass* me_)
+EXPORT_CPP void _listViewClearAll(SClass* me_)
 {
 	S64 len = _listViewLenColumn(me_);
 	for (S64 i = 0; i < len; i++)

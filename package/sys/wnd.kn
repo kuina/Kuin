@@ -442,7 +442,7 @@ end enum
 	+func [d0001.knd, _listViewLenColumn] lenColumn(): int
 	end func
 
-	+func [d0001.knd, _listViewClearColumn] clearColumn()
+	+func [d0001.knd, _listViewClearAll] clearAll()
 	end func
 
 	+func [d0001.knd, _listViewSetText] setText(idx: int, column: int, text: []char, img: int)
