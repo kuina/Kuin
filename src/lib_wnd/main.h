@@ -100,6 +100,8 @@ EXPORT_CPP void _listViewSetSel(SClass* me_, S64 idx);
 EXPORT_CPP S64 _listViewGetSel(SClass* me_);
 EXPORT_CPP void _listViewStyle(SClass* me_, S64 list_view_style);
 EXPORT_CPP void _listViewDraggable(SClass* me_, bool enabled);
+EXPORT_CPP void _listViewSetChk(SClass* me_, S64 idx, bool value);
+EXPORT_CPP Bool _listViewGetChk(SClass* me_, S64 idx);
 EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP SClass* _makeTab(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP void _tabAdd(SClass* me_, const U8* text);

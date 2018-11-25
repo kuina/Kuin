@@ -1517,13 +1517,26 @@ EXPORT_CPP void _listViewStyle(SClass* me_, S64 list_view_style)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	DWORD dw_style = GetWindowLong(me2->WndHandle, GWL_STYLE);
-	if ((dw_style & LVS_TYPEMASK) != list_view_style)
-		SetWindowLong(me2->WndHandle, GWL_STYLE, (dw_style & ~LVS_TYPEMASK) | static_cast<LONG>(list_view_style));
+	const LONG normal_mask = LVS_TYPEMASK | LVS_NOCOLUMNHEADER;
+	SetWindowLong(me2->WndHandle, GWL_STYLE, (dw_style & ~normal_mask) | (static_cast<LONG>(list_view_style) & normal_mask));
+	DWORD ex = ListView_GetExtendedListViewStyle(me2->WndHandle);
+	const LONG ex_mask = LVS_EX_CHECKBOXES;
+	ListView_SetExtendedListViewStyle(me2->WndHandle, (ex & ~ex_mask) | (static_cast<LONG>(list_view_style) & ex_mask));
 }
 
 EXPORT_CPP void _listViewDraggable(SClass* me_, bool enabled)
 {
 	reinterpret_cast<SListView*>(me_)->Draggable = enabled;
+}
+
+EXPORT_CPP void _listViewSetChk(SClass* me_, S64 idx, bool value)
+{
+	ListView_SetCheckState(reinterpret_cast<SWndBase*>(me_)->WndHandle, idx, value ? TRUE : FALSE);
+}
+
+EXPORT_CPP Bool _listViewGetChk(SClass* me_, S64 idx)
+{
+	return ListView_GetCheckState(reinterpret_cast<SWndBase*>(me_)->WndHandle, idx) != 0;
 }
 
 EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
@@ -3188,7 +3201,7 @@ static LRESULT CALLBACK WndProcListView(HWND wnd, UINT msg, WPARAM w_param, LPAR
 					Char buf[1025];
 					item.cchTextMax = 1025;
 					item.pszText = buf;
-					item.mask = LVIF_STATE | LVIF_IMAGE | LVIF_INDENT | LVIF_PARAM | LVIF_TEXT;
+					item.mask = LVIF_STATE | LVIF_IMAGE | LVIF_TEXT;
 					item.stateMask = ~static_cast<UINT>(LVIS_SELECTED);
 					SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
 					while (id != -1)
@@ -3204,12 +3217,14 @@ static LRESULT CALLBACK WndProcListView(HWND wnd, UINT msg, WPARAM w_param, LPAR
 							id++;
 						for (int i = 1; i < column_len; i++)
 						{
-							item.iImage = id;
+							item.iItem = id;
 							item.iSubItem = i;
 							ListView_GetItem(wnd, &item);
-							item.iImage = new_id;
+							item.iItem = new_id;
 							ListView_SetItem(wnd, &item);
 						}
+						UINT chk = ListView_GetCheckState(wnd, id);
+						ListView_SetCheckState(wnd, new_id, chk);
 						ListView_DeleteItem(wnd, id);
 						id = ListView_GetNextItem(wnd, -1, LVNI_SELECTED);
 					}

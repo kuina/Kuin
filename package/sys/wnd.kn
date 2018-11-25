@@ -407,6 +407,8 @@ end class
 	report
 	small
 	list_
+	chk
+	hideHeader :: 0x4000
 end enum
 
 +class ListView(@WndBase)
@@ -462,6 +464,12 @@ end enum
 	end func
 
 	+func [d0001.knd, _listViewDraggable] draggable(enabled: bool)
+	end func
+
+	+func [d0001.knd, _listViewSetChk] setChk(idx: int, value: bool)
+	end func
+
+	+func [d0001.knd, _listViewGetChk] getChk(idx: int): bool
 	end func
 
 	+var onSel: func<(@WndBase)>
