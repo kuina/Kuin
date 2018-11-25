@@ -226,6 +226,9 @@ struct SListView
 	void* OnSel;
 	void* OnMouseDoubleClick;
 	void* OnMouseClick;
+	Bool Draggable;
+	Bool Dragging;
+	HIMAGELIST DraggingImage;
 };
 
 struct SPager
@@ -1324,17 +1327,20 @@ EXPORT_CPP SClass* _makeLabelLink(SClass* me_, SClass* parent, S64 x, S64 y, S64
 	return me_;
 }
 
-EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const void* small_imgs, const void* large_imgs)
+EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool multi_sel, const void* small_imgs, const void* large_imgs)
 {
 	SListView* me2 = reinterpret_cast<SListView*>(me_);
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | LVS_REPORT | LVS_SINGLESEL | LVS_NOSORTHEADER, x, y, width, height, L"", WndProcListView, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | LVS_REPORT | LVS_NOSORTHEADER | LVS_AUTOARRANGE | LVS_SHOWSELALWAYS | (multi_sel ? 0 : LVS_SINGLESEL), x, y, width, height, L"", WndProcListView, anchorX, anchorY);
 	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
 	DWORD ex = ListView_GetExtendedListViewStyle(wnd);
-	ListView_SetExtendedListViewStyle(wnd, ex | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
+	ListView_SetExtendedListViewStyle(wnd, ex | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_SUBITEMIMAGES);
 	SetWindowLongPtr(ListView_GetHeader(wnd), GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me_));
 	me2->OnSel = NULL;
 	me2->OnMouseDoubleClick = NULL;
 	me2->OnMouseClick = NULL;
+	me2->Draggable = False;
+	me2->Dragging = False;
+	me2->DraggingImage = NULL;
 
 	if (small_imgs != NULL)
 		ListView_SetImageList(wnd, CreateImageList(small_imgs), LVSIL_SMALL);
@@ -1353,12 +1359,13 @@ EXPORT_CPP void _listViewClear(SClass* me_)
 EXPORT_CPP void _listViewAdd(SClass* me_, const U8* text, S64 img)
 {
 	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(img < -1, 0xe9170006);
 	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
 	LVITEM item;
 	item.mask = LVIF_TEXT | LVIF_IMAGE;
 	item.iItem = ListView_GetItemCount(wnd);
 	item.iSubItem = 0;
-	item.iImage = static_cast<int>(img < 0 ? -1 : img);
+	item.iImage = static_cast<int>(img);
 	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
 	ListView_InsertItem(wnd, &item);
 }
@@ -1366,6 +1373,7 @@ EXPORT_CPP void _listViewAdd(SClass* me_, const U8* text, S64 img)
 EXPORT_CPP void _listViewIns(SClass* me_, S64 idx, const U8* text, S64 img)
 {
 	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(img < -1, 0xe9170006);
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
 	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
@@ -1374,7 +1382,7 @@ EXPORT_CPP void _listViewIns(SClass* me_, S64 idx, const U8* text, S64 img)
 	item.mask = LVIF_TEXT | LVIF_IMAGE;
 	item.iItem = static_cast<int>(idx);
 	item.iSubItem = 0;
-	item.iImage = static_cast<int>(img < 0 ? -1 : img);
+	item.iImage = static_cast<int>(img);
 	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
 	ListView_InsertItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
 }
@@ -1440,9 +1448,10 @@ EXPORT_CPP void _listViewClearColumn(SClass* me_)
 		_listViewDelColumn(me_, 0);
 }
 
-EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* text)
+EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* text, S64 img)
 {
 	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(img < -1, 0xe9170006);
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
 	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
@@ -1450,14 +1459,15 @@ EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* tex
 	THROWDBG(column < 0 || len <= column, 0xe9170006);
 #endif
 	LVITEM item;
-	item.mask = LVIF_TEXT;
+	item.mask = LVIF_TEXT | LVIF_IMAGE;
 	item.iItem = static_cast<int>(idx);
 	item.iSubItem = static_cast<int>(column);
+	item.iImage = static_cast<int>(img);
 	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
 	ListView_SetItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
 }
 
-EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column)
+EXPORT_CPP void* _listViewGetText(SClass* me_, S64* img, S64 idx, S64 column)
 {
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
@@ -1467,11 +1477,12 @@ EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column)
 #endif
 	Char buf[1025];
 	LVITEM item;
-	item.mask = LVIF_TEXT;
+	item.mask = LVIF_TEXT | LVIF_IMAGE;
 	item.iItem = static_cast<int>(idx);
 	item.iSubItem = static_cast<int>(column);
 	item.pszText = buf;
 	item.cchTextMax = 1025;
+	item.iImage = -1;
 	ListView_GetItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
 	buf[1024] = L'\0';
 	size_t len2 = wcslen(buf);
@@ -1479,36 +1490,8 @@ EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column)
 	*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
 	*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len2);
 	memcpy(result + 0x10, buf, sizeof(Char) * static_cast<size_t>(len2 + 1));
+	*img = static_cast<S64>(item.iImage);
 	return result;
-}
-
-EXPORT_CPP void _listViewSetImg(SClass* me_, S64 idx, S64 img)
-{
-#if defined(DBG)
-	S64 len = _listViewLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
-#endif
-	LVITEM item;
-	item.mask = LVIF_IMAGE;
-	item.iItem = static_cast<int>(idx);
-	item.iSubItem = 0;
-	item.iImage = static_cast<int>(img < 0 ? -1 : img);
-	ListView_SetItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
-}
-
-EXPORT_CPP S64 _listViewGetImg(SClass* me_, S64 idx)
-{
-#if defined(DBG)
-	S64 len = _listViewLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
-#endif
-	LVITEM item;
-	item.mask = LVIF_IMAGE;
-	item.iItem = static_cast<int>(idx);
-	item.iSubItem = 0;
-	item.iImage = -1;
-	ListView_GetItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
-	return static_cast<S64>(item.iImage);
 }
 
 EXPORT_CPP void _listViewAdjustWidth(SClass* me_)
@@ -1535,9 +1518,12 @@ EXPORT_CPP void _listViewStyle(SClass* me_, S64 list_view_style)
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	DWORD dw_style = GetWindowLong(me2->WndHandle, GWL_STYLE);
 	if ((dw_style & LVS_TYPEMASK) != list_view_style)
-	{
-		SetWindowLong(me2->WndHandle, GWL_STYLE, (dw_style & ~LVS_TYPEMASK) | list_view_style);
-	}
+		SetWindowLong(me2->WndHandle, GWL_STYLE, (dw_style & ~LVS_TYPEMASK) | static_cast<LONG>(list_view_style));
+}
+
+EXPORT_CPP void _listViewDraggable(SClass* me_, bool enabled)
+{
+	reinterpret_cast<SListView*>(me_)->Draggable = enabled;
 }
 
 EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
@@ -2352,6 +2338,20 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 								if (list_view->OnMouseClick != NULL)
 									Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), list_view->OnMouseClick);
 								break;
+							case LVN_BEGINDRAG:
+								{
+									NMLISTVIEW* param = reinterpret_cast<NMLISTVIEW*>(l_param);
+									POINT pt_pos = { 0 };
+									list_view->DraggingImage = ListView_CreateDragImage(wnd_ctrl, param->iItem, &pt_pos);
+									POINT pt;
+									GetCursorPos(&pt);
+									ScreenToClient(wnd_ctrl, &pt);
+									ImageList_BeginDrag(list_view->DraggingImage, 0, pt.x - pt_pos.x, pt.y - pt_pos.y);
+									ImageList_DragEnter(wnd_ctrl, 0, 0);
+									SetCapture(wnd_ctrl);
+									list_view->Dragging = True;
+								}
+								break;
 						}
 					}
 					break;
@@ -3141,6 +3141,83 @@ static LRESULT CALLBACK WndProcListView(HWND wnd, UINT msg, WPARAM w_param, LPAR
 			if (wnd3->OnMouseDoubleClick != NULL)
 				Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnMouseDoubleClick);
 			return 0;
+		case WM_MOUSEMOVE:
+			if (wnd3->Dragging && GetCapture() == wnd)
+			{
+				POINT pt = { LOWORD(l_param), HIWORD(l_param) };
+				ClientToScreen(wnd, &pt);
+				RECT wnd_rect;
+				GetWindowRect(wnd, &wnd_rect);
+				ImageList_DragMove(pt.x - wnd_rect.left, pt.y - wnd_rect.top);
+				return 0;
+			}
+			break;
+		case WM_LBUTTONUP:
+			if (wnd3->Dragging && GetCapture() == wnd)
+			{
+				ImageList_DragLeave(wnd);
+				ImageList_EndDrag();
+				ImageList_Destroy(wnd3->DraggingImage);
+				wnd3->DraggingImage = NULL;
+				ReleaseCapture();
+				wnd3->Dragging = False;
+
+				LV_HITTESTINFO info;
+				info.pt.x = LOWORD(l_param);
+				info.pt.y = HIWORD(l_param);
+				ListView_HitTest(wnd, &info);
+				Bool invalid = False;
+				if (info.iItem == -1)
+					info.iItem = ListView_GetItemCount(wnd);
+				else
+				{
+					LV_ITEM item;
+					item.iItem = info.iItem;
+					item.iSubItem = 0;
+					item.mask = LVIF_STATE;
+					item.stateMask = LVIS_SELECTED;
+					ListView_GetItem(wnd, &item);
+					if ((item.state & LVIS_SELECTED) != 0)
+						invalid = True;
+				}
+				if (!invalid)
+				{
+					int column_len = Header_GetItemCount(ListView_GetHeader(wnd));
+					int id = ListView_GetNextItem(wnd, -1, LVNI_SELECTED);
+					LV_ITEM item;
+					Char buf[1025];
+					item.cchTextMax = 1025;
+					item.pszText = buf;
+					item.mask = LVIF_STATE | LVIF_IMAGE | LVIF_INDENT | LVIF_PARAM | LVIF_TEXT;
+					item.stateMask = ~static_cast<UINT>(LVIS_SELECTED);
+					SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
+					while (id != -1)
+					{
+						item.iItem = id;
+						item.iSubItem = 0;
+						ListView_GetItem(wnd, &item);
+						item.iItem = info.iItem;
+						int new_id = ListView_InsertItem(wnd, &item);
+						if (info.iItem < id)
+							info.iItem++;
+						if (new_id <= id)
+							id++;
+						for (int i = 1; i < column_len; i++)
+						{
+							item.iImage = id;
+							item.iSubItem = i;
+							ListView_GetItem(wnd, &item);
+							item.iImage = new_id;
+							ListView_SetItem(wnd, &item);
+						}
+						ListView_DeleteItem(wnd, id);
+						id = ListView_GetNextItem(wnd, -1, LVNI_SELECTED);
+					}
+					SendMessage(wnd, WM_SETREDRAW, TRUE, 0);
+				}
+				return 0;
+			}
+			break;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }

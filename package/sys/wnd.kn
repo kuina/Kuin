@@ -443,16 +443,10 @@ end enum
 	+func [d0001.knd, _listViewClearColumn] clearColumn()
 	end func
 
-	+func [d0001.knd, _listViewSetText] setText(idx: int, column: int, text: []char)
+	+func [d0001.knd, _listViewSetText] setText(idx: int, column: int, text: []char, img: int)
 	end func
 
-	+func [d0001.knd, _listViewGetText] getText(idx: int, column: int): []char
-	end func
-
-	+func [d0001.knd, _listViewSetImg] setImg(idx: int, img: int)
-	end func
-
-	+func [d0001.knd, _listViewGetImg] getImg(idx: int): int
+	+func [d0001.knd, _listViewGetText] getText(img: &int, idx: int, column: int): []char
 	end func
 
 	+func [d0001.knd, _listViewAdjustWidth] adjustWidth()
@@ -467,9 +461,13 @@ end enum
 	+func [d0001.knd, _listViewStyle] style(listViewStyle: @ListViewStyle)
 	end func
 
+	+func [d0001.knd, _listViewDraggable] draggable(enabled: bool)
+	end func
+
 	+var onSel: func<(@WndBase)>
 	+var onMouseDoubleClick: func<(@WndBase)>
 	+var onMouseClick: func<(@WndBase)>
+	var draggable_: int
 end class
 
 +class Pager(@WndBase)
@@ -779,7 +777,7 @@ end func
 	end if
 end func
 
-+func [d0001.knd, _makeListView, _make_instance] makeListView(me2: @ListView, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, smallImgs: [][]char, largeImgs: [][]char): @ListView
++func [d0001.knd, _makeListView, _make_instance] makeListView(me2: @ListView, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, multiSel: bool, smallImgs: [][]char, largeImgs: [][]char): @ListView
 	if(parent <>& null)
 		do parent.addChild(me2)
 	end if
