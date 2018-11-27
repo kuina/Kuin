@@ -22,7 +22,7 @@ var watchs: list<@Watch>
 		do @wndDbgEditMsg :: wnd@makeEditMulti(@wndDbg, 12, 12, 456, 42, %scale, %fix)
 		do @wndDbgEditMsg.readonly(true)
 		do @wndDbgListCallStack :: wnd@makeList(@wndDbg, 12, 60, 225, 320, %fix, %scale)
-		do @wndDbgListWatch :: wnd@makeListView(@wndDbg, 243, 60, 225, 320, %scale, %scale)
+		do @wndDbgListWatch :: wnd@makeListView(@wndDbg, 243, 60, 225, 320, %scale, %scale, false, null, null)
 		do @wndDbgListWatch.addColumn(\common@langEn ?("Variable Name", "変数名"))
 		do @wndDbgListWatch.addColumn(\common@langEn ?("Value", "値"))
 	end if
@@ -68,6 +68,6 @@ end func
 		ret
 	end if
 
-	do @wndDbgListWatch.add(str1)
-	do @wndDbgListWatch.setText(@wndDbgListWatch.len() - 1, 1, str2)
+	do @wndDbgListWatch.add(str1, -1)
+	do @wndDbgListWatch.setText(@wndDbgListWatch.len() - 1, 1, str2, -1)
 end func

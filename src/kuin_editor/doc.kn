@@ -9,7 +9,7 @@
 		do me.undo :: null
 	end func
 
-	+func update()
+	+func fix()
 	end func
 
 	+func load(path: []char): bool
@@ -19,33 +19,6 @@
 	end func
 
 	+func draw(width: int, height: int)
-	end func
-
-	+func updateProp(listView: wnd@ListView)
-	end func
-
-	+func updateTree(tree: wnd@TreeMulti)
-	end func
-
-	+func updateList(list_: wnd@List)
-	end func
-
-	+func treeItemOnSel()
-	end func
-
-	+func treeItemOnMoveNode()
-	end func
-
-	+func listObjOnSel()
-	end func
-
-	+func listPropOnSel(listView: wnd@ListView)
-	end func
-
-	+func listPropOnMouseClick(listView: wnd@ListView)
-	end func
-
-	+func listPropOnMouseDoubleClick(listView: wnd@ListView)
 	end func
 
 	+func mouseDownL(x: int, y: int)
@@ -112,6 +85,24 @@
 	end func
 
 	+func getSelCode(): []char
+	end func
+
+	+func updateUi()
+	end func
+
+	+func listLtOnMouseClick()
+	end func
+
+	+func treeLbOnSel()
+	end func
+
+	+func listLbOnSel()
+	end func
+
+	+func listRbOnSel()
+	end func
+
+	+func listRbOnMouseClick()
 	end func
 
 	+var changed: bool

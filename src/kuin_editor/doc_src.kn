@@ -61,7 +61,7 @@ end func
 		do me.caretShown :: false
 	end func
 
-	+*func update()
+	+*func fix()
 		do me.dirtyLineForce :: true
 		do me.interpret1SetDirty(-1, false, false)
 	end func
@@ -198,64 +198,6 @@ end func
 		end for
 
 		do draw@rect(me.caretX $ float, me.caretY $ float, 2.0, \common@cellHeight $ float, 0xFF000000)
-	end func
-
-	+*func updateProp(listView: wnd@ListView)
-		do me.errList.sort()
-		do me.errList.head()
-		while(!me.errList.term())
-			do listView.add(me.errList.get().text)
-			do me.errList.next()
-		end while
-	end func
-
-	+*func updateTree(tree: wnd@TreeMulti)
-		; TODO:
-	end func
-
-	+*func updateList(list_: wnd@List)
-		do \snippet@updateList(list_)
-	end func
-
-	+*func treeItemOnSel()
-		; TODO:
-	end func
-
-	+*func treeItemOnMoveNode()
-		; TODO:
-	end func
-
-	+*func listObjOnSel()
-		var sel: int :: \form@listObj.getSel()
-		if(sel = -1)
-			ret
-		end if
-		var code: []char :: \snippet@getCode(\form@listObj.getText(sel))
-		if(code =& null)
-			do \form@updateList()
-			ret
-		end if
-		do me.undo.recordBegin()
-		if(me.areaSel())
-			do me.delAreaStr()
-		end if
-		do me.ins(me.cursorX, me.cursorY, code, true)
-		do me.interpret1SetDirty(me.cursorY, true, false)
-		do me.undo.recordEnd()
-		do me.refreshCursor(false, true)
-		do \form@paintDrawEditor()
-	end func
-
-	+*func listPropOnSel(listView: wnd@ListView)
-	end func
-
-	+*func listPropOnMouseClick(listView: wnd@ListView)
-		var sel: int :: listView.getSel()
-		if(sel <> -1 & sel < ^me.errList)
-			do me.errList.head()
-			var item: @ErrListItem :: me.errList.getOffset(sel)
-			do \src@jumpSrc(item.pos)
-		end if
 	end func
 
 	+*func mouseDownL(x: int, y: int)
@@ -703,6 +645,70 @@ end func
 			do str :~ me.src.src[y2].sub(0, x2).trim()
 		end if
 		ret str
+	end func
+
+	+*func updateUi()
+		do \form@listLt.setVisible(true)
+		do \form@listLt.setRedraw(false)
+		do \form@listLt.clear()
+		do \form@listLt.setRedraw(true)
+
+		do \form@treeLb.setVisible(true)
+		do \form@treeLb.setRedraw(false)
+		do \form@treeLb.clear()
+		do \form@treeLb.expand(true)
+		do \form@treeLb.setRedraw(true)
+
+		do \form@listLb.setVisible(false)
+
+		do \form@listRb.setVisible(true)
+		do \form@listRb.setRedraw(false)
+		do \form@listRb.clearAll()
+		do \form@listRb.addColumn(\common@langEn ?("Error", "エラー"))
+		do \form@listRb.adjustWidth()
+		do \form@listRb.setRedraw(true)
+
+		do \snippet@updateList(\form@listLt)
+
+		do me.errList.sort()
+		do me.errList.head()
+		while(!me.errList.term())
+			do \form@listRb.add(me.errList.get().text, -1)
+			do me.errList.next()
+		end while
+	end func
+
+	+*func listLtOnMouseClick()
+		var sel: int :: \form@listLt.getSel()
+		if(sel = -1)
+			ret
+		end if
+		var code: []char :: \snippet@getCode(\form@listLt.getText(&, sel, 0))
+		if(code =& null)
+			ret
+		end if
+		do me.undo.recordBegin()
+		if(me.areaSel())
+			do me.delAreaStr()
+		end if
+		do me.ins(me.cursorX, me.cursorY, code, true)
+		do me.interpret1SetDirty(me.cursorY, true, false)
+		do me.undo.recordEnd()
+		do me.refreshCursor(false, true)
+		do \form@paintDrawEditor()
+	end func
+
+	+*func treeLbOnSel()
+		; TODO:
+	end func
+
+	+*func listRbOnMouseClick()
+		var sel: int :: \form@listRb.getSel()
+		if(sel <> -1 & sel < ^me.errList)
+			do me.errList.head()
+			var item: @ErrListItem :: me.errList.getOffset(sel)
+			do \src@jumpSrc(item.pos)
+		end if
 	end func
 
 	+func toggleBreakPoint()

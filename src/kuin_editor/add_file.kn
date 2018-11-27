@@ -34,8 +34,8 @@ var wndAddFileListType: wnd@List
 			end if
 		case 1
 			if(ext = "knwnd")
-				do doc :: #\doc_ar_wnd@DocArWnd
-				do doc2 :: #\doc_ar_wnd@DocArWnd
+				;do doc :: #\doc_ar_wnd@DocArWnd
+				;do doc2 :: #\doc_ar_wnd@DocArWnd
 			end if
 		end switch
 		if(doc <>& null)

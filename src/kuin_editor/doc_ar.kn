@@ -10,7 +10,7 @@
 		do me.ctrl :: 0
 	end func
 
-	+*func update()
+	+*func fixBeforeRunning()
 	end func
 
 	+*func load(path: []char): bool

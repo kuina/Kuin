@@ -1,0 +1,8 @@
++class DocGen(\doc@Doc)
+	*func ctor()
+		do super(me)
+	end func
+
+	var src: \doc_src@DocSrc
+	var gen: \doc@Doc
+end class

@@ -46,7 +46,7 @@ end func
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add(@mainSrcName, @curDoc)
 	do @initMainSrc()
-	do @curDoc.update()
+	do @curDoc.fix()
 	do \form@updateUi()
 end func
 
@@ -71,7 +71,7 @@ end func
 	do @docs.add(@mainSrcName, @curDoc)
 	do \prop@load()
 	do @initMainSrc()
-	do @curDoc.update()
+	do @curDoc.fix()
 	do \form@updateUi()
 end func
 
@@ -163,7 +163,7 @@ end func
 	do \completion@close()
 	do @curDoc :: doc
 	do @curDocInternalName :: @srcNameToInternalName(@getDocName(doc))
-	do @curDoc.update()
+	do @curDoc.fix()
 	do \form@paintDrawEditor()
 	do \form@focusDrawEditor()
 	do \form@updateUi()
@@ -239,7 +239,7 @@ end func
 	case "kn"
 		ret #\doc_src@DocSrc
 	case "knwnd"
-		ret #\doc_ar_wnd@DocArWnd
+		;ret #\doc_ar_wnd@DocArWnd
 	end switch
 	ret null
 end func
