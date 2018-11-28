@@ -43,6 +43,49 @@ Bool InitEnvVars(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flag
 	EnvVars.UseResFlags = use_res_flags;
 
 	// The resource root directory.
+#if defined(DBG)
+	{
+		Char* ptr;
+		Char cur_dir_path[KUIN_MAX_PATH + 12 + 1];
+		GetModuleFileName(NULL, cur_dir_path, KUIN_MAX_PATH);
+		ptr = wcsrchr(cur_dir_path, L'\\');
+		if (ptr != NULL)
+			*(ptr + 1) = L'\0';
+		wcscat(cur_dir_path, L"_curdir_.txt");
+		if (PathFileExists(cur_dir_path))
+		{
+			Char path[KUIN_MAX_PATH + 1];
+			FILE* file_ptr = _wfopen(cur_dir_path, L"r, ccs=UTF-8");
+			fgetws(path, KUIN_MAX_PATH, file_ptr);
+			{
+				Char* ptr = path;
+				while (ptr[1] != L'\0')
+					ptr++;
+				while (ptr >= path && (*ptr == L'\n' || *ptr == L'\r'))
+				{
+					*ptr = L'\0';
+					ptr--;
+				}
+			}
+			wcscpy(EnvVars.ResRoot, path);
+		}
+		else
+		{
+			Char* ptr;
+			GetModuleFileName(NULL, EnvVars.ResRoot, KUIN_MAX_PATH);
+			ptr = wcsrchr(EnvVars.ResRoot, L'\\');
+			if (ptr != NULL)
+				*(ptr + 1) = L'\0';
+			ptr = EnvVars.ResRoot;
+			while (*ptr != L'\0')
+			{
+				if (*ptr == L'\\')
+					*ptr = L'/';
+				ptr++;
+			}
+		}
+	}
+#else
 	{
 		Char* ptr;
 		GetModuleFileName(NULL, EnvVars.ResRoot, KUIN_MAX_PATH);
@@ -57,6 +100,7 @@ Bool InitEnvVars(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flag
 			ptr++;
 		}
 	}
+#endif
 
 	return True;
 }
@@ -111,7 +155,20 @@ void* LoadFileAll(const Char* path, size_t* size)
 	else
 #endif
 	{
+#if defined(DBG)
+		FILE* file_ptr;
+		if (path[0] == L'r' && path[1] == L'e' && path[2] == L's' && path[3] == L'/')
+		{
+			Char path2[KUIN_MAX_PATH * 2 + 1];
+			wcscpy(path2, EnvVars.ResRoot);
+			wcscat(path2, path);
+			file_ptr = _wfopen(path2, L"rb");
+		}
+		else
+			file_ptr = _wfopen(path, L"rb");
+#else
 		FILE* file_ptr = _wfopen(path, L"rb");
+#endif
 		if (file_ptr == NULL)
 			return NULL;
 		_fseeki64(file_ptr, 0, SEEK_END);
@@ -142,7 +199,20 @@ void* OpenFileStream(const Char* path)
 	else
 #endif
 	{
+#if defined(DBG)
+		FILE* file_ptr;
+		if (path[0] == L'r' && path[1] == L'e' && path[2] == L's' && path[3] == L'/')
+		{
+			Char path2[KUIN_MAX_PATH * 2 + 1];
+			wcscpy(path2, EnvVars.ResRoot);
+			wcscat(path2, path);
+			file_ptr = _wfopen(path2, L"rb");
+	}
+		else
+			file_ptr = _wfopen(path, L"rb");
+#else
 		FILE* file_ptr = _wfopen(path, L"rb");
+#endif
 		if (file_ptr == NULL)
 			return NULL;
 		{

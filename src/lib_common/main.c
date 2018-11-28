@@ -86,26 +86,7 @@ EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_fla
 		return;
 
 #if defined(DBG)
-	{
-		const Char* cur_dir_path = L"./_curdir_.txt";
-		if (PathFileExists(cur_dir_path))
-		{
-			Char path[KUIN_MAX_PATH + 1];
-			FILE* file_ptr = _wfopen(cur_dir_path, L"r, ccs=UTF-8");
-			fgetws(path, KUIN_MAX_PATH, file_ptr);
-			{
-				Char* ptr = path;
-				while (ptr[1] != L'\0')
-					ptr++;
-				while (ptr >= path && (*ptr == L'\n' || *ptr == L'\r'))
-				{
-					*ptr = L'\0';
-					ptr--;
-				}
-			}
-			SetCurrentDirectory(path);
-		}
-	}
+	SetCurrentDirectory(EnvVars.ResRoot);
 #endif
 
 	// Initialize the COM library and the timer.
