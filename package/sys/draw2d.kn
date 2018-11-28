@@ -48,14 +48,14 @@ end func
 +class StrokeStyle()
 	var strokeStyle: int
 	
-	*func[d0005.knd, _strokeStyleDtor, _force]_dtor()
+	*func [d0005.knd, _strokeStyleDtor, _force] _dtor()
 	end func
 end class
 
 +class Brush()
 	var brush: int
 	
-	*func[_force]_dtor()
+	*func [_force] _dtor()
 	end func
 	
 	+func [d0005.knd, _brushLine] line(x1: float, y1: float, x2: float, y2: float, strokeWidth: float, strokeStyle: @StrokeStyle)
@@ -86,14 +86,14 @@ end class
 +class BrushSolidColor(@Brush)
 	var brushSolidColor: int
 	
-	*func[d0005.knd, _brushSolidColorDtor, _force]_dtor()
+	*func [d0005.knd, _brushSolidColorDtor, _force] _dtor()
 	end func
 end class
 
 +class BrushLinearGradient(@Brush)
 	var brushLinearGradient: int
 	
-	*func[d0005.knd, _brushLinearGradientDtor, _force]_dtor()
+	*func [d0005.knd, _brushLinearGradientDtor, _force] _dtor()
 	end func
 end class
 
@@ -103,7 +103,7 @@ end class
 	+func [d0005.knd, _brushRadialGradientSetGradientOriginOffset] setGradientOriginOffset(offsetX: float, offsetY: float)
 	end func
 	
-	*func[d0005.knd, _brushRadialGradientDtor, _force]_dtor()
+	*func [d0005.knd, _brushRadialGradientDtor, _force] _dtor()
 	end func
 end class
 
@@ -121,7 +121,7 @@ end class
 	var geometryPath: int
 	var sink: int
 	
-	*func[d0005.knd, _geometryPathDtor, _force]_dtor()
+	*func [d0005.knd, _geometryPathDtor, _force] _dtor()
 	end func
 	
 	+func [d0005.knd, _geometryPathOpen] open()
