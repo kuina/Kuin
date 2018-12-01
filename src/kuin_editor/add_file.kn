@@ -5,10 +5,6 @@ var wndAddFileEditFile: wnd@Edit
 var wndAddFileListType: wnd@List
 
 +func addNewFile()
-	if(\src@mainSrcDir = "")
-		do wnd@msgBox(\form@wndMain, \common@langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), \common@title, %err, %ok)
-		ret
-	end if
 	do @wndAddFile :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 480, \common@langEn?("Add New File", "新しいファイルを追加"))
 	do @wndAddFileResuiltFile :: null
 	do @wndAddFileResuiltType :: 0
@@ -16,44 +12,24 @@ var wndAddFileListType: wnd@List
 	do @wndAddFileListType.add(\common@langEn?("Source Code", "ソースコード"))
 	do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"))
 	do @wndAddFileListType.setSel(0)
-	do @wndAddFileEditFile :: wnd@makeEdit(@wndAddFile, 12, 118, 510, 19, %fix, %fix)
-	var btnFile: wnd@Btn :: wnd@makeBtn(@wndAddFile, 528, 118, 100, 23, %fix, %fix, \common@langEn ?("Browse...", "参照..."))
-	do btnFile.onPush :: btnFileOnPush
+	do @wndAddFileEditFile :: wnd@makeEdit(@wndAddFile, 12, 118, 616, 19, %fix, %fix)
 	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndAddFile, 12, 143, 100, 23, %fix, %fix, \common@langEn ?("Add", "追加"))
 	do btnAdd.onPush :: btnAddOnPush
 	do @wndAddFile.modal()
-	if(@wndAddFileResuiltFile <>& null & @wndAddFileResuiltFile <> "")
-		var ext: []char :: file@ext(@wndAddFileResuiltFile).lower()
+	if(@wndAddFileResuiltFile <>& null)
 		var doc: \doc@Doc :: null
-		var doc2: \doc@Doc :: null
 		switch(@wndAddFileResuiltType)
 		case 0
-			if(ext = "kn")
-				do doc :: #\doc_src@DocSrc
-				do doc2 :: #\doc_src@DocSrc
-			end if
+			do doc :: #\doc_src@DocSrc
 		case 1
-			if(ext = "kngen")
-				do doc :: #\doc_gen@DocGen
-				do (doc $ \doc_gen@DocGen).create(#\doc_ar_wnd@DocArWnd)
-				do doc2 :: #\doc_gen@DocGen
-			end if
+			do doc :: #\doc_gen@DocGen
+			do (doc $ \doc_gen@DocGen).create(#\doc_ar_wnd@DocArWnd)
 		end switch
 		if(doc <>& null)
-			if(\src@saveImpl(@wndAddFileResuiltFile, doc) & \src@loadFileToDocs(@wndAddFileResuiltFile, doc2))
-				do \src@setCurSrc(doc2)
-				do \prop@changeProp()
-			else
-				var msg: []char
-				if(\common@langEn)
-					do msg :: "Loading failed. " ~ @wndAddFileResuiltFile
-				else
-					do msg :: "読み込みに失敗しました。 " ~ @wndAddFileResuiltFile
-				end if
-				do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
-			end if
-		else
-			do wnd@msgBox(\form@wndMain, \common@langEn ?("An invalid extension was specified.", "不正な拡張子が指定されました。"), \common@title, %err, %ok)
+			do doc.changed :: true
+			do \src@docs.add(@wndAddFileResuiltFile, doc)
+			do \src@setCurSrc(doc)
+			do \prop@changeProp()
 		end if
 	end if
 	do @wndAddFile :: null
@@ -61,33 +37,42 @@ var wndAddFileListType: wnd@List
 	do @wndAddFileEditFile :: null
 	do @wndAddFileListType :: null
 
-	func btnFileOnPush(wnd: wnd@WndBase)
-		var filter: [][]char
-		var ext: []char
-		switch(@wndAddFileListType.getSel())
-		case -1, 0
-			do filter :: [\common@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"]
-			do ext :: "kn"
-		case 1
-			do filter :: [\common@langEn ?("Kuin window (*.kngen)", "Kuinウインドウ (*.kngen)"), "*.kngen"]
-			do ext :: "kngen"
-		end switch
-		var path: []char :: wnd@saveFileDialog(@wndAddFile, filter, 0, ext)
-		if(path <>& null)
-			do @wndAddFileEditFile.setText(path)
-		end if
-	end func
-
 	func btnAddOnPush(wnd: wnd@WndBase)
-		do @wndAddFileResuiltFile :: @wndAddFileEditFile.getText().replace("\\", "/")
+		do @wndAddFileResuiltFile :: @wndAddFileEditFile.getText().replace("\\", "/").trim()
 		do @wndAddFileResuiltType :: @wndAddFileListType.getSel()
-		do @wndAddFile.close()
+		if(valid(@wndAddFileResuiltFile))
+			var ext: []char :: null
+			switch(@wndAddFileResuiltType)
+			case 0
+				do ext :: ".kn"
+			case 1
+				do ext :: ".kngen"
+			default
+				do ext :: ""
+			end switch
+			do @wndAddFileResuiltFile :~ ext
+			if(!\src@docs.exist(@wndAddFileResuiltFile))
+				do @wndAddFile.close()
+			else
+				do wnd@msgBox(\form@wndMain, \common@langEn ?("The file name is already existed.", "そのファイル名は既に存在します。"), \common@title, %err, %ok)
+			end if
+		else
+			do wnd@msgBox(\form@wndMain, \common@langEn ?("The file name is invalid.", "ファイル名が不正です。"), \common@title, %err, %ok)
+		end if
+
+		func valid(name: []char): bool
+			if(^name = 0)
+				ret false
+			end if
+			; TODO:
+			ret true
+		end func
 	end func
 end func
 
 +func addExistingFile()
 	if(\src@mainSrcDir = "")
-		do wnd@msgBox(\form@wndMain, \common@langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), \common@title, %err, %ok)
+		do wnd@msgBox(\form@wndMain, \common@langEn ?("The main source file must be saved before adding another existed file.", "既存のファイルを追加する前にメインソースファイルを保存しなければなりません。"), \common@title, %err, %ok)
 		ret
 	end if
 	var file: []char :: wnd@openFileDialog(\form@wndMain, [\common@langEn ?("Kuin supported file (*.kn,*.kngen)", "Kuinがサポートするファイル (*.kn,*.kngen)"), "*.kn;*.kngen"], 0)
