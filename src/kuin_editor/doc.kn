@@ -18,7 +18,10 @@
 	+func save(path: []char): bool
 	end func
 
-	+func draw(width: int, height: int)
+	+func getSrc(): [][]char
+	end func
+
+	+func draw(width: int, height: int, locked: bool)
 	end func
 
 	+func mouseDownL(x: int, y: int)

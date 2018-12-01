@@ -98,8 +98,12 @@ end func
 		ret true
 	end func
 
-	+*func draw(width: int, height: int)
-		do draw@rect(0.0, 0.0, width $ float, height $ float, \common@colorBack)
+	+*func getSrc(): [][]char
+		ret me.src.src
+	end func
+
+	+*func draw(width: int, height: int, locked: bool)
+		do draw@rect(0.0, 0.0, width $ float, height $ float, locked ?(\common@colorBackLocked, \common@colorBack))
 		var lineX: float :: (me.lineNumWidth - 2) $ float
 		do draw@line(lineX, 0.0, lineX, height $ float, colorLineNum)
 		for i(0, ^me.src.src - 1 - me.pageY)
@@ -648,6 +652,9 @@ end func
 	end func
 
 	+*func updateUi()
+		do \form@btnCode.setText(\common@langEn ?("Show Designer", "デザイナを表示"))
+		do \form@btnCode.setEnabled(false)
+
 		do \form@listLt.setVisible(true)
 		do \form@listLt.setRedraw(false)
 		do \form@listLt.clear()
@@ -734,7 +741,7 @@ end func
 		end if
 	end func
 
-	func setSrc(src: [][]char)
+	+func setSrc(src: [][]char)
 		if(src =& null | ^src = 0)
 			do me.src.src :: [""]
 			do me.src.color :: [#[0]bit8]
@@ -751,10 +758,6 @@ end func
 				do me.src.flags[i] :: %none
 			end for
 		end if
-	end func
-
-	+func getSrc(): [][]char
-		ret me.src.src
 	end func
 
 	+func findPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool

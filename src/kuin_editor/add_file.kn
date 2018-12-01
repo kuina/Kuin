@@ -33,9 +33,10 @@ var wndAddFileListType: wnd@List
 				do doc2 :: #\doc_src@DocSrc
 			end if
 		case 1
-			if(ext = "knwnd")
-				;do doc :: #\doc_ar_wnd@DocArWnd
-				;do doc2 :: #\doc_ar_wnd@DocArWnd
+			if(ext = "kngen")
+				do doc :: #\doc_gen@DocGen
+				do (doc $ \doc_gen@DocGen).create(#\doc_ar_wnd@DocArWnd)
+				do doc2 :: #\doc_gen@DocGen
 			end if
 		end switch
 		if(doc <>& null)
@@ -68,8 +69,8 @@ var wndAddFileListType: wnd@List
 			do filter :: [\common@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"]
 			do ext :: "kn"
 		case 1
-			do filter :: [\common@langEn ?("Kuin window (*.knwnd)", "Kuinウインドウ (*.knwnd)"), "*.knwnd"]
-			do ext :: "knwnd"
+			do filter :: [\common@langEn ?("Kuin window (*.kngen)", "Kuinウインドウ (*.kngen)"), "*.kngen"]
+			do ext :: "kngen"
 		end switch
 		var path: []char :: wnd@saveFileDialog(@wndAddFile, filter, 0, ext)
 		if(path <>& null)
@@ -89,7 +90,7 @@ end func
 		do wnd@msgBox(\form@wndMain, \common@langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), \common@title, %err, %ok)
 		ret
 	end if
-	var file: []char :: wnd@openFileDialog(\form@wndMain, [\common@langEn ?("Kuin supported file (*.kn,*.knwnd)", "Kuinがサポートするファイル (*.kn,*.knwnd)"), "*.kn;*.knwnd"], 0)
+	var file: []char :: wnd@openFileDialog(\form@wndMain, [\common@langEn ?("Kuin supported file (*.kn,*.kngen)", "Kuinがサポートするファイル (*.kn,*.kngen)"), "*.kn;*.kngen"], 0)
 	if(file <>& null)
 		var doc: \doc@Doc :: \src@makeDoc(file)
 		if(doc <>& null & \src@loadFileToDocs(file, doc))

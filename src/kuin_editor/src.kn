@@ -238,8 +238,8 @@ end func
 	switch(file@ext(path).lower())
 	case "kn"
 		ret #\doc_src@DocSrc
-	case "knwnd"
-		;ret #\doc_ar_wnd@DocArWnd
+	case "kngen"
+		ret #\doc_gen@DocGen
 	end switch
 	ret null
 end func

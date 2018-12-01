@@ -317,7 +317,10 @@ static void ResolveIdentifierRecursion(const Char* src, const SAst* scope)
 					else
 					{
 						if (ast->RefName[0] != L'\0')
+						{
 							Err(L"EA0000", ast->Pos, ast->RefName);
+							ast->TypeId = AstTypeId_Ast;
+						}
 						ast->RefItem = NULL;
 					}
 				}
@@ -2289,7 +2292,7 @@ static SAstType* RebuildType(SAstType* ast, SAstAlias* parent_alias)
 				((SAstTypeDict*)ast)->ItemTypeValue = RebuildType(((SAstTypeDict*)ast)->ItemTypeValue, parent_alias);
 				break;
 			default:
-				ASSERT(type == AstTypeId_TypeBit || type == AstTypeId_TypePrim || type == AstTypeId_TypeNull);
+				ASSERT(type == AstTypeId_Ast /* Error */ || type == AstTypeId_TypeBit || type == AstTypeId_TypePrim || type == AstTypeId_TypeNull);
 				break;
 		}
 	}
