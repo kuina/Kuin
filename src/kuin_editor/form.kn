@@ -580,9 +580,9 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do \src@resetErrList()
 		do \src@curDoc.fix()
 		if(\dll@build(\src@mainSrcName, \src@getSrc, null, out, @editIcon.getText().trim(), false, @getEnv(), @log, \common@langEn ?(1, 0), 0))
-			if (\src@mainSrcName <> \common@untitledSrcName)
+			if (\src@mainSrcDir <> "")
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
-				do filePtr.writeStr(file@dir(\src@mainSrcName))
+				do filePtr.writeStr(\src@mainSrcDir)
 				do filePtr.writeChar('\n')
 				do filePtr.fin()
 			end if
@@ -747,8 +747,8 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 			do appCode :: 1 {Since it is not convenient when 'AppCode' becomes 0, it is set to 1.}
 		end if
 		if(\dll@build(\src@mainSrcName, \src@getSrc, null, out, @editIcon.getText().trim(), true, @getEnv(), @log, \common@langEn ?(1, 0), appCode))
-			if(\src@mainSrcName <> \common@untitledSrcName)
-				var resSrc: []char :: file@dir(\src@mainSrcName) ~ "res/"
+			if(\src@mainSrcDir <> "")
+				var resSrc: []char :: \src@mainSrcDir ~ "res/"
 				if(file@exist(resSrc))
 					var resDst: []char :: tmp ~ "res.knd"
 					if(!\dll@archive(resDst, resSrc, appCode))

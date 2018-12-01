@@ -673,16 +673,15 @@ end func
 		do \form@listRb.clearAll()
 		do \form@listRb.addColumn(\common@langEn ?("Error", "エラー"))
 		do \form@listRb.adjustWidth()
-		do \form@listRb.setRedraw(true)
-
-		do \snippet@updateList(\form@listLt)
-
 		do me.errList.sort()
 		do me.errList.head()
 		while(!me.errList.term())
 			do \form@listRb.add(me.errList.get().text, -1)
 			do me.errList.next()
 		end while
+		do \form@listRb.setRedraw(true)
+
+		do \snippet@updateList(\form@listLt)
 	end func
 
 	+*func listLtOnMouseClick()

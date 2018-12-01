@@ -1446,6 +1446,7 @@ EXPORT_CPP void _listViewClearAll(SClass* me_)
 	S64 len = _listViewLenColumn(me_);
 	for (S64 i = 0; i < len; i++)
 		_listViewDelColumn(me_, 0);
+	_listViewClear(me_);
 }
 
 EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* text, S64 img)

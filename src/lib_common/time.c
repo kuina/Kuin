@@ -80,5 +80,6 @@ EXPORT S64 _localDateToInt(S64 year, S64 month, S64 day, S64 hour, S64 minute, S
 
 EXPORT void sleep(S64 ms)
 {
+	THROWDBG(ms < 0 || ms >= INFINITE, 0xe9170006);
 	Sleep((DWORD)ms);
 }

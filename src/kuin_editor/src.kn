@@ -39,9 +39,9 @@ end func
 +func newMainSrc()
 	var doc: \doc_src@DocSrc :: #\doc_src@DocSrc
 	do @curDoc :: doc
-	do @mainSrcName :: \common@untitledSrcName
+	do @mainSrcName :: "main.kn"
 	do @mainSrcDir :: ""
-	do @curDocInternalName :: \common@untitledInternalName
+	do @curDocInternalName :: @srcNameToInternalName(@mainSrcName)
 	do @clearDocs()
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add(@mainSrcName, @curDoc)
@@ -63,7 +63,7 @@ end func
 		ret
 	end if
 	do @curDoc :: doc
-	do @mainSrcName :: path
+	do @mainSrcName :: file@fileName(path)
 	do @mainSrcDir :: file@dir(path)
 	do @curDocInternalName :: @srcNameToInternalName(@mainSrcName)
 	do @clearDocs()
@@ -92,7 +92,7 @@ end func
 	if(!@saveImpl(file, @curDoc))
 		ret false
 	end if
-	do @mainSrcName :: file
+	do @mainSrcName :: file@fileName(file)
 	do @mainSrcDir :: file@dir(file)
 	do @curDocInternalName :: @srcNameToInternalName(@mainSrcName)
 	do \prop@save()
@@ -105,7 +105,7 @@ end func
 	var data: DocsClass :: #DocsClass
 	do data.docs :: newDocs
 	do @docs.forEach(callback, data)
-	do newDocs.add(file, @curDoc)
+	do newDocs.add(@mainSrcName, @curDoc)
 	do @docs :: newDocs
 	do @curDoc.changed :: false
 	do \form@updateFile()
@@ -120,7 +120,7 @@ end func
 end func
 
 +func saveAll(): bool
-	if(@mainSrcName = \common@untitledSrcName)
+	if(@mainSrcDir = "")
 		if(!@saveMainSrc())
 			ret false
 		end if
@@ -135,7 +135,7 @@ end func
 
 	func callback(src: []char, doc: \doc@Doc, saveAllSuccess: lib@Bool): bool
 		if(doc.changed)
-			if(@saveImpl(src, doc))
+			if(@saveImpl(@mainSrcDir ~ src, doc))
 				do doc.changed :: false
 			else
 				do saveAllSuccess.value :: false
@@ -245,8 +245,16 @@ end func
 end func
 
 +func loadFileToDocs(path: []char, doc: \doc@Doc): bool
-	if(!(^@sysDir <= ^path & @sysDir = path.sub(0, ^@sysDir) | @mainSrcDir <> "" & ^@mainSrcDir <= ^path & @mainSrcDir = path.sub(0, ^@mainSrcDir)))
+	if(^@sysDir <= ^path & @sysDir = path.sub(0, ^@sysDir))
+		if(!doc.load(path))
+			ret false
+		end if
+	elif(@mainSrcDir = "")
 		ret false
+	else
+		if(!doc.load(@mainSrcDir ~ path))
+			ret false
+		end if
 	end if
 	if(!doc.load(path))
 		ret false
@@ -311,28 +319,25 @@ end func
 +func srcNameToInternalName(srcName: []char): []char
 	if(^@sysDir <= ^srcName & @sysDir = srcName.sub(0, ^@sysDir))
 		ret file@delExt(srcName.sub(^@sysDir, -1)).replace("/", "\\")
-	elif(@mainSrcDir <> "" & ^@mainSrcDir <= ^srcName & @mainSrcDir = srcName.sub(0, ^@mainSrcDir) | @mainSrcDir = "" & srcName = \common@untitledSrcName)
-		var name: []char :: srcName.sub(^@mainSrcDir, -1)
-		if(file@ext(name).lower() = "kn")
-			ret "\\" ~ file@delExt(name).replace("/", "\\")
-		else
-			ret "!" ~ name.replace("/", "\\")
-		end if
 	else
-		ret "?" ~ srcName
+		switch(file@ext(srcName).lower())
+		case "kn"
+			ret "\\" ~ file@delExt(srcName).replace("/", "\\")
+		case "kngen"
+			ret "!" ~ file@delExt(srcName).replace("/", "\\")
+		default
+			ret "?" ~ srcName
+		end switch
 	end if
 end func
 
 +func internalNameToSrcName(internalName: []char): []char
-	if(internalName = \common@untitledInternalName)
-		ret \common@untitledSrcName
-	end if
 	if(^internalName > 1)
 		switch(internalName[0])
 		case '\\'
-			ret @mainSrcDir ~ internalName.sub(1, -1).replace("\\", "/") ~ ".kn"
+			ret internalName.sub(1, -1).replace("\\", "/") ~ ".kn"
 		case '!'
-			ret @mainSrcDir ~ internalName.sub(1, -1).replace("\\", "/")
+			ret internalName.sub(1, -1).replace("\\", "/") ~ ".kngen"
 		case '?'
 			ret internalName.sub(1, -1)
 		end switch
@@ -448,6 +453,9 @@ end func
 end func
 
 +func addErrList(pos: @Pos, code: []char, msg: []char, src: []char, row: int, col: int)
+	if(^code >= 1 & code[0] = 'I')
+		ret
+	end if
 	if(!@errList.exist(pos))
 		do @errList.add(pos, errStr(code, msg, src, row, col))
 	end if

@@ -11,8 +11,8 @@
 	do prop.save(path, false)
 
 	func callback(src: []char, doc: \doc@Doc, reses: xml@Node): bool
-		if(^\src@mainSrcDir <= ^src & \src@mainSrcDir = src.sub(0, ^\src@mainSrcDir) & file@ext(src).lower() <> "kn")
-			do reses.addChild("resource").setValue(src.sub(^\src@mainSrcDir, -1))
+		if(\src@srcNameToInternalName(src)[0] = '!')
+			do reses.addChild("resource").setValue(src)
 		end if
 		ret true
 	end func
