@@ -476,6 +476,7 @@ end enum
 	+var onMouseDoubleClick: func<(@WndBase)>
 	+var onMouseClick: func<(@WndBase)>
 	var draggable_: int
+	var draggingImage: int
 end class
 
 +class Pager(@WndBase)
