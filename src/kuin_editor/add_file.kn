@@ -5,15 +5,18 @@ var wndAddFileEditFile: wnd@Edit
 var wndAddFileListType: wnd@List
 
 +func addNewFile()
-	do @wndAddFile :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 480, \common@langEn?("Add New File", "新しいファイルを追加"))
+	do @wndAddFile :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 405, \common@langEn?("Add New File", "新しいファイルを追加"))
 	do @wndAddFileResuiltFile :: null
 	do @wndAddFileResuiltType :: 0
-	do @wndAddFileListType :: wnd@makeList(@wndAddFile, 12, 12, 616, 100, %fix, %scale)
+	do @wndAddFileListType :: wnd@makeList(@wndAddFile, 12, 12, 616, 320, %fix, %scale)
 	do @wndAddFileListType.add(\common@langEn?("Source Code", "ソースコード"))
 	do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"))
 	do @wndAddFileListType.setSel(0)
-	do @wndAddFileEditFile :: wnd@makeEdit(@wndAddFile, 12, 118, 616, 19, %fix, %fix)
-	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndAddFile, 12, 143, 100, 23, %fix, %fix, \common@langEn ?("Add", "追加"))
+	do wnd@makeLabel(@wndAddFile, 12, 338, 80, 12, %fix, %fix, \common@langEn ?("File Name:", "ファイル名:"))
+	do @wndAddFileEditFile :: wnd@makeEdit(@wndAddFile, 98, 338, 530, 19, %fix, %fix)
+	do wnd@makeLabel(@wndAddFile, 12, 363, 510, 12, %fix, %fix, \common@langEn ?("If you enter \"abc\" the file will be saved like \"\\abc.kn\"", "「abc」と入力すると「\\abc.kn」のようなファイルで保存され、"))
+	do wnd@makeLabel(@wndAddFile, 12, 381, 510, 12, %fix, %fix, \common@langEn ?("and if you enter \"abc\\def\" it will be \"\\abc\\def.kn\".", "「abc\\def」と入力すると「\\abc\\def.kn」になります。"))
+	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndAddFile, 528, 370, 100, 23, %fix, %fix, \common@langEn ?("Add", "追加"))
 	do btnAdd.onPush :: btnAddOnPush
 	do @wndAddFile.modal()
 	if(@wndAddFileResuiltFile <>& null)
@@ -55,9 +58,11 @@ var wndAddFileListType: wnd@List
 				do @wndAddFile.close()
 			else
 				do wnd@msgBox(\form@wndMain, \common@langEn ?("The file name is already existed.", "そのファイル名は既に存在します。"), \common@title, %err, %ok)
+				do @wndAddFileResuiltFile :: null
 			end if
 		else
 			do wnd@msgBox(\form@wndMain, \common@langEn ?("The file name is invalid.", "ファイル名が不正です。"), \common@title, %err, %ok)
+			do @wndAddFileResuiltFile :: null
 		end if
 
 		func valid(name: []char): bool

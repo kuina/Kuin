@@ -3,7 +3,7 @@
 +const cellHeight: int :: 18
 +const langEn: bool :: false
 +const colorBack: int :: 0xFFFFF5F5
-+const colorBackLocked: int :: 0xFFF5F5F5
++const colorBackLocked: int :: 0xFFFFFFF5
 
 +var title: []char
 +var font: draw@Font
