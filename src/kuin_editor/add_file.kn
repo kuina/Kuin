@@ -64,7 +64,14 @@ var wndAddFileListType: wnd@List
 			if(^name = 0)
 				ret false
 			end if
-			; TODO:
+			if(!('a' <= name[0] & name[0] <= 'z' | name[0] = '_'))
+				ret false
+			end if
+			for i(1, ^name - 1)
+				if(!('a' <= name[i] & name[i] <= 'z' | '0' <= name[i] & name[i] <= '9' | name[i] = '_' | name[i] = '.' | name[i] = '/'))
+					ret false
+				end if
+			end for
 			ret true
 		end func
 	end func

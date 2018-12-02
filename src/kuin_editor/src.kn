@@ -99,10 +99,13 @@ end func
 
 	func saveAllCallback(src: []char, doc: \doc@Doc, saveAllSuccess: lib@Bool): bool
 		if(doc.changed)
-			if(doc.save(@mainSrcDir ~ src))
+			var path: []char :: @mainSrcDir ~ src
+			if(!file@exist(file@dir(path)))
+				do file@makeDir(file@dir(path))
+			end if
+			if(doc.save(path))
 				do doc.changed :: false
 			else
-				var path: []char :: @mainSrcDir ~ src
 				var msg: []char
 				if(\common@langEn)
 					do msg :: "Saving failed. " ~ path
