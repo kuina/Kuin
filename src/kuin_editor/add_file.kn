@@ -2,16 +2,17 @@ var wndAddFile: wnd@Wnd
 var wndAddFileResuiltFile: []char
 var wndAddFileResuiltType: int
 var wndAddFileEditFile: wnd@Edit
-var wndAddFileListType: wnd@List
+var wndAddFileListType: wnd@ListView
 
 +func addNewFile()
 	do @wndAddFile :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 405, \common@langEn?("Add New File", "新しいファイルを追加"))
 	do @wndAddFileResuiltFile :: null
 	do @wndAddFileResuiltType :: 0
-	do @wndAddFileListType :: wnd@makeList(@wndAddFile, 12, 12, 616, 320, %fix, %scale)
-	do @wndAddFileListType.add(\common@langEn?("Source Code", "ソースコード"))
-	do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"))
+	do @wndAddFileListType :: wnd@makeListView(@wndAddFile, 12, 12, 616, 320, %fix, %scale, false, null, ["res/kn.png", "res/wnd.png"])
+	do @wndAddFileListType.add(\common@langEn?("Source Code", "ソースコード"), 0)
+	do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"), 1)
 	do @wndAddFileListType.setSel(0)
+	do @wndAddFileListType.style(%large)
 	do wnd@makeLabel(@wndAddFile, 12, 338, 80, 12, %fix, %fix, \common@langEn ?("File Name:", "ファイル名:"))
 	do @wndAddFileEditFile :: wnd@makeEdit(@wndAddFile, 98, 338, 530, 19, %fix, %fix)
 	do wnd@makeLabel(@wndAddFile, 12, 363, 510, 12, %fix, %fix, \common@langEn ?("If you enter \"abc\" the file will be saved like \"\\abc.kn\"", "「abc」と入力すると「\\abc.kn」のようなファイルで保存され、"))
@@ -43,6 +44,9 @@ var wndAddFileListType: wnd@List
 	func btnAddOnPush(wnd: wnd@WndBase)
 		do @wndAddFileResuiltFile :: @wndAddFileEditFile.getText().replace("\\", "/").trim()
 		do @wndAddFileResuiltType :: @wndAddFileListType.getSel()
+		if(@wndAddFileResuiltType = -1)
+			ret
+		end if
 		if(valid(@wndAddFileResuiltFile))
 			var ext: []char :: null
 			switch(@wndAddFileResuiltType)
