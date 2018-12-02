@@ -84,79 +84,77 @@ func initMainSrc()
 	do \form@focusDrawEditor()
 end func
 
-+func saveMainSrc(): bool
-	var file: []char :: wnd@saveFileDialog(\form@wndMain, [\common@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
-	if(file =& null)
-		ret false
-	end if
-	if(!@saveImpl(file, @curDoc))
-		ret false
-	end if
-	do @mainSrcName :: file@fileName(file)
-	do @mainSrcDir :: file@dir(file)
-	do @curDocInternalName :: @srcNameToInternalName(@mainSrcName)
-	do \prop@save()
-	var newDocs: dict<[]char, \doc@Doc> :: #dict<[]char, \doc@Doc>
-
-	class DocsClass()
-		+var docs: dict<[]char, \doc@Doc>
-	end class
-
-	var data: DocsClass :: #DocsClass
-	do data.docs :: newDocs
-	do @docs.forEach(callback, data)
-	do newDocs.add(@mainSrcName, @curDoc)
-	do @docs :: newDocs
-	do @curDoc.changed :: false
-	do \form@updateFile()
-	ret true
-
-	func callback(src: []char, doc: \doc@Doc, data: DocsClass): bool
-		if(doc <>& @curDoc)
-			do data.docs.add(src, doc)
-		end if
-		ret true
-	end func
-end func
-
-+func saveAll(): bool
-	if(@mainSrcDir = "")
-		if(!@saveMainSrc())
++func save(saveAs: bool): bool
+	if(@mainSrcDir = "" | saveAs)
+		if(!saveMainSrc())
 			ret false
 		end if
-	else
-		do \prop@save()
 	end if
+	do \prop@save()
 	var saveAllSuccess: lib@Bool :: #lib@Bool
 	do saveAllSuccess.value :: true
-	do @docs.forEach(callback, saveAllSuccess)
+	do @docs.forEach(saveAllCallback, saveAllSuccess)
 	do \form@updateFile()
 	ret saveAllSuccess.value
 
-	func callback(src: []char, doc: \doc@Doc, saveAllSuccess: lib@Bool): bool
+	func saveAllCallback(src: []char, doc: \doc@Doc, saveAllSuccess: lib@Bool): bool
 		if(doc.changed)
-			if(@saveImpl(@mainSrcDir ~ src, doc))
+			if(doc.save(@mainSrcDir ~ src))
 				do doc.changed :: false
 			else
+				var path: []char :: @mainSrcDir ~ src
+				var msg: []char
+				if(\common@langEn)
+					do msg :: "Saving failed. " ~ path
+				else
+					do msg :: "保存に失敗しました。 " ~ path
+				end if
+				do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
 				do saveAllSuccess.value :: false
 			end if
 		end if
 		ret true
 	end func
-end func
 
-+func saveImpl(path: []char, doc: \doc@Doc): bool
-	if(doc.save(path))
+	func saveMainSrc(): bool
+		var file: []char :: wnd@saveFileDialog(\form@wndMain, [\common@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
+		if(file =& null)
+			ret false
+		end if
+		var fileName: []char :: file@fileName(file)
+		if(fileName <> @mainSrcName & @docs.exist(fileName))
+			do wnd@msgBox(\form@wndMain, \common@langEn ?("The file name is already existed.", "そのファイル名は既に存在します。"), \common@title, %err, %ok)
+			ret false
+		end if
+		var newDocs: dict<[]char, \doc@Doc> :: #dict<[]char, \doc@Doc>
+
+		class DocsClass()
+			+var docs: dict<[]char, \doc@Doc>
+			+var oldMainSrcName: []char
+		end class
+
+		var data: DocsClass :: #DocsClass
+		do data.docs :: newDocs
+		do data.oldMainSrcName :: @mainSrcName
+		do @mainSrcName :: fileName
+		do @mainSrcDir :: file@dir(file)
+		do @curDocInternalName :: @srcNameToInternalName(@mainSrcName)
+		do @docs.forEach(callback, data)
+		do @docs :: newDocs
 		ret true
-	end if
-	var msg: []char
-	if(\common@langEn)
-		do msg :: "Saving failed. " ~ path
-	else
-		do msg :: "保存に失敗しました。 " ~ path
-	end if
-	do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
-	ret false
+
+		func callback(src: []char, doc: \doc@Doc, data: DocsClass): bool
+			if(@srcNameToInternalName(src)[0] <> '\\')
+				ret true
+			end if
+			if(src = data.oldMainSrcName)
+				do src :: @mainSrcName
+			end if
+			do doc.changed :: true
+			do data.docs.add(src, doc)
+			ret true
+		end func
+	end func
 end func
 
 +func setCurSrc(doc: \doc@Doc)
@@ -205,7 +203,7 @@ end func
 	elif(result = %no)
 		ret true
 	end if
-	ret @saveAll()
+	ret @save(false)
 
 	func callback(src: []char, doc: \doc@Doc, chkCloseChanged: lib@Bool): bool
 		if(doc.changed)

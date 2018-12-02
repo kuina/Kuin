@@ -357,9 +357,9 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			end if
 		end if
 	case 0x0003
-		do \src@saveAll()
+		do \src@save(false)
 	case 0x0004
-		do \src@saveMainSrc()
+		do \src@save(true)
 	case 0x0005
 		do @wndMain.close()
 	case 0x0010
