@@ -13,8 +13,10 @@ var wndAddFileListType: wnd@ListView
 	do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"), 1)
 	do @wndAddFileListType.setSel(0)
 	do @wndAddFileListType.style(%large)
+	do @wndAddFileListType.onSel :: wndAddFileListTypeOnSel
 	do wnd@makeLabel(@wndAddFile, 12, 338, 80, 12, %fix, %fix, \common@langEn ?("File Name:", "ファイル名:"))
 	do @wndAddFileEditFile :: wnd@makeEdit(@wndAddFile, 98, 338, 530, 19, %fix, %fix)
+	do @wndAddFileEditFile.setText(uniqueName(0))
 	do wnd@makeLabel(@wndAddFile, 12, 363, 510, 12, %fix, %fix, \common@langEn ?("If you enter \"abc\" the file will be saved like \"\\abc.kn\"", "「abc」と入力すると「\\abc.kn」のようなファイルで保存され、"))
 	do wnd@makeLabel(@wndAddFile, 12, 381, 510, 12, %fix, %fix, \common@langEn ?("and if you enter \"abc\\def\" it will be \"\\abc\\def.kn\".", "「abc\\def」と入力すると「\\abc\\def.kn」になります。"))
 	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndAddFile, 528, 370, 100, 23, %fix, %fix, \common@langEn ?("Add", "追加"))
@@ -41,6 +43,31 @@ var wndAddFileListType: wnd@ListView
 	do @wndAddFileEditFile :: null
 	do @wndAddFileListType :: null
 
+	func uniqueName(kind: int): []char
+		var name: []char :: null
+		switch(kind)
+		case 0
+			do name :: "src"
+		case 1
+			do name :: "wnd"
+		default
+			ret null
+		end switch
+		var ext: []char :: getExt(kind)
+		var n: int :: 1
+		while(\src@docs.exist(name ~ n.toStr() ~ ext))
+			do n :+ 1
+		end while
+		ret name ~ n.toStr()
+	end func
+
+	func wndAddFileListTypeOnSel(wnd: wnd@WndBase)
+		var name: []char :: uniqueName(@wndAddFileListType.getSel())
+		if(name <>& null)
+			do @wndAddFileEditFile.setText(name)
+		end if
+	end func
+
 	func btnAddOnPush(wnd: wnd@WndBase)
 		do @wndAddFileResuiltFile :: @wndAddFileEditFile.getText().replace("\\", "/").trim()
 		do @wndAddFileResuiltType :: @wndAddFileListType.getSel()
@@ -48,15 +75,7 @@ var wndAddFileListType: wnd@ListView
 			ret
 		end if
 		if(valid(@wndAddFileResuiltFile))
-			var ext: []char :: null
-			switch(@wndAddFileResuiltType)
-			case 0
-				do ext :: ".kn"
-			case 1
-				do ext :: ".kngen"
-			default
-				do ext :: ""
-			end switch
+			var ext: []char :: getExt(@wndAddFileResuiltType)
 			do @wndAddFileResuiltFile :~ ext
 			if(!\src@docs.exist(@wndAddFileResuiltFile))
 				do @wndAddFile.close()
@@ -83,6 +102,17 @@ var wndAddFileListType: wnd@ListView
 			end for
 			ret true
 		end func
+	end func
+
+	func getExt(kind: int): []char
+		switch(kind)
+		case 0
+			ret ".kn"
+		case 1
+			ret ".kngen"
+		default
+			ret ""
+		end switch
 	end func
 end func
 
