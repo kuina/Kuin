@@ -1,5 +1,6 @@
 +class DocArWnd(\doc_ar@DocAr)
 	+*func getSrc(): [][]char
+		ret ["func a(): []char", "ret \"abc\"", "end func"]
 		;TODO:
 	end func
 end class

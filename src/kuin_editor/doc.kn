@@ -21,7 +21,7 @@
 	+func getSrc(): [][]char
 	end func
 
-	+func draw(width: int, height: int, locked: bool)
+	+func draw(width: int, height: int)
 	end func
 
 	+func mouseDownL(x: int, y: int)

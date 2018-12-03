@@ -45,8 +45,8 @@
 		ret true
 	end func
 
-	+*func draw(width: int, height: int, locked: bool)
-		do me.cur.draw(width, height, me.cur =& me.src | locked)
+	+*func draw(width: int, height: int)
+		do me.cur.draw(width, height)
 	end func
 
 	+*func mouseDownL(x: int, y: int)
@@ -171,6 +171,7 @@
 
 	+func create(designer: @DocDesigner)
 		do me.src :: #\doc_src@DocSrc
+		do me.src.setLock(true)
 		do me.designer :: designer
 		do me.cur :: me.designer
 	end func

@@ -471,10 +471,11 @@ func btnCodeOnPush(wnd: wnd@WndBase)
 	end if
 	do @lockUi :: false
 	do @updateUi()
+	do @paintDrawEditor()
 end func
 
 func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
-	do \src@curDoc.draw(width, height, @lockingEditor)
+	do \src@curDoc.draw(width, height)
 	do draw@render(0)
 end func
 

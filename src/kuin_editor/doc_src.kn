@@ -102,8 +102,8 @@ end func
 		ret me.src.src
 	end func
 
-	+*func draw(width: int, height: int, locked: bool)
-		do draw@rect(0.0, 0.0, width $ float, height $ float, locked ?(\common@colorBackLocked, \common@colorBack))
+	+*func draw(width: int, height: int)
+		do draw@rect(0.0, 0.0, width $ float, height $ float, \form@getLockingEditor() | me.lock ?(\common@colorBackLocked, \common@colorBack))
 		var lineX: float :: (me.lineNumWidth - 2) $ float
 		do draw@line(lineX, 0.0, lineX, height $ float, colorLineNum)
 		for i(0, ^me.src.src - 1 - me.pageY)
@@ -270,8 +270,7 @@ end func
 			end if
 			ret true
 		case %bs
-			if (\form@getLockingEditor())
-				do \form@showMsgRunning()
+			if(me.locked())
 				ret true
 			end if
 			if(shiftCtrl = %none)
@@ -291,8 +290,7 @@ end func
 		case %tab
 			switch(shiftCtrl)
 			case %none
-				if (\form@getLockingEditor())
-					do \form@showMsgRunning()
+				if(me.locked())
 					ret true
 				end if
 				if(!me.areaSel())
@@ -309,8 +307,7 @@ end func
 				end if
 				ret true
 			case %shift
-				if (\form@getLockingEditor())
-					do \form@showMsgRunning()
+				if(me.locked())
 					ret true
 				end if
 				if(me.areaSel())
@@ -321,8 +318,7 @@ end func
 				ret true
 			end switch
 		case %enter
-			if (\form@getLockingEditor())
-				do \form@showMsgRunning()
+			if(me.locked())
 				ret true
 			end if
 			if(shiftCtrl = %none)
@@ -463,8 +459,7 @@ end func
 	end func
 
 	+*func keyChar(key: char)
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		if(key = '\t' | me.charWidth(key, 0) = 0)
@@ -509,8 +504,7 @@ end func
 	end func
 
 	+*func cmdUndo()
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		if(me.areaSel())
@@ -522,8 +516,7 @@ end func
 	end func
 
 	+*func cmdRedo()
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		if(me.areaSel())
@@ -535,8 +528,7 @@ end func
 	end func
 
 	+*func cmdCut()
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		if(me.areaSel())
@@ -557,8 +549,7 @@ end func
 	end func
 
 	+*func cmdPaste()
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		var str: []char :: wnd@getClipboardStr()
@@ -576,8 +567,7 @@ end func
 	end func
 
 	+*func cmdDel()
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		do me.undo.recordBegin()
@@ -1032,6 +1022,10 @@ end func
 		end for
 	end func
 
+	+func setLock(enabled: bool)
+		do me.lock :: enabled
+	end func
+
 	const colorLineNum: int :: 0xFFFF7F7F
 	const colorAreaBack: int :: 0xFF808080
 	const colorErrBack: int :: 0xFFFF3333
@@ -1092,6 +1086,7 @@ end func
 	var caretX: int
 	var caretY: int
 	var caretShown: bool
+	var lock: bool
 
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
@@ -1678,6 +1673,14 @@ end func
 		end if
 		do \completion@close()
 		ret true
+	end func
+
+	func locked(): bool
+		if(\form@getLockingEditor())
+			do \form@showMsgRunning()
+			ret true
+		end if
+		ret me.lock
 	end func
 end class
 
