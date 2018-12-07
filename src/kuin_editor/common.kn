@@ -4,6 +4,7 @@
 +const langEn: bool :: false
 +const colorBack: int :: 0xFFFFF5F5
 +const colorBackLocked: int :: 0xFFFFFFF5
++const defaultDir: []char :: "./"
 
 +var title: []char
 +var font: draw@Font

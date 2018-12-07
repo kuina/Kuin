@@ -1,7 +1,7 @@
 +var docs: dict<[]char, \doc@Doc>
 +var curDoc: \doc@Doc
-+var curDocInternalName: []char
-+var mainSrcName: []char
++var curDocName: []char
++var mainSrcPath: []char
 +var mainSrcDir: []char
 +var sysDir: []char
 var runningFiles: list<[]char>
@@ -39,12 +39,12 @@ end func
 +func newMainSrc()
 	var doc: \doc_src@DocSrc :: #\doc_src@DocSrc
 	do @curDoc :: doc
-	do @mainSrcName :: "main.kn"
-	do @mainSrcDir :: ""
-	do @curDocInternalName :: @srcNameToInternalName(@mainSrcName)
+	do @mainSrcPath :: \common@defaultDir ~ "main.kn"
+	do @mainSrcDir :: \common@defaultDir
+	do @curDocName :: "\\main"
 	do @clearDocs()
 	do @docs :: #dict<[]char, \doc@Doc>
-	do @docs.add(@mainSrcName, @curDoc)
+	do @docs.add("\\main", @curDoc)
 	do @initMainSrc()
 	do @curDoc.fix()
 	do \form@updateUi()
@@ -63,12 +63,12 @@ end func
 		ret
 	end if
 	do @curDoc :: doc
-	do @mainSrcName :: file@fileName(path)
+	do @mainSrcPath :: path
 	do @mainSrcDir :: file@dir(path)
-	do @curDocInternalName :: @srcNameToInternalName(@mainSrcName)
+	do @curDocName :: "\\" ~ file@delExt(file@fileName(path))
 	do @clearDocs()
 	do @docs :: #dict<[]char, \doc@Doc>
-	do @docs.add(@mainSrcName, @curDoc)
+	do @docs.add("\\" ~ file@delExt(file@fileName(path)), @curDoc)
 	do \prop@load()
 	do @initMainSrc()
 	do @curDoc.fix()
@@ -85,7 +85,7 @@ func initMainSrc()
 end func
 
 +func save(saveAs: bool): bool
-	if(@mainSrcDir = "" | saveAs)
+	if(@mainSrcDir = \common@defaultDir | saveAs)
 		if(!saveMainSrc())
 			ret false
 		end if
@@ -98,8 +98,8 @@ end func
 	ret saveAllSuccess.value
 
 	func saveAllCallback(src: []char, doc: \doc@Doc, saveAllSuccess: lib@Bool): bool
-		if(doc.changed)
-			var path: []char :: @mainSrcDir ~ src
+		if(doc.changed & src[0] = '\\')
+			var path: []char :: @mainSrcDir ~ src.sub(1, -1).replace("\\", "/") ~ @getExt(doc)
 			if(!file@exist(file@dir(path)))
 				do file@makeDir(file@dir(path))
 			end if
@@ -124,8 +124,8 @@ end func
 		if(file =& null)
 			ret false
 		end if
-		var fileName: []char :: file@fileName(file)
-		if(fileName <> @mainSrcName & @docs.exist(fileName))
+		var fileName: []char :: "\\" ~ file@delExt(file@fileName(file))
+		if(fileName <> "\\" ~ file@delExt(file@fileName(@mainSrcPath)) & @docs.exist(fileName))
 			do wnd@msgBox(\form@wndMain, \common@langEn ?("The file name is already existed.", "そのファイル名は既に存在します。"), \common@title, %err, %ok)
 			ret false
 		end if
@@ -134,24 +134,26 @@ end func
 		class DocsClass()
 			+var docs: dict<[]char, \doc@Doc>
 			+var oldMainSrcName: []char
+			+var newMainSrcName: []char
 		end class
 
 		var data: DocsClass :: #DocsClass
 		do data.docs :: newDocs
-		do data.oldMainSrcName :: @mainSrcName
-		do @mainSrcName :: fileName
+		do data.oldMainSrcName :: "\\" ~ file@delExt(file@fileName(@mainSrcPath))
+		do data.newMainSrcName :: fileName
+		do @mainSrcPath :: file
 		do @mainSrcDir :: file@dir(file)
-		do @curDocInternalName :: @srcNameToInternalName(@mainSrcName)
+		do @curDocName :: fileName
 		do @docs.forEach(callback, data)
 		do @docs :: newDocs
 		ret true
 
 		func callback(src: []char, doc: \doc@Doc, data: DocsClass): bool
-			if(@srcNameToInternalName(src)[0] <> '\\')
+			if(src[0] <> '\\')
 				ret true
 			end if
 			if(src = data.oldMainSrcName)
-				do src :: @mainSrcName
+				do src :: data.newMainSrcName
 			end if
 			do doc.changed :: true
 			do data.docs.add(src, doc)
@@ -163,7 +165,7 @@ end func
 +func setCurSrc(doc: \doc@Doc)
 	do \completion@close()
 	do @curDoc :: doc
-	do @curDocInternalName :: @srcNameToInternalName(@getDocName(doc))
+	do @curDocName :: @getDocName(doc)
 	do @curDoc.fix()
 	do \form@paintDrawEditor()
 	do \form@focusDrawEditor()
@@ -173,13 +175,15 @@ end func
 +func mainDoc(): \doc@Doc
 	class RefDoc()
 		+var value: \doc@Doc
+		+var mainSrcName: []char
 	end class
 	var doc: RefDoc :: #RefDoc
+	do doc.mainSrcName :: "\\" ~ file@delExt(file@fileName(@mainSrcPath))
 	do @docs.forEach(callback, doc)
 	ret doc.value
 
 	func callback(src: []char, doc: \doc@Doc, data: RefDoc): bool
-		if(src = @mainSrcName)
+		if(src = data.mainSrcName)
 			do data.value :: doc
 			ret false
 		end if
@@ -219,60 +223,63 @@ end func
 
 +func getSrc(path: []char): [][]char
 	; This function is called by the Kuin compiler.
-	var path2: []char :: (##path).replace("\\", "/")
+	var path2: []char
+	if(^@mainSrcDir <= ^path & @mainSrcDir = path.sub(0, ^@mainSrcDir))
+		do path2 :: "\\" ~ file@delExt(path.sub(^@mainSrcDir, -1)).replace("/", "\\")
+	elif(^@sysDir <= ^path & @sysDir = path.sub(0, ^@sysDir))
+		do path2 :: file@delExt(path.sub(^@sysDir, -1)).replace("/", "\\")
+	else
+		do path2 :: ##path
+	end if
 	var doc: \doc@Doc :: @docs.get(path2, &)
 	if(doc <>& null)
-		var doc2: \doc_src@DocSrc :: doc $ \doc_src@DocSrc
-		ret doc2.getSrc()
+		ret doc.getSrc()
 	end if
 
-	block
-		var doc2: \doc_src@DocSrc :: #\doc_src@DocSrc
-		if(@loadFileToDocs(path2, doc2))
-			ret doc2.getSrc()
-		end if
-	end block
+	do doc :: @loadFileToDocs(##path)
+	if(doc <>& null)
+		ret doc.getSrc()
+	end if
 	ret null
 end func
 
-+func makeDoc(path: []char): \doc@Doc
++func loadFileToDocs(path: []char): \doc@Doc
+	do path :: file@fullPath(path)
+	var doc: \doc@Doc
 	switch(file@ext(path).lower())
-	case "kn"
-		ret #\doc_src@DocSrc
+	case "kn", "knp"
+		do doc :: #\doc_src@DocSrc
 	case "kngen"
-		ret #\doc_gen@DocGen
+		do doc ::  #\doc_gen@DocGen
+	default
+		ret null
 	end switch
-	ret null
-end func
-
-+func loadFileToDocs(path: []char, doc: \doc@Doc): bool
+	var name: []char
 	if(^@sysDir <= ^path & @sysDir = path.sub(0, ^@sysDir))
 		if(!doc.load(path))
-			ret false
+			ret null
 		end if
-	elif(@mainSrcDir = "")
-		ret false
+		do name :: file@delExt(path.sub(^@sysDir, -1)).replace("/", "\\")
+	elif(@mainSrcDir = \common@defaultDir | !(^@mainSrcDir <= ^path & @mainSrcDir = path.sub(0, ^@mainSrcDir)))
+		ret null
 	else
-		if(!doc.load(@mainSrcDir ~ path))
-			ret false
+		if(!doc.load(path))
+			ret null
 		end if
+		do name :: "\\" ~ file@delExt(path.sub(^@mainSrcDir, -1)).replace("/", "\\")
 	end if
-	if(!doc.load(path))
-		ret false
-	end if
-	do @docs.add(path, doc)
-	ret true
+	do @docs.add(name, doc)
+	ret doc
 end func
 
 +func jumpSrc(pos: @Pos): bool
 	if(pos =& null | pos.src =& null | ^pos.src = 0 | pos.src[0] <> '\\')
 		ret false
 	end if
-	var src: []char :: @internalNameToSrcName(pos.src)
-	if(src =& null)
+	if(pos.src =& null)
 		ret false
 	end if
-	var doc: \doc@Doc :: @docs.get(src, &)
+	var doc: \doc@Doc :: @docs.get(pos.src, &)
 	if(doc =& null)
 		ret false
 	end if
@@ -280,8 +287,8 @@ end func
 		if(doc <>& @curDoc)
 			var sel: int :: -1
 			for i(0, \form@listFile.len() - 1)
-				var internalName: []char :: @removePrefix(\form@listFile.getText(i))
-				if(internalName = pos.src)
+				var name: []char :: @removePrefix(\form@listFile.getText(i))
+				if(name = pos.src)
 					do sel :: i
 					break i
 				end if
@@ -315,35 +322,6 @@ end func
 	else
 		ret src.sub(begin, -1)
 	end if
-end func
-
-+func srcNameToInternalName(srcName: []char): []char
-	if(^@sysDir <= ^srcName & @sysDir = srcName.sub(0, ^@sysDir))
-		ret file@delExt(srcName.sub(^@sysDir, -1)).replace("/", "\\")
-	else
-		switch(file@ext(srcName).lower())
-		case "kn"
-			ret "\\" ~ file@delExt(srcName).replace("/", "\\")
-		case "kngen"
-			ret "!" ~ file@delExt(srcName).replace("/", "\\")
-		default
-			ret "?" ~ srcName
-		end switch
-	end if
-end func
-
-+func internalNameToSrcName(internalName: []char): []char
-	if(^internalName > 1)
-		switch(internalName[0])
-		case '\\'
-			ret internalName.sub(1, -1).replace("\\", "/") ~ ".kn"
-		case '!'
-			ret internalName.sub(1, -1).replace("\\", "/") ~ ".kngen"
-		case '?'
-			ret internalName.sub(1, -1)
-		end switch
-	end if
-	ret @sysDir ~ internalName.replace("\\", "/") ~ ".kn"
 end func
 
 +func getDocName(doc: \doc@Doc): []char
@@ -408,11 +386,10 @@ end func
 		do doc_src.addListInfoItem(listInfoItem)
 
 		; Fill in words with the error color.
-		var srcName: []char :: @internalNameToSrcName(pos.src)
-		if(srcName =& null)
+		if(pos.src =& null)
 			ret true
 		end if
-		var doc: \doc@Doc :: @docs.get(srcName, &)
+		var doc: \doc@Doc :: @docs.get(pos.src, &)
 		if(doc <>& null & doc =$ \doc_src@DocSrc)
 			var doc2: \doc_src@DocSrc :: doc $ \doc_src@DocSrc
 			var x: int :: pos.col - 1
@@ -476,4 +453,14 @@ func clearDocs()
 		do doc.fin()
 		ret true
 	end func
+end func
+
++func getExt(doc: \doc@Doc): []char
+	if(doc =$ \doc_src@DocSrc)
+		ret ".kn"
+	end if
+	if(doc =$ \doc_gen@DocGen)
+		ret ".kngen"
+	end if
+	ret ""
 end func

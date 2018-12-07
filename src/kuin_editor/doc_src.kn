@@ -115,12 +115,12 @@ end func
 			var flags: LineFlag :: me.pageY + i >= ^me.src.flags ?(%none, me.src.flags[me.pageY + i])
 			if(flags.and(%breakPoint) <> %none)
 				do draw@rect(1.0, y + 1.0, lineX - 2.0, \common@cellHeight $ float - 2.0, colorBreakPointBack)
-				if(\src@breakPos <>& null & \src@breakPos.src = \src@curDocInternalName & \src@breakPos.row = me.pageY + i + 1)
+				if(\src@breakPos <>& null & \src@breakPos.src = \src@curDocName & \src@breakPos.row = me.pageY + i + 1)
 					do draw@rect(1.0, y + 1.0, (lineX - 2.0) / 2.0, \common@cellHeight $ float - 2.0, colorBreakBack)
 				end if
 				do \common@font.draw((me.lineNumWidth - (^str + 1) * \common@cellWidth + \common@cellWidth / 2) $ float, y, str, colorBreakPoint)
 			else
-				if(\src@breakPos <>& null & \src@breakPos.src = \src@curDocInternalName & \src@breakPos.row = me.pageY + i + 1)
+				if(\src@breakPos <>& null & \src@breakPos.src = \src@curDocName & \src@breakPos.row = me.pageY + i + 1)
 					do draw@rect(1.0, y + 1.0, (lineX - 2.0) / 2.0, \common@cellHeight $ float - 2.0, colorBreakBack)
 				end if
 				do \common@font.draw((me.lineNumWidth - (^str + 1) * \common@cellWidth + \common@cellWidth / 2) $ float, y, str, colorLineNum)
@@ -1595,7 +1595,7 @@ end func
 
 				do \src@resetErrList()
 				try
-					do \dll@interpret2(\src@mainSrcName, \src@getSrc, null, \form@getEnv(), \form@logForInterpret, \common@langEn ?(1, 0))
+					do \dll@interpret2(\src@mainSrcPath, \src@getSrc, null, \form@getEnv(), \form@logForInterpret, \common@langEn ?(1, 0))
 				catch
 				end try
 				do \src@updateErrList()
@@ -1626,7 +1626,7 @@ end func
 				do \completion@close()
 			else
 				do \form@drawEditor.showCaret(\common@cellHeight, \common@font)
-				do \completion@show(me.src, \src@curDocInternalName, first, me.cursorY, word)
+				do \completion@show(me.src, \src@curDocName, first, me.cursorY, word)
 				do \form@drawEditor.hideCaret()
 			end if
 		end if
