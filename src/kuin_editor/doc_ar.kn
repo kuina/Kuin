@@ -1,12 +1,27 @@
 +class DocAr(\doc_gen@DocDesigner)
 	*func ctor()
 		do super(me)
+		do me.nodes :: #list<@Obj>
+		do me.holds :: #list<@Obj>
+		do me.scrollOffsetX :: 10
+		do me.scrollOffsetY :: 40
+		do me.pageX :: -me.scrollOffsetX
+		do me.pageY :: -me.scrollOffsetY
+		do me.mode :: %none
 	end func
 
-	+*func fix()
+	+*func getSrc(): [][]char
+		ret me.src
 	end func
 
 	+*func draw(width: int, height: int)
+		do draw@rect(0.0, 0.0, width $ float, height $ float, \common@colorBack)
+		do me.root.draw(me.pageX, me.pageY, me.holds)
+		do me.nodes.head()
+		while(!me.nodes.term())
+			do me.nodes.get().draw(me.pageX, me.pageY, me.holds)
+			do me.nodes.next()
+		end while
 	end func
 
 	+*func mouseDownL(x: int, y: int)
@@ -22,6 +37,14 @@
 	end func
 
 	+*func focus(isFocus: bool)
+		const padding: int :: 32
+		if(isFocus)
+			var screenWidth: int
+			var screenHeight: int
+			do \form@drawEditor.getPos(&, &, &screenWidth, &screenHeight)
+			do \form@scrollXSrc.setState(me.root.x, me.root.width + padding, screenWidth, me.pageX + me.scrollOffsetX)
+			do \form@scrollYSrc.setState(me.root.y, me.root.height + padding, screenHeight, me.pageY + me.scrollOffsetY)
+		end if
 	end func
 
 	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
@@ -34,9 +57,13 @@
 	end func
 
 	+*func scrollX(pos: int)
+		do me.pageX :: pos - me.scrollOffsetX
+		do \form@paintDrawEditor()
 	end func
 
 	+*func scrollY(pos: int)
+		do me.pageY :: pos - me.scrollOffsetY
+		do \form@paintDrawEditor()
 	end func
 
 	+*func wheelX(wheel: int)
@@ -46,6 +73,7 @@
 	end func
 
 	+*func setMouseImg(): wnd@MouseImg
+		ret %arrow
 	end func
 
 	+*func cmdUndo()
@@ -77,6 +105,7 @@
 	end func
 
 	+*func updateUi()
+		; TODO:
 	end func
 
 	+*func listLtOnMouseClick()
@@ -94,9 +123,58 @@
 	+*func listRbOnMouseClick()
 	end func
 
-	+*func loadRecursion(xmlNode: xml@Node)
+	+*func loadImpl(xmlNode: xml@Node)
 	end func
 
-	+*func saveRecursion(xmlNode: xml@Node)
+	+*func saveImpl(xmlNode: xml@Node)
 	end func
+
+	enum Mode
+		none
+		put
+		move
+		resize
+		select
+	end enum
+
+	var src: [][]char
+	var root: @Obj
+	var nodes: list<@Obj>
+	var holds: list<@Obj>
+	var scrollOffsetX: int
+	var scrollOffsetY: int
+	var pageX: int
+	var pageY: int
+	var mode: Mode
+end class
+
++class Obj()
+	+func load(node: xml@Node)
+	end func
+
+	+func save(node: xml@Node): xml@Node
+	end func
+
+	+func draw(pageX: int, pageY: int, holds: list<@Obj>)
+	end func
+
+	+func type(): []char
+	end func
+
+	+func getSrc(indent: int, lines: list<[]char>)
+	end func
+
+	+func init(name: []char, x: int, y: int, width: int, height: int)
+		do me.name :: name
+		do me.x :: x
+		do me.y :: y
+		do me.width :: width
+		do me.height :: height
+	end func
+
+	+var name: []char
+	+var x: int
+	+var y: int
+	+var width: int
+	+var height: int
 end class

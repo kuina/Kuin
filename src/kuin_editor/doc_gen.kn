@@ -5,7 +5,6 @@
 	end func
 
 	+*func fix()
-		do me.src.fix()
 		do me.designer.fix()
 	end func
 
@@ -20,7 +19,7 @@
 				ret false
 			end switch
 			var node: xml@Node :: root.findChild("root")
-			do me.designer.loadRecursion(node)
+			do me.designer.loadImpl(node)
 		catch
 			ret false
 		end try
@@ -37,12 +36,16 @@
 			else
 				do type.setValue("unknown")
 			end if
-			do me.designer.saveRecursion(root)
+			do me.designer.saveImpl(root)
 			do xml.save(path, false)
 		catch
 			ret false
 		end try
 		ret true
+	end func
+
+	+*func getSrc(): [][]char
+		ret me.designer.getSrc()
 	end func
 
 	+*func draw(width: int, height: int)
@@ -179,7 +182,7 @@
 	+func swapMode()
 		do me.cur :: me.cur =& me.src ?(me.designer $ \doc@Doc, me.src $ \doc@Doc)
 		if(me.cur =& me.src)
-			do me.src.setSrc(me.getSrc())
+			do me.src.setSrc(me.designer.getSrc())
 		end if
 	end func
 
@@ -189,9 +192,9 @@
 end class
 
 +class DocDesigner(\doc@Doc)
-	+func loadRecursion(xmlNode: xml@Node)
+	+func loadImpl(xmlNode: xml@Node)
 	end func
 
-	+func saveRecursion(xmlNode: xml@Node)
+	+func saveImpl(xmlNode: xml@Node)
 	end func
 end class

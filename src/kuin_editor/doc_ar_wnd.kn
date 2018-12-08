@@ -1,6 +1,55 @@
 +class DocArWnd(\doc_ar@DocAr)
-	+*func getSrc(): [][]char
-		ret ["func a(): []char", "ret \"abc\"", "end func"]
-		;TODO:
+	*func ctor()
+		do super(me)
+		do me.root :: #@ObjWnd
+		do me.root.init("wnd1", 0, 0, 100, 100)
+	end func
+
+	+*func fix()
+		var lines: list<[]char> :: #list<[]char>
+		do lines.add("var \{me.root.name}: \{me.root.type()}")
+		do me.nodes.head()
+		while(!me.nodes.term())
+			var node: \doc_ar@Obj :: me.nodes.get()
+			do lines.add("var \{node.name}: \{node.type()}")
+			do me.nodes.next()
+		end while
+		do lines.add("")
+		do lines.add("+func make(): wnd@Wnd")
+		do me.root.getSrc(1, lines)
+		do me.nodes.head()
+		while(!me.nodes.term())
+			do me.nodes.get().getSrc(1, lines)
+			do me.nodes.next()
+		end while
+		do lines.add("\tret @\{me.root.name}")
+		do lines.add("end func")
+		do me.src :: lines.toArray()
+	end func
+end class
+
+class ObjWnd(\doc_ar@Obj)
+	+*func load(node: xml@Node)
+	end func
+
+	+*func save(node: xml@Node): xml@Node
+	end func
+
+	+*func draw(pageX: int, pageY: int, holds: list<\doc_ar@Obj>)
+		var x: float :: (me.x - pageX) $ float
+		var y: float :: (me.y - pageY) $ float
+		var width: float :: me.width $ float
+		var height: float :: me.height $ float
+		do draw@rect(x, y, width, height, 0xFFF0F0F0)
+		do draw@rect(x, y - 30.0, width, 30.0, 0xFFFFFFFF)
+		do draw@rectLine(x - 1.0, y - 31.0, width + 2.0, height + 32.0, 0xFF1883D7)
+	end func
+
+	+*func type(): []char
+		ret "wnd@Wnd"
+	end func
+
+	+*func getSrc(indent: int, lines: list<[]char>)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(null, %normal, \{me.width}, \{me.height}, \"\{me.name}\")")
 	end func
 end class
