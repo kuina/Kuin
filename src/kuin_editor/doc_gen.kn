@@ -1,0 +1,200 @@
++class DocGen(\doc@Doc)
+	+*func fin()
+		do me.src.fin()
+		do me.designer.fin()
+	end func
+
+	+*func fix()
+		do me.designer.fix()
+	end func
+
+	+*func load(path: []char): bool
+		try
+			var xml: xml@Xml :: xml@makeXml(path)
+			var root: xml@Node :: xml.root()
+			switch(root.findChild("type").getValue())
+			case "wnd"
+				do me.create(#\doc_ar_wnd@DocArWnd)
+			default
+				ret false
+			end switch
+			var node: xml@Node :: root.findChild("root")
+			do me.designer.loadImpl(node)
+		catch
+			ret false
+		end try
+		ret true
+	end func
+
+	+*func save(path: []char): bool
+		try
+			var xml: xml@Xml :: xml@makeXmlEmpty()
+			var root: xml@Node :: xml.root()
+			var type: xml@Node :: root.addChild("type")
+			if(me.designer =$ \doc_ar_wnd@DocArWnd)
+				do type.setValue("wnd")
+			else
+				do type.setValue("unknown")
+			end if
+			do me.designer.saveImpl(root)
+			do xml.save(path, false)
+		catch
+			ret false
+		end try
+		ret true
+	end func
+
+	+*func getSrc(): [][]char
+		ret me.designer.getSrc()
+	end func
+
+	+*func draw(width: int, height: int)
+		do me.cur.draw(width, height)
+	end func
+
+	+*func mouseDownL(x: int, y: int)
+		do me.cur.mouseDownL(x, y)
+	end func
+
+	+*func mouseUpL(x: int, y: int)
+		do me.cur.mouseUpL(x, y)
+	end func
+
+	+*func mouseDoubleClick(x: int, y: int)
+		do me.cur.mouseDoubleClick(x, y)
+	end func
+
+	+*func mouseMove(x: int, y: int)
+		do me.cur.mouseMove(x, y)
+	end func
+
+	+*func focus(isFocus: bool)
+		do me.cur.focus(isFocus)
+	end func
+
+	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+		ret me.cur.keyDown(key, shiftCtrl)
+	end func
+
+	+*func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
+		do me.cur.keyUp(key, shiftCtrl)
+	end func
+
+	+*func keyChar(key: char)
+		do me.cur.keyChar(key)
+	end func
+
+	+*func scrollX(pos: int)
+		do me.cur.scrollX(pos)
+	end func
+
+	+*func scrollY(pos: int)
+		do me.cur.scrollY(pos)
+	end func
+
+	+*func wheelX(wheel: int)
+		do me.cur.wheelX(wheel)
+	end func
+
+	+*func wheelY(wheel: int)
+		do me.cur.wheelY(wheel)
+	end func
+
+	+*func setMouseImg(): wnd@MouseImg
+		ret me.cur.setMouseImg()
+	end func
+
+	+*func cmdUndo()
+		do me.cur.cmdUndo()
+	end func
+
+	+*func cmdRedo()
+		do me.cur.cmdRedo()
+	end func
+
+	+*func cmdCut()
+		do me.cur.cmdCut()
+	end func
+
+	+*func cmdCopy()
+		do me.cur.cmdCopy()
+	end func
+
+	+*func cmdPaste()
+		do me.cur.cmdPaste()
+	end func
+
+	+*func cmdDel()
+		do me.cur.cmdDel()
+	end func
+
+	+*func cmdSelAll()
+		do me.cur.cmdSelAll()
+	end func
+
+	+*func undoImpl(undo2: \doc@UndoCmd)
+		do me.cur.undoImpl(undo2)
+	end func
+
+	+*func getSelCode(): []char
+		ret me.cur.getSelCode()
+	end func
+
+	+*func updateUi()
+		do \form@btnCode.setRedraw(false)
+		do me.cur.updateUi()
+		if(me.cur =& me.src)
+			do \form@btnCode.setText(\common@langEn ?("Show Designer", "デザイナを表示"))
+		else
+			do \form@btnCode.setText(\common@langEn ?("Show Code", "コードを表示"))
+		end if
+		do \form@btnCode.setEnabled(true)
+		do \form@btnCode.setRedraw(true)
+	end func
+
+	+*func listLtOnMouseClick()
+		do me.cur.listLtOnMouseClick()
+	end func
+
+	+*func treeLbOnSel()
+		do me.cur.treeLbOnSel()
+	end func
+
+	+*func listLbOnSel()
+		do me.cur.listLbOnSel()
+	end func
+
+	+*func listRbOnSel()
+		do me.cur.listRbOnSel()
+	end func
+
+	+*func listRbOnMouseClick()
+		do me.cur.listRbOnMouseClick()
+	end func
+
+	+func create(designer: @DocDesigner)
+		do me.src :: #\doc_src@DocSrc
+		do me.src.setLock(true)
+		do me.designer :: designer
+		do me.cur :: me.designer
+	end func
+
+	+func swapMode()
+		do me.cur :: me.cur =& me.src ?(me.designer $ \doc@Doc, me.src $ \doc@Doc)
+		if(me.cur =& me.src)
+			do me.src.setSrc(me.designer.getSrc())
+		end if
+	end func
+
+	var src: \doc_src@DocSrc
+	var designer: @DocDesigner
+	var cur: \doc@Doc
+end class
+
++class DocDesigner(\doc@Doc)
+	+func loadImpl(xmlNode: xml@Node)
+	end func
+
+	+func saveImpl(xmlNode: xml@Node)
+	end func
+end class

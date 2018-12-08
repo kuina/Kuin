@@ -10,6 +10,7 @@
 #include "draw.h"
 #include "snd.h"
 #include "input.h"
+#include "png_decoder.h"
 
 #pragma comment(lib, "Comctl32.lib")
 
@@ -46,7 +47,6 @@ enum EWndKind
 	WndKind_Pager,
 	WndKind_Tab,
 	WndKind_Tree,
-	WndKind_TreeMulti,
 	WndKind_SplitX,
 	WndKind_SplitY,
 	WndKind_ScrollX,
@@ -226,6 +226,9 @@ struct SListView
 	void* OnSel;
 	void* OnMouseDoubleClick;
 	void* OnMouseClick;
+	Bool Draggable;
+	Bool Dragging;
+	HIMAGELIST DraggingImage;
 };
 
 struct SPager
@@ -239,7 +242,7 @@ struct STab
 	void* OnSel;
 };
 
-struct STreeBase
+struct STree
 {
 	SWndBase WndBase;
 	Bool Draggable;
@@ -247,16 +250,6 @@ struct STreeBase
 	HTREEITEM DraggingItem;
 	void* OnSel;
 	void* OnMoveNode;
-};
-
-struct STree
-{
-	STreeBase TreeBase;
-};
-
-struct STreeMulti
-{
-	STreeBase TreeBase;
 };
 
 struct STreeNode
@@ -313,6 +306,7 @@ static void TreeExpandAllRecursion(HWND wnd_handle, HTREEITEM node, int flag);
 static void CopyTreeNodeRecursion(HWND tree_wnd, HTREEITEM dst, HTREEITEM src, Char* buf);
 static void ListViewAdjustWidth(HWND wnd);
 static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchor_x, S64 anchor_y, Bool equal_magnification, Bool editable);
+static HIMAGELIST CreateImageList(const void* imgs);
 static LRESULT CALLBACK CommonWndProc(HWND wnd, SWndBase* wnd2, SWnd* wnd3, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndFix(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -1179,7 +1173,7 @@ EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64
 EXPORT_CPP SClass* _makeList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
 	SList* me2 = reinterpret_cast<SList*>(me_);
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_List, WC_LISTBOX, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_DISABLENOSCROLL | LBS_NOTIFY, x, y, width, height, L"", WndProcList, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_List, WC_LISTBOX, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_DISABLENOSCROLL | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT, x, y, width, height, L"", WndProcList, anchorX, anchorY);
 	me2->OnSel = NULL;
 	me2->OnMouseDoubleClick = NULL;
 	return me_;
@@ -1333,17 +1327,26 @@ EXPORT_CPP SClass* _makeLabelLink(SClass* me_, SClass* parent, S64 x, S64 y, S64
 	return me_;
 }
 
-EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
+EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool multi_sel, const void* small_imgs, const void* large_imgs)
 {
 	SListView* me2 = reinterpret_cast<SListView*>(me_);
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | LVS_REPORT | LVS_SINGLESEL | LVS_NOSORTHEADER, x, y, width, height, L"", WndProcListView, anchorX, anchorY);
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ListView, WC_LISTVIEW, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | LVS_REPORT | LVS_NOSORTHEADER | LVS_AUTOARRANGE | LVS_SHOWSELALWAYS | (multi_sel ? 0 : LVS_SINGLESEL), x, y, width, height, L"", WndProcListView, anchorX, anchorY);
 	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
 	DWORD ex = ListView_GetExtendedListViewStyle(wnd);
-	ListView_SetExtendedListViewStyle(wnd, ex | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
+	ListView_SetExtendedListViewStyle(wnd, ex | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_SUBITEMIMAGES);
 	SetWindowLongPtr(ListView_GetHeader(wnd), GWLP_USERDATA, reinterpret_cast<LONG_PTR>(me_));
 	me2->OnSel = NULL;
 	me2->OnMouseDoubleClick = NULL;
 	me2->OnMouseClick = NULL;
+	me2->Draggable = False;
+	me2->Dragging = False;
+	me2->DraggingImage = NULL;
+
+	if (small_imgs != NULL)
+		ListView_SetImageList(wnd, CreateImageList(small_imgs), LVSIL_SMALL);
+	if (large_imgs != NULL)
+		ListView_SetImageList(wnd, CreateImageList(large_imgs), LVSIL_NORMAL);
+
 	return me_;
 }
 
@@ -1353,29 +1356,33 @@ EXPORT_CPP void _listViewClear(SClass* me_)
 	ListView_DeleteAllItems(me2->WndHandle);
 }
 
-EXPORT_CPP void _listViewAdd(SClass* me_, const U8* text)
+EXPORT_CPP void _listViewAdd(SClass* me_, const U8* text, S64 img)
 {
 	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(img < -1, 0xe9170006);
 	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
 	LVITEM item;
-	item.mask = LVIF_TEXT;
+	item.mask = LVIF_TEXT | LVIF_IMAGE;
 	item.iItem = ListView_GetItemCount(wnd);
 	item.iSubItem = 0;
+	item.iImage = static_cast<int>(img);
 	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
 	ListView_InsertItem(wnd, &item);
 }
 
-EXPORT_CPP void _listViewIns(SClass* me_, S64 idx, const U8* text)
+EXPORT_CPP void _listViewIns(SClass* me_, S64 idx, const U8* text, S64 img)
 {
 	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(img < -1, 0xe9170006);
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
 	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 #endif
 	LVITEM item;
-	item.mask = LVIF_TEXT;
+	item.mask = LVIF_TEXT | LVIF_IMAGE;
 	item.iItem = static_cast<int>(idx);
 	item.iSubItem = 0;
+	item.iImage = static_cast<int>(img);
 	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
 	ListView_InsertItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
 }
@@ -1434,26 +1441,34 @@ EXPORT_CPP S64 _listViewLenColumn(SClass* me_)
 	return static_cast<S64>(Header_GetItemCount(ListView_GetHeader(reinterpret_cast<SWndBase*>(me_)->WndHandle)));
 }
 
-EXPORT_CPP void _listViewClearColumn(SClass* me_)
+EXPORT_CPP void _listViewClearAll(SClass* me_)
 {
 	S64 len = _listViewLenColumn(me_);
 	for (S64 i = 0; i < len; i++)
 		_listViewDelColumn(me_, 0);
+	_listViewClear(me_);
 }
 
-EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* text)
+EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* text, S64 img)
 {
 	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(img < -1, 0xe9170006);
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
 	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 	len = _listViewLenColumn(me_);
 	THROWDBG(column < 0 || len <= column, 0xe9170006);
 #endif
-	ListView_SetItemText(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), static_cast<int>(column), const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10)));
+	LVITEM item;
+	item.mask = LVIF_TEXT | LVIF_IMAGE;
+	item.iItem = static_cast<int>(idx);
+	item.iSubItem = static_cast<int>(column);
+	item.iImage = static_cast<int>(img);
+	item.pszText = const_cast<Char*>(reinterpret_cast<const Char*>(text + 0x10));
+	ListView_SetItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
 }
 
-EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column)
+EXPORT_CPP void* _listViewGetText(SClass* me_, S64* img, S64 idx, S64 column)
 {
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
@@ -1462,13 +1477,21 @@ EXPORT_CPP void* _listViewGetText(SClass* me_, S64 idx, S64 column)
 	THROWDBG(column < 0 || len <= column, 0xe9170006);
 #endif
 	Char buf[1025];
-	ListView_GetItemText(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), static_cast<int>(column), buf, 1025);
+	LVITEM item;
+	item.mask = LVIF_TEXT | LVIF_IMAGE;
+	item.iItem = static_cast<int>(idx);
+	item.iSubItem = static_cast<int>(column);
+	item.pszText = buf;
+	item.cchTextMax = 1025;
+	item.iImage = -1;
+	ListView_GetItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, &item);
 	buf[1024] = L'\0';
 	size_t len2 = wcslen(buf);
 	U8* result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * static_cast<size_t>(len2 + 1)));
 	*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
 	*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len2);
 	memcpy(result + 0x10, buf, sizeof(Char) * static_cast<size_t>(len2 + 1));
+	*img = static_cast<S64>(item.iImage);
 	return result;
 }
 
@@ -1489,6 +1512,32 @@ EXPORT_CPP void _listViewSetSel(SClass* me_, S64 idx)
 EXPORT_CPP S64 _listViewGetSel(SClass* me_)
 {
 	return static_cast<S64>(ListView_GetNextItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, -1, LVNI_ALL | LVNI_SELECTED));
+}
+
+EXPORT_CPP void _listViewStyle(SClass* me_, S64 list_view_style)
+{
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	DWORD dw_style = GetWindowLong(me2->WndHandle, GWL_STYLE);
+	const LONG normal_mask = LVS_TYPEMASK | LVS_NOCOLUMNHEADER;
+	SetWindowLong(me2->WndHandle, GWL_STYLE, (dw_style & ~normal_mask) | (static_cast<LONG>(list_view_style) & normal_mask));
+	DWORD ex = ListView_GetExtendedListViewStyle(me2->WndHandle);
+	const LONG ex_mask = LVS_EX_CHECKBOXES;
+	ListView_SetExtendedListViewStyle(me2->WndHandle, (ex & ~ex_mask) | (static_cast<LONG>(list_view_style) & ex_mask));
+}
+
+EXPORT_CPP void _listViewDraggable(SClass* me_, bool enabled)
+{
+	reinterpret_cast<SListView*>(me_)->Draggable = enabled;
+}
+
+EXPORT_CPP void _listViewSetChk(SClass* me_, S64 idx, bool value)
+{
+	ListView_SetCheckState(reinterpret_cast<SWndBase*>(me_)->WndHandle, idx, value ? TRUE : FALSE);
+}
+
+EXPORT_CPP Bool _listViewGetChk(SClass* me_, S64 idx)
+{
+	return ListView_GetCheckState(reinterpret_cast<SWndBase*>(me_)->WndHandle, idx) != 0;
 }
 
 EXPORT_CPP SClass* _makePager(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
@@ -1552,23 +1601,11 @@ EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 {
 	STree* me2 = reinterpret_cast<STree*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | TVS_HASBUTTONS | TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_LINESATROOT, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
-	reinterpret_cast<STreeBase*>(me2)->Draggable = False;
-	reinterpret_cast<STreeBase*>(me2)->AllowDraggingToRoot = False;
-	reinterpret_cast<STreeBase*>(me2)->DraggingItem = NULL;
-	reinterpret_cast<STreeBase*>(me2)->OnSel = NULL;
-	reinterpret_cast<STreeBase*>(me2)->OnMoveNode = NULL;
-	return me_;
-}
-
-EXPORT_CPP SClass* _makeTreeMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
-{
-	STree* me2 = reinterpret_cast<STree*>(me_);
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_TreeMulti, WC_TREEVIEW, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | TVS_HASBUTTONS | TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_LINESATROOT, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
-	reinterpret_cast<STreeBase*>(me2)->Draggable = False;
-	reinterpret_cast<STreeBase*>(me2)->AllowDraggingToRoot = False;
-	reinterpret_cast<STreeBase*>(me2)->DraggingItem = NULL;
-	reinterpret_cast<STreeBase*>(me2)->OnSel = NULL;
-	reinterpret_cast<STreeBase*>(me2)->OnMoveNode = NULL;
+	reinterpret_cast<STree*>(me2)->Draggable = False;
+	reinterpret_cast<STree*>(me2)->AllowDraggingToRoot = False;
+	reinterpret_cast<STree*>(me2)->DraggingItem = NULL;
+	reinterpret_cast<STree*>(me2)->OnSel = NULL;
+	reinterpret_cast<STree*>(me2)->OnMoveNode = NULL;
 	return me_;
 }
 
@@ -1597,12 +1634,12 @@ EXPORT_CPP SClass* _treeRoot(SClass* me_, SClass* me2)
 
 EXPORT_CPP void _treeDraggable(SClass* me_, Bool enabled)
 {
-	reinterpret_cast<STreeBase*>(me_)->Draggable = enabled;
+	reinterpret_cast<STree*>(me_)->Draggable = enabled;
 }
 
 EXPORT_CPP void _treeAllowDraggingToRoot(SClass* me_, Bool enabled)
 {
-	reinterpret_cast<STreeBase*>(me_)->AllowDraggingToRoot = enabled;
+	reinterpret_cast<STree*>(me_)->AllowDraggingToRoot = enabled;
 }
 
 EXPORT_CPP void _treeSetSel(SClass* me_, SClass* node)
@@ -1619,35 +1656,6 @@ EXPORT_CPP SClass* _treeGetSel(SClass* me_, SClass* me2)
 	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
 	me4->WndHandle = me3->WndHandle;
 	me4->Item = TreeView_GetSelection(me3->WndHandle);
-	if (me4->Item == NULL)
-		return NULL;
-	return me2;
-}
-
-EXPORT_CPP void _treeMultiSetSel(SClass* me_, void* nodes)
-{
-	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
-	S64 len = *(S64*)((U8*)nodes + 0x08);
-	void** ptr = (void**)((U8*)nodes + 0x10);
-	S64 i;
-	for (i = 0; i < len; i++)
-	{
-		STreeNode* node2 = reinterpret_cast<STreeNode*>(ptr[i]);
-		THROWDBG(me2->WndHandle != node2->WndHandle, 0xe9170006);
-		if (i == 0)
-			TreeView_Select(me2->WndHandle, node2->Item, TVGN_CARET);
-		else
-			TreeView_SetItemState(me2->WndHandle, node2->Item, TVIS_SELECTED, TVIS_SELECTED);
-	}
-}
-
-EXPORT_CPP SClass* _treeMultiGetSel(SClass* me_, SClass* me2, SClass* node)
-{
-	SWndBase* me3 = reinterpret_cast<SWndBase*>(me_);
-	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
-	STreeNode* node2 = reinterpret_cast<STreeNode*>(node);
-	me4->WndHandle = me3->WndHandle;
-	me4->Item = TreeView_GetNextItem(me3->WndHandle, node2 == NULL ? NULL : node2->Item, node2 == NULL ? TVGN_CARET : TVGN_NEXTSELECTED);
 	if (me4->Item == NULL)
 		return NULL;
 	return me2;
@@ -2305,9 +2313,8 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 					}
 					break;
 				case WndKind_Tree:
-				case WndKind_TreeMulti:
 					{
-						STreeBase* tree = reinterpret_cast<STreeBase*>(wnd_ctrl2);
+						STree* tree = reinterpret_cast<STree*>(wnd_ctrl2);
 						switch (reinterpret_cast<LPNMHDR>(l_param)->code)
 						{
 							case TVN_BEGINDRAG:
@@ -2322,22 +2329,8 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 								}
 								break;
 							case TVN_SELCHANGED:
-								if (wnd_ctrl2->Kind == WndKind_Tree)
-								{
-									if (tree->OnSel != NULL)
-										Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), tree->OnSel);
-								}
-								break;
-							case TVN_ITEMCHANGED:
-								if (wnd_ctrl2->Kind == WndKind_TreeMulti)
-								{
-									if (tree->OnSel != NULL)
-									{
-										NMTVITEMCHANGE* param = reinterpret_cast<NMTVITEMCHANGE*>(l_param);
-										if ((param->uStateOld & TVIS_SELECTED) != (param->uStateNew & TVIS_SELECTED))
-											Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), tree->OnSel);
-									}
-								}
+								if (tree->OnSel != NULL)
+									Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), tree->OnSel);
 								break;
 						}
 					}
@@ -2358,6 +2351,20 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 							case NM_CLICK:
 								if (list_view->OnMouseClick != NULL)
 									Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), list_view->OnMouseClick);
+								break;
+							case LVN_BEGINDRAG:
+								{
+									NMLISTVIEW* param = reinterpret_cast<NMLISTVIEW*>(l_param);
+									POINT pt_pos = { 0 };
+									list_view->DraggingImage = ListView_CreateDragImage(wnd_ctrl, param->iItem, &pt_pos);
+									POINT pt;
+									GetCursorPos(&pt);
+									ScreenToClient(wnd_ctrl, &pt);
+									ImageList_BeginDrag(list_view->DraggingImage, 0, pt.x - pt_pos.x, pt.y - pt_pos.y);
+									ImageList_DragEnter(wnd_ctrl, 0, 0);
+									SetCapture(wnd_ctrl);
+									list_view->Dragging = True;
+								}
 								break;
 						}
 					}
@@ -2405,16 +2412,13 @@ static Char* ParseFilter(const U8* filter, int* num)
 
 static void TreeExpandAllRecursion(HWND wnd_handle, HTREEITEM node, int flag)
 {
-	HTREEITEM child = TreeView_GetChild(wnd_handle, node);
-	if (child != NULL)
-		TreeExpandAllRecursion(wnd_handle, child, flag);
 	TreeView_Expand(wnd_handle, node, flag);
-	for (; ; )
+
+	HTREEITEM child = TreeView_GetChild(wnd_handle, node);
+	while (child != NULL)
 	{
-		node = TreeView_GetNextSibling(wnd_handle, node);
-		if (node == NULL)
-			break;
-		TreeExpandAllRecursion(wnd_handle, node, flag);
+		TreeExpandAllRecursion(wnd_handle, child, flag);
+		child = TreeView_GetNextSibling(wnd_handle, node);
 	}
 }
 
@@ -2504,6 +2508,47 @@ static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width
 	}
 
 	return me_;
+}
+
+static HIMAGELIST CreateImageList(const void* imgs)
+{
+	S64 len = static_cast<const S64*>(imgs)[1];
+	HIMAGELIST result = NULL;
+	const void*const* ptr = reinterpret_cast<void*const*>(static_cast<const U8*>(imgs) + 0x10);
+	for (S64 i = 0; i < len; i++)
+	{
+		const Char* path = reinterpret_cast<const Char*>(static_cast<const U8*>(ptr[i]) + 0x10);
+		size_t size;
+		void* bin = LoadFileAll(path, &size);
+		int width;
+		int height;
+		void* img = DecodePng(size, bin, &width, &height);
+		if (result == NULL)
+			result = ImageList_Create(width, height, ILC_COLOR32, static_cast<int>(len), 0);
+		BITMAPINFO info = { 0 };
+		info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+		info.bmiHeader.biBitCount = 32;
+		info.bmiHeader.biPlanes = 1;
+		info.bmiHeader.biWidth = static_cast<LONG>(width);
+		info.bmiHeader.biHeight = static_cast<LONG>(height);
+		void* raw;
+		HBITMAP bitmap = CreateDIBSection(NULL, &info, DIB_RGB_COLORS, &raw, NULL, 0);
+		U32* dst = static_cast<U32*>(raw);
+		const U32* src = static_cast<U32*>(img);
+		for (int j = 0; j < height; j++)
+		{
+			for (int k = 0; k < width; k++)
+			{
+				const U32 color = src[(height - 1 - j) * width + k];
+				dst[j * width + k] = (color & 0xff000000) | ((color & 0xff0000) >> 16) | (color & 0xff00) | ((color & 0xff) << 16);
+			}
+		}
+		ImageList_Add(result, bitmap, NULL);
+		DeleteObject(bitmap);
+		FreeMem(img);
+		FreeMem(bin);
+	}
+	return result;
 }
 
 static LRESULT CALLBACK CommonWndProc(HWND wnd, SWndBase* wnd2, SWnd* wnd3, UINT msg, WPARAM w_param, LPARAM l_param)
@@ -3110,6 +3155,85 @@ static LRESULT CALLBACK WndProcListView(HWND wnd, UINT msg, WPARAM w_param, LPAR
 			if (wnd3->OnMouseDoubleClick != NULL)
 				Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnMouseDoubleClick);
 			return 0;
+		case WM_MOUSEMOVE:
+			if (wnd3->Dragging && GetCapture() == wnd)
+			{
+				POINT pt = { LOWORD(l_param), HIWORD(l_param) };
+				ClientToScreen(wnd, &pt);
+				RECT wnd_rect;
+				GetWindowRect(wnd, &wnd_rect);
+				ImageList_DragMove(pt.x - wnd_rect.left, pt.y - wnd_rect.top);
+				return 0;
+			}
+			break;
+		case WM_LBUTTONUP:
+			if (wnd3->Dragging && GetCapture() == wnd)
+			{
+				ImageList_DragLeave(wnd);
+				ImageList_EndDrag();
+				ImageList_Destroy(wnd3->DraggingImage);
+				wnd3->DraggingImage = NULL;
+				ReleaseCapture();
+				wnd3->Dragging = False;
+
+				LV_HITTESTINFO info;
+				info.pt.x = LOWORD(l_param);
+				info.pt.y = HIWORD(l_param);
+				ListView_HitTest(wnd, &info);
+				Bool invalid = False;
+				if (info.iItem == -1)
+					info.iItem = ListView_GetItemCount(wnd);
+				else
+				{
+					LV_ITEM item;
+					item.iItem = info.iItem;
+					item.iSubItem = 0;
+					item.mask = LVIF_STATE;
+					item.stateMask = LVIS_SELECTED;
+					ListView_GetItem(wnd, &item);
+					if ((item.state & LVIS_SELECTED) != 0)
+						invalid = True;
+				}
+				if (!invalid)
+				{
+					int column_len = Header_GetItemCount(ListView_GetHeader(wnd));
+					int id = ListView_GetNextItem(wnd, -1, LVNI_SELECTED);
+					LV_ITEM item;
+					Char buf[1025];
+					item.cchTextMax = 1025;
+					item.pszText = buf;
+					item.mask = LVIF_STATE | LVIF_IMAGE | LVIF_TEXT;
+					item.stateMask = ~static_cast<UINT>(LVIS_SELECTED);
+					SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
+					while (id != -1)
+					{
+						item.iItem = id;
+						item.iSubItem = 0;
+						ListView_GetItem(wnd, &item);
+						item.iItem = info.iItem;
+						int new_id = ListView_InsertItem(wnd, &item);
+						if (info.iItem < id)
+							info.iItem++;
+						if (new_id <= id)
+							id++;
+						for (int i = 1; i < column_len; i++)
+						{
+							item.iItem = id;
+							item.iSubItem = i;
+							ListView_GetItem(wnd, &item);
+							item.iItem = new_id;
+							ListView_SetItem(wnd, &item);
+						}
+						UINT chk = ListView_GetCheckState(wnd, id);
+						ListView_SetCheckState(wnd, new_id, chk);
+						ListView_DeleteItem(wnd, id);
+						id = ListView_GetNextItem(wnd, -1, LVNI_SELECTED);
+					}
+					SendMessage(wnd, WM_SETREDRAW, TRUE, 0);
+				}
+				return 0;
+			}
+			break;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }
@@ -3143,11 +3267,10 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 {
 	SWndBase* wnd2 = ToWnd(wnd);
 	STree* wnd3 = reinterpret_cast<STree*>(wnd2);
-	ASSERT(wnd2->Kind == WndKind_Tree || wnd2->Kind == WndKind_TreeMulti);
 	switch (msg)
 	{
 		case WM_MOUSEMOVE:
-			if (reinterpret_cast<STreeBase*>(wnd3)->DraggingItem != NULL)
+			if (reinterpret_cast<STree*>(wnd3)->DraggingItem != NULL)
 			{
 				POINT point;
 				TVHITTESTINFO hit_test = { 0 };
@@ -3169,7 +3292,7 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 			}
 			return 0;
 		case WM_LBUTTONUP:
-			if (reinterpret_cast<STreeBase*>(wnd3)->DraggingItem != NULL)
+			if (reinterpret_cast<STree*>(wnd3)->DraggingItem != NULL)
 			{
 				POINT point;
 				TVHITTESTINFO hit_test = { 0 };
@@ -3180,7 +3303,7 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				hit_test.pt.y = point.y;
 				ScreenToClient(wnd, &hit_test.pt);
 				HTREEITEM item = reinterpret_cast<HTREEITEM>(SendMessage(wnd, TVM_HITTEST, 0, reinterpret_cast<LPARAM>(&hit_test)));
-				if (reinterpret_cast<STreeBase*>(wnd3)->DraggingItem != item && (reinterpret_cast<STreeBase*>(wnd3)->AllowDraggingToRoot || item != NULL))
+				if (reinterpret_cast<STree*>(wnd3)->DraggingItem != item && (reinterpret_cast<STree*>(wnd3)->AllowDraggingToRoot || item != NULL))
 				{
 					Bool success = True;
 					{
@@ -3188,7 +3311,7 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 						HTREEITEM item2 = item;
 						while (item2 != NULL)
 						{
-							if (item2 == reinterpret_cast<STreeBase*>(wnd3)->DraggingItem)
+							if (item2 == reinterpret_cast<STree*>(wnd3)->DraggingItem)
 							{
 								success = False;
 								break;
@@ -3199,16 +3322,16 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 					if (success)
 					{
 						Char buf[1025];
-						CopyTreeNodeRecursion(wnd, item, reinterpret_cast<STreeBase*>(wnd3)->DraggingItem, buf);
-						TreeView_DeleteItem(wnd, reinterpret_cast<STreeBase*>(wnd3)->DraggingItem);
-						if (reinterpret_cast<STreeBase*>(wnd3)->OnMoveNode)
-							Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd3)), reinterpret_cast<STreeBase*>(wnd3)->OnMoveNode);
+						CopyTreeNodeRecursion(wnd, item, reinterpret_cast<STree*>(wnd3)->DraggingItem, buf);
+						TreeView_DeleteItem(wnd, reinterpret_cast<STree*>(wnd3)->DraggingItem);
+						if (reinterpret_cast<STree*>(wnd3)->OnMoveNode)
+							Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd3)), reinterpret_cast<STree*>(wnd3)->OnMoveNode);
 					}
 				}
 				ImageList_DragShowNolock(TRUE);
 				ImageList_DragLeave(NULL);
 				ImageList_EndDrag();
-				reinterpret_cast<STreeBase*>(wnd3)->DraggingItem = NULL;
+				reinterpret_cast<STree*>(wnd3)->DraggingItem = NULL;
 			}
 			return 0;
 	}

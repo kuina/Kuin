@@ -402,6 +402,15 @@ end class
 	end func
 end class
 
++enum ListViewStyle
+	large
+	report
+	small
+	list_
+	chk
+	hideHeader :: 0x4000
+end enum
+
 +class ListView(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
@@ -409,10 +418,10 @@ end class
 	+func [d0001.knd, _listViewClear] clear()
 	end func
 
-	+func [d0001.knd, _listViewAdd] add(text: []char)
+	+func [d0001.knd, _listViewAdd] add(text: []char, img: int)
 	end func
 
-	+func [d0001.knd, _listViewIns] ins(idx: int, text: []char)
+	+func [d0001.knd, _listViewIns] ins(idx: int, text: []char, img: int)
 	end func
 
 	+func [d0001.knd, _listViewDel] del(idx: int)
@@ -433,13 +442,13 @@ end class
 	+func [d0001.knd, _listViewLenColumn] lenColumn(): int
 	end func
 
-	+func [d0001.knd, _listViewClearColumn] clearColumn()
+	+func [d0001.knd, _listViewClearAll] clearAll()
 	end func
 
-	+func [d0001.knd, _listViewSetText] setText(idx: int, column: int, text: []char)
+	+func [d0001.knd, _listViewSetText] setText(idx: int, column: int, text: []char, img: int)
 	end func
 
-	+func [d0001.knd, _listViewGetText] getText(idx: int, column: int): []char
+	+func [d0001.knd, _listViewGetText] getText(img: &int, idx: int, column: int): []char
 	end func
 
 	+func [d0001.knd, _listViewAdjustWidth] adjustWidth()
@@ -451,9 +460,23 @@ end class
 	+func [d0001.knd, _listViewGetSel] getSel(): int
 	end func
 
+	+func [d0001.knd, _listViewStyle] style(listViewStyle: @ListViewStyle)
+	end func
+
+	+func [d0001.knd, _listViewDraggable] draggable(enabled: bool)
+	end func
+
+	+func [d0001.knd, _listViewSetChk] setChk(idx: int, value: bool)
+	end func
+
+	+func [d0001.knd, _listViewGetChk] getChk(idx: int): bool
+	end func
+
 	+var onSel: func<(@WndBase)>
 	+var onMouseDoubleClick: func<(@WndBase)>
 	+var onMouseClick: func<(@WndBase)>
+	var draggable_: int
+	var draggingImage: int
 end class
 
 +class Pager(@WndBase)
@@ -483,7 +506,7 @@ end class
 	+var onSel: func<(@WndBase)>
 end class
 
-+class TreeBase(@WndBase)
++class Tree(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
 
@@ -502,42 +525,16 @@ end class
 	+func [d0001.knd, _treeAllowDraggingToRoot] allowDraggingToRoot(enabled: bool)
 	end func
 
-	var draggable_: int
-	var draggingItem: int
-	+var onSel: func<(@WndBase)>
-	+var onMoveNode: func<(@WndBase)>
-end class
-
-+class Tree(@TreeBase)
-	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
-	end func
-
 	+func [d0001.knd, _treeSetSel] setSel(node: @TreeNode)
 	end func
 
 	+func [d0001.knd, _treeGetSel, _make_instance] getSel(me2: @TreeNode): @TreeNode
 	end func
-end class
 
-+class TreeMulti(@TreeBase)
-	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
-	end func
-
-	+func [d0001.knd, _treeMultiSetSel] setSel(nodes: []@TreeNode)
-	end func
-
-	+func getSel(): []@TreeNode
-		var result: list<@TreeNode> :: #list<@TreeNode>
-		var node: @TreeNode :: me.getSelImpl(null)
-		while(node <>& null)
-			do result.add(node)
-			do node :: me.getSelImpl(node)
-		end while
-		ret result.toArray()
-	end func
-
-	func [d0001.knd, _treeMultiGetSel, _make_instance] getSelImpl(me2: @TreeNode, node: @TreeNode): @TreeNode
-	end func
+	var draggable_: int
+	var draggingItem: int
+	+var onSel: func<(@WndBase)>
+	+var onMoveNode: func<(@WndBase)>
 end class
 
 +class TreeNode()
@@ -789,7 +786,7 @@ end func
 	end if
 end func
 
-+func [d0001.knd, _makeListView, _make_instance] makeListView(me2: @ListView, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @ListView
++func [d0001.knd, _makeListView, _make_instance] makeListView(me2: @ListView, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor, multiSel: bool, smallImgs: [][]char, largeImgs: [][]char): @ListView
 	if(parent <>& null)
 		do parent.addChild(me2)
 	end if
@@ -808,12 +805,6 @@ end func
 end func
 
 +func [d0001.knd, _makeTree, _make_instance] makeTree(me2: @Tree, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Tree
-	if(parent <>& null)
-		do parent.addChild(me2)
-	end if
-end func
-
-+func [d0001.knd, _makeTreeMulti, _make_instance] makeTreeMulti(me2: @TreeMulti, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @TreeMulti
 	if(parent <>& null)
 		do parent.addChild(me2)
 	end if

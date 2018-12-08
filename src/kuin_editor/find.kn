@@ -224,7 +224,7 @@ func wndFindBtnNextOnPush(wnd: wnd@Btn)
 				do data.regularExpression :: @wndFindChkRegularExpressionLast
 				do \src@docs.forEach(findAll, data)
 			elif(\src@curDoc =$ \doc_src@DocSrc)
-				do (\src@curDoc $ \doc_src@DocSrc).findSel(@wndResultListItems, @resultPoses, \src@curDocInternalName, @wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+				do (\src@curDoc $ \doc_src@DocSrc).findSel(@wndResultListItems, @resultPoses, \src@curDocName, @wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 			end if
 			do \form@focusDrawEditor()
 		end if
@@ -234,11 +234,10 @@ func wndFindBtnNextOnPush(wnd: wnd@Btn)
 		if(value <>$ \doc_src@DocSrc)
 			ret true
 		end if
-		var srcName: []char :: \src@srcNameToInternalName(key)
-		if(srcName[0] <> '\\')
+		if(key[0] <> '\\')
 			ret true
 		end if
-		do (value $ \doc_src@DocSrc).findAll(data.list_, data.poses, srcName, data.pattern, data.distinguishCase, data.onlyWord, data.regularExpression)
+		do (value $ \doc_src@DocSrc).findAll(data.list_, data.poses, key, data.pattern, data.distinguishCase, data.onlyWord, data.regularExpression)
 		ret true
 	end func
 
@@ -373,8 +372,7 @@ func replaceAllInAllDocs(pattern: []char, replaceStr: []char, distinguishCase: b
 		if(value <>$ \doc_src@DocSrc)
 			ret true
 		end if
-		var srcName: []char :: \src@srcNameToInternalName(key)
-		if(srcName[0] <> '\\')
+		if(key[0] <> '\\')
 			ret true
 		end if
 		do data.cnt :+ (value $ \doc_src@DocSrc).replaceAll(data.pattern_, data.replaceStr_, data.distinguishCase_, data.onlyWord_, data.regularExpression_)

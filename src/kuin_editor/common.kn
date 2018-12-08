@@ -2,9 +2,9 @@
 +const cellWidth: int :: 9
 +const cellHeight: int :: 18
 +const langEn: bool :: false
-+const untitledSrcName: []char :: "_untitled_.kn"
-+const untitledInternalName: []char :: "\\_untitled_"
 +const colorBack: int :: 0xFFFFF5F5
++const colorBackLocked: int :: 0xFFFFFFF5
++const defaultDir: []char :: "./"
 
 +var title: []char
 +var font: draw@Font

@@ -108,7 +108,7 @@ end func
 		case "list"
 			do result :: wnd@makeList(parent, x, y, width, height, anchorX, anchorY)
 		case "list_view"
-			do result :: wnd@makeListView(parent, x, y, width, height, anchorX, anchorY)
+			do result :: wnd@makeListView(parent, x, y, width, height, anchorX, anchorY, false, null, null)
 		case "draw"
 			do result :: wnd@makeDraw(parent, x, y, width, height, anchorX, anchorY, parseBool(node, "equal_magnification"))
 		case "radio"

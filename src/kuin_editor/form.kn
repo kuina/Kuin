@@ -1,11 +1,13 @@
 +var wndMain: wnd@Wnd
-+var treeItem: wnd@TreeMulti
-+var listObj: wnd@List
++var listLt: wnd@ListView
++var treeLb: wnd@Tree
++var listLb: wnd@ListView
++var btnCode: wnd@Btn
 var editFile: wnd@Edit
 +var drawEditor: wnd@Draw
 +var scrollXSrc: wnd@ScrollX
 +var scrollYSrc: wnd@ScrollY
-var listProp: wnd@ListView
++var listRb: wnd@ListView
 var editLog: wnd@EditMulti
 var btnCompile: wnd@Btn
 var groupConfig: wnd@Group
@@ -25,8 +27,7 @@ var popupMainDbg: wnd@Popup
 var popupMainHelp: wnd@Popup
 
 var lockingEditor: bool
-var lockPropOnChange: bool
-var lockTreeItemOnSel: bool
+var lockUi: bool
 var textLog: []char
 var drag: bool
 
@@ -38,24 +39,30 @@ var drag: bool
 	do @wndMain.onActivate :: @wndMainOnActivate
 	do @wndMain.onPushMenu :: @wndMainOnPushMenu
 	do @wndMain.onDropFiles :: @wndMainOnDropFiles
-	do @treeItem :: wnd@makeTreeMulti(@wndMain, 12, 290, 244, 466, %fix, %scale)
-	do @treeItem.draggable(true)
-	do @treeItem.allowDraggingToRoot(false)
-	do @treeItem.onSel :: @treeItemOnSel
-	do @treeItem.onMoveNode :: @treeItemOnMoveNode
-	do @listObj :: wnd@makeList(@wndMain, 12, 12, 244, 272, %fix, %fix)
-	do @listObj.onSel :: @listObjOnSel
-	do @editFile :: wnd@makeEdit(@wndMain, 262, 12, 759, 15, %scale, %fix)
+	do @listLt :: wnd@makeListView(@wndMain, 12, 12, 244, 272, %fix, %fix, false, null, null)
+	do @listLt.setVisible(false)
+	do @listLt.onMouseClick :: @listLtOnMouseClick
+	do @listLt.style(%list_)
+	do @treeLb :: wnd@makeTree(@wndMain, 12, 290, 244, 466, %fix, %scale)
+	do @treeLb.setVisible(false)
+	do @treeLb.onSel :: @treeLbOnSel
+	do @listLb :: wnd@makeListView(@wndMain, 12, 290, 244, 466, %fix, %scale, false, null, null)
+	do @listLb.setVisible(false)
+	do @listLb.onSel :: @listLbOnSel
+	do @btnCode :: wnd@makeBtn(@wndMain, 262, 12, 100, 23, %fix, %fix, \common@langEn ?("Show Designer", "デザイナを表示"))
+	do @btnCode.setEnabled(false)
+	do @btnCode.onPush :: @btnCodeOnPush
+	do @editFile :: wnd@makeEdit(@wndMain, 368, 20, 653, 15, %scale, %fix)
 	do @editFile.readonly(true)
-	do @drawEditor :: wnd@makeDraw(@wndMain, 262, 33, 759, 582, %scale, %scale, true)
-	do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 565, 742, 17, %scale, %move)
+	do @drawEditor :: wnd@makeDraw(@wndMain, 262, 41, 759, 574, %scale, %scale, true)
+	do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 557, 742, 17, %scale, %move)
 	do @scrollXSrc.setState(0, 0, 1, 0)
-	do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 742, 0, 17, 565, %move, %scale)
+	do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 742, 0, 17, 557, %move, %scale)
 	do @scrollYSrc.setState(0, 0, 1, 0)
-	do @listProp :: wnd@makeListView(@wndMain, 262, 621, 391, 135, %scale, %move)
-	do @listProp.onSel :: @listPropOnSel
-	do @listProp.onMouseDoubleClick :: @listPropOnMouseDoubleClick
-	do @listProp.onMouseClick :: @listPropOnMouseClick
+	do @listRb :: wnd@makeListView(@wndMain, 262, 621, 391, 135, %scale, %move, false, null, null)
+	do @listRb.setVisible(false)
+	do @listRb.onSel :: @listRbOnSel
+	do @listRb.onMouseClick :: @listRbOnMouseClick
 	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
 	do @editLog.readonly(true)
 	do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, \common@langEn ?("Compile && Run", "コンパイル＆実行"))
@@ -126,8 +133,7 @@ var drag: bool
 	do wnd@setOnKeyPress(@onKeyPress)
 
 	do @lockingEditor :: false
-	do @lockPropOnChange :: false
-	do @lockTreeItemOnSel :: false
+	do @lockUi :: false
 	do @textLog :: ""
 	do @drag :: false
 end func
@@ -351,9 +357,9 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			end if
 		end if
 	case 0x0003
-		do \src@saveAll()
+		do \src@save(false)
 	case 0x0004
-		do \src@saveMainSrc()
+		do \src@save(true)
 	case 0x0005
 		do @wndMain.close()
 	case 0x0010
@@ -410,7 +416,6 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		do \find@findNext()
 	case 0x003D
 		do \snippet@add(\src@curDoc.getSelCode())
-		do @updateList()
 	case 0x003E
 		if(@lockingEditor)
 			do @showMsgRunning()
@@ -441,19 +446,32 @@ func wndMainOnDropFiles(wnd: wnd@WndBase, files: [][]char)
 	end if
 end func
 
-func treeItemOnSel(wnd: wnd@WndBase)
-	if(@lockTreeItemOnSel)
+func listLtOnMouseClick(wnd: wnd@WndBase)
+	do \src@curDoc.listLtOnMouseClick()
+end func
+
+func treeLbOnSel(wnd: wnd@WndBase)
+	if(@lockUi)
 		ret
 	end if
-	do \src@curDoc.treeItemOnSel()
+	do \src@curDoc.treeLbOnSel()
 end func
 
-func treeItemOnMoveNode(wnd: wnd@WndBase)
-	do \src@curDoc.treeItemOnMoveNode()
+func listLbOnSel(wnd: wnd@WndBase)
+	do \src@curDoc.listLbOnSel()
 end func
 
-func listObjOnSel(wnd: wnd@WndBase)
-	do \src@curDoc.listObjOnSel()
+func btnCodeOnPush(wnd: wnd@WndBase)
+	if(@lockUi)
+		ret
+	end if
+	do @lockUi :: true
+	if(\src@curDoc =$ \doc_gen@DocGen)
+		do (\src@curDoc $ \doc_gen@DocGen).swapMode()
+	end if
+	do @lockUi :: false
+	do @updateUi()
+	do @paintDrawEditor()
 end func
 
 func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
@@ -515,16 +533,12 @@ func drawEditorOnSetMouseImg(wnd: wnd@WndBase): wnd@MouseImg
 	ret \src@curDoc.setMouseImg()
 end func
 
-func listPropOnSel(wnd: wnd@WndBase)
-	do \src@curDoc.listPropOnSel(@listProp)
+func listRbOnSel(wnd: wnd@WndBase)
+	do \src@curDoc.listRbOnSel()
 end func
 
-func listPropOnMouseClick(wnd: wnd@WndBase)
-	do \src@curDoc.listPropOnMouseClick(@listProp)
-end func
-
-func listPropOnMouseDoubleClick(wnd: wnd@WndBase)
-	do \src@curDoc.listPropOnMouseDoubleClick(@listProp)
+func listRbOnMouseClick(wnd: wnd@WndBase)
+	do \src@curDoc.listRbOnMouseClick()
 end func
 
 func btnCompileOnPush(wnd: wnd@WndBase)
@@ -565,13 +579,11 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end if
 	try
 		do \src@resetErrList()
-		if(\src@curDoc =$ \doc_src@DocSrc)
-			do (\src@curDoc $ \doc_src@DocSrc).update()
-		end if
-		if(\dll@build(\src@mainSrcName, \src@getSrc, null, out, @editIcon.getText().trim(), false, @getEnv(), @log, \common@langEn ?(1, 0), 0))
-			if (\src@mainSrcName <> \common@untitledSrcName)
+		do \src@curDoc.fix()
+		if(\dll@build(\src@mainSrcPath, \src@getSrc, null, out, @editIcon.getText().trim(), false, @getEnv(), @log, \common@langEn ?(1, 0), 0))
+			if (\src@mainSrcDir <> \common@defaultDir)
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
-				do filePtr.writeStr(file@dir(\src@mainSrcName))
+				do filePtr.writeStr(\src@mainSrcDir)
 				do filePtr.writeChar('\n')
 				do filePtr.fin()
 			end if
@@ -623,20 +635,19 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do \src@docs.forEach(callback, breakPoint)
 		var itemsArray: []\src@Pos :: breakPoint.items.toArray()
 		for i(0, ^itemsArray - 1)
-			do (\src@docs.get(\src@internalNameToSrcName(itemsArray[i].src), &) $ \doc_src@DocSrc).unsetBreakPoint(itemsArray[i].row - 1)
+			do (\src@docs.get(itemsArray[i].src, &) $ \doc_src@DocSrc).unsetBreakPoint(itemsArray[i].row - 1)
 		end for
 		do \dll@setBreakPoints(itemsArray)
 		for i(0, ^itemsArray - 1)
 			if(itemsArray[i].row <> -1)
-				do (\src@docs.get(\src@internalNameToSrcName(itemsArray[i].src), &) $ \doc_src@DocSrc).setBreakPoint(itemsArray[i].row - 1)
+				do (\src@docs.get(itemsArray[i].src, &) $ \doc_src@DocSrc).setBreakPoint(itemsArray[i].row - 1)
 			end if
 		end for
 		do @paintDrawEditor()
 
 		func callback(key: []char, value: \doc@Doc, data: BreakPoint): bool
-			var srcName: []char :: \src@srcNameToInternalName(key)
-			if(value =$ \doc_src@DocSrc & srcName[0] = '\\')
-				do (value $ \doc_src@DocSrc).getBreakPoints(srcName, data.items)
+			if(value =$ \doc_src@DocSrc & key[0] = '\\')
+				do (value $ \doc_src@DocSrc).getBreakPoints(key, data.items)
 			end if
 			ret true
 		end func
@@ -680,14 +691,14 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 end func
 
 func radioEnvOnPush(wnd: wnd@WndBase)
-	if(@lockPropOnChange)
+	if(@lockUi)
 		ret
 	end if
 	do \prop@changeProp()
 end func
 
 func editIconOnChange(wnd: wnd@WndBase)
-	if(@lockPropOnChange)
+	if(@lockUi)
 		ret
 	end if
 	do \prop@changeProp()
@@ -735,9 +746,9 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		if(appCode = 0)
 			do appCode :: 1 {Since it is not convenient when 'AppCode' becomes 0, it is set to 1.}
 		end if
-		if(\dll@build(\src@mainSrcName, \src@getSrc, null, out, @editIcon.getText().trim(), true, @getEnv(), @log, \common@langEn ?(1, 0), appCode))
-			if(\src@mainSrcName <> \common@untitledSrcName)
-				var resSrc: []char :: file@dir(\src@mainSrcName) ~ "res/"
+		if(\dll@build(\src@mainSrcPath, \src@getSrc, null, out, @editIcon.getText().trim(), true, @getEnv(), @log, \common@langEn ?(1, 0), appCode))
+			if(\src@mainSrcDir <> \common@defaultDir)
+				var resSrc: []char :: \src@mainSrcDir ~ "res/"
 				if(file@exist(resSrc))
 					var resDst: []char :: tmp ~ "res.knd"
 					if(!\dll@archive(resDst, resSrc, appCode))
@@ -777,9 +788,8 @@ end func
 +func listFileOnSel(wnd: wnd@WndBase)
 	var sel: int :: @listFile.getSel()
 	if(sel <> -1)
-		var internalName: []char :: \src@removePrefix(@listFile.getText(sel))
-		if(^internalName > 0 & (internalName[0] = '\\' | internalName[0] = '!'))
-			var src: []char :: \src@internalNameToSrcName(internalName)
+		var src: []char :: \src@removePrefix(@listFile.getText(sel))
+		if(^src > 0 & src[0] = '\\')
 			var doc: \doc@Doc :: \src@docs.get(src, &)
 			if(doc <>& null)
 				do \src@setCurSrc(doc)
@@ -804,16 +814,18 @@ end func
 	do @listFile.setRedraw(true)
 
 	func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
+		if(src[0] <> '\\')
+			ret true
+		end if
 		var prefix: []char :: ""
-		var internalName: []char :: \src@srcNameToInternalName(src)
 		if(doc =& \src@curDoc)
 			do prefix :~ ">"
-			do @editFile.setText(internalName)
+			do @editFile.setText(src)
 		end if
 		if(doc.changed)
 			do prefix :~ "*"
 		end if
-		do @listFile.add(prefix ~ internalName)
+		do @listFile.add(prefix ~ src)
 		if(doc =& \src@curDoc)
 			do @listFile.setSel(@listFile.len() - 1)
 		end if
@@ -821,43 +833,11 @@ end func
 	end func
 end func
 
-+func updateProp()
-	do @listProp.setRedraw(false)
-	do @listProp.clear()
-	do @listProp.clearColumn()
-	if(\src@curDoc =$ \doc_src@DocSrc)
-		do @listProp.addColumn(\common@langEn ?("Error", "エラー"))
-	else
-		do @listProp.addColumn(\common@langEn ?("Property", "プロパティ"))
-		do @listProp.addColumn(\common@langEn ?("Value", "値"))
-	end if
-	do \src@curDoc.updateProp(@listProp)
-	do @listProp.adjustWidth()
-	do @listProp.setRedraw(true)
-end func
-
-+func updateTree()
-	do @lockTreeItemOnSel :: true
-	do @treeItem.setRedraw(false)
-	do @treeItem.clear()
-	do \src@curDoc.updateTree(@treeItem)
-	do @treeItem.expand(true)
-	do @treeItem.setRedraw(true)
-	do @lockTreeItemOnSel :: false
-end func
-
-+func updateList()
-	do @listObj.setRedraw(false)
-	do @listObj.clear()
-	do \src@curDoc.updateList(@listObj)
-	do @listObj.setRedraw(true)
-end func
-
 +func updateUi()
+	do @lockUi :: true
 	do @updateFile()
-	do @updateProp()
-	do @updateTree()
-	do @updateList()
+	do \src@curDoc.updateUi()
+	do @lockUi :: false
 end func
 
 func lockEditor(lock: bool)
@@ -869,9 +849,9 @@ func lockEditor(lock: bool)
 end func
 
 +func setEditIconDirectly(icon: []char)
-	do @lockPropOnChange :: true
+	do @lockUi :: true
 	do @editIcon.setText(icon)
-	do @lockPropOnChange :: false
+	do @lockUi :: false
 end func
 
 +func paintDrawEditor()
@@ -892,7 +872,7 @@ end func
 end func
 
 +func setEnvDirectly(env: []char)
-	do @lockPropOnChange :: true
+	do @lockUi :: true
 	do @radioEnvWnd.setChk(false)
 	do @radioEnvCui.setChk(false)
 	switch(env)
@@ -901,7 +881,7 @@ end func
 	case "cui"
 		do @radioEnvCui.setChk(true)
 	end switch
-	do @lockPropOnChange :: false
+	do @lockUi :: false
 end func
 
 func log(args: [][]char, row: int, col: int)
@@ -944,7 +924,7 @@ end func
 end func
 
 func openResFolder()
-	if(\src@mainSrcDir = "")
+	if(\src@mainSrcDir = \common@defaultDir)
 		do wnd@msgBox(@wndMain, \common@langEn ?("The main source file must be saved before adding another file.", "ファイルを追加する前にメインソースファイルを保存しなければなりません。"), \common@title, %err, %ok)
 		ret
 	end if

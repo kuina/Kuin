@@ -61,7 +61,7 @@ end func
 		do me.caretShown :: false
 	end func
 
-	+*func update()
+	+*func fix()
 		do me.dirtyLineForce :: true
 		do me.interpret1SetDirty(-1, false, false)
 	end func
@@ -98,8 +98,12 @@ end func
 		ret true
 	end func
 
+	+*func getSrc(): [][]char
+		ret me.src.src
+	end func
+
 	+*func draw(width: int, height: int)
-		do draw@rect(0.0, 0.0, width $ float, height $ float, \common@colorBack)
+		do draw@rect(0.0, 0.0, width $ float, height $ float, \form@getLockingEditor() | me.lock ?(\common@colorBackLocked, \common@colorBack))
 		var lineX: float :: (me.lineNumWidth - 2) $ float
 		do draw@line(lineX, 0.0, lineX, height $ float, colorLineNum)
 		for i(0, ^me.src.src - 1 - me.pageY)
@@ -111,12 +115,12 @@ end func
 			var flags: LineFlag :: me.pageY + i >= ^me.src.flags ?(%none, me.src.flags[me.pageY + i])
 			if(flags.and(%breakPoint) <> %none)
 				do draw@rect(1.0, y + 1.0, lineX - 2.0, \common@cellHeight $ float - 2.0, colorBreakPointBack)
-				if(\src@breakPos <>& null & \src@breakPos.src = \src@curDocInternalName & \src@breakPos.row = me.pageY + i + 1)
+				if(\src@breakPos <>& null & \src@breakPos.src = \src@curDocName & \src@breakPos.row = me.pageY + i + 1)
 					do draw@rect(1.0, y + 1.0, (lineX - 2.0) / 2.0, \common@cellHeight $ float - 2.0, colorBreakBack)
 				end if
 				do \common@font.draw((me.lineNumWidth - (^str + 1) * \common@cellWidth + \common@cellWidth / 2) $ float, y, str, colorBreakPoint)
 			else
-				if(\src@breakPos <>& null & \src@breakPos.src = \src@curDocInternalName & \src@breakPos.row = me.pageY + i + 1)
+				if(\src@breakPos <>& null & \src@breakPos.src = \src@curDocName & \src@breakPos.row = me.pageY + i + 1)
 					do draw@rect(1.0, y + 1.0, (lineX - 2.0) / 2.0, \common@cellHeight $ float - 2.0, colorBreakBack)
 				end if
 				do \common@font.draw((me.lineNumWidth - (^str + 1) * \common@cellWidth + \common@cellWidth / 2) $ float, y, str, colorLineNum)
@@ -200,64 +204,6 @@ end func
 		do draw@rect(me.caretX $ float, me.caretY $ float, 2.0, \common@cellHeight $ float, 0xFF000000)
 	end func
 
-	+*func updateProp(listView: wnd@ListView)
-		do me.errList.sort()
-		do me.errList.head()
-		while(!me.errList.term())
-			do listView.add(me.errList.get().text)
-			do me.errList.next()
-		end while
-	end func
-
-	+*func updateTree(tree: wnd@TreeMulti)
-		; TODO:
-	end func
-
-	+*func updateList(list_: wnd@List)
-		do \snippet@updateList(list_)
-	end func
-
-	+*func treeItemOnSel()
-		; TODO:
-	end func
-
-	+*func treeItemOnMoveNode()
-		; TODO:
-	end func
-
-	+*func listObjOnSel()
-		var sel: int :: \form@listObj.getSel()
-		if(sel = -1)
-			ret
-		end if
-		var code: []char :: \snippet@getCode(\form@listObj.getText(sel))
-		if(code =& null)
-			do \form@updateList()
-			ret
-		end if
-		do me.undo.recordBegin()
-		if(me.areaSel())
-			do me.delAreaStr()
-		end if
-		do me.ins(me.cursorX, me.cursorY, code, true)
-		do me.interpret1SetDirty(me.cursorY, true, false)
-		do me.undo.recordEnd()
-		do me.refreshCursor(false, true)
-		do \form@paintDrawEditor()
-	end func
-
-	+*func listPropOnSel(listView: wnd@ListView)
-	end func
-
-	+*func listPropOnMouseClick(listView: wnd@ListView)
-		var sel: int :: listView.getSel()
-		if(sel <> -1 & sel < ^me.errList)
-			do me.errList.head()
-			var item: @ErrListItem :: me.errList.getOffset(sel)
-			do \src@jumpSrc(item.pos)
-		end if
-	end func
-
 	+*func mouseDownL(x: int, y: int)
 		do me.setArea(wnd@key(%shift) ?(%shift $ wnd@ShiftCtrl, %none))
 		do me.mousePosToCharPos(x, y)
@@ -324,8 +270,7 @@ end func
 			end if
 			ret true
 		case %bs
-			if (\form@getLockingEditor())
-				do \form@showMsgRunning()
+			if(me.locked())
 				ret true
 			end if
 			if(shiftCtrl = %none)
@@ -345,8 +290,7 @@ end func
 		case %tab
 			switch(shiftCtrl)
 			case %none
-				if (\form@getLockingEditor())
-					do \form@showMsgRunning()
+				if(me.locked())
 					ret true
 				end if
 				if(!me.areaSel())
@@ -363,8 +307,7 @@ end func
 				end if
 				ret true
 			case %shift
-				if (\form@getLockingEditor())
-					do \form@showMsgRunning()
+				if(me.locked())
 					ret true
 				end if
 				if(me.areaSel())
@@ -375,8 +318,7 @@ end func
 				ret true
 			end switch
 		case %enter
-			if (\form@getLockingEditor())
-				do \form@showMsgRunning()
+			if(me.locked())
 				ret true
 			end if
 			if(shiftCtrl = %none)
@@ -517,8 +459,7 @@ end func
 	end func
 
 	+*func keyChar(key: char)
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		if(key = '\t' | me.charWidth(key, 0) = 0)
@@ -563,8 +504,7 @@ end func
 	end func
 
 	+*func cmdUndo()
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		if(me.areaSel())
@@ -576,8 +516,7 @@ end func
 	end func
 
 	+*func cmdRedo()
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		if(me.areaSel())
@@ -589,8 +528,7 @@ end func
 	end func
 
 	+*func cmdCut()
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		if(me.areaSel())
@@ -611,8 +549,7 @@ end func
 	end func
 
 	+*func cmdPaste()
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		var str: []char :: wnd@getClipboardStr()
@@ -630,8 +567,7 @@ end func
 	end func
 
 	+*func cmdDel()
-		if (\form@getLockingEditor())
-			do \form@showMsgRunning()
+		if(me.locked())
 			ret
 		end if
 		do me.undo.recordBegin()
@@ -705,6 +641,72 @@ end func
 		ret str
 	end func
 
+	+*func updateUi()
+		do \form@btnCode.setText(\common@langEn ?("Show Designer", "デザイナを表示"))
+		do \form@btnCode.setEnabled(false)
+
+		do \form@listLt.setVisible(true)
+		do \form@listLt.setRedraw(false)
+		do \form@listLt.clear()
+		do \form@listLt.setRedraw(true)
+
+		do \form@treeLb.setVisible(true)
+		do \form@treeLb.setRedraw(false)
+		do \form@treeLb.clear()
+		do \form@treeLb.expand(true)
+		do \form@treeLb.setRedraw(true)
+
+		do \form@listLb.setVisible(false)
+
+		do \form@listRb.setVisible(true)
+		do \form@listRb.setRedraw(false)
+		do \form@listRb.clearAll()
+		do \form@listRb.addColumn(\common@langEn ?("Error", "エラー"))
+		do \form@listRb.adjustWidth()
+		do me.errList.sort()
+		do me.errList.head()
+		while(!me.errList.term())
+			do \form@listRb.add(me.errList.get().text, -1)
+			do me.errList.next()
+		end while
+		do \form@listRb.setRedraw(true)
+
+		do \snippet@updateList(\form@listLt)
+	end func
+
+	+*func listLtOnMouseClick()
+		var sel: int :: \form@listLt.getSel()
+		if(sel = -1)
+			ret
+		end if
+		var code: []char :: \snippet@getCode(\form@listLt.getText(&, sel, 0))
+		if(code =& null)
+			ret
+		end if
+		do me.undo.recordBegin()
+		if(me.areaSel())
+			do me.delAreaStr()
+		end if
+		do me.ins(me.cursorX, me.cursorY, code, true)
+		do me.interpret1SetDirty(me.cursorY, true, false)
+		do me.undo.recordEnd()
+		do me.refreshCursor(false, true)
+		do \form@paintDrawEditor()
+	end func
+
+	+*func treeLbOnSel()
+		; TODO:
+	end func
+
+	+*func listRbOnMouseClick()
+		var sel: int :: \form@listRb.getSel()
+		if(sel <> -1 & sel < ^me.errList)
+			do me.errList.head()
+			var item: @ErrListItem :: me.errList.getOffset(sel)
+			do \src@jumpSrc(item.pos)
+		end if
+	end func
+
 	+func toggleBreakPoint()
 		if(0 <= me.cursorY & me.cursorY < ^me.src.flags)
 			if(me.src.flags[me.cursorY].and(%breakPoint) = %none)
@@ -728,7 +730,7 @@ end func
 		end if
 	end func
 
-	func setSrc(src: [][]char)
+	+func setSrc(src: [][]char)
 		if(src =& null | ^src = 0)
 			do me.src.src :: [""]
 			do me.src.color :: [#[0]bit8]
@@ -745,10 +747,6 @@ end func
 				do me.src.flags[i] :: %none
 			end for
 		end if
-	end func
-
-	+func getSrc(): [][]char
-		ret me.src.src
 	end func
 
 	+func findPrev(pattern: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): bool
@@ -1024,6 +1022,10 @@ end func
 		end for
 	end func
 
+	+func setLock(enabled: bool)
+		do me.lock :: enabled
+	end func
+
 	const colorLineNum: int :: 0xFFFF7F7F
 	const colorAreaBack: int :: 0xFF808080
 	const colorErrBack: int :: 0xFFFF3333
@@ -1084,6 +1086,7 @@ end func
 	var caretX: int
 	var caretY: int
 	var caretShown: bool
+	var lock: bool
 
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
@@ -1592,7 +1595,7 @@ end func
 
 				do \src@resetErrList()
 				try
-					do \dll@interpret2(\src@mainSrcName, \src@getSrc, null, \form@getEnv(), \form@logForInterpret, \common@langEn ?(1, 0))
+					do \dll@interpret2(\src@mainSrcPath, \src@getSrc, null, \form@getEnv(), \form@logForInterpret, \common@langEn ?(1, 0))
 				catch
 				end try
 				do \src@updateErrList()
@@ -1623,7 +1626,7 @@ end func
 				do \completion@close()
 			else
 				do \form@drawEditor.showCaret(\common@cellHeight, \common@font)
-				do \completion@show(me.src, \src@curDocInternalName, first, me.cursorY, word)
+				do \completion@show(me.src, \src@curDocName, first, me.cursorY, word)
 				do \form@drawEditor.hideCaret()
 			end if
 		end if
@@ -1670,6 +1673,14 @@ end func
 		end if
 		do \completion@close()
 		ret true
+	end func
+
+	func locked(): bool
+		if(\form@getLockingEditor())
+			do \form@showMsgRunning()
+			ret true
+		end if
+		ret me.lock
 	end func
 end class
 

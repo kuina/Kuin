@@ -92,11 +92,11 @@ end func
 	end func
 end func
 
-+func updateList(list_: wnd@List)
++func updateList(list_: wnd@ListView)
 	do @snippets.head()
 	while(!@snippets.term())
 		var snippet: @Snippet :: @snippets.get()
-		do list_.add((snippet.removable ?("\\", "")) ~ snippet.name)
+		do list_.add((snippet.removable ?("\\", "")) ~ snippet.name, -1)
 		do @snippets.next()
 	end while
 end func
