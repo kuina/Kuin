@@ -191,6 +191,9 @@ end enum
 	+func [d0001.knd, _drawMoveCaret] moveCaret(x: int, y: int)
 	end func
 
+	+func [d0001.knd, _drawMouseCapture] mouseCapture(enabled: bool)
+	end func
+
 	var equalMagnification: int
 	var drawBuf: int
 	+var onPaint: func<(@WndBase, int, int)>

@@ -142,7 +142,6 @@
 
 	+*func updateUi()
 		do \form@btnCode.setRedraw(false)
-		do me.cur.updateUi()
 		if(me.cur =& me.src)
 			do \form@btnCode.setText(\common@langEn ?("Show Designer", "デザイナを表示"))
 		else
@@ -150,22 +149,42 @@
 		end if
 		do \form@btnCode.setEnabled(true)
 		do \form@btnCode.setRedraw(true)
+
+		if(me.cur =& me.src)
+			do \form@listLt.setVisible(true)
+			do \form@listLt.setRedraw(false)
+			do \form@listLt.clear()
+			do \form@listLt.setRedraw(true)
+
+			do \form@treeLb.setVisible(true)
+			do \form@treeLb.setRedraw(false)
+			do \form@treeLb.clear()
+			do \form@treeLb.expand(true)
+			do \form@treeLb.setRedraw(true)
+
+			do \form@listLb.setVisible(false)
+
+			do \form@listRb.setVisible(true)
+			do \form@listRb.setRedraw(false)
+			do \form@listRb.clearAll()
+			do \form@listRb.setRedraw(true)
+		else
+			do \form@listLt.setVisible(true)
+			do me.designer.updateUi()
+
+			do \form@treeLb.setVisible(false)
+
+			do \form@listLb.setVisible(true)
+			do \form@listLb.setRedraw(false)
+			do \form@listLb.clearAll()
+			do \form@listLb.setRedraw(true)
+
+			do \form@listRb.setVisible(false)
+		end if
 	end func
 
 	+*func listLtOnMouseClick()
 		do me.cur.listLtOnMouseClick()
-	end func
-
-	+*func treeLbOnSel()
-		do me.cur.treeLbOnSel()
-	end func
-
-	+*func listLbOnSel()
-		do me.cur.listLbOnSel()
-	end func
-
-	+*func listRbOnSel()
-		do me.cur.listRbOnSel()
 	end func
 
 	+*func listRbOnMouseClick()

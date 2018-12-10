@@ -45,10 +45,8 @@ var drag: bool
 	do @listLt.style(%list_)
 	do @treeLb :: wnd@makeTree(@wndMain, 12, 290, 244, 466, %fix, %scale)
 	do @treeLb.setVisible(false)
-	do @treeLb.onSel :: @treeLbOnSel
 	do @listLb :: wnd@makeListView(@wndMain, 12, 290, 244, 466, %fix, %scale, false, null, null)
 	do @listLb.setVisible(false)
-	do @listLb.onSel :: @listLbOnSel
 	do @btnCode :: wnd@makeBtn(@wndMain, 262, 12, 100, 23, %fix, %fix, \common@langEn ?("Show Designer", "デザイナを表示"))
 	do @btnCode.setEnabled(false)
 	do @btnCode.onPush :: @btnCodeOnPush
@@ -61,7 +59,6 @@ var drag: bool
 	do @scrollYSrc.setState(0, 0, 1, 0)
 	do @listRb :: wnd@makeListView(@wndMain, 262, 621, 391, 135, %scale, %move, false, null, null)
 	do @listRb.setVisible(false)
-	do @listRb.onSel :: @listRbOnSel
 	do @listRb.onMouseClick :: @listRbOnMouseClick
 	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
 	do @editLog.readonly(true)
@@ -450,17 +447,6 @@ func listLtOnMouseClick(wnd: wnd@WndBase)
 	do \src@curDoc.listLtOnMouseClick()
 end func
 
-func treeLbOnSel(wnd: wnd@WndBase)
-	if(@lockUi)
-		ret
-	end if
-	do \src@curDoc.treeLbOnSel()
-end func
-
-func listLbOnSel(wnd: wnd@WndBase)
-	do \src@curDoc.listLbOnSel()
-end func
-
 func btnCodeOnPush(wnd: wnd@WndBase)
 	if(@lockUi)
 		ret
@@ -482,11 +468,13 @@ end func
 func drawEditorOnMouseDownL(wnd: wnd@WndBase, x: int, y: int)
 	do @drag :: true
 	do \src@curDoc.mouseDownL(x, y)
+	do @drawEditor.mouseCapture(true)
 end func
 
 func drawEditorOnMouseUpL(wnd: wnd@WndBase, x: int, y: int)
 	do @drag :: false
 	do \src@curDoc.mouseUpL(x, y)
+	do @drawEditor.mouseCapture(false)
 end func
 
 func drawEditorOnMouseDoubleClick(wnd: wnd@WndBase, x: int, y: int)
@@ -531,10 +519,6 @@ end func
 
 func drawEditorOnSetMouseImg(wnd: wnd@WndBase): wnd@MouseImg
 	ret \src@curDoc.setMouseImg()
-end func
-
-func listRbOnSel(wnd: wnd@WndBase)
-	do \src@curDoc.listRbOnSel()
 end func
 
 func listRbOnMouseClick(wnd: wnd@WndBase)

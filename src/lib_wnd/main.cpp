@@ -1087,6 +1087,15 @@ EXPORT_CPP void _drawMoveCaret(SClass* me_, S64 x, S64 y)
 	ImmReleaseContext(wnd_handle, imc);
 }
 
+EXPORT_CPP void _drawMouseCapture(SClass* me_, Bool enabled)
+{
+	SDraw* me2 = reinterpret_cast<SDraw*>(me_);
+	if (enabled)
+		SetCapture(reinterpret_cast<SWndBase*>(me_)->WndHandle);
+	else
+		ReleaseCapture();
+}
+
 EXPORT_CPP SClass* _makeBtn(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
 {
 	SBtn* me2 = reinterpret_cast<SBtn*>(me_);
@@ -1438,7 +1447,10 @@ EXPORT_CPP void _listViewDelColumn(SClass* me_, S64 column)
 
 EXPORT_CPP S64 _listViewLenColumn(SClass* me_)
 {
-	return static_cast<S64>(Header_GetItemCount(ListView_GetHeader(reinterpret_cast<SWndBase*>(me_)->WndHandle)));
+	S64 len = static_cast<S64>(Header_GetItemCount(ListView_GetHeader(reinterpret_cast<SWndBase*>(me_)->WndHandle)));
+	if (len == 0)
+		len = 1;
+	return len;
 }
 
 EXPORT_CPP void _listViewClearAll(SClass* me_)
@@ -2753,46 +2765,46 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 		case WM_LBUTTONDOWN:
 			SetFocus(wnd);
 			if (wnd3->OnMouseDownL != NULL)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownL);
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(LOWORD(l_param)))), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(HIWORD(l_param)))), wnd3->OnMouseDownL);
 			return 0;
 		case WM_LBUTTONDBLCLK:
 			SetFocus(wnd);
 			if (wnd3->OnMouseDownL != NULL)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownL);
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(LOWORD(l_param)))), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(HIWORD(l_param)))), wnd3->OnMouseDownL);
 			if (wnd3->OnMouseDoubleClick != NULL)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDoubleClick);
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(LOWORD(l_param)))), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(HIWORD(l_param)))), wnd3->OnMouseDoubleClick);
 			return 0;
 		case WM_LBUTTONUP:
 			if (wnd3->OnMouseUpL != NULL)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseUpL);
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(LOWORD(l_param)))), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(HIWORD(l_param)))), wnd3->OnMouseUpL);
 			return 0;
 		case WM_RBUTTONDOWN:
 		case WM_RBUTTONDBLCLK:
 			if (wnd3->OnMouseDownR != NULL)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownR);
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(LOWORD(l_param)))), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(HIWORD(l_param)))), wnd3->OnMouseDownR);
 			return 0;
 		case WM_RBUTTONUP:
 			if (wnd3->OnMouseUpR != NULL)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseUpR);
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(LOWORD(l_param)))), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(HIWORD(l_param)))), wnd3->OnMouseUpR);
 			return 0;
 		case WM_MBUTTONDOWN:
 		case WM_MBUTTONDBLCLK:
 			if (wnd3->OnMouseDownM != NULL)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseDownM);
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(LOWORD(l_param)))), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(HIWORD(l_param)))), wnd3->OnMouseDownM);
 			return 0;
 		case WM_MBUTTONUP:
 			if (wnd3->OnMouseUpM != NULL)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseUpM);
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(LOWORD(l_param)))), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(HIWORD(l_param)))), wnd3->OnMouseUpM);
 			return 0;
 		case WM_MOUSEMOVE:
 			if (!wnd3->Enter)
 			{
 				wnd3->Enter = True;
 				if (wnd3->OnMouseEnter != NULL)
-					Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseEnter);
+					Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(LOWORD(l_param)))), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(HIWORD(l_param)))), wnd3->OnMouseEnter);
 			}
 			if (wnd3->OnMouseMove != NULL)
-				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(LOWORD(l_param))), reinterpret_cast<void*>(static_cast<S64>(HIWORD(l_param))), wnd3->OnMouseMove);
+				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(LOWORD(l_param)))), reinterpret_cast<void*>(static_cast<S64>(static_cast<S16>(HIWORD(l_param)))), wnd3->OnMouseMove);
 			{
 				TRACKMOUSEEVENT track_mouse_event;
 				track_mouse_event.cbSize = sizeof(track_mouse_event);
@@ -2878,8 +2890,8 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 		case WM_SIZE:
 			if (wnd3->EqualMagnification)
 			{
-				int width = static_cast<int>(LOWORD(l_param));
-				int height = static_cast<int>(HIWORD(l_param));
+				int width = static_cast<int>(static_cast<S16>(LOWORD(l_param)));
+				int height = static_cast<int>(static_cast<S16>(HIWORD(l_param)));
 				if (width > 0 && height > 0)
 				{
 					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, wnd2->WndHandle, wnd3->DrawBuf, wnd3->Editable);

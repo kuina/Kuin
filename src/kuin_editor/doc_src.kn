@@ -694,10 +694,6 @@ end func
 		do \form@paintDrawEditor()
 	end func
 
-	+*func treeLbOnSel()
-		; TODO:
-	end func
-
 	+*func listRbOnMouseClick()
 		var sel: int :: \form@listRb.getSel()
 		if(sel <> -1 & sel < ^me.errList)

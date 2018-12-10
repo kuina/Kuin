@@ -96,15 +96,6 @@
 	+func listLtOnMouseClick()
 	end func
 
-	+func treeLbOnSel()
-	end func
-
-	+func listLbOnSel()
-	end func
-
-	+func listRbOnSel()
-	end func
-
 	+func listRbOnMouseClick()
 	end func
 

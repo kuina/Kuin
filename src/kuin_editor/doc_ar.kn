@@ -16,24 +16,224 @@
 
 	+*func draw(width: int, height: int)
 		do draw@rect(0.0, 0.0, width $ float, height $ float, \common@colorBack)
-		do me.root.draw(me.pageX, me.pageY, me.holds)
+		do me.root.draw(me.pageX, me.pageY)
 		do me.nodes.head()
 		while(!me.nodes.term())
-			do me.nodes.get().draw(me.pageX, me.pageY, me.holds)
+			var node: @Obj :: me.nodes.get()
+			do node.draw(me.pageX, me.pageY)
+			do me.holds.head()
+			if(me.holds.find(node))
+				do draw@rectLine((node.x - 3 - me.pageX) $ float, (node.y - 3 - me.pageY) $ float, (node.width + 6) $ float, (node.height + 6) $ float, 0xFF6666FF)
+				do draw@rectLine((node.x - 4 - me.pageX) $ float, (node.y - 4 - me.pageY) $ float, (node.width + 8) $ float, (node.height + 8) $ float, 0xFF6666FF)
+			end if
 			do me.nodes.next()
 		end while
+
+		if(me.mode = %sel)
+			do draw@rectLine((me.holdOffsetX - me.pageX) $ float, (me.holdOffsetY - me.pageY) $ float, (me.selOffsetX - me.holdOffsetX) $ float, (me.selOffsetY - me.holdOffsetY) $ float, 0xFF6666FF)
+		end if
 	end func
 
 	+*func mouseDownL(x: int, y: int)
+		var x2: int :: x + me.pageX
+		var y2: int :: y + me.pageY
+		do me.holdOffsetX :: x2
+		do me.holdOffsetY :: y2
+
+		var idx: int :: \form@listLt.getSel()
+		if(idx <= 0)
+			var sel: @Obj :: null
+			do me.nodes.tail()
+			while loop(!me.nodes.term())
+				var obj: @Obj :: me.nodes.get()
+				if(obj.x <= x2 & x2 <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
+					do sel :: obj
+					break loop
+				end if
+				do me.nodes.prev()
+			end while
+			if(sel =& null & me.root.x <= x2 & x2 <= me.root.x + me.root.width & me.root.y <= y2 & y2 <= me.root.y + me.root.height)
+				do sel :: me.root
+			end if
+
+			if(sel <>& null & sel.x + sel.width - resizeArea <= x2 & sel.y + sel.height - resizeArea <= y2)
+				if (\form@getLockingEditor())
+					do \form@showMsgRunning()
+					ret
+				end if
+				do me.mode :: %resize
+			elif(sel =& null | sel =& me.root)
+				do me.mode :: %sel
+				do me.selOffsetX :: x2
+				do me.selOffsetY :: y2
+			else
+				if (\form@getLockingEditor())
+					do \form@showMsgRunning()
+					ret
+				end if
+				do me.mode :: %move
+			end if
+
+			if(sel =& me.root)
+				do sel :: null
+			end if
+			if(sel =& null)
+				if(!wnd@key(%shift) & !wnd@key(%ctrl))
+					do me.holds :: #list<@Obj>
+				end if
+			else
+				do me.holds.head()
+				if (!me.holds.find(sel))
+					if(wnd@key(%shift) | wnd@key(%ctrl))
+						do me.holds.add(sel)
+					else
+						do me.holds :: #list<@Obj>
+						do me.holds.add(sel)
+					end if
+				end if
+			end if
+		else
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.mode :: %put
+			var name: []char :: \form@listLt.getText(&, idx, 0)
+			var obj: @Obj :: me.makeObj(name)
+			var minWidth: int
+			var minHeight: int
+			do obj.getMinMax(&minWidth, &minHeight, &, &)
+			do obj.init(getDefaultName(name, me.nodes), x2, y2, minWidth, minHeight)
+			if(^me.holds = 0)
+				do me.nodes.add(obj)
+			else
+				do me.holds.tail()
+				do me.nodes.head()
+				if(me.nodes.find(me.holds.get()))
+					do me.nodes.ins(obj)
+				else
+					do me.nodes.add(obj)
+				end if
+				
+			end if
+			do me.holds :: #list<@Obj>
+			do me.holds.add(obj)
+		end if
+		do \form@paintDrawEditor()
+
+		func getDefaultName(name: []char, nodes: list<@Obj>): []char
+			var n: int :: 1
+			while loop(true)
+				var newName: []char :: name ~ n.toStr()
+				var found: bool :: false
+				do nodes.head()
+				while loop2(!nodes.term())
+					if(nodes.get().name = newName)
+						do found :: true
+						break loop2
+					end if
+					do nodes.next()
+				end while
+				if(!found)
+					ret newName
+				end if
+				do n :+ 1
+			end while
+		end func
 	end func
 
 	+*func mouseUpL(x: int, y: int)
+		switch(me.mode)
+		case %put
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.resizeObj(x + me.pageX, y + me.pageY)
+			do me.mode :: %none
+			do me.holds :: #list<@Obj>
+			do \form@listLt.setSel(0)
+			do \form@paintDrawEditor()
+		case %move
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.moveObj(x + me.pageX, y + me.pageY)
+			do me.mode :: %none
+			do \form@paintDrawEditor()
+		case %resize
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.resizeObj(x + me.pageX, y + me.pageY)
+			do me.mode :: %none
+			do \form@paintDrawEditor()
+		case %sel
+			var x1: int :: me.holdOffsetX
+			var y1: int :: me.holdOffsetY
+			var x2: int :: x + me.pageX
+			var y2: int :: y + me.pageY
+			if(x1 > x2)
+				do x1 :$ x2
+			end if
+			if(y1 > y2)
+				do y1 :$ y2
+			end if
+			if(!wnd@key(%shift) & !wnd@key(%ctrl))
+				do me.holds :: #list<@Obj>
+			end if
+			do me.nodes.head()
+			while(!me.nodes.term())
+				var node: @Obj :: me.nodes.get()
+				if(node.x <= x2 & x1 <= node.x + node.width & node.y <= y2 & y1 <= node.y + node.height)
+					do me.holds.add(node)
+				end if
+				do me.nodes.next()
+			end while
+			do me.mode :: %none
+			do \form@paintDrawEditor()
+		end switch
 	end func
 
 	+*func mouseDoubleClick(x: int, y: int)
 	end func
 
 	+*func mouseMove(x: int, y: int)
+		switch(me.mode)
+		case %put
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.resizeObj(x + me.pageX, y + me.pageY)
+			do me.holdOffsetX :: x + me.pageX
+			do me.holdOffsetY :: y + me.pageY
+			do \form@paintDrawEditor()
+		case %move
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.moveObj(x + me.pageX, y + me.pageY)
+			do me.holdOffsetX :: x + me.pageX
+			do me.holdOffsetY :: y + me.pageY
+			do \form@paintDrawEditor()
+		case %resize
+			if (\form@getLockingEditor())
+				do \form@showMsgRunning()
+				ret
+			end if
+			do me.resizeObj(x + me.pageX, y + me.pageY)
+			do me.holdOffsetX :: x + me.pageX
+			do me.holdOffsetY :: y + me.pageY
+			do \form@paintDrawEditor()
+		case %sel
+			do me.selOffsetX :: x + me.pageX
+			do me.selOffsetY :: y + me.pageY
+			do \form@paintDrawEditor()
+		end switch
 	end func
 
 	+*func focus(isFocus: bool)
@@ -73,7 +273,39 @@
 	end func
 
 	+*func setMouseImg(): wnd@MouseImg
-		ret %arrow
+		switch(me.mode)
+		case %none
+			if(^me.holds <> 0)
+				var x: int
+				var y: int
+				do input@mousePos(&x, &y)
+				do \form@drawEditor.screenToClient(&x, &y, x, y)
+				do x :+ me.pageX
+				do y :+ me.pageY
+				do me.holds.head()
+				while(!me.holds.term())
+					var obj: @Obj :: me.holds.get()
+					if(obj.x <= x & x <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
+						if(obj.x + obj.width - resizeArea <= x & obj.y + obj.height - resizeArea <= y)
+							ret %resizeLTRD
+						end if
+						ret %move
+					end if
+					do me.holds.next()
+				end while
+			end if
+			ret %arrow
+		case %put
+			ret %cross
+		case %move
+			ret %move
+		case %resize
+			ret %resizeLTRD
+		case %sel
+			ret %cross
+		default
+			assert false
+		end switch
 	end func
 
 	+*func cmdUndo()
@@ -105,19 +337,15 @@
 	end func
 
 	+*func updateUi()
-		; TODO:
+		do \form@listLt.setRedraw(false)
+		do \form@listLt.clear()
+		do \form@listLt.style(%large)
+		do \form@listLt.add(\common@langEn ?("None", "なし"), -1)
+		do me.addObjs()
+		do \form@listLt.setRedraw(true)
 	end func
 
 	+*func listLtOnMouseClick()
-	end func
-
-	+*func treeLbOnSel()
-	end func
-
-	+*func listLbOnSel()
-	end func
-
-	+*func listRbOnSel()
 	end func
 
 	+*func listRbOnMouseClick()
@@ -129,12 +357,20 @@
 	+*func saveImpl(xmlNode: xml@Node)
 	end func
 
+	func makeObj(name: []char): @Obj
+	end func
+
+	func addObjs()
+	end func
+
+	const resizeArea: int :: 6
+
 	enum Mode
 		none
 		put
 		move
 		resize
-		select
+		sel
 	end enum
 
 	var src: [][]char
@@ -143,22 +379,76 @@
 	var holds: list<@Obj>
 	var scrollOffsetX: int
 	var scrollOffsetY: int
+	var holdOffsetX: int
+	var holdOffsetY: int
+	var selOffsetX: int
+	var selOffsetY: int
 	var pageX: int
 	var pageY: int
 	var mode: Mode
+
+	func resizeObj(x: int, y: int)
+		do me.holds.head()
+		while(!me.holds.term())
+			var obj: @Obj :: me.holds.get()
+			var width: int :: obj.width + x - me.holdOffsetX
+			var height: int :: obj.height + y - me.holdOffsetY
+			var minWidth: int
+			var minHeight: int
+			var maxWidth: int
+			var maxHeight: int
+			do obj.getMinMax(&minWidth, &minHeight, &maxWidth, &maxHeight)
+			if(width < minWidth)
+				do width :: minWidth
+			end if
+			if(width > maxWidth)
+				do width :: maxWidth
+			end if
+			if(height < minHeight)
+				do height :: minHeight
+			end if
+			if(height > maxHeight)
+				do height :: maxHeight
+			end if
+			do obj.width :: width
+			do obj.height :: height
+			do me.holds.next()
+		end while
+	end func
+
+	func moveObj(x: int, y: int)
+		do me.holds.head()
+		while(!me.holds.term())
+			var obj: @Obj :: me.holds.get()
+			do obj.x :+ x - me.holdOffsetX
+			do obj.y :+ y - me.holdOffsetY
+			do me.holds.next()
+		end while
+	end func
 end class
 
 +class Obj()
+	+*func cmp(t: kuin@Class): int
+		ret t =& me ?(0, 1)
+	end func
+
 	+func load(node: xml@Node)
 	end func
 
 	+func save(node: xml@Node): xml@Node
 	end func
 
-	+func draw(pageX: int, pageY: int, holds: list<@Obj>)
+	+func draw(pageX: int, pageY: int)
 	end func
 
 	+func type(): []char
+	end func
+
+	+func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 10
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
 	end func
 
 	+func getSrc(indent: int, lines: list<[]char>)

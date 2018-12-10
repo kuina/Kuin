@@ -52,6 +52,7 @@ EXPORT_CPP void _drawPaint(SClass* me_);
 EXPORT_CPP void _drawShowCaret(SClass* me_, S64 height, SClass* font);
 EXPORT_CPP void _drawHideCaret(SClass* me_);
 EXPORT_CPP void _drawMoveCaret(SClass* me_, S64 x, S64 y);
+EXPORT_CPP void _drawMouseCapture(SClass* me_, Bool enabled);
 EXPORT_CPP SClass* _makeBtn(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text);
 EXPORT_CPP void _btnSetChk(SClass* me_, Bool chk);
 EXPORT_CPP Bool _btnGetChk(SClass* me_);
