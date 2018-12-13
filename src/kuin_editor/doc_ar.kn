@@ -46,7 +46,7 @@
 			do me.nodes.tail()
 			while loop(!me.nodes.term())
 				var obj: @Obj :: me.nodes.get()
-				if(obj.x <= x2 & x2 <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
+				if(obj.x <= x2 & x2 <= obj.x + obj.width & obj.y <= y2 & y2 <= obj.y + obj.height)
 					do sel :: obj
 					break loop
 				end if
@@ -275,24 +275,27 @@
 	+*func setMouseImg(): wnd@MouseImg
 		switch(me.mode)
 		case %none
-			if(^me.holds <> 0)
-				var x: int
-				var y: int
-				do input@mousePos(&x, &y)
-				do \form@drawEditor.screenToClient(&x, &y, x, y)
-				do x :+ me.pageX
-				do y :+ me.pageY
-				do me.holds.head()
-				while(!me.holds.term())
-					var obj: @Obj :: me.holds.get()
-					if(obj.x <= x & x <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
-						if(obj.x + obj.width - resizeArea <= x & obj.y + obj.height - resizeArea <= y)
-							ret %resizeLTRD
-						end if
-						ret %move
+			var x: int
+			var y: int
+			do input@mousePos(&x, &y)
+			do \form@drawEditor.screenToClient(&x, &y, x, y)
+			do x :+ me.pageX
+			do y :+ me.pageY
+			do me.nodes.tail()
+			while(!me.nodes.term())
+				var obj: @Obj :: me.nodes.get()
+				if(obj.x <= x & x <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
+					if(obj.x + obj.width - resizeArea <= x & obj.y + obj.height - resizeArea <= y)
+						ret %resizeLTRD
 					end if
-					do me.holds.next()
-				end while
+					ret %move
+				end if
+				do me.nodes.prev()
+			end while
+			if(me.root.x <= x & x <= me.root.x + me.root.width & me.root.y <= y & y <= me.root.y + me.root.height)
+				if(me.root.x + me.root.width - resizeArea <= x & me.root.y + me.root.height - resizeArea <= y)
+					ret %resizeLTRD
+				end if
 			end if
 			ret %arrow
 		case %put
@@ -388,11 +391,19 @@
 	var mode: Mode
 
 	func resizeObj(x: int, y: int)
-		do me.holds.head()
-		while(!me.holds.term())
-			var obj: @Obj :: me.holds.get()
-			var width: int :: obj.width + x - me.holdOffsetX
-			var height: int :: obj.height + y - me.holdOffsetY
+		if(^me.holds = 0)
+			do resizeImpl(me.root, x, y, me.holdOffsetX, me.holdOffsetY)
+		else
+			do me.holds.head()
+			while(!me.holds.term())
+				do resizeImpl(me.holds.get(), x, y, me.holdOffsetX, me.holdOffsetY)
+				do me.holds.next()
+			end while
+		end if
+
+		func resizeImpl(obj: @Obj, x: int, y: int, holdOffsetX: int, holdOffsetY: int)
+			var width: int :: obj.width + x - holdOffsetX
+			var height: int :: obj.height + y - holdOffsetY
 			var minWidth: int
 			var minHeight: int
 			var maxWidth: int
@@ -412,8 +423,7 @@
 			end if
 			do obj.width :: width
 			do obj.height :: height
-			do me.holds.next()
-		end while
+		end func
 	end func
 
 	func moveObj(x: int, y: int)

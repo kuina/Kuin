@@ -62,6 +62,7 @@ class ObjWnd(\doc_ar@Obj)
 		do draw@rect(x, y, width, height, 0xFFF0F0F0)
 		do draw@rect(x, y - 30.0, width, 30.0, 0xFFFFFFFF)
 		do draw@rectLine(x - 1.0, y - 31.0, width + 2.0, height + 32.0, 0xFF1883D7)
+		do \common@fontP.draw(x + 30.0, y - 30.0 + 6.0, me.text, draw@black)
 	end func
 
 	+*func type(): []char
@@ -69,8 +70,15 @@ class ObjWnd(\doc_ar@Obj)
 	end func
 
 	+*func getSrc(indent: int, lines: list<[]char>)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(null, %normal, \{me.width}, \{me.height}, \"\{me.name}\")")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(null, %normal, \{me.width}, \{me.height}, \"\{me.text}\")")
 	end func
+
+	+*func init(name: []char, x: int, y: int, width: int, height: int)
+		do super(me, name, x, y, width, height)
+		do me.text :: me.name
+	end func
+
+	var text: []char
 end class
 
 class ObjBtn(\doc_ar@Obj)
@@ -85,9 +93,9 @@ class ObjBtn(\doc_ar@Obj)
 		var y: float :: (me.y - pageY) $ float
 		var width: float :: me.width $ float
 		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 0xFFF0F0F0)
-		do draw@rect(x, y - 30.0, width, 30.0, 0xFFFFFFFF)
-		do draw@rectLine(x - 1.0, y - 31.0, width + 2.0, height + 32.0, 0xFF1883D7)
+		do draw@rect(x, y, width, height, 0xFFE1E1E1)
+		do draw@rectLine(x, y, width, height, 0xFFADADAD)
+		do \common@fontP.draw(lib@floor(x + (width - \common@fontP.calcWidth(me.text)) / 2.0), lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), me.text, draw@black)
 	end func
 
 	+*func type(): []char
@@ -95,6 +103,13 @@ class ObjBtn(\doc_ar@Obj)
 	end func
 
 	+*func getSrc(indent: int, lines: list<[]char>)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(null, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.name}\")")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(null, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.text}\")")
 	end func
+
+	+*func init(name: []char, x: int, y: int, width: int, height: int)
+		do super(me, name, x, y, width, height)
+		do me.text :: me.name
+	end func
+
+	var text: []char
 end class
