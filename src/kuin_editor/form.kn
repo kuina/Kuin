@@ -45,7 +45,7 @@ var drag: bool
 	do @listLt.style(%list_)
 	do @treeLb :: wnd@makeTree(@wndMain, 12, 290, 244, 466, %fix, %scale)
 	do @treeLb.setVisible(false)
-	do @listLb :: wnd@makeListView(@wndMain, 12, 290, 244, 466, %fix, %scale, false, null, null)
+	do @listLb :: wnd@makeListView(@wndMain, 12, 290, 244, 466, %fix, %scale, true, null, null)
 	do @listLb.setVisible(false)
 	do @btnCode :: wnd@makeBtn(@wndMain, 262, 12, 100, 23, %fix, %fix, \common@langEn ?("Show Designer", "デザイナを表示"))
 	do @btnCode.setEnabled(false)

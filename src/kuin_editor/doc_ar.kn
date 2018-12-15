@@ -1,6 +1,9 @@
 +class DocAr(\doc_gen@DocDesigner)
 	*func ctor()
 		do super(me)
+		do me.undo :: #undo@Undo
+		do me.undo.init(1024)
+
 		do me.nodes :: #list<@Obj>
 		do me.holds :: #list<@Obj>
 		do me.scrollOffsetX :: 10
@@ -16,21 +19,58 @@
 
 	+*func draw(width: int, height: int)
 		do draw@rect(0.0, 0.0, width $ float, height $ float, \common@colorBack)
-		do me.root.draw(me.pageX, me.pageY)
+		var offsetX: int :: 0
+		var offsetY: int :: 0
+		var offsetWidth: int :: 0
+		var offsetHeight: int :: 0
+		if(me.mode = %put | me.mode = %resize)
+			do offsetWidth :: me.curOffsetX - me.holdOffsetX
+			do offsetHeight :: me.curOffsetY - me.holdOffsetY
+		elif(me.mode = %move)
+			do offsetX :: me.curOffsetX - me.holdOffsetX
+			do offsetY :: me.curOffsetY - me.holdOffsetY
+		end if
+		block
+			if(^me.holds = 0)
+				var x: float :: (me.root.x - me.pageX + offsetX) $ float
+				var y: float :: (me.root.y - me.pageY + offsetY) $ float
+				var width2: float :: (me.root.width + offsetWidth) $ float
+				var height2: float :: (me.root.height + offsetHeight) $ float
+				do me.root.draw(x, y, width2, height2)
+				do draw@rectLine(x - 3.0, y - 3.0, width2 + 6.0, height2 + 6.0, 0xFF6666FF)
+				do draw@rectLine(x - 4.0, y - 4.0, width2 + 8.0, height2 + 8.0, 0xFF6666FF)
+			else
+				var x: float :: (me.root.x - me.pageX) $ float
+				var y: float :: (me.root.y - me.pageY) $ float
+				var width2: float :: me.root.width $ float
+				var height2: float :: me.root.height $ float
+				do me.root.draw(x, y, width2, height2)
+			end if
+		end block
 		do me.nodes.head()
 		while(!me.nodes.term())
 			var node: @Obj :: me.nodes.get()
-			do node.draw(me.pageX, me.pageY)
 			do me.holds.head()
 			if(me.holds.find(node))
-				do draw@rectLine((node.x - 3 - me.pageX) $ float, (node.y - 3 - me.pageY) $ float, (node.width + 6) $ float, (node.height + 6) $ float, 0xFF6666FF)
-				do draw@rectLine((node.x - 4 - me.pageX) $ float, (node.y - 4 - me.pageY) $ float, (node.width + 8) $ float, (node.height + 8) $ float, 0xFF6666FF)
+				var x: float :: (node.x - me.pageX + offsetX) $ float
+				var y: float :: (node.y - me.pageY + offsetY) $ float
+				var width2: float :: (node.width + offsetWidth) $ float
+				var height2: float :: (node.height + offsetHeight) $ float
+				do node.draw(x, y, width2, height2)
+				do draw@rectLine(x - 3.0, y - 3.0, width2 + 6.0, height2 + 6.0, 0xFF6666FF)
+				do draw@rectLine(x - 4.0, y - 4.0, width2 + 8.0, height2 + 8.0, 0xFF6666FF)
+			else
+				var x: float :: (node.x - me.pageX) $ float
+				var y: float :: (node.y - me.pageY) $ float
+				var width2: float :: node.width $ float
+				var height2: float :: node.height $ float
+				do node.draw(x, y, width2, height2)
 			end if
 			do me.nodes.next()
 		end while
 
 		if(me.mode = %sel)
-			do draw@rectLine((me.holdOffsetX - me.pageX) $ float, (me.holdOffsetY - me.pageY) $ float, (me.selOffsetX - me.holdOffsetX) $ float, (me.selOffsetY - me.holdOffsetY) $ float, 0xFF6666FF)
+			do draw@rectLine((me.holdOffsetX - me.pageX) $ float, (me.holdOffsetY - me.pageY) $ float, (me.curOffsetX - me.holdOffsetX) $ float, (me.curOffsetY - me.holdOffsetY) $ float, 0xFF6666FF)
 		end if
 	end func
 
@@ -39,6 +79,8 @@
 		var y2: int :: y + me.pageY
 		do me.holdOffsetX :: x2
 		do me.holdOffsetY :: y2
+		do me.curOffsetX :: x2
+		do me.curOffsetY :: y2
 
 		var idx: int :: \form@listLt.getSel()
 		if(idx <= 0)
@@ -64,8 +106,6 @@
 				do me.mode :: %resize
 			elif(sel =& null | sel =& me.root)
 				do me.mode :: %sel
-				do me.selOffsetX :: x2
-				do me.selOffsetY :: y2
 			else
 				if (\form@getLockingEditor())
 					do \form@showMsgRunning()
@@ -97,27 +137,22 @@
 				do \form@showMsgRunning()
 				ret
 			end if
-			do me.mode :: %put
 			var name: []char :: \form@listLt.getText(&, idx, 0)
-			var obj: @Obj :: me.makeObj(name)
-			var minWidth: int
-			var minHeight: int
-			do obj.getMinMax(&minWidth, &minHeight, &, &)
-			do obj.init(getDefaultName(name, me.nodes), x2, y2, minWidth, minHeight)
-			if(^me.holds = 0)
-				do me.nodes.add(obj)
-			else
+			var parent: []char :: null
+			if(^me.holds > 0)
 				do me.holds.tail()
 				do me.nodes.head()
 				if(me.nodes.find(me.holds.get()))
-					do me.nodes.ins(obj)
-				else
-					do me.nodes.add(obj)
+					do me.nodes.next()
+					if(!me.nodes.term())
+						do parent :: me.nodes.get().name
+					end if
 				end if
-				
 			end if
-			do me.holds :: #list<@Obj>
-			do me.holds.add(obj)
+			do me.undo.recordBegin()
+			do me.put(parent, name, getDefaultName(name, me.nodes), x2, y2, true)
+			do me.undo.recordEnd()
+			do me.mode :: %put
 		end if
 		do \form@paintDrawEditor()
 
@@ -149,9 +184,14 @@
 				do \form@showMsgRunning()
 				ret
 			end if
-			do me.resizeObj(x + me.pageX, y + me.pageY)
+			do me.undo.recordBegin()
+			do me.holds.head()
+			while(!me.holds.term())
+				do me.resizeObj(me.holds.get(), x, y)
+				do me.holds.next()
+			end while
+			do me.undo.recordEnd()
 			do me.mode :: %none
-			do me.holds :: #list<@Obj>
 			do \form@listLt.setSel(0)
 			do \form@paintDrawEditor()
 		case %move
@@ -159,7 +199,22 @@
 				do \form@showMsgRunning()
 				ret
 			end if
-			do me.moveObj(x + me.pageX, y + me.pageY)
+			do me.undo.recordBegin()
+			do me.holds.head()
+			while(!me.holds.term())
+				var obj: @Obj :: me.holds.get()
+				var x2: int :: obj.x + x + me.pageX - me.holdOffsetX
+				var y2: int :: obj.y + y + me.pageY - me.holdOffsetY
+				if(x2 < 0)
+					do x2 :: 0
+				end if
+				if(y2 < 0)
+					do y2 :: 0
+				end if
+				do me.move(obj.name, x2, y2, obj.width, obj.height, true)
+				do me.holds.next()
+			end while
+			do me.undo.recordEnd()
 			do me.mode :: %none
 			do \form@paintDrawEditor()
 		case %resize
@@ -167,7 +222,17 @@
 				do \form@showMsgRunning()
 				ret
 			end if
-			do me.resizeObj(x + me.pageX, y + me.pageY)
+			do me.undo.recordBegin()
+			if(^me.holds = 0)
+				do me.resizeObj(me.root, x, y)
+			else
+				do me.holds.head()
+				while(!me.holds.term())
+					do me.resizeObj(me.holds.get(), x, y)
+					do me.holds.next()
+				end while
+			end if
+			do me.undo.recordEnd()
 			do me.mode :: %none
 			do \form@paintDrawEditor()
 		case %sel
@@ -202,36 +267,17 @@
 
 	+*func mouseMove(x: int, y: int)
 		switch(me.mode)
-		case %put
+		case %put, %move, %resize
 			if (\form@getLockingEditor())
 				do \form@showMsgRunning()
 				ret
 			end if
-			do me.resizeObj(x + me.pageX, y + me.pageY)
-			do me.holdOffsetX :: x + me.pageX
-			do me.holdOffsetY :: y + me.pageY
-			do \form@paintDrawEditor()
-		case %move
-			if (\form@getLockingEditor())
-				do \form@showMsgRunning()
-				ret
-			end if
-			do me.moveObj(x + me.pageX, y + me.pageY)
-			do me.holdOffsetX :: x + me.pageX
-			do me.holdOffsetY :: y + me.pageY
-			do \form@paintDrawEditor()
-		case %resize
-			if (\form@getLockingEditor())
-				do \form@showMsgRunning()
-				ret
-			end if
-			do me.resizeObj(x + me.pageX, y + me.pageY)
-			do me.holdOffsetX :: x + me.pageX
-			do me.holdOffsetY :: y + me.pageY
+			do me.curOffsetX :: x + me.pageX
+			do me.curOffsetY :: y + me.pageY
 			do \form@paintDrawEditor()
 		case %sel
-			do me.selOffsetX :: x + me.pageX
-			do me.selOffsetY :: y + me.pageY
+			do me.curOffsetX :: x + me.pageX
+			do me.curOffsetY :: y + me.pageY
 			do \form@paintDrawEditor()
 		end switch
 	end func
@@ -312,9 +358,21 @@
 	end func
 
 	+*func cmdUndo()
+		if(\form@getLockingEditor())
+			do \form@showMsgRunning()
+			ret
+		end if
+		do me.undo.undo()
+		do \form@paintDrawEditor()
 	end func
 
 	+*func cmdRedo()
+		if(\form@getLockingEditor())
+			do \form@showMsgRunning()
+			ret
+		end if
+		do me.undo.redo()
+		do \form@paintDrawEditor()
 	end func
 
 	+*func cmdCut()
@@ -333,6 +391,27 @@
 	end func
 
 	+*func undoImpl(undo2: \doc@UndoCmd)
+		if(undo2 =$ UndoArPut)
+			var undo3: UndoArPut :: undo2 $ UndoArPut
+			do me.put(undo3.parent, undo3.kind, undo3.name, undo3.x, undo3.y, false)
+		elif(undo2 =$ UndoArDel)
+			var undo3: UndoArDel :: undo2 $ UndoArDel
+			do me.del(undo3.name, false)
+		elif(undo2 =$ UndoArMove)
+			var undo3: UndoArMove :: undo2 $ UndoArMove
+			do me.move(undo3.name, undo3.x, undo3.y, undo3.width, undo3.height, false)
+		elif(undo2 =$ UndoArOrder)
+			var undo3: UndoArOrder :: undo2 $ UndoArOrder
+			do me.order(undo3.names, false)
+		elif(undo2 =$ UndoArRename)
+			var undo3: UndoArRename :: undo2 $ UndoArRename
+			do me.rename(undo3.name, undo3.newName, false)
+		elif(undo2 =$ UndoArProp)
+			var undo3: UndoArProp :: undo2 $ UndoArProp
+			do me.prop(undo3.name, undo3.prop, undo3.value, false)
+		else
+			assert false
+		end if
 	end func
 
 	+*func getSelCode(): []char
@@ -344,8 +423,14 @@
 		do \form@listLt.clear()
 		do \form@listLt.style(%large)
 		do \form@listLt.add(\common@langEn ?("None", "なし"), -1)
-		do me.addObjs()
+		do me.updateLt()
 		do \form@listLt.setRedraw(true)
+
+		do \form@listLb.setRedraw(false)
+		do \form@listLb.clear()
+		do \form@listLb.style(%list_)
+		do me.updateLb()
+		do \form@listLb.setRedraw(true)
 	end func
 
 	+*func listLtOnMouseClick()
@@ -363,7 +448,10 @@
 	func makeObj(name: []char): @Obj
 	end func
 
-	func addObjs()
+	func updateLt()
+	end func
+
+	func updateLb()
 	end func
 
 	const resizeArea: int :: 6
@@ -384,56 +472,174 @@
 	var scrollOffsetY: int
 	var holdOffsetX: int
 	var holdOffsetY: int
-	var selOffsetX: int
-	var selOffsetY: int
+	var curOffsetX: int
+	var curOffsetY: int
 	var pageX: int
 	var pageY: int
 	var mode: Mode
 
-	func resizeObj(x: int, y: int)
-		if(^me.holds = 0)
-			do resizeImpl(me.root, x, y, me.holdOffsetX, me.holdOffsetY)
-		else
-			do me.holds.head()
-			while(!me.holds.term())
-				do resizeImpl(me.holds.get(), x, y, me.holdOffsetX, me.holdOffsetY)
-				do me.holds.next()
-			end while
+	func resizeObj(obj: @Obj, x: int, y: int)
+		var width: int :: obj.width + x + me.pageX - me.holdOffsetX
+		var height: int :: obj.height + y + me.pageY - me.holdOffsetY
+		var minWidth: int
+		var minHeight: int
+		var maxWidth: int
+		var maxHeight: int
+		do obj.getMinMax(&minWidth, &minHeight, &maxWidth, &maxHeight)
+		if(width < minWidth)
+			do width :: minWidth
+		elif(width > maxWidth)
+			do width :: maxWidth
 		end if
-
-		func resizeImpl(obj: @Obj, x: int, y: int, holdOffsetX: int, holdOffsetY: int)
-			var width: int :: obj.width + x - holdOffsetX
-			var height: int :: obj.height + y - holdOffsetY
-			var minWidth: int
-			var minHeight: int
-			var maxWidth: int
-			var maxHeight: int
-			do obj.getMinMax(&minWidth, &minHeight, &maxWidth, &maxHeight)
-			if(width < minWidth)
-				do width :: minWidth
-			end if
-			if(width > maxWidth)
-				do width :: maxWidth
-			end if
-			if(height < minHeight)
-				do height :: minHeight
-			end if
-			if(height > maxHeight)
-				do height :: maxHeight
-			end if
-			do obj.width :: width
-			do obj.height :: height
-		end func
+		if(height < minHeight)
+			do height :: minHeight
+		elif(height > maxHeight)
+			do height :: maxHeight
+		end if
+		do me.move(obj =& me.root ?(null, obj.name), obj.x, obj.y, width, height, true)
 	end func
 
-	func moveObj(x: int, y: int)
-		do me.holds.head()
-		while(!me.holds.term())
-			var obj: @Obj :: me.holds.get()
-			do obj.x :+ x - me.holdOffsetX
-			do obj.y :+ y - me.holdOffsetY
-			do me.holds.next()
+	class UndoAr(\doc@UndoCmd)
+		+*func cmd()
+			do me.doc.undoImpl(me)
+		end func
+	end class
+
+	class UndoArPut(UndoAr)
+		+var parent: []char
+		+var kind: []char
+		+var name: []char
+		+var x: int
+		+var y: int
+	end class
+
+	class UndoArDel(UndoAr)
+		+var name: []char
+	end class
+
+	class UndoArMove(UndoAr)
+		+var name: []char
+		+var x: int
+		+var y: int
+		+var width: int
+		+var height: int
+	end class
+
+	class UndoArOrder(UndoAr)
+		+var names: [][]char
+	end class
+
+	class UndoArRename(UndoAr)
+		+var name: []char
+		+var newName: []char
+	end class
+
+	class UndoArProp(UndoAr)
+		+var name: []char
+		+var prop: []char
+		+var value: []char
+	end class
+
+	func find(nodes: list<@Obj>, name: []char)
+		do nodes.head()
+		while(!nodes.term())
+			if(nodes.get().name = name)
+				ret
+			end if
+			do nodes.next()
 		end while
+	end func
+
+	func put(parent: []char, kind: []char, name: []char, x: int, y: int, recordUndo: bool)
+		if(recordUndo)
+			var undo: UndoArDel :: #UndoArDel
+			do undo.doc :: me
+			do undo.name :: name
+			var redo: UndoArPut :: #UndoArPut
+			do redo.doc :: me
+			do redo.parent :: parent
+			do redo.kind :: kind
+			do redo.name :: name
+			do redo.x :: x
+			do redo.y :: y
+			do me.undo.add(undo, redo)
+		end if
+		var obj: @Obj :: me.makeObj(kind)
+		var width: int
+		var height: int
+		do obj.getDefaultSize(&width, &height)
+		do obj.init(name, x, y, width, height)
+		if(parent =& null)
+			do me.nodes.add(obj)
+		else
+			do me.find(me.nodes, parent)
+			do me.nodes.ins(obj)
+		end if
+		do me.holds :: #list<@Obj>
+		do me.holds.add(obj)
+		do \form@updateUi()
+		do me.changed :: true
+	end func
+
+	func del(name: []char, recordUndo: bool)
+		do me.find(me.nodes, name)
+		if(recordUndo)
+			var obj: @Obj :: me.nodes.get()
+			var parent: @Obj :: me.nodes.getOffset(-1)
+			var undo: UndoArPut :: #UndoArPut
+			do undo.doc :: me
+			do undo.parent :: parent =& null ?(null, parent.name)
+			do undo.kind :: obj.kind()
+			do undo.name :: obj.name
+			do undo.x :: obj.x
+			do undo.y :: obj.y
+			var redo: UndoArDel :: #UndoArDel
+			do redo.doc :: me
+			do redo.name :: obj.name
+			do me.undo.add(undo, redo)
+		end if
+		do me.nodes.del()
+		do \form@updateUi()
+	end func
+
+	func move(name: []char, x: int, y: int, width: int, height: int, recordUndo: bool)
+		var obj: @Obj
+		if(name =& null)
+			do obj :: me.root
+		else
+			do me.find(me.nodes, name)
+			do obj :: me.nodes.get()
+		end if
+		if(recordUndo)
+			var undo: UndoArMove :: #UndoArMove
+			do undo.doc :: me
+			do undo.name :: name
+			do undo.x :: obj.x
+			do undo.y :: obj.y
+			do undo.width :: obj.width
+			do undo.height :: obj.height
+			var redo: UndoArMove :: #UndoArMove
+			do redo.doc :: me
+			do redo.name :: name
+			do redo.x :: x
+			do redo.y :: y
+			do redo.width :: width
+			do redo.height :: height
+			do me.undo.add(undo, redo)
+		end if
+		do obj.x :: x
+		do obj.y :: y
+		do obj.width :: width
+		do obj.height :: height
+	end func
+
+	func order(names: [][]char, recordUndo: bool)
+	end func
+
+	func rename(name: []char, newName: []char, recordUndo: bool)
+	end func
+
+	func prop(name: []char, prop: []char, value: []char, recordUndo: bool)
 	end func
 end class
 
@@ -448,10 +654,7 @@ end class
 	+func save(node: xml@Node): xml@Node
 	end func
 
-	+func draw(pageX: int, pageY: int)
-	end func
-
-	+func type(): []char
+	+func draw(x: float, y: float, width: float, height: float)
 	end func
 
 	+func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -461,7 +664,15 @@ end class
 		do maxHeight :: lib@intMax
 	end func
 
+	+func getDefaultSize(width: &int, height: &int)
+		do width :: 10
+		do height :: 10
+	end func
+
 	+func getSrc(indent: int, lines: list<[]char>)
+	end func
+
+	+func kind(): []char
 	end func
 
 	+func init(name: []char, x: int, y: int, width: int, height: int)
@@ -470,6 +681,7 @@ end class
 		do me.y :: y
 		do me.width :: width
 		do me.height :: height
+		do me.props :: #dict<[]char, []char>
 	end func
 
 	+var name: []char
@@ -477,4 +689,5 @@ end class
 	+var y: int
 	+var width: int
 	+var height: int
+	+var props: dict<[]char, []char>
 end class

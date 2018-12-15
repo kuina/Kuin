@@ -154,6 +154,7 @@
 			do \form@listLt.setVisible(true)
 			do \form@listLt.setRedraw(false)
 			do \form@listLt.clear()
+			do \form@listLt.style(%list_)
 			do \form@listLt.setRedraw(true)
 
 			do \form@treeLb.setVisible(true)
@@ -170,16 +171,14 @@
 			do \form@listRb.setRedraw(true)
 		else
 			do \form@listLt.setVisible(true)
-			do me.designer.updateUi()
 
 			do \form@treeLb.setVisible(false)
 
 			do \form@listLb.setVisible(true)
-			do \form@listLb.setRedraw(false)
-			do \form@listLb.clearAll()
-			do \form@listLb.setRedraw(true)
 
 			do \form@listRb.setVisible(false)
+
+			do me.designer.updateUi()
 		end if
 	end func
 
@@ -201,6 +200,7 @@
 	+func swapMode()
 		do me.cur :: me.cur =& me.src ?(me.designer $ \doc@Doc, me.src $ \doc@Doc)
 		if(me.cur =& me.src)
+			do me.designer.fix()
 			do me.src.setSrc(me.designer.getSrc())
 		end if
 	end func

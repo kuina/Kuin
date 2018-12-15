@@ -2,15 +2,18 @@
 	*func ctor()
 		do super(me)
 		do me.root :: #@ObjWnd
-		do me.root.init("wnd1", 0, 0, 100, 100)
+		var width: int
+		var height: int
+		do me.root.getDefaultSize(&width, &height)
+		do me.root.init("wnd1", 0, 0, width, height)
 	end func
 
 	+*func fix()
 		var lines: list<[]char> :: #list<[]char>
-		do lines.add("var \{me.root.name}: \{me.root.type()}")
+		do lines.add("var \{me.root.name}: \{(me.root $ @ObjArWnd).type()}")
 		do me.nodes.head()
 		while(!me.nodes.term())
-			var node: \doc_ar@Obj :: me.nodes.get()
+			var node: @ObjArWnd :: me.nodes.get() $ @ObjArWnd
 			do lines.add("var \{node.name}: \{node.type()}")
 			do me.nodes.next()
 		end while
@@ -28,88 +31,103 @@
 	end func
 
 	*func makeObj(name: []char): \doc_ar@Obj
-		if(\common@langEn)
-			switch(name)
-			case "Button"
-				ret #@ObjBtn
-			end switch
-		else
-			switch(name)
-			case "ボタン"
-				ret #@ObjBtn
-			end switch
-		end if
+		switch(name)
+		case "Btn"
+			ret #@ObjBtn
+		end switch
 		ret null
 	end func
 
-	*func addObjs()
-		do \form@listLt.add(\common@langEn ?("Button", "ボタン"), -1)
+	*func updateLt()
+		do \form@listLt.add("Btn", -1)
+	end func
+
+	*func updateLb()
+		do me.nodes.head()
+		while(!me.nodes.term())
+			do \form@listLb.add(me.nodes.get().name, -1)
+			do me.nodes.next()
+		end while
 	end func
 end class
 
-class ObjWnd(\doc_ar@Obj)
-	+*func load(node: xml@Node)
+class ObjArWnd(\doc_ar@Obj)
+	+func type(): []char
 	end func
+end class
 
-	+*func save(node: xml@Node): xml@Node
-	end func
-
-	+*func draw(pageX: int, pageY: int)
-		var x: float :: (me.x - pageX) $ float
-		var y: float :: (me.y - pageY) $ float
-		var width: float :: me.width $ float
-		var height: float :: me.height $ float
+class ObjWnd(@ObjArWnd)
+	+*func draw(x: float, y: float, width: float, height: float)
 		do draw@rect(x, y, width, height, 0xFFF0F0F0)
 		do draw@rect(x, y - 30.0, width, 30.0, 0xFFFFFFFF)
 		do draw@rectLine(x - 1.0, y - 31.0, width + 2.0, height + 32.0, 0xFF1883D7)
-		do \common@fontP.draw(x + 30.0, y - 30.0 + 6.0, me.text, draw@black)
+		do \common@fontP.draw(x + 30.0, y - 30.0 + 6.0, me.props.get("text", &), draw@black)
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 50
+		do minHeight :: 50
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 640
+		do height :: 480
+	end func
+
+	+*func getSrc(indent: int, lines: list<[]char>)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(null, %normal, \{me.width}, \{me.height}, \"\{me.props.get("text", &)}\")")
+	end func
+
+	+*func kind(): []char
+		ret "Wnd"
+	end func
+
+	+*func init(name: []char, x: int, y: int, width: int, height: int)
+		do super(me, name, x, y, width, height)
+		do me.props.add("text", me.name)
 	end func
 
 	+*func type(): []char
 		ret "wnd@Wnd"
 	end func
+end class
+
+class ObjBtn(@ObjArWnd)
+	+*func draw(x: float, y: float, width: float, height: float)
+		do draw@rect(x, y, width, height, 0xFFE1E1E1)
+		do draw@rectLine(x, y, width, height, 0xFFADADAD)
+		var text: []char :: me.props.get("text", &)
+		do \common@fontP.draw(lib@floor(x + (width - \common@fontP.calcWidth(text)) / 2.0), lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), text, draw@black)
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 23
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 75
+		do height :: 23
+	end func
 
 	+*func getSrc(indent: int, lines: list<[]char>)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(null, %normal, \{me.width}, \{me.height}, \"\{me.text}\")")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(null, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.props.get("text", &)}\")")
+	end func
+
+	+*func kind(): []char
+		ret "Btn"
 	end func
 
 	+*func init(name: []char, x: int, y: int, width: int, height: int)
 		do super(me, name, x, y, width, height)
-		do me.text :: me.name
-	end func
-
-	var text: []char
-end class
-
-class ObjBtn(\doc_ar@Obj)
-	+*func load(node: xml@Node)
-	end func
-
-	+*func save(node: xml@Node): xml@Node
-	end func
-
-	+*func draw(pageX: int, pageY: int)
-		var x: float :: (me.x - pageX) $ float
-		var y: float :: (me.y - pageY) $ float
-		var width: float :: me.width $ float
-		var height: float :: me.height $ float
-		do draw@rect(x, y, width, height, 0xFFE1E1E1)
-		do draw@rectLine(x, y, width, height, 0xFFADADAD)
-		do \common@fontP.draw(lib@floor(x + (width - \common@fontP.calcWidth(me.text)) / 2.0), lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), me.text, draw@black)
+		do me.props.add("text", me.name)
 	end func
 
 	+*func type(): []char
 		ret "wnd@Btn"
 	end func
-
-	+*func getSrc(indent: int, lines: list<[]char>)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(null, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.text}\")")
-	end func
-
-	+*func init(name: []char, x: int, y: int, width: int, height: int)
-		do super(me, name, x, y, width, height)
-		do me.text :: me.name
-	end func
-
-	var text: []char
 end class

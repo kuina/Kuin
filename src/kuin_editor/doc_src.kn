@@ -40,6 +40,9 @@ end func
 +class DocSrc(\doc@Doc)
 	*func ctor()
 		do super(me)
+		do me.undo :: #undo@Undo
+		do me.undo.init(1024)
+
 		do me.src :: #Src
 		do me.src.src :: null
 		do me.src.color :: null
@@ -648,6 +651,8 @@ end func
 		do \form@listLt.setVisible(true)
 		do \form@listLt.setRedraw(false)
 		do \form@listLt.clear()
+		do \form@listLt.style(%list_)
+		do \snippet@updateList(\form@listLt)
 		do \form@listLt.setRedraw(true)
 
 		do \form@treeLb.setVisible(true)
@@ -670,8 +675,6 @@ end func
 			do me.errList.next()
 		end while
 		do \form@listRb.setRedraw(true)
-
-		do \snippet@updateList(\form@listLt)
 	end func
 
 	+*func listLtOnMouseClick()

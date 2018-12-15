@@ -1,7 +1,5 @@
 +class Doc()
 	*func ctor()
-		do me.undo :: #undo@Undo
-		do me.undo.init(1024)
 		do me.changed :: false
 	end func
 
