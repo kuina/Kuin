@@ -463,6 +463,12 @@ end enum
 	+func [d0001.knd, _listViewGetSel] getSel(): int
 	end func
 
+	+func [d0001.knd, _listViewSetSelMulti] setSelMulti(idx: int, value: bool)
+	end func
+
+	+func [d0001.knd, _listViewGetSelMulti] getSelMulti(idx: int): bool
+	end func
+
 	+func [d0001.knd, _listViewStyle] style(listViewStyle: @ListViewStyle)
 	end func
 
@@ -478,6 +484,7 @@ end enum
 	+var onSel: func<(@WndBase)>
 	+var onMouseDoubleClick: func<(@WndBase)>
 	+var onMouseClick: func<(@WndBase)>
+	+var onMoveNode: func<(@WndBase)>
 	var draggable_: int
 	var draggingImage: int
 end class

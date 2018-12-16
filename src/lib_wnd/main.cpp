@@ -226,6 +226,7 @@ struct SListView
 	void* OnSel;
 	void* OnMouseDoubleClick;
 	void* OnMouseClick;
+	void* OnMoveNode;
 	Bool Draggable;
 	Bool Dragging;
 	HIMAGELIST DraggingImage;
@@ -1347,6 +1348,7 @@ EXPORT_CPP SClass* _makeListView(SClass* me_, SClass* parent, S64 x, S64 y, S64 
 	me2->OnSel = NULL;
 	me2->OnMouseDoubleClick = NULL;
 	me2->OnMouseClick = NULL;
+	me2->OnMoveNode = NULL;
 	me2->Draggable = False;
 	me2->Dragging = False;
 	me2->DraggingImage = NULL;
@@ -1526,6 +1528,24 @@ EXPORT_CPP S64 _listViewGetSel(SClass* me_)
 	return static_cast<S64>(ListView_GetNextItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, -1, LVNI_ALL | LVNI_SELECTED));
 }
 
+EXPORT_CPP void _listViewSetSelMulti(SClass* me_, S64 idx, Bool value)
+{
+#if defined(DBG)
+	S64 len = _listViewLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+#endif
+	ListView_SetItemState(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), LVIS_SELECTED, value ? LVIS_SELECTED : 0);
+}
+
+EXPORT_CPP Bool _listViewGetSelMulti(SClass* me_, S64 idx)
+{
+#if defined(DBG)
+	S64 len = _listViewLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+#endif
+	return ListView_GetItemState(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), LVIS_SELECTED) != 0;
+}
+
 EXPORT_CPP void _listViewStyle(SClass* me_, S64 list_view_style)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
@@ -1613,11 +1633,11 @@ EXPORT_CPP SClass* _makeTree(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 {
 	STree* me2 = reinterpret_cast<STree*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Tree, WC_TREEVIEW, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | TVS_HASBUTTONS | TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_LINESATROOT, x, y, width, height, L"", WndProcTree, anchorX, anchorY);
-	reinterpret_cast<STree*>(me2)->Draggable = False;
-	reinterpret_cast<STree*>(me2)->AllowDraggingToRoot = False;
-	reinterpret_cast<STree*>(me2)->DraggingItem = NULL;
-	reinterpret_cast<STree*>(me2)->OnSel = NULL;
-	reinterpret_cast<STree*>(me2)->OnMoveNode = NULL;
+	me2->Draggable = False;
+	me2->AllowDraggingToRoot = False;
+	me2->DraggingItem = NULL;
+	me2->OnSel = NULL;
+	me2->OnMoveNode = NULL;
 	return me_;
 }
 
@@ -2365,6 +2385,7 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 									Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), list_view->OnMouseClick);
 								break;
 							case LVN_BEGINDRAG:
+								if (list_view->Draggable)
 								{
 									NMLISTVIEW* param = reinterpret_cast<NMLISTVIEW*>(l_param);
 									POINT pt_pos = { 0 };
@@ -3242,6 +3263,8 @@ static LRESULT CALLBACK WndProcListView(HWND wnd, UINT msg, WPARAM w_param, LPAR
 						id = ListView_GetNextItem(wnd, -1, LVNI_SELECTED);
 					}
 					SendMessage(wnd, WM_SETREDRAW, TRUE, 0);
+					if (wnd3->OnMoveNode)
+						Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd3)), wnd3->OnMoveNode);
 				}
 				return 0;
 			}
@@ -3282,7 +3305,7 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 	switch (msg)
 	{
 		case WM_MOUSEMOVE:
-			if (reinterpret_cast<STree*>(wnd3)->DraggingItem != NULL)
+			if (wnd3->DraggingItem != NULL)
 			{
 				POINT point;
 				TVHITTESTINFO hit_test = { 0 };
@@ -3304,7 +3327,7 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 			}
 			return 0;
 		case WM_LBUTTONUP:
-			if (reinterpret_cast<STree*>(wnd3)->DraggingItem != NULL)
+			if (wnd3->DraggingItem != NULL)
 			{
 				POINT point;
 				TVHITTESTINFO hit_test = { 0 };
@@ -3315,7 +3338,7 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				hit_test.pt.y = point.y;
 				ScreenToClient(wnd, &hit_test.pt);
 				HTREEITEM item = reinterpret_cast<HTREEITEM>(SendMessage(wnd, TVM_HITTEST, 0, reinterpret_cast<LPARAM>(&hit_test)));
-				if (reinterpret_cast<STree*>(wnd3)->DraggingItem != item && (reinterpret_cast<STree*>(wnd3)->AllowDraggingToRoot || item != NULL))
+				if (wnd3->DraggingItem != item && (wnd3->AllowDraggingToRoot || item != NULL))
 				{
 					Bool success = True;
 					{
@@ -3323,7 +3346,7 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 						HTREEITEM item2 = item;
 						while (item2 != NULL)
 						{
-							if (item2 == reinterpret_cast<STree*>(wnd3)->DraggingItem)
+							if (item2 == wnd3->DraggingItem)
 							{
 								success = False;
 								break;
@@ -3334,16 +3357,16 @@ static LRESULT CALLBACK WndProcTree(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 					if (success)
 					{
 						Char buf[1025];
-						CopyTreeNodeRecursion(wnd, item, reinterpret_cast<STree*>(wnd3)->DraggingItem, buf);
-						TreeView_DeleteItem(wnd, reinterpret_cast<STree*>(wnd3)->DraggingItem);
-						if (reinterpret_cast<STree*>(wnd3)->OnMoveNode)
-							Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd3)), reinterpret_cast<STree*>(wnd3)->OnMoveNode);
+						CopyTreeNodeRecursion(wnd, item, wnd3->DraggingItem, buf);
+						TreeView_DeleteItem(wnd, wnd3->DraggingItem);
+						if (wnd3->OnMoveNode)
+							Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd3)), wnd3->OnMoveNode);
 					}
 				}
 				ImageList_DragShowNolock(TRUE);
 				ImageList_DragLeave(NULL);
 				ImageList_EndDrag();
-				reinterpret_cast<STree*>(wnd3)->DraggingItem = NULL;
+				wnd3->DraggingItem = NULL;
 			}
 			return 0;
 	}

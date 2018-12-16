@@ -132,6 +132,7 @@
 					end if
 				end if
 			end if
+			do \form@updateUi()
 		else
 			if (\form@getLockingEditor())
 				do \form@showMsgRunning()
@@ -429,11 +430,45 @@
 		do \form@listLb.setRedraw(false)
 		do \form@listLb.clear()
 		do \form@listLb.style(%list_)
-		do me.updateLb()
+		do me.nodes.head()
+		while(!me.nodes.term())
+			var obj: @Obj :: me.nodes.get()
+			do \form@listLb.add(obj.name, -1)
+			do me.holds.head()
+			if(me.holds.find(obj))
+				do \form@listLb.setSelMulti(\form@listLb.len() - 1, true)
+			end if
+			do me.nodes.next()
+		end while
 		do \form@listLb.setRedraw(true)
 	end func
 
 	+*func listLtOnMouseClick()
+	end func
+
+	+*func listLbOnMouseClick()
+		do me.holds :: #list<@Obj>
+		var len: int :: \form@listLb.len()
+		for i(0, len - 1)
+			if(\form@listLb.getSelMulti(i))
+				var name: []char :: \form@listLb.getText(&, i, 0)
+				do me.find(me.nodes, name)
+				do me.holds.add(me.nodes.get())
+			end if
+		end for
+		do \form@paintDrawEditor()
+	end func
+
+	+*func listLbOnMoveNode()
+		var len: int :: \form@listLb.len()
+		var names: [][]char :: #[len][]char
+		for i(0, len - 1)
+			do names[i] :: \form@listLb.getText(&, i, 0)
+		end for
+		do me.undo.recordBegin()
+		do me.order(names, true)
+		do me.undo.recordEnd()
+		do \form@paintDrawEditor()
 	end func
 
 	+*func listRbOnMouseClick()
@@ -449,9 +484,6 @@
 	end func
 
 	func updateLt()
-	end func
-
-	func updateLb()
 	end func
 
 	const resizeArea: int :: 6
@@ -610,6 +642,9 @@
 			do me.find(me.nodes, name)
 			do obj :: me.nodes.get()
 		end if
+		if(obj.x = x & obj.y = y & obj.width = width & obj.height = height)
+			ret
+		end if
 		if(recordUndo)
 			var undo: UndoArMove :: #UndoArMove
 			do undo.doc :: me
@@ -634,6 +669,30 @@
 	end func
 
 	func order(names: [][]char, recordUndo: bool)
+		if(recordUndo)
+			var oldNames: [][]char :: #[^me.nodes][]char
+			do me.nodes.head()
+			var i: int :: 0
+			while(!me.nodes.term())
+				do oldNames[i] :: me.nodes.get().name
+				do i :+ 1
+				do me.nodes.next()
+			end while
+			var undo: UndoArOrder :: #UndoArOrder
+			do undo.doc :: me
+			do undo.names :: oldNames
+			var redo: UndoArOrder :: #UndoArOrder
+			do redo.doc :: me
+			do redo.names :: names
+			do me.undo.add(undo, redo)
+		end if
+		var newNodes: list<@Obj> :: #list<@Obj>
+		for i(0, ^names - 1)
+			do me.find(me.nodes, names[i])
+			do newNodes.add(me.nodes.get())
+		end for
+		do me.nodes :: newNodes
+		do \form@updateUi()
 	end func
 
 	func rename(name: []char, newName: []char, recordUndo: bool)

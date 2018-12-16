@@ -99,6 +99,8 @@ EXPORT_CPP void* _listViewGetText(SClass* me_, S64* img, S64 idx, S64 column);
 EXPORT_CPP void _listViewAdjustWidth(SClass* me_);
 EXPORT_CPP void _listViewSetSel(SClass* me_, S64 idx);
 EXPORT_CPP S64 _listViewGetSel(SClass* me_);
+EXPORT_CPP void _listViewSetSelMulti(SClass* me_, S64 idx, Bool value);
+EXPORT_CPP Bool _listViewGetSelMulti(SClass* me_, S64 idx);
 EXPORT_CPP void _listViewStyle(SClass* me_, S64 list_view_style);
 EXPORT_CPP void _listViewDraggable(SClass* me_, bool enabled);
 EXPORT_CPP void _listViewSetChk(SClass* me_, S64 idx, bool value);

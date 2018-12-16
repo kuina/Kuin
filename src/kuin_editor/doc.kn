@@ -94,6 +94,12 @@
 	+func listLtOnMouseClick()
 	end func
 
+	+func listLbOnMouseClick()
+	end func
+
+	+func listLbOnMoveNode()
+	end func
+
 	+func listRbOnMouseClick()
 	end func
 

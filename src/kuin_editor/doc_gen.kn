@@ -186,6 +186,14 @@
 		do me.cur.listLtOnMouseClick()
 	end func
 
+	+*func listLbOnMouseClick()
+		do me.cur.listLbOnMouseClick()
+	end func
+
+	+*func listLbOnMoveNode()
+		do me.cur.listLbOnMoveNode()
+	end func
+
 	+*func listRbOnMouseClick()
 		do me.cur.listRbOnMouseClick()
 	end func

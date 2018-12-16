@@ -41,14 +41,6 @@
 	*func updateLt()
 		do \form@listLt.add("Btn", -1)
 	end func
-
-	*func updateLb()
-		do me.nodes.head()
-		while(!me.nodes.term())
-			do \form@listLb.add(me.nodes.get().name, -1)
-			do me.nodes.next()
-		end while
-	end func
 end class
 
 class ObjArWnd(\doc_ar@Obj)
