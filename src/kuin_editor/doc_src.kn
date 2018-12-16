@@ -709,6 +709,10 @@ end func
 		end switch
 	end func
 
+	+*func getChanged(): bool
+		ret me.changed
+	end func
+
 	+func toggleBreakPoint()
 		if(0 <= me.cursorY & me.cursorY < ^me.src.flags)
 			if(me.src.flags[me.cursorY].and(%breakPoint) = %none)

@@ -32,7 +32,7 @@ var wndAddFileListType: wnd@ListView
 			do (doc $ \doc_gen@DocGen).create(#\doc_ar_wnd@DocArWnd)
 		end switch
 		if(doc <>& null)
-			do doc.changed :: true
+			do doc.setChanged(true)
 			do \src@docs.add(@wndAddFileResuiltFile, doc)
 			do \src@setCurSrc(doc)
 			do \prop@changeProp()

@@ -18,8 +18,7 @@
 			default
 				ret false
 			end switch
-			var node: xml@Node :: root.findChild("root")
-			do me.designer.loadImpl(node)
+			do me.designer.loadImpl(root)
 		catch
 			ret false
 		end try
@@ -186,6 +185,14 @@
 
 	+*func onEvent(event: \doc@Event)
 		do me.cur.onEvent(event)
+	end func
+
+	+*func getChanged(): bool
+		ret me.designer.getChanged()
+	end func
+
+	+*func setChanged(value: bool)
+		do me.designer.setChanged(value)
 	end func
 
 	+func create(designer: @DocDesigner)

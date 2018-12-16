@@ -892,7 +892,7 @@ end func
 			do prefix :~ ">"
 			do @editFile.setText(src)
 		end if
-		if(doc.changed)
+		if(doc.getChanged())
 			do prefix :~ "*"
 		end if
 		do @listFile.add(prefix ~ src)

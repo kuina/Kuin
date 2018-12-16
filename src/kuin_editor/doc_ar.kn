@@ -160,7 +160,7 @@
 				end if
 			end if
 			do me.undo.recordBegin()
-			do me.put(parent, name, getDefaultName(name, me.nodes), x2, y2, true)
+			do me.put(parent, name, getDefaultName(name.lower(), me.nodes), x2, y2, true)
 			do me.undo.recordEnd()
 			do me.mode :: %put
 		end if
@@ -527,6 +527,7 @@
 			do \form@updateUi()
 		case %editRbArXOnKillFocus
 			if(^me.holds <> 1)
+				do \form@updateUi()
 				ret
 			end if
 			do me.holds.head()
@@ -545,6 +546,7 @@
 			do \form@updateUi()
 		case %editRbArYOnKillFocus
 			if(^me.holds <> 1)
+				do \form@updateUi()
 				ret
 			end if
 			do me.holds.head()
@@ -562,11 +564,16 @@
 			end if
 			do \form@updateUi()
 		case %editRbArWidthOnKillFocus
-			if(^me.holds <> 1)
+			var obj: @Obj
+			if(^me.holds = 0)
+				do obj :: me.root
+			elif(^me.holds = 1)
+				do me.holds.head()
+				do obj :: me.holds.get()
+			else
+				do \form@updateUi()
 				ret
 			end if
-			do me.holds.head()
-			var obj: @Obj :: me.holds.get()
 			var success: bool
 			var value: int :: \form@editRbArWidth.getText().trim().toInt(&success)
 			var minValue: int
@@ -579,17 +586,22 @@
 			end if
 			if(success)
 				do me.undo.recordBegin()
-				do me.move(obj.name, obj.x, obj.y, value, obj.height, true)
+				do me.move(obj =& me.root ?(null, obj.name), obj.x, obj.y, value, obj.height, true)
 				do me.undo.recordEnd()
 				do \form@paintDrawEditor()
 			end if
 			do \form@updateUi()
 		case %editRbArHeightOnKillFocus
-			if(^me.holds <> 1)
+			var obj: @Obj
+			if(^me.holds = 0)
+				do obj :: me.root
+			elif(^me.holds = 1)
+				do me.holds.head()
+				do obj :: me.holds.get()
+			else
+				do \form@updateUi()
 				ret
 			end if
-			do me.holds.head()
-			var obj: @Obj :: me.holds.get()
 			var success: bool
 			var value: int :: \form@editRbArHeight.getText().trim().toInt(&success)
 			var minValue: int
@@ -602,7 +614,7 @@
 			end if
 			if(success)
 				do me.undo.recordBegin()
-				do me.move(obj.name, obj.x, obj.y, obj.width, value, true)
+				do me.move(obj =& me.root ?(null, obj.name), obj.x, obj.y, obj.width, value, true)
 				do me.undo.recordEnd()
 				do \form@paintDrawEditor()
 			end if
@@ -611,9 +623,33 @@
 	end func
 
 	+*func loadImpl(xmlNode: xml@Node)
+		var root: xml@Node :: xmlNode.findChild("root").firstChild()
+		do me.root :: me.makeObj(root.getName())
+		do me.root.load(root)
+		var child: xml@Node :: xmlNode.findChild("children").firstChild()
+		do me.nodes :: #list<@Obj>
+		while(child <>& null)
+			var node: @Obj :: me.makeObj(child.getName())
+			do node.load(child)
+			do me.nodes.add(node)
+			do child :: child.next()
+		end while
 	end func
 
 	+*func saveImpl(xmlNode: xml@Node)
+		var root: xml@Node :: xmlNode.addChild("root")
+		block
+			var node: xml@Node :: root.addChild(me.root.kind())
+			do me.root.save(node)
+		end block
+		var children: xml@Node :: xmlNode.addChild("children")
+		do me.nodes.head()
+		while(!me.nodes.term())
+			var obj: @Obj :: me.nodes.get()
+			var node: xml@Node :: children.addChild(obj.kind())
+			do obj.save(node)
+			do me.nodes.next()
+		end while
 	end func
 
 	func makeObj(name: []char): @Obj
@@ -787,8 +823,8 @@
 		end if
 		do me.holds :: #list<@Obj>
 		do me.holds.add(obj)
-		do \form@updateUi()
 		do me.changed :: true
+		do \form@updateUi()
 	end func
 
 	func del(name: []char, recordUndo: bool)
@@ -809,6 +845,7 @@
 			do me.undo.add(undo, redo)
 		end if
 		do me.nodes.del()
+		do me.changed :: true
 		do \form@updateUi()
 	end func
 
@@ -844,6 +881,8 @@
 		do obj.y :: y
 		do obj.width :: width
 		do obj.height :: height
+		do me.changed :: true
+		do \form@updateUi()
 	end func
 
 	func order(names: [][]char, recordUndo: bool)
@@ -870,6 +909,7 @@
 			do newNodes.add(me.nodes.get())
 		end for
 		do me.nodes :: newNodes
+		do me.changed :: true
 		do \form@updateUi()
 	end func
 
@@ -887,6 +927,7 @@
 		end if
 		do me.find(me.nodes, name)
 		do me.nodes.get().name :: newName
+		do me.changed :: true
 		do \form@updateUi()
 	end func
 
@@ -910,6 +951,7 @@
 			do me.undo.add(undo, redo)
 		end if
 		do obj.visible :: value
+		do me.changed :: true
 		do \form@updateUi()
 	end func
 
@@ -923,9 +965,30 @@ end class
 	end func
 
 	+func load(node: xml@Node)
+		do me.name :: node.getAttr("name")
+		do me.visible :: node.getAttr("visible") = "true"
+		do me.x :: node.getAttr("x").toInt(&)
+		do me.y :: node.getAttr("y").toInt(&)
+		do me.width :: node.getAttr("width").toInt(&)
+		do me.height :: node.getAttr("height").toInt(&)
+		do me.props :: #dict<[]char, []char>
+		var propsNames: [][]char :: me.propsNames()
+		for i(0, ^propsNames - 1)
+			do me.props.add(propsNames[i], node.getAttr(propsNames[i]))
+		end for
 	end func
 
-	+func save(node: xml@Node): xml@Node
+	+func save(node: xml@Node)
+		do node.setAttr("name", me.name)
+		do node.setAttr("visible", me.visible ?("true", "false"))
+		do node.setAttr("x", me.x.toStr())
+		do node.setAttr("y", me.y.toStr())
+		do node.setAttr("width", me.width.toStr())
+		do node.setAttr("height", me.height.toStr())
+		var propsNames: [][]char :: me.propsNames()
+		for i(0, ^propsNames - 1)
+			do node.setAttr(propsNames[i], me.props.get(propsNames[i], &))
+		end for
 	end func
 
 	+func draw(x: float, y: float, width: float, height: float)
@@ -957,6 +1020,9 @@ end class
 		do me.width :: width
 		do me.height :: height
 		do me.props :: #dict<[]char, []char>
+	end func
+
+	func propsNames(): [][]char
 	end func
 
 	+var name: []char

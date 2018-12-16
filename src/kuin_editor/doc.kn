@@ -94,7 +94,15 @@
 	+func onEvent(event: @Event)
 	end func
 
-	+var changed: bool
+	+func getChanged(): bool
+		ret me.changed
+	end func
+
+	+func setChanged(value: bool)
+		do me.changed :: value
+	end func
+
+	var changed: bool
 	var undo: undo@Undo
 end class
 

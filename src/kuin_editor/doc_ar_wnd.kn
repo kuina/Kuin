@@ -5,7 +5,7 @@
 		var width: int
 		var height: int
 		do me.root.getDefaultSize(&width, &height)
-		do me.root.init("WndMain", true, 0, 0, width, height)
+		do me.root.init("wndMain", true, 0, 0, width, height)
 	end func
 
 	+*func fix()
@@ -32,6 +32,8 @@
 
 	*func makeObj(name: []char): \doc_ar@Obj
 		switch(name)
+		case "Wnd"
+			ret #@ObjWnd
 		case "Btn"
 			ret #@ObjBtn
 		end switch
@@ -84,6 +86,10 @@ class ObjWnd(@ObjArWnd)
 	+*func type(): []char
 		ret "wnd@Wnd"
 	end func
+
+	*func propsNames(): [][]char
+		ret ["text"]
+	end func
 end class
 
 class ObjBtn(@ObjArWnd)
@@ -121,5 +127,9 @@ class ObjBtn(@ObjArWnd)
 
 	+*func type(): []char
 		ret "wnd@Btn"
+	end func
+
+	*func propsNames(): [][]char
+		ret ["text"]
 	end func
 end class

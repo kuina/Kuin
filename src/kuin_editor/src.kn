@@ -98,13 +98,13 @@ end func
 	ret saveAllSuccess.value
 
 	func saveAllCallback(src: []char, doc: \doc@Doc, saveAllSuccess: lib@Bool): bool
-		if(doc.changed & src[0] = '\\')
+		if(doc.getChanged() & src[0] = '\\')
 			var path: []char :: @mainSrcDir ~ src.sub(1, -1).replace("\\", "/") ~ @getExt(doc)
 			if(!file@exist(file@dir(path)))
 				do file@makeDir(file@dir(path))
 			end if
 			if(doc.save(path))
-				do doc.changed :: false
+				do doc.setChanged(false)
 			else
 				var msg: []char
 				if(\common@langEn)
@@ -155,7 +155,7 @@ end func
 			if(src = data.oldMainSrcName)
 				do src :: data.newMainSrcName
 			end if
-			do doc.changed :: true
+			do doc.setChanged(true)
 			do data.docs.add(src, doc)
 			ret true
 		end func
@@ -213,7 +213,7 @@ end func
 	ret @save(false)
 
 	func callback(src: []char, doc: \doc@Doc, chkCloseChanged: lib@Bool): bool
-		if(doc.changed)
+		if(doc.getChanged())
 			do chkCloseChanged.value :: true
 			ret false
 		end if
