@@ -104,6 +104,20 @@ var drag: bool
 	do @labelRbArName :: wnd@makeLabel(@groupRbAr, 6, 21, 35, 12, %fix, %fix, \common@langEn ?("Name", "名前"))
 	do @editRbArName :: wnd@makeEdit(@groupRbAr, 65, 18, 95, 19, %fix, %fix)
 	do @editRbArName.onFocus :: editRbArNameOnFocus
+	do @chkRbArVisible :: wnd@makeChk(@groupRbAr, 183, 20, 80, 16, %fix, %fix, \common@langEn ?("Visible", "表示"))
+	do @labelRbArPos :: wnd@makeLabel(@groupRbAr, 6, 46, 35, 12, %fix, %fix, \common@langEn ?("Position", "位置"))
+	do @editRbArX :: wnd@makeEdit(@groupRbAr, 65, 43, 36, 19, %fix, %fix)
+	do @editRbArX.onFocus :: editRbArXOnFocus
+	do @labelRbArMul1 :: wnd@makeLabel(@groupRbAr, 107, 46, 11, 12, %fix, %fix, "x")
+	do @editRbArY :: wnd@makeEdit(@groupRbAr, 124, 43, 36, 19, %fix, %fix)
+	do @editRbArY.onFocus :: editRbArYOnFocus
+	do @labelRbArSub :: wnd@makeLabel(@groupRbAr, 166, 46, 11, 12, %fix, %fix, "-")
+	do @editRbArWidth :: wnd@makeEdit(@groupRbAr, 183, 43, 36, 19, %fix, %fix)
+	do @editRbArWidth.onFocus :: editRbArWidthOnFocus
+	do @labelRbArMul2 :: wnd@makeLabel(@groupRbAr, 225, 46, 11, 12, %fix, %fix, "x")
+	do @editRbArHeight :: wnd@makeEdit(@groupRbAr, 242, 43, 36, 19, %fix, %fix)
+	do @editRbArHeight.onFocus :: editRbArHeightOnFocus
+	do @btnRbArProp :: wnd@makeBtn(@groupRbAr, 8, 68, 152, 23, %fix, %fix, \common@langEn ?("Edit Properties...", "プロパティの編集..."))
 
 	func editRbArNameOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
@@ -111,17 +125,29 @@ var drag: bool
 		end if
 	end func
 
-	do @chkRbArVisible :: wnd@makeChk(@groupRbAr, 183, 20, 80, 16, %fix, %fix, \common@langEn ?("Visible", "表示"))
-	do @labelRbArPos :: wnd@makeLabel(@groupRbAr, 6, 46, 35, 12, %fix, %fix, \common@langEn ?("Position", "位置"))
-	do @editRbArX :: wnd@makeEdit(@groupRbAr, 65, 43, 36, 19, %fix, %fix)
-	do @labelRbArMul1 :: wnd@makeLabel(@groupRbAr, 107, 46, 11, 12, %fix, %fix, "x")
-	do @editRbArY :: wnd@makeEdit(@groupRbAr, 124, 43, 36, 19, %fix, %fix)
-	do @labelRbArSub :: wnd@makeLabel(@groupRbAr, 166, 46, 11, 12, %fix, %fix, "-")
-	do @editRbArWidth :: wnd@makeEdit(@groupRbAr, 183, 43, 36, 19, %fix, %fix)
-	do @labelRbArMul2 :: wnd@makeLabel(@groupRbAr, 225, 46, 11, 12, %fix, %fix, "x")
-	do @editRbArHeight :: wnd@makeEdit(@groupRbAr, 242, 43, 36, 19, %fix, %fix)
-	do @btnRbArProp :: wnd@makeBtn(@groupRbAr, 8, 68, 152, 23, %fix, %fix, \common@langEn ?("Edit Properties...", "プロパティの編集..."))
+	func editRbArXOnFocus(wnd: wnd@WndBase, focused: bool)
+		if(!focused)
+			do \src@curDoc.onEvent(%editRbArXOnKillFocus)
+		end if
+	end func
 
+	func editRbArYOnFocus(wnd: wnd@WndBase, focused: bool)
+		if(!focused)
+			do \src@curDoc.onEvent(%editRbArYOnKillFocus)
+		end if
+	end func
+
+	func editRbArWidthOnFocus(wnd: wnd@WndBase, focused: bool)
+		if(!focused)
+			do \src@curDoc.onEvent(%editRbArWidthOnKillFocus)
+		end if
+	end func
+
+	func editRbArHeightOnFocus(wnd: wnd@WndBase, focused: bool)
+		if(!focused)
+			do \src@curDoc.onEvent(%editRbArHeightOnKillFocus)
+		end if
+	end func
 
 	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
 	do @editLog.readonly(true)

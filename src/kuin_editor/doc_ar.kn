@@ -493,8 +493,91 @@
 				do me.undo.recordBegin()
 				do me.rename(obj.name, name, true)
 				do me.undo.recordEnd()
+				do \form@paintDrawEditor()
 			end if
-			do \form@paintDrawEditor()
+			do \form@updateUi()
+		case %editRbArXOnKillFocus
+			if(^me.holds <> 1)
+				ret
+			end if
+			do me.holds.head()
+			var obj: @Obj :: me.holds.get()
+			var success: bool
+			var value: int :: \form@editRbArX.getText().trim().toInt(&success)
+			if(value < 0)
+				do value :: 0
+			end if
+			if(success)
+				do me.undo.recordBegin()
+				do me.move(obj.name, value, obj.y, obj.width, obj.height, true)
+				do me.undo.recordEnd()
+				do \form@paintDrawEditor()
+			end if
+			do \form@updateUi()
+		case %editRbArYOnKillFocus
+			if(^me.holds <> 1)
+				ret
+			end if
+			do me.holds.head()
+			var obj: @Obj :: me.holds.get()
+			var success: bool
+			var value: int :: \form@editRbArY.getText().trim().toInt(&success)
+			if(value < 0)
+				do value :: 0
+			end if
+			if(success)
+				do me.undo.recordBegin()
+				do me.move(obj.name, obj.x, value, obj.width, obj.height, true)
+				do me.undo.recordEnd()
+				do \form@paintDrawEditor()
+			end if
+			do \form@updateUi()
+		case %editRbArWidthOnKillFocus
+			if(^me.holds <> 1)
+				ret
+			end if
+			do me.holds.head()
+			var obj: @Obj :: me.holds.get()
+			var success: bool
+			var value: int :: \form@editRbArWidth.getText().trim().toInt(&success)
+			var minValue: int
+			var maxValue: int
+			do obj.getMinMax(&minValue, &, &maxValue, &)
+			if(value < minValue)
+				do value :: minValue
+			elif(value > maxValue)
+				do value :: maxValue
+			end if
+			if(success)
+				do me.undo.recordBegin()
+				do me.move(obj.name, obj.x, obj.y, value, obj.height, true)
+				do me.undo.recordEnd()
+				do \form@paintDrawEditor()
+			end if
+			do \form@updateUi()
+		case %editRbArHeightOnKillFocus
+			if(^me.holds <> 1)
+				ret
+			end if
+			do me.holds.head()
+			var obj: @Obj :: me.holds.get()
+			var success: bool
+			var value: int :: \form@editRbArHeight.getText().trim().toInt(&success)
+			var minValue: int
+			var maxValue: int
+			do obj.getMinMax(&, &minValue, &, &maxValue)
+			if(value < minValue)
+				do value :: minValue
+			elif(value > maxValue)
+				do value :: maxValue
+			end if
+			if(success)
+				do me.undo.recordBegin()
+				do me.move(obj.name, obj.x, obj.y, obj.width, value, true)
+				do me.undo.recordEnd()
+				do \form@paintDrawEditor()
+			end if
+			do \form@updateUi()
 		end switch
 	end func
 

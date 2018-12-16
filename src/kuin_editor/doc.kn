@@ -104,6 +104,10 @@ end class
 	listLbOnMoveNode
 	listRbOnMouseClick
 	editRbArNameOnKillFocus
+	editRbArXOnKillFocus
+	editRbArYOnKillFocus
+	editRbArWidthOnKillFocus
+	editRbArHeightOnKillFocus
 end enum
 
 +class UndoCmd(undo@Cmd)
