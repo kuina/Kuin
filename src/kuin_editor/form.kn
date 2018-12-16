@@ -105,6 +105,7 @@ var drag: bool
 	do @editRbArName :: wnd@makeEdit(@groupRbAr, 65, 18, 95, 19, %fix, %fix)
 	do @editRbArName.onFocus :: editRbArNameOnFocus
 	do @chkRbArVisible :: wnd@makeChk(@groupRbAr, 183, 20, 80, 16, %fix, %fix, \common@langEn ?("Visible", "表示"))
+	do @chkRbArVisible.onPush :: chkRbArVisibleOnPush
 	do @labelRbArPos :: wnd@makeLabel(@groupRbAr, 6, 46, 35, 12, %fix, %fix, \common@langEn ?("Position", "位置"))
 	do @editRbArX :: wnd@makeEdit(@groupRbAr, 65, 43, 36, 19, %fix, %fix)
 	do @editRbArX.onFocus :: editRbArXOnFocus
@@ -123,6 +124,10 @@ var drag: bool
 		if(!focused)
 			do \src@curDoc.onEvent(%editRbArNameOnKillFocus)
 		end if
+	end func
+
+	func chkRbArVisibleOnPush(wnd: wnd@WndBase)
+		do \src@curDoc.onEvent(%chkRbArVisibleOnPush)
 	end func
 
 	func editRbArXOnFocus(wnd: wnd@WndBase, focused: bool)

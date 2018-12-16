@@ -37,7 +37,9 @@
 				var y: float :: (me.root.y - me.pageY + offsetY) $ float
 				var width2: float :: (me.root.width + offsetWidth) $ float
 				var height2: float :: (me.root.height + offsetHeight) $ float
-				do me.root.draw(x, y, width2, height2)
+				if(me.root.visible)
+					do me.root.draw(x, y, width2, height2)
+				end if
 				do draw@rectLine(x - 3.0, y - 3.0, width2 + 6.0, height2 + 6.0, 0xFF6666FF)
 				do draw@rectLine(x - 4.0, y - 4.0, width2 + 8.0, height2 + 8.0, 0xFF6666FF)
 			else
@@ -45,7 +47,9 @@
 				var y: float :: (me.root.y - me.pageY) $ float
 				var width2: float :: me.root.width $ float
 				var height2: float :: me.root.height $ float
-				do me.root.draw(x, y, width2, height2)
+				if(me.root.visible)
+					do me.root.draw(x, y, width2, height2)
+				end if
 			end if
 		end block
 		do me.nodes.head()
@@ -57,7 +61,9 @@
 				var y: float :: (node.y - me.pageY + offsetY) $ float
 				var width2: float :: (node.width + offsetWidth) $ float
 				var height2: float :: (node.height + offsetHeight) $ float
-				do node.draw(x, y, width2, height2)
+				if(node.visible)
+					do node.draw(x, y, width2, height2)
+				end if
 				do draw@rectLine(x - 3.0, y - 3.0, width2 + 6.0, height2 + 6.0, 0xFF6666FF)
 				do draw@rectLine(x - 4.0, y - 4.0, width2 + 8.0, height2 + 8.0, 0xFF6666FF)
 			else
@@ -65,7 +71,9 @@
 				var y: float :: (node.y - me.pageY) $ float
 				var width2: float :: node.width $ float
 				var height2: float :: node.height $ float
-				do node.draw(x, y, width2, height2)
+				if(node.visible)
+					do node.draw(x, y, width2, height2)
+				end if
 			end if
 			do me.nodes.next()
 		end while
@@ -413,6 +421,9 @@
 		elif(undo2 =$ UndoArRename)
 			var undo3: UndoArRename :: undo2 $ UndoArRename
 			do me.rename(undo3.name, undo3.newName, false)
+		elif(undo2 =$ UndoArVisible)
+			var undo3: UndoArVisible :: undo2 $ UndoArVisible
+			do me.visible(undo3.name, undo3.value, false)
 		elif(undo2 =$ UndoArProp)
 			var undo3: UndoArProp :: undo2 $ UndoArProp
 			do me.prop(undo3.name, undo3.prop, undo3.value, false)
@@ -492,6 +503,24 @@
 			if(me.nodes.term() & me.root.name <> name)
 				do me.undo.recordBegin()
 				do me.rename(obj.name, name, true)
+				do me.undo.recordEnd()
+				do \form@paintDrawEditor()
+			end if
+			do \form@updateUi()
+		case %chkRbArVisibleOnPush
+			var obj: @Obj
+			if(^me.holds = 0)
+				do obj :: me.root
+			elif(^me.holds = 1)
+				do me.holds.head()
+				do obj :: me.holds.get()
+			else
+				ret
+			end if
+			var chk: bool :: \form@chkRbArVisible.getChk()
+			if(obj.visible <> chk)
+				do me.undo.recordBegin()
+				do me.visible(obj =& me.root ?(null, obj.name), chk, true)
 				do me.undo.recordEnd()
 				do \form@paintDrawEditor()
 			end if
@@ -674,6 +703,11 @@
 		+var newName: []char
 	end class
 
+	class UndoArVisible(UndoAr)
+		+var name: []char
+		+var value: bool
+	end class
+
 	class UndoArProp(UndoAr)
 		+var name: []char
 		+var prop: []char
@@ -853,6 +887,29 @@
 		end if
 		do me.find(me.nodes, name)
 		do me.nodes.get().name :: newName
+		do \form@updateUi()
+	end func
+
+	func visible(name: []char, value: bool, recordUndo: bool)
+		var obj: @Obj
+		if(name =& null)
+			do obj :: me.root
+		else
+			do me.find(me.nodes, name)
+			do obj :: me.nodes.get()
+		end if
+		if(recordUndo)
+			var undo: UndoArVisible :: #UndoArVisible
+			do undo.doc :: me
+			do undo.name :: name
+			do undo.value :: obj.visible
+			var redo: UndoArVisible :: #UndoArVisible
+			do redo.doc :: me
+			do redo.name :: name
+			do redo.value :: value
+			do me.undo.add(undo, redo)
+		end if
+		do obj.visible :: value
 		do \form@updateUi()
 	end func
 

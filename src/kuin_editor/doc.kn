@@ -104,6 +104,7 @@ end class
 	listLbOnMoveNode
 	listRbOnMouseClick
 	editRbArNameOnKillFocus
+	chkRbArVisibleOnPush
 	editRbArXOnKillFocus
 	editRbArYOnKillFocus
 	editRbArWidthOnKillFocus
