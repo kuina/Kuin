@@ -1006,9 +1006,6 @@ end class
 		do height :: 10
 	end func
 
-	+func getSrc(indent: int, lines: list<[]char>)
-	end func
-
 	+func kind(): []char
 	end func
 

@@ -11,21 +11,43 @@
 	+*func fix()
 		var lines: list<[]char> :: #list<[]char>
 		do lines.add("var \{me.root.name}: \{(me.root $ @ObjArWnd).type()}")
+
 		do me.nodes.head()
 		while(!me.nodes.term())
 			var node: @ObjArWnd :: me.nodes.get() $ @ObjArWnd
 			do lines.add("var \{node.name}: \{node.type()}")
 			do me.nodes.next()
 		end while
+
 		do lines.add("")
 		do lines.add("+func make(): wnd@Wnd")
-		do me.root.getSrc(1, lines)
+		do lines.add("\tif(@\{me.root.name} <>& null)")
+		do lines.add("\t\tret @\{me.root.name}")
+		do lines.add("\tend if")
+		do (me.root $ @ObjArWnd).getSrcMake(1, lines, "null")
+
 		do me.nodes.head()
 		while(!me.nodes.term())
-			do me.nodes.get().getSrc(1, lines)
+			do (me.nodes.get() $ @ObjArWnd).getSrcMake(1, lines, "@" ~ me.root.name)
 			do me.nodes.next()
 		end while
+
 		do lines.add("\tret @\{me.root.name}")
+		do lines.add("end func")
+		do lines.add("")
+		do lines.add("+func close()")
+		do lines.add("\tif(@\{me.root.name} =& null)")
+		do lines.add("\t\tret")
+		do lines.add("\tend if")
+		do lines.add("\tdo @\{me.root.name}.close()")
+		do lines.add("\tdo @\{me.root.name} :: null")
+
+		do me.nodes.head()
+		while(!me.nodes.term())
+			do lines.add("\tdo @\{me.nodes.get().name} :: null")
+			do me.nodes.next()
+		end while
+
 		do lines.add("end func")
 		do me.src :: lines.toArray()
 	end func
@@ -47,6 +69,9 @@ end class
 
 class ObjArWnd(\doc_ar@Obj)
 	+func type(): []char
+	end func
+
+	+func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 	end func
 end class
 
@@ -70,10 +95,6 @@ class ObjWnd(@ObjArWnd)
 		do height :: 480
 	end func
 
-	+*func getSrc(indent: int, lines: list<[]char>)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(null, %normal, \{me.width}, \{me.height}, \"\{me.props.get("text", &)}\")")
-	end func
-
 	+*func kind(): []char
 		ret "Wnd"
 	end func
@@ -83,12 +104,16 @@ class ObjWnd(@ObjArWnd)
 		do me.props.add("text", me.name)
 	end func
 
+	*func propsNames(): [][]char
+		ret ["text"]
+	end func
+
 	+*func type(): []char
 		ret "wnd@Wnd"
 	end func
 
-	*func propsNames(): [][]char
-		ret ["text"]
+	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(\{parent}, %normal, \{me.width}, \{me.height}, \"\{me.props.get("text", &)}\")")
 	end func
 end class
 
@@ -112,10 +137,6 @@ class ObjBtn(@ObjArWnd)
 		do height :: 23
 	end func
 
-	+*func getSrc(indent: int, lines: list<[]char>)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(null, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.props.get("text", &)}\")")
-	end func
-
 	+*func kind(): []char
 		ret "Btn"
 	end func
@@ -125,11 +146,15 @@ class ObjBtn(@ObjArWnd)
 		do me.props.add("text", me.name)
 	end func
 
+	*func propsNames(): [][]char
+		ret ["text"]
+	end func
+
 	+*func type(): []char
 		ret "wnd@Btn"
 	end func
 
-	*func propsNames(): [][]char
-		ret ["text"]
+	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.props.get("text", &)}\")")
 	end func
 end class
