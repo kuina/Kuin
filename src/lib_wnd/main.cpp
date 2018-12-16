@@ -146,6 +146,7 @@ struct SEditBase
 {
 	SWndBase WndBase;
 	void* OnChange;
+	void* OnFocus;
 };
 
 struct SEdit
@@ -1138,6 +1139,7 @@ EXPORT_CPP SClass* _makeEdit(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 	SEdit* me2 = reinterpret_cast<SEdit*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Edit, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL | ES_NOHIDESEL, x, y, width, height, L"", WndProcEdit, anchorX, anchorY);
 	reinterpret_cast<SEditBase*>(me2)->OnChange = NULL;
+	reinterpret_cast<SEditBase*>(me2)->OnFocus = NULL;
 	return me_;
 }
 
@@ -1176,7 +1178,10 @@ EXPORT_CPP void _editSetSel(SClass* me_, S64 start, S64 len)
 
 EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
 {
+	SEditMulti* me2 = reinterpret_cast<SEditMulti*>(me_);
 	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_EditMulti, WC_EDIT, WS_EX_CLIENTEDGE, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | ES_NOHIDESEL, x, y, width, height, L"", WndProcEditMulti, anchorX, anchorY);
+	reinterpret_cast<SEditBase*>(me2)->OnChange = NULL;
+	reinterpret_cast<SEditBase*>(me2)->OnFocus = NULL;
 	return me_;
 }
 
@@ -2252,6 +2257,7 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 				}
 				break;
 			case WndKind_Edit:
+			case WndKind_EditMulti:
 				{
 					SEdit* edit = reinterpret_cast<SEdit*>(wnd_ctrl2);
 					switch (HIWORD(w_param))
@@ -2259,16 +2265,17 @@ static void CommandAndNotify(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
 						case EN_CHANGE:
 							if (reinterpret_cast<SEditBase*>(edit)->OnChange != NULL)
 								Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), reinterpret_cast<SEditBase*>(edit)->OnChange);
-							// TODO:
 							break;
 						case EN_HSCROLL:
 							// TODO:
 							break;
 						case EN_KILLFOCUS:
-							// TODO:
+							if (reinterpret_cast<SEditBase*>(edit)->OnFocus != NULL)
+								Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), reinterpret_cast<void*>(static_cast<U64>(False)), reinterpret_cast<SEditBase*>(edit)->OnFocus);
 							break;
 						case EN_SETFOCUS:
-							// TODO:
+							if (reinterpret_cast<SEditBase*>(edit)->OnFocus != NULL)
+								Call2Asm(IncWndRef(reinterpret_cast<SClass*>(wnd_ctrl2)), reinterpret_cast<void*>(static_cast<U64>(True)), reinterpret_cast<SEditBase*>(edit)->OnFocus);
 							break;
 						case EN_UPDATE:
 							// TODO:

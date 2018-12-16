@@ -675,35 +675,38 @@ end func
 			do me.errList.next()
 		end while
 		do \form@listRb.setRedraw(true)
+
+		do \form@groupRbAr.setVisible(false)
 	end func
 
-	+*func listLtOnMouseClick()
-		var sel: int :: \form@listLt.getSel()
-		if(sel = -1)
-			ret
-		end if
-		var code: []char :: \snippet@getCode(\form@listLt.getText(&, sel, 0))
-		if(code =& null)
-			ret
-		end if
-		do me.undo.recordBegin()
-		if(me.areaSel())
-			do me.delAreaStr()
-		end if
-		do me.ins(me.cursorX, me.cursorY, code, true)
-		do me.interpret1SetDirty(me.cursorY, true, false)
-		do me.undo.recordEnd()
-		do me.refreshCursor(false, true)
-		do \form@paintDrawEditor()
-	end func
-
-	+*func listRbOnMouseClick()
-		var sel: int :: \form@listRb.getSel()
-		if(sel <> -1 & sel < ^me.errList)
-			do me.errList.head()
-			var item: @ErrListItem :: me.errList.getOffset(sel)
-			do \src@jumpSrc(item.pos)
-		end if
+	+*func onEvent(event: \doc@Event)
+		switch(event)
+		case %listLtOnMouseClick
+			var sel: int :: \form@listLt.getSel()
+			if(sel = -1)
+				ret
+			end if
+			var code: []char :: \snippet@getCode(\form@listLt.getText(&, sel, 0))
+			if(code =& null)
+				ret
+			end if
+			do me.undo.recordBegin()
+			if(me.areaSel())
+				do me.delAreaStr()
+			end if
+			do me.ins(me.cursorX, me.cursorY, code, true)
+			do me.interpret1SetDirty(me.cursorY, true, false)
+			do me.undo.recordEnd()
+			do me.refreshCursor(false, true)
+			do \form@paintDrawEditor()
+		case %listRbOnMouseClick
+			var sel: int :: \form@listRb.getSel()
+			if(sel <> -1 & sel < ^me.errList)
+				do me.errList.head()
+				var item: @ErrListItem :: me.errList.getOffset(sel)
+				do \src@jumpSrc(item.pos)
+			end if
+		end switch
 	end func
 
 	+func toggleBreakPoint()

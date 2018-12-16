@@ -11,6 +11,7 @@
 		do me.pageX :: -me.scrollOffsetX
 		do me.pageY :: -me.scrollOffsetY
 		do me.mode :: %none
+		do me.updatingProp :: false
 	end func
 
 	+*func getSrc(): [][]char
@@ -194,6 +195,7 @@
 			do me.undo.recordEnd()
 			do me.mode :: %none
 			do \form@listLt.setSel(0)
+			do me.updateProp()
 			do \form@paintDrawEditor()
 		case %move
 			if (\form@getLockingEditor())
@@ -217,6 +219,7 @@
 			end while
 			do me.undo.recordEnd()
 			do me.mode :: %none
+			do me.updateProp()
 			do \form@paintDrawEditor()
 		case %resize
 			if (\form@getLockingEditor())
@@ -235,6 +238,7 @@
 			end if
 			do me.undo.recordEnd()
 			do me.mode :: %none
+			do me.updateProp()
 			do \form@paintDrawEditor()
 		case %sel
 			var x1: int :: me.holdOffsetX
@@ -259,6 +263,7 @@
 				do me.nodes.next()
 			end while
 			do me.mode :: %none
+			do \form@updateUi()
 			do \form@paintDrawEditor()
 		end switch
 	end func
@@ -275,6 +280,7 @@
 			end if
 			do me.curOffsetX :: x + me.pageX
 			do me.curOffsetY :: y + me.pageY
+			do me.updateProp()
 			do \form@paintDrawEditor()
 		case %sel
 			do me.curOffsetX :: x + me.pageX
@@ -441,37 +447,55 @@
 			do me.nodes.next()
 		end while
 		do \form@listLb.setRedraw(true)
+
+		do me.updateProp()
 	end func
 
-	+*func listLtOnMouseClick()
-	end func
-
-	+*func listLbOnMouseClick()
-		do me.holds :: #list<@Obj>
-		var len: int :: \form@listLb.len()
-		for i(0, len - 1)
-			if(\form@listLb.getSelMulti(i))
-				var name: []char :: \form@listLb.getText(&, i, 0)
-				do me.find(me.nodes, name)
-				do me.holds.add(me.nodes.get())
+	+*func onEvent(event: \doc@Event)
+		if(me.updatingProp)
+			ret
+		end if
+		switch(event)
+		case %listLtOnMouseClick
+		case %listLbOnMouseClick
+			do me.holds :: #list<@Obj>
+			var len: int :: \form@listLb.len()
+			for i(0, len - 1)
+				if(\form@listLb.getSelMulti(i))
+					var name: []char :: \form@listLb.getText(&, i, 0)
+					do me.find(me.nodes, name)
+					do me.holds.add(me.nodes.get())
+				end if
+			end for
+			do me.updateProp()
+			do \form@paintDrawEditor()
+		case %listLbOnMoveNode
+			var len: int :: \form@listLb.len()
+			var names: [][]char :: #[len][]char
+			for i(0, len - 1)
+				do names[i] :: \form@listLb.getText(&, i, 0)
+			end for
+			do me.undo.recordBegin()
+			do me.order(names, true)
+			do me.undo.recordEnd()
+			do me.updateProp()
+			do \form@paintDrawEditor()
+		case %listRbOnMouseClick
+		case %editRbArNameOnKillFocus
+			if(^me.holds <> 1)
+				ret
 			end if
-		end for
-		do \form@paintDrawEditor()
-	end func
-
-	+*func listLbOnMoveNode()
-		var len: int :: \form@listLb.len()
-		var names: [][]char :: #[len][]char
-		for i(0, len - 1)
-			do names[i] :: \form@listLb.getText(&, i, 0)
-		end for
-		do me.undo.recordBegin()
-		do me.order(names, true)
-		do me.undo.recordEnd()
-		do \form@paintDrawEditor()
-	end func
-
-	+*func listRbOnMouseClick()
+			do me.holds.head()
+			var obj: @Obj :: me.holds.get()
+			var name: []char :: \form@editRbArName.getText().trim()
+			do me.find(me.nodes, name)
+			if(me.nodes.term() & me.root.name <> name)
+				do me.undo.recordBegin()
+				do me.rename(obj.name, name, true)
+				do me.undo.recordEnd()
+			end if
+			do \form@paintDrawEditor()
+		end switch
 	end func
 
 	+*func loadImpl(xmlNode: xml@Node)
@@ -509,6 +533,7 @@
 	var pageX: int
 	var pageY: int
 	var mode: Mode
+	var updatingProp: bool
 
 	func resizeObj(obj: @Obj, x: int, y: int)
 		var width: int :: obj.width + x + me.pageX - me.holdOffsetX
@@ -572,6 +597,42 @@
 		+var value: []char
 	end class
 
+	func updateProp()
+		do me.updatingProp :: true
+		if(^me.holds >= 2)
+			do \form@groupRbAr.setVisible(false)
+		else
+			var obj: @Obj
+			if(^me.holds = 0)
+				do obj :: me.root
+			else
+				do me.holds.head()
+				do obj :: me.holds.get()
+			end if
+			var offsetX: int :: 0
+			var offsetY: int :: 0
+			var offsetWidth: int :: 0
+			var offsetHeight: int :: 0
+			if(me.mode = %put | me.mode = %resize)
+				do offsetWidth :: me.curOffsetX - me.holdOffsetX
+				do offsetHeight :: me.curOffsetY - me.holdOffsetY
+			elif(me.mode = %move)
+				do offsetX :: me.curOffsetX - me.holdOffsetX
+				do offsetY :: me.curOffsetY - me.holdOffsetY
+			end if
+			do \form@groupRbAr.setVisible(true)
+			do \form@groupRbAr.setRedraw(false)
+			do \form@groupRbAr.setRedraw(true)
+			do \form@editRbArName.setText(obj.name)
+			do \form@chkRbArVisible.setChk(obj.visible)
+			do \form@editRbArX.setText((obj.x + offsetX).toStr())
+			do \form@editRbArY.setText((obj.y + offsetY).toStr())
+			do \form@editRbArWidth.setText((obj.width + offsetWidth).toStr())
+			do \form@editRbArHeight.setText((obj.height + offsetHeight).toStr())
+		end if
+		do me.updatingProp :: false
+	end func
+
 	func find(nodes: list<@Obj>, name: []char)
 		do nodes.head()
 		while(!nodes.term())
@@ -600,7 +661,7 @@
 		var width: int
 		var height: int
 		do obj.getDefaultSize(&width, &height)
-		do obj.init(name, x, y, width, height)
+		do obj.init(name, true, x, y, width, height)
 		if(parent =& null)
 			do me.nodes.add(obj)
 		else
@@ -696,6 +757,20 @@
 	end func
 
 	func rename(name: []char, newName: []char, recordUndo: bool)
+		if(recordUndo)
+			var undo: UndoArRename :: #UndoArRename
+			do undo.doc :: me
+			do undo.name :: newName
+			do undo.newName :: name
+			var redo: UndoArRename :: #UndoArRename
+			do redo.doc :: me
+			do redo.name :: name
+			do redo.newName :: newName
+			do me.undo.add(undo, redo)
+		end if
+		do me.find(me.nodes, name)
+		do me.nodes.get().name :: newName
+		do \form@updateUi()
 	end func
 
 	func prop(name: []char, prop: []char, value: []char, recordUndo: bool)
@@ -734,8 +809,9 @@ end class
 	+func kind(): []char
 	end func
 
-	+func init(name: []char, x: int, y: int, width: int, height: int)
+	+func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do me.name :: name
+		do me.visible :: visible
 		do me.x :: x
 		do me.y :: y
 		do me.width :: width
@@ -744,6 +820,7 @@ end class
 	end func
 
 	+var name: []char
+	+var visible: bool
 	+var x: int
 	+var y: int
 	+var width: int

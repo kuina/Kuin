@@ -291,6 +291,7 @@ end class
 	end func
 
 	+var onChange: func<(@WndBase)>
+	+var onFocus: func<(@WndBase, bool)>
 end class
 
 +class Edit(@EditBase)

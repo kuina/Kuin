@@ -5,7 +5,7 @@
 		var width: int
 		var height: int
 		do me.root.getDefaultSize(&width, &height)
-		do me.root.init("wnd1", 0, 0, width, height)
+		do me.root.init("WndMain", true, 0, 0, width, height)
 	end func
 
 	+*func fix()
@@ -76,8 +76,8 @@ class ObjWnd(@ObjArWnd)
 		ret "Wnd"
 	end func
 
-	+*func init(name: []char, x: int, y: int, width: int, height: int)
-		do super(me, name, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
+		do super(me, name, visible, x, y, width, height)
 		do me.props.add("text", me.name)
 	end func
 
@@ -114,8 +114,8 @@ class ObjBtn(@ObjArWnd)
 		ret "Btn"
 	end func
 
-	+*func init(name: []char, x: int, y: int, width: int, height: int)
-		do super(me, name, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
+		do super(me, name, visible, x, y, width, height)
 		do me.props.add("text", me.name)
 	end func
 

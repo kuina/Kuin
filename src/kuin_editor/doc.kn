@@ -91,21 +91,20 @@
 	+func updateUi()
 	end func
 
-	+func listLtOnMouseClick()
-	end func
-
-	+func listLbOnMouseClick()
-	end func
-
-	+func listLbOnMoveNode()
-	end func
-
-	+func listRbOnMouseClick()
+	+func onEvent(event: @Event)
 	end func
 
 	+var changed: bool
 	var undo: undo@Undo
 end class
+
++enum Event
+	listLtOnMouseClick
+	listLbOnMouseClick
+	listLbOnMoveNode
+	listRbOnMouseClick
+	editRbArNameOnKillFocus
+end enum
 
 +class UndoCmd(undo@Cmd)
 	+var doc: @Doc
