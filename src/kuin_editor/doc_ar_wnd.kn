@@ -68,10 +68,10 @@
 	end func
 
 	*func updateLt()
-		do \form@listLt.add("Btn", -1)
-		do \form@listLt.add("Edit", -1)
-		do \form@listLt.add("Label", -1)
-		do \form@listLt.add("Chk", -1)
+		do \form@listLt.add("Btn", 1)
+		do \form@listLt.add("Chk", 2)
+		do \form@listLt.add("Edit", 3)
+		do \form@listLt.add("Label", 4)
 	end func
 end class
 

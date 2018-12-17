@@ -54,7 +54,7 @@ var drag: bool
 	do @wndMain.onActivate :: @wndMainOnActivate
 	do @wndMain.onPushMenu :: @wndMainOnPushMenu
 	do @wndMain.onDropFiles :: @wndMainOnDropFiles
-	do @listLt :: wnd@makeListView(@wndMain, 12, 12, 244, 272, %fix, %fix, false, null, null)
+	do @listLt :: wnd@makeListView(@wndMain, 12, 12, 244, 272, %fix, %fix, false, null, ["res/obj_none.png", "res/obj_btn.png", "res/obj_chk.png", "res/obj_edit.png", "res/obj_label.png"])
 	do @listLt.setVisible(false)
 	do @listLt.onMouseClick :: listLtOnMouseClick
 

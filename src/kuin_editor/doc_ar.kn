@@ -440,7 +440,7 @@
 		do \form@listLt.setRedraw(false)
 		do \form@listLt.clear()
 		do \form@listLt.style(%large)
-		do \form@listLt.add(\common@langEn ?("None", "なし"), -1)
+		do \form@listLt.add(\common@langEn ?("None", "なし"), 0)
 		do me.updateLt()
 		do \form@listLt.setRedraw(true)
 
