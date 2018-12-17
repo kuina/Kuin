@@ -160,9 +160,10 @@
 				end if
 			end if
 			do me.undo.recordBegin()
-			do me.put(parent, name, getDefaultName(name.lower(), me.nodes), x2, y2, true)
+			do me.put(parent, name, getDefaultName(name.lower(), me.nodes), x2, y2, -1, -1, true)
 			do me.undo.recordEnd()
 			do me.mode :: %put
+			do \form@updateUi()
 		end if
 		do \form@paintDrawEditor()
 
@@ -203,7 +204,7 @@
 			do me.undo.recordEnd()
 			do me.mode :: %none
 			do \form@listLt.setSel(0)
-			do me.updateProp()
+			do \form@updateUi()
 			do \form@paintDrawEditor()
 		case %move
 			if (\form@getLockingEditor())
@@ -230,7 +231,7 @@
 			end while
 			do me.undo.recordEnd()
 			do me.mode :: %none
-			do me.updateProp()
+			do \form@updateUi()
 			do \form@paintDrawEditor()
 		case %resize
 			if (\form@getLockingEditor())
@@ -249,7 +250,7 @@
 			end if
 			do me.undo.recordEnd()
 			do me.mode :: %none
-			do me.updateProp()
+			do \form@updateUi()
 			do \form@paintDrawEditor()
 		case %sel
 			var x1: int :: me.holdOffsetX
@@ -384,6 +385,7 @@
 			ret
 		end if
 		do me.undo.undo()
+		do \form@updateUi()
 		do \form@paintDrawEditor()
 	end func
 
@@ -393,6 +395,7 @@
 			ret
 		end if
 		do me.undo.redo()
+		do \form@updateUi()
 		do \form@paintDrawEditor()
 	end func
 
@@ -406,15 +409,32 @@
 	end func
 
 	+*func cmdDel()
+		do me.undo.recordBegin()
+		do me.holds.head()
+		while(!me.holds.term())
+			do me.del(me.holds.get().name, true)
+			do me.holds.del()
+		end while
+		do me.undo.recordEnd()
+		do \form@updateUi()
+		do \form@paintDrawEditor()
 	end func
 
 	+*func cmdSelAll()
+		do me.holds :: #list<@Obj>
+		do me.nodes.head()
+		while(!me.nodes.term())
+			do me.holds.add(me.nodes.get())
+			do me.nodes.next()
+		end while
+		do \form@updateUi()
+		do \form@paintDrawEditor()
 	end func
 
 	+*func undoImpl(undo2: \doc@UndoCmd)
 		if(undo2 =$ UndoArPut)
 			var undo3: UndoArPut :: undo2 $ UndoArPut
-			do me.put(undo3.parent, undo3.kind, undo3.name, undo3.x, undo3.y, false)
+			do me.put(undo3.parent, undo3.kind, undo3.name, undo3.x, undo3.y, undo3.width, undo3.height, false)
 		elif(undo2 =$ UndoArDel)
 			var undo3: UndoArDel :: undo2 $ UndoArDel
 			do me.del(undo3.name, false)
@@ -495,8 +515,8 @@
 			do me.undo.recordBegin()
 			do me.order(names, true)
 			do me.undo.recordEnd()
-			do me.updateProp()
 			do \form@paintDrawEditor()
+			do \form@updateUi()
 		case %listRbOnMouseClick
 		case %editRbArNameOnKillFocus
 			if(^me.holds <> 1)
@@ -749,6 +769,8 @@
 		+var name: []char
 		+var x: int
 		+var y: int
+		+var width: int
+		+var height: int
 	end class
 
 	class UndoArDel(UndoAr)
@@ -829,7 +851,7 @@
 		end while
 	end func
 
-	func put(parent: []char, kind: []char, name: []char, x: int, y: int, recordUndo: bool)
+	func put(parent: []char, kind: []char, name: []char, x: int, y: int, width: int, height: int, recordUndo: bool)
 		if(recordUndo)
 			var undo: UndoArDel :: #UndoArDel
 			do undo.doc :: me
@@ -841,12 +863,14 @@
 			do redo.name :: name
 			do redo.x :: x
 			do redo.y :: y
+			do redo.width :: width
+			do redo.height :: height
 			do me.undo.add(undo, redo)
 		end if
 		var obj: @Obj :: me.makeObj(kind)
-		var width: int
-		var height: int
-		do obj.getDefaultSize(&width, &height)
+		if(width = -1 & height = -1)
+			do obj.getDefaultSize(&width, &height)
+		end if
 		do obj.init(name, true, x, y, width, height)
 		if(parent =& null)
 			do me.nodes.add(obj)
@@ -857,14 +881,18 @@
 		do me.holds :: #list<@Obj>
 		do me.holds.add(obj)
 		do me.changed :: true
-		do \form@updateUi()
 	end func
 
 	func del(name: []char, recordUndo: bool)
 		do me.find(me.nodes, name)
 		if(recordUndo)
 			var obj: @Obj :: me.nodes.get()
-			var parent: @Obj :: me.nodes.getOffset(-1)
+			var parent: @Obj
+			try
+				do parent :: me.nodes.getOffset(1)
+			catch
+				do parent :: null
+			end try
 			var undo: UndoArPut :: #UndoArPut
 			do undo.doc :: me
 			do undo.parent :: parent =& null ?(null, parent.name)
@@ -872,6 +900,8 @@
 			do undo.name :: obj.name
 			do undo.x :: obj.x
 			do undo.y :: obj.y
+			do undo.width :: obj.width
+			do undo.height :: obj.height
 			var redo: UndoArDel :: #UndoArDel
 			do redo.doc :: me
 			do redo.name :: obj.name
@@ -879,7 +909,6 @@
 		end if
 		do me.nodes.del()
 		do me.changed :: true
-		do \form@updateUi()
 	end func
 
 	func move(name: []char, x: int, y: int, width: int, height: int, recordUndo: bool)
@@ -915,7 +944,6 @@
 		do obj.width :: width
 		do obj.height :: height
 		do me.changed :: true
-		do \form@updateUi()
 	end func
 
 	func order(names: [][]char, recordUndo: bool)
@@ -943,7 +971,6 @@
 		end for
 		do me.nodes :: newNodes
 		do me.changed :: true
-		do \form@updateUi()
 	end func
 
 	func rename(name: []char, newName: []char, recordUndo: bool)
@@ -961,7 +988,6 @@
 		do me.find(me.nodes, name)
 		do me.nodes.get().name :: newName
 		do me.changed :: true
-		do \form@updateUi()
 	end func
 
 	func visible(name: []char, value: bool, recordUndo: bool)
@@ -985,7 +1011,6 @@
 		end if
 		do obj.visible :: value
 		do me.changed :: true
-		do \form@updateUi()
 	end func
 
 	func prop(name: []char, prop: []char, value: []char, recordUndo: bool)
