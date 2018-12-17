@@ -619,6 +619,20 @@
 				do \form@paintDrawEditor()
 			end if
 			do \form@updateUi()
+		case %btnRbArPropOnPush
+			var obj: @Obj
+			if(^me.holds = 0)
+				do obj :: me.root
+			elif(^me.holds = 1)
+				do me.holds.head()
+				do obj :: me.holds.get()
+			else
+				do \form@updateUi()
+				ret
+			end if
+			do \obj_prop@show(obj)
+			do \form@updateUi()
+			do \form@paintDrawEditor()
 		end switch
 	end func
 

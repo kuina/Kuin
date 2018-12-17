@@ -119,6 +119,7 @@ var drag: bool
 	do @editRbArHeight :: wnd@makeEdit(@groupRbAr, 242, 43, 36, 19, %fix, %fix)
 	do @editRbArHeight.onFocus :: editRbArHeightOnFocus
 	do @btnRbArProp :: wnd@makeBtn(@groupRbAr, 8, 68, 152, 23, %fix, %fix, \common@langEn ?("Edit Properties...", "プロパティの編集..."))
+	do @btnRbArProp.onPush :: btnRbArPropOnPush
 
 	func editRbArNameOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
@@ -152,6 +153,10 @@ var drag: bool
 		if(!focused)
 			do \src@curDoc.onEvent(%editRbArHeightOnKillFocus)
 		end if
+	end func
+
+	func btnRbArPropOnPush(wnd: wnd@WndBase)
+		do \src@curDoc.onEvent(%btnRbArPropOnPush)
 	end func
 
 	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)

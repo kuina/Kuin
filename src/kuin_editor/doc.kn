@@ -117,6 +117,7 @@ end class
 	editRbArYOnKillFocus
 	editRbArWidthOnKillFocus
 	editRbArHeightOnKillFocus
+	btnRbArPropOnPush
 end enum
 
 +class UndoCmd(undo@Cmd)
