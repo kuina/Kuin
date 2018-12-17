@@ -10,12 +10,12 @@
 
 	+*func fix()
 		var lines: list<[]char> :: #list<[]char>
-		do lines.add("var \{me.root.name}: \{(me.root $ @ObjArWnd).type()}")
+		do lines.add("+var \{me.root.name}: \{(me.root $ @ObjArWnd).type()}")
 
 		do me.nodes.head()
 		while(!me.nodes.term())
 			var node: @ObjArWnd :: me.nodes.get() $ @ObjArWnd
-			do lines.add("var \{node.name}: \{node.type()}")
+			do lines.add("+var \{node.name}: \{node.type()}")
 			do me.nodes.next()
 		end while
 
