@@ -25,10 +25,17 @@
 		do lines.add("\t\tret")
 		do lines.add("\tend if")
 		do (me.root $ @ObjArWnd).getSrcMake(1, lines, "null")
+		if(!me.root.visible)
+			do lines.add("\tdo @\{me.root.name}.setVisible(false)")
+		end if
 
 		do me.nodes.head()
 		while(!me.nodes.term())
-			do (me.nodes.get() $ @ObjArWnd).getSrcMake(1, lines, "@" ~ me.root.name)
+			var obj: @ObjArWnd :: me.nodes.get() $ @ObjArWnd
+			do obj.getSrcMake(1, lines, "@" ~ me.root.name)
+			if(!obj.visible)
+				do lines.add("\tdo @\{obj.name}.setVisible(false)")
+			end if
 			do me.nodes.next()
 		end while
 
@@ -109,11 +116,12 @@ class ObjWnd(@ObjArWnd)
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
+		do me.props.add("style", "%normal")
 		do me.props.add("text", me.name)
 	end func
 
 	*func propsNames(): [][]char
-		ret ["text"]
+		ret ["style", "text"]
 	end func
 
 	+*func type(): []char
@@ -121,7 +129,7 @@ class ObjWnd(@ObjArWnd)
 	end func
 
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(\{parent}, %normal, \{me.width}, \{me.height}, \"\{me.props.get("text", &)}\")")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(\{parent}, \{me.props.get("style", &)}, \{me.width}, \{me.height}, \"\{me.props.get("text", &)}\")")
 	end func
 end class
 
@@ -151,11 +159,13 @@ class ObjBtn(@ObjArWnd)
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
+		do me.props.add("anchorX", "%fix")
+		do me.props.add("anchorY", "%fix")
 		do me.props.add("text", me.name)
 	end func
 
 	*func propsNames(): [][]char
-		ret ["text"]
+		ret ["anchorX", "anchorY", "text"]
 	end func
 
 	+*func type(): []char
@@ -163,7 +173,7 @@ class ObjBtn(@ObjArWnd)
 	end func
 
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.props.get("text", &)}\")")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)}, \"\{me.props.get("text", &)}\")")
 	end func
 end class
 
@@ -193,11 +203,14 @@ class ObjEdit(@ObjArWnd)
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
+		do me.props.add("anchorX", "%fix")
+		do me.props.add("anchorY", "%fix")
+		do me.props.add("readonly", "false")
 		do me.props.add("text", "")
 	end func
 
 	*func propsNames(): [][]char
-		ret ["text"]
+		ret ["anchorX", "anchorY", "readonly", "text"]
 	end func
 
 	+*func type(): []char
@@ -205,7 +218,10 @@ class ObjEdit(@ObjArWnd)
 	end func
 
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeEdit(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix)")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeEdit(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)})")
+		if(me.props.get("readonly", &) = "true")
+			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.readonly(true)")
+		end if
 		var text: []char :: me.props.get("text", &)
 		if(^text > 0)
 			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setText(\"\{text}\")")
@@ -238,11 +254,13 @@ class ObjLabel(@ObjArWnd)
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
+		do me.props.add("anchorX", "%fix")
+		do me.props.add("anchorY", "%fix")
 		do me.props.add("text", me.name)
 	end func
 
 	*func propsNames(): [][]char
-		ret ["text"]
+		ret ["anchorX", "anchorY", "text"]
 	end func
 
 	+*func type(): []char
@@ -250,7 +268,7 @@ class ObjLabel(@ObjArWnd)
 	end func
 
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeLabel(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.props.get("text", &)}\")")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeLabel(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)}, \"\{me.props.get("text", &)}\")")
 	end func
 end class
 
@@ -280,11 +298,14 @@ class ObjChk(@ObjArWnd)
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
+		do me.props.add("anchorX", "%fix")
+		do me.props.add("anchorY", "%fix")
+		do me.props.add("chk", "false")
 		do me.props.add("text", me.name)
 	end func
 
 	*func propsNames(): [][]char
-		ret ["text"]
+		ret ["anchorX", "anchorY", "chk", "text"]
 	end func
 
 	+*func type(): []char
@@ -292,6 +313,9 @@ class ObjChk(@ObjArWnd)
 	end func
 
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeChk(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.props.get("text", &)}\")")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeChk(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)}, \"\{me.props.get("text", &)}\")")
+		if(me.props.get("chk", &) = "true")
+			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setChk(true)")
+		end if
 	end func
 end class

@@ -214,8 +214,11 @@
 			do me.holds.head()
 			while(!me.holds.term())
 				var obj: @Obj :: me.holds.get()
-				var x2: int :: obj.x + x + me.pageX - me.holdOffsetX
-				var y2: int :: obj.y + y + me.pageY - me.holdOffsetY
+				var arrangedX: int :: x + me.pageX
+				var arrangedY: int :: y + me.pageY
+				do me.arrange(&arrangedX, &arrangedY)
+				var x2: int :: obj.x + arrangedX - me.holdOffsetX
+				var y2: int :: obj.y + arrangedY - me.holdOffsetY
 				if(x2 < 0)
 					do x2 :: 0
 				end if
@@ -286,8 +289,11 @@
 				do \form@showMsgRunning()
 				ret
 			end if
-			do me.curOffsetX :: x + me.pageX
-			do me.curOffsetY :: y + me.pageY
+			var arrangedX: int :: x + me.pageX
+			var arrangedY: int :: y + me.pageY
+			do me.arrange(&arrangedX, &arrangedY)
+			do me.curOffsetX :: arrangedX
+			do me.curOffsetY :: arrangedY
 			do me.updateProp()
 			do \form@paintDrawEditor()
 		case %sel
@@ -698,8 +704,11 @@
 	var updatingProp: bool
 
 	func resizeObj(obj: @Obj, x: int, y: int)
-		var width: int :: obj.width + x + me.pageX - me.holdOffsetX
-		var height: int :: obj.height + y + me.pageY - me.holdOffsetY
+		var arrangedX: int :: x + me.pageX
+		var arrangedY: int :: y + me.pageY
+		do me.arrange(&arrangedX, &arrangedY)
+		var width: int :: obj.width + arrangedX - me.holdOffsetX
+		var height: int :: obj.height + arrangedY - me.holdOffsetY
 		var minWidth: int
 		var minHeight: int
 		var maxWidth: int
@@ -716,6 +725,16 @@
 			do height :: maxHeight
 		end if
 		do me.move(obj =& me.root ?(null, obj.name), obj.x, obj.y, width, height, true)
+	end func
+
+	func arrange(x: &int, y: &int)
+		if(wnd@key(%shift))
+			if((x - me.holdOffsetX).abs() > (y - me.holdOffsetY).abs())
+				do y :: me.holdOffsetY
+			else
+				do x :: me.holdOffsetX
+			end if
+		end if
 	end func
 
 	class UndoAr(\doc@UndoCmd)
