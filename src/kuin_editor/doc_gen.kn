@@ -19,6 +19,7 @@
 				ret false
 			end switch
 			do me.designer.loadImpl(root)
+			do me.designer.fix()
 		catch
 			ret false
 		end try

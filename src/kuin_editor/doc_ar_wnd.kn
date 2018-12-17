@@ -20,9 +20,9 @@
 		end while
 
 		do lines.add("")
-		do lines.add("+func make(): wnd@Wnd")
+		do lines.add("+func show()")
 		do lines.add("\tif(@\{me.root.name} <>& null)")
-		do lines.add("\t\tret @\{me.root.name}")
+		do lines.add("\t\tret")
 		do lines.add("\tend if")
 		do (me.root $ @ObjArWnd).getSrcMake(1, lines, "null")
 
@@ -32,7 +32,6 @@
 			do me.nodes.next()
 		end while
 
-		do lines.add("\tret @\{me.root.name}")
 		do lines.add("end func")
 		do lines.add("")
 		do lines.add("+func close()")
@@ -58,12 +57,21 @@
 			ret #@ObjWnd
 		case "Btn"
 			ret #@ObjBtn
+		case "Edit"
+			ret #@ObjEdit
+		case "Label"
+			ret #@ObjLabel
+		case "Chk"
+			ret #@ObjChk
 		end switch
 		ret null
 	end func
 
 	*func updateLt()
 		do \form@listLt.add("Btn", -1)
+		do \form@listLt.add("Edit", -1)
+		do \form@listLt.add("Label", -1)
+		do \form@listLt.add("Chk", -1)
 	end func
 end class
 
@@ -156,5 +164,134 @@ class ObjBtn(@ObjArWnd)
 
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.props.get("text", &)}\")")
+	end func
+end class
+
+class ObjEdit(@ObjArWnd)
+	+*func draw(x: float, y: float, width: float, height: float)
+		do draw@rect(x, y, width, height, 0xFFFFFFFF)
+		do draw@rectLine(x, y, width, height, 0xFF7A7A7A)
+		var text: []char :: me.props.get("text", &)
+		do \common@fontP.draw(x + 5.0, y + 3.0, text, draw@black)
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 19
+		do maxWidth :: lib@intMax
+		do maxHeight :: 19
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 100
+		do height :: 19
+	end func
+
+	+*func kind(): []char
+		ret "Edit"
+	end func
+
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
+		do super(me, name, visible, x, y, width, height)
+		do me.props.add("text", "")
+	end func
+
+	*func propsNames(): [][]char
+		ret ["text"]
+	end func
+
+	+*func type(): []char
+		ret "wnd@Edit"
+	end func
+
+	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeEdit(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix)")
+		var text: []char :: me.props.get("text", &)
+		if(^text > 0)
+			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setText(\"\{text}\")")
+		end if
+	end func
+end class
+
+class ObjLabel(@ObjArWnd)
+	+*func draw(x: float, y: float, width: float, height: float)
+		do draw@rect(x, y, width, height, 0xFFEEEEEE)
+		var text: []char :: me.props.get("text", &)
+		do \common@fontP.draw(x, y, text, draw@black)
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 12
+		do maxWidth :: lib@intMax
+		do maxHeight :: 12
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 35
+		do height :: 12
+	end func
+
+	+*func kind(): []char
+		ret "Label"
+	end func
+
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
+		do super(me, name, visible, x, y, width, height)
+		do me.props.add("text", me.name)
+	end func
+
+	*func propsNames(): [][]char
+		ret ["text"]
+	end func
+
+	+*func type(): []char
+		ret "wnd@Label"
+	end func
+
+	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeLabel(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.props.get("text", &)}\")")
+	end func
+end class
+
+class ObjChk(@ObjArWnd)
+	+*func draw(x: float, y: float, width: float, height: float)
+		do draw@rect(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 0xFFFFFFFF)
+		do draw@rectLine(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 0xFF333333)
+		var text: []char :: me.props.get("text", &)
+		do \common@fontP.draw(x + 18.0, lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), text, draw@black)
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 16
+		do minHeight :: 16
+		do maxWidth :: lib@intMax
+		do maxHeight :: 16
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 80
+		do height :: 16
+	end func
+
+	+*func kind(): []char
+		ret "Chk"
+	end func
+
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
+		do super(me, name, visible, x, y, width, height)
+		do me.props.add("text", me.name)
+	end func
+
+	*func propsNames(): [][]char
+		ret ["text"]
+	end func
+
+	+*func type(): []char
+		ret "wnd@Chk"
+	end func
+
+	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeChk(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, %fix, %fix, \"\{me.props.get("text", &)}\")")
 	end func
 end class
