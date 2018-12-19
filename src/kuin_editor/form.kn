@@ -34,6 +34,8 @@ var editIcon: wnd@Edit
 var btnIcon: wnd@Btn
 var btnRls: wnd@Btn
 +var listFile: wnd@List
+var btnFileAdd: wnd@Btn
+var btnFileDel: wnd@Btn
 var menuMain: wnd@Menu
 var popupMainEdit: wnd@Popup
 var popupMainFile: wnd@Popup
@@ -177,8 +179,12 @@ var drag: bool
 	do @btnIcon.onPush :: @btnIconOnPush
 	do @btnRls :: wnd@makeBtn(@wndMain, 1027, 172, 185, 23, %move, %fix, \common@langEn ?("Release Build...", "リリースビルド..."))
 	do @btnRls.onPush :: @btnRlsOnPush
-	do @listFile :: wnd@makeList(@wndMain, 1027, 255, 185, 360, %move, %scale)
+	do @listFile :: wnd@makeList(@wndMain, 1027, 255, 185, 337, %move, %scale)
 	do @listFile.onSel :: @listFileOnSel
+	do @btnFileAdd :: wnd@makeBtn(@wndMain, 1027, 592, 60, 23, %move, %move, \common@langEn ?("Add", "追加"))
+	do @btnFileAdd.onPush :: btnFileAddOnPush
+	do @btnFileDel :: wnd@makeBtn(@wndMain, 1087, 592, 60, 23, %move, %move, \common@langEn ?("Remove", "削除"))
+	do @btnFileDel.onPush :: btnFileDelOnPush
 	do @menuMain :: wnd@makeMenu()
 	do @popupMainFile :: wnd@makePopup()
 	do @popupMainFile.add(0x0001, \common@langEn ?("&New\tCtrl+N", "新規作成(&N)\tCtrl+N"))
@@ -232,6 +238,24 @@ var drag: bool
 	do @lockUi :: false
 	do @textLog :: ""
 	do @drag :: false
+
+	func btnFileAddOnPush(wnd: wnd@WndBase)
+		do @wndMainOnPushMenu(@wndMain, 0x0030)
+	end func
+
+	func btnFileDelOnPush(wnd: wnd@WndBase)
+		if("\\" ~ file@delExt(file@fileName(\src@mainSrcPath)) = \src@curDocName)
+			do wnd@msgBox(@wndMain, \common@langEn ?("The main source file cannot be deleted.", "メインのソースファイルは削除できません。"), \common@title, %err, %ok)
+			ret
+		end if
+		if(wnd@msgBox(@wndMain, \common@langEn ?("Do you want to remove the file '\{\src@curDocName}' from the list?", "リストからファイル「\{\src@curDocName}」を削除しますか？"), \common@title, %none, %yesNoCancel) <> %yes)
+			ret
+		end if
+		if(\src@chkChanged())
+			do \src@docs.del(\src@getDocName(\src@curDoc))
+			do \src@setCurSrc(\src@mainDoc())
+		end if
+	end func
 end func
 
 +func init()

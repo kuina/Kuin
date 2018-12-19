@@ -1128,6 +1128,9 @@ end func
 
 	func mousePosToCharPos(mouseX: int, mouseY: int)
 		do me.cursorY :: me.pageY + mouseY / \common@cellHeight
+		if(me.cursorY < 0)
+			do me.cursorY :: 0
+		end if
 		if(me.cursorY >= ^me.src.src)
 			do me.cursorX :: 0
 			ret
