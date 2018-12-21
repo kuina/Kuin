@@ -974,8 +974,8 @@ end enum
 	wait
 	cross
 	upArrow
-	resizeLTRD :: 32642
-	resizeRTLD
+	resizeLTRB :: 32642
+	resizeRTLB
 	resizeH
 	resizeV
 	move

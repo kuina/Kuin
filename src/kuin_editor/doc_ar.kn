@@ -20,23 +20,17 @@
 
 	+*func draw(width: int, height: int)
 		do draw@rect(0.0, 0.0, width $ float, height $ float, \common@colorBack)
-		var offsetX: int :: 0
-		var offsetY: int :: 0
-		var offsetWidth: int :: 0
-		var offsetHeight: int :: 0
-		if(me.mode = %put | me.mode = %resize)
-			do offsetWidth :: me.curOffsetX - me.holdOffsetX
-			do offsetHeight :: me.curOffsetY - me.holdOffsetY
-		elif(me.mode = %move)
-			do offsetX :: me.curOffsetX - me.holdOffsetX
-			do offsetY :: me.curOffsetY - me.holdOffsetY
-		end if
 		block
 			if(^me.holds = 0)
-				var x: float :: (me.root.x - me.pageX + offsetX) $ float
-				var y: float :: (me.root.y - me.pageY + offsetY) $ float
-				var width2: float :: (me.root.width + offsetWidth) $ float
-				var height2: float :: (me.root.height + offsetHeight) $ float
+				var objX: int
+				var objY: int
+				var objWidth: int
+				var objHeight: int
+				do me.resizeObj(me.root, me.curOriginX, me.curOriginY, &objX, &objY, &objWidth, &objHeight)
+				var x: float :: (objX - me.pageX) $ float
+				var y: float :: (objY - me.pageY) $ float
+				var width2: float :: objWidth $ float
+				var height2: float :: objHeight $ float
 				if(me.root.visible)
 					do me.root.draw(x, y, width2, height2)
 				end if
@@ -57,10 +51,15 @@
 			var node: @Obj :: me.nodes.get()
 			do me.holds.head()
 			if(me.holds.find(node))
-				var x: float :: (node.x - me.pageX + offsetX) $ float
-				var y: float :: (node.y - me.pageY + offsetY) $ float
-				var width2: float :: (node.width + offsetWidth) $ float
-				var height2: float :: (node.height + offsetHeight) $ float
+				var objX: int
+				var objY: int
+				var objWidth: int
+				var objHeight: int
+				do me.resizeObj(node, me.curOriginX, me.curOriginY, &objX, &objY, &objWidth, &objHeight)
+				var x: float :: (objX - me.pageX) $ float
+				var y: float :: (objY - me.pageY) $ float
+				var width2: float :: objWidth $ float
+				var height2: float :: objHeight $ float
 				if(node.visible)
 					do node.draw(x, y, width2, height2)
 				end if
@@ -79,17 +78,17 @@
 		end while
 
 		if(me.mode = %sel)
-			do draw@rectLine((me.holdOffsetX - me.pageX) $ float, (me.holdOffsetY - me.pageY) $ float, (me.curOffsetX - me.holdOffsetX) $ float, (me.curOffsetY - me.holdOffsetY) $ float, 0xFF6666FF)
+			do draw@rectLine((me.holdOriginX - me.pageX) $ float, (me.holdOriginY - me.pageY) $ float, (me.curOriginX - me.holdOriginX) $ float, (me.curOriginY - me.holdOriginY) $ float, 0xFF6666FF)
 		end if
 	end func
 
 	+*func mouseDownL(x: int, y: int)
 		var x2: int :: x + me.pageX
 		var y2: int :: y + me.pageY
-		do me.holdOffsetX :: x2
-		do me.holdOffsetY :: y2
-		do me.curOffsetX :: x2
-		do me.curOffsetY :: y2
+		do me.holdOriginX :: x2
+		do me.holdOriginY :: y2
+		do me.curOriginX :: x2
+		do me.curOriginY :: y2
 
 		var idx: int :: \form@listLt.getSel()
 		if(idx <= 0)
@@ -107,13 +106,33 @@
 				do sel :: me.root
 			end if
 
-			if(sel <>& null & sel.x + sel.width - resizeArea <= x2 & sel.y + sel.height - resizeArea <= y2)
+			if(sel =& null)
+				do me.mode :: %sel
+			elif(sel.x + sel.width - resizeArea <= x2 & sel.y + sel.height - resizeArea <= y2)
 				if (\form@getLockingEditor())
 					do \form@showMsgRunning()
 					ret
 				end if
-				do me.mode :: %resize
-			elif(sel =& null | sel =& me.root)
+				do me.mode :: %resizeRB
+			elif(x2 <= sel.x + resizeArea & y2 <= sel.y + resizeArea)
+				if (\form@getLockingEditor())
+					do \form@showMsgRunning()
+					ret
+				end if
+				do me.mode :: %resizeLT
+			elif(sel.x + sel.width - resizeArea <= x2 & y2 <= sel.y + resizeArea)
+				if (\form@getLockingEditor())
+					do \form@showMsgRunning()
+					ret
+				end if
+				do me.mode :: %resizeRT
+			elif(x2 <= sel.x + resizeArea & sel.y + sel.height - resizeArea <= y2)
+				if (\form@getLockingEditor())
+					do \form@showMsgRunning()
+					ret
+				end if
+				do me.mode :: %resizeLB
+			elif(sel =& me.root)
 				do me.mode :: %sel
 			else
 				if (\form@getLockingEditor())
@@ -190,71 +209,41 @@
 
 	+*func mouseUpL(x: int, y: int)
 		switch(me.mode)
-		case %put
+		case %put, %move, %resizeLT, %resizeRT, %resizeLB, %resizeRB
 			if (\form@getLockingEditor())
 				do \form@showMsgRunning()
 				ret
 			end if
+			var arrangedX: int :: x + me.pageX
+			var arrangedY: int :: y + me.pageY
+			do me.arrange(&arrangedX, &arrangedY)
 			do me.undo.recordBegin()
-			do me.holds.head()
-			while(!me.holds.term())
-				do me.resizeObj(me.holds.get(), x, y)
-				do me.holds.next()
-			end while
-			do me.undo.recordEnd()
-			do me.mode :: %none
-			do \form@listLt.setSel(0)
-			do \form@updateUi()
-			do \form@paintDrawEditor()
-		case %move
-			if (\form@getLockingEditor())
-				do \form@showMsgRunning()
-				ret
-			end if
-			do me.undo.recordBegin()
-			do me.holds.head()
-			while(!me.holds.term())
-				var obj: @Obj :: me.holds.get()
-				var arrangedX: int :: x + me.pageX
-				var arrangedY: int :: y + me.pageY
-				do me.arrange(&arrangedX, &arrangedY)
-				var x2: int :: obj.x + arrangedX - me.holdOffsetX
-				var y2: int :: obj.y + arrangedY - me.holdOffsetY
-				if(x2 < 0)
-					do x2 :: 0
-				end if
-				if(y2 < 0)
-					do y2 :: 0
-				end if
-				do me.move(obj.name, x2, y2, obj.width, obj.height, true)
-				do me.holds.next()
-			end while
-			do me.undo.recordEnd()
-			do me.mode :: %none
-			do \form@updateUi()
-			do \form@paintDrawEditor()
-		case %resize
-			if (\form@getLockingEditor())
-				do \form@showMsgRunning()
-				ret
-			end if
-			do me.undo.recordBegin()
+			var objX: int
+			var objY: int
+			var objWidth: int
+			var objHeight: int
 			if(^me.holds = 0)
-				do me.resizeObj(me.root, x, y)
+				do me.resizeObj(me.root, arrangedX, arrangedY, &objX, &objY, &objWidth, &objHeight)
+				do me.move(null, objX, objY, objWidth, objHeight, true)
 			else
 				do me.holds.head()
 				while(!me.holds.term())
-					do me.resizeObj(me.holds.get(), x, y)
+					var obj: @Obj :: me.holds.get()
+					do me.resizeObj(obj, arrangedX, arrangedY, &objX, &objY, &objWidth, &objHeight)
+					do me.move(obj.name, objX, objY, objWidth, objHeight, true)
 					do me.holds.next()
 				end while
 			end if
 			do me.undo.recordEnd()
 			do me.mode :: %none
+			if(me.mode = %put)
+				do \form@listLt.setSel(0)
+			end if
 			do \form@updateUi()
 			do \form@paintDrawEditor()
 		case %sel
-			var x1: int :: me.holdOffsetX
-			var y1: int :: me.holdOffsetY
+			var x1: int :: me.holdOriginX
+			var y1: int :: me.holdOriginY
 			var x2: int :: x + me.pageX
 			var y2: int :: y + me.pageY
 			if(x1 > x2)
@@ -285,7 +274,7 @@
 
 	+*func mouseMove(x: int, y: int)
 		switch(me.mode)
-		case %put, %move, %resize
+		case %put, %move, %resizeLT, %resizeRT, %resizeLB, %resizeRB
 			if (\form@getLockingEditor())
 				do \form@showMsgRunning()
 				ret
@@ -293,13 +282,13 @@
 			var arrangedX: int :: x + me.pageX
 			var arrangedY: int :: y + me.pageY
 			do me.arrange(&arrangedX, &arrangedY)
-			do me.curOffsetX :: arrangedX
-			do me.curOffsetY :: arrangedY
+			do me.curOriginX :: arrangedX
+			do me.curOriginY :: arrangedY
 			do me.updateProp()
 			do \form@paintDrawEditor()
 		case %sel
-			do me.curOffsetX :: x + me.pageX
-			do me.curOffsetY :: y + me.pageY
+			do me.curOriginX :: x + me.pageX
+			do me.curOriginY :: y + me.pageY
 			do \form@paintDrawEditor()
 		end switch
 	end func
@@ -354,7 +343,7 @@
 				var obj: @Obj :: me.nodes.get()
 				if(obj.x <= x & x <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
 					if(obj.x + obj.width - resizeArea <= x & obj.y + obj.height - resizeArea <= y)
-						ret %resizeLTRD
+						ret %resizeLTRB
 					end if
 					ret %move
 				end if
@@ -362,7 +351,7 @@
 			end while
 			if(me.root.x <= x & x <= me.root.x + me.root.width & me.root.y <= y & y <= me.root.y + me.root.height)
 				if(me.root.x + me.root.width - resizeArea <= x & me.root.y + me.root.height - resizeArea <= y)
-					ret %resizeLTRD
+					ret %resizeLTRB
 				end if
 			end if
 			ret %arrow
@@ -370,8 +359,10 @@
 			ret %cross
 		case %move
 			ret %move
-		case %resize
-			ret %resizeLTRD
+		case %resizeLT,%resizeRB
+			ret %resizeLTRB
+		case %resizeRT,%resizeLB
+			ret %resizeRTLB
 		case %sel
 			ret %cross
 		default
@@ -704,7 +695,10 @@
 		none
 		put
 		move
-		resize
+		resizeLT
+		resizeRT
+		resizeLB
+		resizeRB
 		sel
 	end enum
 
@@ -714,45 +708,69 @@
 	var holds: list<@Obj>
 	var scrollOffsetX: int
 	var scrollOffsetY: int
-	var holdOffsetX: int
-	var holdOffsetY: int
-	var curOffsetX: int
-	var curOffsetY: int
+	var holdOriginX: int
+	var holdOriginY: int
+	var curOriginX: int
+	var curOriginY: int
 	var pageX: int
 	var pageY: int
 	var mode: Mode
 	var updatingProp: bool
 
-	func resizeObj(obj: @Obj, x: int, y: int)
-		var arrangedX: int :: x + me.pageX
-		var arrangedY: int :: y + me.pageY
-		do me.arrange(&arrangedX, &arrangedY)
-		var width: int :: obj.width + arrangedX - me.holdOffsetX
-		var height: int :: obj.height + arrangedY - me.holdOffsetY
+	func resizeObj(obj: @Obj, x: int, y: int, objX: &int, objY: &int, objWidth: &int, objHeight: &int)
+		var x2: int :: x - me.holdOriginX
+		var y2: int :: y - me.holdOriginY
+		switch(me.mode)
+		case %none, %sel
+			do objX :: obj.x
+			do objY :: obj.y
+			do objWidth :: obj.width
+			do objHeight :: obj.height
+			ret
+		case %move
+			do objX :: obj.x + x2
+			do objY :: obj.y + y2
+			do objWidth :: obj.width
+			do objHeight :: obj.height
+		case %resizeLT
+		case %resizeRT
+		case %resizeLB
+		case %put, %resizeRB
+			do objX :: obj.x
+			do objY :: obj.y
+			do objWidth :: obj.width + x2
+			do objHeight :: obj.height + y2
+		end switch
+
 		var minWidth: int
 		var minHeight: int
 		var maxWidth: int
 		var maxHeight: int
 		do obj.getMinMax(&minWidth, &minHeight, &maxWidth, &maxHeight)
-		if(width < minWidth)
-			do width :: minWidth
-		elif(width > maxWidth)
-			do width :: maxWidth
+		if(objX < 0)
+			do objX :: 0
 		end if
-		if(height < minHeight)
-			do height :: minHeight
-		elif(height > maxHeight)
-			do height :: maxHeight
+		if(objY < 0)
+			do objY :: 0
 		end if
-		do me.move(obj =& me.root ?(null, obj.name), obj.x, obj.y, width, height, true)
+		if(objWidth < minWidth)
+			do objWidth :: minWidth
+		elif(objWidth > maxWidth)
+			do objWidth :: maxWidth
+		end if
+		if(objHeight < minHeight)
+			do objHeight :: minHeight
+		elif(objHeight > maxHeight)
+			do objHeight :: maxHeight
+		end if
 	end func
 
 	func arrange(x: &int, y: &int)
 		if(wnd@key(%shift))
-			if((x - me.holdOffsetX).abs() > (y - me.holdOffsetY).abs())
-				do y :: me.holdOffsetY
+			if((x - me.holdOriginX).abs() > (y - me.holdOriginY).abs())
+				do y :: me.holdOriginY
 			else
-				do x :: me.holdOffsetX
+				do x :: me.holdOriginX
 			end if
 		end if
 	end func
@@ -817,26 +835,20 @@
 				do me.holds.head()
 				do obj :: me.holds.get()
 			end if
-			var offsetX: int :: 0
-			var offsetY: int :: 0
-			var offsetWidth: int :: 0
-			var offsetHeight: int :: 0
-			if(me.mode = %put | me.mode = %resize)
-				do offsetWidth :: me.curOffsetX - me.holdOffsetX
-				do offsetHeight :: me.curOffsetY - me.holdOffsetY
-			elif(me.mode = %move)
-				do offsetX :: me.curOffsetX - me.holdOffsetX
-				do offsetY :: me.curOffsetY - me.holdOffsetY
-			end if
+			var objX: int
+			var objY: int
+			var objWidth: int
+			var objHeight: int
+			do me.resizeObj(obj, me.curOriginX, me.curOriginY, &objX, &objY, &objWidth, &objHeight)
 			do \form@groupRbAr.setVisible(true)
 			do \form@groupRbAr.setRedraw(false)
 			do \form@groupRbAr.setRedraw(true)
 			do \form@editRbArName.setText(obj.name)
 			do \form@chkRbArVisible.setChk(obj.visible)
-			do \form@editRbArX.setText((obj.x + offsetX).toStr())
-			do \form@editRbArY.setText((obj.y + offsetY).toStr())
-			do \form@editRbArWidth.setText((obj.width + offsetWidth).toStr())
-			do \form@editRbArHeight.setText((obj.height + offsetHeight).toStr())
+			do \form@editRbArX.setText(objX.toStr())
+			do \form@editRbArY.setText(objY.toStr())
+			do \form@editRbArWidth.setText(objWidth.toStr())
+			do \form@editRbArHeight.setText(objHeight.toStr())
 		end if
 		do me.updatingProp :: false
 	end func
