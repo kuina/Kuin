@@ -120,7 +120,7 @@ Bool IsRef(const SAstType* type)
 Bool IsNullable(const SAstType* type)
 {
 	EAstTypeId type_id = ((SAst*)type)->TypeId;
-	return (type_id | AstTypeId_TypeNullable) != 0 && !(((SAst*)type)->TypeId == AstTypeId_TypeUser && ((SAst*)type)->RefItem->TypeId == AstTypeId_Enum);
+	return (type_id & AstTypeId_TypeNullable) != 0 && !(((SAst*)type)->TypeId == AstTypeId_TypeUser && ((SAst*)type)->RefItem->TypeId == AstTypeId_Enum);
 }
 
 Bool IsClass(const SAstType* type)
