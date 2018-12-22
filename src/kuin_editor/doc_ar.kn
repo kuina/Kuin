@@ -108,38 +108,66 @@
 
 			if(sel =& null)
 				do me.mode :: %sel
-			elif(sel.x + sel.width - resizeArea <= x2 & sel.y + sel.height - resizeArea <= y2)
-				if (\form@getLockingEditor())
-					do \form@showMsgRunning()
-					ret
+			elif(sel <> me.root)
+				if(sel.x + sel.width - resizeArea <= x2)
+					if (\form@getLockingEditor())
+						do \form@showMsgRunning()
+						ret
+					end if
+					if(sel.y + sel.height - resizeArea <= y2)
+						do me.mode :: %resizeRB
+					elif(y2 <= sel.y + resizeArea)
+						do me.mode :: %resizeRT
+					else
+						do me.mode :: %resizeR
+					end if
+				elif(x2 <= sel.x + resizeArea)
+					if (\form@getLockingEditor())
+						do \form@showMsgRunning()
+						ret
+					end if
+					if(sel.y + sel.height - resizeArea <= y2)
+						do me.mode :: %resizeLB
+					elif(y2 <= sel.y + resizeArea)
+						do me.mode :: %resizeLT
+					else
+						do me.mode :: %resizeL
+					end if
+				elif(sel.y + sel.height - resizeArea <= y2)
+					if (\form@getLockingEditor())
+						do \form@showMsgRunning()
+						ret
+					end if
+					do me.mode :: %resizeB
+				elif(y2 <= sel.y + resizeArea)
+					if (\form@getLockingEditor())
+						do \form@showMsgRunning()
+						ret
+					end if
+					do me.mode :: %resizeT
+				else
+					do me.mode :: %move
 				end if
-				do me.mode :: %resizeRB
-			elif(x2 <= sel.x + resizeArea & y2 <= sel.y + resizeArea)
-				if (\form@getLockingEditor())
-					do \form@showMsgRunning()
-					ret
-				end if
-				do me.mode :: %resizeLT
-			elif(sel.x + sel.width - resizeArea <= x2 & y2 <= sel.y + resizeArea)
-				if (\form@getLockingEditor())
-					do \form@showMsgRunning()
-					ret
-				end if
-				do me.mode :: %resizeRT
-			elif(x2 <= sel.x + resizeArea & sel.y + sel.height - resizeArea <= y2)
-				if (\form@getLockingEditor())
-					do \form@showMsgRunning()
-					ret
-				end if
-				do me.mode :: %resizeLB
-			elif(sel =& me.root)
-				do me.mode :: %sel
 			else
-				if (\form@getLockingEditor())
-					do \form@showMsgRunning()
-					ret
+				if(sel.x + sel.width - resizeArea <= x2)
+					if (\form@getLockingEditor())
+						do \form@showMsgRunning()
+						ret
+					end if
+					if(sel.y + sel.height - resizeArea <= y2)
+						do me.mode :: %resizeRB
+					else
+						do me.mode :: %resizeR
+					end if
+				elif(sel.y + sel.height - resizeArea <= y2)
+					if (\form@getLockingEditor())
+						do \form@showMsgRunning()
+						ret
+					end if
+					do me.mode :: %resizeB
+				else
+					do me.mode :: %sel
 				end if
-				do me.mode :: %move
 			end if
 
 			if(sel =& me.root)
@@ -209,7 +237,7 @@
 
 	+*func mouseUpL(x: int, y: int)
 		switch(me.mode)
-		case %put, %move, %resizeLT, %resizeRT, %resizeLB, %resizeRB
+		case %put, %move, %resizeLT, %resizeRT, %resizeLB, %resizeRB, %resizeL, %resizeT, %resizeR, %resizeB
 			if (\form@getLockingEditor())
 				do \form@showMsgRunning()
 				ret
@@ -274,7 +302,7 @@
 
 	+*func mouseMove(x: int, y: int)
 		switch(me.mode)
-		case %put, %move, %resizeLT, %resizeRT, %resizeLB, %resizeRB
+		case %put, %move, %resizeLT, %resizeRT, %resizeLB, %resizeRB, %resizeL, %resizeT, %resizeR, %resizeB
 			if (\form@getLockingEditor())
 				do \form@showMsgRunning()
 				ret
@@ -342,16 +370,43 @@
 			while(!me.nodes.term())
 				var obj: @Obj :: me.nodes.get()
 				if(obj.x <= x & x <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
-					if(obj.x + obj.width - resizeArea <= x & obj.y + obj.height - resizeArea <= y)
-						ret %resizeLTRB
+					if(obj.x + obj.width - resizeArea <= x)
+						if(obj.y + obj.height - resizeArea <= y)
+							ret %resizeLTRB
+						end if
+						if(y <= obj.y + resizeArea)
+							ret %resizeRTLB
+						end if
+						ret %resizeH
+					end if
+					if(x <= obj.x + resizeArea)
+						if(obj.y + obj.height - resizeArea <= y)
+							ret %resizeRTLB
+						end if
+						if(y <= obj.y + resizeArea)
+							ret %resizeLTRB
+						end if
+						ret %resizeH
+					end if
+					if(obj.y + obj.height - resizeArea <= y)
+						ret %resizeV
+					end if
+					if(y <= obj.y + resizeArea)
+						ret %resizeV
 					end if
 					ret %move
 				end if
 				do me.nodes.prev()
 			end while
 			if(me.root.x <= x & x <= me.root.x + me.root.width & me.root.y <= y & y <= me.root.y + me.root.height)
-				if(me.root.x + me.root.width - resizeArea <= x & me.root.y + me.root.height - resizeArea <= y)
-					ret %resizeLTRB
+				if(me.root.x + me.root.width - resizeArea <= x)
+					if(me.root.y + me.root.height - resizeArea <= y)
+						ret %resizeLTRB
+					end if
+					ret %resizeH
+				end if
+				if(me.root.y + me.root.height - resizeArea <= y)
+					ret %resizeV
 				end if
 			end if
 			ret %arrow
@@ -363,6 +418,14 @@
 			ret %resizeLTRB
 		case %resizeRT,%resizeLB
 			ret %resizeRTLB
+		case %resizeL
+			ret %resizeH
+		case %resizeT
+			ret %resizeV
+		case %resizeR
+			ret %resizeH
+		case %resizeB
+			ret %resizeV
 		case %sel
 			ret %cross
 		default
@@ -689,7 +752,7 @@
 	func updateLt()
 	end func
 
-	const resizeArea: int :: 6
+	const resizeArea: int :: 8
 
 	enum Mode
 		none
@@ -699,6 +762,10 @@
 		resizeRT
 		resizeLB
 		resizeRB
+		resizeL
+		resizeT
+		resizeR
+		resizeB
 		sel
 	end enum
 
@@ -733,12 +800,44 @@
 			do objWidth :: obj.width
 			do objHeight :: obj.height
 		case %resizeLT
+			do objX :: obj.x + x2
+			do objY :: obj.y + y2
+			do objWidth :: obj.width - x2
+			do objHeight :: obj.height - y2
 		case %resizeRT
+			do objX :: obj.x
+			do objY :: obj.y + y2
+			do objWidth :: obj.width + x2
+			do objHeight :: obj.height - y2
 		case %resizeLB
+			do objX :: obj.x + x2
+			do objY :: obj.y
+			do objWidth :: obj.width - x2
+			do objHeight :: obj.height + y2
 		case %put, %resizeRB
 			do objX :: obj.x
 			do objY :: obj.y
 			do objWidth :: obj.width + x2
+			do objHeight :: obj.height + y2
+		case %resizeL
+			do objX :: obj.x + x2
+			do objY :: obj.y
+			do objWidth :: obj.width - x2
+			do objHeight :: obj.height
+		case %resizeT
+			do objX :: obj.x
+			do objY :: obj.y + y2
+			do objWidth :: obj.width
+			do objHeight :: obj.height - y2
+		case %resizeR
+			do objX :: obj.x
+			do objY :: obj.y
+			do objWidth :: obj.width + x2
+			do objHeight :: obj.height
+		case %resizeB
+			do objX :: obj.x
+			do objY :: obj.y
+			do objWidth :: obj.width
 			do objHeight :: obj.height + y2
 		end switch
 
