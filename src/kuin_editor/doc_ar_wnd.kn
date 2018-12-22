@@ -157,6 +157,10 @@ class ObjBtn(@ObjArWnd)
 		ret "Btn"
 	end func
 
+	+*func icon(): int
+		ret 0
+	end func
+
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
 		do me.props.add("anchorX", "%fix")
@@ -199,6 +203,10 @@ class ObjEdit(@ObjArWnd)
 
 	+*func kind(): []char
 		ret "Edit"
+	end func
+
+	+*func icon(): int
+		ret 2
 	end func
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
@@ -252,6 +260,10 @@ class ObjLabel(@ObjArWnd)
 		ret "Label"
 	end func
 
+	+*func icon(): int
+		ret 3
+	end func
+
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
 		do me.props.add("anchorX", "%fix")
@@ -294,6 +306,10 @@ class ObjChk(@ObjArWnd)
 
 	+*func kind(): []char
 		ret "Chk"
+	end func
+
+	+*func icon(): int
+		ret 1
 	end func
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)

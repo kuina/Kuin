@@ -530,7 +530,7 @@
 		do me.nodes.head()
 		while(!me.nodes.term())
 			var obj: @Obj :: me.nodes.get()
-			do \form@listLb.add(obj.name, -1)
+			do \form@listLb.add(obj.name, obj.icon())
 			do me.holds.head()
 			if(me.holds.find(obj))
 				do \form@listLb.setSelMulti(\form@listLb.len() - 1, true)
@@ -1176,6 +1176,10 @@ end class
 	end func
 
 	+func kind(): []char
+	end func
+
+	+func icon(): int
+		ret -1
 	end func
 
 	+func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)

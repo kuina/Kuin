@@ -67,7 +67,7 @@ var drag: bool
 	do @listLt.style(%list_)
 	do @treeLb :: wnd@makeTree(@wndMain, 12, 290, 244, 466, %fix, %scale)
 	do @treeLb.setVisible(false)
-	do @listLb :: wnd@makeListView(@wndMain, 12, 290, 244, 466, %fix, %scale, true, null, null)
+	do @listLb :: wnd@makeListView(@wndMain, 12, 290, 244, 466, %fix, %scale, true, ["res/obj_btn.png", "res/obj_chk.png", "res/obj_edit.png", "res/obj_label.png"], null)
 	do @listLb.setVisible(false)
 	do @listLb.draggable(true)
 	do @listLb.onMouseClick :: listLbOnMouseClick
