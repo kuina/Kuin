@@ -1144,16 +1144,13 @@ end class
 	end func
 
 	+func load(node: xml@Node)
-		do me.name :: node.getAttr("name")
-		do me.visible :: node.getAttr("visible") = "true"
-		do me.x :: node.getAttr("x").toInt(&)
-		do me.y :: node.getAttr("y").toInt(&)
-		do me.width :: node.getAttr("width").toInt(&)
-		do me.height :: node.getAttr("height").toInt(&)
-		do me.props :: #dict<[]char, []char>
+		do me.init(node.getAttr("name"), node.getAttr("visible") = "true", node.getAttr("x").toInt(&), node.getAttr("y").toInt(&), node.getAttr("width").toInt(&), node.getAttr("height").toInt(&))
 		var propsNames: [][]char :: me.propsNames()
 		for i(0, ^propsNames - 1)
-			do me.props.add(propsNames[i], node.getAttr(propsNames[i]))
+			var attr: []char :: node.getAttr(propsNames[i])
+			if(attr <>& null)
+				do me.props.add(propsNames[i], attr)
+			end if
 		end for
 	end func
 
