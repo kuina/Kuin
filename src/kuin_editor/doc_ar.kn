@@ -109,37 +109,40 @@
 			if(sel =& null)
 				do me.mode :: %sel
 			elif(sel <> me.root)
-				if(sel.x + sel.width - resizeArea <= x2)
+				var resizeAreaX: int
+				var resizeAreaY: int
+				do @getResizeArea(&resizeAreaX, &resizeAreaY, sel.width, sel.height)
+				if(sel.x + sel.width - resizeAreaX <= x2)
 					if (\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
 					end if
-					if(sel.y + sel.height - resizeArea <= y2)
+					if(sel.y + sel.height - resizeAreaY <= y2)
 						do me.mode :: %resizeRB
-					elif(y2 <= sel.y + resizeArea)
+					elif(y2 <= sel.y + resizeAreaY)
 						do me.mode :: %resizeRT
 					else
 						do me.mode :: %resizeR
 					end if
-				elif(x2 <= sel.x + resizeArea)
+				elif(x2 <= sel.x + resizeAreaX)
 					if (\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
 					end if
-					if(sel.y + sel.height - resizeArea <= y2)
+					if(sel.y + sel.height - resizeAreaY <= y2)
 						do me.mode :: %resizeLB
-					elif(y2 <= sel.y + resizeArea)
+					elif(y2 <= sel.y + resizeAreaY)
 						do me.mode :: %resizeLT
 					else
 						do me.mode :: %resizeL
 					end if
-				elif(sel.y + sel.height - resizeArea <= y2)
+				elif(sel.y + sel.height - resizeAreaY <= y2)
 					if (\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
 					end if
 					do me.mode :: %resizeB
-				elif(y2 <= sel.y + resizeArea)
+				elif(y2 <= sel.y + resizeAreaY)
 					if (\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
@@ -149,17 +152,20 @@
 					do me.mode :: %move
 				end if
 			else
-				if(sel.x + sel.width - resizeArea <= x2)
+				var resizeAreaX: int
+				var resizeAreaY: int
+				do @getResizeArea(&resizeAreaX, &resizeAreaY, sel.width, sel.height)
+				if(sel.x + sel.width - resizeAreaX <= x2)
 					if (\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
 					end if
-					if(sel.y + sel.height - resizeArea <= y2)
+					if(sel.y + sel.height - resizeAreaY <= y2)
 						do me.mode :: %resizeRB
 					else
 						do me.mode :: %resizeR
 					end if
-				elif(sel.y + sel.height - resizeArea <= y2)
+				elif(sel.y + sel.height - resizeAreaY <= y2)
 					if (\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
@@ -370,28 +376,31 @@
 			while(!me.nodes.term())
 				var obj: @Obj :: me.nodes.get()
 				if(obj.x <= x & x <= obj.x + obj.width & obj.y <= y & y <= obj.y + obj.height)
-					if(obj.x + obj.width - resizeArea <= x)
-						if(obj.y + obj.height - resizeArea <= y)
+					var resizeAreaX: int
+					var resizeAreaY: int
+					do @getResizeArea(&resizeAreaX, &resizeAreaY, obj.width, obj.height)
+					if(obj.x + obj.width - resizeAreaX <= x)
+						if(obj.y + obj.height - resizeAreaY <= y)
 							ret %resizeLTRB
 						end if
-						if(y <= obj.y + resizeArea)
+						if(y <= obj.y + resizeAreaY)
 							ret %resizeRTLB
 						end if
 						ret %resizeH
 					end if
-					if(x <= obj.x + resizeArea)
-						if(obj.y + obj.height - resizeArea <= y)
+					if(x <= obj.x + resizeAreaX)
+						if(obj.y + obj.height - resizeAreaY <= y)
 							ret %resizeRTLB
 						end if
-						if(y <= obj.y + resizeArea)
+						if(y <= obj.y + resizeAreaY)
 							ret %resizeLTRB
 						end if
 						ret %resizeH
 					end if
-					if(obj.y + obj.height - resizeArea <= y)
+					if(obj.y + obj.height - resizeAreaY <= y)
 						ret %resizeV
 					end if
-					if(y <= obj.y + resizeArea)
+					if(y <= obj.y + resizeAreaY)
 						ret %resizeV
 					end if
 					ret %move
@@ -399,13 +408,16 @@
 				do me.nodes.prev()
 			end while
 			if(me.root.x <= x & x <= me.root.x + me.root.width & me.root.y <= y & y <= me.root.y + me.root.height)
-				if(me.root.x + me.root.width - resizeArea <= x)
-					if(me.root.y + me.root.height - resizeArea <= y)
+				var resizeAreaX: int
+				var resizeAreaY: int
+				do @getResizeArea(&resizeAreaX, &resizeAreaY, me.root.width, me.root.height)
+				if(me.root.x + me.root.width - resizeAreaX <= x)
+					if(me.root.y + me.root.height - resizeAreaY <= y)
 						ret %resizeLTRB
 					end if
 					ret %resizeH
 				end if
-				if(me.root.y + me.root.height - resizeArea <= y)
+				if(me.root.y + me.root.height - resizeAreaY <= y)
 					ret %resizeV
 				end if
 			end if
@@ -751,8 +763,6 @@
 
 	func updateLt()
 	end func
-
-	const resizeArea: int :: 8
 
 	enum Mode
 		none
@@ -1203,3 +1213,16 @@ end class
 	+var height: int
 	+var props: dict<[]char, []char>
 end class
+
+func getResizeArea(resizeAreaX: &int, resizeAreaY: &int, width: int, height: int)
+	const resizeArea: int :: 8
+	const padding: int :: 4
+	do resizeAreaX :: resizeArea
+	if(resizeAreaX > width / 2 - padding)
+		do resizeAreaX :: width / 2 - padding
+	end if
+	do resizeAreaY :: resizeArea
+	if(resizeAreaY > height / 2 - padding)
+		do resizeAreaY :: height / 2 - padding
+	end if
+end func
