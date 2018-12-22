@@ -227,8 +227,9 @@ class ObjEdit(@ObjArWnd)
 
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeEdit(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)})")
-		if(me.props.get("readonly", &) = "true")
-			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.readonly(true)")
+		var readonly: []char :: me.props.get("readonly", &)
+		if(readonly <> "false")
+			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.readonly(\{readonly})")
 		end if
 		var text: []char :: me.props.get("text", &)
 		if(^text > 0)
@@ -330,8 +331,9 @@ class ObjChk(@ObjArWnd)
 
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeChk(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)}, \"\{me.props.get("text", &)}\")")
-		if(me.props.get("chk", &) = "true")
-			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setChk(true)")
+		var chk: []char :: me.props.get("chk", &)
+		if(chk <> "false")
+			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setChk(\{chk})")
 		end if
 	end func
 end class
