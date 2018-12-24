@@ -5,46 +5,46 @@
 end enum
 
 +class Reader()
-	*func [d0000.knd, _streamDtor, _force] _dtor()
+	*func [d0000.knd, _readerDtor, _force] _dtor()
 	end func
 
-	+func [d0000.knd, _streamFin] fin()
+	+func [d0000.knd, _readerFin] fin()
 	end func
 
-	+func [d0000.knd, _streamSetPos] setPos(origin: @Origin, pos: int)
+	+func [d0000.knd, _readerSetPos] setPos(origin: @Origin, pos: int)
 	end func
 
-	+func [d0000.knd, _streamGetPos] getPos(): int
+	+func [d0000.knd, _readerGetPos] getPos(): int
 	end func
 
-	+func [d0000.knd, _streamDelimiter] delimiter(delimiters: []char)
+	+func [d0000.knd, _readerDelimiter] delimiter(delimiters: []char)
 	end func
 
-	+func [d0000.knd, _streamRead] read(size: int): []bit8
+	+func [d0000.knd, _readerRead] read(size: int): []bit8
 	end func
 
-	+func [d0000.knd, _streamReadLetter] readLetter(): char
+	+func [d0000.knd, _readerReadLetter] readLetter(): char
 	end func
 
-	+func [d0000.knd, _streamReadInt] readInt(): int
+	+func [d0000.knd, _readerReadInt] readInt(): int
 	end func
 
-	+func [d0000.knd, _streamReadFloat] readFloat(): float
+	+func [d0000.knd, _readerReadFloat] readFloat(): float
 	end func
 
-	+func [d0000.knd, _streamReadChar] readChar(): char
+	+func [d0000.knd, _readerReadChar] readChar(): char
 	end func
 
-	+func [d0000.knd, _streamReadStr] readStr(): []char
+	+func [d0000.knd, _readerReadStr] readStr(): []char
 	end func
 
-	+func [d0000.knd, _streamReadLine] readLine(): []char
+	+func [d0000.knd, _readerReadLine] readLine(): []char
 	end func
 
-	+func [d0000.knd, _streamFileSize] fileSize(): int
+	+func [d0000.knd, _readerFileSize] fileSize(): int
 	end func
 
-	+func [d0000.knd, _streamTerm] term(): bool
+	+func [d0000.knd, _readerTerm] term(): bool
 	end func
 
 	var handle: int
@@ -54,37 +54,34 @@ end enum
 end class
 
 +class Writer()
-	*func [d0000.knd, _streamDtor, _force] _dtor()
+	*func [d0000.knd, _writerDtor, _force] _dtor()
 	end func
 
-	+func [d0000.knd, _streamFin] fin()
+	+func [d0000.knd, _writerFin] fin()
 	end func
 
-	+func [d0000.knd, _streamSetPos] setPos(origin: @Origin, pos: int)
+	+func [d0000.knd, _writerSetPos] setPos(origin: @Origin, pos: int)
 	end func
 
-	+func [d0000.knd, _streamGetPos] getPos(): int
+	+func [d0000.knd, _writerGetPos] getPos(): int
 	end func
 
-	+func [d0000.knd, _streamWrite] write(bin: []bit8)
+	+func [d0000.knd, _writerWrite] write(bin: []bit8)
 	end func
 
-	+func [d0000.knd, _streamWriteInt] writeInt(n: int)
+	+func [d0000.knd, _writerWriteInt] writeInt(n: int)
 	end func
 
-	+func [d0000.knd, _streamWriteFloat] writeFloat(n: float)
+	+func [d0000.knd, _writerWriteFloat] writeFloat(n: float)
 	end func
 
-	+func [d0000.knd, _streamWriteChar] writeChar(n: char)
+	+func [d0000.knd, _writerWriteChar] writeChar(n: char)
 	end func
 
-	+func [d0000.knd, _streamWriteStr] writeStr(n: []char)
+	+func [d0000.knd, _writerWriteStr] writeStr(n: []char)
 	end func
 
 	var handle: int
-	var delimiterNum: int
-	var delimiter: int
-	var fileSize_: int
 end class
 
 +func [d0000.knd, _makeReader, _make_instance] makeReader(me2: @Reader, path: []char): @Reader
