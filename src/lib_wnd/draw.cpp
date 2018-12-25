@@ -74,6 +74,7 @@ struct SFont
 	int CellSizeAligned;
 	U32 Cnt;
 	double Advance;
+	double Height;
 	bool Proportional;
 	HFONT Font;
 	Char* CharMap;
@@ -1044,6 +1045,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		GetTextMetrics(me2->Dc, &tm);
 		me2->CellWidth = tm.tmMaxCharWidth;
 		me2->CellHeight = tm.tmHeight;
+		me2->Height = (double)tm.tmHeight;
 		SelectObject(me2->Dc, old_font);
 	}
 	me2->CellSizeAligned = 128; // Texture length must not be less than 128.
@@ -1128,12 +1130,26 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 	}
 
 	double x = dstX;
+	double y = dstY;
 	for (S64 i = 0; i < len; i++)
 	{
+		Char c = *ptr;
+		switch (c)
+		{
+			case L'\n':
+				x = dstX;
+				y += me2->Height;
+				ptr++;
+				continue;
+			case L'\t':
+				c = L' ';
+				break;
+		}
+
 		int pos = -1;
 		for (int j = 0; j < cell_num; j++)
 		{
-			if (me2->CharMap[j] == *ptr)
+			if (me2->CharMap[j] == c)
 			{
 				pos = j;
 				break;
@@ -1166,17 +1182,17 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 				rect.top = static_cast<LONG>((pos / cell_num_width) * me2->CellHeight);
 				rect.right = rect.left + static_cast<LONG>(me2->CellWidth);
 				rect.bottom = rect.top + static_cast<LONG>(me2->CellHeight);
-				ExtTextOut(me2->Dc, static_cast<int>(rect.left), static_cast<int>(rect.top), ETO_CLIPPED | ETO_OPAQUE, &rect, ptr, 1, NULL);
+				ExtTextOut(me2->Dc, static_cast<int>(rect.left), static_cast<int>(rect.top), ETO_CLIPPED | ETO_OPAQUE, &rect, &c, 1, NULL);
 				{
 					GLYPHMETRICS gm;
 					MAT2 mat = { { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 1 } };
-					GetGlyphOutline(me2->Dc, static_cast<UINT>(*ptr), GGO_METRICS, &gm, 0, NULL, &mat);
+					GetGlyphOutline(me2->Dc, static_cast<UINT>(c), GGO_METRICS, &gm, 0, NULL, &mat);
 					me2->GlyphWidth[pos] = static_cast<int>(gm.gmCellIncX);
 				}
 				SelectObject(me2->Dc, old_font);
 				SelectObject(me2->Dc, old_bitmap);
 			}
-			me2->CharMap[pos] = *ptr;
+			me2->CharMap[pos] = c;
 			me2->CntMap[pos] = me2->Cnt;
 		}
 		{
@@ -1205,7 +1221,7 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 				float const_buf_vs[8] =
 				{
 					static_cast<float>(half_space + x) / static_cast<float>(CurWndBuf->TexWidth) * 2.0f - 1.0f,
-					-(static_cast<float>(dstY) / static_cast<float>(CurWndBuf->TexHeight) * 2.0f - 1.0f),
+					-(static_cast<float>(y) / static_cast<float>(CurWndBuf->TexHeight) * 2.0f - 1.0f),
 					static_cast<float>(me2->CellWidth) / static_cast<float>(CurWndBuf->TexWidth) * 2.0f,
 					-(static_cast<float>(me2->CellHeight) / static_cast<float>(CurWndBuf->TexHeight) * 2.0f),
 					0.0f,
@@ -1266,6 +1282,16 @@ EXPORT_CPP double _fontCalcWidth(SClass* me_, const U8* text)
 		SelectObject(me2->Dc, old_font);
 	}
 	return x;
+}
+
+EXPORT_CPP void _fontSetHeight(SClass* me_, double height)
+{
+	reinterpret_cast<SFont*>(me_)->Height = height;
+}
+
+EXPORT_CPP double _fontGetHeight(SClass* me_)
+{
+	return reinterpret_cast<SFont*>(me_)->Height;
 }
 
 EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, double atY, double atZ, double upX, double upY, double upZ)

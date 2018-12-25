@@ -129,11 +129,18 @@ end func
 	+func [d0001.knd, _fontCalcWidth] calcWidth(text: []char): float
 	end func
 
+	+func [d0001.knd, _fontSetHeight] setHeight(height: float)
+	end func
+
+	+func [d0001.knd, _fontGetHeight] getHeight(): float
+	end func
+
 	var tex: int
 	var view: int
 	var cellSize: int
 	var cellSizeAligned: int
-	var advance: int
+	var advance: float
+	var height: float
 	var proportional: int
 	var font: int
 	var charMap: int
