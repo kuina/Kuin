@@ -1263,25 +1263,75 @@ EXPORT_CPP double _fontMaxHeight(SClass* me_)
 
 EXPORT_CPP double _fontCalcWidth(SClass* me_, const U8* text)
 {
+	double width;
+	double height;
+	_fontCalcSize(me_, &width, &height, text);
+	return width;
+}
+
+EXPORT_CPP void _fontCalcSize(SClass* me_, double* width, double* height, const U8* text)
+{
 	THROWDBG(text == NULL, 0xc0000005);
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
 	S64 len = *reinterpret_cast<const S64*>(text + 0x08);
 
-	double x = me2->Advance * static_cast<double>(len);
+	*width = 0.0;
+	*height = 0.0;
+	double x = 0.0;
+	double y = 0.0;
+	const Char* ptr = reinterpret_cast<const Char*>(text + 0x10);
 	if (me2->Proportional)
 	{
-		const Char* ptr = reinterpret_cast<const Char*>(text + 0x10);
 		HGDIOBJ old_font = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Font));
 		for (S64 i = 0; i < len; i++)
 		{
+			Char c = *ptr;
+			switch (c)
+			{
+				case L'\n':
+					x = 0.0;
+					y += me2->Height;
+					ptr++;
+					continue;
+				case L'\t':
+					c = L' ';
+					break;
+			}
 			SIZE size;
-			GetTextExtentPoint32(me2->Dc, ptr, 1, &size);
-			x += static_cast<double>(size.cx);
+			GetTextExtentPoint32(me2->Dc, &c, 1, &size);
+			x += me2->Advance + static_cast<double>(size.cx);
+			if (*width < x)
+				*width = x;
+			if (*height < y + me2->Height)
+				*height = y + me2->Height;
 			ptr++;
 		}
 		SelectObject(me2->Dc, old_font);
 	}
-	return x;
+	else
+	{
+		for (S64 i = 0; i < len; i++)
+		{
+			Char c = *ptr;
+			switch (c)
+			{
+				case L'\n':
+					x = 0.0;
+					y += me2->Height;
+					ptr++;
+					continue;
+				case L'\t':
+					c = L' ';
+					break;
+			}
+			x += me2->Advance;
+			if (*width < x)
+				*width = x;
+			if (*height < y + me2->Height)
+				*height = y + me2->Height;
+			ptr++;
+		}
+	}
 }
 
 EXPORT_CPP void _fontSetHeight(SClass* me_, double height)

@@ -29,8 +29,14 @@ func main()
 		do draw@blend(%alpha)
 		do texKuin.drawScale(100.0, 500.0, 300.0, 300.0, 0.0, 0.0, 150.0, 150.0, draw@white) {拡大}
 		do texKuin.drawRot(500.0, 575.0, 150.0, 150.0, 0.0, 0.0, 150.0, 150.0, 75.0, 75.0, -draw@cnt() $ float * lib@pi / 60.0, draw@white) {回転}
-		do fontProportional.draw(1100.0, 300.0, "Proportional", draw@white) {プロポーショナルフォント}
-		do fontMonospace.draw(1100.0, 400.0, "Monospace", draw@white) {等幅フォント}
+		var width: float
+		var height: float
+		do fontProportional.calcSize(&width, &height, "Propor\ntional")
+		do fontProportional.draw(1100.0, 300.0, "Propor\ntional", draw@white) {プロポーショナルフォント}
+		do draw@rect(1100.0, 300.0, width, height, 0x7FFF0000)
+		do fontMonospace.calcSize(&width, &height, "Mono\nspace")
+		do fontMonospace.draw(1100.0, 400.0, "Mono\nspace", draw@white) {等幅フォント}
+		do draw@rect(1100.0, 400.0, width, height, 0x7FFF0000)
 		do draw@render(60)
 	end while
 end func

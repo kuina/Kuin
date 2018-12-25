@@ -129,6 +129,9 @@ end func
 	+func [d0001.knd, _fontCalcWidth] calcWidth(text: []char): float
 	end func
 
+	+func [d0001.knd, _fontCalcSize] calcSize(width: &float, height: &float, text: []char)
+	end func
+
 	+func [d0001.knd, _fontSetHeight] setHeight(height: float)
 	end func
 
