@@ -48,8 +48,8 @@ v.2019.1.17
     - file@Readerがリリースビルド時にresフォルダ内のファイルを読み込めない不具合
       の修正
     - 細かな機能追加
-        - draw@Font.setHeight、draw@Font.getHeight、draw@Font.calcSizeメソッドの
-          追加
+        - draw@Font.setHeight、draw@Font.getHeight、draw@Font.calcSize、
+          draw@Font.alignメソッドの追加
         - draw@Font.drawメソッドで、文字列に'\n'が含まれていたときに改行する
           ように改善
 
