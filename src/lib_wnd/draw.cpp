@@ -76,6 +76,8 @@ struct SFont
 	double Advance;
 	double Height;
 	bool Proportional;
+	U8 AlignHorizontal;
+	U8 AlignVertical;
 	HFONT Font;
 	Char* CharMap;
 	U32* CntMap;
@@ -278,6 +280,8 @@ static float FilterParam[4][4];
 static Bool MakeTexWithImg(ID3D10Texture2D** tex, ID3D10ShaderResourceView** view, ID3D10RenderTargetView** render_target_view, int width, int height, const void* img, size_t pitch, DXGI_FORMAT fmt, D3D10_USAGE usage, UINT cpu_access_flag, Bool render_target);
 static void UpdateParticles(SParticle* particle);
 static void WriteBack();
+static double CalcFontLineWidth(SFont* font, const Char* text);
+static double CalcFontLineHeight(SFont* font, const Char* text);
 
 EXPORT_CPP void _set2dCallback(void*(*callback)(int, void*, void*))
 {
@@ -1025,6 +1029,8 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 	}
 	me2->Font = CreateFont(-char_height, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, italic ? TRUE : FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DRAFT_QUALITY, DEFAULT_PITCH, fontName == NULL ? L"Meiryo UI" : reinterpret_cast<const Char*>(fontName + 0x10));
 	me2->Proportional = proportional;
+	me2->AlignHorizontal = 0;
+	me2->AlignVertical = 0;
 	me2->Advance = advance;
 	{
 		BITMAPINFO info = { 0 };
@@ -1130,7 +1136,27 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 	}
 
 	double x = dstX;
+	switch (me2->AlignHorizontal)
+	{
+		case 1: // 'center'
+			x -= CalcFontLineWidth(me2, ptr) / 2.0;
+			break;
+		case 2: // 'right'
+			x -= CalcFontLineWidth(me2, ptr);
+			break;
+	}
+
 	double y = dstY;
+	switch (me2->AlignVertical)
+	{
+		case 1: // 'center'
+			y -= CalcFontLineHeight(me2, ptr) / 2.0;
+			break;
+		case 2: // 'bottom'
+			y -= CalcFontLineHeight(me2, ptr);
+			break;
+	}
+
 	for (S64 i = 0; i < len; i++)
 	{
 		Char c = *ptr;
@@ -1138,8 +1164,17 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 		{
 			case L'\n':
 				x = dstX;
-				y += me2->Height;
 				ptr++;
+				switch (me2->AlignHorizontal)
+				{
+					case 1: // 'center'
+						x -= CalcFontLineWidth(me2, ptr) / 2.0;
+						break;
+					case 2: // 'right'
+						x -= CalcFontLineWidth(me2, ptr);
+						break;
+				}
+				y += me2->Height;
 				continue;
 			case L'\t':
 				c = L' ';
@@ -1342,6 +1377,13 @@ EXPORT_CPP void _fontSetHeight(SClass* me_, double height)
 EXPORT_CPP double _fontGetHeight(SClass* me_)
 {
 	return reinterpret_cast<SFont*>(me_)->Height;
+}
+
+EXPORT_CPP void _fontAlign(SClass* me_, S64 horizontal, S64 vertical)
+{
+	SFont* me2 = reinterpret_cast<SFont*>(me_);
+	me2->AlignHorizontal = static_cast<U8>(horizontal);
+	me2->AlignVertical = static_cast<U8>(vertical);
 }
 
 EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, double atY, double atZ, double upX, double upY, double upZ)
@@ -2159,6 +2201,60 @@ static void WriteBack()
 {
 	if (Callback2d != NULL)
 		Callback2d(3, NULL, NULL);
+}
+
+static double CalcFontLineWidth(SFont* font, const Char* text)
+{
+	double x = 0.0;
+	const Char* ptr = text;
+	if (font->Proportional)
+	{
+		HGDIOBJ old_font = SelectObject(font->Dc, static_cast<HGDIOBJ>(font->Font));
+		while (*ptr != L'\0' && *ptr != L'\n')
+		{
+			Char c = *ptr;
+			switch (c)
+			{
+				case L'\t':
+					c = L' ';
+					break;
+			}
+			SIZE size;
+			GetTextExtentPoint32(font->Dc, &c, 1, &size);
+			x += font->Advance + static_cast<double>(size.cx);
+			ptr++;
+		}
+		SelectObject(font->Dc, old_font);
+	}
+	else
+	{
+		while (*ptr != L'\0' && *ptr != L'\n')
+		{
+			Char c = *ptr;
+			switch (c)
+			{
+				case L'\t':
+					c = L' ';
+					break;
+			}
+			x += font->Advance;
+			ptr++;
+		}
+	}
+	return x;
+}
+
+static double CalcFontLineHeight(SFont* font, const Char* text)
+{
+	int cnt = 0;
+	const Char* ptr = text;
+	while (*ptr != L'\0')
+	{
+		if (*ptr == L'\n')
+			cnt++;
+		ptr++;
+	}
+	return static_cast<double>(cnt + 1) * font->Height;
 }
 
 namespace Draw

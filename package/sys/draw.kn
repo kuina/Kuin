@@ -113,6 +113,18 @@ end func
 +func [d0001.knd, _makeTexEvenColor, _make_instance] makeTexEvenColor(me2: @Tex, color: int): @Tex
 end func
 
++enum AlignHorizontal
+	left
+	center
+	right
+end enum
+
++enum AlignVertical
+	top
+	center
+	bottom
+end enum
+
 +class Font()
 	*func [d0001.knd, _fontDtor, _force] _dtor()
 	end func
@@ -136,6 +148,9 @@ end func
 	end func
 
 	+func [d0001.knd, _fontGetHeight] getHeight(): float
+	end func
+
+	+func [d0001.knd, _fontAlign] align(horizontal: @AlignHorizontal, vertical: @AlignVertical)
 	end func
 
 	var tex: int
