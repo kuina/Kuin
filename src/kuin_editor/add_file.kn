@@ -11,6 +11,7 @@ var wndAddFileListType: wnd@ListView
 	do @wndAddFileListType :: wnd@makeListView(@wndAddFile, 12, 12, 616, 320, %fix, %scale, false, null, ["res/kn.png", "res/wnd.png"])
 	do @wndAddFileListType.add(\common@langEn?("Source Code", "ソースコード"), 0)
 	do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"), 1)
+	do @wndAddFileListType.add(\common@langEn?("Window", "2Dグラフィックス"), 0)
 	do @wndAddFileListType.setSel(0)
 	do @wndAddFileListType.style(%large)
 	do @wndAddFileListType.onSel :: wndAddFileListTypeOnSel
@@ -30,6 +31,9 @@ var wndAddFileListType: wnd@ListView
 		case 1
 			do doc :: #\doc_gen@DocGen
 			do (doc $ \doc_gen@DocGen).create(#\doc_ar_wnd@DocArWnd)
+		case 2
+			do doc :: #\doc_gen@DocGen
+			do (doc $ \doc_gen@DocGen).create(#\doc_ar_2d@DocAr2d)
 		end switch
 		if(doc <>& null)
 			do doc.setChanged(true)
@@ -50,6 +54,8 @@ var wndAddFileListType: wnd@ListView
 			do name :: "src"
 		case 1
 			do name :: "wnd"
+		case 2
+			do name :: "g2d"
 		default
 			ret null
 		end switch
