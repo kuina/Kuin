@@ -281,8 +281,8 @@ EXPORT Bool Interpret2(const U8* path, const void*(*func_get_src)(const U8*), co
 
 EXPORT void Version(S64* major, S64* minor, S64* micro)
 {
-	*major = 2018;
-	*minor = 12;
+	*major = 2019;
+	*minor = 1;
 	*micro = 17;
 }
 
