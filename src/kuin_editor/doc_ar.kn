@@ -539,10 +539,15 @@
 		do \form@listLb.setRedraw(false)
 		do \form@listLb.clear()
 		do \form@listLb.style(%list_)
+		var parentStack: stack<@Obj> :: #stack<@Obj>
 		do me.nodes.head()
 		while(!me.nodes.term())
 			var obj: @Obj :: me.nodes.get()
-			do \form@listLb.add(obj.name, obj.icon())
+			do @getParent(parentStack, obj)
+			do \form@listLb.add(">".repeat(^parentStack) ~ obj.name, obj.icon())
+			if(obj.becomeParent())
+				do parentStack.add(obj)
+			end if
 			do me.holds.head()
 			if(me.holds.find(obj))
 				do \form@listLb.setSelMulti(\form@listLb.len() - 1, true)
@@ -565,7 +570,7 @@
 			var len: int :: \form@listLb.len()
 			for i(0, len - 1)
 				if(\form@listLb.getSelMulti(i))
-					var name: []char :: \form@listLb.getText(&, i, 0)
+					var name: []char :: @removePrefix(\form@listLb.getText(&, i, 0))
 					do me.find(me.nodes, name)
 					do me.holds.add(me.nodes.get())
 				end if
@@ -576,7 +581,7 @@
 			var len: int :: \form@listLb.len()
 			var names: [][]char :: #[len][]char
 			for i(0, len - 1)
-				do names[i] :: \form@listLb.getText(&, i, 0)
+				do names[i] :: @removePrefix(\form@listLb.getText(&, i, 0))
 			end for
 			do me.undo.recordBegin()
 			do me.order(names, true)
@@ -1199,6 +1204,10 @@ end class
 		do me.props :: #dict<[]char, []char>
 	end func
 
+	+func becomeParent(): bool
+		ret false
+	end func
+
 	func propsNames(): [][]char
 	end func
 
@@ -1222,4 +1231,26 @@ func getResizeArea(resizeAreaX: &int, resizeAreaY: &int, width: int, height: int
 	if(resizeAreaY > height / 2 - padding)
 		do resizeAreaY :: height / 2 - padding
 	end if
+end func
+
+func removePrefix(name: []char): []char
+	if(name[0] <> '>')
+		ret name
+	end if
+	var idx: int :: 1
+	while(name[idx] = '>')
+		do idx :+ 1
+	end while
+	ret name.sub(idx, -1)
+end func
+
++func getParent(parentStack: stack<@Obj>, obj: @Obj): @Obj
+	while(^parentStack > 0)
+		var parent: @Obj :: parentStack.peek()
+		if(parent.x <= obj.x & obj.x + obj.width <= parent.x + parent.width & parent.y <= obj.y & obj.y + obj.height <= parent.y + parent.height)
+			ret parent
+		end if
+		do parentStack.get()
+	end while
+	ret null
 end func

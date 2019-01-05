@@ -29,10 +29,15 @@
 			do lines.add("\tdo @\{me.root.name}.setVisible(false)")
 		end if
 
+		var parentStack: stack<\doc_ar@Obj> :: #stack<\doc_ar@Obj>
 		do me.nodes.head()
 		while(!me.nodes.term())
 			var obj: @ObjArWnd :: me.nodes.get() $ @ObjArWnd
-			do obj.getSrcMake(1, lines, "@" ~ me.root.name)
+			var parent: \doc_ar@Obj :: \doc_ar@getParent(parentStack, obj)
+			do obj.getSrcMake(1, lines, "@" ~ (parent =& null ?(me.root.name, parent.name)))
+			if(obj.becomeParent())
+				do parentStack.add(obj)
+			end if
 			if(!obj.visible)
 				do lines.add("\tdo @\{obj.name}.setVisible(false)")
 			end if
@@ -70,6 +75,8 @@
 			ret #@ObjLabel
 		case "Chk"
 			ret #@ObjChk
+		case "Group"
+			ret #@ObjGroup
 		end switch
 		ret null
 	end func
@@ -79,6 +86,7 @@
 		do \form@listLt.add("Chk", 2)
 		do \form@listLt.add("Edit", 3)
 		do \form@listLt.add("Label", 4)
+		do \form@listLt.add("Group", 2)
 	end func
 end class
 
@@ -335,5 +343,57 @@ class ObjChk(@ObjArWnd)
 		if(chk <> "false")
 			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setChk(\{chk})")
 		end if
+	end func
+end class
+
+class ObjGroup(@ObjArWnd)
+	+*func draw(x: float, y: float, width: float, height: float)
+		do draw@rect(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 0xFFFFFFFF)
+		do draw@rectLine(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 0xFF333333)
+		var text: []char :: me.props.get("text", &)
+		do \common@fontP.draw(x + 18.0, lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), text, draw@black)
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 10
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 80
+		do height :: 80
+	end func
+
+	+*func kind(): []char
+		ret "Group"
+	end func
+
+	+*func icon(): int
+		ret 1
+	end func
+
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
+		do super(me, name, visible, x, y, width, height)
+		do me.props.add("anchorX", "%fix")
+		do me.props.add("anchorY", "%fix")
+		do me.props.add("text", me.name)
+	end func
+
+	+*func becomeParent(): bool
+		ret true
+	end func
+
+	*func propsNames(): [][]char
+		ret ["anchorX", "anchorY", "text"]
+	end func
+
+	+*func type(): []char
+		ret "wnd@Group"
+	end func
+
+	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeGroup(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)}, \"\{me.props.get("text", &)}\")")
 	end func
 end class
