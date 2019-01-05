@@ -10,7 +10,40 @@
 
 	+*func fix()
 		var lines: list<[]char> :: #list<[]char>
+		do lines.add("+var \{me.root.name}: list<drawex@Obj>")
+
+		do me.nodes.head()
+		while(!me.nodes.term())
+			var node: @ObjAr2d :: me.nodes.get() $ @ObjAr2d
+			do lines.add("+var \{node.name}: \{node.type()}")
+			do me.nodes.next()
+		end while
+
+		do lines.add("")
+		do lines.add("+func init()")
+		do lines.add("\tif(@\{me.root.name} <>& null)")
+		do lines.add("\t\tdo @fin()")
+		do lines.add("\tend if")
+		do lines.add("\tdo @\{me.root.name} :: #list<drawex@Obj>")
+
+		do me.nodes.head()
+		while(!me.nodes.term())
+			var node: @ObjAr2d :: me.nodes.get() $ @ObjAr2d
+			do lines.add("\tdo @\{node.name} :: #\{node.type()}")
+			do node.getSrcInit(1, lines)
+			do lines.add("\tdo @\{me.root.name}.add(@\{node.name})")
+			do me.nodes.next()
+		end while
+
+		do lines.add("end func")
+		do lines.add("")
+		do lines.add("+func fin()")
+		do lines.add("\tdo @\{me.root.name} :: null")
+		do lines.add("end func")
+		do lines.add("")
 		do lines.add("+func draw()")
+		do lines.add("\tdo drawex@draw(@\{me.root.name})")
+		do lines.add("end func")
 		do me.src :: lines.toArray()
 	end func
 
@@ -18,24 +51,28 @@
 		switch(name)
 		case "Layer"
 			ret #@ObjLayer
-		case "Line"
-			ret #@ObjLine
+		case "Rect"
+			ret #@ObjRect
 		end switch
 		ret null
 	end func
 
 	*func updateLt()
-		do \form@listLt.add("Line", 1)
+		do \form@listLt.add("Rect", 1)
 	end func
 end class
 
 class ObjAr2d(\doc_ar@Obj)
+	+func type(): []char
+	end func
+
+	+func getSrcInit(indent: int, lines: list<[]char>)
+	end func
 end class
 
 class ObjLayer(@ObjAr2d)
 	+*func draw(x: float, y: float, width: float, height: float)
-		do draw@rect(x, y, width, height, 0xFFF0F0F0)
-		do draw@rect(x, y, width, height, 0xFF1883D7)
+		do draw@rect(x, y, width, height, 0xFF000000)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -63,26 +100,32 @@ class ObjLayer(@ObjAr2d)
 	end func
 end class
 
-class ObjLine(@ObjAr2d)
+class ObjRect(@ObjAr2d)
 	+*func draw(x: float, y: float, width: float, height: float)
-		do draw@rect(x, y, width, height, 0xFFE1E1E1)
-		do draw@rectLine(x, y, width, height, 0xFFADADAD)
+		var colorFill: int :: \doc_ar@getPropAsInt(me.props, "colorFill")
+		if(colorFill <> 0)
+			do draw2d@rect(x, y, width, height, colorFill)
+		end if
+		var colorStroke: int :: \doc_ar@getPropAsInt(me.props, "colorStroke")
+		if(colorStroke <> 0)
+			do draw2d@rectLine(x, y, width, height, \doc_ar@getPropAsFloat(me.props, "strokeWidth"), colorStroke)
+		end if
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
 		do minWidth :: 10
-		do minHeight :: 23
+		do minHeight :: 10
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func
 
 	+*func getDefaultSize(width: &int, height: &int)
-		do width :: 75
-		do height :: 23
+		do width :: 100
+		do height :: 100
 	end func
 
 	+*func kind(): []char
-		ret "Line"
+		ret "Rect"
 	end func
 
 	+*func icon(): int
@@ -91,10 +134,23 @@ class ObjLine(@ObjAr2d)
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
-		do me.props.add("color", "0xFFFFFFFF")
+		do me.props.add("colorFill", "0xFFFFFFFF")
+		do me.props.add("colorStroke", "0")
+		do me.props.add("strokeWidth", "1.0")
 	end func
 
 	*func propsNames(): [][]char
-		ret ["color"]
+		ret ["colorFill", "colorStroke", "strokeWidth"]
+	end func
+
+	+*func type(): []char
+		ret "drawex@ObjRect"
+	end func
+
+	+*func getSrcInit(indent: int, lines: list<[]char>)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.init(\{me.x} $ float, \{me.y} $ float, \{me.width} $ float, \{me.height} $ float, \{me.visible})")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.colorFill :: \{me.props.get("colorFill", &)}")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.colorStroke :: \{me.props.get("colorStroke", &)}")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.strokeWidth :: \{me.props.get("strokeWidth", &)}")
 	end func
 end class

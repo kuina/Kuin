@@ -1254,3 +1254,29 @@ end func
 	end while
 	ret null
 end func
+
++func getPropAsInt(props: dict<[]char, []char>, name: []char): int
+	var success: bool
+	var value: []char :: props.get(name, &success)
+	if(!success)
+		ret 0
+	end if
+	var value2: int :: value.toInt(&success)
+	if(!success)
+		ret 0
+	end if
+	ret value2
+end func
+
++func getPropAsFloat(props: dict<[]char, []char>, name: []char): float
+	var success: bool
+	var value: []char :: props.get(name, &success)
+	if(!success)
+		ret 0.0
+	end if
+	var value2: float :: value.toFloat(&success)
+	if(!success)
+		ret 0.0
+	end if
+	ret value2
+end func

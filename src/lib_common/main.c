@@ -1642,7 +1642,12 @@ EXPORT S64 _toInt(const U8* me_, Bool* existed)
 {
 	Char* ptr;
 	THROWDBG(me_ == NULL, 0xc0000005);
-	S64 value = wcstoll((const Char*)(me_ + 0x10), &ptr, 10);
+	const Char* str = (const Char*)(me_ + 0x10);
+	S64 value;
+	if (str[0] == '0' && str[1] == 'x')
+		value = wcstoll(str + 2, &ptr, 16);
+	else
+		value = wcstoll(str, &ptr, 10);
 	*existed = *ptr == L'\0';
 	return value;
 }

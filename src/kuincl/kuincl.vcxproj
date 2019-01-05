@@ -89,6 +89,7 @@
 $(SolutionDir)package\kuincl.exe -i $(SolutionDir)src\kuin_editor\kuin_editor.kn -o $(SolutionDir)package\kuin.exe -r -d
 echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d0000.knd $(SolutionDir)package\data\d0000.knd
 echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d0001.knd $(SolutionDir)package\data\d0001.knd
+echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d0005.knd $(SolutionDir)package\data\d0005.knd
 echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d1001.knd $(SolutionDir)package\data\d1001.knd
 echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d1002.knd $(SolutionDir)package\data\d1002.knd
 echo F | xcopy /y /r $(SolutionDir)package\sys\rls\d1003.knd $(SolutionDir)package\data\d1003.knd
