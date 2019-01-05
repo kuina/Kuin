@@ -15,6 +15,8 @@
 			switch(root.findChild("type").getValue())
 			case "wnd"
 				do me.create(#\doc_ar_wnd@DocArWnd)
+			case "g2d"
+				do me.create(#\doc_ar_2d@DocAr2d)
 			default
 				ret false
 			end switch
@@ -33,6 +35,8 @@
 			var type: xml@Node :: root.addChild("type")
 			if(me.designer =$ \doc_ar_wnd@DocArWnd)
 				do type.setValue("wnd")
+			elif(me.designer =$ \doc_ar_2d@DocAr2d)
+				do type.setValue("g2d")
 			else
 				do type.setValue("unknown")
 			end if
