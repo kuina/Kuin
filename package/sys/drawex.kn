@@ -35,6 +35,26 @@ end class
 	+var strokeWidth: float
 end class
 
++class ObjCircle(@Obj)
+	+*func draw()
+		if(!me.visible)
+			ret
+		end if
+		var halfWidth: float :: me.width / 2.0
+		var halfHeight: float :: me.height / 2.0
+		if(me.colorFill <> 0)
+			do draw2d@circle(me.x + halfWidth, me.y + halfHeight, halfWidth, halfHeight, me.colorFill)
+		end if
+		if(me.colorStroke <> 0)
+			do draw2d@circleLine(me.x + halfWidth, me.y + halfHeight, halfWidth, halfHeight, me.strokeWidth, me.colorStroke)
+		end if
+	end func
+
+	+var colorFill: int
+	+var colorStroke: int
+	+var strokeWidth: float
+end class
+
 +func draw(objs: list<@Obj>)
 	do objs.head()
 	while(!objs.term())

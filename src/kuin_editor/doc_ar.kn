@@ -36,6 +36,7 @@
 				end if
 				do draw@rectLine(x - 3.0, y - 3.0, width2 + 6.0, height2 + 6.0, 0xFF6666FF)
 				do draw@rectLine(x - 4.0, y - 4.0, width2 + 8.0, height2 + 8.0, 0xFF6666FF)
+				do draw@rectLine(x, y, width2, height2, 0x80000000)
 			else
 				var x: float :: (me.root.x - me.pageX) $ float
 				var y: float :: (me.root.y - me.pageY) $ float
@@ -44,6 +45,7 @@
 				if(me.root.visible)
 					do me.root.draw(x, y, width2, height2)
 				end if
+				do draw@rectLine(x, y, width2, height2, 0x80000000)
 			end if
 		end block
 		do me.nodes.head()
@@ -65,6 +67,7 @@
 				end if
 				do draw@rectLine(x - 3.0, y - 3.0, width2 + 6.0, height2 + 6.0, 0xFF6666FF)
 				do draw@rectLine(x - 4.0, y - 4.0, width2 + 8.0, height2 + 8.0, 0xFF6666FF)
+				do draw@rectLine(x, y, width2, height2, 0x80000000)
 			else
 				var x: float :: (node.x - me.pageX) $ float
 				var y: float :: (node.y - me.pageY) $ float
@@ -73,6 +76,7 @@
 				if(node.visible)
 					do node.draw(x, y, width2, height2)
 				end if
+				do draw@rectLine(x, y, width2, height2, 0x80000000)
 			end if
 			do me.nodes.next()
 		end while

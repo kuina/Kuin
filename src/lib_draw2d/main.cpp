@@ -98,6 +98,7 @@ EXPORT_CPP void _line(double x1, double y1, double x2, double y2, double stroke_
 	CurRenderTarget->CreateSolidColorBrush(ColorToColorF(color), &brush);
 	CurRenderTarget->DrawLine(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2)), brush, static_cast<FLOAT>(stroke_width), NULL);
 	brush->Release();
+	CurRenderTarget->Flush();
 }
 
 EXPORT_CPP void _rect(double x, double y, double width, double height, S64 color)
@@ -106,6 +107,7 @@ EXPORT_CPP void _rect(double x, double y, double width, double height, S64 color
 	CurRenderTarget->CreateSolidColorBrush(ColorToColorF(color), &brush);
 	CurRenderTarget->FillRectangle(D2D1::RectF(static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(x + width), static_cast<FLOAT>(y + height)), brush);
 	brush->Release();
+	CurRenderTarget->Flush();
 }
 
 EXPORT_CPP void _rectLine(double x, double y, double width, double height, double stroke_width, S64 color)
@@ -114,6 +116,7 @@ EXPORT_CPP void _rectLine(double x, double y, double width, double height, doubl
 	CurRenderTarget->CreateSolidColorBrush(ColorToColorF(color), &brush);
 	CurRenderTarget->DrawRectangle(D2D1::RectF(static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(x + width), static_cast<FLOAT>(y + height)), brush, static_cast<FLOAT>(stroke_width), NULL);
 	brush->Release();
+	CurRenderTarget->Flush();
 }
 
 EXPORT_CPP void _circle(double x, double y, double radius_x, double radius_y, S64 color)
@@ -122,6 +125,7 @@ EXPORT_CPP void _circle(double x, double y, double radius_x, double radius_y, S6
 	CurRenderTarget->CreateSolidColorBrush(ColorToColorF(color), &brush);
 	CurRenderTarget->FillEllipse(D2D1::Ellipse(D2D1::Point2F(static_cast<FLOAT>(x), static_cast<FLOAT>(y)), static_cast<FLOAT>(radius_x), static_cast<FLOAT>(radius_y)), brush);
 	brush->Release();
+	CurRenderTarget->Flush();
 }
 
 EXPORT_CPP void _circleLine(double x, double y, double radius_x, double radius_y, double stroke_width, S64 color)
@@ -130,6 +134,7 @@ EXPORT_CPP void _circleLine(double x, double y, double radius_x, double radius_y
 	CurRenderTarget->CreateSolidColorBrush(ColorToColorF(color), &brush);
 	CurRenderTarget->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(static_cast<FLOAT>(x), static_cast<FLOAT>(y)), static_cast<FLOAT>(radius_x), static_cast<FLOAT>(radius_y)), brush, static_cast<FLOAT>(stroke_width), NULL);
 	brush->Release();
+	CurRenderTarget->Flush();
 }
 
 EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, S64 color)
@@ -149,6 +154,7 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 	sink->Release();
 	geometry->Release();
 	brush->Release();
+	CurRenderTarget->Flush();
 }
 
 EXPORT_CPP SClass* _makeBrushLinearGradient(SClass* me_, double x1, double y1, double x2, double y2, void* color_position, void* color)
@@ -181,6 +187,7 @@ EXPORT_CPP void _brushLine(SClass* me_, double x1, double y1, double x2, double 
 	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
 	SStrokeStyle* strokeStyle2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
 	CurRenderTarget->DrawLine(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2)), me2->Brush, static_cast<FLOAT>(stroke_width), stroke_style != NULL ? strokeStyle2->StrokeStyle : NULL);
+	CurRenderTarget->Flush();
 }
 
 EXPORT_CPP SClass* _makeGeometryPath(SClass* me_)
@@ -254,6 +261,7 @@ EXPORT_CPP void _geometryDraw(SClass* me_, S64 color)
 	CurRenderTarget->CreateSolidColorBrush(ColorToColorF(color), &brush);
 	CurRenderTarget->FillGeometry(me2->Geometry, brush);
 	brush->Release();
+	CurRenderTarget->Flush();
 }
 
 EXPORT_CPP void _geometryDrawLine(SClass* me_, double stroke_width, S64 color)
@@ -263,6 +271,7 @@ EXPORT_CPP void _geometryDrawLine(SClass* me_, double stroke_width, S64 color)
 	CurRenderTarget->CreateSolidColorBrush(ColorToColorF(color), &brush);
 	CurRenderTarget->DrawGeometry(me2->Geometry, brush, static_cast<FLOAT>(stroke_width));
 	brush->Release();
+	CurRenderTarget->Flush();
 }
 
 static void* Callback2d(int kind, void* arg1, void* arg2)
