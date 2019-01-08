@@ -55,6 +55,8 @@
 			ret #@ObjRect
 		case "Circle"
 			ret #@ObjCircle
+		case "Text"
+			ret #@ObjText
 		end switch
 		ret null
 	end func
@@ -62,6 +64,7 @@
 	*func updateLt()
 		do \form@listLt.add("Rect", 1)
 		do \form@listLt.add("Circle", 1)
+		do \form@listLt.add("Text", 1)
 	end func
 end class
 
@@ -212,5 +215,87 @@ class ObjCircle(@ObjAr2d)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.colorFill :: \{me.props.get("colorFill", &)}")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.colorStroke :: \{me.props.get("colorStroke", &)}")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.strokeWidth :: \{me.props.get("strokeWidth", &)}")
+	end func
+end class
+
+class ObjText(@ObjAr2d)
+	+*func draw(x: float, y: float, width: float, height: float)
+		var color: int :: \doc_ar@getPropAsInt(me.props, "color")
+		if(color <> 0)
+			var alignHorizontal: draw@AlignHorizontal
+			var alignVertical: draw@AlignVertical
+			var x2: float
+			var y2: float
+			switch(me.props.get("alignHorizontal", &))
+			case "%center"
+				do alignHorizontal :: %center
+				do x2 :: x + width / 2.0
+			case "%right"
+				do alignHorizontal :: %right
+				do x2 :: x + width
+			default
+				do alignHorizontal :: %left
+				do x2 :: x
+			end switch
+			switch(me.props.get("alignVertical", &))
+			case "%center"
+				do alignVertical :: %center
+				do y2 :: y + height / 2.0
+			case "%bottom"
+				do alignVertical :: %bottom
+				do y2 :: y + height
+			default
+				do alignVertical :: %top
+				do y2 :: y
+			end switch
+			do \common@fontP.align(alignHorizontal, alignVertical)
+			do \common@fontP.draw(x2, y2, me.props.get("text", &), color)
+			do \common@fontP.align(%left, %top)
+		end if
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 10
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 100
+		do height :: 100
+	end func
+
+	+*func kind(): []char
+		ret "Text"
+	end func
+
+	+*func icon(): int
+		ret 0
+	end func
+
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
+		do super(me, name, visible, x, y, width, height)
+		do me.props.add("text", name)
+		do me.props.add("color", "0xFFFFFFFF")
+		do me.props.add("alignHorizontal", "%left")
+		do me.props.add("alignVertical", "%top")
+	end func
+
+	*func propsNames(): [][]char
+		ret ["text", "color", "alignHorizontal", "alignVertical"]
+	end func
+
+	+*func type(): []char
+		ret "drawex@ObjText"
+	end func
+
+	+*func getSrcInit(indent: int, lines: list<[]char>)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.init(\{me.x} $ float, \{me.y} $ float, \{me.width} $ float, \{me.height} $ float, \{me.visible})")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.font :: draw@makeFont(null, 32, false, false, true, 0.0)")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.text :: \"\{me.props.get("text", &)}\"")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.color :: \{me.props.get("color", &)}")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.alignHorizontal :: \{me.props.get("alignHorizontal", &)}")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.alignVertical :: \{me.props.get("alignVertical", &)}")
 	end func
 end class

@@ -55,6 +55,46 @@ end class
 	+var strokeWidth: float
 end class
 
++class ObjText(@Obj)
+	+*func draw()
+		if(!me.visible)
+			ret
+		end if
+		if(me.color <> 0)
+			do me.font.align(me.alignHorizontal, me.alignVertical)
+			var x: float
+			var y: float
+			switch(me.alignHorizontal)
+			case %left
+				do x :: me.x
+			case %center
+				do x :: me.x + me.width / 2.0
+			case %right
+				do x :: me.x + me.width
+			default
+				assert false
+			end switch
+			switch(me.alignVertical)
+			case %top
+				do y :: me.x
+			case %center
+				do y :: me.x + me.width / 2.0
+			case %bottom
+				do y :: me.x + me.width
+			default
+				assert false
+			end switch
+			do me.font.draw(x, y, me.text, me.color)
+		end if
+	end func
+
+	+var font: draw@Font
+	+var text: []char
+	+var color: int
+	+var alignHorizontal: draw@AlignHorizontal
+	+var alignVertical: draw@AlignVertical
+end class
+
 +func draw(objs: list<@Obj>)
 	do objs.head()
 	while(!objs.term())
