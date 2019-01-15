@@ -1,4 +1,5 @@
 var wndObjProp: wnd@Wnd
+var result: bool
 
 class CtrlSet()
 	+var name: []char
@@ -16,7 +17,7 @@ end class
 var ctrlSetArray: @CtrlSetArray
 var target: \doc_ar@Obj
 
-+func show(obj: \doc_ar@Obj)
++func show(obj: \doc_ar@Obj): bool
 	do @target :: obj
 	do @wndObjProp :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 300, 480, obj.name)
 
@@ -65,11 +66,14 @@ var target: \doc_ar@Obj
 	var btnCancel: wnd@Btn :: wnd@makeBtn(@wndObjProp, 153, 445, 75, 23, %fix, %fix, \common@langEn ?("Cancel", "キャンセル"))
 	do btnCancel.onPush :: btnCancelOnPush
 
+	do @result :: false
 	do @wndObjProp.modal()
 
 	do @wndObjProp :: null
 	do @ctrlSetArray :: null
 	do @target :: null
+
+	ret @result
 
 	func btnOkOnPush(wnd: wnd@WndBase)
 		for i(0, ^@ctrlSetArray.ctrlSetArray - 1)
@@ -100,6 +104,7 @@ var target: \doc_ar@Obj
 			end switch
 			do @target.props.add(ctrlSet.name, value)
 		end for
+		do @result :: true
 		do @wndObjProp.close()
 	end func
 

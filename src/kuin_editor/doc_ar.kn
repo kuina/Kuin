@@ -731,7 +731,9 @@
 				do \form@updateUi()
 				ret
 			end if
-			do \obj_prop@show(obj)
+			if(\obj_prop@show(obj))
+				do obj.reloadRes()
+			end if
 			do \form@updateUi()
 			do \form@paintDrawEditor()
 		end switch
@@ -1236,7 +1238,7 @@ end enum
 	+func propsTypeDatas(): [][][]char
 	end func
 
-	func reloadRes()
+	+func reloadRes()
 	end func
 
 	+var name: []char

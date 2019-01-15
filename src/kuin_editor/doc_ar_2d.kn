@@ -342,7 +342,7 @@ class ObjText(@ObjAr2d)
 		ret [null, null, ["%left", "%center", "%right"], ["%top", "%center", "%bottom"], null, null, null, null, null, null]
 	end func
 
-	*func reloadRes()
+	+*func reloadRes()
 		if(me.font <>& null)
 			do @resCacheDraw.del(me.font)
 			do me.font :: null
