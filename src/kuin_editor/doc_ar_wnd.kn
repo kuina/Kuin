@@ -126,10 +126,19 @@ class ObjWnd(@ObjArWnd)
 		do super(me, name, visible, x, y, width, height)
 		do me.props.add("style", "%normal")
 		do me.props.add("text", me.name)
+		do me.reloadRes()
 	end func
 
-	*func propsNames(): [][]char
+	+*func propsNames(): [][]char
 		ret ["style", "text"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%enum_ $ \doc_ar@PropType, %str]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret [["%normal", "%fix", "%aspect", "%popup"], null]
 	end func
 
 	+*func type(): []char
@@ -174,10 +183,19 @@ class ObjBtn(@ObjArWnd)
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("text", me.name)
+		do me.reloadRes()
 	end func
 
-	*func propsNames(): [][]char
+	+*func propsNames(): [][]char
 		ret ["anchorX", "anchorY", "text"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %str]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
 	end func
 
 	+*func type(): []char
@@ -223,10 +241,19 @@ class ObjEdit(@ObjArWnd)
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("readonly", "false")
 		do me.props.add("text", "")
+		do me.reloadRes()
 	end func
 
-	*func propsNames(): [][]char
+	+*func propsNames(): [][]char
 		ret ["anchorX", "anchorY", "readonly", "text"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null]
 	end func
 
 	+*func type(): []char
@@ -278,10 +305,19 @@ class ObjLabel(@ObjArWnd)
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("text", me.name)
+		do me.reloadRes()
 	end func
 
-	*func propsNames(): [][]char
+	+*func propsNames(): [][]char
 		ret ["anchorX", "anchorY", "text"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %str]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
 	end func
 
 	+*func type(): []char
@@ -327,10 +363,19 @@ class ObjChk(@ObjArWnd)
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("chk", "false")
 		do me.props.add("text", me.name)
+		do me.reloadRes()
 	end func
 
-	*func propsNames(): [][]char
+	+*func propsNames(): [][]char
 		ret ["anchorX", "anchorY", "chk", "text"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null]
 	end func
 
 	+*func type(): []char
@@ -379,14 +424,23 @@ class ObjGroup(@ObjArWnd)
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("text", me.name)
+		do me.reloadRes()
 	end func
 
 	+*func becomeParent(): bool
 		ret true
 	end func
 
-	*func propsNames(): [][]char
+	+*func propsNames(): [][]char
 		ret ["anchorX", "anchorY", "text"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %str]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
 	end func
 
 	+*func type(): []char

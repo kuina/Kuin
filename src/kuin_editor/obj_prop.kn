@@ -3,7 +3,9 @@ var wndObjProp: wnd@Wnd
 class CtrlSet()
 	+var name: []char
 	+var label: wnd@Label
-	+var edit: wnd@Edit
+	+var ctrls: []wnd@WndBase
+	+var type: \doc_ar@PropType
+	+var typeData: [][]char
 end class
 
 class CtrlSetArray()
@@ -20,8 +22,43 @@ var target: \doc_ar@Obj
 
 	do @ctrlSetArray :: #@CtrlSetArray
 	do @ctrlSetArray.idx :: 0
-	do @ctrlSetArray.ctrlSetArray :: #[^obj.props]@CtrlSet
-	do obj.props.forEach(addCtrlSet, null)
+	var propsNames: [][]char :: obj.propsNames()
+	var propsTypes: []\doc_ar@PropType :: obj.propsTypes()
+	var propsTypeDatas: [][][]char :: obj.propsTypeDatas()
+	do @ctrlSetArray.ctrlSetArray :: #[^propsNames]@CtrlSet
+	for i(0, ^propsNames - 1)
+		var ctrlSet: @CtrlSet :: #@CtrlSet
+		do ctrlSet.name :: propsNames[i]
+		do ctrlSet.label :: wnd@makeLabel(@wndObjProp, 12, 15 + 25 * i, 60, 12, %fix, %fix, propsNames[i])
+		switch(propsTypes[i])
+		case %str, %int_, %float_, %color
+			var edit: wnd@Edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * i, 180, 19, %fix, %fix)
+			do edit.setText(obj.props.get(propsNames[i], &))
+			do ctrlSet.ctrls :: [edit]
+		case %bool_
+			var chk: wnd@Chk :: wnd@makeChk(@wndObjProp, 92, 12 + 25 * i, 180, 16, %fix, %fix, propsNames[i])
+			do chk.setChk(obj.props.get(propsNames[i], &) = "true")
+			do ctrlSet.ctrls :: [chk]
+		case %enum_
+			var list_: wnd@List :: wnd@makeList(@wndObjProp, 92, 12 + 25 * i, 180, 19, %fix, %fix)
+			var value: []char :: obj.props.get(propsNames[i], &)
+			for j(0, ^propsTypeDatas[i] - 1)
+				do list_.add(propsTypeDatas[i][j])
+				if(propsTypeDatas[i][j] = value)
+					do list_.setSel(j)
+				end if
+			end for
+			do ctrlSet.ctrls :: [list_]
+		case %file
+			var edit: wnd@Edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * i, 80, 19, %fix, %fix)
+			do edit.setText(obj.props.get(propsNames[i], &))
+			var btn: wnd@Btn :: wnd@makeBtn(@wndObjProp, 172, 12 + 25 * i, 100, 23, %fix, %fix, \common@langEn ?("Browse...", "参照..."))
+			do ctrlSet.ctrls :: [edit $ wnd@WndBase, btn $ wnd@WndBase]
+		end switch
+		do ctrlSet.type :: propsTypes[i]
+		do ctrlSet.typeData :: propsTypeDatas[i]
+		do @ctrlSetArray.ctrlSetArray[i] :: ctrlSet
+	end for
 
 	var btnOk: wnd@Btn :: wnd@makeBtn(@wndObjProp, 72, 445, 75, 23, %fix, %fix, "OK")
 	do btnOk.onPush :: btnOkOnPush
@@ -34,21 +71,34 @@ var target: \doc_ar@Obj
 	do @ctrlSetArray :: null
 	do @target :: null
 
-	func addCtrlSet(key: []char, value: []char, data: kuin@Class): bool
-		var ctrlSet: @CtrlSet :: #@CtrlSet
-		do ctrlSet.name :: key
-		do ctrlSet.label :: wnd@makeLabel(@wndObjProp, 12, 15 + 25 * @ctrlSetArray.idx, 60, 12, %fix, %fix, key)
-		do ctrlSet.edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * @ctrlSetArray.idx, 180, 19, %fix, %fix)
-		do ctrlSet.edit.setText(value)
-		do @ctrlSetArray.ctrlSetArray[@ctrlSetArray.idx] :: ctrlSet
-		do @ctrlSetArray.idx :+ 1
-		ret true
-	end func
-
 	func btnOkOnPush(wnd: wnd@WndBase)
 		for i(0, ^@ctrlSetArray.ctrlSetArray - 1)
 			var ctrlSet: @CtrlSet :: @ctrlSetArray.ctrlSetArray[i]
-			do @target.props.add(ctrlSet.name, ctrlSet.edit.getText())
+			var value: []char
+			switch(ctrlSet.type)
+			case %str
+				do value :: (ctrlSet.ctrls[0] $ wnd@Edit).getText()
+			case %int_
+				var value2: int :: (ctrlSet.ctrls[0] $ wnd@Edit).getText().toInt(&)
+				do value :: value2.toStr()
+			case %float_
+				var value2: float :: (ctrlSet.ctrls[0] $ wnd@Edit).getText().toFloat(&)
+				do value :: value2.toStr()
+				if(value.find('.', -1) = -1)
+					do value :~ ".0"
+				end if
+			case %bool_
+				do value :: (ctrlSet.ctrls[0] $ wnd@Chk).getChk() ?("true", "false")
+			case %enum_
+				var list_: wnd@List :: ctrlSet.ctrls[0] $ wnd@List
+				var sel: int :: (list_).getSel()
+				do value :: sel = -1 ?("", list_.getText(sel))
+			case %color
+				do value :: (ctrlSet.ctrls[0] $ wnd@Edit).getText()
+			case %file
+				do value :: (ctrlSet.ctrls[0] $ wnd@Edit).getText()
+			end switch
+			do @target.props.add(ctrlSet.name, value)
 		end for
 		do @wndObjProp.close()
 	end func

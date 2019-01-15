@@ -1018,11 +1018,11 @@
 		if(recordUndo)
 			var obj: @Obj :: me.nodes.get()
 			var parent: @Obj
-			try
-				do parent :: me.nodes.getOffset(1)
-			catch
+			if(me.nodes.termOffset(1))
 				do parent :: null
-			end try
+			else
+				do parent :: me.nodes.getOffset(1)
+			end if
 			var undo: UndoArPut :: #UndoArPut
 			do undo.doc :: me
 			do undo.parent :: parent =& null ?(null, parent.name)
@@ -1037,6 +1037,7 @@
 			do redo.name :: obj.name
 			do me.undo.add(undo, redo)
 		end if
+		do me.nodes.get().fin()
 		do me.nodes.del()
 		do me.changed :: true
 	end func
@@ -1147,6 +1148,16 @@
 	end func
 end class
 
++enum PropType
+	str
+	int_
+	float_
+	bool_
+	enum_
+	color
+	file
+end enum
+
 +class Obj()
 	+*func cmp(t: kuin@Class): int
 		ret t =& me ?(0, 1)
@@ -1161,6 +1172,7 @@ end class
 				do me.props.add(propsNames[i], attr)
 			end if
 		end for
+		do me.reloadRes()
 	end func
 
 	+func save(node: xml@Node)
@@ -1208,11 +1220,23 @@ end class
 		do me.props :: #dict<[]char, []char>
 	end func
 
+	+func fin()
+	end func
+
 	+func becomeParent(): bool
 		ret false
 	end func
 
-	func propsNames(): [][]char
+	+func propsNames(): [][]char
+	end func
+
+	+func propsTypes(): []@PropType
+	end func
+
+	+func propsTypeDatas(): [][][]char
+	end func
+
+	func reloadRes()
 	end func
 
 	+var name: []char

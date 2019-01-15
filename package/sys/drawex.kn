@@ -95,6 +95,16 @@ end class
 	+var alignVertical: draw@AlignVertical
 end class
 
++class ResCacheDraw(rescache@ResCache)
+	+func makeFont(fontName: []char, size: int, bold: bool, italic: bool, proportional: bool, advance: float): draw@Font
+		var instance: rescache@Instance :: me.add("font,\{fontName},\{size},\{bold},\{italic},\{proportional},\{advance}")
+		if(instance.instance =& null)
+			do instance.instance :: draw@makeFont(fontName, size, bold, italic, proportional, advance)
+		end if
+		ret instance.instance $ draw@Font
+	end func
+end class
+
 +func draw(objs: list<@Obj>)
 	do objs.head()
 	while(!objs.term())

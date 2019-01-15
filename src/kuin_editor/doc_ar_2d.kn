@@ -1,3 +1,5 @@
+var resCacheDraw: drawex@ResCacheDraw
+
 +class DocAr2d(\doc_ar@DocAr)
 	*func ctor()
 		do super(me)
@@ -6,6 +8,9 @@
 		var height: int
 		do me.root.getDefaultSize(&width, &height)
 		do me.root.init("layer", true, 0, 0, width, height)
+		if(@resCacheDraw =& null)
+			do @resCacheDraw :: #drawex@ResCacheDraw
+		end if
 	end func
 
 	+*func fix()
@@ -99,10 +104,19 @@ class ObjLayer(@ObjAr2d)
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
+		do me.reloadRes()
 	end func
 
-	*func propsNames(): [][]char
+	+*func propsNames(): [][]char
 		ret #[0][]char
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret #[0]\doc_ar@PropType
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret #[0][][]char
 	end func
 end class
 
@@ -141,12 +155,21 @@ class ObjRect(@ObjAr2d)
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
 		do me.props.add("colorFill", "0xFFFFFFFF")
-		do me.props.add("colorStroke", "0")
+		do me.props.add("colorStroke", "0x00000000")
 		do me.props.add("strokeWidth", "1.0")
+		do me.reloadRes()
 	end func
 
-	*func propsNames(): [][]char
+	+*func propsNames(): [][]char
 		ret ["colorFill", "colorStroke", "strokeWidth"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%color $ \doc_ar@PropType, %color, %float_]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret #[3][][]char
 	end func
 
 	+*func type(): []char
@@ -198,12 +221,21 @@ class ObjCircle(@ObjAr2d)
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
 		do super(me, name, visible, x, y, width, height)
 		do me.props.add("colorFill", "0xFFFFFFFF")
-		do me.props.add("colorStroke", "0")
+		do me.props.add("colorStroke", "0x00000000")
 		do me.props.add("strokeWidth", "1.0")
+		do me.reloadRes()
 	end func
 
-	*func propsNames(): [][]char
+	+*func propsNames(): [][]char
 		ret ["colorFill", "colorStroke", "strokeWidth"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%color $ \doc_ar@PropType, %color, %float_]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret #[3][][]char
 	end func
 
 	+*func type(): []char
@@ -248,9 +280,11 @@ class ObjText(@ObjAr2d)
 				do alignVertical :: %top
 				do y2 :: y
 			end switch
-			do \common@fontP.align(alignHorizontal, alignVertical)
-			do \common@fontP.draw(x2, y2, me.props.get("text", &), color)
-			do \common@fontP.align(%left, %top)
+			if(me.font <>& null)
+				do me.font.align(alignHorizontal, alignVertical)
+				do me.font.draw(x2, y2, me.props.get("text", &), color)
+				do me.font.align(%left, %top)
+			end if
 		end if
 	end func
 
@@ -280,10 +314,40 @@ class ObjText(@ObjAr2d)
 		do me.props.add("color", "0xFFFFFFFF")
 		do me.props.add("alignHorizontal", "%left")
 		do me.props.add("alignVertical", "%top")
+		do me.props.add("fontName", "")
+		do me.props.add("fontSize", "30")
+		do me.props.add("bold", "false")
+		do me.props.add("italic", "false")
+		do me.props.add("proportional", "true")
+		do me.props.add("advance", "0.0")
+		do me.reloadRes()
 	end func
 
-	*func propsNames(): [][]char
-		ret ["text", "color", "alignHorizontal", "alignVertical"]
+	+*func fin()
+		if(me.font <>& null)
+			do @resCacheDraw.del(me.font)
+			do me.font :: null
+		end if
+	end func
+
+	+*func propsNames(): [][]char
+		ret ["text", "color", "alignHorizontal", "alignVertical", "fontName", "fontSize", "bold", "italic", "proportional", "advance"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%str $ \doc_ar@PropType, %color, %enum_, %enum_, %str, %int_, %bool_, %bool_, %bool_, %float_]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret [null, null, ["%left", "%center", "%right"], ["%top", "%center", "%bottom"], null, null, null, null, null, null]
+	end func
+
+	*func reloadRes()
+		if(me.font <>& null)
+			do @resCacheDraw.del(me.font)
+			do me.font :: null
+		end if
+		do me.font :: @resCacheDraw.makeFont(me.props.get("fontName", &), me.props.get("fontSize", &).toInt(&), me.props.get("bold", &) = "true", me.props.get("italic", &) = "true", me.props.get("proportional", &) = "true", me.props.get("advance", &).toFloat(&))
 	end func
 
 	+*func type(): []char
@@ -292,10 +356,13 @@ class ObjText(@ObjAr2d)
 
 	+*func getSrcInit(indent: int, lines: list<[]char>)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.init(\{me.x} $ float, \{me.y} $ float, \{me.width} $ float, \{me.height} $ float, \{me.visible})")
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.font :: draw@makeFont(null, 32, false, false, true, 0.0)")
+		var fontName: []char :: me.props.get("fontName", &)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.font :: draw@makeFont(\"" ~ (fontName = "" ?("null", fontName)) ~ "\", \{me.props.get("fontSize", &)}, \{me.props.get("bold", &)}, \{me.props.get("italic", &)}, \{me.props.get("proportional", &)}, \{me.props.get("advance", &)})")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.text :: \"\{me.props.get("text", &)}\"")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.color :: \{me.props.get("color", &)}")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.alignHorizontal :: \{me.props.get("alignHorizontal", &)}")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.alignVertical :: \{me.props.get("alignVertical", &)}")
 	end func
+
+	var font: draw@Font
 end class
