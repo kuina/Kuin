@@ -8,10 +8,10 @@ var wndAddFileListType: wnd@ListView
 	do @wndAddFile :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 405, \common@langEn ?("Add New File", "新しいファイルを追加"))
 	do @wndAddFileResuiltFile :: null
 	do @wndAddFileResuiltType :: 0
-	do @wndAddFileListType :: wnd@makeListView(@wndAddFile, 12, 12, 616, 320, %fix, %scale, false, null, ["res/kn.png", "res/wnd.png"])
+	do @wndAddFileListType :: wnd@makeListView(@wndAddFile, 12, 12, 616, 320, %fix, %scale, false, null, ["res/kn.png", "res/wnd.png", "res/draw2d.png"])
 	do @wndAddFileListType.add(\common@langEn?("Source Code", "ソースコード"), 0)
 	do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"), 1)
-	do @wndAddFileListType.add(\common@langEn?("Window", "2Dグラフィックス"), 0)
+	do @wndAddFileListType.add(\common@langEn?("2D Draw", "2D描画"), 2)
 	do @wndAddFileListType.setSel(0)
 	do @wndAddFileListType.style(%large)
 	do @wndAddFileListType.onSel :: wndAddFileListTypeOnSel
@@ -55,7 +55,7 @@ var wndAddFileListType: wnd@ListView
 		case 1
 			do name :: "wnd"
 		case 2
-			do name :: "g2d"
+			do name :: "draw2d"
 		default
 			ret null
 		end switch

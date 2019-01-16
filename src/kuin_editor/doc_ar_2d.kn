@@ -67,9 +67,9 @@ var resCacheDraw: drawex@ResCacheDraw
 	end func
 
 	*func updateLt()
-		do \form@listLt.add("Rect", 1)
-		do \form@listLt.add("Circle", 1)
-		do \form@listLt.add("Text", 1)
+		do \form@listLt.add("Rect", 6)
+		do \form@listLt.add("Circle", 7)
+		do \form@listLt.add("Text", 8)
 	end func
 end class
 
@@ -149,7 +149,7 @@ class ObjRect(@ObjAr2d)
 	end func
 
 	+*func icon(): int
-		ret 0
+		ret 5
 	end func
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
@@ -215,7 +215,7 @@ class ObjCircle(@ObjAr2d)
 	end func
 
 	+*func icon(): int
-		ret 0
+		ret 6
 	end func
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
@@ -305,7 +305,7 @@ class ObjText(@ObjAr2d)
 	end func
 
 	+*func icon(): int
-		ret 0
+		ret 7
 	end func
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)

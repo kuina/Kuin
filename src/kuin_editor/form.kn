@@ -56,7 +56,7 @@ var drag: bool
 	do @wndMain.onActivate :: @wndMainOnActivate
 	do @wndMain.onPushMenu :: @wndMainOnPushMenu
 	do @wndMain.onDropFiles :: @wndMainOnDropFiles
-	do @listLt :: wnd@makeListView(@wndMain, 12, 12, 244, 272, %fix, %fix, false, null, ["res/obj_none.png", "res/obj_btn.png", "res/obj_chk.png", "res/obj_edit.png", "res/obj_label.png"])
+	do @listLt :: wnd@makeListView(@wndMain, 12, 12, 244, 272, %fix, %fix, false, null, ["res/obj_none.png", "res/obj_btn.png", "res/obj_chk.png", "res/obj_edit.png", "res/obj_label.png", "res/obj_group.png", "res/obj_rect.png", "res/obj_circle.png", "res/obj_text.png"])
 	do @listLt.setVisible(false)
 	do @listLt.onMouseClick :: listLtOnMouseClick
 
@@ -67,7 +67,7 @@ var drag: bool
 	do @listLt.style(%list_)
 	do @treeLb :: wnd@makeTree(@wndMain, 12, 290, 244, 466, %fix, %scale)
 	do @treeLb.setVisible(false)
-	do @listLb :: wnd@makeListView(@wndMain, 12, 290, 244, 466, %fix, %scale, true, ["res/obj_btn.png", "res/obj_chk.png", "res/obj_edit.png", "res/obj_label.png"], null)
+	do @listLb :: wnd@makeListView(@wndMain, 12, 290, 244, 466, %fix, %scale, true, ["res/obj_btn.png", "res/obj_chk.png", "res/obj_edit.png", "res/obj_label.png", "res/obj_group.png", "res/obj_rect.png", "res/obj_circle.png", "res/obj_text.png"], null)
 	do @listLb.setVisible(false)
 	do @listLb.draggable(true)
 	do @listLb.onMouseClick :: listLbOnMouseClick

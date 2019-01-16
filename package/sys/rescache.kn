@@ -13,14 +13,12 @@ end class
 		var instance: @Instance :: me.instances.get(key, &success)
 		if(success)
 			do instance.cnt :+ 1
-			do wnd@msgBox(null, instance.cnt.toStr(), "piyo", %none, %ok)
 			ret instance
 		end if
 		do instance :: #@Instance
 		do instance.instance :: null
 		do instance.cnt :: 1
 		do me.instances.add(key, instance)
-		do wnd@msgBox(null, instance.cnt.toStr(), "hoge", %none, %ok)
 		ret instance
 	end func
 

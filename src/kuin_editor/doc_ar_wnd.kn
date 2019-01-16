@@ -86,7 +86,7 @@
 		do \form@listLt.add("Chk", 2)
 		do \form@listLt.add("Edit", 3)
 		do \form@listLt.add("Label", 4)
-		do \form@listLt.add("Group", 2)
+		do \form@listLt.add("Group", 5)
 	end func
 end class
 
@@ -393,10 +393,13 @@ end class
 
 class ObjGroup(@ObjArWnd)
 	+*func draw(x: float, y: float, width: float, height: float)
-		do draw@rect(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 0xFFFFFFFF)
-		do draw@rectLine(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 0xFF333333)
 		var text: []char :: me.props.get("text", &)
-		do \common@fontP.draw(x + 18.0, lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), text, draw@black)
+		do draw@line(x + 7.0, y + 6.0, x, y + 6.0, 0xFFDCDCDC)
+		do draw@line(x, y + 6.0, x, y + height, 0xFFDCDCDC)
+		do draw@line(x, y + height, x + width, y + height, 0xFFDCDCDC)
+		do draw@line(x + width, y + height, x + width, y + 6.0, 0xFFDCDCDC)
+		do draw@line(x + width, y + 6.0, x + 7.0 + \common@fontP.calcWidth(text), y + 6.0, 0xFFDCDCDC)
+		do \common@fontP.draw(x + 7.0, y, text, draw@black)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -407,8 +410,8 @@ class ObjGroup(@ObjArWnd)
 	end func
 
 	+*func getDefaultSize(width: &int, height: &int)
-		do width :: 80
-		do height :: 80
+		do width :: 200
+		do height :: 100
 	end func
 
 	+*func kind(): []char
@@ -416,7 +419,7 @@ class ObjGroup(@ObjArWnd)
 	end func
 
 	+*func icon(): int
-		ret 1
+		ret 4
 	end func
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
