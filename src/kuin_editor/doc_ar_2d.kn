@@ -15,6 +15,7 @@ var resCacheDraw: drawex@ResCacheDraw
 
 	+*func fix()
 		var lines: list<[]char> :: #list<[]char>
+		do lines.add("+var resCacheDraw: drawex@ResCacheDraw")
 		do lines.add("+var \{me.root.name}: list<drawex@Obj>")
 
 		do me.nodes.head()
@@ -29,6 +30,7 @@ var resCacheDraw: drawex@ResCacheDraw
 		do lines.add("\tif(@\{me.root.name} <>& null)")
 		do lines.add("\t\tdo @fin()")
 		do lines.add("\tend if")
+		do lines.add("\tdo @resCacheDraw :: #drawex@ResCacheDraw")
 		do lines.add("\tdo @\{me.root.name} :: #list<drawex@Obj>")
 
 		do me.nodes.head()
@@ -44,6 +46,14 @@ var resCacheDraw: drawex@ResCacheDraw
 		do lines.add("")
 		do lines.add("+func fin()")
 		do lines.add("\tdo @\{me.root.name} :: null")
+
+		do me.nodes.head()
+		while(!me.nodes.term())
+			var node: @ObjAr2d :: me.nodes.get() $ @ObjAr2d
+			do lines.add("\tdo @\{node.name} :: null")
+			do me.nodes.next()
+		end while
+
 		do lines.add("end func")
 		do lines.add("")
 		do lines.add("+func draw()")

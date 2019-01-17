@@ -137,6 +137,24 @@ EXPORT_CPP void _circleLine(double x, double y, double radius_x, double radius_y
 	CurRenderTarget->Flush();
 }
 
+EXPORT_CPP void _roundRect(double x, double y, double width, double height, double radius_x, double radius_y, S64 color)
+{
+	ID2D1SolidColorBrush* brush;
+	CurRenderTarget->CreateSolidColorBrush(ColorToColorF(color), &brush);
+	CurRenderTarget->FillRoundedRectangle(D2D1::RoundedRect(D2D1::RectF(static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(x + width), static_cast<FLOAT>(y + height)), static_cast<FLOAT>(radius_x), static_cast<FLOAT>(radius_y)), brush);
+	brush->Release();
+	CurRenderTarget->Flush();
+}
+
+EXPORT_CPP void _roundRectLine(double x, double y, double width, double height, double radius_x, double radius_y, double stroke_width, S64 color)
+{
+	ID2D1SolidColorBrush* brush;
+	CurRenderTarget->CreateSolidColorBrush(ColorToColorF(color), &brush);
+	CurRenderTarget->DrawRoundedRectangle(D2D1::RoundedRect(D2D1::RectF(static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(x + width), static_cast<FLOAT>(y + height)), static_cast<FLOAT>(radius_x), static_cast<FLOAT>(radius_y)), brush, static_cast<FLOAT>(stroke_width), NULL);
+	brush->Release();
+	CurRenderTarget->Flush();
+}
+
 EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, double y3, S64 color)
 {
 	ID2D1SolidColorBrush* brush = NULL;
@@ -160,17 +178,17 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 EXPORT_CPP SClass* _makeBrushLinearGradient(SClass* me_, double x1, double y1, double x2, double y2, void* color_position, void* color)
 {
 	SBrushLinearGradient* me2 = reinterpret_cast<SBrushLinearGradient*>(me_);
-	S64 lenPos = static_cast<S64*>(color_position)[1];
-	S64 lenColor = static_cast<S64*>(color)[1];
-	THROWDBG(lenPos != lenColor, 0xe9170006);
+	S64 len_pos = static_cast<S64*>(color_position)[1];
+	S64 len_color = static_cast<S64*>(color)[1];
+	THROWDBG(len_pos != len_color, 0xe9170006);
 	ID2D1GradientStopCollection* gradient_stop_collection = NULL;
-	D2D1_GRADIENT_STOP* gradient_stops = static_cast<D2D1_GRADIENT_STOP*>(AllocMem(sizeof(D2D1_GRADIENT_STOP) * lenPos));
-	for (S64 i = 0; i < lenPos; i++)
+	D2D1_GRADIENT_STOP* gradient_stops = static_cast<D2D1_GRADIENT_STOP*>(AllocMem(sizeof(D2D1_GRADIENT_STOP) * len_pos));
+	for (S64 i = 0; i < len_pos; i++)
 	{
 		gradient_stops[i].color = ColorToColorF(static_cast<S64*>(color)[i + 2]);
 		gradient_stops[i].position = static_cast<FLOAT>(static_cast<double*>(color_position)[i + 2]);
 	}
-	CurRenderTarget->CreateGradientStopCollection(gradient_stops, static_cast<UINT32>(lenPos), &gradient_stop_collection);
+	CurRenderTarget->CreateGradientStopCollection(gradient_stops, static_cast<UINT32>(len_pos), &gradient_stop_collection);
 	FreeMem(gradient_stops);
 	CurRenderTarget->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2))), gradient_stop_collection, &me2->Brush);
 	return me_;
