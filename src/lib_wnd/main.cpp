@@ -33,7 +33,6 @@ enum EWndKind
 	WndKind_EditMulti,
 	WndKind_List,
 	WndKind_Combo,
-	WndKind_ComboList,
 	WndKind_Label,
 	WndKind_Group,
 	WndKind_Calendar,
@@ -321,7 +320,6 @@ static LRESULT CALLBACK WndProcEdit(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 static LRESULT CALLBACK WndProcEditMulti(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcList(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcCombo(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
-static LRESULT CALLBACK WndProcComboList(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcLabel(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcGroup(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcCalendar(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -1243,6 +1241,21 @@ EXPORT_CPP S64 _listGetSel(SClass* me_)
 	return static_cast<S64>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETCURSEL, 0, 0));
 }
 
+EXPORT_CPP void _listSetText(SClass* me_, S64 idx, const U8* text)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+#if defined(DBG)
+	S64 len = _listLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+#endif
+	{
+		int sel = static_cast<int>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETCURSEL, 0, 0));
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_DELETESTRING, static_cast<WPARAM>(idx + 1), 0);
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_SETCURSEL, static_cast<WPARAM>(sel), 0);
+	}
+}
+
 EXPORT_CPP void* _listGetText(SClass* me_, S64 idx)
 {
 #if defined(DBG)
@@ -1261,31 +1274,92 @@ EXPORT_CPP void* _listGetText(SClass* me_, S64 idx)
 	}
 }
 
-EXPORT_CPP void _listSetText(SClass* me_, S64 idx, const U8* text)
+EXPORT_CPP SClass* _makeCombo(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
+{
+	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Combo, WC_COMBOBOX, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | CBS_AUTOHSCROLL | CBS_DROPDOWNLIST, x, y, width, height, L"", WndProcCombo, anchorX, anchorY);
+	return me_;
+}
+
+EXPORT_CPP void _comboClear(SClass* me_)
+{
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_RESETCONTENT, 0, 0);
+}
+
+EXPORT_CPP void _comboAdd(SClass* me_, const U8* text)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text + 0x10));
+}
+
+EXPORT_CPP void _comboIns(SClass* me_, S64 idx, const U8* text)
 {
 	THROWDBG(text == NULL, 0xc0000005);
 #if defined(DBG)
-	S64 len = _listLen(me_);
+	S64 len = _comboLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+#endif
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
+}
+
+EXPORT_CPP void _comboDel(SClass* me_, S64 idx)
+{
+#if defined(DBG)
+	S64 len = _comboLen(me_);
+	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+#endif
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_DELETESTRING, static_cast<WPARAM>(idx), 0);
+}
+
+EXPORT_CPP S64 _comboLen(SClass* me_)
+{
+	return static_cast<S64>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_GETCOUNT, 0, 0));
+}
+
+EXPORT_CPP void _comboSetSel(SClass* me_, S64 idx)
+{
+#if defined(DBG)
+	S64 len = _comboLen(me_);
+	THROWDBG(idx < -1 || len <= idx, 0xe9170006);
+#endif
+	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_SETCURSEL, static_cast<WPARAM>(idx), 0);
+}
+
+EXPORT_CPP S64 _comboGetSel(SClass* me_)
+{
+	return static_cast<S64>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_GETCURSEL, 0, 0));
+}
+
+EXPORT_CPP void _comboSetText(SClass* me_, S64 idx, const U8* text)
+{
+	THROWDBG(text == NULL, 0xc0000005);
+#if defined(DBG)
+	S64 len = _comboLen(me_);
 	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
 #endif
 	{
-		int sel = static_cast<int>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETCURSEL, 0, 0));
-		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
-		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_DELETESTRING, static_cast<WPARAM>(idx + 1), 0);
-		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_SETCURSEL, static_cast<WPARAM>(sel), 0);
+		int sel = static_cast<int>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_GETCURSEL, 0, 0));
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_DELETESTRING, static_cast<WPARAM>(idx + 1), 0);
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_SETCURSEL, static_cast<WPARAM>(sel), 0);
 	}
 }
 
-EXPORT_CPP SClass* _makeCombo(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
+EXPORT_CPP void* _comboGetText(SClass* me_, S64 idx)
 {
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_Combo, WC_COMBOBOX, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | CBS_AUTOHSCROLL | CBS_DROPDOWN, x, y, width, height, L"", WndProcCombo, anchorX, anchorY);
-	return me_;
-}
-
-EXPORT_CPP SClass* _makeComboList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
-{
-	SetCtrlParam(reinterpret_cast<SWndBase*>(me_), reinterpret_cast<SWndBase*>(parent), WndKind_ComboList, WC_COMBOBOX, 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | CBS_AUTOHSCROLL | CBS_DROPDOWNLIST, x, y, width, height, L"", WndProcComboList, anchorX, anchorY);
-	return me_;
+#if defined(DBG)
+	{
+		S64 len = _comboLen(me_);
+		THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	}
+#endif
+	{
+		size_t len = static_cast<size_t>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_GETLBTEXTLEN, static_cast<WPARAM>(idx), 0));
+		U8* result = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * (len + 1)));
+		*reinterpret_cast<S64*>(result + 0x00) = DefaultRefCntFunc;
+		*reinterpret_cast<S64*>(result + 0x08) = static_cast<S64>(len);
+		SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_GETLBTEXT, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(result + 0x10));
+		return result;
+	}
 }
 
 EXPORT_CPP SClass* _makeLabel(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text)
@@ -3064,17 +3138,6 @@ static LRESULT CALLBACK WndProcCombo(HWND wnd, UINT msg, WPARAM w_param, LPARAM 
 {
 	SWndBase* wnd2 = ToWnd(wnd);
 	ASSERT(wnd2->Kind == WndKind_Combo);
-	switch (msg)
-	{
-		// TODO:
-	}
-	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
-}
-
-static LRESULT CALLBACK WndProcComboList(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param)
-{
-	SWndBase* wnd2 = ToWnd(wnd);
-	ASSERT(wnd2->Kind == WndKind_ComboList);
 	switch (msg)
 	{
 		// TODO:

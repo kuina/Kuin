@@ -41,15 +41,15 @@ var target: \doc_ar@Obj
 			do chk.setChk(obj.props.get(propsNames[i], &) = "true")
 			do ctrlSet.ctrls :: [chk]
 		case %enum_
-			var list_: wnd@List :: wnd@makeList(@wndObjProp, 92, 12 + 25 * i, 180, 19, %fix, %fix)
+			var combo: wnd@Combo :: wnd@makeCombo(@wndObjProp, 92, 12 + 25 * i, 180, 20, %fix, %fix)
 			var value: []char :: obj.props.get(propsNames[i], &)
 			for j(0, ^propsTypeDatas[i] - 1)
-				do list_.add(propsTypeDatas[i][j])
+				do combo.add(propsTypeDatas[i][j])
 				if(propsTypeDatas[i][j] = value)
-					do list_.setSel(j)
+					do combo.setSel(j)
 				end if
 			end for
-			do ctrlSet.ctrls :: [list_]
+			do ctrlSet.ctrls :: [combo]
 		case %file
 			var edit: wnd@Edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * i, 80, 19, %fix, %fix)
 			do edit.setText(obj.props.get(propsNames[i], &))
@@ -94,9 +94,9 @@ var target: \doc_ar@Obj
 			case %bool_
 				do value :: (ctrlSet.ctrls[0] $ wnd@Chk).getChk() ?("true", "false")
 			case %enum_
-				var list_: wnd@List :: ctrlSet.ctrls[0] $ wnd@List
-				var sel: int :: (list_).getSel()
-				do value :: sel = -1 ?("", list_.getText(sel))
+				var combo: wnd@Combo :: ctrlSet.ctrls[0] $ wnd@Combo
+				var sel: int :: (combo).getSel()
+				do value :: sel = -1 ?("", combo.getText(sel))
 			case %color
 				do value :: (ctrlSet.ctrls[0] $ wnd@Edit).getText()
 			case %file

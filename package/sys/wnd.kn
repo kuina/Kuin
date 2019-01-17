@@ -342,10 +342,32 @@ end class
 +class Combo(@WndBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
-end class
 
-+class ComboList(@WndBase)
-	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	+func [d0001.knd, _comboClear] clear()
+	end func
+
+	+func [d0001.knd, _comboAdd] add(text: []char)
+	end func
+
+	+func [d0001.knd, _comboIns] ins(idx: int, text: []char)
+	end func
+
+	+func [d0001.knd, _comboDel] del(idx: int)
+	end func
+
+	+func [d0001.knd, _comboLen] len(): int
+	end func
+
+	+func [d0001.knd, _comboSetSel] setSel(idx: int)
+	end func
+
+	+func [d0001.knd, _comboGetSel] getSel(): int
+	end func
+
+	+func [d0001.knd, _comboSetText] setText(idx: int, text: []char)
+	end func
+
+	+func [d0001.knd, _comboGetText] getText(idx: int): []char
 	end func
 end class
 
@@ -732,12 +754,6 @@ end func
 end func
 
 +func [d0001.knd, _makeCombo, _make_instance] makeCombo(me2: @Combo, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @Combo
-	if(parent <>& null)
-		do parent.addChild(me2)
-	end if
-end func
-
-+func [d0001.knd, _makeComboList, _make_instance] makeComboList(me2: @ComboList, parent: @WndBase, x: int, y: int, width: int, height: int, anchorX: @Anchor, anchorY: @Anchor): @ComboList
 	if(parent <>& null)
 		do parent.addChild(me2)
 	end if
