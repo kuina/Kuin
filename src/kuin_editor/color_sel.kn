@@ -1,0 +1,30 @@
+var wndColorSel: wnd@Wnd
+var result: bool
+var color: int
+
++func show(parent: wnd@Wnd, color: int): []char
+	do @color :: color.clamp(0, 0xFFFFFFFF)
+
+	do @wndColorSel :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 300, 300, \common@langEn ?("Color Selection", "色の選択"))
+
+	var btnOk: wnd@Btn :: wnd@makeBtn(@wndColorSel, 72, 265, 75, 23, %fix, %fix, "OK")
+	do btnOk.onPush :: btnOkOnPush
+	var btnCancel: wnd@Btn :: wnd@makeBtn(@wndColorSel, 153, 265, 75, 23, %fix, %fix, \common@langEn ?("Cancel", "キャンセル"))
+	do btnCancel.onPush :: btnCancelOnPush
+
+	do @result :: false
+	do @wndColorSel.modal()
+
+	do @wndColorSel :: null
+
+	ret @result ?("0x" ~ @color.toStrFmt("08X"), null)
+
+	func btnOkOnPush(wnd: wnd@WndBase)
+		do @result :: true
+		do @wndColorSel.close()
+	end func
+
+	func btnCancelOnPush(wnd: wnd@WndBase)
+		do @wndColorSel.close()
+	end func
+end func

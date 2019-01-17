@@ -32,7 +32,7 @@ var target: \doc_ar@Obj
 		do ctrlSet.name :: propsNames[i]
 		do ctrlSet.label :: wnd@makeLabel(@wndObjProp, 12, 15 + 25 * i, 60, 12, %fix, %fix, propsNames[i])
 		switch(propsTypes[i])
-		case %str, %int_, %float_, %color
+		case %str, %int_, %float_
 			var edit: wnd@Edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * i, 180, 19, %fix, %fix)
 			do edit.setText(obj.props.get(propsNames[i], &))
 			do ctrlSet.ctrls :: [edit]
@@ -50,10 +50,16 @@ var target: \doc_ar@Obj
 				end if
 			end for
 			do ctrlSet.ctrls :: [combo]
-		case %file
-			var edit: wnd@Edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * i, 80, 19, %fix, %fix)
+		case %color
+			var edit: wnd@Edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * i, 105, 19, %fix, %fix)
 			do edit.setText(obj.props.get(propsNames[i], &))
-			var btn: wnd@Btn :: wnd@makeBtn(@wndObjProp, 172, 12 + 25 * i, 100, 23, %fix, %fix, \common@langEn ?("Browse...", "参照..."))
+			var btn: wnd@Btn :: wnd@makeBtn(@wndObjProp, 197, 12 + 25 * i, 75, 23, %fix, %fix, \common@langEn ?("Browse...", "参照..."))
+			do btn.onPush :: btnColorOnPush
+			do ctrlSet.ctrls :: [edit $ wnd@WndBase, btn $ wnd@WndBase]
+		case %file
+			var edit: wnd@Edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * i, 105, 19, %fix, %fix)
+			do edit.setText(obj.props.get(propsNames[i], &))
+			var btn: wnd@Btn :: wnd@makeBtn(@wndObjProp, 197, 12 + 25 * i, 75, 23, %fix, %fix, \common@langEn ?("Browse...", "参照..."))
 			do ctrlSet.ctrls :: [edit $ wnd@WndBase, btn $ wnd@WndBase]
 		end switch
 		do ctrlSet.type :: propsTypes[i]
@@ -110,5 +116,21 @@ var target: \doc_ar@Obj
 
 	func btnCancelOnPush(wnd: wnd@WndBase)
 		do @wndObjProp.close()
+	end func
+
+	func btnColorOnPush(wnd: wnd@WndBase)
+		for i(0, ^@ctrlSetArray.ctrlSetArray - 1)
+			var ctrlSet: @CtrlSet :: @ctrlSetArray.ctrlSetArray[i]
+			if(^ctrlSet.ctrls >= 2 & ctrlSet.ctrls[1] =& wnd)
+				var edit: wnd@Edit :: ctrlSet.ctrls[0] $ wnd@Edit
+				var color: int :: edit.getText().toInt(&)
+				; var value: []char :: \color_sel@show(@wndObjProp, color)
+				do color :: wnd@colorDialog(@wndObjProp, color.clamp(0, 0xFFFFFFFF) % 0x1000000)
+				if(color <> -1)
+					do edit.setText("0xFF" ~ color.toStrFmt("06X"))
+				end if
+				ret
+			end if
+		end for
 	end func
 end func

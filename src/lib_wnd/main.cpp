@@ -596,6 +596,27 @@ EXPORT_CPP void _fileDialogDir(const U8* defaultDir)
 	FileDialogDir[len] = L'\0';
 }
 
+EXPORT_CPP S64 _colorDialog(SClass* parent, S64 default_color)
+{
+	CHOOSECOLOR choose_color = { 0 };
+	choose_color.lStructSize = sizeof(CHOOSECOLOR);
+	choose_color.hwndOwner = parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle;
+	choose_color.rgbResult = static_cast<COLORREF>(((default_color & 0xff) << 16) | (default_color & 0xff00) | ((default_color & 0xff0000) >> 16));
+	choose_color.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+	DWORD colors[16];
+	for (int i = 0; i < 16; i++)
+		colors[i] = 0xffffff;
+	choose_color.lpCustColors = colors;
+
+	if (ChooseColor(&choose_color))
+	{
+		S64 result = static_cast<S64>(choose_color.rgbResult);
+		return ((result & 0xff) << 16) | (result & 0xff00) | ((result & 0xff0000) >> 16);
+	}
+	return -1;
+}
+
 EXPORT_CPP void _setClipboardStr(const U8* str)
 {
 	size_t len = static_cast<size_t>(*reinterpret_cast<const S64*>(str + 0x08));

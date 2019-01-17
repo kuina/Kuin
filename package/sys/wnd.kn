@@ -687,6 +687,9 @@ end func
 +func [d0001.knd, _fileDialogDir] fileDialogDir(defaultDir: []char)
 end func
 
++func [d0001.knd, _colorDialog] colorDialog(parent: @Wnd, defaultColor: int): int
+end func
+
 +func [d0001.knd, _setClipboardStr] setClipboardStr(str: []char)
 end func
 
