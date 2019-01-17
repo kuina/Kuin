@@ -60,7 +60,7 @@ end class
 		if(!me.visible)
 			ret
 		end if
-		if(me.color <> 0)
+		if(me.color <> 0 & me.font <>& null)
 			do me.font.align(me.alignHorizontal, me.alignVertical)
 			var x: float
 			var y: float
@@ -88,7 +88,11 @@ end class
 		end if
 	end func
 
-	+var font: draw@Font
+	+func setFont(resCacheDraw: @ResCacheDraw, fontName: []char, fontSize: int, bold: bool, italic: bool, proportional: bool, advance: float)
+		do me.font :: resCacheDraw.makeFont(fontName, fontSize, bold, italic, proportional, advance)
+	end func
+
+	var font: draw@Font
 	+var text: []char
 	+var color: int
 	+var alignHorizontal: draw@AlignHorizontal

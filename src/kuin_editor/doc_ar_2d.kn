@@ -367,11 +367,11 @@ class ObjText(@ObjAr2d)
 	+*func getSrcInit(indent: int, lines: list<[]char>)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.init(\{me.x} $ float, \{me.y} $ float, \{me.width} $ float, \{me.height} $ float, \{me.visible})")
 		var fontName: []char :: me.props.get("fontName", &)
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.font :: draw@makeFont(\"" ~ (fontName = "" ?("null", fontName)) ~ "\", \{me.props.get("fontSize", &)}, \{me.props.get("bold", &)}, \{me.props.get("italic", &)}, \{me.props.get("proportional", &)}, \{me.props.get("advance", &)})")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.text :: \"\{me.props.get("text", &)}\"")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.color :: \{me.props.get("color", &)}")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.alignHorizontal :: \{me.props.get("alignHorizontal", &)}")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.alignVertical :: \{me.props.get("alignVertical", &)}")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setFont(@resCacheDraw, \"\{me.props.get("fontName", &)}\", \{me.props.get("fontSize", &)}, \{me.props.get("bold", &)}, \{me.props.get("italic", &)}, \{me.props.get("proportional", &)}, \{me.props.get("advance", &)})")
 	end func
 
 	var font: draw@Font
