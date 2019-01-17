@@ -7,7 +7,7 @@ var resCacheDraw: drawex@ResCacheDraw
 		var width: int
 		var height: int
 		do me.root.getDefaultSize(&width, &height)
-		do me.root.init("layer", true, 0, 0, width, height)
+		do me.root.init("layer", true, 0, 0, width, height, null)
 		if(@resCacheDraw =& null)
 			do @resCacheDraw :: #drawex@ResCacheDraw
 		end if
@@ -112,8 +112,11 @@ class ObjLayer(@ObjAr2d)
 		ret "Layer"
 	end func
 
-	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
-		do super(me, name, visible, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
 		do me.reloadRes()
 	end func
 
@@ -162,8 +165,11 @@ class ObjRect(@ObjAr2d)
 		ret 5
 	end func
 
-	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
-		do super(me, name, visible, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
 		do me.props.add("colorFill", "0xFFFFFFFF")
 		do me.props.add("colorStroke", "0x00000000")
 		do me.props.add("strokeWidth", "1.0")
@@ -228,8 +234,11 @@ class ObjCircle(@ObjAr2d)
 		ret 6
 	end func
 
-	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
-		do super(me, name, visible, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
 		do me.props.add("colorFill", "0xFFFFFFFF")
 		do me.props.add("colorStroke", "0x00000000")
 		do me.props.add("strokeWidth", "1.0")
@@ -318,8 +327,11 @@ class ObjText(@ObjAr2d)
 		ret 7
 	end func
 
-	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
-		do super(me, name, visible, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
 		do me.props.add("text", name)
 		do me.props.add("color", "0xFFFFFFFF")
 		do me.props.add("alignHorizontal", "%left")

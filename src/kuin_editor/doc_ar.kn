@@ -6,6 +6,7 @@
 
 		do me.nodes :: #list<@Obj>
 		do me.holds :: #list<@Obj>
+		do me.clipboard :: #list<@Obj>
 		do me.scrollOffsetX :: 10
 		do me.scrollOffsetY :: 40
 		do me.pageX :: -me.scrollOffsetX
@@ -217,32 +218,12 @@
 				end if
 			end if
 			do me.undo.recordBegin()
-			do me.put(parent, name, getDefaultName(name.lower(), me.nodes), x2, y2, -1, -1, true)
+			do me.put(parent, name, @getDefaultName(name.lower(), me.nodes), true, x2, y2, -1, -1, null, true)
 			do me.undo.recordEnd()
 			do me.mode :: %put
 			do \form@updateUi()
 		end if
 		do \form@paintDrawEditor()
-
-		func getDefaultName(name: []char, nodes: list<@Obj>): []char
-			var n: int :: 1
-			while loop(true)
-				var newName: []char :: name ~ n.toStr()
-				var found: bool :: false
-				do nodes.head()
-				while loop2(!nodes.term())
-					if(nodes.get().name = newName)
-						do found :: true
-						break loop2
-					end if
-					do nodes.next()
-				end while
-				if(!found)
-					ret newName
-				end if
-				do n :+ 1
-			end while
-		end func
 	end func
 
 	+*func mouseUpL(x: int, y: int)
@@ -470,12 +451,40 @@
 	end func
 
 	+*func cmdCut()
+		if(^me.holds = 0)
+			ret
+		end if
+		do me.cmdCopy()
+		do me.cmdDel()
 	end func
 
 	+*func cmdCopy()
+		if(^me.holds = 0)
+			ret
+		end if
+		do me.clipboard :: #list<@Obj>
+		do me.holds.head()
+		while(!me.holds.term())
+			do me.clipboard.add(me.cloneObj(me.holds.get()))
+			do me.holds.next()
+		end while
 	end func
 
 	+*func cmdPaste()
+		if(^me.clipboard = 0)
+			ret
+		end if
+		do me.undo.recordBegin()
+		do me.clipboard.head()
+		while(!me.clipboard.term())
+			var obj: @Obj :: me.clipboard.get()
+			var kind: []char :: obj.kind()
+			do me.put(null, kind, @getDefaultName(kind.lower(), me.nodes), obj.visible, obj.x, obj.y, obj.width, obj.height, ##obj.props, true)
+			do me.clipboard.next()
+		end while
+		do me.undo.recordEnd()
+		do \form@updateUi()
+		do \form@paintDrawEditor()
 	end func
 
 	+*func cmdDel()
@@ -504,7 +513,7 @@
 	+*func undoImpl(undo2: \doc@UndoCmd)
 		if(undo2 =$ UndoArPut)
 			var undo3: UndoArPut :: undo2 $ UndoArPut
-			do me.put(undo3.parent, undo3.kind, undo3.name, undo3.x, undo3.y, undo3.width, undo3.height, false)
+			do me.put(undo3.parent, undo3.kind, undo3.name, undo3.visible, undo3.x, undo3.y, undo3.width, undo3.height, undo3.props, false)
 		elif(undo2 =$ UndoArDel)
 			var undo3: UndoArDel :: undo2 $ UndoArDel
 			do me.del(undo3.name, false)
@@ -794,6 +803,7 @@
 	var root: @Obj
 	var nodes: list<@Obj>
 	var holds: list<@Obj>
+	var clipboard: list<@Obj>
 	var scrollOffsetX: int
 	var scrollOffsetY: int
 	var holdOriginX: int
@@ -905,10 +915,12 @@
 		+var parent: []char
 		+var kind: []char
 		+var name: []char
+		+var visible: bool
 		+var x: int
 		+var y: int
 		+var width: int
 		+var height: int
+		+var props: dict<[]char, []char>
 	end class
 
 	class UndoArDel(UndoAr)
@@ -983,7 +995,7 @@
 		end while
 	end func
 
-	func put(parent: []char, kind: []char, name: []char, x: int, y: int, width: int, height: int, recordUndo: bool)
+	func put(parent: []char, kind: []char, name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>, recordUndo: bool)
 		if(recordUndo)
 			var undo: UndoArDel :: #UndoArDel
 			do undo.doc :: me
@@ -993,17 +1005,23 @@
 			do redo.parent :: parent
 			do redo.kind :: kind
 			do redo.name :: name
+			do redo.visible :: visible
 			do redo.x :: x
 			do redo.y :: y
 			do redo.width :: width
 			do redo.height :: height
+			do redo.props :: props
 			do me.undo.add(undo, redo)
 		end if
 		var obj: @Obj :: me.makeObj(kind)
 		if(width = -1 & height = -1)
 			do obj.getDefaultSize(&width, &height)
 		end if
-		do obj.init(name, true, x, y, width, height)
+		do obj.init(name, visible, x, y, width, height, props)
+		if(props <>& null)
+			do obj.props :: props
+			do obj.reloadRes()
+		end if
 		if(parent =& null)
 			do me.nodes.add(obj)
 		else
@@ -1030,10 +1048,12 @@
 			do undo.parent :: parent =& null ?(null, parent.name)
 			do undo.kind :: obj.kind()
 			do undo.name :: obj.name
+			do undo.visible :: obj.visible
 			do undo.x :: obj.x
 			do undo.y :: obj.y
 			do undo.width :: obj.width
 			do undo.height :: obj.height
+			do undo.props :: obj.props
 			var redo: UndoArDel :: #UndoArDel
 			do redo.doc :: me
 			do redo.name :: obj.name
@@ -1148,6 +1168,18 @@
 
 	func prop(name: []char, prop: []char, value: []char, recordUndo: bool)
 	end func
+
+	func cloneObj(src: @Obj): @Obj
+		var dst: @Obj :: me.makeObj(src.kind())
+		do dst.name :: src.name
+		do dst.visible :: src.visible
+		do dst.x :: src.x
+		do dst.y :: src.y
+		do dst.width :: src.width
+		do dst.height :: src.height
+		do dst.props :: ##src.props
+		ret dst
+	end func
 end class
 
 +enum PropType
@@ -1166,14 +1198,15 @@ end enum
 	end func
 
 	+func load(node: xml@Node)
-		do me.init(node.getAttr("name"), node.getAttr("visible") = "true", node.getAttr("x").toInt(&), node.getAttr("y").toInt(&), node.getAttr("width").toInt(&), node.getAttr("height").toInt(&))
+		var props: dict<[]char, []char> :: #dict<[]char, []char>
 		var propsNames: [][]char :: me.propsNames()
 		for i(0, ^propsNames - 1)
 			var attr: []char :: node.getAttr(propsNames[i])
 			if(attr <>& null)
-				do me.props.add(propsNames[i], attr)
+				do props.add(propsNames[i], attr)
 			end if
 		end for
+		do me.init(node.getAttr("name"), node.getAttr("visible") = "true", node.getAttr("x").toInt(&), node.getAttr("y").toInt(&), node.getAttr("width").toInt(&), node.getAttr("height").toInt(&), props)
 		do me.reloadRes()
 	end func
 
@@ -1212,14 +1245,14 @@ end enum
 		ret -1
 	end func
 
-	+func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
+	+func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
 		do me.name :: name
 		do me.visible :: visible
 		do me.x :: x
 		do me.y :: y
 		do me.width :: width
 		do me.height :: height
-		do me.props :: #dict<[]char, []char>
+		do me.props :: props =& null ?(#dict<[]char, []char>, props)
 	end func
 
 	+func fin()
@@ -1309,4 +1342,24 @@ end func
 		ret 0.0
 	end if
 	ret value2
+end func
+
+func getDefaultName(name: []char, nodes: list<@Obj>): []char
+	var n: int :: 1
+	while loop(true)
+		var newName: []char :: name ~ n.toStr()
+		var found: bool :: false
+		do nodes.head()
+		while loop2(!nodes.term())
+			if(nodes.get().name = newName)
+				do found :: true
+				break loop2
+			end if
+			do nodes.next()
+		end while
+		if(!found)
+			ret newName
+		end if
+		do n :+ 1
+	end while
 end func

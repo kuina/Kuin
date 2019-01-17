@@ -5,7 +5,7 @@
 		var width: int
 		var height: int
 		do me.root.getDefaultSize(&width, &height)
-		do me.root.init("wndMain", true, 0, 0, width, height)
+		do me.root.init("wndMain", true, 0, 0, width, height, null)
 	end func
 
 	+*func fix()
@@ -132,8 +132,11 @@ class ObjWnd(@ObjArWnd)
 		ret "Wnd"
 	end func
 
-	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
-		do super(me, name, visible, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
 		do me.props.add("style", "%normal")
 		do me.props.add("text", me.name)
 		do me.reloadRes()
@@ -188,8 +191,11 @@ class ObjBtn(@ObjArWnd)
 		ret 0
 	end func
 
-	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
-		do super(me, name, visible, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("text", me.name)
@@ -245,8 +251,11 @@ class ObjEdit(@ObjArWnd)
 		ret 2
 	end func
 
-	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
-		do super(me, name, visible, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("readonly", "false")
@@ -310,8 +319,11 @@ class ObjLabel(@ObjArWnd)
 		ret 3
 	end func
 
-	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
-		do super(me, name, visible, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("text", me.name)
@@ -367,8 +379,11 @@ class ObjChk(@ObjArWnd)
 		ret 1
 	end func
 
-	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
-		do super(me, name, visible, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("chk", "false")
@@ -432,8 +447,11 @@ class ObjGroup(@ObjArWnd)
 		ret 4
 	end func
 
-	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int)
-		do super(me, name, visible, x, y, width, height)
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("text", me.name)
