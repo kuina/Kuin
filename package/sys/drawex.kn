@@ -76,11 +76,11 @@ end class
 			end switch
 			switch(me.alignVertical)
 			case %top
-				do y :: me.x
+				do y :: me.y
 			case %center
-				do y :: me.x + me.width / 2.0
+				do y :: me.y + me.height / 2.0
 			case %bottom
-				do y :: me.x + me.width
+				do y :: me.y + me.height
 			default
 				assert false
 			end switch
