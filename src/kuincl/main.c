@@ -133,6 +133,7 @@ int wmain(int argc, Char** argv)
 							Char* end_ptr;
 							errno = 0;
 							app_code = wcstol(argv[i + 1], &end_ptr, 10);
+							i++;
 							if (*end_ptr != L'\0' || errno == ERANGE || app_code == 0)
 							{
 								wprintf(L"The option '-a' was used incorrectly.\n");
