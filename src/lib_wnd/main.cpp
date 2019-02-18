@@ -74,6 +74,7 @@ struct SWndBase
 	U16 DefaultY;
 	U16 DefaultWidth;
 	U16 DefaultHeight;
+	Bool RedrawEnabled;
 	void* Children;
 };
 
@@ -810,6 +811,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 	me2->DefaultY = 0;
 	me2->DefaultWidth = static_cast<U16>(width);
 	me2->DefaultHeight = static_cast<U16>(height);
+	me2->RedrawEnabled = True;
 	me2->Children = AllocMem(0x28);
 	*(S64*)me2->Children = 1;
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
@@ -900,14 +902,19 @@ EXPORT_CPP void _wndBaseSetPos(SClass* me_, S64 x, S64 y, S64 width, S64 height)
 
 EXPORT_CPP void _wndBaseSetRedraw(SClass* me_, Bool is_enabled)
 {
-	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
-	if (is_enabled)
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	HWND wnd = me2->WndHandle;
+	if (me2->RedrawEnabled != is_enabled)
 	{
-		SendMessage(wnd, WM_SETREDRAW, TRUE, 0);
-		InvalidateRect(wnd, NULL, TRUE);
+		me2->RedrawEnabled = is_enabled;
+		if (is_enabled)
+		{
+			SendMessage(wnd, WM_SETREDRAW, TRUE, 0);
+			InvalidateRect(wnd, NULL, TRUE);
+		}
+		else
+			SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
 	}
-	else
-		SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
 }
 
 EXPORT_CPP void _wndBaseSetVisible(SClass* me_, Bool is_visible)
@@ -1202,6 +1209,24 @@ EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64
 	reinterpret_cast<SEditBase*>(me2)->OnChange = NULL;
 	reinterpret_cast<SEditBase*>(me2)->OnFocus = NULL;
 	return me_;
+}
+
+EXPORT_CPP void _editMultiAddText(SClass* me_, const U8* text)
+{
+	const U8* text2 = NToRN(text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10));
+	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
+	HWND wnd = me2->WndHandle;
+	Bool redraw_enabled = me2->RedrawEnabled;
+	if (redraw_enabled)
+		SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
+	SendMessage(wnd, EM_SETSEL, 0, -1); // Select all.
+	SendMessage(wnd, EM_SETSEL, -1, -1); // Unselect.
+	SendMessage(wnd, WM_SETREDRAW, TRUE, 0);
+	InvalidateRect(wnd, NULL, TRUE);
+	SendMessage(wnd, EM_REPLACESEL, 0, reinterpret_cast<LPARAM>(const_cast<U8*>(text2 + 0x10)));
+	if (!redraw_enabled)
+		SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
+	FreeMem(const_cast<U8*>(text2));
 }
 
 EXPORT_CPP SClass* _makeList(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY)
@@ -2228,6 +2253,7 @@ static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const C
 	SetWindowLongPtr(wnd->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(wnd));
 	wnd->Name = NULL;
 	wnd->DefaultWndProc = reinterpret_cast<WNDPROC>(GetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC));
+	wnd->RedrawEnabled = True;
 	wnd->Children = AllocMem(0x28);
 	*(S64*)wnd->Children = 1;
 	memset((U8*)wnd->Children + 0x08, 0x00, 0x20);
