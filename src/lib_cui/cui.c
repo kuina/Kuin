@@ -17,21 +17,43 @@ EXPORT void _print(const U8* str)
 
 EXPORT void* _input(void)
 {
-	Char buf[INPUT_SIZE];
-	if (fgetws(buf, INPUT_SIZE, stdin) == NULL)
-		buf[0] = L'\0';
+	Char *buf = NULL;
+	size_t len = 0;
+	size_t pos = 0;
+	for (; ; )
 	{
-		size_t len = wcslen(buf);
-		U8* result;
-		if (len > 0 && buf[len - 1] == L'\n')
+		if (pos == len)
 		{
-			buf[len - 1] = L'\0';
-			len--;
+			Char *tmp;
+			len += INPUT_SIZE;
+			tmp = (Char *)realloc(buf, sizeof(Char) * len);
+			if (tmp)
+			{
+				buf = tmp;
+			}
+			else
+			{
+				// TODO: Add exception.
+				free(buf);
+				return NULL;
+			}
 		}
-		result = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+		{
+			Char c = fgetwc(stdin);
+			if (c == L'\n' || c == WEOF)
+				break;
+			buf[pos] = c;
+		}
+		pos++;
+	}
+	buf[pos] = L'\0';
+	len = pos + 1;
+	{
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
 		((S64*)result)[0] = DefaultRefCntFunc;
 		((S64*)result)[1] = (S64)len;
 		memcpy(result + 0x10, buf, sizeof(Char) * (len + 1));
+		free(buf);
 		return result;
 	}
 }
