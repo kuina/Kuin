@@ -17,7 +17,7 @@ EXPORT void _print(const U8* str)
 
 EXPORT void* _input(void)
 {
-	Char *buf = NULL;
+	Char* buf = NULL;
 	size_t buf_size = 0;
 	size_t len = 0;
 	for (; ; )
@@ -26,17 +26,14 @@ EXPORT void* _input(void)
 		{
 			buf_size += INPUT_SIZE;
 			{
-				Char *tmp = (Char *)realloc(buf, sizeof(Char) * buf_size);
-				if (tmp)
-				{
-					buf = tmp;
-				}
-				else
+				Char* tmp = (Char*)realloc(buf, sizeof(Char) * buf_size);
+				if (tmp == NULL)
 				{
 					// TODO: Add exception.
 					free(buf);
 					return NULL;
 				}
+				buf = tmp;
 			}
 		}
 		{
