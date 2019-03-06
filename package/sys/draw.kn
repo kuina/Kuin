@@ -227,6 +227,15 @@ end class
 +func [d0001.knd, _makeObj, _make_instance] makeObj(me2: @Obj, path: []char): @Obj
 end func
 
++func [d0001.knd, _makeBox, _make_instance] makeBox(me2: @Obj): @Obj
+end func
+
++func [d0001.knd, _makeSphere, _make_instance] makeSphere(me2: @Obj): @Obj
+end func
+
++func [d0001.knd, _makePlane, _make_instance] makePlane(me2: @Obj): @Obj
+end func
+
 +func [d0001.knd, _ambLight] ambLight(topR: float, topG: float, topB: float, bottomR: float, bottomG: float, bottomB: float)
 end func
 

@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClCompile Include="..\common.c" />
     <ClCompile Include="bc_decoder.cpp" />
+    <ClCompile Include="box_knobj.c" />
     <ClCompile Include="circle_line_ps.c" />
     <ClCompile Include="circle_ps.c" />
     <ClCompile Include="circle_vs.c" />
@@ -156,22 +157,28 @@
     <ClCompile Include="input.cpp" />
     <ClCompile Include="jpg_decoder.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="obj_fast_joint_vs.c" />
+    <ClCompile Include="obj_fast_ps.c" />
+    <ClCompile Include="obj_fast_vs.c" />
     <ClCompile Include="obj_joint_vs.c" />
     <ClCompile Include="obj_outline_joint_vs.c" />
     <ClCompile Include="obj_outline_ps.c" />
     <ClCompile Include="obj_outline_vs.c" />
     <ClCompile Include="obj_ps.c" />
+    <ClCompile Include="obj_toon_fast_ps.c" />
     <ClCompile Include="obj_toon_ps.c" />
     <ClCompile Include="obj_vs.c" />
     <ClCompile Include="particle_2d_ps.c" />
     <ClCompile Include="particle_2d_vs.c" />
     <ClCompile Include="particle_updating_ps.c" />
     <ClCompile Include="particle_updating_vs.c" />
+    <ClCompile Include="plane_knobj.c" />
     <ClCompile Include="png_decoder.cpp" />
     <ClCompile Include="poly_ps.c" />
     <ClCompile Include="poly_vs.c" />
     <ClCompile Include="rect_vs.c" />
     <ClCompile Include="snd.cpp" />
+    <ClCompile Include="sphere_knobj.c" />
     <ClCompile Include="tex_ps.c" />
     <ClCompile Include="tex_rot_vs.c" />
     <ClCompile Include="tex_vs.c" />

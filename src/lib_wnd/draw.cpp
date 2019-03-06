@@ -21,6 +21,7 @@ static const int FilterNum = 2;
 static const int ParticleNum = 256;
 static const int ParticleTexNum = 3;
 static const int PolyVerticesNum = 64;
+static const int JointInfluenceMax = 2;
 
 struct SWndBuf
 {
@@ -87,6 +88,12 @@ struct SFont
 	int* GlyphWidth;
 };
 
+enum EFormat
+{
+	Format_HasTangent = 0x01,
+	Format_HasJoint = 0x02,
+};
+
 struct SObj
 {
 	SClass Class;
@@ -101,6 +108,7 @@ struct SObj
 		float(*Joints)[4][4];
 	};
 
+	EFormat Format;
 	int ElementNum;
 	int* ElementKinds;
 	void** Elements;
@@ -135,6 +143,14 @@ struct SObjVsConstBuf
 struct SObjPsConstBuf
 {
 	SObjCommonPsConstBuf CommonParam;
+};
+
+struct SObjFastPsConstBuf
+{
+	SObjCommonPsConstBuf CommonParam;
+	float Eye[4];
+	float Dir[4];
+	float Half[4];
 };
 
 struct SObjOutlineVsConstBuf
@@ -204,6 +220,10 @@ const U8* GetObjVsBin(size_t* size);
 const U8* GetObjJointVsBin(size_t* size);
 const U8* GetObjPsBin(size_t* size);
 const U8* GetObjToonPsBin(size_t* size);
+const U8* GetObjFastVsBin(size_t* size);
+const U8* GetObjFastJointVsBin(size_t* size);
+const U8* GetObjFastPsBin(size_t* size);
+const U8* GetObjToonFastPsBin(size_t* size);
 const U8* GetObjOutlineVsBin(size_t* size);
 const U8* GetObjOutlineJointVsBin(size_t* size);
 const U8* GetObjOutlinePsBin(size_t* size);
@@ -217,6 +237,9 @@ const U8* GetParticleUpdatingVsBin(size_t* size);
 const U8* GetParticleUpdatingPsBin(size_t* size);
 const U8* GetPolyVsBin(size_t* size);
 const U8* GetPolyPsBin(size_t* size);
+const U8* GetBoxKnobjBin(size_t* size);
+const U8* GetSphereKnobjBin(size_t* size);
+const U8* GetPlaneKnobjBin(size_t* size);
 
 static void* (*Callback2d)(int kind, void* arg1, void* arg2) = NULL;
 static S64 Cnt;
@@ -248,6 +271,10 @@ static void* ObjVs = NULL;
 static void* ObjJointVs = NULL;
 static void* ObjPs = NULL;
 static void* ObjToonPs = NULL;
+static void* ObjFastVs = NULL;
+static void* ObjFastJointVs = NULL;
+static void* ObjFastPs = NULL;
+static void* ObjToonFastPs = NULL;
 static void* ObjOutlineVs = NULL;
 static void* ObjOutlineJointVs = NULL;
 static void* ObjOutlinePs = NULL;
@@ -282,6 +309,7 @@ static void UpdateParticles(SParticle* particle);
 static void WriteBack();
 static double CalcFontLineWidth(SFont* font, const Char* text);
 static double CalcFontLineHeight(SFont* font, const Char* text);
+static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary);
 
 EXPORT_CPP void _set2dCallback(void*(*callback)(int, void*, void*))
 {
@@ -1464,161 +1492,17 @@ EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ,
 
 EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 {
-	SObj* me2 = (SObj*)me_;
-	me2->ElementKinds = NULL;
-	me2->Elements = NULL;
-	Draw::IdentityFloat(me2->Mat);
-	Draw::IdentityFloat(me2->NormMat);
+	U8* buf = NULL;
+	size_t size;
+	buf = static_cast<U8*>(LoadFileAll(reinterpret_cast<const Char*>(path + 0x10), &size));
+	if (buf == NULL)
 	{
-		Bool correct = True;
-		U8* buf = NULL;
-		U32* idces = NULL;
-		U8* vertices = NULL;
-		for (; ; )
-		{
-			size_t size;
-			size_t ptr = 0;
-			buf = static_cast<U8*>(LoadFileAll(reinterpret_cast<const Char*>(path + 0x10), &size));
-			if (buf == NULL)
-			{
-				THROW(0xe9170007);
-				return NULL;
-			}
-			if (ptr + sizeof(int) > size)
-			{
-				correct = False;
-				break;
-			}
-			me2->ElementNum = *reinterpret_cast<const int*>(buf + ptr);
-			ptr += sizeof(int);
-			if (me2->ElementNum < 0)
-			{
-				correct = False;
-				break;
-			}
-			me2->ElementKinds = static_cast<int*>(AllocMem(sizeof(int) * static_cast<size_t>(me2->ElementNum)));
-			me2->Elements = static_cast<void**>(AllocMem(sizeof(void*) * static_cast<size_t>(me2->ElementNum)));
-			for (int i = 0; i < me2->ElementNum; i++)
-			{
-				if (ptr + sizeof(int) > size)
-				{
-					correct = False;
-					break;
-				}
-				me2->ElementKinds[i] = *reinterpret_cast<const int*>(buf + ptr);
-				ptr += sizeof(int);
-				switch (me2->ElementKinds[i])
-				{
-					case 0: // Polygon.
-						{
-							SObj::SPolygon* element = static_cast<SObj::SPolygon*>(AllocMem(sizeof(SObj::SPolygon)));
-							element->VertexBuf = NULL;
-							element->Joints = NULL;
-							me2->Elements[i] = element;
-							if (ptr + sizeof(int) > size)
-							{
-								correct = False;
-								break;
-							}
-							element->VertexNum = *reinterpret_cast<const int*>(buf + ptr);
-							ptr += sizeof(int);
-							idces = static_cast<U32*>(AllocMem(sizeof(U32) * static_cast<size_t>(element->VertexNum)));
-							if (ptr + sizeof(U32) * static_cast<size_t>(element->VertexNum) > size)
-							{
-								correct = False;
-								break;
-							}
-							for (int j = 0; j < element->VertexNum; j++)
-							{
-								idces[j] = *reinterpret_cast<const U32*>(buf + ptr);
-								ptr += sizeof(U32);
-							}
-							if (ptr + sizeof(int) > size)
-							{
-								correct = False;
-								break;
-							}
-							int idx_num = *reinterpret_cast<const int*>(buf + ptr);
-							ptr += sizeof(int);
-							vertices = static_cast<U8*>(AllocMem((sizeof(float) * 15 + sizeof(int) * 4) * static_cast<size_t>(idx_num)));
-							U8* ptr2 = vertices;
-							if (ptr + (sizeof(float) * 15 + sizeof(int) * 4) * static_cast<size_t>(idx_num) > size)
-							{
-								correct = False;
-								break;
-							}
-							for (int j = 0; j < idx_num; j++)
-							{
-								for (int k = 0; k < 15; k++)
-								{
-									*reinterpret_cast<float*>(ptr2) = *reinterpret_cast<const float*>(buf + ptr);
-									ptr += sizeof(float);
-									ptr2 += sizeof(float);
-								}
-								for (int k = 0; k < 4; k++)
-								{
-									*reinterpret_cast<int*>(ptr2) = *reinterpret_cast<const int*>(buf + ptr);
-									ptr += sizeof(int);
-									ptr2 += sizeof(int);
-								}
-							}
-							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * 15 + sizeof(int) * 4) * static_cast<size_t>(idx_num), vertices, sizeof(float) * 15 + sizeof(int) * 4, sizeof(U32) * static_cast<size_t>(element->VertexNum), idces);
-							if (ptr + sizeof(int) * 3 > size)
-							{
-								correct = False;
-								break;
-							}
-							element->JointNum = *reinterpret_cast<int*>(buf + ptr);
-							ptr += sizeof(int);
-							element->Begin = *reinterpret_cast<int*>(buf + ptr);
-							ptr += sizeof(int);
-							element->End = *reinterpret_cast<int*>(buf + ptr);
-							ptr += sizeof(int);
-							element->Joints = static_cast<float(*)[4][4]>(AllocMem(sizeof(float[4][4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1))));
-							if (ptr + sizeof(float[4][4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1)) > size)
-							{
-								correct = False;
-								break;
-							}
-							for (int j = 0; j < element->JointNum; j++)
-							{
-								for (int k = 0; k < element->End - element->Begin + 1; k++)
-								{
-									for (int l = 0; l < 4; l++)
-									{
-										for (int m = 0; m < 4; m++)
-										{
-											element->Joints[j * (element->End - element->Begin + 1) + k][l][m] = *reinterpret_cast<float*>(buf + ptr);
-											ptr += sizeof(float);
-										}
-									}
-								}
-							}
-						}
-						break;
-					default:
-						THROW(0xe9170008);
-						break;
-				}
-				if (!correct)
-					break;
-			}
-			break;
-		}
-		if (vertices != NULL)
-			FreeMem(vertices);
-		if (idces != NULL)
-			FreeMem(idces);
-		if (buf != NULL)
-			FreeMem(buf);
-		if (!correct)
-		{
-			_objDtor(me_);
-			THROW(0xe9170008);
-			return NULL;
-		}
+		THROW(0xe9170007);
+		return NULL;
 	}
-	return me_;
+	SClass* obj = MakeObjImpl(me_, size, buf);
+	FreeMem(buf);
+	return obj;
 }
 
 EXPORT_CPP void _objDtor(SClass* me_)
@@ -1649,12 +1533,25 @@ EXPORT_CPP void _objDtor(SClass* me_)
 		FreeMem(me2->ElementKinds);
 }
 
-EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, S64 color)
+EXPORT_CPP SClass* _makeBox(SClass* me_)
 {
-	double r, g, b, a;
-	Draw::ColorToArgb(&a, &r, &g, &b, color);
-	// TODO:
-	return NULL;
+	size_t size;
+	const U8* binary = GetBoxKnobjBin(&size);
+	return MakeObjImpl(me_, size, binary);
+}
+
+EXPORT_CPP SClass* _makeSphere(SClass* me_)
+{
+	size_t size;
+	const U8* binary = GetSphereKnobjBin(&size);
+	return MakeObjImpl(me_, size, binary);
+}
+
+EXPORT_CPP SClass* _makePlane(SClass* me_)
+{
+	size_t size;
+	const U8* binary = GetPlaneKnobjBin(&size);
+	return MakeObjImpl(me_, size, binary);
 }
 
 EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal)
@@ -1672,21 +1569,77 @@ EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse
 
 				memcpy(ObjVsConstBuf.CommonParam.World, me2->Mat, sizeof(float[4][4]));
 				memcpy(ObjVsConstBuf.CommonParam.NormWorld, me2->NormMat, sizeof(float[4][4]));
-				if (joint && frame >= 0.0f)
+				if ((me2->Format & Format_HasTangent) == 0)
 				{
-					Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
-					Draw::ConstBuf(ObjJointVs, &ObjVsConstBuf);
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+						Draw::ConstBuf(ObjFastJointVs, &ObjVsConstBuf);
+					}
+					else
+						Draw::ConstBuf(ObjFastVs, &ObjVsConstBuf);
+					Device->GSSetShader(NULL);
+
+					SObjFastPsConstBuf ps_const_buf;
+					ps_const_buf.CommonParam = ObjPsConstBuf.CommonParam;
+					double eye[3] =
+					{
+						-static_cast<double>(ps_const_buf.Eye[0]),
+						-static_cast<double>(ps_const_buf.Eye[1]),
+						-static_cast<double>(ps_const_buf.Eye[2])
+					};
+					Draw::Normalize(eye);
+					double dir[3] =
+					{
+						-static_cast<double>(ps_const_buf.Dir[0]),
+						-static_cast<double>(ps_const_buf.Dir[1]),
+						-static_cast<double>(ps_const_buf.Dir[2])
+					};
+					Draw::Normalize(dir);
+					double half[3] =
+					{
+						static_cast<double>(dir[0] + eye[0]),
+						static_cast<double>(dir[1] + eye[1]),
+						static_cast<double>(dir[2] + eye[2])
+					};
+					Draw::Normalize(half);
+					ps_const_buf.Eye[0] = static_cast<float>(eye[0]);
+					ps_const_buf.Eye[1] = static_cast<float>(eye[1]);
+					ps_const_buf.Eye[2] = static_cast<float>(eye[2]);
+					ps_const_buf.Eye[3] = 0.0f;
+					ps_const_buf.Dir[0] = static_cast<float>(dir[0]);
+					ps_const_buf.Dir[1] = static_cast<float>(dir[1]);
+					ps_const_buf.Dir[2] = static_cast<float>(dir[2]);
+					ps_const_buf.Dir[3] = 0.0f;
+					ps_const_buf.Half[0] = static_cast<float>(half[0]);
+					ps_const_buf.Half[1] = static_cast<float>(half[1]);
+					ps_const_buf.Half[2] = static_cast<float>(half[2]);
+					ps_const_buf.Half[3] = static_cast<float>(pow(max(1.0 - Draw::Dot(eye, half), 0.0), 5.0));
+					Draw::ConstBuf(ObjFastPs, &ps_const_buf);
+					Draw::VertexBuf(element2->VertexBuf);
+					ID3D10ShaderResourceView* views[2];
+					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
+					Device->PSSetShaderResources(0, 2, views);
 				}
 				else
-					Draw::ConstBuf(ObjVs, &ObjVsConstBuf);
-				Device->GSSetShader(NULL);
-				Draw::ConstBuf(ObjPs, &ObjPsConstBuf);
-				Draw::VertexBuf(element2->VertexBuf);
-				ID3D10ShaderResourceView* views[3];
-				views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
-				views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
-				views[2] = normal == NULL ? ViewEven[2] : reinterpret_cast<STex*>(normal)->View;
-				Device->PSSetShaderResources(0, 3, views);
+				{
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+						Draw::ConstBuf(ObjJointVs, &ObjVsConstBuf);
+					}
+					else
+						Draw::ConstBuf(ObjVs, &ObjVsConstBuf);
+					Device->GSSetShader(NULL);
+					Draw::ConstBuf(ObjPs, &ObjPsConstBuf);
+					Draw::VertexBuf(element2->VertexBuf);
+					ID3D10ShaderResourceView* views[3];
+					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
+					views[2] = normal == NULL ? ViewEven[2] : reinterpret_cast<STex*>(normal)->View;
+					Device->PSSetShaderResources(0, 3, views);
+				}
 				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
 			}
 			break;
@@ -1708,22 +1661,37 @@ EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* dif
 
 				memcpy(ObjVsConstBuf.CommonParam.World, me2->Mat, sizeof(float[4][4]));
 				memcpy(ObjVsConstBuf.CommonParam.NormWorld, me2->NormMat, sizeof(float[4][4]));
-				if (joint && frame >= 0.0f)
+				if ((me2->Format & Format_HasTangent) == 0)
 				{
-					Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
-					Draw::ConstBuf(ObjJointVs, &ObjVsConstBuf);
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+						Draw::ConstBuf(ObjFastJointVs, &ObjVsConstBuf);
+					}
+					else
+						Draw::ConstBuf(ObjFastVs, &ObjVsConstBuf);
+					Device->GSSetShader(NULL);
+					// TODO:
 				}
 				else
-					Draw::ConstBuf(ObjVs, &ObjVsConstBuf);
-				Device->GSSetShader(NULL);
-				Draw::ConstBuf(ObjToonPs, &ObjPsConstBuf);
-				Draw::VertexBuf(element2->VertexBuf);
-				ID3D10ShaderResourceView* views[4];
-				views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
-				views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
-				views[2] = normal == NULL ? ViewEven[2] : reinterpret_cast<STex*>(normal)->View;
-				views[3] = ViewToonRamp;
-				Device->PSSetShaderResources(0, 4, views);
+				{
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+						Draw::ConstBuf(ObjJointVs, &ObjVsConstBuf);
+					}
+					else
+						Draw::ConstBuf(ObjVs, &ObjVsConstBuf);
+					Device->GSSetShader(NULL);
+					Draw::ConstBuf(ObjToonPs, &ObjPsConstBuf);
+					Draw::VertexBuf(element2->VertexBuf);
+					ID3D10ShaderResourceView* views[4];
+					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
+					views[2] = normal == NULL ? ViewEven[2] : reinterpret_cast<STex*>(normal)->View;
+					views[3] = ViewToonRamp;
+					Device->PSSetShaderResources(0, 4, views);
+				}
 				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
 			}
 			break;
@@ -2257,6 +2225,177 @@ static double CalcFontLineHeight(SFont* font, const Char* text)
 	return static_cast<double>(cnt + 1) * font->Height;
 }
 
+static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary)
+{
+	SObj* me2 = reinterpret_cast<SObj*>(me_);
+	me2->ElementKinds = NULL;
+	me2->Elements = NULL;
+	Draw::IdentityFloat(me2->Mat);
+	Draw::IdentityFloat(me2->NormMat);
+	{
+		Bool correct = True;
+		U32* idces = NULL;
+		U8* vertices = NULL;
+		const U8* buf = static_cast<const U8*>(binary);
+		for (; ; )
+		{
+			size_t ptr = 0;
+			if (ptr + sizeof(int) * 3 > size)
+			{
+				correct = False;
+				break;
+			}
+			
+			int version = *reinterpret_cast<const int*>(buf + ptr);
+			ptr += sizeof(int);
+			ASSERT(version == 1);
+			me2->Format = static_cast<EFormat>(*reinterpret_cast<const int*>(buf + ptr));
+			ptr += sizeof(int);
+			int vertex_size = 8;
+			if ((me2->Format & Format_HasJoint) != 0)
+			{
+				vertex_size += JointInfluenceMax;
+			}
+			if ((me2->Format & Format_HasTangent) != 0)
+			{
+				vertex_size += 3;
+			}
+			int joint_influence_size = 0;
+			if ((me2->Format & Format_HasJoint) != 0)
+			{
+				joint_influence_size += JointInfluenceMax;
+			}
+
+			me2->ElementNum = *reinterpret_cast<const int*>(buf + ptr);
+			ptr += sizeof(int);
+			if (me2->ElementNum < 0)
+			{
+				correct = False;
+				break;
+			}
+			me2->ElementKinds = static_cast<int*>(AllocMem(sizeof(int) * static_cast<size_t>(me2->ElementNum)));
+			me2->Elements = static_cast<void**>(AllocMem(sizeof(void*) * static_cast<size_t>(me2->ElementNum)));
+			for (int i = 0; i < me2->ElementNum; i++)
+			{
+				if (ptr + sizeof(int) > size)
+				{
+					correct = False;
+					break;
+				}
+				me2->ElementKinds[i] = *reinterpret_cast<const int*>(buf + ptr);
+				ptr += sizeof(int);
+				switch (me2->ElementKinds[i])
+				{
+					case 0: // Polygon.
+						{
+							SObj::SPolygon* element = static_cast<SObj::SPolygon*>(AllocMem(sizeof(SObj::SPolygon)));
+							element->VertexBuf = NULL;
+							element->Joints = NULL;
+							me2->Elements[i] = element;
+							if (ptr + sizeof(int) > size)
+							{
+								correct = False;
+								break;
+							}
+							element->VertexNum = *reinterpret_cast<const int*>(buf + ptr);
+							ptr += sizeof(int);
+							idces = static_cast<U32*>(AllocMem(sizeof(U32) * static_cast<size_t>(element->VertexNum)));
+							if (ptr + sizeof(U32) * static_cast<size_t>(element->VertexNum) > size)
+							{
+								correct = False;
+								break;
+							}
+							for (int j = 0; j < element->VertexNum; j++)
+							{
+								idces[j] = *reinterpret_cast<const U32*>(buf + ptr);
+								ptr += sizeof(U32);
+							}
+							if (ptr + sizeof(int) > size)
+							{
+								correct = False;
+								break;
+							}
+							int idx_num = *reinterpret_cast<const int*>(buf + ptr);
+							ptr += sizeof(int);
+							vertices = static_cast<U8*>(AllocMem((sizeof(float) * vertex_size + sizeof(int) * joint_influence_size) * static_cast<size_t>(idx_num)));
+							U8* ptr2 = vertices;
+							if (ptr + (sizeof(float) * vertex_size + sizeof(int) * joint_influence_size) * static_cast<size_t>(idx_num) > size)
+							{
+								correct = False;
+								break;
+							}
+							for (int j = 0; j < idx_num; j++)
+							{
+								for (int k = 0; k < vertex_size; k++)
+								{
+									*reinterpret_cast<float*>(ptr2) = *reinterpret_cast<const float*>(buf + ptr);
+									ptr += sizeof(float);
+									ptr2 += sizeof(float);
+								}
+								for (int k = 0; k < joint_influence_size; k++)
+								{
+									*reinterpret_cast<int*>(ptr2) = *reinterpret_cast<const int*>(buf + ptr);
+									ptr += sizeof(int);
+									ptr2 += sizeof(int);
+								}
+							}
+							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * vertex_size + sizeof(int) * joint_influence_size) * static_cast<size_t>(idx_num), vertices, sizeof(float) * vertex_size + sizeof(int) * joint_influence_size, sizeof(U32) * static_cast<size_t>(element->VertexNum), idces);
+							if (ptr + sizeof(int) * 3 > size)
+							{
+								correct = False;
+								break;
+							}
+							element->JointNum = *reinterpret_cast<const int*>(buf + ptr);
+							ptr += sizeof(int);
+							element->Begin = *reinterpret_cast<const int*>(buf + ptr);
+							ptr += sizeof(int);
+							element->End = *reinterpret_cast<const int*>(buf + ptr);
+							ptr += sizeof(int);
+							element->Joints = static_cast<float(*)[4][4]>(AllocMem(sizeof(float[4][4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1))));
+							if (ptr + sizeof(float[4][4]) * static_cast<size_t>(element->JointNum * (element->End - element->Begin + 1)) > size)
+							{
+								correct = False;
+								break;
+							}
+							for (int j = 0; j < element->JointNum; j++)
+							{
+								for (int k = 0; k < element->End - element->Begin + 1; k++)
+								{
+									for (int l = 0; l < 4; l++)
+									{
+										for (int m = 0; m < 4; m++)
+										{
+											element->Joints[j * (element->End - element->Begin + 1) + k][l][m] = *reinterpret_cast<const float*>(buf + ptr);
+											ptr += sizeof(float);
+										}
+									}
+								}
+							}
+						}
+						break;
+					default:
+						THROW(0xe9170008);
+						break;
+				}
+				if (!correct)
+					break;
+			}
+			break;
+		}
+		if (vertices != NULL)
+			FreeMem(vertices);
+		if (idces != NULL)
+			FreeMem(idces);
+		if (!correct)
+		{
+			_objDtor(me_);
+			THROW(0xe9170008);
+			return NULL;
+		}
+	}
+	return me_;
+}
+
 namespace Draw
 {
 
@@ -2705,6 +2844,70 @@ void Init()
 		}
 	}
 
+	// Initialize 'ObjFast'.
+	{
+		{
+			ELayoutType layout_types[5] =
+			{
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float2,
+			};
+
+			const Char* layout_semantics[5] =
+			{
+				L"POSITION",
+				L"NORMAL",
+				L"TANGENT",
+				L"TEXCOORD",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetObjFastVsBin(&size);
+				ObjFastVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 4, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetObjFastPsBin(&size);
+				ObjFastPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
+			}
+			{
+				size_t size;
+				const U8* bin = GetObjToonFastPsBin(&size);
+				ObjToonFastPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
+			}
+		}
+		{
+			ELayoutType layout_types[7] =
+			{
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float2,
+				LayoutType_Float4,
+				LayoutType_Int4,
+			};
+
+			const Char* layout_semantics[7] =
+			{
+				L"POSITION",
+				L"NORMAL",
+				L"TANGENT",
+				L"TEXCOORD",
+				L"K_WEIGHT",
+				L"K_JOINT",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetObjFastJointVsBin(&size);
+				ObjFastJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 6, layout_types, layout_semantics);
+			}
+		}
+	}
+
 	// Initialize 'ObjOutline'.
 	{
 		{
@@ -3067,6 +3270,14 @@ void Fin()
 		FinShaderBuf(ObjOutlineJointVs);
 	if (ObjOutlineVs != NULL)
 		FinShaderBuf(ObjOutlineVs);
+	if (ObjToonFastPs != NULL)
+		FinShaderBuf(ObjToonFastPs);
+	if (ObjFastPs != NULL)
+		FinShaderBuf(ObjFastPs);
+	if (ObjFastJointVs != NULL)
+		FinShaderBuf(ObjFastJointVs);
+	if (ObjFastVs != NULL)
+		FinShaderBuf(ObjFastVs);
 	if (ObjToonPs != NULL)
 		FinShaderBuf(ObjToonPs);
 	if (ObjPs != NULL)

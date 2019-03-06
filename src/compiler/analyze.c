@@ -2305,6 +2305,7 @@ static SAstExpr* RebuildExpr(SAstExpr* ast, Bool nullable)
 		return NULL;
 	switch (((SAst*)ast)->TypeId)
 	{
+		case AstTypeId_Ast: return NULL;
 		case AstTypeId_Expr1: ast = RebuildExpr1((SAstExpr1*)ast); break;
 		case AstTypeId_Expr2: ast = RebuildExpr2((SAstExpr2*)ast); break;
 		case AstTypeId_Expr3: ast = RebuildExpr3((SAstExpr3*)ast); break;
