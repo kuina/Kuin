@@ -310,6 +310,7 @@ static void WriteBack();
 static double CalcFontLineWidth(SFont* font, const Char* text);
 static double CalcFontLineHeight(SFont* font, const Char* text);
 static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary);
+static void WriteFastPsConstBuf(SObjFastPsConstBuf* ps_const_buf);
 
 EXPORT_CPP void _set2dCallback(void*(*callback)(int, void*, void*))
 {
@@ -1581,40 +1582,7 @@ EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse
 					Device->GSSetShader(NULL);
 
 					SObjFastPsConstBuf ps_const_buf;
-					ps_const_buf.CommonParam = ObjPsConstBuf.CommonParam;
-					double eye[3] =
-					{
-						-static_cast<double>(ps_const_buf.Eye[0]),
-						-static_cast<double>(ps_const_buf.Eye[1]),
-						-static_cast<double>(ps_const_buf.Eye[2])
-					};
-					Draw::Normalize(eye);
-					double dir[3] =
-					{
-						-static_cast<double>(ps_const_buf.Dir[0]),
-						-static_cast<double>(ps_const_buf.Dir[1]),
-						-static_cast<double>(ps_const_buf.Dir[2])
-					};
-					Draw::Normalize(dir);
-					double half[3] =
-					{
-						static_cast<double>(dir[0] + eye[0]),
-						static_cast<double>(dir[1] + eye[1]),
-						static_cast<double>(dir[2] + eye[2])
-					};
-					Draw::Normalize(half);
-					ps_const_buf.Eye[0] = static_cast<float>(eye[0]);
-					ps_const_buf.Eye[1] = static_cast<float>(eye[1]);
-					ps_const_buf.Eye[2] = static_cast<float>(eye[2]);
-					ps_const_buf.Eye[3] = 0.0f;
-					ps_const_buf.Dir[0] = static_cast<float>(dir[0]);
-					ps_const_buf.Dir[1] = static_cast<float>(dir[1]);
-					ps_const_buf.Dir[2] = static_cast<float>(dir[2]);
-					ps_const_buf.Dir[3] = 0.0f;
-					ps_const_buf.Half[0] = static_cast<float>(half[0]);
-					ps_const_buf.Half[1] = static_cast<float>(half[1]);
-					ps_const_buf.Half[2] = static_cast<float>(half[2]);
-					ps_const_buf.Half[3] = static_cast<float>(pow(max(1.0 - Draw::Dot(eye, half), 0.0), 5.0));
+					WriteFastPsConstBuf(&ps_const_buf);
 					Draw::ConstBuf(ObjFastPs, &ps_const_buf);
 					Draw::VertexBuf(element2->VertexBuf);
 					ID3D10ShaderResourceView* views[2];
@@ -1671,7 +1639,16 @@ EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* dif
 					else
 						Draw::ConstBuf(ObjFastVs, &ObjVsConstBuf);
 					Device->GSSetShader(NULL);
-					// TODO:
+
+					SObjFastPsConstBuf ps_const_buf;
+					WriteFastPsConstBuf(&ps_const_buf);
+					Draw::ConstBuf(ObjToonFastPs, &ps_const_buf);
+					Draw::VertexBuf(element2->VertexBuf);
+					ID3D10ShaderResourceView* views[3];
+					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
+					views[2] = ViewToonRamp;
+					Device->PSSetShaderResources(0, 3, views);
 				}
 				else
 				{
@@ -2394,6 +2371,44 @@ static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary)
 		}
 	}
 	return me_;
+}
+
+static void WriteFastPsConstBuf(SObjFastPsConstBuf* ps_const_buf)
+{
+	ps_const_buf->CommonParam = ObjPsConstBuf.CommonParam;
+	double eye[3] =
+	{
+		static_cast<double>(ObjVsConstBuf.CommonParam.Eye[0]),
+		static_cast<double>(ObjVsConstBuf.CommonParam.Eye[1]),
+		static_cast<double>(ObjVsConstBuf.CommonParam.Eye[2])
+	};
+	Draw::Normalize(eye);
+	double dir[3] =
+	{
+		static_cast<double>(ObjVsConstBuf.CommonParam.Dir[0]),
+		static_cast<double>(ObjVsConstBuf.CommonParam.Dir[1]),
+		static_cast<double>(ObjVsConstBuf.CommonParam.Dir[2])
+	};
+	Draw::Normalize(dir);
+	double half[3] =
+	{
+		static_cast<double>(dir[0] + eye[0]),
+		static_cast<double>(dir[1] + eye[1]),
+		static_cast<double>(dir[2] + eye[2])
+	};
+	Draw::Normalize(half);
+	ps_const_buf->Eye[0] = static_cast<float>(eye[0]);
+	ps_const_buf->Eye[1] = static_cast<float>(eye[1]);
+	ps_const_buf->Eye[2] = static_cast<float>(eye[2]);
+	ps_const_buf->Eye[3] = 0.0f;
+	ps_const_buf->Dir[0] = static_cast<float>(dir[0]);
+	ps_const_buf->Dir[1] = static_cast<float>(dir[1]);
+	ps_const_buf->Dir[2] = static_cast<float>(dir[2]);
+	ps_const_buf->Dir[3] = 0.0f;
+	ps_const_buf->Half[0] = static_cast<float>(half[0]);
+	ps_const_buf->Half[1] = static_cast<float>(half[1]);
+	ps_const_buf->Half[2] = static_cast<float>(half[2]);
+	ps_const_buf->Half[3] = static_cast<float>(pow(max(1.0 - Draw::Dot(eye, half), 0.0), 5.0));
 }
 
 namespace Draw
