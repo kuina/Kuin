@@ -14,7 +14,7 @@ static const int DepthNum = 4;
 static const int BlendNum = 5;
 static const int SamplerNum = 2;
 static const int JointMax = 256;
-static const int FontBitmapSize = 1024;
+static const int FontBitmapSize = 512;
 static const int TexEvenNum = 3;
 static const double DiscardAlpha = 0.02;
 static const int FilterNum = 2;
@@ -1083,7 +1083,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		me2->Height = (double)tm.tmHeight;
 		SelectObject(me2->Dc, old_font);
 	}
-	me2->CellSizeAligned = 128; // Texture length must not be less than 128.
+	me2->CellSizeAligned = 32; // Texture length must not be less than 128.
 	while (me2->CellSizeAligned < me2->CellWidth + 1 || me2->CellSizeAligned < me2->CellHeight + 1)
 		me2->CellSizeAligned *= 2;
 	{
@@ -1092,7 +1092,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		desc.Height = static_cast<UINT>(me2->CellSizeAligned);
 		desc.MipLevels = 1;
 		desc.ArraySize = 1;
-		desc.Format = DXGI_FORMAT_R8_UNORM;
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
 		desc.Usage = D3D10_USAGE_DYNAMIC;
@@ -1105,7 +1105,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 	{
 		D3D10_SHADER_RESOURCE_VIEW_DESC desc;
 		memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-		desc.Format = DXGI_FORMAT_R8_UNORM;
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
 		desc.Texture2D.MostDetailedMip = 0;
 		desc.Texture2D.MipLevels = 1;
@@ -1267,13 +1267,13 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 			{
 				int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
 				for (int k = 0; k < me2->CellWidth; k++)
-					dst[j * me2->CellSizeAligned + k] = me2->Pixel[(begin + k) * 3];
-				dst[j * me2->CellSizeAligned + me2->CellWidth] = 0;
+					dst[(j * me2->CellSizeAligned + k) * 4] = me2->Pixel[(begin + k) * 3];
+				dst[(j * me2->CellSizeAligned + me2->CellWidth) * 4] = 0;
 			}
 			{
 				int j = me2->CellHeight;
 				for (int k = 0; k < me2->CellWidth + 1; k++)
-					dst[j * me2->CellSizeAligned + k] = 0;
+					dst[(j * me2->CellSizeAligned + k) * 4] = 0;
 			}
 			me2->Tex->Unmap(D3D10CalcSubresource(0, 0, 1));
 		}
