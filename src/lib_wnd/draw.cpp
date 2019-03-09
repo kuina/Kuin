@@ -2796,6 +2796,7 @@ void Init()
 	}
 
 	// Initialize 'Obj'.
+	if (IsResUsed(UseResFlagsKind_Draw_ObjDraw))
 	{
 		{
 			ELayoutType layout_types[5] =
@@ -2860,6 +2861,7 @@ void Init()
 	}
 
 	// Initialize 'ObjFast'.
+	if (IsResUsed(UseResFlagsKind_Draw_ObjDraw))
 	{
 		{
 			ELayoutType layout_types[5] =
@@ -2924,6 +2926,7 @@ void Init()
 	}
 
 	// Initialize 'ObjOutline'.
+	if (IsResUsed(UseResFlagsKind_Draw_ObjDrawOutline))
 	{
 		{
 			ELayoutType layout_types[5] =
