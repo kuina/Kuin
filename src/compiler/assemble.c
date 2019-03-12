@@ -3598,12 +3598,12 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 					continue;
 				}
 				{
-					AssembleExpr(arg->Arg, 0, 0);
+               AssembleExpr(arg->Arg, 0, 0);
 					if (arg->RefVar)
 					{
 						ToRef(arg->Arg, RegI[0], RegI[0]);
 						tmp_args[idx] = MakeTmpVar(8, NULL);
-						if (arg->SkipVar != NULL)
+						if (arg->SkipVar)
 						{
 							int size = GetSize(arg->Arg->Type);
 							ListAdd(PackAsm->Asms, AsmMOV(ValMemS(size, ValReg(8, RegI[0]), NULL, 0x00), ValImmU(size, 0x00)));
@@ -3911,8 +3911,15 @@ static void AssembleExprRef(SAstExpr* ast, int reg_i, int reg_f)
 						ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[reg_i]), ValRIP(8, RefValueAddr(addr, True))));
 					}
 					break;
-				case AstArgKind_LocalArg:
 				case AstArgKind_LocalVar:
+               if (((SAstArg*)ast2)->Expr != NULL)
+               {
+                  // assemble assignment to the temporary variable
+                  SAstExpr* expr = ((SAstArg*)ast2)->Expr;
+                  ((SAstArg*)ast2)->Expr = NULL;
+                  AssembleExpr(expr, reg_i, reg_f);
+               }
+            case AstArgKind_LocalArg:
 					{
 						S64* addr = RefLocalVar((SAstArg*)ast2);
 						ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValImm(8, RefValueAddr(addr, False))));

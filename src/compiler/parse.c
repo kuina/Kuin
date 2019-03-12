@@ -3590,32 +3590,22 @@ static SAstExpr* ParseExprCall(void)
 							for (; ; )
 							{
 								SAstExprCallArg* arg = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
-								Bool skip_var = False;
+                        Bool skip_var = False;
 								c = ReadChar();
-								if (c == L'&')
-								{
-									arg->RefVar = True;
-									c = ReadChar();
-									if (c == L',' || c == L')')
-										skip_var = True;
-								}
-								else
-									arg->RefVar = False;
-								FileBuf = c;
-								if (skip_var)
-								{
-									SAstExpr* ast3 = (SAstExpr*)Alloc(sizeof(SAstExpr));
-									arg->SkipVar = MakeBlockVar(row, col);
-									InitAstExpr(ast3, AstTypeId_ExprRef, ((SAst*)ast2)->Pos);
-									((SAst*)ast3)->RefName = L"$";
-									((SAst*)ast3)->RefItem = (SAst*)arg->SkipVar;
-									arg->Arg = ast3;
-								}
-								else
-								{
-									arg->SkipVar = NULL;
-									arg->Arg = ParseExpr();
-								}
+                        if (c == L'&')
+                        {
+                           arg->RefVar = True;
+                           c = ReadChar();
+                           if (c == L',' || c == L')')
+                              skip_var = True;
+                        }
+                        else
+                        {
+                           arg->RefVar = False;
+                        }
+                        FileBuf = c;
+                        arg->SkipVar = skip_var;
+                        arg->Arg = skip_var ? NULL : ParseExpr();
 								ListAdd(ast2->Args, arg);
 								c = ReadChar();
 								if (c == L'\0')

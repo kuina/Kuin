@@ -867,7 +867,7 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 					{
 						SAstExprCallArg* excpt = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
 						excpt->RefVar = False;
-						excpt->SkipVar = NULL;
+						excpt->SkipVar = False;
 						{
 							SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
 							InitAstExpr(ref_, AstTypeId_ExprRef, pos);
@@ -3270,7 +3270,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
 			}
 			value_type->RefVar = False;
-			value_type->SkipVar = NULL;
+			value_type->SkipVar = False;
 			ListIns(ast->Args, ast->Args->Top, value_type);
 		}
 		if (((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot && ((SAst*)ast->Func->Type)->TypeId == AstTypeId_TypeFunc)
@@ -3279,7 +3279,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				SAstExprCallArg* me = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
 				me->Arg = ((SAstExprDot*)ast->Func)->Var;
 				me->RefVar = False;
-				me->SkipVar = NULL;
+				me->SkipVar = False;
 				ListIns(ast->Args, ast->Args->Top, me);
 			}
 			if ((type->FuncAttr & FuncAttr_AnyType) != 0)
@@ -3299,7 +3299,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 					me_type->Arg = RebuildExpr((SAstExpr*)expr, False);
 				}
 				me_type->RefVar = False;
-				me_type->SkipVar = NULL;
+				me_type->SkipVar = False;
 				ListIns(ast->Args, ast->Args->Top->Next, me_type);
 			}
 			if ((type->FuncAttr & FuncAttr_TakeKeyValue) != 0)
@@ -3319,7 +3319,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 					value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
 				}
 				value_type->RefVar = False;
-				value_type->SkipVar = NULL;
+				value_type->SkipVar = False;
 				ListIns(ast->Args, ast->Args->Top->Next->Next, value_type);
 			}
 		}
@@ -3346,9 +3346,54 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 			{
 				SAstExprCallArg* arg_expr = (SAstExprCallArg*)ptr_expr->Data;
 				SAstTypeFuncArg* arg_type = (SAstTypeFuncArg*)ptr_type->Data;
-				if (arg_expr->SkipVar != NULL)
-					arg_expr->SkipVar->Type = arg_type->Arg;
-				arg_expr->Arg = RebuildExpr(arg_expr->Arg, False);
+            arg_expr->Arg = RebuildExpr(arg_expr->Arg, False);
+            if (arg_expr->RefVar)
+            {
+               // create temporary variable if the argument is skipped or rvalue
+               if (arg_expr->Arg == NULL || arg_expr->Arg->VarKind == AstExprVarKind_Value)
+               {
+                  SAstArg* tmp_var = (SAstArg*)Alloc(sizeof(SAstArg));
+                  InitAst((SAst*)tmp_var, AstTypeId_Arg, ((SAst*)ast)->Pos);
+                  tmp_var->Addr = NewAddr();
+                  tmp_var->Kind = AstArgKind_LocalVar;
+                  tmp_var->RefVar = False;
+                  if (arg_expr->Arg == NULL)
+                  {
+                     tmp_var->Type = arg_type->Arg;
+                     tmp_var->Expr = NULL;
+                  }
+                  else
+                  {
+                     // assign the argument's value to the temporary variable
+                     tmp_var->Type = arg_expr->Arg->Type;
+                     SAstExpr2* expr_assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
+                     InitAstExpr((SAstExpr*)expr_assign, AstTypeId_Expr2, ((SAst*)ast)->Pos);
+                     expr_assign->Kind = AstExpr2Kind_Assign;
+                     {
+                        SAstExpr* ast2 = (SAstExpr*)Alloc(sizeof(SAstExpr));
+                        InitAstExpr(ast2, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+                        ((SAst*)ast2)->RefName = L"$";
+                        ((SAst*)ast2)->RefItem = (SAst*)tmp_var;
+                        ast2->Type = tmp_var->Type;
+                        ast2->VarKind = AstExprVarKind_LocalVar;
+                        ((SAst*)ast2)->AnalyzedCache = (SAst*)ast2;
+                        expr_assign->Children[0] = ast2;
+                     }
+                     expr_assign->Children[1] = arg_expr->Arg;
+                     // for use in AssembleExprRef()
+                     tmp_var->Expr = RebuildExpr((SAstExpr*)expr_assign, True);
+                  }
+                  ((SAst*)tmp_var)->AnalyzedCache = (SAst*)tmp_var;
+                  SAstExpr* ast3 = (SAstExpr*)Alloc(sizeof(SAstExpr));
+                  InitAstExpr(ast3, AstTypeId_ExprRef, ((SAst*)ast)->Pos);
+                  ((SAst*)ast3)->RefName = L"$";
+                  ((SAst*)ast3)->RefItem = (SAst*)tmp_var;
+                  ast3->Type = tmp_var->Type;
+                  ast3->VarKind = AstExprVarKind_LocalVar;
+                  ((SAst*)ast3)->AnalyzedCache = (SAst*)ast3;
+                  arg_expr->Arg = ast3;
+               }
+            }
 				if (arg_expr->Arg != NULL)
 				{
 					if (arg_expr->RefVar != arg_type->RefVar || !CmpType(arg_expr->Arg->Type, arg_type->Arg))
