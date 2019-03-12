@@ -3912,14 +3912,14 @@ static void AssembleExprRef(SAstExpr* ast, int reg_i, int reg_f)
 					}
 					break;
 				case AstArgKind_LocalVar:
-               if (((SAstArg*)ast2)->Expr != NULL)
-               {
-                  // assemble assignment to the temporary variable
-                  SAstExpr* expr = ((SAstArg*)ast2)->Expr;
-                  ((SAstArg*)ast2)->Expr = NULL;
-                  AssembleExpr(expr, reg_i, reg_f);
-               }
-            case AstArgKind_LocalArg:
+					if (((SAstArg*)ast2)->Expr != NULL)
+					{
+						// Assemble assignment to the temporary variable
+						SAstExpr* expr = ((SAstArg*)ast2)->Expr;
+						((SAstArg*)ast2)->Expr = NULL;
+						AssembleExpr(expr, reg_i, reg_f);
+					}
+				case AstArgKind_LocalArg:
 					{
 						S64* addr = RefLocalVar((SAstArg*)ast2);
 						ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValImm(8, RefValueAddr(addr, False))));

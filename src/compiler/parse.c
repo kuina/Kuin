@@ -3590,22 +3590,22 @@ static SAstExpr* ParseExprCall(void)
 							for (; ; )
 							{
 								SAstExprCallArg* arg = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
-                        Bool skip_var = False;
+								Bool skip_var = False;
 								c = ReadChar();
-                        if (c == L'&')
-                        {
-                           arg->RefVar = True;
-                           c = ReadChar();
-                           if (c == L',' || c == L')')
-                              skip_var = True;
-                        }
-                        else
-                        {
-                           arg->RefVar = False;
-                        }
-                        FileBuf = c;
-                        arg->SkipVar = skip_var;
-                        arg->Arg = skip_var ? NULL : ParseExpr();
+								if (c == L'&')
+								{
+									arg->RefVar = True;
+									c = ReadChar();
+									if (c == L',' || c == L')')
+										skip_var = True;
+								}
+								else
+								{
+									arg->RefVar = False;
+								}
+								FileBuf = c;
+								arg->SkipVar = skip_var;
+								arg->Arg = skip_var ? NULL : ParseExpr();
 								ListAdd(ast2->Args, arg);
 								c = ReadChar();
 								if (c == L'\0')
