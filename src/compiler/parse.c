@@ -3600,9 +3600,7 @@ static SAstExpr* ParseExprCall(void)
 										skip_var = True;
 								}
 								else
-								{
 									arg->RefVar = False;
-								}
 								FileBuf = c;
 								arg->SkipVar = skip_var;
 								arg->Arg = skip_var ? NULL : ParseExpr();

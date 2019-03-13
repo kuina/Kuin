@@ -3598,7 +3598,7 @@ static void AssembleExprCall(SAstExprCall* ast, int reg_i, int reg_f)
 					continue;
 				}
 				{
-               AssembleExpr(arg->Arg, 0, 0);
+					AssembleExpr(arg->Arg, 0, 0);
 					if (arg->RefVar)
 					{
 						ToRef(arg->Arg, RegI[0], RegI[0]);
