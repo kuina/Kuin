@@ -3591,6 +3591,7 @@ static SAstExpr* ParseExprCall(void)
 							{
 								SAstExprCallArg* arg = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
 								Bool skip_var = False;
+								Bool tmp_ref = False;
 								c = ReadChar();
 								if (c == L'&')
 								{
@@ -3598,12 +3599,26 @@ static SAstExpr* ParseExprCall(void)
 									c = ReadChar();
 									if (c == L',' || c == L')')
 										skip_var = True;
+									else if (c == L'(')
+										tmp_ref = True;
 								}
 								else
 									arg->RefVar = False;
-								FileBuf = c;
+								if (!tmp_ref)
+									FileBuf = c;
 								arg->SkipVar = skip_var;
 								arg->Arg = skip_var ? NULL : ParseExpr();
+								if (tmp_ref)
+								{
+									c = ReadChar();
+									if (c != L')')
+									{
+										Err(L"EP0015", NewPos(SrcName, Row, Col));
+										ReadUntilRet(c);
+										return NULL;
+									}
+								}
+								arg->TmpRef = tmp_ref;
 								ListAdd(ast2->Args, arg);
 								c = ReadChar();
 								if (c == L'\0')

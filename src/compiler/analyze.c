@@ -3349,8 +3349,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				arg_expr->Arg = RebuildExpr(arg_expr->Arg, False);
 				if (arg_expr->RefVar)
 				{
-					// Create a temporary variable if the argument is skipped or rvalue
-					if (arg_expr->Arg == NULL || arg_expr->Arg->VarKind == AstExprVarKind_Value)
+					if (arg_expr->SkipVar || arg_expr->TmpRef)
 					{
 						SAstArg* tmp_var = (SAstArg*)Alloc(sizeof(SAstArg));
 						InitAst((SAst*)tmp_var, AstTypeId_Arg, ((SAst*)ast)->Pos);
@@ -3359,11 +3358,13 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 						tmp_var->RefVar = False;
 						if (arg_expr->Arg == NULL)
 						{
+							// The argument is skipped
 							tmp_var->Type = arg_type->Arg;
 							tmp_var->Expr = NULL;
 						}
 						else
 						{
+							// A rvalue is explicitly passed
 							// Assign the argument's value to the temporary variable
 							tmp_var->Type = arg_expr->Arg->Type;
 							SAstExpr2* expr_assign = (SAstExpr2*)Alloc(sizeof(SAstExpr2));
@@ -3392,6 +3393,12 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 						ast3->VarKind = AstExprVarKind_LocalVar;
 						((SAst*)ast3)->AnalyzedCache = (SAst*)ast3;
 						arg_expr->Arg = ast3;
+					}
+					else if (arg_expr->Arg->VarKind == AstExprVarKind_Value)
+					{
+						// A rvalue is passed without using parentheses
+						Err(L"EA0067", ((SAst*)ast)->Pos, n + 1);
+						return NULL;
 					}
 				}
 				if (arg_expr->Arg != NULL)
