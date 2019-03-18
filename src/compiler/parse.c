@@ -5218,7 +5218,7 @@ static Bool GetKeywordsReadType(const Char** str, Char** type)
 			return True;
 		*type = CatKeywordType(L"&a", tmp_type);
 	}
-	else if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_')
+	else if (L'a' <= c && c <= L'z' || L'A' <= c && c <= L'Z' || c == L'_' || c == L'\\' || c == L'@')
 	{
 		(*str)--;
 		Char buf[129];

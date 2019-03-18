@@ -22,6 +22,7 @@ static const int ParticleNum = 256;
 static const int ParticleTexNum = 3;
 static const int PolyVerticesNum = 64;
 static const int JointInfluenceMax = 2;
+static const int JointInfluenceMaxAligned = 4;
 
 struct SWndBuf
 {
@@ -2229,18 +2230,23 @@ static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary)
 			me2->Format = static_cast<EFormat>(*reinterpret_cast<const int*>(buf + ptr));
 			ptr += sizeof(int);
 			int vertex_size = 8;
+			int vertex_size_aligned = 8;
 			if ((me2->Format & Format_HasJoint) != 0)
 			{
 				vertex_size += JointInfluenceMax;
+				vertex_size_aligned += JointInfluenceMaxAligned;
 			}
 			if ((me2->Format & Format_HasTangent) != 0)
 			{
 				vertex_size += 3;
+				vertex_size_aligned += 3;
 			}
 			int joint_influence_size = 0;
+			int joint_influence_size_aligned = 0;
 			if ((me2->Format & Format_HasJoint) != 0)
 			{
 				joint_influence_size += JointInfluenceMax;
+				joint_influence_size_aligned += JointInfluenceMaxAligned;
 			}
 
 			me2->ElementNum = *reinterpret_cast<const int*>(buf + ptr);
@@ -2294,7 +2300,7 @@ static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary)
 							}
 							int idx_num = *reinterpret_cast<const int*>(buf + ptr);
 							ptr += sizeof(int);
-							vertices = static_cast<U8*>(AllocMem((sizeof(float) * vertex_size + sizeof(int) * joint_influence_size) * static_cast<size_t>(idx_num)));
+							vertices = static_cast<U8*>(AllocMem((sizeof(float) * vertex_size_aligned + sizeof(int) * joint_influence_size_aligned) * static_cast<size_t>(idx_num)));
 							U8* ptr2 = vertices;
 							if (ptr + (sizeof(float) * vertex_size + sizeof(int) * joint_influence_size) * static_cast<size_t>(idx_num) > size)
 							{
@@ -2309,14 +2315,24 @@ static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary)
 									ptr += sizeof(float);
 									ptr2 += sizeof(float);
 								}
+								for (int k = 0; k < vertex_size_aligned - vertex_size; k++)
+								{
+									*reinterpret_cast<float*>(ptr2) = 0.0f;
+									ptr2 += sizeof(float);
+								}
 								for (int k = 0; k < joint_influence_size; k++)
 								{
 									*reinterpret_cast<int*>(ptr2) = *reinterpret_cast<const int*>(buf + ptr);
 									ptr += sizeof(int);
 									ptr2 += sizeof(int);
 								}
+								for (int k = 0; k < joint_influence_size_aligned - joint_influence_size; k++)
+								{
+									*reinterpret_cast<int*>(ptr2) = 0;
+									ptr2 += sizeof(int);
+								}
 							}
-							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * vertex_size + sizeof(int) * joint_influence_size) * static_cast<size_t>(idx_num), vertices, sizeof(float) * vertex_size + sizeof(int) * joint_influence_size, sizeof(U32) * static_cast<size_t>(element->VertexNum), idces);
+							element->VertexBuf = Draw::MakeVertexBuf((sizeof(float) * vertex_size_aligned + sizeof(int) * joint_influence_size_aligned) * static_cast<size_t>(idx_num), vertices, sizeof(float) * vertex_size_aligned + sizeof(int) * joint_influence_size_aligned, sizeof(U32) * static_cast<size_t>(element->VertexNum), idces);
 							if (ptr + sizeof(int) * 3 > size)
 							{
 								correct = False;
@@ -2799,7 +2815,7 @@ void Init()
 	if (IsResUsed(UseResFlagsKind_Draw_ObjDraw))
 	{
 		{
-			ELayoutType layout_types[5] =
+			ELayoutType layout_types[4] =
 			{
 				LayoutType_Float3,
 				LayoutType_Float3,
@@ -2807,7 +2823,7 @@ void Init()
 				LayoutType_Float2,
 			};
 
-			const Char* layout_semantics[5] =
+			const Char* layout_semantics[4] =
 			{
 				L"POSITION",
 				L"NORMAL",
@@ -2842,7 +2858,7 @@ void Init()
 				LayoutType_Int4,
 			};
 
-			const Char* layout_semantics[7] =
+			const Char* layout_semantics[6] =
 			{
 				L"POSITION",
 				L"NORMAL",
@@ -2864,26 +2880,24 @@ void Init()
 	if (IsResUsed(UseResFlagsKind_Draw_ObjDraw))
 	{
 		{
-			ELayoutType layout_types[5] =
+			ELayoutType layout_types[3] =
 			{
-				LayoutType_Float3,
 				LayoutType_Float3,
 				LayoutType_Float3,
 				LayoutType_Float2,
 			};
 
-			const Char* layout_semantics[5] =
+			const Char* layout_semantics[3] =
 			{
 				L"POSITION",
 				L"NORMAL",
-				L"TANGENT",
 				L"TEXCOORD",
 			};
 
 			{
 				size_t size;
 				const U8* bin = GetObjFastVsBin(&size);
-				ObjFastVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 4, layout_types, layout_semantics);
+				ObjFastVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 3, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
@@ -2897,9 +2911,8 @@ void Init()
 			}
 		}
 		{
-			ELayoutType layout_types[7] =
+			ELayoutType layout_types[5] =
 			{
-				LayoutType_Float3,
 				LayoutType_Float3,
 				LayoutType_Float3,
 				LayoutType_Float2,
@@ -2907,11 +2920,10 @@ void Init()
 				LayoutType_Int4,
 			};
 
-			const Char* layout_semantics[7] =
+			const Char* layout_semantics[5] =
 			{
 				L"POSITION",
 				L"NORMAL",
-				L"TANGENT",
 				L"TEXCOORD",
 				L"K_WEIGHT",
 				L"K_JOINT",
@@ -2920,7 +2932,7 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetObjFastJointVsBin(&size);
-				ObjFastJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 6, layout_types, layout_semantics);
+				ObjFastJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 5, layout_types, layout_semantics);
 			}
 		}
 	}
@@ -2929,7 +2941,7 @@ void Init()
 	if (IsResUsed(UseResFlagsKind_Draw_ObjDrawOutline))
 	{
 		{
-			ELayoutType layout_types[5] =
+			ELayoutType layout_types[4] =
 			{
 				LayoutType_Float3,
 				LayoutType_Float3,
@@ -2937,7 +2949,7 @@ void Init()
 				LayoutType_Float2,
 			};
 
-			const Char* layout_semantics[5] =
+			const Char* layout_semantics[4] =
 			{
 				L"POSITION",
 				L"NORMAL",
@@ -2967,7 +2979,7 @@ void Init()
 				LayoutType_Int4,
 			};
 
-			const Char* layout_semantics[7] =
+			const Char* layout_semantics[6] =
 			{
 				L"POSITION",
 				L"NORMAL",
