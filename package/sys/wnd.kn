@@ -106,6 +106,7 @@ end enum
 	var defaultWndProc: int
 	var ctrlFlag: int
 	var defaultRect: int
+	var redrawEnabled: int
 	+var children: list<kuin@Class>
 end class
 
@@ -301,6 +302,9 @@ end class
 
 +class EditMulti(@EditBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _editMultiAddText] addText(text: []char)
 	end func
 end class
 

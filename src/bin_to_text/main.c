@@ -55,11 +55,36 @@ int wmain(int argc, Char** argv)
 					ptr++;
 				}
 			}
+
+			Char upper_name[MAX_PATH];
+			{
+				const Char* ptr = name;
+				Char* ptr2 = upper_name;
+				Bool first = True;
+				while (*ptr != L'\0')
+				{
+					if (*ptr == '_')
+					{
+						first = True;
+						ptr++;
+						continue;
+					}
+					if (first && 'a' <= *ptr && *ptr <= 'z')
+						*ptr2 = *ptr - 'a' + 'A';
+					else
+						*ptr2 = *ptr;
+					first = False;
+					ptr++;
+					ptr2++;
+				}
+				*ptr2 = L'\0';
+			}
+
 			wcscat(path, L".c");
 			file_ptr2 = _wfopen(path, L"w, ccs=UTF-8");
 			fwprintf(file_ptr2, L"#include \"../common.h\"\n");
 			fwprintf(file_ptr2, L"\n");
-			fwprintf(file_ptr2, L"const U8* GetBin(size_t* size)\n");
+			fwprintf(file_ptr2, L"const U8* Get%s(size_t* size)\n", upper_name);
 			fwprintf(file_ptr2, L"{\n");
 			fwprintf(file_ptr2, L"\tstatic const U8 %s[0x%08x] =\n", name, (U32)size);
 			fwprintf(file_ptr2, L"\t{\n");

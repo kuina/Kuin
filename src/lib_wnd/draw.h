@@ -47,7 +47,9 @@ EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, doubl
 EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ, double farZ);
 EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path);
 EXPORT_CPP void _objDtor(SClass* me_);
-EXPORT_CPP SClass* _makeBox(SClass* me_, double w, double h, double d, S64 color);
+EXPORT_CPP SClass* _makeBox(SClass* me_);
+EXPORT_CPP SClass* _makeSphere(SClass* me_);
+EXPORT_CPP SClass* _makePlane(SClass* me_);
 EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal);
 EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal);
 EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double width, S64 color);

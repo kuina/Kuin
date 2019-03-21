@@ -38,7 +38,7 @@ VS_OUTPUT main(VS_INPUT input)
 
 	// Convert vertices to world space.
 #ifdef JOINT
-	float4x4 joint_mat = input.Weight[0] * Joint[input.Joint[0]] + input.Weight[1] * Joint[input.Joint[1]] + input.Weight[2] * Joint[input.Joint[2]] + input.Weight[3] * Joint[input.Joint[3]];
+	float4x4 joint_mat = input.Weight[0] * Joint[input.Joint[0]] + input.Weight[1] * Joint[input.Joint[1]];
 	float4x4 mat = mul(World, joint_mat);
 	float4 world_pos = mul(mat, float4(input.Pos, 1.0f));
 	float a = 1.0f / (mat[0][0] * mat[1][1] * mat[2][2] + mat[0][1] * mat[1][2] * mat[2][0] + mat[0][2] * mat[1][0] * mat[2][1] - mat[0][2] * mat[1][1] * mat[2][0] - mat[0][1] * mat[1][0] * mat[2][2] - mat[0][0] * mat[1][2] * mat[2][1]);

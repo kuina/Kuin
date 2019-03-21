@@ -16,6 +16,7 @@
 #include "fbxsdk.h"
 
 static const Bool Mirror = False; // Invert the Z axis.
+static const int JointInfluenceMax = 2;
 
 struct SPoint
 {
@@ -25,13 +26,20 @@ struct SPoint
 	double TangentX, TangentY, TangentZ;
 	// double BinormalX, BinormalY, BinormalZ;
 	double TexU, TexV;
-	double JointWeight[4];
-	int Joint[4];
+	double JointWeight[JointInfluenceMax];
+	int Joint[JointInfluenceMax];
+};
+
+enum EFormat
+{
+	Format_HasTangent = 0x01,
+	Format_HasJoint = 0x02,
 };
 
 static FbxManager* Manager = NULL;
 static FbxScene* Scene = NULL;
 static FILE* FilePtr = NULL;
+static int Format = 0;
 
 static void Err(const char* msg);
 static void Normalize(double* vec);
@@ -138,7 +146,7 @@ static Bool CmpPoints(const SPoint* a, const SPoint* b)
 	*/
 	flag &= Same(a->TexU, b->TexU);
 	flag &= Same(a->TexV, b->TexV);
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < JointInfluenceMax; i++)
 	{
 		flag &= Same(a->JointWeight[i], b->JointWeight[i]);
 		flag &= Same(a->Joint[i], b->Joint[i]);
@@ -159,6 +167,9 @@ static void WriteFloat(double n)
 
 static void WriteNode(FbxNode* root)
 {
+	WriteInt(1); // Version.
+	WriteInt(Format);
+
 	int child_num = root->GetChildCount();
 	{
 		int cnt = 0;
@@ -277,11 +288,11 @@ static void WriteNode(FbxNode* root)
 							points[i].TexV = 1.0 - vec[1]; // Top = 0.0, Bottom is 1.0
 						}
 
-						if (joints == NULL)
+						if (joints == NULL || (Format & Format_HasJoint) == 0)
 						{
 							if (joint_num != 0)
 								Err("No joints were found.");
-							for (int j = 0; j < 4; j++)
+							for (int j = 0; j < JointInfluenceMax; j++)
 							{
 								points[i].JointWeight[j] = 0.0;
 								points[i].Joint[j] = 0;
@@ -289,28 +300,28 @@ static void WriteNode(FbxNode* root)
 						}
 						else
 						{
-							for (int j = 0; j < 4; j++)
+							for (int j = 0; j < JointInfluenceMax; j++)
 							{
 								// Get four bones in descending order of weights by selection sort.
 								int joint = -1;
 								double max = 0.0;
 								for (int k = 0; k < joint_num; k++)
 								{
-									{
-										Bool skip = False;
-										for (int l = 0; l < j; l++)
-										{
-											if (points[i].Joint[l] == k)
-											{
-												skip = True;
-												break;
-											}
-										}
-										if (skip)
-											continue;
-									}
 									if (max < joints[indices[i] * joint_num + k])
 									{
+										{
+											Bool skip = False;
+											for (int l = 0; l < j; l++)
+											{
+												if (points[i].Joint[l] == k)
+												{
+													skip = True;
+													break;
+												}
+											}
+											if (skip)
+												continue;
+										}
 										joint = k;
 										max = joints[indices[i] * joint_num + k];
 									}
@@ -329,59 +340,71 @@ static void WriteNode(FbxNode* root)
 							// Normalize weights.
 							{
 								double sum = 0.0;
-								for (int j = 0; j < 4; j++)
+								for (int j = 0; j < JointInfluenceMax; j++)
 									sum += points[i].JointWeight[j];
 								if (sum == 0.0)
 									Err("The sum of weights must not be zero.");
-								for (int j = 0; j < 4; j++)
+								for (int j = 0; j < JointInfluenceMax; j++)
 									points[i].JointWeight[j] /= sum;
 							}
 						}
 					}
 
 					// Calculate the tangent and the binormal.
-					for (int i = 0; i < vertex_num / 3; i++)
+					if ((Format & Format_HasTangent) != 0)
 					{
-						double tangents[9], binormals[9];
-						double normals[9] =
+						for (int i = 0; i < vertex_num / 3; i++)
 						{
-							points[i * 3 + 0].NormalX, points[i * 3 + 0].NormalY, points[i * 3 + 0].NormalZ,
-							points[i * 3 + 1].NormalX, points[i * 3 + 1].NormalY, points[i * 3 + 1].NormalZ,
-							points[i * 3 + 2].NormalX, points[i * 3 + 2].NormalY, points[i * 3 + 2].NormalZ,
-						};
-						double ps[9] =
+							double tangents[9], binormals[9];
+							double normals[9] =
+							{
+								points[i * 3 + 0].NormalX, points[i * 3 + 0].NormalY, points[i * 3 + 0].NormalZ,
+								points[i * 3 + 1].NormalX, points[i * 3 + 1].NormalY, points[i * 3 + 1].NormalZ,
+								points[i * 3 + 2].NormalX, points[i * 3 + 2].NormalY, points[i * 3 + 2].NormalZ,
+							};
+							double ps[9] =
+							{
+								points[i * 3 + 0].PosX, points[i * 3 + 0].PosY, points[i * 3 + 0].PosZ,
+								points[i * 3 + 1].PosX, points[i * 3 + 1].PosY, points[i * 3 + 1].PosZ,
+								points[i * 3 + 2].PosX, points[i * 3 + 2].PosY, points[i * 3 + 2].PosZ,
+							};
+							double uvs[6] =
+							{
+								points[i * 3 + 0].TexU, points[i * 3 + 0].TexV,
+								points[i * 3 + 1].TexU, points[i * 3 + 1].TexV,
+								points[i * 3 + 2].TexU, points[i * 3 + 2].TexV,
+							};
+							CalcTangent(tangents, binormals, normals, ps, uvs);
+							points[i * 3 + 0].TangentX = tangents[0];
+							points[i * 3 + 0].TangentY = tangents[1];
+							points[i * 3 + 0].TangentZ = tangents[2];
+							points[i * 3 + 1].TangentX = tangents[3];
+							points[i * 3 + 1].TangentY = tangents[4];
+							points[i * 3 + 1].TangentZ = tangents[5];
+							points[i * 3 + 2].TangentX = tangents[6];
+							points[i * 3 + 2].TangentY = tangents[7];
+							points[i * 3 + 2].TangentZ = tangents[8];
+							/*
+							points[i * 3 + 0].BinormalX = binormals[0];
+							points[i * 3 + 0].BinormalY = binormals[1];
+							points[i * 3 + 0].BinormalZ = binormals[2];
+							points[i * 3 + 1].BinormalX = binormals[3];
+							points[i * 3 + 1].BinormalY = binormals[4];
+							points[i * 3 + 1].BinormalZ = binormals[5];
+							points[i * 3 + 2].BinormalX = binormals[6];
+							points[i * 3 + 2].BinormalY = binormals[7];
+							points[i * 3 + 2].BinormalZ = binormals[8];
+							*/
+						}
+					}
+					else
+					{
+						for (int i = 0; i < vertex_num; i++)
 						{
-							points[i * 3 + 0].PosX, points[i * 3 + 0].PosY, points[i * 3 + 0].PosZ,
-							points[i * 3 + 1].PosX, points[i * 3 + 1].PosY, points[i * 3 + 1].PosZ,
-							points[i * 3 + 2].PosX, points[i * 3 + 2].PosY, points[i * 3 + 2].PosZ,
-						};
-						double uvs[6] =
-						{
-							points[i * 3 + 0].TexU, points[i * 3 + 0].TexV,
-							points[i * 3 + 1].TexU, points[i * 3 + 1].TexV,
-							points[i * 3 + 2].TexU, points[i * 3 + 2].TexV,
-						};
-						CalcTangent(tangents, binormals, normals, ps, uvs);
-						points[i * 3 + 0].TangentX = tangents[0];
-						points[i * 3 + 0].TangentY = tangents[1];
-						points[i * 3 + 0].TangentZ = tangents[2];
-						points[i * 3 + 1].TangentX = tangents[3];
-						points[i * 3 + 1].TangentY = tangents[4];
-						points[i * 3 + 1].TangentZ = tangents[5];
-						points[i * 3 + 2].TangentX = tangents[6];
-						points[i * 3 + 2].TangentY = tangents[7];
-						points[i * 3 + 2].TangentZ = tangents[8];
-						/*
-						points[i * 3 + 0].BinormalX = binormals[0];
-						points[i * 3 + 0].BinormalY = binormals[1];
-						points[i * 3 + 0].BinormalZ = binormals[2];
-						points[i * 3 + 1].BinormalX = binormals[3];
-						points[i * 3 + 1].BinormalY = binormals[4];
-						points[i * 3 + 1].BinormalZ = binormals[5];
-						points[i * 3 + 2].BinormalX = binormals[6];
-						points[i * 3 + 2].BinormalY = binormals[7];
-						points[i * 3 + 2].BinormalZ = binormals[8];
-						*/
+							points[i].TangentX = 0.0;
+							points[i].TangentY = 0.0;
+							points[i].TangentZ = 0.0;
+						}
 					}
 
 					// Invert the Z axis.
@@ -433,9 +456,12 @@ static void WriteNode(FbxNode* root)
 							WriteFloat(points[i].NormalY);
 							WriteFloat(points[i].NormalZ);
 
-							WriteFloat(points[i].TangentX);
-							WriteFloat(points[i].TangentY);
-							WriteFloat(points[i].TangentZ);
+							if ((Format & Format_HasTangent) != 0)
+							{
+								WriteFloat(points[i].TangentX);
+								WriteFloat(points[i].TangentY);
+								WriteFloat(points[i].TangentZ);
+							}
 
 							/*
 							WriteFloat(points[i].BinormalX);
@@ -446,10 +472,13 @@ static void WriteNode(FbxNode* root)
 							WriteFloat(points[i].TexU);
 							WriteFloat(points[i].TexV);
 
-							for (int j = 0; j < 4; j++)
-								WriteFloat(points[i].JointWeight[j]);
-							for (int j = 0; j < 4; j++)
-								WriteInt(points[i].Joint[j]);
+							if ((Format & Format_HasJoint) != 0)
+							{
+								for (int j = 0; j < JointInfluenceMax; j++)
+									WriteFloat(points[i].JointWeight[j]);
+								for (int j = 0; j < JointInfluenceMax; j++)
+									WriteInt(points[i].Joint[j]);
+							}
 						}
 					}
 
@@ -534,8 +563,8 @@ static void WriteNode(FbxNode* root)
 
 int main(int argc, char** argv)
 {
-	if (argc < 2)
-		Err("Usage: knobj_maker [fbx file1] [fbx file2] [...]");
+	if (argc < 3)
+		Err("Usage: knobj_maker format [fbx file1] [fbx file2] [...]");
 
 	Manager = FbxManager::Create();
 	if (Manager == NULL)
@@ -546,13 +575,21 @@ int main(int argc, char** argv)
 	if (Scene == NULL)
 		Err("Initialization failed.");
 
-	for (int i = 1; i < argc; i++)
+	Format = atoi(argv[1]);
+
+	for (int i = 2; i < argc; i++)
 	{
 		printf("%s\n", argv[i]);
 
 		{
 			char path[1024];
-			strcpy(path, argv[i]);
+			char* pos = strrchr(argv[i], '.');
+			if (pos == NULL)
+			{
+				Err("Wrong extension.");
+			}
+			strncpy(path, argv[i], pos - argv[i]);
+			path[pos - argv[i]] = '\0';
 			strcat(path, ".knobj");
 			FilePtr = fopen(path, "wb");
 		}

@@ -45,7 +45,6 @@ var popupMainHelp: wnd@Popup
 
 var lockingEditor: bool
 var lockUi: bool
-var textLog: []char
 var drag: bool
 
 +func makeWnd()
@@ -236,7 +235,7 @@ var drag: bool
 
 	do @lockingEditor :: false
 	do @lockUi :: false
-	do @textLog :: ""
+	do @editLog.setText("")
 	do @drag :: false
 
 	func btnFileAddOnPush(wnd: wnd@WndBase)
@@ -665,8 +664,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		ret
 	end try
 	do \dll@resetMemAllocator()
-	do @textLog :: ""
-	do @updateLog()
+	do @editLog.setText("")
 	var cmd: []char
 	var cmdLine: []char
 	if(@radioEnvWnd.getChk())
@@ -686,17 +684,14 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 				do filePtr.writeChar('\n')
 				do filePtr.fin()
 			end if
-			do @textLog :~ \common@langEn ?("IK9999: Run.", "IK9999: 実行。\n")
-			do @updateLog()
+			do @editLog.addText(\common@langEn ?("IK9999: Run.", "IK9999: 実行。\n"))
 			if(@radioEnvWnd.getChk())
 				do \dbgwnd@show()
 			end if
 			if(\dll@runDbg(cmd, cmdLine, idleFunc, eventFunc, breakPointsFunc, breakFunc, dbgFunc))
-				do @textLog :~ \common@langEn ?("\nIK9999: Succees.\n", "\nIK9999: 正常終了。\n")
-				do @updateLog()
+				do @editLog.addText(\common@langEn ?("\nIK9999: Succees.\n", "\nIK9999: 正常終了。\n"))
 			else
-				do @textLog :~ \common@langEn ?("\nIK9999: Failure.\n", "\nIK9999: 実行失敗。\n")
-				do @updateLog()
+				do @editLog.addText(\common@langEn ?("\nIK9999: Failure.\n", "\nIK9999: 実行失敗。\n"))
 				do wnd@msgBox(@wndMain, \common@langEn ?("Could not run.", "実行できませんでした。"), \common@title, %err, %ok)
 			end if
 			do \src@delRunningFiles()
@@ -724,8 +719,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	func eventFunc(type: int, str: []char): int
 		switch(type)
 		case 0
-			do @textLog :~ str.sub(4, -1)
-			do @updateLog()
+			do @editLog.addText(str.sub(4, -1))
 		end switch
 	end func
 
@@ -842,8 +836,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		ret
 	end try
 	do \dll@resetMemAllocator()
-	do @textLog :: ""
-	do @updateLog()
+	do @editLog.setText("")
 	try
 		do \src@resetErrList()
 		var appCode: int :: lib@rnd(1, lib@intMax) * (lib@rnd(0, 1) = 0 ?(1, -1))
@@ -901,12 +894,6 @@ end func
 		end if
 	end if
 	do @updateUi()
-end func
-
-func updateLog()
-	do @editLog.setRedraw(false)
-	do @editLog.setText(@textLog)
-	do @editLog.setRedraw(true)
 end func
 
 +func updateFile()
@@ -991,11 +978,10 @@ end func
 func log(args: [][]char, row: int, col: int)
 	var msg: []char :: \common@nullStr(args[0]) ~ ": " ~ \common@nullStr(args[1])
 	if(args[2] =& null)
-		do @textLog :~ msg ~ "\n"
+		do @editLog.addText(msg ~ "\n")
 	else
-		do @textLog :~ msg ~ " (" ~ \common@nullStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n"
+		do @editLog.addText(msg ~ " (" ~ \common@nullStr(args[2]) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ ")\n")
 	end if
-	do @updateLog()
 	var pos: \src@Pos :: #\src@Pos
 	do pos.src :: args[2] =& null ?("", ##args[2])
 	do pos.row :: row

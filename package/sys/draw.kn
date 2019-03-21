@@ -182,13 +182,13 @@ end func
 	*func [d0001.knd, _objDtor, _force] _dtor()
 	end func
 
-	+func [d0001.knd, _objDraw] draw(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)
+	+func [d0001.knd, _objDraw, _5] draw(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)
 	end func
 
-	+func [d0001.knd, _objDrawToon] drawToon(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)
+	+func [d0001.knd, _objDrawToon, _5] drawToon(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex)
 	end func
 
-	+func [d0001.knd, _objDrawOutline] drawOutline(element: int, frame: float, width: float, color: int)
+	+func [d0001.knd, _objDrawOutline, _6] drawOutline(element: int, frame: float, width: float, color: int)
 	end func
 
 	+func [d0001.knd, _objMat] mat(mat_: []float, normMat: []float)
@@ -225,6 +225,15 @@ end func
 end class
 
 +func [d0001.knd, _makeObj, _make_instance] makeObj(me2: @Obj, path: []char): @Obj
+end func
+
++func [d0001.knd, _makeBox, _make_instance] makeBox(me2: @Obj): @Obj
+end func
+
++func [d0001.knd, _makeSphere, _make_instance] makeSphere(me2: @Obj): @Obj
+end func
+
++func [d0001.knd, _makePlane, _make_instance] makePlane(me2: @Obj): @Obj
 end func
 
 +func [d0001.knd, _ambLight] ambLight(topR: float, topG: float, topB: float, bottomR: float, bottomG: float, bottomB: float)

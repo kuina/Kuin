@@ -216,6 +216,7 @@ end func
 			do me.areaY :: me.cursorY
 		end if
 		do me.interpret1SetDirty(me.cursorY, false, false)
+		do \completion@close()
 		do \form@paintDrawEditor()
 	end func
 
@@ -379,6 +380,7 @@ end func
 				do me.cursorY :: lib@intMax
 			end if
 			do me.refreshCursor(false, true)
+			do \completion@close()
 			do \form@paintDrawEditor()
 			do me.interpret1SetDirty(me.cursorY, false, false)
 			ret true
@@ -389,6 +391,7 @@ end func
 				do me.cursorY :: 0
 			end if
 			do me.refreshCursor(false, true)
+			do \completion@close()
 			do \form@paintDrawEditor()
 			do me.interpret1SetDirty(me.cursorY, false, false)
 			ret true
@@ -401,6 +404,7 @@ end func
 				do me.refreshCursor(false, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
 			end if
+			do \completion@close()
 			do \form@paintDrawEditor()
 			ret true
 		case %up
@@ -428,6 +432,7 @@ end func
 				do me.refreshCursor(true, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
 			end if
+			do \completion@close()
 			do \form@paintDrawEditor()
 			ret true
 		case %down
