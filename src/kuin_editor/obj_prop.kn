@@ -104,7 +104,8 @@ var target: \doc_ar@Obj
 				var sel: int :: (combo).getSel()
 				do value :: sel = -1 ?("", combo.getText(sel))
 			case %color
-				do value :: (ctrlSet.ctrls[0] $ wnd@Edit).getText()
+				var value2: int :: (ctrlSet.ctrls[0] $ wnd@Edit).getText().toInt(&)
+				do value :: "0x" ~ value2.toStrFmt("08X")
 			case %file
 				do value :: (ctrlSet.ctrls[0] $ wnd@Edit).getText()
 			end switch

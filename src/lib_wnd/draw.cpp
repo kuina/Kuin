@@ -156,24 +156,6 @@ struct SParticleTexSet
 	ID3D10RenderTargetView* RenderTargetViewParam;
 };
 
-struct SParticle
-{
-	SClass Class;
-	S64 Lifespan;
-	double Friction;
-	double AccelX;
-	double AccelY;
-	double AccelZ;
-	S64 Color1;
-	S64 Color2;
-	double SizeAccel;
-	double RotAccel;
-	S64 ParticlePtr;
-	SParticleTexSet* TexSet;
-	ID3D10Texture2D* TexTmp;
-	Bool Draw1To2;
-};
-
 struct SParticlePsConstBuf
 {
 	float Color1[4];
@@ -184,6 +166,18 @@ struct SParticleUpdatingPsConstBuf
 {
 	float AccelAndFriction[4];
 	float SizeAccelAndRotAccel[4];
+};
+
+struct SParticle
+{
+	SClass Class;
+	S64 Lifespan;
+	SParticlePsConstBuf PsConstBuf;
+	SParticleUpdatingPsConstBuf UpdatingPsConstBuf;
+	S64 ParticlePtr;
+	SParticleTexSet* TexSet;
+	ID3D10Texture2D* TexTmp;
+	Bool Draw1To2;
 };
 
 static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -1983,23 +1977,6 @@ EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex)
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
 	UpdateParticles(me2);
 
-	SParticlePsConstBuf ps_const_buf;
-	{
-		double a, r, g, b;
-		_colorToArgb(me2->Color1, &a, &r, &g, &b);
-		ps_const_buf.Color1[0] = static_cast<float>(r);
-		ps_const_buf.Color1[1] = static_cast<float>(g);
-		ps_const_buf.Color1[2] = static_cast<float>(b);
-		ps_const_buf.Color1[3] = static_cast<float>(a);
-	}
-	{
-		double a, r, g, b;
-		_colorToArgb(me2->Color2, &a, &r, &g, &b);
-		ps_const_buf.Color2[0] = static_cast<float>(r);
-		ps_const_buf.Color2[1] = static_cast<float>(g);
-		ps_const_buf.Color2[2] = static_cast<float>(b);
-		ps_const_buf.Color2[3] = static_cast<float>(a);
-	}
 	float screen[4] =
 	{
 		1.0f / static_cast<float>(CurWndBuf->TexWidth),
@@ -2009,7 +1986,7 @@ EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex)
 	};
 	Draw::ConstBuf(Particle2dVs, screen);
 	Device->GSSetShader(NULL);
-	Draw::ConstBuf(Particle2dPs, &ps_const_buf);
+	Draw::ConstBuf(Particle2dPs, &me2->PsConstBuf);
 	Draw::VertexBuf(ParticleVertex);
 	ID3D10ShaderResourceView* views[2];
 	views[0] = me2->Draw1To2 ? me2->TexSet[0].ViewParam : me2->TexSet[ParticleTexNum + 0].ViewParam;
@@ -2022,8 +1999,6 @@ EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex)
 EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z, double velo_x, double velo_y, double velo_z, double size, double size_velo, double rot, double rot_velo)
 {
 	SParticle* particle = reinterpret_cast<SParticle*>(me_);
-	THROWDBG(particle->Lifespan <= 0, 0xe917000a);
-	THROWDBG(particle->Friction < 0.0, 0xe917000a);
 	for (int i = 0; i < ParticleTexNum; i++)
 	{
 		ID3D10Texture2D* tex = particle->Draw1To2 ? particle->TexSet[i].TexParam : particle->TexSet[ParticleTexNum + i].TexParam;
@@ -2062,20 +2037,43 @@ EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z, double 
 		particle->ParticlePtr = 0;
 }
 
-EXPORT_CPP SClass* _makeParticle(SClass* me_)
+EXPORT_CPP SClass* _makeParticle(SClass* me_, S64 life_span, S64 color1, S64 color2, double friction, double accel_x, double accel_y, double accel_z, double size_accel, double rot_accel)
 {
+	THROWDBG(life_span <= 0, 0xe917000a);
+	THROWDBG(friction < 0.0, 0xe917000a);
+
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
-	me2->Lifespan = 120;
-	me2->Friction = 1.0;
-	me2->AccelX = 0.0;
-	me2->AccelY = 0.0;
-	me2->AccelZ = 0.0;
-	me2->Color1 = 0xffffffff;
-	me2->Color2 = 0xffffffff;
-	me2->SizeAccel = 0.0;
-	me2->RotAccel = 0.0;
+	me2->Lifespan = life_span;
 	me2->ParticlePtr = 0;
 	me2->Draw1To2 = True;
+
+	{
+		double a, r, g, b;
+		_colorToArgb(color1, &a, &r, &g, &b);
+		me2->PsConstBuf.Color1[0] = static_cast<float>(r);
+		me2->PsConstBuf.Color1[1] = static_cast<float>(g);
+		me2->PsConstBuf.Color1[2] = static_cast<float>(b);
+		me2->PsConstBuf.Color1[3] = static_cast<float>(a);
+	}
+	{
+		double a, r, g, b;
+		_colorToArgb(color2, &a, &r, &g, &b);
+		me2->PsConstBuf.Color2[0] = static_cast<float>(r);
+		me2->PsConstBuf.Color2[1] = static_cast<float>(g);
+		me2->PsConstBuf.Color2[2] = static_cast<float>(b);
+		me2->PsConstBuf.Color2[3] = static_cast<float>(a);
+	}
+
+	SParticleUpdatingPsConstBuf const_buf;
+	const_buf.AccelAndFriction[0] = static_cast<float>(accel_x);
+	const_buf.AccelAndFriction[1] = static_cast<float>(accel_y);
+	const_buf.AccelAndFriction[2] = static_cast<float>(accel_z);
+	const_buf.AccelAndFriction[3] = static_cast<float>(friction);
+	const_buf.SizeAccelAndRotAccel[0] = static_cast<float>(size_accel);
+	const_buf.SizeAccelAndRotAccel[1] = static_cast<float>(rot_accel);
+	const_buf.SizeAccelAndRotAccel[2] = 0.0f;
+	const_buf.SizeAccelAndRotAccel[3] = 0.0f;
+
 	{
 		Bool success = True;
 		void* img = AllocMem(sizeof(float) * ParticleNum * 4);
@@ -2168,16 +2166,9 @@ static void UpdateParticles(SParticle* particle)
 	Device->OMSetRenderTargets(static_cast<UINT>(ParticleTexNum), targets, NULL);
 	Device->RSSetViewports(1, &ParticleViewport);
 	{
-		SParticleUpdatingPsConstBuf const_buf;
-		const_buf.AccelAndFriction[0] = static_cast<float>(particle->AccelX);
-		const_buf.AccelAndFriction[1] = static_cast<float>(particle->AccelY);
-		const_buf.AccelAndFriction[2] = static_cast<float>(particle->AccelZ);
-		const_buf.AccelAndFriction[3] = static_cast<float>(particle->Friction);
-		const_buf.SizeAccelAndRotAccel[0] = static_cast<float>(particle->SizeAccel);
-		const_buf.SizeAccelAndRotAccel[1] = static_cast<float>(particle->RotAccel);
 		Draw::ConstBuf(ParticleUpdatingVs, NULL);
 		Device->GSSetShader(NULL);
-		Draw::ConstBuf(ParticleUpdatingPs, &const_buf);
+		Draw::ConstBuf(ParticleUpdatingPs, &particle->UpdatingPsConstBuf);
 		Draw::VertexBuf(ParticleUpdatingVertex);
 		ID3D10ShaderResourceView* views[3];
 		views[0] = particle->Draw1To2 ? particle->TexSet[0].ViewParam : particle->TexSet[ParticleTexNum + 0].ViewParam;
@@ -3128,7 +3119,7 @@ void Fin()
 		Device->Release();
 }
 
-void* MakeDrawBuf(int tex_width, int tex_height, HWND wnd, void* old, Bool editable)
+void* MakeDrawBuf(int tex_width, int tex_height, int split, HWND wnd, void* old, Bool editable)
 {
 	SWndBuf* old2 = static_cast<SWndBuf*>(old);
 	FLOAT clear_color[4];
@@ -3239,8 +3230,8 @@ void* MakeDrawBuf(int tex_width, int tex_height, HWND wnd, void* old, Bool edita
 	{
 		{
 			D3D10_TEXTURE2D_DESC desc;
-			desc.Width = static_cast<UINT>(tex_width);
-			desc.Height = static_cast<UINT>(tex_height);
+			desc.Width = static_cast<UINT>(tex_width / split);
+			desc.Height = static_cast<UINT>(tex_height / split);
 			desc.MipLevels = 1;
 			desc.ArraySize = 1;
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;

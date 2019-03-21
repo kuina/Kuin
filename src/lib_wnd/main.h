@@ -47,6 +47,7 @@ EXPORT_CPP S64 _wndGetAlpha(SClass* me_);
 EXPORT_CPP void _wndAcceptDraggedFiles(SClass* me_, Bool is_accepted);
 EXPORT_CPP void _wndSetModalLock(SClass* me_);
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification);
+EXPORT_CPP SClass* _makeDrawReduced(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification, S64 split);
 EXPORT_CPP SClass* _makeDrawEditable(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height);
 EXPORT_CPP void _drawDtor(SClass* me_);
 EXPORT_CPP void _drawPaint(SClass* me_);

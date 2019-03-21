@@ -252,20 +252,20 @@ end func
 	+func [d0001.knd, _particleEmit] emit(x: float, y: float, z: float, veloX: float, veloY: float, veloZ: float, size: float, sizeVelo: float, rot: float, rotVelo: float)
 	end func
 
-	+var lifespan: int
-	+var friction: float
-	+var accelX: float
-	+var accelY: float
-	+var accelZ: float
-	+var color1: int
-	+var color2: int
-	+var sizeAccel: float
-	+var rotAccel: float
+	var lifespan: int
+	var buf1: int
+	var buf2: int
+	var buf3: int
+	var buf4: int
+	var buf5: int
+	var buf6: int
+	var buf7: int
+	var buf8: int
 	var particlePtr: int
 	var texSet: int
 	var texTmp: int
 	var draw1To2: int
 end class
 
-+func [d0001.knd, _makeParticle, _make_instance, _3] makeParticle(me2: @Particle): @Particle
++func [d0001.knd, _makeParticle, _make_instance, _3] makeParticle(me2: @Particle, lifeSpan: int, color1: int, color2: int, friction: float, accelX: float, accelY: float, accelZ: float, sizeAccel: float, rotAccel: float): @Particle
 end func

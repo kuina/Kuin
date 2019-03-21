@@ -306,7 +306,7 @@ static Char* ParseFilter(const U8* filter, int* num);
 static void TreeExpandAllRecursion(HWND wnd_handle, HTREEITEM node, int flag);
 static void CopyTreeNodeRecursion(HWND tree_wnd, HTREEITEM dst, HTREEITEM src, Char* buf);
 static void ListViewAdjustWidth(HWND wnd);
-static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchor_x, S64 anchor_y, Bool equal_magnification, Bool editable);
+static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchor_x, S64 anchor_y, Bool equal_magnification, Bool editable, int split);
 static HIMAGELIST CreateImageList(const void* imgs);
 static LRESULT CALLBACK CommonWndProc(HWND wnd, SWndBase* wnd2, SWnd* wnd3, UINT msg, WPARAM w_param, LPARAM l_param);
 static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
@@ -1039,12 +1039,17 @@ EXPORT_CPP void _wndSetModalLock(SClass* me_)
 
 EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification)
 {
-	return MakeDrawImpl(me_, parent, x, y, width, height, anchorX, anchorY, equalMagnification, False);
+	return MakeDrawImpl(me_, parent, x, y, width, height, anchorX, anchorY, equalMagnification, False, 1);
+}
+
+EXPORT_CPP SClass* _makeDrawReduced(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification, S64 split)
+{
+	return MakeDrawImpl(me_, parent, x, y, width, height, anchorX, anchorY, equalMagnification, False, split);
 }
 
 EXPORT_CPP SClass* _makeDrawEditable(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height)
 {
-	return MakeDrawImpl(me_, parent, x, y, width, height, 0, 0, False, True);
+	return MakeDrawImpl(me_, parent, x, y, width, height, 0, 0, False, True, 1);
 }
 
 EXPORT_CPP void _drawDtor(SClass* me_)
@@ -2591,7 +2596,7 @@ static void ListViewAdjustWidth(HWND wnd)
 		ListView_SetColumnWidth(wnd, i, LVSCW_AUTOSIZE_USEHEADER);
 }
 
-static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchor_x, S64 anchor_y, Bool equal_magnification, Bool editable)
+static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchor_x, S64 anchor_y, Bool equal_magnification, Bool editable, int split)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	SDraw* me3 = reinterpret_cast<SDraw*>(me_);
@@ -2608,10 +2613,10 @@ static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width
 		GetWindowRect(me2->WndHandle, &rect);
 		int width2 = static_cast<int>(rect.right - rect.left);
 		int height2 = static_cast<int>(rect.bottom - rect.top);
-		me3->DrawBuf = Draw::MakeDrawBuf(width2, height2, me2->WndHandle, NULL, editable);
+		me3->DrawBuf = Draw::MakeDrawBuf(width2, height2, 1, me2->WndHandle, NULL, editable);
 	}
 	else
-		me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), me2->WndHandle, NULL, editable);
+		me3->DrawBuf = Draw::MakeDrawBuf(static_cast<int>(width), static_cast<int>(height), split, me2->WndHandle, NULL, editable);
 	me3->OnPaint = NULL;
 	me3->OnMouseDownL = NULL;
 	me3->OnMouseDownR = NULL;
@@ -3017,7 +3022,7 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				int height = static_cast<int>(static_cast<S16>(HIWORD(l_param)));
 				if (width > 0 && height > 0)
 				{
-					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, wnd2->WndHandle, wnd3->DrawBuf, wnd3->Editable);
+					wnd3->DrawBuf = Draw::MakeDrawBuf(width, height, 1, wnd2->WndHandle, wnd3->DrawBuf, wnd3->Editable);
 					wnd3->DrawTwice = True;
 				}
 			}

@@ -213,7 +213,7 @@ end func
 	ret @save(false)
 
 	func callback(src: []char, doc: \doc@Doc, chkCloseChanged: lib@Bool): bool
-		if(doc.getChanged())
+		if(src[0] = '\\' & doc.getChanged())
 			do chkCloseChanged.value :: true
 			ret false
 		end if

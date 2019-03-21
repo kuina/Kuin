@@ -68,18 +68,27 @@ var resCacheDraw: drawex@ResCacheDraw
 			ret #@ObjLayer
 		case "Rect"
 			ret #@ObjRect
+		case "RoundRect"
+			ret #@ObjRoundRect
 		case "Circle"
 			ret #@ObjCircle
 		case "Text"
 			ret #@ObjText
+		case "Img"
+			ret #@ObjImg
+		case "Particle"
+			ret #@ObjParticle
 		end switch
 		ret null
 	end func
 
 	*func updateLt()
 		do \form@listLt.add("Rect", 6)
+		do \form@listLt.add("RoundRect", 10)
 		do \form@listLt.add("Circle", 7)
 		do \form@listLt.add("Text", 8)
+		do \form@listLt.add("Img", 9)
+		do \form@listLt.add("Particle", 11)
 	end func
 end class
 
@@ -272,39 +281,40 @@ end class
 class ObjText(@ObjAr2d)
 	+*func draw(x: float, y: float, width: float, height: float)
 		var color: int :: \doc_ar@getPropAsInt(me.props, "color")
-		if(color <> 0)
-			var alignHorizontal: draw@AlignHorizontal
-			var alignVertical: draw@AlignVertical
-			var x2: float
-			var y2: float
-			switch(me.props.get("alignHorizontal", &))
-			case "%center"
-				do alignHorizontal :: %center
-				do x2 :: x + width / 2.0
-			case "%right"
-				do alignHorizontal :: %right
-				do x2 :: x + width
-			default
-				do alignHorizontal :: %left
-				do x2 :: x
-			end switch
-			switch(me.props.get("alignVertical", &))
-			case "%center"
-				do alignVertical :: %center
-				do y2 :: y + height / 2.0
-			case "%bottom"
-				do alignVertical :: %bottom
-				do y2 :: y + height
-			default
-				do alignVertical :: %top
-				do y2 :: y
-			end switch
-			if(me.font <>& null)
-				do me.font.align(alignHorizontal, alignVertical)
-				do me.font.draw(x2, y2, me.props.get("text", &), color)
-				do me.font.align(%left, %top)
-			end if
+		if(color = 0 | me.font =& null)
+			ret
 		end if
+
+		var alignHorizontal: draw@AlignHorizontal
+		var alignVertical: draw@AlignVertical
+		var x2: float
+		var y2: float
+		switch(me.props.get("alignHorizontal", &))
+		case "%center"
+			do alignHorizontal :: %center
+			do x2 :: x + width / 2.0
+		case "%right"
+			do alignHorizontal :: %right
+			do x2 :: x + width
+		default
+			do alignHorizontal :: %left
+			do x2 :: x
+		end switch
+		switch(me.props.get("alignVertical", &))
+		case "%center"
+			do alignVertical :: %center
+			do y2 :: y + height / 2.0
+		case "%bottom"
+			do alignVertical :: %bottom
+			do y2 :: y + height
+		default
+			do alignVertical :: %top
+			do y2 :: y
+		end switch
+
+		do me.font.align(alignHorizontal, alignVertical)
+		do me.font.draw(x2, y2, me.props.get("text", &), color)
+		do me.font.align(%left, %top)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -369,7 +379,11 @@ class ObjText(@ObjAr2d)
 			do @resCacheDraw.del(me.font)
 			do me.font :: null
 		end if
-		do me.font :: @resCacheDraw.makeFont(me.props.get("fontName", &), me.props.get("fontSize", &).toInt(&), me.props.get("bold", &) = "true", me.props.get("italic", &) = "true", me.props.get("proportional", &) = "true", me.props.get("advance", &).toFloat(&))
+		try
+			do me.font :: @resCacheDraw.makeFont(me.props.get("fontName", &), me.props.get("fontSize", &).toInt(&), me.props.get("bold", &) = "true", me.props.get("italic", &) = "true", me.props.get("proportional", &) = "true", me.props.get("advance", &).toFloat(&))
+		catch
+			do me.font :: null
+		end try
 	end func
 
 	+*func type(): []char
@@ -383,8 +397,281 @@ class ObjText(@ObjAr2d)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.color :: \{me.props.get("color", &)}")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.alignHorizontal :: \{me.props.get("alignHorizontal", &)}")
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.alignVertical :: \{me.props.get("alignVertical", &)}")
-		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setFont(@resCacheDraw, \"\{me.props.get("fontName", &)}\", \{me.props.get("fontSize", &)}, \{me.props.get("bold", &)}, \{me.props.get("italic", &)}, \{me.props.get("proportional", &)}, \{me.props.get("advance", &)})")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setFont(@resCacheDraw, \"\{fontName =& "" ?("null", fontName)}\", \{me.props.get("fontSize", &)}, \{me.props.get("bold", &)}, \{me.props.get("italic", &)}, \{me.props.get("proportional", &)}, \{me.props.get("advance", &)})")
 	end func
 
 	var font: draw@Font
+end class
+
+class ObjImg(@ObjAr2d)
+	+*func draw(x: float, y: float, width: float, height: float)
+		var color: int :: \doc_ar@getPropAsInt(me.props, "color")
+		if(color = 0 | me.tex =& null)
+			ret
+		end if
+
+		do me.tex.drawScale(x, y, width, height, \doc_ar@getPropAsInt(me.props, "srcX") $ float, \doc_ar@getPropAsInt(me.props, "srcX") $ float, \doc_ar@getPropAsInt(me.props, "srcWidth") $ float, \doc_ar@getPropAsInt(me.props, "srcHeight") $ float, color)
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 10
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 100
+		do height :: 100
+	end func
+
+	+*func kind(): []char
+		ret "Img"
+	end func
+
+	+*func icon(): int
+		ret 8
+	end func
+
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
+		do me.props.add("texPath", "")
+		do me.props.add("srcX", "0")
+		do me.props.add("srcY", "0")
+		do me.props.add("srcWidth", "100")
+		do me.props.add("srcHeight", "100")
+		do me.props.add("color", "0xFFFFFFFF")
+		do me.reloadRes()
+	end func
+
+	+*func fin()
+		if(me.tex <>& null)
+			do @resCacheDraw.del(me.tex)
+			do me.tex :: null
+		end if
+	end func
+
+	+*func propsNames(): [][]char
+		ret ["texPath", "srcX", "srcY", "srcWidth", "srcHeight", "color"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%str $ \doc_ar@PropType, %int_, %int_, %int_, %int_, %color]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret #[6][][]char
+	end func
+
+	+*func reloadRes()
+		if(me.tex <>& null)
+			do @resCacheDraw.del(me.tex)
+			do me.tex :: null
+		end if
+		try
+			do me.tex :: @resCacheDraw.makeTex(me.props.get("texPath", &))
+		catch
+			do me.tex :: null
+		end try
+	end func
+
+	+*func type(): []char
+		ret "drawex@ObjImg"
+	end func
+
+	+*func getSrcInit(indent: int, lines: list<[]char>)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.init(\{me.x} $ float, \{me.y} $ float, \{me.width} $ float, \{me.height} $ float, \{me.visible})")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.srcX :: \{me.props.get("srcX", &)} $ float")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.srcY :: \{me.props.get("srcY", &)} $ float")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.srcWidth :: \{me.props.get("srcWidth", &)} $ float")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.srcHeight :: \{me.props.get("srcHeight", &)} $ float")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.color :: \{me.props.get("color", &)}")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setTex(@resCacheDraw, \"\{me.props.get("texPath", &).replace("\\", "\\\\")}\")")
+	end func
+
+	var tex: draw@Tex
+end class
+
+class ObjRoundRect(@ObjAr2d)
+	+*func draw(x: float, y: float, width: float, height: float)
+		var radiusX: float :: \doc_ar@getPropAsInt(me.props, "radiusX") $ float
+		var radiusY: float :: \doc_ar@getPropAsInt(me.props, "radiusY") $ float
+		var colorFill: int :: \doc_ar@getPropAsInt(me.props, "colorFill")
+		if(colorFill <> 0)
+			do draw2d@roundRect(x, y, width, height, radiusX, radiusY, colorFill)
+		end if
+		var colorStroke: int :: \doc_ar@getPropAsInt(me.props, "colorStroke")
+		if(colorStroke <> 0)
+			do draw2d@roundRectLine(x, y, width, height, radiusX, radiusY, \doc_ar@getPropAsFloat(me.props, "strokeWidth"), colorStroke)
+		end if
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 10
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 100
+		do height :: 100
+	end func
+
+	+*func kind(): []char
+		ret "RoundRect"
+	end func
+
+	+*func icon(): int
+		ret 9
+	end func
+
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
+		do me.props.add("colorFill", "0xFFFFFFFF")
+		do me.props.add("colorStroke", "0x00000000")
+		do me.props.add("radiusX", "20")
+		do me.props.add("radiusY", "20")
+		do me.props.add("strokeWidth", "1.0")
+		do me.reloadRes()
+	end func
+
+	+*func propsNames(): [][]char
+		ret ["colorFill", "colorStroke", "radiusX", "radiusY", "strokeWidth"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%color $ \doc_ar@PropType, %color, %int_, %int_, %float_]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret #[5][][]char
+	end func
+
+	+*func type(): []char
+		ret "drawex@ObjRoundRect"
+	end func
+
+	+*func getSrcInit(indent: int, lines: list<[]char>)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.init(\{me.x} $ float, \{me.y} $ float, \{me.width} $ float, \{me.height} $ float, \{me.visible})")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.colorFill :: \{me.props.get("colorFill", &)}")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.colorStroke :: \{me.props.get("colorStroke", &)}")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.radiusX :: \{me.props.get("radiusX", &)} $ float")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.radiusY :: \{me.props.get("radiusY", &)} $ float")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.strokeWidth :: \{me.props.get("strokeWidth", &)}")
+	end func
+end class
+
+class ObjParticle(@ObjAr2d)
+	+*func draw(x: float, y: float, width: float, height: float)
+		if(me.particle =& null | me.tex =& null)
+			ret
+		end if
+
+		do me.particle.emit(x, y, 0.0, 0.0, 0.0, 0.0, width, 0.0, 0.0, 0.0)
+
+		do me.particle.draw2d(me.tex)
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 50
+		do minHeight :: 50
+		do maxWidth :: 50
+		do maxHeight :: 50
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 50
+		do height :: 50
+	end func
+
+	+*func kind(): []char
+		ret "Particle"
+	end func
+
+	+*func icon(): int
+		ret 10
+	end func
+
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
+		do me.props.add("lifespan", "60")
+		do me.props.add("friction", "0.0")
+		do me.props.add("accelX", "0.0")
+		do me.props.add("accelY", "0.0")
+		do me.props.add("color1", "0xFFFFFFFF")
+		do me.props.add("color2", "0xFFFFFFFF")
+		do me.props.add("sizeAccel", "0.0")
+		do me.props.add("rotAccel", "0.0")
+		do me.props.add("texPath", "")
+		do me.reloadRes()
+	end func
+
+	+*func fin()
+		if(me.particle <>& null)
+			do @resCacheDraw.del(me.particle)
+			do me.particle :: null
+		end if
+		if(me.tex <>& null)
+			do @resCacheDraw.del(me.tex)
+			do me.tex :: null
+		end if
+	end func
+
+	+*func propsNames(): [][]char
+		ret ["lifespan", "friction", "accelX", "accelY", "color1", "color2", "sizeAccel", "rotAccel", "texPath"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%int_ $ \doc_ar@PropType, %float_, %float_, %float_, %color, %color, %float_, %float_, %str]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret #[9][][]char
+	end func
+
+	+*func reloadRes()
+		if(me.particle <>& null)
+			do @resCacheDraw.del(me.particle)
+			do me.particle :: null
+		end if
+		if(me.tex <>& null)
+			do @resCacheDraw.del(me.tex)
+			do me.tex :: null
+		end if
+		try
+			do me.particle :: @resCacheDraw.makeParticle(\doc_ar@getPropAsInt(me.props, "lifespan"), \doc_ar@getPropAsInt(me.props, "color1"), \doc_ar@getPropAsInt(me.props, "color2"), \doc_ar@getPropAsFloat(me.props, "friction"), \doc_ar@getPropAsFloat(me.props, "accelX"), \doc_ar@getPropAsFloat(me.props, "accelY"), \doc_ar@getPropAsFloat(me.props, "accelZ"), \doc_ar@getPropAsFloat(me.props, "sizeAccel"), \doc_ar@getPropAsFloat(me.props, "rotAccel"))
+		catch
+			do me.particle :: null
+		end try
+		try
+			do me.tex :: @resCacheDraw.makeTex(me.props.get("texPath", &))
+		catch
+			do me.tex :: null
+		end try
+	end func
+
+	+*func type(): []char
+		ret "drawex@ObjParticle"
+	end func
+
+	+*func getSrcInit(indent: int, lines: list<[]char>)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.init(\{me.x} $ float, \{me.y} $ float, \{me.width} $ float, \{me.height} $ float, \{me.visible})")
+		var texPath: []char :: me.props.get("texPath", &)
+		do texPath :: texPath = "" ?("null", "\"" ~ texPath.replace("\\", "\\\\") ~ "\"")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setParticle(@resCacheDraw, \{me.props.get("lifespan", &)}, \{me.props.get("color1", &)}, \{me.props.get("color2", &)}, \{me.props.get("friction", &)}, \{me.props.get("accelX", &)}, \{me.props.get("accelY", &)}, 0.0, \{me.props.get("sizeAccel", &)}, \{me.props.get("rotAccel", &)})")
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setTex(@resCacheDraw, \{texPath})")
+	end func
+
+	var particle: draw@Particle
+	var tex: draw@Tex
 end class
