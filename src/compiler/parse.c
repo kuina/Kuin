@@ -3602,18 +3602,18 @@ static SAstExpr* ParseExprCall(void)
 								else
 									arg->RefVar = False;
 								FileBuf = c;
+								arg->SkipVar = skip_var;
 								if (skip_var)
 								{
 									SAstExpr* ast3 = (SAstExpr*)Alloc(sizeof(SAstExpr));
-									arg->SkipVar = MakeBlockVar(row, col);
+									SAstArg* tmp_var = MakeBlockVar(row, col);
 									InitAstExpr(ast3, AstTypeId_ExprRef, ((SAst*)ast2)->Pos);
 									((SAst*)ast3)->RefName = L"$";
-									((SAst*)ast3)->RefItem = (SAst*)arg->SkipVar;
+									((SAst*)ast3)->RefItem = (SAst*)tmp_var;
 									arg->Arg = ast3;
 								}
 								else
 								{
-									arg->SkipVar = NULL;
 									arg->Arg = ParseExpr();
 								}
 								ListAdd(ast2->Args, arg);
