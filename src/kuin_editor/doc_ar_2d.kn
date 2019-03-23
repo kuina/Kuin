@@ -1,5 +1,12 @@
 var resCacheDraw: drawex@ResCacheDraw
 
++func updateMainSrcDir(dir: []char)
+	if(@resCacheDraw =& null)
+		do @resCacheDraw :: #drawex@ResCacheDraw
+	end if
+	do @resCacheDraw.setBaseDir(dir)
+end func
+
 +class DocAr2d(\doc_ar@DocAr)
 	*func ctor()
 		do super(me)
@@ -155,8 +162,8 @@ class ObjRect(@ObjAr2d)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
-		do minWidth :: 10
-		do minHeight :: 10
+		do minWidth :: 1
+		do minHeight :: 1
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func
@@ -224,8 +231,8 @@ class ObjCircle(@ObjAr2d)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
-		do minWidth :: 10
-		do minHeight :: 10
+		do minWidth :: 1
+		do minHeight :: 1
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func
@@ -318,8 +325,8 @@ class ObjText(@ObjAr2d)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
-		do minWidth :: 10
-		do minHeight :: 10
+		do minWidth :: 1
+		do minHeight :: 1
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func
@@ -414,8 +421,8 @@ class ObjImg(@ObjAr2d)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
-		do minWidth :: 10
-		do minHeight :: 10
+		do minWidth :: 1
+		do minHeight :: 1
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func
@@ -510,8 +517,8 @@ class ObjRoundRect(@ObjAr2d)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
-		do minWidth :: 10
-		do minHeight :: 10
+		do minWidth :: 1
+		do minHeight :: 1
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func

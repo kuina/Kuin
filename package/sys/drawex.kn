@@ -225,7 +225,7 @@ end class
 	+func makeTex(texPath: []char): draw@Tex
 		var instance: rescache@Instance :: me.add("tex,\{texPath}")
 		if(instance.instance =& null)
-			do instance.instance :: draw@makeTex(texPath)
+			do instance.instance :: draw@makeTex(me.baseDir ~ texPath)
 		end if
 		ret instance.instance $ draw@Tex
 	end func

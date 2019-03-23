@@ -6,6 +6,7 @@ end class
 +class ResCache()
 	*func ctor()
 		do me.instances :: #dict<[]char, @Instance>
+		do me.baseDir :: ""
 	end func
 
 	+func add(key: []char): @Instance
@@ -49,5 +50,10 @@ end class
 		end func
 	end func
 
+	+func setBaseDir(dir: []char)
+		do me.baseDir :: dir
+	end func
+
 	var instances: dict<[]char, @Instance>
+	var baseDir: []char
 end class

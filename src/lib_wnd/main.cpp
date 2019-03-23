@@ -3109,7 +3109,7 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 			{
 				S64 img = (S64)Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnSetMouseImg);
 				SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(img)));
-				return 0;
+				return 1;
 			}
 			break;
 	}

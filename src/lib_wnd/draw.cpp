@@ -39,6 +39,7 @@ struct SWndBuf
 	ID3D10RenderTargetView* TmpRenderTargetView;
 	Bool AutoClear;
 	Bool Editable;
+	int Split;
 };
 
 struct SShaderBuf
@@ -321,7 +322,18 @@ EXPORT_CPP void _render(S64 fps)
 		int old_z_buf = CurZBuf;
 		int old_blend = CurBlend;
 		int old_sampler = CurSampler;
-		_resetViewport();
+
+		D3D10_VIEWPORT viewport =
+		{
+			0,
+			0,
+			static_cast<UINT>(CurWndBuf->TexWidth),
+			static_cast<UINT>(CurWndBuf->TexHeight),
+			0.0f,
+			1.0f,
+		};
+		Device->RSSetViewports(1, &viewport);
+
 		_depth(False, False);
 		_blend(0);
 		_sampler(0);
@@ -339,6 +351,8 @@ EXPORT_CPP void _render(S64 fps)
 		_depth((old_z_buf & 2) != 0, (old_z_buf & 1) != 0);
 		_blend(old_blend);
 		_sampler(old_sampler);
+
+		_resetViewport();
 	}
 
 	CurWndBuf->SwapChain->Present(fps == 0 ? 0 : 1, 0);
@@ -411,8 +425,8 @@ EXPORT_CPP void _resetViewport()
 	{
 		0,
 		0,
-		static_cast<UINT>(CurWndBuf->TexWidth),
-		static_cast<UINT>(CurWndBuf->TexHeight),
+		static_cast<UINT>(CurWndBuf->TexWidth / CurWndBuf->Split),
+		static_cast<UINT>(CurWndBuf->TexHeight / CurWndBuf->Split),
 		0.0f,
 		1.0f,
 	};
@@ -3383,6 +3397,7 @@ void* MakeDrawBuf(int tex_width, int tex_height, int split, HWND wnd, void* old,
 	wnd_buf->TexHeight = tex_height;
 	wnd_buf->AutoClear = True;
 	wnd_buf->Editable = editable;
+	wnd_buf->Split = split;
 
 	// Create a swap chain.
 	{
