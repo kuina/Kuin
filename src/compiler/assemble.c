@@ -3911,16 +3911,8 @@ static void AssembleExprRef(SAstExpr* ast, int reg_i, int reg_f)
 						ListAdd(PackAsm->Asms, AsmLEA(ValReg(8, RegI[reg_i]), ValRIP(8, RefValueAddr(addr, True))));
 					}
 					break;
-				case AstArgKind_LocalVar:
-					if (((SAstArg*)ast2)->Expr != NULL)
-					{
-						// Initialize the temporary variable
-						SAstExpr* expr = ((SAstArg*)ast2)->Expr;
-						((SAstArg*)ast2)->Expr = NULL;
-						AssembleExpr(expr, reg_i, reg_f);
-					}
-					// Fall through
 				case AstArgKind_LocalArg:
+				case AstArgKind_LocalVar:
 					{
 						S64* addr = RefLocalVar((SAstArg*)ast2);
 						ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValImm(8, RefValueAddr(addr, False))));

@@ -72,6 +72,7 @@ static const Char* BuildInFuncs[] =
 static SDict* Asts;
 static const SOption* Option;
 static SDict* Dlls;
+static SAstStat* InsertedStat;
 
 static SAstFunc* SearchMain(void);
 static const void* ResolveIdentifierCallback(const Char* key, const void* value, void* param);
@@ -85,7 +86,7 @@ static SAstFunc* AddSpecialFunc(SAstClass* class_, const Char* name);
 static SAst* SearchStdItem(const Char* src, const Char* identifier, Bool make_expr_ref);
 static SAstExprDot* MakeMeDot(SAstClass* class_, SAstArg* arg, const Char* name);
 static SAstExprValue* MakeExprNull(const SPos* pos);
-static SAstExpr* CacheSubExpr(const SAstExpr* ast, const SPos* pos);
+static SAstExpr* CacheSubExpr(SAstExpr* ast, const SPos* pos);
 static void AddDllFunc(const Char* dll_name, const Char* func_name);
 static int GetBuildInFuncType(const Char* name);
 static S64 GetEnumElementValue(SAstExprValue* ast, SAstEnum* enum_);
@@ -154,6 +155,7 @@ SAstFunc* Analyze(SDict* asts, const SOption* option, SDict** dlls)
 	Asts = asts;
 	Option = option;
 	Dlls = NULL;
+	InsertedStat = NULL;
 	{
 		SAstFunc* main_func = SearchMain();
 		if (main_func == NULL)
@@ -361,6 +363,11 @@ static SList* RefreshStats(SList* stats, SAstType* ret_type, SAstFunc* parent_fu
 		while (ptr != NULL)
 		{
 			SAstStat* stat = RebuildStat((SAstStat*)ptr->Data, ret_type, parent_func);
+			if (InsertedStat != NULL)
+			{
+				ListAdd(stats2, InsertedStat);
+				InsertedStat = NULL;
+			}
 			if (stat != NULL)
 				ListAdd(stats2, stat);
 			ptr = ptr->Next;
@@ -614,7 +621,7 @@ static SAstExprValue* MakeExprNull(const SPos* pos)
 	return value;
 }
 
-static SAstExpr* CacheSubExpr(const SAstExpr* ast, const SPos* pos)
+static SAstExpr* CacheSubExpr(SAstExpr* ast, const SPos* pos)
 {
 	if (ast == NULL)
 		return NULL;
@@ -626,6 +633,7 @@ static SAstExpr* CacheSubExpr(const SAstExpr* ast, const SPos* pos)
 	ast2->Kind = AstArgKind_LocalVar;
 	ast2->RefVar = False;
 	ast2->Type = ast->Type;
+	ast2->Expr = NULL;
 	((SAst*)ast2)->AnalyzedCache = (SAst*)ast2;
 	SAstExpr* ref = (SAstExpr*)Alloc(sizeof(SAstExpr));
 	InitAstExpr(ref, AstTypeId_ExprRef, pos);
@@ -639,8 +647,14 @@ static SAstExpr* CacheSubExpr(const SAstExpr* ast, const SPos* pos)
 	expr_assign->Kind = AstExpr2Kind_Assign;
 	expr_assign->Children[0] = ref;
 	expr_assign->Children[1] = ast;
-	// For use in AssembleExprRef()
-	ast2->Expr = RebuildExpr((SAstExpr*)expr_assign, True);
+	RebuildExpr((SAstExpr*)expr_assign, True);
+	SAstStatDo* do_stat = (SAstStatDo*)Alloc(sizeof(SAstStatDo));
+	InitAst((SAst*)do_stat, AstTypeId_StatDo, pos);
+	((SAstStat*)do_stat)->AsmTop = NULL;
+	((SAstStat*)do_stat)->AsmBottom = NULL;
+	((SAstStat*)do_stat)->PosRowBottom = pos->Row;
+	do_stat->Expr = (SAstExpr*)expr_assign;
+	InsertedStat = RebuildDo(do_stat);
 	return ref;
 }
 
