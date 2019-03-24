@@ -3523,7 +3523,9 @@ static LRESULT CALLBACK WndProcScrollX(HWND wnd, UINT msg, WPARAM w_param, LPARA
 	ASSERT(wnd2->Kind == WndKind_ScrollX);
 	switch (msg)
 	{
-		// TODO:
+		case WM_SETCURSOR:
+			SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(IDC_ARROW)));
+			return 1;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }
@@ -3534,7 +3536,9 @@ static LRESULT CALLBACK WndProcScrollY(HWND wnd, UINT msg, WPARAM w_param, LPARA
 	ASSERT(wnd2->Kind == WndKind_ScrollY);
 	switch (msg)
 	{
-		// TODO:
+		case WM_SETCURSOR:
+			SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(IDC_ARROW)));
+			return 1;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
 }
