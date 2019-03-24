@@ -867,7 +867,7 @@ static SAstFunc* Rebuild(const SAstFunc* main_func)
 					{
 						SAstExprCallArg* excpt = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
 						excpt->RefVar = False;
-						excpt->SkipVar = NULL;
+						excpt->SkipVar = False;
 						{
 							SAstExpr* ref_ = (SAstExpr*)Alloc(sizeof(SAstExpr));
 							InitAstExpr(ref_, AstTypeId_ExprRef, pos);
@@ -3270,7 +3270,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
 			}
 			value_type->RefVar = False;
-			value_type->SkipVar = NULL;
+			value_type->SkipVar = False;
 			ListIns(ast->Args, ast->Args->Top, value_type);
 		}
 		if (((SAst*)ast->Func)->TypeId == AstTypeId_ExprDot && ((SAst*)ast->Func->Type)->TypeId == AstTypeId_TypeFunc)
@@ -3279,7 +3279,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 				SAstExprCallArg* me = (SAstExprCallArg*)Alloc(sizeof(SAstExprCallArg));
 				me->Arg = ((SAstExprDot*)ast->Func)->Var;
 				me->RefVar = False;
-				me->SkipVar = NULL;
+				me->SkipVar = False;
 				ListIns(ast->Args, ast->Args->Top, me);
 			}
 			if ((type->FuncAttr & FuncAttr_AnyType) != 0)
@@ -3299,7 +3299,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 					me_type->Arg = RebuildExpr((SAstExpr*)expr, False);
 				}
 				me_type->RefVar = False;
-				me_type->SkipVar = NULL;
+				me_type->SkipVar = False;
 				ListIns(ast->Args, ast->Args->Top->Next, me_type);
 			}
 			if ((type->FuncAttr & FuncAttr_TakeKeyValue) != 0)
@@ -3319,7 +3319,7 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 					value_type->Arg = RebuildExpr((SAstExpr*)expr, False);
 				}
 				value_type->RefVar = False;
-				value_type->SkipVar = NULL;
+				value_type->SkipVar = False;
 				ListIns(ast->Args, ast->Args->Top->Next->Next, value_type);
 			}
 		}
@@ -3346,11 +3346,16 @@ static SAstExpr* RebuildExprCall(SAstExprCall* ast)
 			{
 				SAstExprCallArg* arg_expr = (SAstExprCallArg*)ptr_expr->Data;
 				SAstTypeFuncArg* arg_type = (SAstTypeFuncArg*)ptr_type->Data;
-				if (arg_expr->SkipVar != NULL)
-					arg_expr->SkipVar->Type = arg_type->Arg;
+				if (arg_expr->SkipVar)
+					((SAstArg*)((SAst*)arg_expr->Arg)->RefItem)->Type = arg_type->Arg;
 				arg_expr->Arg = RebuildExpr(arg_expr->Arg, False);
 				if (arg_expr->Arg != NULL)
 				{
+					if (arg_expr->RefVar && !arg_expr->SkipVar && arg_expr->Arg->VarKind == AstExprVarKind_Value)
+					{
+						Err(L"EA0067", ((SAst*)ast)->Pos, n + 1);
+						return NULL;
+					}
 					if (arg_expr->RefVar != arg_type->RefVar || !CmpType(arg_expr->Arg->Type, arg_type->Arg))
 					{
 						Err(L"EA0048", ((SAst*)ast)->Pos, n + 1, arg_type->RefVar ? L"&" : L"", GetTypeNameNew(arg_type->Arg), arg_expr->RefVar ? L"&" : L"", GetTypeNameNew(arg_expr->Arg->Type));

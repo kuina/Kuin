@@ -565,7 +565,7 @@ typedef struct SAstExprCallArg
 {
 	SAstExpr* Arg;
 	Bool RefVar;
-	SAstArg* SkipVar;
+	Bool SkipVar;
 } SAstExprCallArg;
 
 typedef struct SAstExprCall
