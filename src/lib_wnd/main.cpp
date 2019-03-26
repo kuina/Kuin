@@ -2663,16 +2663,6 @@ static SClass* MakeDrawImpl(SClass* me_, SClass* parent, S64 x, S64 y, S64 width
 	me3->OnScrollX = NULL;
 	me3->OnScrollY = NULL;
 	me3->OnSetMouseImg = NULL;
-	
-	{
-		MSG msg;
-		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-	}
-
 	return me_;
 }
 
@@ -2913,9 +2903,10 @@ static LRESULT CALLBACK WndProcDraw(HWND wnd, UINT msg, WPARAM w_param, LPARAM l
 				}
 				Call3Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), reinterpret_cast<void*>(static_cast<S64>(rect.right - rect.left)), reinterpret_cast<void*>(static_cast<S64>(rect.bottom - rect.top)), wnd3->OnPaint);
 				EndPaint(wnd, &ps);
-				return 0;
 			}
-			break;
+			else
+				ValidateRect(wnd, NULL);
+			return 0;
 		case WM_LBUTTONDOWN:
 			SetFocus(wnd);
 			if (wnd3->OnMouseDownL != NULL)
