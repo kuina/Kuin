@@ -2259,6 +2259,8 @@ static SAstStat* RebuildDo(SAstStatDo* ast)
 				block->Stats = ListNew();
 				{
 					SAstExpr* lhs = RebuildExpr(expr->Children[0], False);
+					if (lhs == NULL)
+						return NULL;
 					if (((SAst*)lhs)->TypeId == AstTypeId_ExprDot)
 						((SAstExprDot*)lhs)->Var = CacheSubExpr(block->Stats, ((SAstExprDot*)lhs)->Var, ((SAst*)ast)->Pos);
 					else if (((SAst*)lhs)->TypeId == AstTypeId_ExprArray)
