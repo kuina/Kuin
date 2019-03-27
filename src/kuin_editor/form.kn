@@ -7,6 +7,7 @@ var editFile: wnd@Edit
 +var drawEditor: wnd@Draw
 +var scrollXSrc: wnd@ScrollX
 +var scrollYSrc: wnd@ScrollY
++var editHint: wnd@Edit
 +var listRb: wnd@ListView
 +var groupRbAr: wnd@Group
 
@@ -86,11 +87,13 @@ var drag: bool
 	do @btnCode.onPush :: @btnCodeOnPush
 	do @editFile :: wnd@makeEdit(@wndMain, 368, 20, 653, 15, %scale, %fix)
 	do @editFile.readonly(true)
-	do @drawEditor :: wnd@makeDraw(@wndMain, 262, 41, 759, 574, %scale, %scale, true)
-	do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 557, 742, 17, %scale, %move)
+	do @drawEditor :: wnd@makeDraw(@wndMain, 262, 41, 759, 553, %scale, %scale, true)
+	do @scrollXSrc :: wnd@makeScrollX(@drawEditor, 0, 536, 742, 17, %scale, %move)
 	do @scrollXSrc.setState(0, 0, 1, 0)
-	do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 742, 0, 17, 557, %move, %scale)
+	do @scrollYSrc :: wnd@makeScrollY(@drawEditor, 742, 0, 17, 536, %move, %scale)
 	do @scrollYSrc.setState(0, 0, 1, 0)
+	do @editHint :: wnd@makeEdit(@wndMain, 262, 600, 759, 15, %scale, %move)
+	do @editHint.readonly(true)
 	do @listRb :: wnd@makeListView(@wndMain, 262, 621, 391, 135, %scale, %move, false, null, null)
 	do @listRb.setVisible(false)
 	do @listRb.onMouseClick :: listRbOnMouseClick

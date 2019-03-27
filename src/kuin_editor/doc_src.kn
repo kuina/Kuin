@@ -1636,13 +1636,9 @@ end func
 		if(showCompletion & modified)
 			var first: int
 			var word: []char :: me.parseWord(me.cursorX, me.cursorY, &first)
-			if(word =& null)
-				do \completion@close()
-			else
-				do \form@drawEditor.showCaret(\common@cellHeight, \common@font)
-				do \completion@show(me.src, \src@curDocName, first, me.cursorY, word)
-				do \form@drawEditor.hideCaret()
-			end if
+			do \form@drawEditor.showCaret(\common@cellHeight, \common@font)
+			do \completion@show(me.src, \src@curDocName, first, me.cursorY, word)
+			do \form@drawEditor.hideCaret()
 		end if
 	end func
 
@@ -1652,7 +1648,7 @@ end func
 			do first :- 1
 		end while
 		if(first = ^me.src.color[y] | !keyword(me.src.color[y][first]))
-			do first :: -1
+			do first :: x
 			ret null
 		end if
 		var last: int :: x
