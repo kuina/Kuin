@@ -414,10 +414,15 @@ void* GetKeywordsRoot(const Char** str, const Char* end, const Char* src_name, i
 		size_t len = 0;
 		len += swprintf(hint + len, AUXILIARY_BUF_SIZE, L"func %s@%s(", ((SAst*)KeywordHintFunc)->Pos->SrcName, ((SAst*)KeywordHintFunc)->Name);
 		SListNode* ptr2 = KeywordHintFunc->Args->Top;
+		if ((KeywordHintFunc->FuncAttr & FuncAttr_MakeInstance) != 0 && ptr2 != NULL)
+			ptr2 = ptr2->Next;
+		Bool first = True;
 		while (ptr2 != NULL)
 		{
 			const SAstArg* arg = (const SAstArg*)ptr2->Data;
-			if (ptr2 != KeywordHintFunc->Args->Top && len < AUXILIARY_BUF_SIZE)
+			if (first)
+				first = False;
+			else if (len < AUXILIARY_BUF_SIZE)
 				len += swprintf(hint + len, AUXILIARY_BUF_SIZE - len, L", ");
 			if (len < AUXILIARY_BUF_SIZE)
 				len += swprintf(hint + len, AUXILIARY_BUF_SIZE - len, L"%s: ", ((SAst*)arg)->Name);
