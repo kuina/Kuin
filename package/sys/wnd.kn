@@ -888,6 +888,9 @@ end func
 		do me.children.add(popup)
 	end func
 
+	+func [d0001.knd, _menuDel] del(id: int)
+	end func
+
 	var handle: int
 	var children: list<kuin@Class>
 end class

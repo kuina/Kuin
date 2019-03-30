@@ -1,0 +1,94 @@
+var recent: list<[]char>
+const itemCountMax: int :: 20
+
++func load()
+	do @recent :: #list<[]char>
+	try
+		var prop: xml@Xml :: xml@makeXml(file@exeDir() ~  "sys/recent.knd")
+		if(prop =& null)
+			ret
+		end if
+		var root: xml@Node :: prop.root()
+		var recentFiles: xml@Node :: root.findChild("recent_files")
+		var node: xml@Node :: recentFiles.firstChild()
+		while(node <>& null)
+			do @recent.add(node.getValue())
+			do node :: node.next()
+		end while
+	catch
+	end try
+
+	do @updateUi()
+end func
+
++func save(fileName: []char)
+	do @recent.head()
+	if(@recent.term())
+		do @recent.add(fileName)
+	else
+		do @recent.ins(fileName)
+	end if
+	var newRecent: list<[]char> :: #list<[]char>
+	do @recent.head()
+	for i(0, @itemCountMax - 1)
+		if(@recent.term())
+			break i
+		end if
+		var file: []char :: @recent.get()
+		do newRecent.head()
+		var found: bool :: false
+		while loop(!newRecent.term())
+			if(newRecent.get() = file)
+				do found :: true
+				break loop
+			end if
+			do newRecent.next()
+		end while
+		if(!found)
+			do newRecent.add(file)
+		end if
+		do @recent.next()
+	end for
+	do @recent :: newRecent
+
+	do file@delFile(file@exeDir() ~  "sys/recent.knd")
+	var prop: xml@Xml :: xml@makeXmlEmpty()
+	var root: xml@Node :: prop.root()
+	var recentFiles: xml@Node :: root.addChild("recent_files")
+	do @recent.head()
+	while(!@recent.term())
+		do recentFiles.addChild("recent_file").setValue(@recent.get())
+		do @recent.next()
+	end while
+	do prop.save(file@exeDir() ~  "sys/recent.knd", false)
+
+	do @updateUi()
+end func
+
++func sel(id: int)
+	do @recent.head()
+	do @recent.moveOffset(id - 0x0400)
+	if(@recent.term())
+		ret
+	end if
+	var file: []char :: @recent.get()
+
+	if (\src@chkChanged())
+		do \src@openMainSrc(file)
+		do @save(file)
+	end if
+end func
+
+func updateUi()
+	for i(0, @itemCountMax - 1)
+		do \form@popupRecentFiles.del(0x0400 + i)
+	end for
+	do @recent.head()
+	for i(0, @itemCountMax - 1)
+		if(@recent.term())
+			break i
+		end if
+		do \form@popupRecentFiles.add(0x0400 + i, @recent.get())
+		do @recent.next()
+	end for
+end func
