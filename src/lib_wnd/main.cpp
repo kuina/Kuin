@@ -2046,7 +2046,6 @@ EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup)
 EXPORT_CPP void _menuDel(SClass* me_, S64 id)
 {
 	THROWDBG(id < 0x0001 || 0xffff < id, 0xe9170006);
-	THROWDBG(popup == NULL, 0xc0000005);
 	DeleteMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, static_cast<UINT_PTR>(id), MF_BYCOMMAND);
 }
 
