@@ -4186,8 +4186,6 @@ static void InterpretImpl1Color(int* ptr, int str_level, const Char* str, U8* co
 		{
 			if (str_level > 0 && c == L'}')
 			{
-				color[*ptr] = CharColor_Str;
-				(*ptr)++;
 				break;
 			}
 			else if (c == L' ' || c == L'\t')
@@ -4565,9 +4563,6 @@ static void InterpretImpl1AlignRecursion(int* ptr_buf, int* ptr_str, int str_lev
 			if (str_level > 0 && c == L'}')
 			{
 				*prev = AlignmentToken_None;
-				Interpret1Impl1UpdateCursor(cursor_x, new_cursor_x, ptr_str, ptr_buf);
-				InterpretImpl1Write(ptr_buf, buf, str[*ptr_str]);
-				(*ptr_str)++;
 				break;
 			}
 			else if (type_level > 0 && c == L'>')
