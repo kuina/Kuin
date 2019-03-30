@@ -151,6 +151,7 @@ EXPORT_CPP void _menuDtor(SClass* me_);
 EXPORT_CPP void _menuAdd(SClass* me_, S64 id, const U8* text);
 EXPORT_CPP void _menuAddLine(SClass* me_);
 EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup);
+EXPORT_CPP void _menuDel(SClass* me_, S64 id);
 EXPORT_CPP SClass* _makePopup(SClass* me_);
 
 EXPORT_CPP SClass* _makeTabOrder(SClass* me_, U8* ctrls);

@@ -43,6 +43,7 @@ var popupMainFile: wnd@Popup
 var popupMainBuild: wnd@Popup
 var popupMainDbg: wnd@Popup
 var popupMainHelp: wnd@Popup
++var popupRecentFiles: wnd@Popup
 
 var lockingEditor: bool
 var lockUi: bool
@@ -194,6 +195,9 @@ var drag: bool
 	do @popupMainFile.addLine()
 	do @popupMainFile.add(0x0003, \common@langEn ?("&Save All\tCtrl+S", "すべて保存(&S)\tCtrl+S"))
 	do @popupMainFile.add(0x0004, \common@langEn ?("Save &As...\tCtrl+Shift+S", "名前を付けて保存(&A)...\tCtrl+Shift+S"))
+	do @popupMainFile.addLine()
+	do @popupRecentFiles :: wnd@makePopup()
+	do @popupMainFile.addPopup(\common@langEn ?("Recent &Files", "最近使ったファイル(&F)"), @popupRecentFiles)
 	do @popupMainFile.addLine()
 	do @popupMainFile.add(0x0005, \common@langEn ?("E&xit\tCtrl+Q", "終了(&E)\tCtrl+Q"))
 	do @menuMain.addPopup(\common@langEn ?("&File", "ファイル(&F)"), @popupMainFile)
@@ -476,6 +480,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			var file: []char :: wnd@openFileDialog(@wndMain, [\common@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0)
 			if(file <>& null)
 				do \src@openMainSrc(file)
+				do \recent@save(file)
 			end if
 		end if
 	case 0x0003
@@ -552,6 +557,8 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			end if
 			do (\src@curDoc $ \doc_src@DocSrc).toggleBreakPoint()
 		end if
+	case 0x0400 to 0x04FF
+		do \recent@sel(id)
 	end switch
 end func
 

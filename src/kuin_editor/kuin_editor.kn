@@ -9,6 +9,7 @@ func main()
 	do \find@init()
 	do \snippet@load()
 	do \form@makeWnd()
+	do \recent@load()
 	do \doc_src@init()
 	do \src@init()
 

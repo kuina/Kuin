@@ -2043,6 +2043,13 @@ EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup)
 	AppendMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, MF_ENABLED | MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), reinterpret_cast<const Char*>(text + 0x10));
 }
 
+EXPORT_CPP void _menuDel(SClass* me_, S64 id)
+{
+	THROWDBG(id < 0x0001 || 0xffff < id, 0xe9170006);
+	THROWDBG(popup == NULL, 0xc0000005);
+	DeleteMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, static_cast<UINT_PTR>(id), MF_BYCOMMAND);
+}
+
 EXPORT_CPP SClass* _makePopup(SClass* me_)
 {
 	SMenu* me2 = reinterpret_cast<SMenu*>(me_);
