@@ -6168,8 +6168,18 @@ static void GetKeywordsAddMember(const Char* type)
 			while (ptr != NULL)
 			{
 				const SAstClassItem* item = (const SAstClassItem*)ptr->Data;
-				if (item->Def->Name != NULL && item->Public)
-					GetKeywordsAdd(item->Def->Name);
+				if (item->Public)
+				{
+					const Char* name;
+					if (item->Def->TypeId == AstTypeId_Var)
+						name = ((SAst*)((SAstVar*)item->Def)->Var)->Name;
+					else if (item->Def->TypeId == AstTypeId_Const)
+						name = ((SAst*)((SAstConst*)item->Def)->Var)->Name;
+					else
+						name = item->Def->Name;
+					if (name != NULL)
+						GetKeywordsAdd(name);
+				}
 				ptr = ptr->Next;
 			}
 		}

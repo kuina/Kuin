@@ -281,11 +281,10 @@ end func
 				do me.undo.recordBegin()
 				if(me.areaSel())
 					do me.delAreaStr()
-					do me.interpret1SetDirty(me.cursorY, true, false)
 				else
 					do me.bs(me.cursorX, me.cursorY, 1, true)
-					do me.interpret1SetDirty(me.cursorY, true, true)
 				end if
+				do me.interpret1SetDirty(me.cursorY, true, false)
 				do me.undo.recordEnd()
 				do me.refreshCursor(false, true)
 				do \form@paintDrawEditor()
@@ -581,11 +580,10 @@ end func
 		do me.undo.recordBegin()
 		if(me.areaSel())
 			do me.delAreaStr()
-			do me.interpret1SetDirty(me.cursorY, true, false)
 		else
 			do me.del(me.cursorX, me.cursorY, 1, true)
-			do me.interpret1SetDirty(me.cursorY, true, true)
 		end if
+		do me.interpret1SetDirty(me.cursorY, true, false)
 		do me.undo.recordEnd()
 		do me.refreshCursor(false, true)
 		do \form@paintDrawEditor()
