@@ -2229,7 +2229,7 @@ static SAstStat* RebuildDo(SAstStatDo* ast)
 	if (((SAst*)ast)->AnalyzedCache != NULL)
 		return (SAstStat*)((SAst*)ast)->AnalyzedCache;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
-	if (((SAst*)ast->Expr)->TypeId == AstTypeId_Expr2)
+	if (ast->Expr != NULL && ((SAst*)ast->Expr)->TypeId == AstTypeId_Expr2)
 	{
 		SAstExpr2* expr = (SAstExpr2*)ast->Expr;
 		// Replace all assignment operators that are not '::' with '::'
