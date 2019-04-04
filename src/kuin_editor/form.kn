@@ -543,6 +543,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		do \find@findNext()
 	case 0x003D
 		do \snippet@add(\src@curDoc.getSelCode())
+		do \src@curDoc.fix()
 	case 0x003E
 		if(@lockingEditor)
 			do @showMsgRunning()
