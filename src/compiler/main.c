@@ -993,6 +993,7 @@ static size_t BuildFileGetSize(FILE* file_ptr)
 
 static SPos* AddrToPos(U64 addr, Char* name)
 {
+	name[0] = '\0';
 	SPos* result = NULL;
 	void* params[3];
 	params[0] = (void*)&result;

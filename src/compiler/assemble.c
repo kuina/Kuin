@@ -1565,19 +1565,7 @@ static void SetStatAsm(SAstStat* ast, SListNode* asms_top, SListNode* asms_botto
 	else
 		ast->AsmTop = (SAsm*)asms_top->Next->Data;
 	if (asms_bottom != NULL)
-	{
-		SListNode* ptr = asms_bottom;
-		while (ptr != NULL)
-		{
-			SAsm* item = (SAsm*)ptr->Data;
-			if (item->TypeId != AsmTypeId_Label)
-			{
-				ast->AsmBottom = item;
-				break;
-			}
-			ptr = ptr->Prev;
-		}
-	}
+		ast->AsmBottom = (SAsm*)asms_bottom->Data;
 }
 
 static void AssembleFunc(SAstFunc* ast, Bool entry)
