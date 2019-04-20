@@ -942,6 +942,16 @@ EXPORT_CPP void _texDtor(SClass* me_)
 		me2->Tex->Release();
 }
 
+EXPORT_CPP S64 _texWidth(SClass* me_)
+{
+	return static_cast<S64>(reinterpret_cast<STex*>(me_)->Width);
+}
+
+EXPORT_CPP S64 _texHeight(SClass* me_)
+{
+	return static_cast<S64>(reinterpret_cast<STex*>(me_)->Height);
+}
+
 EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH, S64 color)
 {
 	_texDrawScale(me_, dstX, dstY, srcW, srcH, srcX, srcY, srcW, srcH, color);

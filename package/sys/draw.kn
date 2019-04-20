@@ -87,6 +87,12 @@ end func
 	*func [d0001.knd, _texDtor, _force] _dtor()
 	end func
 
+	+func [d0001.knd, _texWidth] width(): int
+	end func
+
+	+func [d0001.knd, _texHeight] height(): int
+	end func
+
 	+func [d0001.knd, _texDraw] draw(dstX: float, dstY: float, srcX: float, srcY: float, srcW: float, srcH: float, color: int)
 	end func
 
