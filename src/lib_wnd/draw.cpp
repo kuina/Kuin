@@ -1102,7 +1102,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		me2->Height = (double)tm.tmHeight;
 		SelectObject(me2->Dc, old_font);
 	}
-	me2->CellSizeAligned = 32; // Texture length must not be less than 128.
+	me2->CellSizeAligned = 128; // Texture length must not be less than 128.
 	while (me2->CellSizeAligned < me2->CellWidth + 1 || me2->CellSizeAligned < me2->CellHeight + 1)
 		me2->CellSizeAligned *= 2;
 	{
