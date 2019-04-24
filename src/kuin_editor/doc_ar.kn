@@ -618,117 +618,139 @@
 			end if
 			do \form@updateUi()
 		case %chkRbArVisibleOnPush
-			var obj: @Obj
-			if(^me.holds = 0)
-				do obj :: me.root
-			elif(^me.holds = 1)
-				do me.holds.head()
-				do obj :: me.holds.get()
-			else
-				ret
-			end if
-			var chk: bool :: \form@chkRbArVisible.getChk()
-			if(obj.visible <> chk)
-				do me.undo.recordBegin()
-				do me.visible(obj =& me.root ?(null, obj.name), chk, true)
-				do me.undo.recordEnd()
-				do \form@paintDrawEditor()
-			end if
-			do \form@updateUi()
+			var data: lib@Bool :: #lib@Bool
+			do data.value :: \form@chkRbArVisible.getChk()
+			do me.updateMultiple(chk, apply, data)
+
+			func chk(obj: @Obj, data: lib@Bool): bool
+				ret obj.visible <> data.value
+			end func
+
+			func apply(me_: @DocAr, obj: @Obj, data: lib@Bool)
+				do me_.visible(obj =& me_.root ?(null, obj.name), data.value, true)
+			end func
 		case %editRbArXOnKillFocus
-			if(^me.holds <> 1)
+			if(^me.holds = 0)
 				do \form@updateUi()
 				ret
 			end if
-			do me.holds.head()
-			var obj: @Obj :: me.holds.get()
 			var success: bool
 			var value: int :: \form@editRbArX.getText().trim().toInt(&success)
-			if(value < 0)
-				do value :: 0
-			end if
 			if(success)
-				do me.undo.recordBegin()
-				do me.move(obj.name, value, obj.y, obj.width, obj.height, true)
-				do me.undo.recordEnd()
-				do \form@paintDrawEditor()
+				if(value < 0)
+					do value :: 0
+				end if
+				var data: lib@Int :: #lib@Int
+				do data.value :: value
+				do me.updateMultiple(chk, apply, data)
+			else
+				do \form@updateUi()
 			end if
-			do \form@updateUi()
+
+			func chk(obj: @Obj, data: lib@Int): bool
+				ret obj.x <> data.value
+			end func
+
+			func apply(me_: @DocAr, obj: @Obj, data: lib@Int)
+				do me_.move(obj =& me_.root ?(null, obj.name), data.value, obj.y, obj.width, obj.height, true)
+			end func
 		case %editRbArYOnKillFocus
-			if(^me.holds <> 1)
+			if(^me.holds = 0)
 				do \form@updateUi()
 				ret
 			end if
-			do me.holds.head()
-			var obj: @Obj :: me.holds.get()
 			var success: bool
 			var value: int :: \form@editRbArY.getText().trim().toInt(&success)
-			if(value < 0)
-				do value :: 0
-			end if
 			if(success)
-				do me.undo.recordBegin()
-				do me.move(obj.name, obj.x, value, obj.width, obj.height, true)
-				do me.undo.recordEnd()
-				do \form@paintDrawEditor()
-			end if
-			do \form@updateUi()
-		case %editRbArWidthOnKillFocus
-			var obj: @Obj
-			if(^me.holds = 0)
-				do obj :: me.root
-			elif(^me.holds = 1)
-				do me.holds.head()
-				do obj :: me.holds.get()
+				if(value < 0)
+					do value :: 0
+				end if
+				var data: lib@Int :: #lib@Int
+				do data.value :: value
+				do me.updateMultiple(chk, apply, data)
 			else
 				do \form@updateUi()
-				ret
 			end if
+
+			func chk(obj: @Obj, data: lib@Int): bool
+				ret obj.y <> data.value
+			end func
+
+			func apply(me_: @DocAr, obj: @Obj, data: lib@Int)
+				do me_.move(obj =& me_.root ?(null, obj.name), obj.x, data.value, obj.width, obj.height, true)
+			end func
+		case %editRbArWidthOnKillFocus
 			var success: bool
 			var value: int :: \form@editRbArWidth.getText().trim().toInt(&success)
-			var minValue: int
-			var maxValue: int
-			do obj.getMinMax(&minValue, &, &maxValue, &)
-			if(value < minValue)
-				do value :: minValue
-			elif(value > maxValue)
-				do value :: maxValue
-			end if
 			if(success)
-				do me.undo.recordBegin()
-				do me.move(obj =& me.root ?(null, obj.name), obj.x, obj.y, value, obj.height, true)
-				do me.undo.recordEnd()
-				do \form@paintDrawEditor()
-			end if
-			do \form@updateUi()
-		case %editRbArHeightOnKillFocus
-			var obj: @Obj
-			if(^me.holds = 0)
-				do obj :: me.root
-			elif(^me.holds = 1)
-				do me.holds.head()
-				do obj :: me.holds.get()
+				var data: lib@Int :: #lib@Int
+				do data.value :: value
+				do me.updateMultiple(chk, apply, data)
 			else
 				do \form@updateUi()
-				ret
 			end if
+
+			func chk(obj: @Obj, data: lib@Int): bool
+				var value: int :: data.value
+				var minValue: int
+				var maxValue: int
+				do obj.getMinMax(&minValue, &, &maxValue, &)
+				if(value < minValue)
+					do value :: minValue
+				elif(value > maxValue)
+					do value :: maxValue
+				end if
+				ret obj.width <> value
+			end func
+
+			func apply(me_: @DocAr, obj: @Obj, data: lib@Int)
+				var value: int :: data.value
+				var minValue: int
+				var maxValue: int
+				do obj.getMinMax(&minValue, &, &maxValue, &)
+				if(value < minValue)
+					do value :: minValue
+				elif(value > maxValue)
+					do value :: maxValue
+				end if
+				do me_.move(obj =& me_.root ?(null, obj.name), obj.x, obj.y, value, obj.height, true)
+			end func
+		case %editRbArHeightOnKillFocus
 			var success: bool
 			var value: int :: \form@editRbArHeight.getText().trim().toInt(&success)
-			var minValue: int
-			var maxValue: int
-			do obj.getMinMax(&, &minValue, &, &maxValue)
-			if(value < minValue)
-				do value :: minValue
-			elif(value > maxValue)
-				do value :: maxValue
-			end if
 			if(success)
-				do me.undo.recordBegin()
-				do me.move(obj =& me.root ?(null, obj.name), obj.x, obj.y, obj.width, value, true)
-				do me.undo.recordEnd()
-				do \form@paintDrawEditor()
+				var data: lib@Int :: #lib@Int
+				do data.value :: value
+				do me.updateMultiple(chk, apply, data)
+			else
+				do \form@updateUi()
 			end if
-			do \form@updateUi()
+
+			func chk(obj: @Obj, data: lib@Int): bool
+				var value: int :: data.value
+				var minValue: int
+				var maxValue: int
+				do obj.getMinMax(&, &minValue, &, &maxValue)
+				if(value < minValue)
+					do value :: minValue
+				elif(value > maxValue)
+					do value :: maxValue
+				end if
+				ret obj.height <> value
+			end func
+
+			func apply(me_: @DocAr, obj: @Obj, data: lib@Int)
+				var value: int :: data.value
+				var minValue: int
+				var maxValue: int
+				do obj.getMinMax(&, &minValue, &, &maxValue)
+				if(value < minValue)
+					do value :: minValue
+				elif(value > maxValue)
+					do value :: maxValue
+				end if
+				do me_.move(obj =& me_.root ?(null, obj.name), obj.x, obj.y, obj.width, value, true)
+			end func
 		case %btnRbArPropOnPush
 			var obj: @Obj
 			if(^me.holds = 0)
@@ -800,7 +822,7 @@
 	end enum
 
 	var src: [][]char
-	var root: @Obj
+	+var root: @Obj
 	var nodes: list<@Obj>
 	var holds: list<@Obj>
 	var clipboard: list<@Obj>
@@ -957,9 +979,14 @@
 
 	func updateProp()
 		do me.updatingProp :: true
-		if(^me.holds >= 2)
-			do \form@groupRbAr.setVisible(false)
-		else
+
+		var name: []char
+		var visible: bool
+		var objXStr: []char
+		var objYStr: []char
+		var objWidthStr: []char
+		var objHeightStr: []char
+		if(^me.holds <= 1)
 			var obj: @Obj
 			if(^me.holds = 0)
 				do obj :: me.root
@@ -967,21 +994,74 @@
 				do me.holds.head()
 				do obj :: me.holds.get()
 			end if
+			do name :: obj.name
+			do visible :: obj.visible
 			var objX: int
 			var objY: int
 			var objWidth: int
 			var objHeight: int
 			do me.resizeObj(obj, me.curOriginX, me.curOriginY, &objX, &objY, &objWidth, &objHeight)
-			do \form@groupRbAr.setVisible(true)
-			do \form@groupRbAr.setRedraw(false)
-			do \form@groupRbAr.setRedraw(true)
-			do \form@editRbArName.setText(obj.name)
-			do \form@chkRbArVisible.setChk(obj.visible)
-			do \form@editRbArX.setText(objX.toStr())
-			do \form@editRbArY.setText(objY.toStr())
-			do \form@editRbArWidth.setText(objWidth.toStr())
-			do \form@editRbArHeight.setText(objHeight.toStr())
+			do objXStr :: objX.toStr()
+			do objYStr :: objY.toStr()
+			do objWidthStr :: objWidth.toStr()
+			do objHeightStr :: objHeight.toStr()
+		else
+			var obj: @Obj
+			do name :: \common@langEn ?("(Multiple)", "(複数)")
+			var sameVisible: bool :: true
+			var sameX: bool :: true
+			var sameY: bool :: true
+			var sameWidth: bool :: true
+			var sameHeight: bool :: true
+			var objX: int
+			var objY: int
+			var objWidth: int
+			var objHeight: int
+			do me.holds.head()
+			do obj :: me.holds.get()
+			do visible :: obj.visible
+			do me.resizeObj(obj, me.curOriginX, me.curOriginY, &objX, &objY, &objWidth, &objHeight)
+			do me.holds.next()
+			while(!me.holds.term())
+				var objX2: int
+				var objY2: int
+				var objWidth2: int
+				var objHeight2: int
+				do obj :: me.holds.get()
+				do me.resizeObj(obj, me.curOriginX, me.curOriginY, &objX2, &objY2, &objWidth2, &objHeight2)
+				if(visible <> obj.visible)
+					do sameVisible :: false
+				end if
+				if(objX <> objX2)
+					do sameX :: false
+				end if
+				if(objY <> objY2)
+					do sameY :: false
+				end if
+				if(objWidth <> objWidth2)
+					do sameWidth :: false
+				end if
+				if(objHeight <> objHeight2)
+					do sameHeight :: false
+				end if
+				do me.holds.next()
+			end while
+			do visible :: sameVisible ?(visible, false)
+			do objXStr :: sameX ?(objX.toStr(), "*")
+			do objYStr :: sameY ?(objY.toStr(), "*")
+			do objWidthStr :: sameWidth ?(objWidth.toStr(), "*")
+			do objHeightStr :: sameHeight ?(objHeight.toStr(), "*")
 		end if
+		do \form@groupRbAr.setVisible(true)
+		do \form@groupRbAr.setRedraw(false)
+		do \form@editRbArName.setText(name)
+		do \form@chkRbArVisible.setChk(visible)
+		do \form@editRbArX.setText(objXStr)
+		do \form@editRbArY.setText(objYStr)
+		do \form@editRbArWidth.setText(objWidthStr)
+		do \form@editRbArHeight.setText(objHeightStr)
+		do \form@groupRbAr.setRedraw(true)
+
 		do me.updatingProp :: false
 	end func
 
@@ -1064,7 +1144,7 @@
 		do me.changed :: true
 	end func
 
-	func move(name: []char, x: int, y: int, width: int, height: int, recordUndo: bool)
+	+func move(name: []char, x: int, y: int, width: int, height: int, recordUndo: bool)
 		var obj: @Obj
 		if(name =& null)
 			do obj :: me.root
@@ -1143,7 +1223,7 @@
 		do me.changed :: true
 	end func
 
-	func visible(name: []char, value: bool, recordUndo: bool)
+	+func visible(name: []char, value: bool, recordUndo: bool)
 		var obj: @Obj
 		if(name =& null)
 			do obj :: me.root
@@ -1179,6 +1259,48 @@
 		do dst.height :: src.height
 		do dst.props :: ##src.props
 		ret dst
+	end func
+
+	func updateMultiple(chk: func<(@Obj, kuin@Class): bool>, apply: func<(@DocAr, @Obj, kuin@Class)>, data: kuin@Class)
+		if(^me.holds <= 1)
+			var obj: @Obj
+			if(^me.holds = 0)
+				do obj :: me.root
+			else
+				do me.holds.head()
+				do obj :: me.holds.get()
+			end if
+			if(chk(obj, data))
+				do me.undo.recordBegin()
+				do apply(me, obj, data)
+				do me.undo.recordEnd()
+				do \form@paintDrawEditor()
+			end if
+		else
+			var diff: bool :: false
+			do me.holds.head()
+			while loop(!me.holds.term())
+				if(chk(me.holds.get(), data))
+					do diff :: true
+					break loop
+				end if
+				do me.holds.next()
+			end while
+			if(diff)
+				do me.undo.recordBegin()
+				do me.holds.head()
+				while loop(!me.holds.term())
+					var obj: @Obj :: me.holds.get()
+					if(chk(obj, data))
+						do apply(me, obj, data)
+					end if
+					do me.holds.next()
+				end while
+				do me.undo.recordEnd()
+				do \form@paintDrawEditor()
+			end if
+		end if
+		do \form@updateUi()
 	end func
 end class
 
