@@ -3040,7 +3040,7 @@ static SAstExpr* RebuildExpr3(SAstExpr3* ast)
 	}
 	else if (((SAst*)ast->Children[2]->Type)->TypeId == AstTypeId_TypeEnumElement)
 		RebuildEnumElement(ast->Children[2], ast->Children[1]->Type);
-	((SAstExpr*)ast)->Type = ast->Children[1]->Type;
+	((SAstExpr*)ast)->Type = ((SAst*)ast->Children[1]->Type)->TypeId == AstTypeId_TypeNull ? ast->Children[2]->Type : ast->Children[1]->Type;
 	((SAstExpr*)ast)->VarKind = AstExprVarKind_Value;
 	return (SAstExpr*)ast;
 }

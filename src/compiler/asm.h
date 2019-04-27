@@ -187,6 +187,9 @@ typedef struct SAsm
 typedef struct SAsmLabel
 {
 	SAsm Asm;
+#if defined(_DEBUG)
+	int Cnt;
+#endif
 } SAsmLabel;
 
 typedef struct SAsmMachine

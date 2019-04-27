@@ -143,6 +143,11 @@ SAsmLabel* AsmLabel(void)
 	SAsmLabel* asm_ = (SAsmLabel*)Alloc(sizeof(SAsmLabel));
 	((SAsm*)asm_)->TypeId = AsmTypeId_Label;
 	((SAsm*)asm_)->Addr = NewAddr();
+#if defined(_DEBUG)
+	static int cnt = 0;
+	asm_->Cnt = cnt;
+	cnt++;
+#endif
 	return asm_;
 }
 
@@ -1231,7 +1236,11 @@ void Dump2(const Char* path, const SList* asms)
 		switch (asm_->TypeId)
 		{
 			case AsmTypeId_Label:
+#if defined(_DEBUG)
+				fwprintf(file_ptr, L"%08XH: (label=%d)\n", (U32)(U64)asm_->Addr, ((SAsmLabel*)asm_)->Cnt);
+#else
 				fwprintf(file_ptr, L"%08XH:\n", (U32)(U64)asm_->Addr);
+#endif
 				ptr = ptr->Next;
 				continue;
 			case AsmTypeId_Machine:
