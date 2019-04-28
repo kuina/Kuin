@@ -1150,7 +1150,20 @@ static void RebuildClass(SAstClass* ast)
 		return;
 	((SAst*)ast)->AnalyzedCache = (SAst*)ast;
 	if (((SAst*)ast)->RefItem != NULL)
-		RebuildClass((SAstClass*)((SAst*)ast)->RefItem);
+	{
+		SAst* parent = ((SAst*)ast)->RefItem;
+		if (parent->TypeId == AstTypeId_Alias)
+		{
+			RebuildAlias((SAstAlias*)parent, NULL);
+			((SAst*)ast)->RefItem = ((SAst*)((SAstAlias*)parent)->Type)->RefItem;
+			ASSERT(((SAst*)ast)->RefItem->TypeId == AstTypeId_Class);
+		}
+		else
+		{
+			ASSERT(parent->TypeId == AstTypeId_Class);
+			RebuildClass((SAstClass*)parent);
+		}
+	}
 	{
 		// Make sure that the class references do not circulate.
 		SAstClass* parent = ast;
