@@ -45,12 +45,13 @@ Bool InitEnvVars(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flag
 	// The resource root directory.
 #if defined(DBG)
 	{
-		Char* ptr;
 		Char cur_dir_path[KUIN_MAX_PATH + 12 + 1];
 		GetModuleFileName(NULL, cur_dir_path, KUIN_MAX_PATH);
-		ptr = wcsrchr(cur_dir_path, L'\\');
-		if (ptr != NULL)
-			*(ptr + 1) = L'\0';
+		{
+			Char* ptr = wcsrchr(cur_dir_path, L'\\');
+			if (ptr != NULL)
+				*(ptr + 1) = L'\0';
+		}
 		wcscat(cur_dir_path, L"_curdir_.txt");
 		if (PathFileExists(cur_dir_path))
 		{
@@ -113,6 +114,14 @@ void* AllocMem(size_t size)
 	(*EnvVars.HeapCnt)++;
 #endif
 	return result;
+}
+
+void* ReAllocMem(void* ptr, size_t size)
+{
+	if (ptr == NULL)
+		return HeapAlloc(EnvVars.Heap, HEAP_GENERATE_EXCEPTIONS, (SIZE_T)size);
+	else
+		return HeapReAlloc(EnvVars.Heap, HEAP_GENERATE_EXCEPTIONS, ptr, (SIZE_T)size);
 }
 
 void FreeMem(void* ptr)

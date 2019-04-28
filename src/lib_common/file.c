@@ -24,6 +24,7 @@ static void NormPathBackSlash(Char* path, Bool dir);
 static Bool ForEachDirRecursion(const Char* path, Bool recursion, void* callback, void* data);
 static Bool DelDirRecursion(const Char* path);
 static Bool CopyDirRecursion(const Char* dst, const Char* src);
+static void SkipLastChars(SReader* reader);
 
 void* Call0Asm(void* func);
 void* Call1Asm(void* arg1, void* func);
@@ -170,20 +171,7 @@ EXPORT S64 _readerReadInt(SClass* me_)
 		buf[ptr] = c;
 		ptr++;
 	}
-	for (; ; )
-	{
-		int char_len;
-		Char c = ReadUtf8((SReader*)me_, True, &char_len);
-		if (c == L'\r')
-			continue;
-		if (c == WEOF)
-			break;
-		if (c != L'\0')
-		{
-			SeekFileStream(((SReader*)me_)->Handle, (S64)-char_len, SEEK_CUR);
-			break;
-		}
-	}
+	SkipLastChars((SReader*)me_);
 	buf[ptr] = L'\0';
 	{
 		S64 result;
@@ -222,20 +210,7 @@ EXPORT double _readerReadFloat(SClass* me_)
 		buf[ptr] = c;
 		ptr++;
 	}
-	for (; ; )
-	{
-		int char_len;
-		Char c = ReadUtf8((SReader*)me_, True, &char_len);
-		if (c == L'\r')
-			continue;
-		if (c == WEOF)
-			break;
-		if (c != L'\0')
-		{
-			SeekFileStream(((SReader*)me_)->Handle, (S64)-char_len, SEEK_CUR);
-			break;
-		}
-	}
+	SkipLastChars((SReader*)me_);
 	buf[ptr] = L'\0';
 	{
 		double result;
@@ -260,27 +235,16 @@ EXPORT Char _readerReadChar(SClass* me_)
 		if (c != L'\0')
 			break;
 	}
-	for (; ; )
-	{
-		int char_len;
-		Char c2 = ReadUtf8((SReader*)me_, True, &char_len);
-		if (c2 == L'\r')
-			continue;
-		if (c2 == WEOF)
-			break;
-		if (c2 != L'\0')
-		{
-			SeekFileStream(((SReader*)me_)->Handle, (S64)-char_len, SEEK_CUR);
-			break;
-		}
-	}
+	SkipLastChars((SReader*)me_);
 	return c;
 }
 
 EXPORT void* _readerReadStr(SClass* me_)
 {
-	Char buf[1025];
-	int ptr = 0;
+	Char stack_buf[STACK_STRING_BUF_SIZE];
+	Char* buf = stack_buf;
+	size_t buf_len = STACK_STRING_BUF_SIZE;
+	size_t len = 0;
 	buf[0] = L'\0';
 	for (; ; )
 	{
@@ -299,39 +263,42 @@ EXPORT void* _readerReadStr(SClass* me_)
 				continue;
 			break;
 		}
-		buf[ptr] = c;
-		ptr++;
-		if (ptr == 1024)
-			break;
-	}
-	for (; ; )
-	{
-		int char_len;
-		Char c = ReadUtf8((SReader*)me_, True, &char_len);
-		if (c == L'\r')
-			continue;
-		if (c == WEOF)
-			break;
-		if (c != L'\0')
+		buf[len] = c;
+		len++;
+		if (len == buf_len)
 		{
-			SeekFileStream(((SReader*)me_)->Handle, (S64)-char_len, SEEK_CUR);
-			break;
+			buf_len += STACK_STRING_BUF_SIZE;
+			Char* tmp = (Char*)ReAllocMem(buf == stack_buf ? NULL : buf, sizeof(Char) * buf_len);
+			if (tmp == NULL)
+			{
+				if (buf != stack_buf)
+					FreeMem(buf);
+				return NULL;
+			}
+			if (buf == stack_buf)
+				memcpy(tmp, buf, sizeof(Char) * len);
+			buf = tmp;
 		}
 	}
-	buf[ptr] = L'\0';
+	buf[len] = L'\0';
+	SkipLastChars((SReader*)me_);
 	{
-		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * ((size_t)ptr + 1));
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * ((size_t)len + 1));
 		*(S64*)(result + 0x00) = DefaultRefCntFunc;
-		*(S64*)(result + 0x08) = (S64)ptr;
-		wcscpy((Char*)(result + 0x10), buf);
+		*(S64*)(result + 0x08) = (S64)len;
+		memcpy(result + 0x10, buf, sizeof(Char) * (len + 1));
+		if (buf != stack_buf)
+			FreeMem(buf);
 		return result;
 	}
 }
 
 EXPORT void* _readerReadLine(SClass* me_)
 {
-	Char buf[1025];
-	int ptr = 0;
+	Char stack_buf[STACK_STRING_BUF_SIZE];
+	Char* buf = stack_buf;
+	size_t buf_len = STACK_STRING_BUF_SIZE;
+	size_t len = 0;
 	buf[0] = L'\0';
 	for (; ; )
 	{
@@ -346,17 +313,31 @@ EXPORT void* _readerReadLine(SClass* me_)
 		}
 		if (c == L'\n')
 			break;
-		buf[ptr] = c;
-		ptr++;
-		if (ptr == 1024)
-			break;
+		buf[len] = c;
+		len++;
+		if (len == buf_len)
+		{
+			buf_len += STACK_STRING_BUF_SIZE;
+			Char* tmp = (Char*)ReAllocMem(buf == stack_buf ? NULL : buf, sizeof(Char) * buf_len);
+			if (tmp == NULL)
+			{
+				if (buf != stack_buf)
+					FreeMem(buf);
+				return NULL;
+			}
+			if (buf == stack_buf)
+				memcpy(tmp, buf, sizeof(Char) * len);
+			buf = tmp;
+		}
 	}
-	buf[ptr] = L'\0';
+	buf[len] = L'\0';
 	{
-		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * ((size_t)ptr + 1));
+		U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * ((size_t)len + 1));
 		*(S64*)(result + 0x00) = DefaultRefCntFunc;
-		*(S64*)(result + 0x08) = (S64)ptr;
-		wcscpy((Char*)(result + 0x10), buf);
+		*(S64*)(result + 0x08) = (S64)len;
+		memcpy(result + 0x10, buf, sizeof(Char) * (len + 1));
+		if (buf != stack_buf)
+			FreeMem(buf);
 		return result;
 	}
 }
@@ -1116,4 +1097,22 @@ static Bool CopyDirRecursion(const Char* dst, const Char* src)
 		FindClose(handle);
 	}
 	return True;
+}
+
+static void SkipLastChars(SReader* reader)
+{
+	for (; ; )
+	{
+		int char_len;
+		Char c = ReadUtf8(reader, True, &char_len);
+		if (c == L'\r')
+			continue;
+		if (c == WEOF)
+			break;
+		if (c != L'\0')
+		{
+			SeekFileStream(reader->Handle, (S64)-char_len, SEEK_CUR);
+			break;
+		}
+	}
 }

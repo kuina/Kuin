@@ -32,6 +32,7 @@
 #define EXPORT _declspec(dllexport)
 #define EXPORT_CPP extern "C" _declspec(dllexport)
 #define KUIN_MAX_PATH (512)
+#define STACK_STRING_BUF_SIZE (1024) // Default size of string buffer on stack.
 
 #if defined(_DEBUG)
 	#define ASSERT(cond) _ASSERTE((cond))
@@ -69,7 +70,7 @@ typedef struct SClass
 static const S64 DefaultRefCntFunc = 0; // Just before exiting the function, this is incremented for 'GcInstance'.
 static const S64 DefaultRefCntOpe = 1; // For 'GcInstance'.
 
-static void* DummyPtr = (void*)1i64; // An invalid pointer used to point to non-NULL.
+static const void* DummyPtr = (void*)1i64; // An invalid pointer used to point to non-NULL.
 
 typedef enum EUseResFlagsKind
 {
@@ -115,6 +116,7 @@ extern SEnvVars EnvVars;
 
 Bool InitEnvVars(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_flags);
 void* AllocMem(size_t size);
+void* ReAllocMem(void* ptr, size_t size);
 void FreeMem(void* ptr);
 void ThrowImpl(U32 code);
 void* LoadFileAll(const Char* path, size_t* size);
