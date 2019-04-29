@@ -240,6 +240,9 @@ void InitCui(void)
 void FinCui(void)
 {
 	FreeMem(Delimiters);
+#if defined(DBG)
+	system("pause");
+#endif
 }
 
 static Char ReadIo(void)

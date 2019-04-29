@@ -676,15 +676,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	end try
 	do \dll@resetMemAllocator()
 	do @editLog.setText("")
-	var cmd: []char
-	var cmdLine: []char
-	if(@radioEnvWnd.getChk())
-		do cmd :: out
-		do cmdLine :: null
-	elif(@radioEnvCui.getChk())
-		do cmd :: file@sysDir(%system32) ~ "cmd.exe"
-		do cmdLine :: "/C \"\"" ~ file@exeDir().replace("/", "\\") ~ "sys\\launcher.bat\" \"" ~ out.replace("/", "\\") ~ "\"\""
-	end if
+	var cmd: []char :: out
 	try
 		do \src@resetErrList()
 		do \src@docs.forEach(fixAll, null)
@@ -696,10 +688,8 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 				do filePtr.fin()
 			end if
 			do @editLog.addText(\common@langEn ?("IK9999: Run.", "IK9999: 実行。\n"))
-			if(@radioEnvWnd.getChk())
-				do \dbgwnd@show()
-			end if
-			if(\dll@runDbg(cmd, cmdLine, idleFunc, eventFunc, breakPointsFunc, breakFunc, dbgFunc))
+			do \dbgwnd@show()
+			if(\dll@runDbg(cmd, null, idleFunc, eventFunc, breakPointsFunc, breakFunc, dbgFunc))
 				do @editLog.addText(\common@langEn ?("\nIK9999: Succees.\n", "\nIK9999: 正常終了。\n"))
 			else
 				do @editLog.addText(\common@langEn ?("\nIK9999: Failure.\n", "\nIK9999: 実行失敗。\n"))
