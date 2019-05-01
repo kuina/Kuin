@@ -255,6 +255,23 @@ EXPORT S64 _factInt(S64 n)
 	return Facts[n];
 }
 
+EXPORT S64 _fibonacci(S64 n)
+{
+	if (n < 0)
+	{
+		THROWDBG(True, 0xe9170006);
+		return 0;
+	}
+	if (n > 92)
+	{
+		THROWDBG(True, 0xe9170003);
+		return 0;
+	}
+	const double sqrt_5 = 2.2360679774997896;
+	const double phi = 1.6180339887498948;
+	return (S64)(pow(phi, (double)n) / sqrt_5 + 0.5);
+}
+
 EXPORT S64 _knapsack(const void* weights, const void* values, S64 max_weight, Bool reuse)
 {
 	THROWDBG(weights == NULL || values == NULL, 0xc0000005);

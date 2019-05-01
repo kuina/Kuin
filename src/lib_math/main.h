@@ -13,6 +13,7 @@ EXPORT void* _primeFactors(S64 n);
 EXPORT double _gamma(double n);
 EXPORT double _fact(double n);
 EXPORT S64 _factInt(S64 n);
+EXPORT S64 _fibonacci(S64 n);
 EXPORT S64 _knapsack(const void* weights, const void* values, S64 max_weight, Bool reuse);
 EXPORT void* _dijkstra(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values, S64 begin_node);
 EXPORT void* _bellmanFord(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values, S64 begin_node);
