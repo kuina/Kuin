@@ -152,10 +152,10 @@ end func
 func [d0000.knd, _any_type, _ret_me] _repeat(me_: []bit8, type: int, len: int): int
 end func
 
-func [d0000.knd] _toInt(me_: []char, existed: &bool): int
+func [d0000.knd] _toInt(me_: []char, success: &bool): int
 end func
 
-func [d0000.knd] _toFloat(me_: []char, existed: &bool): float
+func [d0000.knd] _toFloat(me_: []char, success: &bool): float
 end func
 
 func [d0000.knd] _lower(me_: []char): []char

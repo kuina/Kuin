@@ -1638,7 +1638,7 @@ EXPORT void* _repeat(const void* me_, const U8* type, S64 len)
 	return result;
 }
 
-EXPORT S64 _toInt(const U8* me_, Bool* existed)
+EXPORT S64 _toInt(const U8* me_, Bool* success)
 {
 	Char* ptr;
 	THROWDBG(me_ == NULL, 0xc0000005);
@@ -1648,16 +1648,16 @@ EXPORT S64 _toInt(const U8* me_, Bool* existed)
 		value = wcstoll(str + 2, &ptr, 16);
 	else
 		value = wcstoll(str, &ptr, 10);
-	*existed = *ptr == L'\0';
+	*success = *ptr == L'\0';
 	return value;
 }
 
-EXPORT double _toFloat(const U8* me_, Bool* existed)
+EXPORT double _toFloat(const U8* me_, Bool* success)
 {
 	Char* ptr;
 	THROWDBG(me_ == NULL, 0xc0000005);
 	double value = wcstod((const Char*)(me_ + 0x10), &ptr);
-	*existed = *ptr == L'\0';
+	*success = *ptr == L'\0';
 	return value;
 }
 

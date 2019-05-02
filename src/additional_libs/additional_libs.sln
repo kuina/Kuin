@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_boost", "..\lib_boost\lib_boost.vcxproj", "{CBFC1A36-CC6C-487E-B3D4-4E1351D4141A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_regex", "..\lib_regex\lib_regex.vcxproj", "{CBFC1A36-CC6C-487E-B3D4-4E1351D4141A}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_game", "..\lib_game\lib_game.vcxproj", "{7CA2B257-7CBE-4934-A176-533374E47F7A}"
 EndProject
@@ -13,6 +13,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_xml", "..\lib_xml\lib_xml.vcxproj", "{22E28BB9-5741-47CC-9152-C7F6E2DBA53F}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_zip", "..\lib_zip\lib_zip.vcxproj", "{DE354C81-BC60-442E-A729-52A48D550A06}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_math_boost", "..\lib_math_boost\lib_math_boost.vcxproj", "{C4024A39-66F3-43D0-BAAE-755737DD29A5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -57,6 +59,12 @@ Global
 		{DE354C81-BC60-442E-A729-52A48D550A06}.Release_dbg|x64.Build.0 = Release_dbg|x64
 		{DE354C81-BC60-442E-A729-52A48D550A06}.Release_rls|x64.ActiveCfg = Release_rls|x64
 		{DE354C81-BC60-442E-A729-52A48D550A06}.Release_rls|x64.Build.0 = Release_rls|x64
+		{C4024A39-66F3-43D0-BAAE-755737DD29A5}.Debug|x64.ActiveCfg = Debug|x64
+		{C4024A39-66F3-43D0-BAAE-755737DD29A5}.Debug|x64.Build.0 = Debug|x64
+		{C4024A39-66F3-43D0-BAAE-755737DD29A5}.Release_dbg|x64.ActiveCfg = Release_dbg|x64
+		{C4024A39-66F3-43D0-BAAE-755737DD29A5}.Release_dbg|x64.Build.0 = Release_dbg|x64
+		{C4024A39-66F3-43D0-BAAE-755737DD29A5}.Release_rls|x64.ActiveCfg = Release_rls|x64
+		{C4024A39-66F3-43D0-BAAE-755737DD29A5}.Release_rls|x64.Build.0 = Release_rls|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

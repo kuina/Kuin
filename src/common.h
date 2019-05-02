@@ -96,10 +96,11 @@ typedef enum EUseResFlagsKind
 	Committed additional libraries:
 		d1000.knd	ogg
 		d1001.knd	zip
-		d1002.knd	boost
+		d1002.knd	regex(boost)
 		d1003.knd	xml
 		d1004.knd	game
 		d1005.knd	sql
+		d1006.knd	math_boost
 */
 
 typedef struct SEnvVars

@@ -11,18 +11,18 @@
 
 #include "tinyxml2/tinyxml2.h"
 
-typedef struct SXml
+struct SXml
 {
 	SClass Class;
 	tinyxml2::XMLDocument* Tree;
-} SXml;
+};
 
-typedef struct SXmlNode
+struct SXmlNode
 {
 	SClass Class;
 	Bool Root;
 	void* Node;
-} SXmlNode;
+};
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {

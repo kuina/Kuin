@@ -1,4 +1,4 @@
-// LibBoost.dll
+// LibRegex.dll
 //
 // (C)Kuina-chan
 //

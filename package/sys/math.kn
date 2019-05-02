@@ -1,4 +1,8 @@
 func [d0003.knd, _init] _init()
+	do _init2()
+
+	func [d1006.knd, _init, _init2] _init2()
+	end func
 end func
 
 +func [d0003.knd, _gcd] gcd(a: int, b: int): int
@@ -53,4 +57,98 @@ end func
 end class
 
 +func [d0003.knd, _makeMat, _make_instance] makeMat(me2: @Mat, row: int, col: int): @Mat
+end func
+
++class BigInt()
+	*func [d1006.knd, _bigIntDtor, _force] _dtor()
+	end func
+
+	+*func [d1006.knd, _bigIntCmp] cmp(t: @BigInt): int
+	end func
+
+	+*func [d1006.knd, _bigIntToStr] toStr(): []char
+	end func
+
+	+func [d1006.knd, _bigIntFromStr] fromStr(value: []char): bool
+	end func
+
+	+func [d1006.knd, _bigIntToInt] toInt(): int
+	end func
+
+	+func [d1006.knd, _bigIntFromInt] fromInt(value: int)
+	end func
+
+	+func [d1006.knd, _bigIntAdd] add(value: @BigInt): @BigInt
+	end func
+
+	+func [d1006.knd, _bigIntAddInt] addInt(value: int): @BigInt
+	end func
+
+	+func [d1006.knd, _bigIntSub] sub(value: @BigInt): @BigInt
+	end func
+
+	+func [d1006.knd, _bigIntSubInt] subInt(value: int): @BigInt
+	end func
+
+	+func [d1006.knd, _bigIntMul] mul(value: @BigInt): @BigInt
+	end func
+
+	+func [d1006.knd, _bigIntMulInt] mulInt(value: int): @BigInt
+	end func
+
+	+func [d1006.knd, _bigIntDiv] div(value: @BigInt): @BigInt
+	end func
+
+	+func [d1006.knd, _bigIntDivInt] divInt(value: int): @BigInt
+	end func
+end class
+
++func [d1006.knd, _makeBigInt, _make_instance] makeBigInt(me2: @BigInt): @BigInt
+end func
+
++class BigFloat()
+	*func [d1006.knd, _bigFloatDtor, _force] _dtor()
+	end func
+
+	+*func [d1006.knd, _bigFloatCmp] cmp(t: @BigFloat): int
+	end func
+
+	+*func [d1006.knd, _bigFloatToStr] toStr(): []char
+	end func
+
+	+func [d1006.knd, _bigFloatFromStr] fromStr(value: []char): bool
+	end func
+
+	+func [d1006.knd, _bigFloatToFloat] toFloat(): int
+	end func
+
+	+func [d1006.knd, _bigFloatFromFloat] fromFloat(value: float)
+	end func
+
+	+func [d1006.knd, _bigFloatAdd] add(value: @BigFloat): @BigFloat
+	end func
+
+	+func [d1006.knd, _bigFloatAddFloat] addFloat(value: float): @BigFloat
+	end func
+
+	+func [d1006.knd, _bigFloatSub] sub(value: @BigFloat): @BigFloat
+	end func
+
+	+func [d1006.knd, _bigFloatSubFloat] subFloat(value: float): @BigFloat
+	end func
+
+	+func [d1006.knd, _bigFloatMul] mul(value: @BigFloat): @BigFloat
+	end func
+
+	+func [d1006.knd, _bigFloatMulFloat] mulFloat(value: float): @BigFloat
+	end func
+
+	+func [d1006.knd, _bigFloatDiv] div(value: @BigFloat): @BigFloat
+	end func
+
+	+func [d1006.knd, _bigFloatDivFloat] divFloat(value: float): @BigFloat
+	end func
+end class
+
++func [d1006.knd, _makeBigFloat, _make_instance] makeBigFloat(me2: @BigFloat): @BigFloat
 end func
