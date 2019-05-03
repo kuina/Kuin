@@ -10,4 +10,6 @@ Excpt: 80000003
 > false
 > true
 > false
+> 2-2i
+> 2.82843
 end: ../../test/output/output0023.exe

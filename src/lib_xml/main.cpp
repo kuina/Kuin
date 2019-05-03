@@ -116,7 +116,9 @@ EXPORT_CPP void _xmlNodeSetName(SClass* me_, const U8* name)
 		return;
 	char* buf = Utf16ToUtf8(name);
 	if (buf == NULL)
+	{
 		THROWDBG(True, 0xe9170006);
+	}
 	static_cast<tinyxml2::XMLNode*>(me2->Node)->ToElement()->SetName(buf);
 	FreeMem(buf);
 }
@@ -140,7 +142,9 @@ EXPORT_CPP void _xmlNodeSetValue(SClass* me_, const U8* value)
 	{
 		char* buf = Utf16ToUtf8(value);
 		if (buf == NULL)
+		{
 			THROWDBG(True, 0xe9170006);
+		}
 		static_cast<tinyxml2::XMLNode*>(me2->Node)->ToElement()->SetText(buf);
 		FreeMem(buf);
 	}

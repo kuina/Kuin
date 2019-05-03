@@ -52,6 +52,9 @@ end func
 
 	+func [d1006.knd, _bigIntPowInt] powInt(value: int): @BigInt
 	end func
+
+	+func [d1006.knd, _bigIntAbs] abs(): @BigInt
+	end func
 end class
 
 +func [d1006.knd, _makeBigInt, _make_instance] makeBigInt(me2: @BigInt): @BigInt
@@ -163,6 +166,9 @@ end func
 	+func [d1006.knd, _bigFloatAtanh] atanh(): @BigFloat
 	end func
 
+	+func [d1006.knd, _bigFloatAbs] abs(): @BigFloat
+	end func
+
 	+func [d1006.knd, _bigFloatPi] pi(): @BigFloat
 	end func
 
@@ -171,4 +177,87 @@ end func
 end class
 
 +func [d1006.knd, _makeBigFloat, _make_instance] makeBigFloat(me2: @BigFloat): @BigFloat
+end func
+
++class Complex()
+	*func [d1006.knd, _complexDtor, _force] _dtor()
+	end func
+
+	+*func [d1006.knd, _complexToStr] toStr(): []char
+	end func
+
+	+func [d1006.knd, _complexRe] re(): float
+	end func
+
+	+func [d1006.knd, _complexIm] im(): float
+	end func
+
+	+func [d1006.knd, _complexSet] set(re: float, im: float): @Complex
+	end func
+
+	+func [d1006.knd, _complexAdd] add(value: @Complex): @Complex
+	end func
+
+	+func [d1006.knd, _complexSub] sub(value: @Complex): @Complex
+	end func
+
+	+func [d1006.knd, _complexMul] mul(value: @Complex): @Complex
+	end func
+
+	+func [d1006.knd, _complexDiv] div(value: @Complex): @Complex
+	end func
+
+	+func [d1006.knd, _complexPow] pow(value: @Complex): @Complex
+	end func
+
+	+func [d1006.knd, _complexExp] exp(): @Complex
+	end func
+
+	+func [d1006.knd, _complexLn] ln(): @Complex
+	end func
+
+	+func [d1006.knd, _complexSqrt] sqrt(): @Complex
+	end func
+
+	+func [d1006.knd, _complexCos] cos(): @Complex
+	end func
+
+	+func [d1006.knd, _complexSin] sin(): @Complex
+	end func
+
+	+func [d1006.knd, _complexTan] tan(): @Complex
+	end func
+
+	+func [d1006.knd, _complexAcos] acos(): @Complex
+	end func
+
+	+func [d1006.knd, _complexAsin] asin(): @Complex
+	end func
+
+	+func [d1006.knd, _complexAtan] atan(): @Complex
+	end func
+
+	+func [d1006.knd, _complexCosh] cosh(): @Complex
+	end func
+
+	+func [d1006.knd, _complexSinh] sinh(): @Complex
+	end func
+
+	+func [d1006.knd, _complexTanh] tanh(): @Complex
+	end func
+
+	+func [d1006.knd, _complexAcosh] acosh(): @Complex
+	end func
+
+	+func [d1006.knd, _complexAsinh] asinh(): @Complex
+	end func
+
+	+func [d1006.knd, _complexAtanh] atanh(): @Complex
+	end func
+
+	+func [d1006.knd, _complexAbs] abs(): @Complex
+	end func
+end class
+
++func [d1006.knd, _makeComplex, _make_instance] makeComplex(me2: @Complex): @Complex
 end func

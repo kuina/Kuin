@@ -144,7 +144,6 @@ EXPORT_CPP void* _regexFindAll(SClass* me_, U8** pos, const U8* text)
 	THROWDBG(text == NULL, 0xc0000005);
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
-	Bool found;
 	try
 	{
 		wsregex_iterator iter1(text2.begin(), text2.end(), *me2->Pattern);

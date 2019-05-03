@@ -3,7 +3,8 @@
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/math/constants/constants.hpp>
-
+#include <boost/format.hpp>
+#include <complex>
 #include <codecvt>
 
 using namespace boost::multiprecision;
@@ -19,6 +20,12 @@ struct SBigFloat
 {
 	SClass Class;
 	cpp_dec_float_100* Value;
+};
+
+struct SComplex
+{
+	SClass Class;
+	std::complex<double>* Value;
 };
 
 static std::wstring_convert<std::codecvt_utf8<Char>, Char> Converter;
@@ -152,6 +159,12 @@ EXPORT_CPP SClass* _bigIntPowInt(SClass* me_, S64 value)
 	return me_;
 }
 
+EXPORT_CPP SClass* _bigIntAbs(SClass* me_)
+{
+	*reinterpret_cast<SBigInt*>(me_)->Value = abs(*reinterpret_cast<SBigInt*>(me_)->Value);
+	return me_;
+}
+
 EXPORT_CPP SClass* _makeBigFloat(SClass* me_)
 {
 	SBigFloat* me2 = reinterpret_cast<SBigFloat*>(me_);
@@ -164,7 +177,10 @@ EXPORT_CPP void _bigFloatDtor(SClass* me_)
 {
 	SBigFloat* me2 = reinterpret_cast<SBigFloat*>(me_);
 	if (me2->Value != NULL)
+	{
+		me2->Value->~cpp_dec_float_100();
 		FreeMem(me2->Value);
+	}
 }
 
 EXPORT_CPP S64 _bigFloatCmp(SClass* me_, SClass* t)
@@ -387,6 +403,12 @@ EXPORT_CPP SClass* _bigFloatAtanh(SClass* me_)
 	return me_;
 }
 
+EXPORT_CPP SClass* _bigFloatAbs(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = abs(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
 EXPORT_CPP SClass* _bigFloatPi(SClass* me_)
 {
 	*reinterpret_cast<SBigFloat*>(me_)->Value = pi<cpp_dec_float_100>();
@@ -396,5 +418,183 @@ EXPORT_CPP SClass* _bigFloatPi(SClass* me_)
 EXPORT_CPP SClass* _bigFloatE(SClass* me_)
 {
 	*reinterpret_cast<SBigFloat*>(me_)->Value = e<cpp_dec_float_100>();
+	return me_;
+}
+
+EXPORT_CPP SClass* _makeComplex(SClass* me_)
+{
+	SComplex* me2 = reinterpret_cast<SComplex*>(me_);
+	me2->Value = static_cast<std::complex<double>*>(AllocMem(sizeof(std::complex<double>)));
+	new(me2->Value)std::complex<double>();
+	return me_;
+}
+
+EXPORT_CPP void _complexDtor(SClass* me_)
+{
+	SComplex* me2 = reinterpret_cast<SComplex*>(me_);
+	if (me2->Value != NULL)
+	{
+		me2->Value->~complex<double>();
+		FreeMem(me2->Value);
+	}
+}
+
+EXPORT_CPP void* _complexToStr(SClass* me_)
+{
+	SComplex* me2 = reinterpret_cast<SComplex*>(me_);
+	double re = me2->Value->real();
+	double im = me2->Value->imag();
+	std::wstring result =
+		im == 0.0f ? (boost::wformat(L"%g") % re).str() :
+		(re == 0.0f ? (boost::wformat(L"%gi") % im).str() : (boost::wformat(L"%g%+gi") % re % im).str());
+	size_t len = result.size();
+	U8* result2 = static_cast<U8*>(AllocMem(0x10 + sizeof(Char) * (len + 1)));
+	(reinterpret_cast<S64*>(result2))[0] = DefaultRefCntFunc;
+	(reinterpret_cast<S64*>(result2))[1] = static_cast<S64>(len);
+	memcpy(result2 + 0x10, result.c_str(), sizeof(Char) * (len + 1));
+	return result2;
+}
+
+EXPORT_CPP double _complexRe(SClass* me_)
+{
+	return reinterpret_cast<SComplex*>(me_)->Value->real();
+}
+
+EXPORT_CPP double _complexIm(SClass* me_)
+{
+	return reinterpret_cast<SComplex*>(me_)->Value->imag();
+}
+
+EXPORT_CPP SClass* _complexSet(SClass* me_, double re, double im)
+{
+	SComplex* me2 = reinterpret_cast<SComplex*>(me_);
+	me2->Value->real(re);
+	me2->Value->imag(im);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexAdd(SClass* me_, SClass* value)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value += *reinterpret_cast<SComplex*>(value)->Value;
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexSub(SClass* me_, SClass* value)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value -= *reinterpret_cast<SComplex*>(value)->Value;
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexMul(SClass* me_, SClass* value)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value *= *reinterpret_cast<SComplex*>(value)->Value;
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexDiv(SClass* me_, SClass* value)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value /= *reinterpret_cast<SComplex*>(value)->Value;
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexPow(SClass* me_, SClass* value)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = pow(*reinterpret_cast<SComplex*>(me_)->Value, *reinterpret_cast<SComplex*>(value)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexExp(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = exp(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexLn(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = log(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexSqrt(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = sqrt(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexCos(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = cos(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexSin(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = sin(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexTan(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = tan(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexAcos(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = acos(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexAsin(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = asin(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexAtan(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = atan(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexCosh(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = cosh(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexSinh(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = sinh(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexTanh(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = tanh(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexAcosh(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = acosh(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexAsinh(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = asinh(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexAtanh(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = atanh(*reinterpret_cast<SComplex*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _complexAbs(SClass* me_)
+{
+	*reinterpret_cast<SComplex*>(me_)->Value = abs(*reinterpret_cast<SComplex*>(me_)->Value);
 	return me_;
 }
