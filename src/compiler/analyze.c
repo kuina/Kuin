@@ -708,7 +708,8 @@ static const void* AddInitFuncs(const Char* key, const void* value, void* param)
 	if (key[0] == L'\\')
 		return value;
 	SList* funcs = (SList*)param;
-	if (wcscmp(key, L"draw2d") == 0 ||
+	if (wcscmp(key, L"big_num") == 0 ||
+		wcscmp(key, L"draw2d") == 0 ||
 		wcscmp(key, L"game") == 0 ||
 		wcscmp(key, L"math") == 0 ||
 		wcscmp(key, L"net") == 0 ||

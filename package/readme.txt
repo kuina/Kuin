@@ -49,7 +49,7 @@ v.2019.5.17
           追加
         - cui@delimiter、cui@inputLetter、cui@inputInt、cui@inputFloat、
           cui@inputChar、cui@inputStr、math@fibonacci関数の追加
-        - math@BigInt、math@BigFloatクラスの追加
+        - big_num@BigInt、big_num@BigFloatクラスの追加
     - 細かな不具合の修正
         - 「条件式?(null,参照型)」とすると、参照型の値がまれに壊れることがある
           不具合の修正

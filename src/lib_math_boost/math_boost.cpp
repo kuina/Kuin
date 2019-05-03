@@ -2,10 +2,12 @@
 
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/multiprecision/cpp_dec_float.hpp>
+#include <boost/math/constants/constants.hpp>
 
 #include <codecvt>
 
 using namespace boost::multiprecision;
+using namespace boost::math::constants;
 
 struct SBigInt
 {
@@ -130,6 +132,26 @@ EXPORT_CPP SClass* _bigIntDivInt(SClass* me_, S64 value)
 	return me_;
 }
 
+EXPORT_CPP SClass* _bigIntMod(SClass* me_, SClass* value)
+{
+	*reinterpret_cast<SBigInt*>(me_)->Value %= *reinterpret_cast<SBigInt*>(value)->Value;
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigIntModInt(SClass* me_, S64 value)
+{
+	*reinterpret_cast<SBigInt*>(me_)->Value %= value;
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigIntPowInt(SClass* me_, S64 value)
+{
+	U32 value2 = static_cast<U32>(value);
+	THROWDBG(value != static_cast<S64>(value2), 0xe9170006);
+	*reinterpret_cast<SBigInt*>(me_)->Value = pow(*reinterpret_cast<SBigInt*>(me_)->Value, value2);
+	return me_;
+}
+
 EXPORT_CPP SClass* _makeBigFloat(SClass* me_)
 {
 	SBigFloat* me2 = reinterpret_cast<SBigFloat*>(me_);
@@ -236,5 +258,143 @@ EXPORT_CPP SClass* _bigFloatDiv(SClass* me_, SClass* value)
 EXPORT_CPP SClass* _bigFloatDivFloat(SClass* me_, double value)
 {
 	*reinterpret_cast<SBigFloat*>(me_)->Value /= value;
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatMod(SClass* me_, SClass* value)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = fmod(*reinterpret_cast<SBigFloat*>(me_)->Value, *reinterpret_cast<SBigFloat*>(value)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatModFloat(SClass* me_, double value)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = fmod(*reinterpret_cast<SBigFloat*>(me_)->Value, value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatPow(SClass* me_, SClass* value)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = pow(*reinterpret_cast<SBigFloat*>(me_)->Value, *reinterpret_cast<SBigFloat*>(value)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatPowFloat(SClass* me_, double value)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = pow(*reinterpret_cast<SBigFloat*>(me_)->Value, value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatExp(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = exp(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatLn(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = log(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatSqrt(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = sqrt(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatFloor(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = floor(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatCeil(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = ceil(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatCos(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = cos(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatSin(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = sin(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatTan(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = tan(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatAcos(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = acos(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatAsin(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = asin(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatAtan(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = atan(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatCosh(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = cosh(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatSinh(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = sinh(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatTanh(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = tanh(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatAcosh(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = acosh(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatAsinh(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = asinh(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatAtanh(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = atanh(*reinterpret_cast<SBigFloat*>(me_)->Value);
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatPi(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = pi<cpp_dec_float_100>();
+	return me_;
+}
+
+EXPORT_CPP SClass* _bigFloatE(SClass* me_)
+{
+	*reinterpret_cast<SBigFloat*>(me_)->Value = e<cpp_dec_float_100>();
 	return me_;
 }

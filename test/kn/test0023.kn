@@ -1,9 +1,9 @@
 func main()
 	block
-		var a: math@BigInt :: math@makeBigInt()
+		var a: big_num@BigInt :: big_num@makeBigInt()
 		do a.fromInt(5)
 		do a.subInt(3).mulInt(2)
-		var b: math@BigInt :: math@makeBigInt()
+		var b: big_num@BigInt :: big_num@makeBigInt()
 		do b.fromStr("0x10")
 		do b.div(a)
 		do cui@print(a.toStr())
@@ -14,10 +14,10 @@ func main()
 	end block
 
 	block
-		var a: math@BigFloat :: math@makeBigFloat()
+		var a: big_num@BigFloat :: big_num@makeBigFloat()
 		do a.fromFloat(5.0)
 		do a.subFloat(3.0).mulFloat(2.0)
-		var b: math@BigFloat :: math@makeBigFloat()
+		var b: big_num@BigFloat :: big_num@makeBigFloat()
 		do b.fromStr("7")
 		do a.div(b)
 		do cui@print(a.toStr())
