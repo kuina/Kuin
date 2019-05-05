@@ -45,8 +45,8 @@ v.2019.5.17
 
 v.2019.5.17
     - 細かな機能追加
-        - テクスチャのサイズを取得するdraw@Tex.width、draw@Tex.heightメソッドの
-          追加
+        - テクスチャや画像のサイズを取得するdraw@Tex.width、draw@Tex.height、
+          draw@Tex.imgWidth、draw@Tex.imgHeightメソッドの追加
         - cui@delimiter、cui@inputLetter、cui@inputInt、cui@inputFloat、
           cui@inputChar、cui@inputStr、math@fibonacci関数の追加
         - num@BigInt、num@BigFloat、num@Complexクラスの追加
