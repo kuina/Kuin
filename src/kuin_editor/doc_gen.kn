@@ -76,6 +76,10 @@
 		do me.cur.focus(isFocus)
 	end func
 
+	+*func updateScrollBar()
+		do me.cur.updateScrollBar()
+	end func
+
 	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		ret me.cur.keyDown(key, shiftCtrl)
 	end func

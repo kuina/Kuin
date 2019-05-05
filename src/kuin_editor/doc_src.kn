@@ -260,10 +260,14 @@ end func
 	+*func focus(isFocus: bool)
 		if(isFocus)
 			do me.caretShown :: true
-			do me.refreshCursor(false, true)
+			do me.updateScrollBar()
 		else
 			do me.caretShown :: false
 		end if
+	end func
+
+	+*func updateScrollBar()
+		do me.refreshCursor(false, true)
 	end func
 
 	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool

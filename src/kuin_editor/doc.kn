@@ -37,6 +37,9 @@
 	+func focus(isFocus: bool)
 	end func
 
+	+func updateScrollBar()
+	end func
+
 	+func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 	end func
 

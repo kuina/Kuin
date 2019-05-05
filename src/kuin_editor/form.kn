@@ -23,6 +23,7 @@ var editFile: wnd@Edit
 +var labelRbArMul2: wnd@Label
 +var editRbArHeight: wnd@Edit
 +var btnRbArProp: wnd@Btn
+var tabOrderRbAr: wnd@TabOrder
 
 var editLog: wnd@EditMulti
 var btnCompile: wnd@Btn
@@ -125,6 +126,7 @@ var drag: bool
 	do @editRbArHeight.onFocus :: editRbArHeightOnFocus
 	do @btnRbArProp :: wnd@makeBtn(@groupRbAr, 8, 68, 152, 23, %fix, %fix, \common@langEn ?("Edit Properties...", "プロパティの編集..."))
 	do @btnRbArProp.onPush :: btnRbArPropOnPush
+	do @tabOrderRbAr :: wnd@makeTabOrder([@editRbArName $ wnd@WndBase, @editRbArX, @editRbArY, @editRbArWidth, @editRbArHeight])
 
 	func editRbArNameOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
@@ -318,7 +320,8 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			ret true
 		end if
 	elif(@wndMain.focusedWnd() | \completion@focused())
-		var editFocused: bool :: @editIcon.focused()
+		var editRbArFocused: bool :: @editRbArName.focused() | @editRbArX.focused() | @editRbArY.focused() | @editRbArWidth.focused() | @editRbArHeight.focused()
+		var editFocused: bool :: @editFile.focused() | @editHint.focused() | editRbArFocused | @editIcon.focused()
 		switch(shiftCtrl)
 		case %none
 			switch(key)
@@ -352,12 +355,20 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 				if(definitionPos <>& null & \src@jumpSrc(definitionPos))
 					ret true
 				end if
+			case %tab, %enter
+				if(editRbArFocused & @tabOrderRbAr.chk(%tab, shiftCtrl))
+					ret true
+				end if
 			end switch
 		case %shift
 			switch(key)
 			case %f3
 				do @wndMainOnPushMenu(@wndMain, 0x003B)
 				ret true
+			case %tab, %enter
+				if(editRbArFocused & @tabOrderRbAr.chk(%tab, shiftCtrl))
+					ret true
+				end if
 			end switch
 		case %ctrl
 			switch(key)
@@ -929,6 +940,7 @@ end func
 	do @lockUi :: true
 	do @updateFile()
 	do \src@curDoc.updateUi()
+	do \src@curDoc.updateScrollBar()
 	do @lockUi :: false
 end func
 
