@@ -584,6 +584,7 @@ func wndMainOnDropFiles(wnd: wnd@WndBase, files: [][]char)
 	end if
 	if (\src@chkChanged())
 		do \src@openMainSrc(files[0])
+		do \recent@save(files[0])
 	end if
 end func
 
