@@ -511,7 +511,7 @@ EXPORT_CPP void* _openFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	path[0] = L'\0';
 	int filter_num;
 	Char* filter_mem = ParseFilter(filter, &filter_num);
-	THROWDBG(!(filter_num == 0 && defaultFilter == 0 || filter_num != 0 && 0 <= defaultFilter && defaultFilter < filter_num), 0xe9170006);
+	THROWDBG(!(filter_num == 0 && defaultFilter == 0 || filter_num != 0 && 0 <= defaultFilter && defaultFilter < filter_num), EXCPT_DBG_ARG_OUT_DOMAIN);
 	OPENFILENAME open_file_name;
 	memset(&open_file_name, 0, sizeof(OPENFILENAME));
 	open_file_name.lStructSize = sizeof(OPENFILENAME);
@@ -550,7 +550,7 @@ EXPORT_CPP void* _saveFileDialog(SClass* parent, const U8* filter, S64 defaultFi
 	path[0] = L'\0';
 	int filter_num;
 	Char* filter_mem = ParseFilter(filter, &filter_num);
-	THROWDBG(!(filter_num == 0 && defaultFilter == 0 || filter_num != 0 && 0 <= defaultFilter && defaultFilter < filter_num), 0xe9170006);
+	THROWDBG(!(filter_num == 0 && defaultFilter == 0 || filter_num != 0 && 0 <= defaultFilter && defaultFilter < filter_num), EXCPT_DBG_ARG_OUT_DOMAIN);
 	OPENFILENAME open_file_name;
 	memset(&open_file_name, 0, sizeof(OPENFILENAME));
 	open_file_name.lStructSize = sizeof(OPENFILENAME);
@@ -760,7 +760,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	me2->Kind = static_cast<EWndKind>(static_cast<S64>(WndKind_WndNormal) + (style & 0xffff));
-	THROWDBG(width <= 0 || height <= 0, 0xe9170006);
+	THROWDBG(width <= 0 || height <= 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 	int width2 = static_cast<int>(width);
 	int height2 = static_cast<int>(height);
 	HWND parent2 = parent == NULL ? NULL : reinterpret_cast<SWndBase*>(parent)->WndHandle;
@@ -785,11 +785,11 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 			me2->WndHandle = CreateWindowEx(ex_style | WS_EX_TOOLWINDOW, L"KuinWndDialogClass", text == NULL ? L"" : reinterpret_cast<const Char*>(text + 0x10), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, width2, height2, parent2, NULL, Instance, NULL);
 			break;
 		default:
-			THROWDBG(True, 0xe9170006);
+			THROWDBG(True, EXCPT_DBG_ARG_OUT_DOMAIN);
 			break;
 	}
 	if (me2->WndHandle == NULL)
-		THROW(0xe9170009);
+		THROW(EXCPT_DEVICE_INIT_FAILED);
 	if ((style & static_cast<S64>(WndKind_WndLayered)) != 0)
 		SetLayeredWindowAttributes(me2->WndHandle, NULL, 255, LWA_ALPHA);
 	if ((style & static_cast<S64>(WndKind_WndNoMinimize)) != 0)
@@ -949,7 +949,7 @@ EXPORT_CPP void _wndBaseScreenToClient(SClass* me_, S64* clientX, S64* clientY, 
 
 EXPORT_CPP void _wndMinMax(SClass* me_, S64 minWidth, S64 minHeight, S64 maxWidth, S64 maxHeight)
 {
-	THROWDBG(minWidth != -1 && minWidth <= 0 || minHeight != -1 && minHeight <= 0 || maxWidth != -1 && maxWidth < minWidth || maxHeight != -1 && maxHeight < minHeight, 0xe9170006);
+	THROWDBG(minWidth != -1 && minWidth <= 0 || minHeight != -1 && minHeight <= 0 || maxWidth != -1 && maxWidth < minWidth || maxHeight != -1 && maxHeight < minHeight, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SWnd* me2 = reinterpret_cast<SWnd*>(me_);
 	me2->MinWidth = static_cast<U16>(minWidth);
 	me2->MinHeight = static_cast<U16>(minHeight);
@@ -1020,7 +1020,7 @@ EXPORT_CPP Bool _wndFocusedWnd(SClass* me_)
 
 EXPORT_CPP void _wndSetAlpha(SClass* me_, S64 alpha)
 {
-	THROWDBG(alpha < 0 || 255 < alpha, 0xe9170006);
+	THROWDBG(alpha < 0 || 255 < alpha, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SetLayeredWindowAttributes(reinterpret_cast<SWndBase*>(me_)->WndHandle, NULL, static_cast<BYTE>(alpha), LWA_ALPHA);
 }
 
@@ -1051,7 +1051,7 @@ EXPORT_CPP SClass* _makeDraw(SClass* me_, SClass* parent, S64 x, S64 y, S64 widt
 
 EXPORT_CPP SClass* _makeDrawReduced(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, Bool equalMagnification, S64 split)
 {
-	return MakeDrawImpl(me_, parent, x, y, width, height, anchorX, anchorY, equalMagnification, False, split);
+	return MakeDrawImpl(me_, parent, x, y, width, height, anchorX, anchorY, equalMagnification, False, static_cast<int>(split));
 }
 
 EXPORT_CPP SClass* _makeDrawEditable(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height)
@@ -1122,7 +1122,6 @@ EXPORT_CPP void _drawMoveCaret(SClass* me_, S64 x, S64 y)
 
 EXPORT_CPP void _drawMouseCapture(SClass* me_, Bool enabled)
 {
-	SDraw* me2 = reinterpret_cast<SDraw*>(me_);
 	if (enabled)
 		SetCapture(reinterpret_cast<SWndBase*>(me_)->WndHandle);
 	else
@@ -1182,7 +1181,7 @@ EXPORT_CPP void _editReadonly(SClass* me_, Bool enabled)
 
 EXPORT_CPP void _editSetSel(SClass* me_, S64 start, S64 len)
 {
-	THROWDBG(!(len == -1 && (start == -1 || start == 0) || 0 <= start && 0 <= len), 0xe9170006);
+	THROWDBG(!(len == -1 && (start == -1 || start == 0) || 0 <= start && 0 <= len), EXCPT_DBG_ARG_OUT_DOMAIN);
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	S64 first;
 	S64 last;
@@ -1224,8 +1223,8 @@ EXPORT_CPP void _editMultiAddText(SClass* me_, const U8* text)
 	Bool redraw_enabled = me2->RedrawEnabled;
 	if (redraw_enabled)
 		SendMessage(wnd, WM_SETREDRAW, FALSE, 0);
-	SendMessage(wnd, EM_SETSEL, 0, -1); // Select all.
-	SendMessage(wnd, EM_SETSEL, -1, -1); // Unselect.
+	SendMessage(wnd, EM_SETSEL, 0, static_cast<LPARAM>(-1)); // Select all.
+	SendMessage(wnd, EM_SETSEL, static_cast<WPARAM>(-1), static_cast<LPARAM>(-1)); // Unselect.
 	SendMessage(wnd, WM_SETREDRAW, TRUE, 0);
 	InvalidateRect(wnd, NULL, TRUE);
 	SendMessage(wnd, EM_REPLACESEL, 0, reinterpret_cast<LPARAM>(const_cast<U8*>(text2 + 0x10)));
@@ -1250,16 +1249,16 @@ EXPORT_CPP void _listClear(SClass* me_)
 
 EXPORT_CPP void _listAdd(SClass* me_, const U8* text)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text + 0x10));
 }
 
 EXPORT_CPP void _listIns(SClass* me_, S64 idx, const U8* text)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 #if defined(DBG)
 	S64 len = _listLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
 }
@@ -1268,7 +1267,7 @@ EXPORT_CPP void _listDel(SClass* me_, S64 idx)
 {
 #if defined(DBG)
 	S64 len = _listLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_DELETESTRING, static_cast<WPARAM>(idx), 0);
 }
@@ -1282,7 +1281,7 @@ EXPORT_CPP void _listSetSel(SClass* me_, S64 idx)
 {
 #if defined(DBG)
 	S64 len = _listLen(me_);
-	THROWDBG(idx < -1 || len <= idx, 0xe9170006);
+	THROWDBG(idx < -1 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_SETCURSEL, static_cast<WPARAM>(idx), 0);
 }
@@ -1294,10 +1293,10 @@ EXPORT_CPP S64 _listGetSel(SClass* me_)
 
 EXPORT_CPP void _listSetText(SClass* me_, S64 idx, const U8* text)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 #if defined(DBG)
 	S64 len = _listLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	{
 		int sel = static_cast<int>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, LB_GETCURSEL, 0, 0));
@@ -1312,7 +1311,7 @@ EXPORT_CPP void* _listGetText(SClass* me_, S64 idx)
 #if defined(DBG)
 	{
 		S64 len = _listLen(me_);
-		THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+		THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 	}
 #endif
 	{
@@ -1338,16 +1337,16 @@ EXPORT_CPP void _comboClear(SClass* me_)
 
 EXPORT_CPP void _comboAdd(SClass* me_, const U8* text)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text + 0x10));
 }
 
 EXPORT_CPP void _comboIns(SClass* me_, S64 idx, const U8* text)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 #if defined(DBG)
 	S64 len = _comboLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_INSERTSTRING, static_cast<WPARAM>(idx), reinterpret_cast<LPARAM>(text + 0x10));
 }
@@ -1356,7 +1355,7 @@ EXPORT_CPP void _comboDel(SClass* me_, S64 idx)
 {
 #if defined(DBG)
 	S64 len = _comboLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_DELETESTRING, static_cast<WPARAM>(idx), 0);
 }
@@ -1370,7 +1369,7 @@ EXPORT_CPP void _comboSetSel(SClass* me_, S64 idx)
 {
 #if defined(DBG)
 	S64 len = _comboLen(me_);
-	THROWDBG(idx < -1 || len <= idx, 0xe9170006);
+	THROWDBG(idx < -1 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_SETCURSEL, static_cast<WPARAM>(idx), 0);
 }
@@ -1382,10 +1381,10 @@ EXPORT_CPP S64 _comboGetSel(SClass* me_)
 
 EXPORT_CPP void _comboSetText(SClass* me_, S64 idx, const U8* text)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 #if defined(DBG)
 	S64 len = _comboLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	{
 		int sel = static_cast<int>(SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, CB_GETCURSEL, 0, 0));
@@ -1400,7 +1399,7 @@ EXPORT_CPP void* _comboGetText(SClass* me_, S64 idx)
 #if defined(DBG)
 	{
 		S64 len = _comboLen(me_);
-		THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+		THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 	}
 #endif
 	{
@@ -1499,8 +1498,8 @@ EXPORT_CPP void _listViewClear(SClass* me_)
 
 EXPORT_CPP void _listViewAdd(SClass* me_, const U8* text, S64 img)
 {
-	THROWDBG(text == NULL, 0xc0000005);
-	THROWDBG(img < -1, 0xe9170006);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(img < -1, EXCPT_DBG_ARG_OUT_DOMAIN);
 	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
 	LVITEM item;
 	item.mask = LVIF_TEXT | LVIF_IMAGE;
@@ -1513,11 +1512,11 @@ EXPORT_CPP void _listViewAdd(SClass* me_, const U8* text, S64 img)
 
 EXPORT_CPP void _listViewIns(SClass* me_, S64 idx, const U8* text, S64 img)
 {
-	THROWDBG(text == NULL, 0xc0000005);
-	THROWDBG(img < -1, 0xe9170006);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(img < -1, EXCPT_DBG_ARG_OUT_DOMAIN);
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	LVITEM item;
 	item.mask = LVIF_TEXT | LVIF_IMAGE;
@@ -1532,7 +1531,7 @@ EXPORT_CPP void _listViewDel(SClass* me_, S64 idx)
 {
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	ListView_DeleteItem(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx));
 }
@@ -1544,7 +1543,7 @@ EXPORT_CPP S64 _listViewLen(SClass* me_)
 
 EXPORT_CPP void _listViewAddColumn(SClass* me_, const U8* text)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
 	LVCOLUMN lvcolumn;
 	lvcolumn.mask = LVCF_TEXT;
@@ -1555,10 +1554,10 @@ EXPORT_CPP void _listViewAddColumn(SClass* me_, const U8* text)
 
 EXPORT_CPP void _listViewInsColumn(SClass* me_, S64 column, const U8* text)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 #if defined(DBG)
 	S64 len = _listViewLenColumn(me_);
-	THROWDBG(column < 0 || len <= column, 0xe9170006);
+	THROWDBG(column < 0 || len <= column, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
 	LVCOLUMN lvcolumn;
@@ -1572,7 +1571,7 @@ EXPORT_CPP void _listViewDelColumn(SClass* me_, S64 column)
 {
 #if defined(DBG)
 	S64 len = _listViewLenColumn(me_);
-	THROWDBG(column < 0 || len <= column, 0xe9170006);
+	THROWDBG(column < 0 || len <= column, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	ListView_DeleteColumn(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(column));
 }
@@ -1595,13 +1594,13 @@ EXPORT_CPP void _listViewClearAll(SClass* me_)
 
 EXPORT_CPP void _listViewSetText(SClass* me_, S64 idx, S64 column, const U8* text, S64 img)
 {
-	THROWDBG(text == NULL, 0xc0000005);
-	THROWDBG(img < -1, 0xe9170006);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(img < -1, EXCPT_DBG_ARG_OUT_DOMAIN);
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 	len = _listViewLenColumn(me_);
-	THROWDBG(column < 0 || len <= column, 0xe9170006);
+	THROWDBG(column < 0 || len <= column, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	LVITEM item;
 	item.mask = LVIF_TEXT | LVIF_IMAGE;
@@ -1616,9 +1615,9 @@ EXPORT_CPP void* _listViewGetText(SClass* me_, S64* img, S64 idx, S64 column)
 {
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 	len = _listViewLenColumn(me_);
-	THROWDBG(column < 0 || len <= column, 0xe9170006);
+	THROWDBG(column < 0 || len <= column, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	Char buf[1025];
 	LVITEM item;
@@ -1648,7 +1647,7 @@ EXPORT_CPP void _listViewSetSel(SClass* me_, S64 idx)
 {
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	ListView_SetItemState(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), LVIS_SELECTED, LVIS_SELECTED);
 }
@@ -1662,7 +1661,7 @@ EXPORT_CPP void _listViewSetSelMulti(SClass* me_, S64 idx, Bool value)
 {
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	ListView_SetItemState(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), LVIS_SELECTED, value ? LVIS_SELECTED : 0);
 }
@@ -1671,7 +1670,7 @@ EXPORT_CPP Bool _listViewGetSelMulti(SClass* me_, S64 idx)
 {
 #if defined(DBG)
 	S64 len = _listViewLen(me_);
-	THROWDBG(idx < 0 || len <= idx, 0xe9170006);
+	THROWDBG(idx < 0 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	return ListView_GetItemState(reinterpret_cast<SWndBase*>(me_)->WndHandle, static_cast<int>(idx), LVIS_SELECTED) != 0;
 }
@@ -1735,7 +1734,7 @@ EXPORT_CPP void _tabSetSel(SClass* me_, S64 idx)
 #if defined(DBG)
 	{
 		S64 len = _tabLen(me_);
-		THROWDBG(idx < -1 || len <= idx, 0xe9170006);
+		THROWDBG(idx < -1 || len <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
 	}
 #endif
 	SendMessage(reinterpret_cast<SWndBase*>(me_)->WndHandle, TCM_SETCURSEL, static_cast<WPARAM>(idx), 0);
@@ -1808,7 +1807,7 @@ EXPORT_CPP void _treeSetSel(SClass* me_, SClass* node)
 {
 	SWndBase* me2 = reinterpret_cast<SWndBase*>(me_);
 	STreeNode* node2 = reinterpret_cast<STreeNode*>(node);
-	THROWDBG(me2->WndHandle != node2->WndHandle, 0xe9170006);
+	THROWDBG(me2->WndHandle != node2->WndHandle, EXCPT_DBG_ARG_OUT_DOMAIN);
 	TreeView_Select(me2->WndHandle, node2->Item, TVGN_CARET);
 }
 
@@ -1825,7 +1824,7 @@ EXPORT_CPP SClass* _treeGetSel(SClass* me_, SClass* me2)
 
 EXPORT_CPP SClass* _treeNodeAddChild(SClass* me_, SClass* me2, const U8* name)
 {
-	THROWDBG(name == NULL, 0xc0000005);
+	THROWDBG(name == NULL, EXCPT_ACCESS_VIOLATION);
 	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
 	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
 	TVINSERTSTRUCT tvis;
@@ -1842,8 +1841,8 @@ EXPORT_CPP SClass* _treeNodeAddChild(SClass* me_, SClass* me2, const U8* name)
 
 EXPORT_CPP SClass* _treeNodeInsChild(SClass* me_, SClass* me2, SClass* node, const U8* name)
 {
-	THROWDBG(node == NULL, 0xc0000005);
-	THROWDBG(name == NULL, 0xc0000005);
+	THROWDBG(node == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(name == NULL, EXCPT_ACCESS_VIOLATION);
 	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
 	STreeNode* me4 = reinterpret_cast<STreeNode*>(me2);
 	STreeNode* node2 = reinterpret_cast<STreeNode*>(node);
@@ -1862,7 +1861,7 @@ EXPORT_CPP SClass* _treeNodeInsChild(SClass* me_, SClass* me2, SClass* node, con
 
 EXPORT_CPP void _treeNodeDelChild(SClass* me_, SClass* node)
 {
-	THROWDBG(node == NULL, 0xc0000005);
+	THROWDBG(node == NULL, EXCPT_ACCESS_VIOLATION);
 	STreeNode* me3 = reinterpret_cast<STreeNode*>(me_);
 	STreeNode* node2 = reinterpret_cast<STreeNode*>(node);
 	if (node2->Item == NULL)
@@ -2012,7 +2011,7 @@ EXPORT_CPP SClass* _makeMenu(SClass* me_)
 	SMenu* me2 = reinterpret_cast<SMenu*>(me_);
 	me2->MenuHandle = CreateMenu();
 	if (me2->MenuHandle == NULL)
-		THROW(0xe9170009);
+		THROW(EXCPT_DEVICE_INIT_FAILED);
 	me2->Children = AllocMem(0x28);
 	*(S64*)me2->Children = 1;
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
@@ -2026,8 +2025,8 @@ EXPORT_CPP void _menuDtor(SClass* me_)
 
 EXPORT_CPP void _menuAdd(SClass* me_, S64 id, const U8* text)
 {
-	THROWDBG(id < 0x0001 || 0xffff < id, 0xe9170006);
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(id < 0x0001 || 0xffff < id, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	AppendMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, MF_ENABLED | MF_STRING, static_cast<UINT_PTR>(id), reinterpret_cast<const Char*>(text + 0x10));
 }
 
@@ -2038,15 +2037,15 @@ EXPORT_CPP void _menuAddLine(SClass* me_)
 
 EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup)
 {
-	THROWDBG(popup == NULL, 0xc0000005);
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(popup == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	AppendMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, MF_ENABLED | MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), reinterpret_cast<const Char*>(text + 0x10));
 }
 
 EXPORT_CPP void _menuDel(SClass* me_, S64 id)
 {
-	THROWDBG(id < 0x0001 || 0xffff < id, 0xe9170006);
-	DeleteMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, static_cast<UINT_PTR>(id), MF_BYCOMMAND);
+	THROWDBG(id < 0x0001 || 0xffff < id, EXCPT_DBG_ARG_OUT_DOMAIN);
+	DeleteMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, static_cast<UINT>(id), MF_BYCOMMAND);
 }
 
 EXPORT_CPP SClass* _makePopup(SClass* me_)
@@ -2054,7 +2053,7 @@ EXPORT_CPP SClass* _makePopup(SClass* me_)
 	SMenu* me2 = reinterpret_cast<SMenu*>(me_);
 	me2->MenuHandle = CreatePopupMenu();
 	if (me2->MenuHandle == NULL)
-		THROW(0xe9170009);
+		THROW(EXCPT_DEVICE_INIT_FAILED);
 	me2->Children = AllocMem(0x28);
 	*(S64*)me2->Children = 1;
 	memset((U8*)me2->Children + 0x08, 0x00, 0x20);
@@ -2064,7 +2063,7 @@ EXPORT_CPP SClass* _makePopup(SClass* me_)
 EXPORT_CPP SClass* _makeTabOrder(SClass* me_, U8* ctrls)
 {
 	STabOrder* me2 = reinterpret_cast<STabOrder*>(me_);
-	THROWDBG(ctrls == NULL, 0xc0000005);
+	THROWDBG(ctrls == NULL, EXCPT_ACCESS_VIOLATION);
 	S64 len = *reinterpret_cast<S64*>(ctrls + 0x08);
 	void** ptr = reinterpret_cast<void**>(ctrls + 0x10);
 	void* result = AllocMem(0x10 + sizeof(void*) * static_cast<size_t>(len));
@@ -2207,7 +2206,7 @@ static const U8* RNToN(const Char* str)
 
 static void ParseAnchor(SWndBase* wnd, S64 anchor_x, S64 anchor_y, S64 x, S64 y, S64 width, S64 height)
 {
-	THROWDBG(x != static_cast<S64>(static_cast<U16>(x)) || y != static_cast<S64>(static_cast<U16>(y)) || width != static_cast<S64>(static_cast<U16>(width)) || height != static_cast<S64>(static_cast<U16>(height)), 0xe9170006);
+	THROWDBG(x != static_cast<S64>(static_cast<U16>(x)) || y != static_cast<S64>(static_cast<U16>(y)) || width != static_cast<S64>(static_cast<U16>(width)) || height != static_cast<S64>(static_cast<U16>(height)), EXCPT_DBG_ARG_OUT_DOMAIN);
 	wnd->CtrlFlag = 0;
 	switch (anchor_x)
 	{
@@ -2222,7 +2221,7 @@ static void ParseAnchor(SWndBase* wnd, S64 anchor_x, S64 anchor_y, S64 x, S64 y,
 			wnd->CtrlFlag |= static_cast<U64>(CtrlFlag_AnchorRight);
 			break;
 		default:
-			THROWDBG(True, 0xe9170006);
+			THROWDBG(True, EXCPT_DBG_ARG_OUT_DOMAIN);
 			break;
 	}
 	switch (anchor_y)
@@ -2238,7 +2237,7 @@ static void ParseAnchor(SWndBase* wnd, S64 anchor_x, S64 anchor_y, S64 x, S64 y,
 			wnd->CtrlFlag |= static_cast<U64>(CtrlFlag_AnchorBottom);
 			break;
 		default:
-			THROWDBG(True, 0xe9170006);
+			THROWDBG(True, EXCPT_DBG_ARG_OUT_DOMAIN);
 			break;
 	}
 	wnd->DefaultX = static_cast<U16>(x);
@@ -2255,12 +2254,12 @@ static SWndBase* ToWnd(HWND wnd)
 
 static void SetCtrlParam(SWndBase* wnd, SWndBase* parent, EWndKind kind, const Char* ctrl, DWORD style_ex, DWORD style, S64 x, S64 y, S64 width, S64 height, const Char* text, WNDPROC wnd_proc, S64 anchor_x, S64 anchor_y)
 {
-	THROWDBG(parent == NULL, 0xe9170006);
-	THROWDBG(x < 0 || y < 0 || width < 0 || height < 0, 0xe9170006);
+	THROWDBG(parent == NULL, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(x < 0 || y < 0 || width < 0 || height < 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 	wnd->Kind = kind;
 	wnd->WndHandle = CreateWindowEx(style_ex, ctrl, text, style, static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height), parent->WndHandle, NULL, Instance, NULL);
 	if (wnd->WndHandle == NULL)
-		THROW(0xe9170009);
+		THROW(EXCPT_DEVICE_INIT_FAILED);
 	SetWindowLongPtr(wnd->WndHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(wnd));
 	wnd->Name = NULL;
 	wnd->DefaultWndProc = reinterpret_cast<WNDPROC>(GetWindowLongPtr(wnd->WndHandle, GWLP_WNDPROC));
@@ -2554,7 +2553,7 @@ static Char* ParseFilter(const U8* filter, int* num)
 		return NULL;
 	}
 	S64 len_parent = *reinterpret_cast<const S64*>(filter + 0x08);
-	THROWDBG(len_parent % 2 != 0, 0xe9170006);
+	THROWDBG(len_parent % 2 != 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 	S64 total = 0;
 	{
 		const void*const* ptr = reinterpret_cast<const void*const*>(filter + 0x10);
@@ -3521,7 +3520,7 @@ static LRESULT CALLBACK WndProcScrollX(HWND wnd, UINT msg, WPARAM w_param, LPARA
 	switch (msg)
 	{
 		case WM_SETCURSOR:
-			SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(IDC_ARROW)));
+			SetCursor(LoadCursor(NULL, IDC_ARROW));
 			return 1;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);
@@ -3534,7 +3533,7 @@ static LRESULT CALLBACK WndProcScrollY(HWND wnd, UINT msg, WPARAM w_param, LPARA
 	switch (msg)
 	{
 		case WM_SETCURSOR:
-			SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(IDC_ARROW)));
+			SetCursor(LoadCursor(NULL, IDC_ARROW));
 			return 1;
 	}
 	return CallWindowProc(wnd2->DefaultWndProc, wnd, msg, w_param, l_param);

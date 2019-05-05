@@ -40,13 +40,13 @@ EXPORT void* _cmdLine(void)
 
 EXPORT S64 _rnd(S64 min, S64 max)
 {
-	THROWDBG(max - min < 0, 0xe9170006);
+	THROWDBG(max - min < 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 	return RndGet(&GlobalRnd, min, max);
 }
 
 EXPORT double _rndFloat(double min, double max)
 {
-	THROWDBG(min >= max, 0xe9170006);
+	THROWDBG(min >= max, EXCPT_DBG_ARG_OUT_DOMAIN);
 	return RndGetFloat(&GlobalRnd, min, max);
 }
 
@@ -257,16 +257,16 @@ EXPORT double _toDegree(double rad)
 
 EXPORT S64 _cmp(const U8* s1, const U8* s2)
 {
-	THROWDBG(s1 == NULL, 0xc0000005);
-	THROWDBG(s2 == NULL, 0xc0000005);
+	THROWDBG(s1 == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(s2 == NULL, EXCPT_ACCESS_VIOLATION);
 	S64 result = (S64)wcscmp((const Char*)(s1 + 0x10), (const Char*)(s2 + 0x10));
 	return result > 0 ? 1 : (result < 0 ? -1 : 0);
 }
 
 EXPORT S64 _cmpEx(const U8* s1, const U8* s2, S64 len, Bool ignoreCase)
 {
-	THROWDBG(s1 == NULL, 0xc0000005);
-	THROWDBG(s2 == NULL, 0xc0000005);
+	THROWDBG(s1 == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(s2 == NULL, EXCPT_ACCESS_VIOLATION);
 	S64 result;
 	if (ignoreCase)
 		result = (S64)_wcsnicmp((const Char*)(s1 + 0x10), (const Char*)(s2 + 0x10), (size_t)len);
@@ -297,8 +297,8 @@ EXPORT double _maxFloat(double n1, double n2)
 
 EXPORT S64 _levenshtein(const U8* s1, const U8* s2)
 {
-	THROWDBG(s1 == NULL, 0xc0000005);
-	THROWDBG(s2 == NULL, 0xc0000005);
+	THROWDBG(s1 == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(s2 == NULL, EXCPT_ACCESS_VIOLATION);
 	S64 len1 = ((S64*)s1)[1];
 	S64 len2 = ((S64*)s2)[1];
 	const Char* str1 = (const Char*)(s1 + 0x10);
@@ -362,7 +362,7 @@ EXPORT double _cerp(double first, double last, double rate)
 
 EXPORT double _hermite(const void* pos, double rate)
 {
-	THROWDBG(pos == NULL, 0xc0000005);
+	THROWDBG(pos == NULL, EXCPT_ACCESS_VIOLATION);
 	int len = (int)((S64*)pos)[1];
 	double len2 = (double)len;
 	const double* pos2 = (const double*)((const U8*)pos + 0x10);
@@ -392,7 +392,7 @@ EXPORT double _hermite(const void* pos, double rate)
 
 EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern)
 {
-	THROWDBG(pattern == NULL, 0xc0000005);
+	THROWDBG(pattern == NULL, EXCPT_ACCESS_VIOLATION);
 	SBmSearch* me2 = (SBmSearch*)me_;
 	{
 		size_t len = (size_t)((S64*)pattern)[1];
@@ -465,9 +465,9 @@ EXPORT S64 _bmSearchFind(SClass* me_, const U8* text, S64 start)
 
 EXPORT void* _countUp(S64 min, S64 max)
 {
-	THROWDBG(min > max, 0xe9170006);
+	THROWDBG(min > max, EXCPT_DBG_ARG_OUT_DOMAIN);
 	S64 len = max - min + 1;
-	THROWDBG(len <= 0, 0xe9170006);
+	THROWDBG(len <= 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 	U8* buf = (U8*)AllocMem(0x10 + sizeof(S64) * len);
 	S64* ptr = (S64*)(buf + 0x10);
 	((S64*)buf)[0] = DefaultRefCntFunc;

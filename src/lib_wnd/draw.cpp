@@ -63,6 +63,8 @@ struct STex
 	SClass Class;
 	int Width;
 	int Height;
+	int ImgWidth;
+	int ImgHeight;
 	ID3D10Texture2D* Tex;
 	ID3D10ShaderResourceView* View;
 };
@@ -377,7 +379,7 @@ EXPORT_CPP void _render(S64 fps)
 			sleep_time = (Cnt % 3 == 0 ? 16 : 17);
 			break;
 		default:
-			THROWDBG(True, 0xe9170006);
+			THROWDBG(True, EXCPT_DBG_ARG_OUT_DOMAIN);
 			return;
 	}
 	sleep_time -= static_cast<int>(diff);
@@ -444,7 +446,7 @@ EXPORT_CPP void _depth(Bool test, Bool write)
 
 EXPORT_CPP void _blend(S64 kind)
 {
-	THROWDBG(kind < 0 || BlendNum <= kind, 0xe9170006);
+	THROWDBG(kind < 0 || BlendNum <= kind, EXCPT_DBG_ARG_OUT_DOMAIN);
 	int kind2 = static_cast<int>(kind);
 	if (CurBlend == kind2)
 		return;
@@ -454,7 +456,7 @@ EXPORT_CPP void _blend(S64 kind)
 
 EXPORT_CPP void _sampler(S64 kind)
 {
-	THROWDBG(kind < 0 || SamplerNum <= kind, 0xe9170006);
+	THROWDBG(kind < 0 || SamplerNum <= kind, EXCPT_DBG_ARG_OUT_DOMAIN);
 	int kind2 = static_cast<int>(kind);
 	if (CurSampler == kind2)
 		return;
@@ -484,8 +486,8 @@ EXPORT_CPP void _clear()
 
 EXPORT_CPP void _editPixels(const void* callback)
 {
-	THROWDBG(callback == NULL, 0xc0000005);
-	THROWDBG(!CurWndBuf->Editable, 0xe917000a);
+	THROWDBG(callback == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(!CurWndBuf->Editable, EXCPT_DBG_INOPERABLE_STATE);
 	WriteBack();
 	const size_t buf_size = static_cast<size_t>(CurWndBuf->TexWidth * CurWndBuf->TexHeight);
 	U8* buf = static_cast<U8*>(AllocMem(0x10 + sizeof(U32) * buf_size));
@@ -502,13 +504,13 @@ EXPORT_CPP void _editPixels(const void* callback)
 		CurWndBuf->EditableTex->Unmap(D3D10CalcSubresource(0, 0, 1));
 	}
 	Device->CopyResource(CurWndBuf->TmpTex, CurWndBuf->EditableTex);
-	THROWDBG(((S64*)buf)[0] != 1, 0xc0000005);
+	THROWDBG(((S64*)buf)[0] != 1, EXCPT_ACCESS_VIOLATION);
 	FreeMem(buf);
 }
 
 EXPORT_CPP Bool _capture(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	ID3D10Texture2D* tex;
 	WriteBack();
 	if (CurWndBuf->Editable)
@@ -817,7 +819,7 @@ EXPORT_CPP void _poly(const void* x, const void* y, const void* color)
 	S64 len_x = static_cast<const S64*>(x)[1];
 	S64 len_y = static_cast<const S64*>(y)[1];
 	S64 len_color = static_cast<const S64*>(color)[1];
-	THROWDBG(len_x != len_y || len_y != len_color || len_x > PolyVerticesNum, 0xe9170006);
+	THROWDBG(len_x != len_y || len_y != len_color || len_x > PolyVerticesNum, EXCPT_DBG_ARG_OUT_DOMAIN);
 	const double* x2 = reinterpret_cast<const double*>(static_cast<const U8*>(x) + 0x10);
 	const double* y2 = reinterpret_cast<const double*>(static_cast<const U8*>(y) + 0x10);
 	const S64* color2 = reinterpret_cast<const S64*>(static_cast<const U8*>(color) + 0x10);
@@ -854,7 +856,7 @@ EXPORT_CPP void _polyLine(const void* x, const void* y, const void* color)
 	S64 len_x = static_cast<const S64*>(x)[1];
 	S64 len_y = static_cast<const S64*>(y)[1];
 	S64 len_color = static_cast<const S64*>(color)[1];
-	THROWDBG(len_x != len_y || len_y != len_color || len_x > PolyVerticesNum, 0xe9170006);
+	THROWDBG(len_x != len_y || len_y != len_color || len_x > PolyVerticesNum, EXCPT_DBG_ARG_OUT_DOMAIN);
 	const double* x2 = reinterpret_cast<const double*>(static_cast<const U8*>(x) + 0x10);
 	const double* y2 = reinterpret_cast<const double*>(static_cast<const U8*>(y) + 0x10);
 	const S64* color2 = reinterpret_cast<const S64*>(static_cast<const U8*>(color) + 0x10);
@@ -921,8 +923,10 @@ EXPORT_CPP SClass* _makeTexEvenArgb(SClass* me_, double a, double r, double g, d
 	float img[4] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a) };
 	me2->Width = 1;
 	me2->Height = 1;
+	me2->ImgWidth = 1;
+	me2->ImgHeight = 1;
 	if (!MakeTexWithImg(&me2->Tex, &me2->View, NULL, 1, 1, img, sizeof(img), DXGI_FORMAT_R32G32B32A32_FLOAT, D3D10_USAGE_IMMUTABLE, 0, False))
-		THROW(0xe9170009);
+		THROW(EXCPT_DEVICE_INIT_FAILED);
 	return me_;
 }
 
@@ -950,6 +954,16 @@ EXPORT_CPP S64 _texWidth(SClass* me_)
 EXPORT_CPP S64 _texHeight(SClass* me_)
 {
 	return static_cast<S64>(reinterpret_cast<STex*>(me_)->Height);
+}
+
+EXPORT_CPP S64 _texImgWidth(SClass* me_)
+{
+	return static_cast<S64>(reinterpret_cast<STex*>(me_)->ImgWidth);
+}
+
+EXPORT_CPP S64 _texImgHeight(SClass* me_)
+{
+	return static_cast<S64>(reinterpret_cast<STex*>(me_)->ImgHeight);
 }
 
 EXPORT_CPP void _texDraw(SClass* me_, double dstX, double dstY, double srcX, double srcY, double srcW, double srcH, S64 color)
@@ -1067,7 +1081,7 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 
 EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bold, bool italic, bool proportional, double advance)
 {
-	THROWDBG(size < 1, 0xe9170006);
+	THROWDBG(size < 1, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
 	int char_height;
 	{
@@ -1119,7 +1133,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 		desc.MiscFlags = 0;
 		if (FAILED(Device->CreateTexture2D(&desc, NULL, &me2->Tex)))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 	{
 		D3D10_SHADER_RESOURCE_VIEW_DESC desc;
@@ -1129,7 +1143,7 @@ EXPORT_CPP SClass* _makeFont(SClass* me_, const U8* fontName, S64 size, bool bol
 		desc.Texture2D.MostDetailedMip = 0;
 		desc.Texture2D.MipLevels = 1;
 		if (FAILED(Device->CreateShaderResourceView(me2->Tex, &desc, &me2->View)))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 	size_t buf_size = static_cast<size_t>((FontBitmapSize / me2->CellWidth) * (FontBitmapSize / me2->CellHeight));
 	ASSERT(buf_size != 0);
@@ -1164,7 +1178,7 @@ EXPORT_CPP void _fontDtor(SClass* me_)
 
 EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text, S64 color)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
 	if (a <= DiscardAlpha)
@@ -1354,7 +1368,7 @@ EXPORT_CPP double _fontCalcWidth(SClass* me_, const U8* text)
 
 EXPORT_CPP void _fontCalcSize(SClass* me_, double* width, double* height, const U8* text)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	SFont* me2 = reinterpret_cast<SFont*>(me_);
 	S64 len = *reinterpret_cast<const S64*>(text + 0x08);
 
@@ -1488,7 +1502,7 @@ EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, doubl
 
 EXPORT_CPP void _proj(double fovy, double aspectX, double aspectY, double nearZ, double farZ)
 {
-	THROWDBG(fovy <= 0.0 || M_PI / 2.0 <= fovy || aspectX <= 0.0 || aspectY <= 0.0 || nearZ <= 0.0 || farZ <= nearZ, 0xe9170006);
+	THROWDBG(fovy <= 0.0 || M_PI / 2.0 <= fovy || aspectX <= 0.0 || aspectY <= 0.0 || nearZ <= 0.0 || farZ <= nearZ, EXCPT_DBG_ARG_OUT_DOMAIN);
 	double tan_theta = tan(fovy / 2.0);
 	ProjMat[0][0] = -1.0 / ((aspectX / aspectY) * tan_theta);
 	ProjMat[0][1] = 0.0;
@@ -1517,7 +1531,7 @@ EXPORT_CPP SClass* _makeObj(SClass* me_, const U8* path)
 	buf = static_cast<U8*>(LoadFileAll(reinterpret_cast<const Char*>(path + 0x10), &size));
 	if (buf == NULL)
 	{
-		THROW(0xe9170007);
+		THROW(EXCPT_FILE_READ_FAILED);
 		return NULL;
 	}
 	SClass* obj = MakeObjImpl(me_, size, buf);
@@ -1577,14 +1591,14 @@ EXPORT_CPP SClass* _makePlane(SClass* me_)
 EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal)
 {
 	SObj* me2 = (SObj*)me_;
-	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, 0xe9170006);
+	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, EXCPT_DBG_ARG_OUT_DOMAIN);
 	switch (me2->ElementKinds[element])
 	{
 		case 0: // Polygon.
 			{
 				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
-				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), 0xe9170006);
-				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, 0xe9170006);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), EXCPT_DBG_ARG_OUT_DOMAIN);
+				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, EXCPT_DBG_ARG_OUT_DOMAIN);
 				Bool joint = element2->JointNum != 0;
 
 				memcpy(ObjVsConstBuf.CommonParam.World, me2->Mat, sizeof(float[4][4]));
@@ -1636,14 +1650,14 @@ EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse
 EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal)
 {
 	SObj* me2 = (SObj*)me_;
-	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, 0xe9170006);
+	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, EXCPT_DBG_ARG_OUT_DOMAIN);
 	switch (me2->ElementKinds[element])
 	{
 		case 0: // Polygon.
 			{
 				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
-				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), 0xe9170006);
-				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, 0xe9170006);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), EXCPT_DBG_ARG_OUT_DOMAIN);
+				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, EXCPT_DBG_ARG_OUT_DOMAIN);
 				Bool joint = element2->JointNum != 0;
 
 				memcpy(ObjVsConstBuf.CommonParam.World, me2->Mat, sizeof(float[4][4]));
@@ -1697,14 +1711,14 @@ EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* dif
 EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double width, S64 color)
 {
 	SObj* me2 = (SObj*)me_;
-	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, 0xe9170006);
+	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, EXCPT_DBG_ARG_OUT_DOMAIN);
 	switch (me2->ElementKinds[element])
 	{
 		case 0: // Polygon.
 			{
 				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
-				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), 0xe9170006);
-				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, 0xe9170006);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), EXCPT_DBG_ARG_OUT_DOMAIN);
+				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, EXCPT_DBG_ARG_OUT_DOMAIN);
 				Bool joint = element2->JointNum != 0;
 
 				SObjOutlineVsConstBuf vs_const_buf;
@@ -1742,7 +1756,7 @@ EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double w
 EXPORT_CPP void _objMat(SClass* me_, const U8* mat, const U8* normMat)
 {
 	SObj* me2 = (SObj*)me_;
-	THROWDBG(*(S64*)(mat + 0x08) != 16 || *(S64*)(normMat + 0x08) != 16, 0xe9170006);
+	THROWDBG(*(S64*)(mat + 0x08) != 16 || *(S64*)(normMat + 0x08) != 16, EXCPT_DBG_ARG_OUT_DOMAIN);
 	{
 		const double* ptr = reinterpret_cast<const double*>(mat + 0x10);
 		me2->Mat[0][0] = static_cast<float>(ptr[0]);
@@ -2009,8 +2023,8 @@ EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z, double 
 
 EXPORT_CPP SClass* _makeParticle(SClass* me_, S64 life_span, S64 color1, S64 color2, double friction, double accel_x, double accel_y, double accel_z, double size_accel, double rot_accel)
 {
-	THROWDBG(life_span <= 0, 0xe917000a);
-	THROWDBG(friction < 0.0, 0xe917000a);
+	THROWDBG(life_span <= 0, EXCPT_DBG_INOPERABLE_STATE);
+	THROWDBG(friction < 0.0, EXCPT_DBG_INOPERABLE_STATE);
 
 	SParticle* me2 = reinterpret_cast<SParticle*>(me_);
 	me2->Lifespan = life_span;
@@ -2382,7 +2396,7 @@ static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary)
 						}
 						break;
 					default:
-						THROW(0xe9170008);
+						THROW(EXCPT_INVALID_DATA_FMT);
 						break;
 				}
 				if (!correct)
@@ -2397,7 +2411,7 @@ static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary)
 		if (!correct)
 		{
 			_objDtor(me_);
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 			return NULL;
 		}
 	}
@@ -2476,7 +2490,7 @@ void Init()
 				break;
 		}
 		if (!success)
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 
 	Cnt = 0;
@@ -2497,13 +2511,13 @@ void Init()
 		desc.MultisampleEnable = FALSE;
 		desc.AntialiasedLineEnable = FALSE;
 		if (FAILED(Device->CreateRasterizerState(&desc, &RasterizerState)))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 		desc.CullMode = D3D10_CULL_BACK;
 		if (FAILED(Device->CreateRasterizerState(&desc, &RasterizerStateInverted)))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 		desc.CullMode = D3D10_CULL_NONE;
 		if (FAILED(Device->CreateRasterizerState(&desc, &RasterizerStateNone)))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 
 	// Create depth buffer modes.
@@ -2540,7 +2554,7 @@ void Init()
 				break;
 		}
 		if (FAILED(Device->CreateDepthStencilState(&desc, &DepthState[i])))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 
 	// Create blend modes.
@@ -2594,7 +2608,7 @@ void Init()
 				break;
 		}
 		if (FAILED(Device->CreateBlendState(&desc, &BlendState[i])))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 
 	// Create a sampler.
@@ -2622,7 +2636,7 @@ void Init()
 		desc.MinLOD = 0.0f;
 		desc.MaxLOD = D3D10_FLOAT32_MAX;
 		if (FAILED(Device->CreateSamplerState(&desc, &Sampler[i])))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 
 	// Initialize 'Tri'.
@@ -3217,7 +3231,7 @@ void Init()
 		if (img != NULL)
 			FreeMem(img);
 		if (!success)
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 
 	for (int i = 0; i < TexEvenNum; i++)
@@ -3248,7 +3262,7 @@ void Init()
 				break;
 		}
 		if (!MakeTexWithImg(&TexEven[i], &ViewEven[i], NULL, 1, 1, img, sizeof(img), DXGI_FORMAT_R32G32B32A32_FLOAT, D3D10_USAGE_IMMUTABLE, 0, False))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 
 	memset(&ObjVsConstBuf, 0, sizeof(SObjVsConstBuf));
@@ -3441,7 +3455,7 @@ void* MakeDrawBuf(int tex_width, int tex_height, int split, HWND wnd, void* old,
 		if (factory != NULL)
 			factory->Release();
 		if (!success)
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 
 	// Create a back buffer and a depth buffer.
@@ -3489,7 +3503,7 @@ void* MakeDrawBuf(int tex_width, int tex_height, int split, HWND wnd, void* old,
 		if (back != NULL)
 			back->Release();
 		if (!success)
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 
 	// Create a temporary texture.
@@ -3508,7 +3522,7 @@ void* MakeDrawBuf(int tex_width, int tex_height, int split, HWND wnd, void* old,
 			desc.CPUAccessFlags = 0;
 			desc.MiscFlags = 0;
 			if (FAILED(Device->CreateTexture2D(&desc, NULL, &wnd_buf->TmpTex)))
-				THROW(0xe9170009);
+				THROW(EXCPT_DEVICE_INIT_FAILED);
 		}
 		{
 			D3D10_SHADER_RESOURCE_VIEW_DESC desc;
@@ -3518,10 +3532,10 @@ void* MakeDrawBuf(int tex_width, int tex_height, int split, HWND wnd, void* old,
 			desc.Texture2D.MostDetailedMip = 0;
 			desc.Texture2D.MipLevels = 1;
 			if (FAILED(Device->CreateShaderResourceView(wnd_buf->TmpTex, &desc, &wnd_buf->TmpShaderResView)))
-				THROW(0xe9170009);
+				THROW(EXCPT_DEVICE_INIT_FAILED);
 		}
 		if (FAILED(Device->CreateRenderTargetView(wnd_buf->TmpTex, NULL, &wnd_buf->TmpRenderTargetView)))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 	if (editable)
 	{
@@ -3538,7 +3552,7 @@ void* MakeDrawBuf(int tex_width, int tex_height, int split, HWND wnd, void* old,
 		desc.CPUAccessFlags = D3D10_CPU_ACCESS_READ | D3D10_CPU_ACCESS_WRITE;
 		desc.MiscFlags = 0;
 		if (FAILED(Device->CreateTexture2D(&desc, NULL, &wnd_buf->EditableTex)))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 	else
 		wnd_buf->EditableTex = NULL;
@@ -3547,7 +3561,7 @@ void* MakeDrawBuf(int tex_width, int tex_height, int split, HWND wnd, void* old,
 	{
 		IDXGISurface* surface = NULL;
 		if (FAILED(wnd_buf->TmpTex->QueryInterface(&surface)))
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 		Callback2d(0, wnd_buf, surface);
 	}
 
@@ -3920,7 +3934,7 @@ HFONT ToFontHandle(SClass* font)
 
 void ColorToArgb(double* a, double* r, double* g, double* b, S64 color)
 {
-	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
+	THROWDBG(color < 0 || 0xffffffff < color, EXCPT_DBG_ARG_OUT_DOMAIN);
 	*a = static_cast<double>((color >> 24) & 0xff) / 255.0;
 	*r = Gamma(static_cast<double>((color >> 16) & 0xff) / 255.0);
 	*g = Gamma(static_cast<double>((color >> 8) & 0xff) / 255.0);
@@ -4004,7 +4018,7 @@ void SetJointMat(const void* element, double frame, float (*joint)[4][4])
 
 SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	S64 path_len = *reinterpret_cast<const S64*>(path + 0x08);
 	const Char* path2 = reinterpret_cast<const Char*>(path + 0x10);
 	STex* me2 = reinterpret_cast<STex*>(me_);
@@ -4019,13 +4033,15 @@ SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb)
 		bin = LoadFileAll(path2, &size);
 		if (bin == NULL)
 		{
-			THROW(0xe9170007);
+			THROW(EXCPT_FILE_READ_FAILED);
 			return NULL;
 		}
-		THROWDBG(path_len < 4, 0xe9170006);
+		THROWDBG(path_len < 4, EXCPT_DBG_ARG_OUT_DOMAIN);
 		if (StrCmpIgnoreCase(path2 + path_len - 4, L".png"))
 		{
 			img = DecodePng(size, bin, &width, &height);
+			me2->ImgWidth = width;
+			me2->ImgHeight = height;
 			fmt = as_argb ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
 				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
@@ -4033,6 +4049,8 @@ SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb)
 		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".jpg"))
 		{
 			img = DecodeJpg(size, bin, &width, &height);
+			me2->ImgWidth = width;
+			me2->ImgHeight = height;
 			fmt = as_argb ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
 				img = Draw::AdjustTexSize(static_cast<U8*>(img), &width, &height);
@@ -4040,14 +4058,18 @@ SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb)
 		else if (StrCmpIgnoreCase(path2 + path_len - 4, L".dds"))
 		{
 			img = DecodeBc(size, bin, &width, &height);
+			me2->ImgWidth = width;
+			me2->ImgHeight = height;
 			img_ref = True;
 			fmt = as_argb ? DXGI_FORMAT_BC3_UNORM : DXGI_FORMAT_BC3_UNORM_SRGB;
 			if (!IsPowerOf2(static_cast<U64>(width)) || !IsPowerOf2(static_cast<U64>(height)))
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 		}
 		else
 		{
-			THROWDBG(True, 0xe9170006);
+			THROWDBG(True, EXCPT_DBG_ARG_OUT_DOMAIN);
+			me2->ImgWidth = 0;
+			me2->ImgHeight = 0;
 			fmt = DXGI_FORMAT_UNKNOWN;
 			width = 0;
 			height = 0;
@@ -4069,7 +4091,7 @@ SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb)
 		if (bin != NULL)
 			FreeMem(bin);
 		if (!success)
-			THROW(0xe9170009);
+			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
 	return me_;
 }

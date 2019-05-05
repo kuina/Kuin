@@ -16,7 +16,7 @@ static void HashBlock(U32* h, const U8* data);
 
 EXPORT void* _hash(const U8* data)
 {
-	THROWDBG(data == NULL, 0xc0000005);
+	THROWDBG(data == NULL, EXCPT_ACCESS_VIOLATION);
 	U8* result = (U8*)AllocMem(0x10 + 0x20);
 	((S64*)result)[0] = DefaultRefCntFunc;
 	((S64*)result)[1] = 0x20;

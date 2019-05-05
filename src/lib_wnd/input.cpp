@@ -26,16 +26,16 @@ static BOOL CALLBACK CBEnumAxis(LPCDIDEVICEOBJECTINSTANCE lpddoi, LPVOID pvref);
 
 EXPORT_CPP S64 _pad(S64 idx, S64 btn)
 {
-	THROWDBG(idx < 0 || PadNum <= idx, 0xe9170006);
-	THROWDBG(btn < 0 || PadBtnNum <= btn, 0xe9170006);
+	THROWDBG(idx < 0 || PadNum <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(btn < 0 || PadBtnNum <= btn, EXCPT_DBG_ARG_OUT_DOMAIN);
 	return PadBtn[idx][btn];
 }
 
 EXPORT_CPP void _setCfg(S64 idx, S64 btn, S64 newBtn)
 {
-	THROWDBG(idx < 0 || PadNum <= idx, 0xe9170006);
-	THROWDBG(btn < 0 || PadBtnNum - 4 <= btn, 0xe9170006);
-	THROWDBG(newBtn < 0 || PadBtnNum - 4 <= newBtn, 0xe9170006);
+	THROWDBG(idx < 0 || PadNum <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(btn < 0 || PadBtnNum - 4 <= btn, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(newBtn < 0 || PadBtnNum - 4 <= newBtn, EXCPT_DBG_ARG_OUT_DOMAIN);
 	for (int i = 0; i < PadBtnNum - 4; i++)
 	{
 		if (Cfg[idx][i] == newBtn)
@@ -50,8 +50,8 @@ EXPORT_CPP void _setCfg(S64 idx, S64 btn, S64 newBtn)
 
 EXPORT_CPP S64 _getCfg(S64 idx, S64 btn)
 {
-	THROWDBG(idx < 0 || PadNum <= idx, 0xe9170006);
-	THROWDBG(btn < 0 || PadBtnNum - 4 <= btn, 0xe9170006);
+	THROWDBG(idx < 0 || PadNum <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(btn < 0 || PadBtnNum - 4 <= btn, EXCPT_DBG_ARG_OUT_DOMAIN);
 	return Cfg[idx][btn];
 }
 
@@ -62,10 +62,10 @@ EXPORT_CPP void _enableCfgKey(Bool enabled)
 
 EXPORT_CPP void _setCfgKey(S64 idx, S64 btn, const U8* keys)
 {
-	THROWDBG(idx < 0 || PadNum <= idx, 0xe9170006);
-	THROWDBG(btn < 0 || PadBtnNum <= btn, 0xe9170006);
+	THROWDBG(idx < 0 || PadNum <= idx, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(btn < 0 || PadBtnNum <= btn, EXCPT_DBG_ARG_OUT_DOMAIN);
 	int n = static_cast<int>(*reinterpret_cast<const S64*>(keys + 0x08));
-	THROWDBG(n < 0 || PadKeyNum < n, 0xe9170006);
+	THROWDBG(n < 0 || PadKeyNum < n, EXCPT_DBG_ARG_OUT_DOMAIN);
 	for (int i = 0; i < PadKeyNum; i++)
 	{
 		if (i >= n)
@@ -114,7 +114,7 @@ void Init()
 	PadKey[0][14][0] = DIK_UP;
 	PadKey[0][15][0] = DIK_DOWN;
 	if (FAILED(DirectInput8Create((HINSTANCE)GetModuleHandle(NULL), 0x0800, IID_IDirectInput8, reinterpret_cast<void**>(&Device), NULL)))
-		THROW(0xe9170009);
+		THROW(EXCPT_DEVICE_INIT_FAILED);
 	if (FAILED(Device->CreateDevice(GUID_SysKeyboard, &Keyboard, NULL)))
 		Keyboard = NULL;
 	else if (FAILED(Keyboard->SetDataFormat(&c_dfDIKeyboard)))

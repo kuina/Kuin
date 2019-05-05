@@ -33,7 +33,7 @@ void* Call3Asm(void* arg1, void* arg2, void* arg3, void* func);
 
 EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	SReader* me2 = (SReader*)me_;
 	me2->Handle = OpenFileStream((Char*)(path + 0x10));
 	if (me2->Handle == NULL)
@@ -53,7 +53,7 @@ EXPORT SClass* _makeReader(SClass* me_, const U8* path)
 
 EXPORT SClass* _makeWriter(SClass* me_, const U8* path, Bool append)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	SWriter* me2 = (SWriter*)me_;
 	FILE* file_ptr = _wfopen((Char*)(path + 0x10), append ? L"ab" : L"wb");
 	if (file_ptr == NULL)
@@ -87,25 +87,25 @@ EXPORT void _readerFin(SClass* me_)
 
 EXPORT void _readerSetPos(SClass* me_, S64 origin, S64 pos)
 {
-	THROWDBG(origin < 0 || 2 < origin, 0xe9170006);
+	THROWDBG(origin < 0 || 2 < origin, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SReader* me2 = (SReader*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	if (!SeekFileStream(me2->Handle, pos, origin))
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 }
 
 EXPORT S64 _readerGetPos(SClass* me_)
 {
 	SReader* me2 = (SReader*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	return TellFileStream(me2->Handle);
 }
 
 EXPORT void _readerDelimiter(SClass* me_, const U8* delimiters)
 {
 	SReader* me2 = (SReader*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
-	THROWDBG(delimiters == NULL, 0xc0000005);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	THROWDBG(delimiters == NULL, EXCPT_ACCESS_VIOLATION);
 	S64 len = *(S64*)(delimiters + 0x08);
 	S64 i;
 	const Char* ptr = (const Char*)(delimiters + 0x10);
@@ -119,7 +119,7 @@ EXPORT void _readerDelimiter(SClass* me_, const U8* delimiters)
 EXPORT void* _readerRead(SClass* me_, S64 size)
 {
 	SReader* me2 = (SReader*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	{
 		U8* result = (U8*)AllocMem(0x10 + (size_t)size);
 		size_t size2;
@@ -129,7 +129,7 @@ EXPORT void* _readerRead(SClass* me_, S64 size)
 		if (size2 != (size_t)size)
 		{
 			FreeMem(result);
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 			return NULL;
 		}
 		return result;
@@ -140,7 +140,7 @@ EXPORT Char _readerReadLetter(SClass* me_)
 {
 	Char result = ReadUtf8((SReader*)me_, False, NULL);
 	if (result == WEOF)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	return result;
 }
 
@@ -157,7 +157,7 @@ EXPORT S64 _readerReadInt(SClass* me_)
 		if (c == WEOF)
 		{
 			if (buf[0] == L'\0')
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			break;
 		}
 		if (c == L'\0')
@@ -167,7 +167,7 @@ EXPORT S64 _readerReadInt(SClass* me_)
 			break;
 		}
 		if (ptr == 32)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		buf[ptr] = c;
 		ptr++;
 	}
@@ -178,7 +178,7 @@ EXPORT S64 _readerReadInt(SClass* me_)
 		Char* ptr2;
 		result = wcstoll(buf, &ptr2, 10);
 		if (*ptr2 != L'\0')
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		return result;
 	}
 }
@@ -196,7 +196,7 @@ EXPORT double _readerReadFloat(SClass* me_)
 		if (c == WEOF)
 		{
 			if (buf[0] == L'\0')
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			break;
 		}
 		if (c == L'\0')
@@ -206,7 +206,7 @@ EXPORT double _readerReadFloat(SClass* me_)
 			break;
 		}
 		if (ptr == 32)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		buf[ptr] = c;
 		ptr++;
 	}
@@ -217,7 +217,7 @@ EXPORT double _readerReadFloat(SClass* me_)
 		Char* ptr2;
 		result = wcstod(buf, &ptr2);
 		if (*ptr2 != L'\0')
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		return result;
 	}
 }
@@ -231,7 +231,7 @@ EXPORT Char _readerReadChar(SClass* me_)
 		if (c == L'\r')
 			continue;
 		if (c == WEOF)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		if (c != L'\0')
 			break;
 	}
@@ -254,7 +254,7 @@ EXPORT void* _readerReadStr(SClass* me_)
 		if (c == WEOF)
 		{
 			if (buf[0] == L'\0')
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			break;
 		}
 		if (c == L'\0')
@@ -308,7 +308,7 @@ EXPORT void* _readerReadLine(SClass* me_)
 		if (c == WEOF)
 		{
 			if (buf[0] == L'\0')
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			break;
 		}
 		if (c == L'\n')
@@ -345,14 +345,14 @@ EXPORT void* _readerReadLine(SClass* me_)
 EXPORT S64 _readerFileSize(SClass* me_)
 {
 	SReader* me2 = (SReader*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	return me2->FileSize;
 }
 
 EXPORT Bool _readerTerm(SClass* me_)
 {
 	SReader* me2 = (SReader*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	{
 		U8 buf;
 		Bool result = ReadFileStream(me2->Handle, 1, &buf) == 0;
@@ -380,25 +380,25 @@ EXPORT void _writerFin(SClass* me_)
 
 EXPORT void _writerSetPos(SClass* me_, S64 origin, S64 pos)
 {
-	THROWDBG(origin < 0 || 2 < origin, 0xe9170006);
+	THROWDBG(origin < 0 || 2 < origin, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SWriter* me2 = (SWriter*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	if (_fseeki64(me2->Handle, pos, (int)origin))
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 }
 
 EXPORT S64 _writerGetPos(SClass* me_)
 {
 	SWriter* me2 = (SWriter*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	return _ftelli64(me2->Handle);
 }
 
 EXPORT void _writerWrite(SClass* me_, void* bin)
 {
 	SWriter* me2 = (SWriter*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
-	THROWDBG(bin == NULL, 0xc0000005);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	THROWDBG(bin == NULL, EXCPT_ACCESS_VIOLATION);
 	{
 		U8* bin2 = (U8*)bin;
 		fwrite(bin2 + 0x10, 1, (size_t)*(S64*)(bin2 + 0x08), me2->Handle);
@@ -408,7 +408,7 @@ EXPORT void _writerWrite(SClass* me_, void* bin)
 EXPORT void _writerWriteInt(SClass* me_, S64 n)
 {
 	SWriter* me2 = (SWriter*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	Char str[33];
 	int len = swprintf(str, 33, L"%I64d", n);
 	int i;
@@ -419,7 +419,7 @@ EXPORT void _writerWriteInt(SClass* me_, S64 n)
 EXPORT void _writerWriteFloat(SClass* me_, double n)
 {
 	SWriter* me2 = (SWriter*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	Char str[33];
 	int len = swprintf(str, 33, L"%g", n);
 	int i;
@@ -430,15 +430,15 @@ EXPORT void _writerWriteFloat(SClass* me_, double n)
 EXPORT void _writerWriteChar(SClass* me_, Char n)
 {
 	SWriter* me2 = (SWriter*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	WriteUtf8(me2, n);
 }
 
 EXPORT void _writerWriteStr(SClass* me_, const U8* n)
 {
 	SWriter* me2 = (SWriter*)me_;
-	THROWDBG(me2->Handle == NULL, 0xe917000a);
-	THROWDBG(n == NULL, 0xc0000005);
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	THROWDBG(n == NULL, EXCPT_ACCESS_VIOLATION);
 	const Char* ptr = (const Char*)(n + 0x10);
 	while (*ptr != L'\0')
 	{
@@ -449,8 +449,8 @@ EXPORT void _writerWriteStr(SClass* me_, const U8* n)
 
 EXPORT Bool _makeDir(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
-	THROWDBG(*(S64*)(path + 0x08) > KUIN_MAX_PATH, 0xe9170006);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(*(S64*)(path + 0x08) > KUIN_MAX_PATH, EXCPT_DBG_ARG_OUT_DOMAIN);
 	if (!DelDirRecursion((const Char*)(path + 0x10)))
 		return False;
 	{
@@ -463,26 +463,26 @@ EXPORT Bool _makeDir(const U8* path)
 
 EXPORT Bool _forEachDir(const U8* path, Bool recursion, void* callback, void* data)
 {
-	THROWDBG(path == NULL, 0xc0000005);
-	THROWDBG(callback == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(callback == NULL, EXCPT_ACCESS_VIOLATION);
 	return ForEachDirRecursion((const Char*)(path + 0x10), recursion, callback, data);
 }
 
 EXPORT Bool _existPath(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	return PathFileExists((const Char*)(path + 0x10)) != 0;
 }
 
 EXPORT Bool _delDir(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	return DelDirRecursion((const Char*)(path + 0x10)) != 0;
 }
 
 EXPORT Bool _delFile(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	if (!PathFileExists((const Char*)(path + 0x10)))
 		return True;
 	return DeleteFile((const Char*)(path + 0x10)) != 0;
@@ -490,22 +490,22 @@ EXPORT Bool _delFile(const U8* path)
 
 EXPORT Bool _copyDir(const U8* dst, const U8* src)
 {
-	THROWDBG(dst == NULL, 0xc0000005);
-	THROWDBG(src == NULL, 0xc0000005);
+	THROWDBG(dst == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(src == NULL, EXCPT_ACCESS_VIOLATION);
 	return CopyDirRecursion((const Char*)(dst + 0x10), (const Char*)(src + 0x10)) != 0;
 }
 
 EXPORT Bool _copyFile(const U8* dst, const U8* src)
 {
-	THROWDBG(dst == NULL, 0xc0000005);
-	THROWDBG(src == NULL, 0xc0000005);
+	THROWDBG(dst == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(src == NULL, EXCPT_ACCESS_VIOLATION);
 	return CopyFile((const Char*)(src + 0x10), (const Char*)(dst + 0x10), FALSE) != 0;
 }
 
 EXPORT Bool _moveDir(const U8* dst, const U8* src)
 {
-	THROWDBG(dst == NULL, 0xc0000005);
-	THROWDBG(src == NULL, 0xc0000005);
+	THROWDBG(dst == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(src == NULL, EXCPT_ACCESS_VIOLATION);
 	if (MoveFileEx((const Char*)(src + 0x10), (const Char*)(dst + 0x10), MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH | MOVEFILE_REPLACE_EXISTING) == 0)
 	{
 		if (CopyDirRecursion((const Char*)(dst + 0x10), (const Char*)(src + 0x10)) == 0)
@@ -518,14 +518,14 @@ EXPORT Bool _moveDir(const U8* dst, const U8* src)
 
 EXPORT Bool _moveFile(const U8* dst, const U8* src)
 {
-	THROWDBG(dst == NULL, 0xc0000005);
-	THROWDBG(src == NULL, 0xc0000005);
+	THROWDBG(dst == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(src == NULL, EXCPT_ACCESS_VIOLATION);
 	return MoveFileEx((const Char*)(src + 0x10), (const Char*)(dst + 0x10), MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH | MOVEFILE_REPLACE_EXISTING) != 0;
 }
 
 EXPORT void* _dir(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	const Char* path2 = (const Char*)(path + 0x10);
 	size_t len = wcslen(path2);
 	U8* result;
@@ -557,7 +557,7 @@ EXPORT void* _dir(const U8* path)
 
 EXPORT void* _ext(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	const Char* path2 = (const Char*)(path + 0x10);
 	size_t len = wcslen(path2);
 	U8* result;
@@ -593,7 +593,7 @@ EXPORT void* _ext(const U8* path)
 
 EXPORT void* _fileName(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	const Char* path2 = (const Char*)(path + 0x10);
 	size_t len = wcslen(path2);
 	U8* result;
@@ -621,7 +621,7 @@ EXPORT void* _fileName(const U8* path)
 
 EXPORT void* _fullPath(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	Char path2[KUIN_MAX_PATH + 2];
 	Char* file_name_pos;
 	if (GetFullPathName((const Char*)(path + 0x10), KUIN_MAX_PATH, path2, &file_name_pos) == 0)
@@ -639,7 +639,7 @@ EXPORT void* _fullPath(const U8* path)
 
 EXPORT void* _delExt(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	const Char* path2 = (const Char*)(path + 0x10);
 	size_t len = wcslen(path2);
 	U8* result;
@@ -720,11 +720,11 @@ EXPORT void* _exeDir(void)
 
 EXPORT S64 _fileSize(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	S64 result;
 	FILE* file_ptr = _wfopen((const Char*)(path + 0x10), L"rb");
 	if (file_ptr == NULL)
-		THROW(0xe9170007);
+		THROW(EXCPT_FILE_READ_FAILED);
 	_fseeki64(file_ptr, 0, SEEK_END);
 	result = _ftelli64(file_ptr);
 	fclose(file_ptr);
@@ -733,7 +733,7 @@ EXPORT S64 _fileSize(const U8* path)
 
 EXPORT void _setCurDir(const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	SetCurrentDirectory((const Char*)(path + 0x10));
 }
 
@@ -806,7 +806,7 @@ static Char ReadUtf8(SReader* me_, Bool replace_delimiter, int* char_cnt)
 		for (i = 0; i < len; i++)
 		{
 			if (ReadFileStream(me_->Handle, 1, &c) == 0 || (c & 0xc0) != 0x80)
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			u = (u << 6) | (c & 0x3f);
 		}
 	}

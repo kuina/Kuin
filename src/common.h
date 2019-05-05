@@ -34,6 +34,18 @@
 #define KUIN_MAX_PATH (512)
 #define STACK_STRING_BUF_SIZE (1024) // Default size of string buffer on stack.
 
+#define EXCPT_ACCESS_VIOLATION (0xc0000005)
+#define EXCPT_DBG_ASSERT_FAILED (0xe9170000)
+#define EXCPT_CLASS_CAST_FAILED (0xe9170001)
+#define EXCPT_DBG_ARRAY_IDX_OUT_OF_RANGE (0xe9170002)
+#define EXCPT_DBG_INT_OVERFLOW (0xe9170003)
+#define EXCPT_INVALID_CMP (0xe9170004)
+#define EXCPT_DBG_ARG_OUT_DOMAIN (0xe9170006)
+#define EXCPT_FILE_READ_FAILED (0xe9170007)
+#define EXCPT_INVALID_DATA_FMT (0xe9170008)
+#define EXCPT_DEVICE_INIT_FAILED (0xe9170009)
+#define EXCPT_DBG_INOPERABLE_STATE (0xe917000a)
+
 #if defined(_DEBUG)
 	#define ASSERT(cond) _ASSERTE((cond))
 	#define STATIC_ASSERT(cond) static_assert((cond), "Static assertion failed.")

@@ -1040,7 +1040,7 @@ static void ChkOverflow(void)
 	{
 		SAsmLabel* lbl1 = AsmLabel();
 		ListAdd(PackAsm->Asms, AsmJNO(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-		RaiseExcpt(0xe9170003);
+		RaiseExcpt(EXCPT_DBG_INT_OVERFLOW);
 		ListAdd(PackAsm->Asms, lbl1);
 	}
 }
@@ -2634,7 +2634,7 @@ static void AssembleAssert(SAstStatAssert* ast)
 	ToValue(ast->Cond, 0, 0);
 	ListAdd(PackAsm->Asms, AsmCMP(ValReg(1, RegI[0]), ValImmU(1, 0x00)));
 	ListAdd(PackAsm->Asms, AsmJNE(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
-	ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValImmU(4, 0xe9170000)));
+	ListAdd(PackAsm->Asms, AsmMOV(ValReg(4, Reg_CX), ValImmU(4, EXCPT_DBG_ASSERT_FAILED)));
 	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_DX), ValReg(4, Reg_DX)));
 	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R8), ValReg(4, Reg_R8)));
 	ListAdd(PackAsm->Asms, AsmXOR(ValReg(4, Reg_R9), ValReg(4, Reg_R9)));
@@ -3453,7 +3453,7 @@ static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f)
 					ListAdd(PackAsm->Asms, AsmADD(ValReg(8, RegI[reg_i]), ValReg(8, Reg_DI)));
 					ListAdd(PackAsm->Asms, AsmJMP(ValImm(4, RefValueAddr(((SAsm*)lbl1)->Addr, True))));
 					ListAdd(PackAsm->Asms, lbl2);
-					RaiseExcpt(0xe9170001);
+					RaiseExcpt(EXCPT_CLASS_CAST_FAILED);
 					ListAdd(PackAsm->Asms, lbl3);
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValReg(8, Reg_SI)));
 				}
@@ -3728,7 +3728,7 @@ static void AssembleExprArray(SAstExprArray* ast, int reg_i, int reg_f)
 #if defined(_DEBUG)
 		ListAdd(PackAsm->Asms, AsmINT(ValImmU(8, 0x03)));
 #endif
-		RaiseExcpt(0xe9170002);
+		RaiseExcpt(EXCPT_DBG_ARRAY_IDX_OUT_OF_RANGE);
 		ListAdd(PackAsm->Asms, lbl2);
 	}
 	ASSERT(((SAst*)ast->Var->Type)->TypeId == AstTypeId_TypeArray);

@@ -79,7 +79,7 @@ EXPORT S64 _gcd(S64 a, S64 b)
 {
 	if (a == 0)
 	{
-		THROWDBG(b == 0, 0xe9170006);
+		THROWDBG(b == 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 		return b;
 	}
 	if (b == 0)
@@ -109,7 +109,7 @@ EXPORT S64 _lcm(S64 a, S64 b)
 {
 	if (a == 0)
 	{
-		THROWDBG(b == 0, 0xe9170006);
+		THROWDBG(b == 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 		return 0;
 	}
 	if (b == 0)
@@ -123,17 +123,17 @@ EXPORT S64 _lcm(S64 a, S64 b)
 
 EXPORT S64 _modPow(S64 value, S64 exponent, S64 modulus)
 {
-	THROWDBG(value < 0, 0xe9170006);
-	THROWDBG(exponent < 0, 0xe9170006);
-	THROWDBG(modulus < 0, 0xe9170006);
+	THROWDBG(value < 0, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(exponent < 0, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(modulus < 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 	return (S64)ModPow((U64)value, (U64)exponent, (U64)modulus);
 }
 
 EXPORT S64 _modMul(S64 a, S64 b, S64 modulus)
 {
-	THROWDBG(a < 0, 0xe9170006);
-	THROWDBG(b < 0, 0xe9170006);
-	THROWDBG(modulus < 0, 0xe9170006);
+	THROWDBG(a < 0, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(b < 0, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(modulus < 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 	return (S64)ModMul((U64)a, (U64)b, (U64)modulus);
 }
 
@@ -266,12 +266,12 @@ EXPORT S64 _factInt(S64 n)
 {
 	if (n < 0)
 	{
-		THROWDBG(True, 0xe9170006);
+		THROWDBG(True, EXCPT_DBG_ARG_OUT_DOMAIN);
 		return 0;
 	}
 	if (n > 20)
 	{
-		THROWDBG(True, 0xe9170003);
+		THROWDBG(True, EXCPT_DBG_INT_OVERFLOW);
 		return 0;
 	}
 	return Facts[n];
@@ -281,12 +281,12 @@ EXPORT S64 _fibonacci(S64 n)
 {
 	if (n < 0)
 	{
-		THROWDBG(True, 0xe9170006);
+		THROWDBG(True, EXCPT_DBG_ARG_OUT_DOMAIN);
 		return 0;
 	}
 	if (n > 92)
 	{
-		THROWDBG(True, 0xe9170003);
+		THROWDBG(True, EXCPT_DBG_INT_OVERFLOW);
 		return 0;
 	}
 	return FibonacciNumbers[n];
@@ -294,8 +294,8 @@ EXPORT S64 _fibonacci(S64 n)
 
 EXPORT S64 _knapsack(const void* weights, const void* values, S64 max_weight, Bool reuse)
 {
-	THROWDBG(weights == NULL || values == NULL, 0xc0000005);
-	THROWDBG(*(S64*)((U8*)weights + 0x08) != *(S64*)((U8*)values + 0x08), 0xe9170006);
+	THROWDBG(weights == NULL || values == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(*(S64*)((U8*)weights + 0x08) != *(S64*)((U8*)values + 0x08), EXCPT_DBG_ARG_OUT_DOMAIN);
 	S64 len = *(S64*)((U8*)weights + 0x08);
 	const S64* weights2 = (S64*)((U8*)weights + 0x10);
 	const S64* values2 = (S64*)((U8*)values + 0x10);
@@ -303,7 +303,7 @@ EXPORT S64 _knapsack(const void* weights, const void* values, S64 max_weight, Bo
 	S64 i, j;
 #if defined(DBG)
 	for (i = 0; i < len; i++)
-		THROWDBG(weights2[i] <= 0, 0xe9170006);
+		THROWDBG(weights2[i] <= 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 	memset(dp, 0, sizeof(S64) * (size_t)(max_weight + 1));
 	if (reuse)
@@ -337,9 +337,9 @@ EXPORT S64 _knapsack(const void* weights, const void* values, S64 max_weight, Bo
 
 EXPORT void* _dijkstra(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values, S64 begin_node)
 {
-	THROWDBG(from_nodes == NULL || to_nodes == NULL || values == NULL, 0xc0000005);
-	THROWDBG(*(S64*)((U8*)from_nodes + 0x08) != *(S64*)((U8*)to_nodes + 0x08) || *(S64*)((U8*)to_nodes + 0x08) != *(S64*)((U8*)values + 0x08), 0xe9170006);
-	THROWDBG(node_num <= 0 || begin_node < 0 || node_num <= begin_node, 0xe9170006);
+	THROWDBG(from_nodes == NULL || to_nodes == NULL || values == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(*(S64*)((U8*)from_nodes + 0x08) != *(S64*)((U8*)to_nodes + 0x08) || *(S64*)((U8*)to_nodes + 0x08) != *(S64*)((U8*)values + 0x08), EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(node_num <= 0 || begin_node < 0 || node_num <= begin_node, EXCPT_DBG_ARG_OUT_DOMAIN);
 	const S64* from_nodes2 = (S64*)((U8*)from_nodes + 0x10);
 	const S64* to_nodes2 = (S64*)((U8*)to_nodes + 0x10);
 	const S64* values2 = (S64*)((U8*)values + 0x10);
@@ -347,7 +347,7 @@ EXPORT void* _dijkstra(S64 node_num, const void* from_nodes, const void* to_node
 	S64 i;
 #if defined(DBG)
 	for (i = 0; i < len; i++)
-		THROWDBG(from_nodes2[i] < 0 || node_num <= from_nodes2[i] || to_nodes2[i] < 0 || node_num <= to_nodes2[i] || values2[i] < 0, 0xe9170006);
+		THROWDBG(from_nodes2[i] < 0 || node_num <= from_nodes2[i] || to_nodes2[i] < 0 || node_num <= to_nodes2[i] || values2[i] < 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 
 	U8* result = (U8*)AllocMem(0x10 + sizeof(S64) * (size_t)node_num);
@@ -440,9 +440,9 @@ EXPORT void* _dijkstra(S64 node_num, const void* from_nodes, const void* to_node
 
 EXPORT void* _bellmanFord(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values, S64 begin_node)
 {
-	THROWDBG(from_nodes == NULL || to_nodes == NULL || values == NULL, 0xc0000005);
-	THROWDBG(*(S64*)((U8*)from_nodes + 0x08) != *(S64*)((U8*)to_nodes + 0x08) || *(S64*)((U8*)to_nodes + 0x08) != *(S64*)((U8*)values + 0x08), 0xe9170006);
-	THROWDBG(node_num <= 0 || begin_node < 0 || node_num <= begin_node, 0xe9170006);
+	THROWDBG(from_nodes == NULL || to_nodes == NULL || values == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(*(S64*)((U8*)from_nodes + 0x08) != *(S64*)((U8*)to_nodes + 0x08) || *(S64*)((U8*)to_nodes + 0x08) != *(S64*)((U8*)values + 0x08), EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(node_num <= 0 || begin_node < 0 || node_num <= begin_node, EXCPT_DBG_ARG_OUT_DOMAIN);
 	const S64* from_nodes2 = (S64*)((U8*)from_nodes + 0x10);
 	const S64* to_nodes2 = (S64*)((U8*)to_nodes + 0x10);
 	const S64* values2 = (S64*)((U8*)values + 0x10);
@@ -450,7 +450,7 @@ EXPORT void* _bellmanFord(S64 node_num, const void* from_nodes, const void* to_n
 	S64 i;
 #if defined(DBG)
 	for (i = 0; i < len; i++)
-		THROWDBG(from_nodes2[i] < 0 || node_num <= from_nodes2[i] || to_nodes2[i] < 0 || node_num <= to_nodes2[i], 0xe9170006);
+		THROWDBG(from_nodes2[i] < 0 || node_num <= from_nodes2[i] || to_nodes2[i] < 0 || node_num <= to_nodes2[i], EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 
 	U8* result = (U8*)AllocMem(0x10 + sizeof(S64) * (size_t)node_num);
@@ -480,9 +480,9 @@ EXPORT void* _bellmanFord(S64 node_num, const void* from_nodes, const void* to_n
 
 EXPORT void* _floydWarshall(S64 node_num, const void* from_nodes, const void* to_nodes, const void* values)
 {
-	THROWDBG(from_nodes == NULL || to_nodes == NULL || values == NULL, 0xc0000005);
-	THROWDBG(*(S64*)((U8*)from_nodes + 0x08) != *(S64*)((U8*)to_nodes + 0x08) || *(S64*)((U8*)to_nodes + 0x08) != *(S64*)((U8*)values + 0x08), 0xe9170006);
-	THROWDBG(node_num <= 0, 0xe9170006);
+	THROWDBG(from_nodes == NULL || to_nodes == NULL || values == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(*(S64*)((U8*)from_nodes + 0x08) != *(S64*)((U8*)to_nodes + 0x08) || *(S64*)((U8*)to_nodes + 0x08) != *(S64*)((U8*)values + 0x08), EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(node_num <= 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 	const S64* from_nodes2 = (S64*)((U8*)from_nodes + 0x10);
 	const S64* to_nodes2 = (S64*)((U8*)to_nodes + 0x10);
 	const S64* values2 = (S64*)((U8*)values + 0x10);
@@ -490,7 +490,7 @@ EXPORT void* _floydWarshall(S64 node_num, const void* from_nodes, const void* to
 	S64 i, j, k;
 #if defined(DBG)
 	for (i = 0; i < len; i++)
-		THROWDBG(from_nodes2[i] < 0 || node_num <= from_nodes2[i] || to_nodes2[i] < 0 || node_num <= to_nodes2[i], 0xe9170006);
+		THROWDBG(from_nodes2[i] < 0 || node_num <= from_nodes2[i] || to_nodes2[i] < 0 || node_num <= to_nodes2[i], EXCPT_DBG_ARG_OUT_DOMAIN);
 #endif
 
 	U8* result = (U8*)AllocMem(0x10 + sizeof(void**) * (size_t)node_num);
@@ -531,7 +531,7 @@ EXPORT void* _floydWarshall(S64 node_num, const void* from_nodes, const void* to
 
 EXPORT SClass* _makeMat(SClass* me_, S64 row, S64 col)
 {
-	THROWDBG(row <= 0 || col <= 0, 0xe9170006);
+	THROWDBG(row <= 0 || col <= 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SMat* me2 = (SMat*)me_;
 	me2->Row = row;
 	me2->Col = col;

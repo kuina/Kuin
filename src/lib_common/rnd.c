@@ -16,7 +16,7 @@ static void RndDo(S128* r, S128 a, S128 b, S128 c, const S128* d);
 
 EXPORT SClass* _makeRnd(SClass* me_, S64 seed)
 {
-	THROWDBG(seed < -1 || 0xffffffff < seed, 0xc9170006);
+	THROWDBG(seed < -1 || 0xffffffff < seed, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SRnd* me2 = (SRnd*)me_;
 	me2->RndState = (SRndState*)AllocMem(sizeof(SRndState));
 	if (seed == -1)
@@ -33,14 +33,14 @@ EXPORT void _rndDtor(SClass* me_)
 
 EXPORT S64 _rndRnd(SClass* me_, S64 min, S64 max)
 {
-	THROWDBG(max - min < 0, 0xe9170006);
+	THROWDBG(max - min < 0, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SRnd* me2 = (SRnd*)me_;
 	return RndGet(me2->RndState, min, max);
 }
 
 EXPORT double _rndRndFloat(SClass* me_, double min, double max)
 {
-	THROWDBG(min >= max, 0xe9170006);
+	THROWDBG(min >= max, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SRnd* me2 = (SRnd*)me_;
 	return RndGetFloat(me2->RndState, min, max);
 }

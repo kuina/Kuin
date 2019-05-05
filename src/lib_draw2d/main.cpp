@@ -75,11 +75,11 @@ EXPORT_CPP void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res
 		return;
 
 	if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE::D2D1_FACTORY_TYPE_SINGLE_THREADED, &Factory)))
-		THROW(0xe9170009);
+		THROW(EXCPT_DEVICE_INIT_FAILED);
 
 	D0001Handle = LoadLibrary(L"data/d0001.knd");
 	if (D0001Handle == NULL)
-		THROW(0xe9170007);
+		THROW(EXCPT_FILE_READ_FAILED);
 
 	((void(*)(void*(*callback)(int, void*, void*)))GetProcAddress(D0001Handle, "_set2dCallback"))(Callback2d);
 }
@@ -180,7 +180,7 @@ EXPORT_CPP SClass* _makeBrushLinearGradient(SClass* me_, double x1, double y1, d
 	SBrushLinearGradient* me2 = reinterpret_cast<SBrushLinearGradient*>(me_);
 	S64 len_pos = static_cast<S64*>(color_position)[1];
 	S64 len_color = static_cast<S64*>(color)[1];
-	THROWDBG(len_pos != len_color, 0xe9170006);
+	THROWDBG(len_pos != len_color, EXCPT_DBG_ARG_OUT_DOMAIN);
 	ID2D1GradientStopCollection* gradient_stop_collection = NULL;
 	D2D1_GRADIENT_STOP* gradient_stops = static_cast<D2D1_GRADIENT_STOP*>(AllocMem(sizeof(D2D1_GRADIENT_STOP) * len_pos));
 	for (S64 i = 0; i < len_pos; i++)
@@ -305,7 +305,7 @@ static void* Callback2d(int kind, void* arg1, void* arg2)
 				wnd_buf->Extra->Surface = static_cast<IDXGISurface*>(arg2);
 				D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED), 96, 96);
 				if (FAILED(Factory->CreateDxgiSurfaceRenderTarget(wnd_buf->Extra->Surface, &props, &wnd_buf->Extra->RenderTarget)))
-					THROW(0xe9170009);
+					THROW(EXCPT_DEVICE_INIT_FAILED);
 			}
 			return NULL;
 		case 1: // Finalize 'S2dBuf'.
@@ -335,7 +335,7 @@ static void* Callback2d(int kind, void* arg1, void* arg2)
 
 static D2D1::ColorF ColorToColorF(S64 color)
 {
-	THROWDBG(color < 0 || 0xffffffff < color, 0xe9170006);
+	THROWDBG(color < 0 || 0xffffffff < color, EXCPT_DBG_ARG_OUT_DOMAIN);
 	const FLOAT a = static_cast<FLOAT>(static_cast<double>((color >> 24) & 0xff) / 255.0);
 	const FLOAT r = static_cast<FLOAT>(Gamma(static_cast<double>((color >> 16) & 0xff) / 255.0));
 	const FLOAT g = static_cast<FLOAT>(Gamma(static_cast<double>((color >> 8) & 0xff) / 255.0));

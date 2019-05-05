@@ -46,7 +46,7 @@ static Bool StreamCopy(SSnd* me_, S64 id);
 
 EXPORT_CPP void _setMainVolume(double value)
 {
-	THROWDBG(value < 0.0 || 1.0 < value, 0xe9170006);
+	THROWDBG(value < 0.0 || 1.0 < value, EXCPT_DBG_ARG_OUT_DOMAIN);
 	MainVolume = value;
 	SListSnd* ptr = ListSndTop;
 	while (ptr != NULL)
@@ -63,9 +63,9 @@ EXPORT_CPP double _getMainVolume()
 
 EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	if (Device == NULL)
-		THROW(0xe9170009);
+		THROW(EXCPT_DEVICE_INIT_FAILED);
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 
 	WAVEFORMATEX pcmwf;
@@ -96,7 +96,7 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 			}
 			else
 			{
-				THROWDBG(True, 0xe9170006);
+				THROWDBG(True, EXCPT_DBG_ARG_OUT_DOMAIN);
 				break;
 			}
 			{
@@ -120,7 +120,7 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 		me2->Streaming = streaming;
 		if (me2->Streaming)
 		{
-			THROWDBG(me2->EndPos < 1.0, 0xe9170006);
+			THROWDBG(me2->EndPos < 1.0, EXCPT_DBG_ARG_OUT_DOMAIN);
 			desc.dwBufferBytes = static_cast<DWORD>(BufSize * me2->SizePerSec);
 		}
 		{
@@ -171,7 +171,7 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 	}
 	if (!success)
 	{
-		THROW(0xe9170009);
+		THROW(EXCPT_DEVICE_INIT_FAILED);
 		return NULL;
 	}
 	return me_;
@@ -221,7 +221,7 @@ EXPORT_CPP void _sndPlay(SClass* me_)
 EXPORT_CPP void _sndPlayLoop(SClass* me_, double loopPos)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	THROWDBG(!me2->Streaming && loopPos != 0.0 || loopPos < 0.0 || me2->EndPos <= loopPos, 0xe9170006);
+	THROWDBG(!me2->Streaming && loopPos != 0.0 || loopPos < 0.0 || me2->EndPos <= loopPos, EXCPT_DBG_ARG_OUT_DOMAIN);
 	me2->LoopPos = static_cast<S64>(loopPos * (double)me2->SizePerSec);
 	me2->SndBuf->Play(0, 0, DSBPLAY_LOOPING);
 }
@@ -242,7 +242,7 @@ EXPORT_CPP Bool _sndPlaying(SClass* me_)
 
 EXPORT_CPP void _sndVolume(SClass* me_, double value)
 {
-	THROWDBG(value < 0.0 || 1.0 < value, 0xe9170006);
+	THROWDBG(value < 0.0 || 1.0 < value, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 	me2->Volume = value;
 	value *= MainVolume;
@@ -252,7 +252,7 @@ EXPORT_CPP void _sndVolume(SClass* me_, double value)
 
 EXPORT_CPP void _sndPan(SClass* me_, double value)
 {
-	THROWDBG(value < -1.0 || 1.0 < value, 0xe9170006);
+	THROWDBG(value < -1.0 || 1.0 < value, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 	me2->SndBuf->SetPan(static_cast<LONG>(value * 10000.0));
 }
@@ -260,22 +260,22 @@ EXPORT_CPP void _sndPan(SClass* me_, double value)
 EXPORT_CPP void _sndFreq(SClass* me_, double value)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	THROWDBG(value < 0.1 || 2.0 < value, 0xe9170006);
+	THROWDBG(value < 0.1 || 2.0 < value, EXCPT_DBG_ARG_OUT_DOMAIN);
 	me2->SndBuf->SetFrequency(static_cast<DWORD>(static_cast<double>(me2->Freq) * value));
 }
 
 EXPORT_CPP void _sndSetPos(SClass* me_, double value)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	THROWDBG(me2->Streaming, 0xe917000a);
-	THROWDBG(value < 0.0 || me2->EndPos <= value, 0xe9170006);
+	THROWDBG(me2->Streaming, EXCPT_DBG_INOPERABLE_STATE);
+	THROWDBG(value < 0.0 || me2->EndPos <= value, EXCPT_DBG_ARG_OUT_DOMAIN);
 	me2->SndBuf->SetCurrentPosition(static_cast<DWORD>(value * (double)me2->SizePerSec));
 }
 
 EXPORT_CPP double _sndGetPos(SClass* me_)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	THROWDBG(me2->Streaming, 0xe917000a);
+	THROWDBG(me2->Streaming, EXCPT_DBG_INOPERABLE_STATE);
 	DWORD pos = 0;
 	me2->SndBuf->GetCurrentPosition(&pos, NULL);
 	return (double)pos / (double)me2->SizePerSec;

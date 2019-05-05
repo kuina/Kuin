@@ -76,12 +76,12 @@ void* DecodeJpg(size_t size, const void* data, int* width, int* height)
 	jpg_data.Size = static_cast<S64>(size);
 	// Start of image.
 	if (*reinterpret_cast<const U16*>(jpg_data.Ptr) != 0xd8ff)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	Skip(&jpg_data, 2);
 	while (!jpg_data.EndFlag)
 	{
 		if (*jpg_data.Ptr != 0xff)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		Skip(&jpg_data, 2);
 		switch (jpg_data.Ptr[-1])
 		{
@@ -102,7 +102,7 @@ void* DecodeJpg(size_t size, const void* data, int* width, int* height)
 				break;
 			default:
 				if ((jpg_data.Ptr[-1] & 0xf0) != 0xe0)
-					THROW(0xe9170008);
+					THROW(EXCPT_INVALID_DATA_FMT);
 				ReadLen(&jpg_data);
 				Skip(&jpg_data, jpg_data.Len);
 				break;
@@ -140,11 +140,11 @@ void* DecodeJpg(size_t size, const void* data, int* width, int* height)
 				c->Pixels = out;
 			}
 			if (c->Width < jpg_data.Width || c->Height < jpg_data.Height)
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			c++;
 		}
 		if (jpg_data.NComp != 3)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		{
 			U8* prgb = jpg_data.Rgb;
 			const U8* py = jpg_data.Component[0].Pixels;
@@ -188,14 +188,14 @@ static void Skip(SJpgData* jpg_data, int count)
 	jpg_data->Size -= count;
 	jpg_data->Len -= count;
 	if (jpg_data->Size < 0)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 }
 
 static void ReadLen(SJpgData* jpg_data)
 {
 	jpg_data->Len = SwapEndianU16(*reinterpret_cast<const U16*>(jpg_data->Ptr));
 	if (jpg_data->Len > jpg_data->Size)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	Skip(jpg_data, 2);
 }
 
@@ -204,7 +204,7 @@ static int GetVlc(SJpgData* jpg_data, SVlcCode* vlc, U8* code)
 	int value = ShowBits(jpg_data, 16);
 	int bits = vlc[value].Bits;
 	if (bits == 0)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	if (jpg_data->BufBits < bits)
 		ShowBits(jpg_data, bits);
 	jpg_data->BufBits -= bits;
@@ -242,7 +242,7 @@ static int ShowBits(SJpgData* jpg_data, int bits)
 		if (new_byte == 0xff)
 		{
 			if (jpg_data->Size == 0)
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			U8 marker = *jpg_data->Ptr;
 			Skip(jpg_data, 1);
 			switch (marker)
@@ -255,7 +255,7 @@ static int ShowBits(SJpgData* jpg_data, int bits)
 				break;
 			default:
 				if ((marker & 0xf8) != 0xd0)
-					THROW(0xe9170008);
+					THROW(EXCPT_INVALID_DATA_FMT);
 				jpg_data->Buf = (jpg_data->Buf << 8) | marker;
 				jpg_data->BufBits += 8;
 				break;
@@ -375,17 +375,17 @@ static void DecodeSof(SJpgData* jpg_data)
 {
 	ReadLen(jpg_data);
 	if (jpg_data->Len < 9)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	if (*jpg_data->Ptr != 8)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	jpg_data->Height = static_cast<int>(SwapEndianU16(*reinterpret_cast<const U16*>(jpg_data->Ptr + 1)));
 	jpg_data->Width = static_cast<int>(SwapEndianU16(*reinterpret_cast<const U16*>(jpg_data->Ptr + 3)));
 	jpg_data->NComp = static_cast<int>(jpg_data->Ptr[5]);
 	Skip(jpg_data, 6);
 	if (jpg_data->NComp != 3)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	if (jpg_data->Len < jpg_data->NComp * 3)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	SComponent* c = jpg_data->Component;
 	int ssxmax = 0, ssymax = 0;
 	for (int i = 0; i < jpg_data->NComp; i++)
@@ -393,13 +393,13 @@ static void DecodeSof(SJpgData* jpg_data)
 		c->Cid = jpg_data->Ptr[0];
 		c->Ssx = jpg_data->Ptr[1] >> 4;
 		if (c->Ssx == 0 || (c->Ssx & (c->Ssx - 1)) != 0)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		c->Ssy = jpg_data->Ptr[1] & 15;
 		if (c->Ssy == 0 || (c->Ssy & (c->Ssy - 1)) != 0)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		c->Qtsel = jpg_data->Ptr[2];
 		if ((c->Qtsel & 0xfc) != 0)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		Skip(jpg_data, 3);
 		jpg_data->QtUsed |= 1 << c->Qtsel;
 		if (c->Ssx > ssxmax)
@@ -419,7 +419,7 @@ static void DecodeSof(SJpgData* jpg_data)
 		c->Height = (jpg_data->Height * c->Ssy + ssymax - 1) / ssymax;
 		c->Stride = jpg_data->MBWidth * jpg_data->MBSizeX * c->Ssx / ssxmax;
 		if (c->Width < 3 && c->Ssx != ssxmax || c->Height < 3 && c->Ssy != ssymax)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		c->Pixels = static_cast<U8*>(AllocMem(c->Stride * (jpg_data->MBHeight * jpg_data->MBSizeY * c->Ssy / ssymax)));
 		c++;
 	}
@@ -435,7 +435,7 @@ static void DecodeDht(SJpgData* jpg_data)
 	{
 		int i = jpg_data->Ptr[0];
 		if ((i & 0xec) != 0 || (i & 0x02) != 0)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		i = (i | (i >> 3)) & 3;
 		for (int codelen = 1; codelen <= 16; codelen++)
 			counts[codelen - 1] = jpg_data->Ptr[codelen];
@@ -450,10 +450,10 @@ static void DecodeDht(SJpgData* jpg_data)
 			if (cur == 0)
 				continue;
 			if (jpg_data->Len < cur)
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			remain -= cur << (16 - codelen);
 			if (remain < 0)
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			for (i = 0; i < cur; i++)
 			{
 				U8 code = jpg_data->Ptr[i];
@@ -473,29 +473,29 @@ static void DecodeDht(SJpgData* jpg_data)
 		}
 	}
 	if (jpg_data->Len != 0)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 }
 
 static void DecodeSos(SJpgData* jpg_data)
 {
 	ReadLen(jpg_data);
 	if (jpg_data->Len < 4 + 2 * jpg_data->NComp)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	if (jpg_data->Ptr[0] != jpg_data->NComp)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	Skip(jpg_data, 1);
 	SComponent* c = jpg_data->Component;
 	for (int i = 0; i < jpg_data->NComp; i++)
 	{
 		if (jpg_data->Ptr[0] != c->Cid || (jpg_data->Ptr[1] & 0xee) != 0)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		c->Dctabsel = jpg_data->Ptr[1] >> 4;
 		c->Actabsel = (jpg_data->Ptr[1] & 1) | 2;
 		Skip(jpg_data, 2);
 		c++;
 	}
 	if (jpg_data->Ptr[0] != 0 || jpg_data->Ptr[1] != 63 || jpg_data->Ptr[2] != 0)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	Skip(jpg_data, jpg_data->Len);
 	int mbx = 0, mby = 0, rstcount = jpg_data->RSTInterval, nextrst = 0;
 	for (; ; )
@@ -520,10 +520,10 @@ static void DecodeSos(SJpgData* jpg_data)
 							if (code == 0)
 								break;
 							if ((code & 0x0f) == 0 && code != 0xf0)
-								THROW(0xe9170008);
+								THROW(EXCPT_INVALID_DATA_FMT);
 							coef += (code >> 4) + 1;
 							if (coef > 63)
-								THROW(0xe9170008);
+								THROW(EXCPT_INVALID_DATA_FMT);
 							jpg_data->Block[(int)Zz[coef]] = value * jpg_data->QTab[c->Qtsel][coef];
 						} while (coef < 63);
 						for (coef = 0; coef < 64; coef += 8)
@@ -552,7 +552,7 @@ static void DecodeSos(SJpgData* jpg_data)
 				ShowBits(jpg_data, 16);
 			jpg_data->BufBits -= 16;
 			if ((i & 0xfff8) != 0xffd0 || (i & 7) != nextrst)
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			nextrst = (nextrst + 1) & 7;
 			rstcount = jpg_data->RSTInterval;
 			for (i = 0; i < 3; i++)
@@ -569,7 +569,7 @@ static void DecodeDqt(SJpgData* jpg_data)
 	{
 		int i = jpg_data->Ptr[0];
 		if ((i & 0xfc) != 0)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		jpg_data->QTAvail |= 1 << i;
 		U8* t = &jpg_data->QTab[i][0];
 		for (i = 0; i < 64; i++)
@@ -577,14 +577,14 @@ static void DecodeDqt(SJpgData* jpg_data)
 		Skip(jpg_data, 65);
 	}
 	if (jpg_data->Len != 0)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 }
 
 static void DecodeDri(SJpgData* jpg_data)
 {
 	ReadLen(jpg_data);
 	if (jpg_data->Len < 2)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	jpg_data->RSTInterval = static_cast<int>(SwapEndianU16(*reinterpret_cast<const U16*>(jpg_data->Ptr)));
 	Skip(jpg_data, jpg_data->Len);
 }

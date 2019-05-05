@@ -7,7 +7,7 @@ static Char ReadIo(void);
 
 EXPORT void _delimiter(const U8* delimiters)
 {
-	THROWDBG(delimiters == NULL, 0xc0000005);
+	THROWDBG(delimiters == NULL, EXCPT_ACCESS_VIOLATION);
 	S64 len = *(S64*)(delimiters + 0x08);
 	S64 i;
 	const Char* ptr = (const Char*)(delimiters + 0x10);
@@ -35,7 +35,7 @@ EXPORT Char _inputLetter(void)
 {
 	Char c = fgetwc(stdin);
 	if (c == WEOF)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	return c;
 }
 
@@ -52,7 +52,7 @@ EXPORT S64 _inputInt(void)
 		if (c == WEOF)
 		{
 			if (buf[0] == L'\0')
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			break;
 		}
 		if (c == L'\0')
@@ -62,7 +62,7 @@ EXPORT S64 _inputInt(void)
 			break;
 		}
 		if (ptr == 32)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		buf[ptr] = c;
 		ptr++;
 	}
@@ -72,7 +72,7 @@ EXPORT S64 _inputInt(void)
 		Char* ptr2;
 		result = wcstoll(buf, &ptr2, 10);
 		if (*ptr2 != L'\0')
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		return result;
 	}
 }
@@ -90,7 +90,7 @@ EXPORT double _inputFloat(void)
 		if (c == WEOF)
 		{
 			if (buf[0] == L'\0')
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			break;
 		}
 		if (c == L'\0')
@@ -100,7 +100,7 @@ EXPORT double _inputFloat(void)
 			break;
 		}
 		if (ptr == 32)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		buf[ptr] = c;
 		ptr++;
 	}
@@ -110,7 +110,7 @@ EXPORT double _inputFloat(void)
 		Char* ptr2;
 		result = wcstod(buf, &ptr2);
 		if (*ptr2 != L'\0')
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		return result;
 	}
 }
@@ -124,7 +124,7 @@ EXPORT Char _inputChar(void)
 		if (c == L'\r')
 			continue;
 		if (c == WEOF)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		if (c != L'\0')
 			break;
 	}
@@ -146,7 +146,7 @@ EXPORT void* _inputStr(void)
 		if (c == WEOF)
 		{
 			if (buf[0] == L'\0')
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			break;
 		}
 		if (c == L'\0')

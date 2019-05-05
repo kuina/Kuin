@@ -52,7 +52,7 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 
 	const U8* ptr = static_cast<const U8*>(data);
 	if (*reinterpret_cast<const U64*>(ptr) != 0x0a1a0a0d474e5089)
-		THROW(0xe9170008); // '.PNG'
+		THROW(EXCPT_INVALID_DATA_FMT); // '.PNG'
 	ptr += sizeof(U64);
 
 	*width = 0;
@@ -72,7 +72,7 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 		{
 			case 0x52444849: // 'IHDR'
 				if (size2 != sizeof(U32) * 2 + sizeof(U8) * 5)
-					THROW(0xe9170008);
+					THROW(EXCPT_INVALID_DATA_FMT);
 				png_data.Width = static_cast<int>(SwapEndianU32(*reinterpret_cast<const U32*>(ptr)));
 				*width = png_data.Width;
 				ptr += sizeof(U32);
@@ -92,7 +92,7 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 				break;
 			case 0x54414449: // 'IDAT'
 				if (png_data.DataNum == IdatMax)
-					THROW(0xe9170008);
+					THROW(EXCPT_INVALID_DATA_FMT);
 				png_data.Data[png_data.DataNum] = ptr;
 				png_data.DataSize[png_data.DataNum] = static_cast<size_t>(size2);
 				png_data.DataNum++;
@@ -111,11 +111,11 @@ void* DecodePng(size_t size, const void* data, int* width, int* height)
 	}
 
 	if (png_data.DataNum == 0)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	if (png_data.Width == 0)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	if (png_data.Height == 0)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 
 	U8* argb = static_cast<U8*>(AllocMem(png_data.Width * png_data.Height * 4));
 	Decode(&png_data, argb);
@@ -126,7 +126,7 @@ static void Decode(SPngData* png_data, U8* argb)
 {
 	{
 		if (png_data->BitDepth != 8)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		int two_line = 0;
 		switch (png_data->ColorType)
 		{
@@ -143,7 +143,7 @@ static void Decode(SPngData* png_data, U8* argb)
 				two_line = png_data->Width * 4;
 				break;
 			default: // Unsupported format.
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 				break;
 		}
 
@@ -170,9 +170,9 @@ static void Decode(SPngData* png_data, U8* argb)
 		UNUSED(flg);
 		Step(png_data, &cur_data, &byte_ptr, 1);
 		if ((cmf & 0x0f) != 8)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		if (((flg & 0x20) >> 5) != 0)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		U32 window_size = 1 << (((cmf & 0xf0) >> 4) + 8);
 		png_data->WindowBuf = static_cast<U8*>(AllocMem(window_size));
 		U32 window_used = 0;
@@ -321,7 +321,7 @@ static void Decode(SPngData* png_data, U8* argb)
 						else
 							code_tree_ptr = code_tree_ptr->Zero;
 						if (code_tree_ptr == NULL)
-							THROW(0xe9170008);
+							THROW(EXCPT_INVALID_DATA_FMT);
 						if (code_tree_ptr->Zero == NULL && code_tree_ptr->One == NULL)
 						{
 							U32 value = code_tree_ptr->Data;
@@ -402,7 +402,7 @@ static void Decode(SPngData* png_data, U8* argb)
 				dist_tree = NULL;
 			}
 			else
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 			if (bfinal != 0)
 				break;
 		}
@@ -416,7 +416,7 @@ static void Decode(SPngData* png_data, U8* argb)
 static void Output(SPngData* png_data, U8* argb, U8 data)
 {
 	if (png_data->Y > png_data->Height)
-		THROW(0xe9170008);
+		THROW(EXCPT_INVALID_DATA_FMT);
 	if (png_data->X == -1)
 	{
 		png_data->Filter = data;
@@ -490,7 +490,7 @@ static void Output(SPngData* png_data, U8* argb, U8 data)
 				}
 				break;
 			default:
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 				break;
 		}
 		if (png_data->X >= png_data->Width)
@@ -509,7 +509,7 @@ static void Output(SPngData* png_data, U8* argb, U8 data)
 	{
 		// Interlace.
 		if (png_data->InterlaceMethod != 1)
-			THROW(0xe9170008);
+			THROW(EXCPT_INVALID_DATA_FMT);
 		int ilw = 0, ilh = 0, ilx = 0, ily = 0;
 		switch (png_data->InterlacePass)
 		{
@@ -556,7 +556,7 @@ static void Output(SPngData* png_data, U8* argb, U8 data)
 				ily = 1 + png_data->Y * 2;
 				break;
 			default:
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 				break;
 		}
 		switch (png_data->ColorType)
@@ -618,7 +618,7 @@ static void Output(SPngData* png_data, U8* argb, U8 data)
 				}
 				break;
 			default:
-				THROW(0xe9170008);
+				THROW(EXCPT_INVALID_DATA_FMT);
 				break;
 		}
 		if (png_data->X >= ilw)

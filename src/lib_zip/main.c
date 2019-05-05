@@ -80,15 +80,15 @@ EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_fla
 
 EXPORT Bool _zip(const U8* out_path, const U8* path, S64 compression_level)
 {
-	THROWDBG(out_path == NULL, 0xc0000005);
-	THROWDBG(path == NULL, 0xc0000005);
-	THROWDBG(!(compression_level == -1 || 1 <= compression_level && compression_level <= 9), 0xe9170006);
+	THROWDBG(out_path == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(!(compression_level == -1 || 1 <= compression_level && compression_level <= 9), EXCPT_DBG_ARG_OUT_DOMAIN);
 	Char path2[KUIN_MAX_PATH + 1];
 	if (GetFullPathName((const Char*)(path + 0x10), KUIN_MAX_PATH, path2, NULL) == 0)
 		return False;
 	size_t len = wcslen(path2);
 	const Char* slash_pos;
-	THROWDBG(len < 2 || path2[len - 1] != L'\\', 0xe9170006);
+	THROWDBG(len < 2 || path2[len - 1] != L'\\', EXCPT_DBG_ARG_OUT_DOMAIN);
 	slash_pos = path2 + len - 2;
 	while (slash_pos > path2 && *slash_pos != L'\\')
 		slash_pos--;
@@ -247,9 +247,9 @@ EXPORT Bool _zip(const U8* out_path, const U8* path, S64 compression_level)
 
 EXPORT Bool _unzip(const U8* out_path, const U8* path)
 {
-	THROWDBG(out_path == NULL, 0xc0000005);
-	THROWDBG(path == NULL, 0xc0000005);
-	THROWDBG(((const Char*)(out_path + 0x10))[*(S64*)(out_path + 0x08) - 1] != '/', 0xe9170006);
+	THROWDBG(out_path == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(((const Char*)(out_path + 0x10))[*(S64*)(out_path + 0x08) - 1] != '/', EXCPT_DBG_ARG_OUT_DOMAIN);
 	void* file_ptr = OpenFileStream((const Char*)(path + 0x10));
 	if (file_ptr == NULL)
 		return False;

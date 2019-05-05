@@ -33,7 +33,7 @@ EXPORT void _init(void* heap, S64* heap_cnt, S64 app_code, const U8* use_res_fla
 
 EXPORT SClass* _makeSql(SClass* me_, const U8* path)
 {
-	THROWDBG(path == NULL, 0xc0000005);
+	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
 	SSql* me2 = (SSql*)me_;
 	me2->Db = NULL;
 	me2->Statement = NULL;
@@ -70,7 +70,7 @@ EXPORT void _sqlFin(SClass* me_)
 EXPORT Bool _sqlExec(SClass* me_, const void* cmd)
 {
 	SSql* me2 = (SSql*)me_;
-	THROWDBG(me2->Db == NULL, 0xe917000a);
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	Bool success = False;
 	for (; ; )
 	{
@@ -96,21 +96,21 @@ EXPORT Bool _sqlExec(SClass* me_, const void* cmd)
 EXPORT S64 _sqlGetInt(SClass* me_, S64 col)
 {
 	SSql* me2 = (SSql*)me_;
-	THROWDBG(me2->Db == NULL, 0xe917000a);
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	return sqlite3_column_int64(me2->Statement, (int)col);
 }
 
 EXPORT double _sqlGetFloat(SClass* me_, S64 col)
 {
 	SSql* me2 = (SSql*)me_;
-	THROWDBG(me2->Db == NULL, 0xe917000a);
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	return sqlite3_column_double(me2->Statement, (int)col);
 }
 
 EXPORT void* _sqlGetStr(SClass* me_, S64 col)
 {
 	SSql* me2 = (SSql*)me_;
-	THROWDBG(me2->Db == NULL, 0xe917000a);
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	const Char* str = sqlite3_column_text16(me2->Statement, (int)col);
 	size_t len = wcslen(str);
 	U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
@@ -123,7 +123,7 @@ EXPORT void* _sqlGetStr(SClass* me_, S64 col)
 EXPORT Bool _sqlNext(SClass* me_)
 {
 	SSql* me2 = (SSql*)me_;
-	THROWDBG(me2->Db == NULL, 0xe917000a);
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
 	if (me2->Result != SQLITE_ROW)
 		return False;
 	if (sqlite3_step(me2->Statement) != SQLITE_ROW)

@@ -105,7 +105,7 @@ EXPORT void _fin(void)
 
 EXPORT SClass* _makeTcpServer(SClass* me_, S64 port)
 {
-	THROWDBG(port < 0 || 49152 < port, 0xe9170006);
+	THROWDBG(port < 0 || 49152 < port, EXCPT_DBG_ARG_OUT_DOMAIN);
 	STcpServer* me2 = (STcpServer*)me_;
 	SOCKET socket2 = socket(AF_INET, SOCK_STREAM, 0);
 	if (socket2 == INVALID_SOCKET)
@@ -212,8 +212,8 @@ EXPORT SClass* _tcpServerGet(SClass* me_, SClass* me2)
 
 EXPORT SClass* _makeTcpClient(SClass* me_, const U8* host, S64 port)
 {
-	THROWDBG(host == NULL, 0xc0000005);
-	THROWDBG(port < 0 || 65535 < port, 0xe9170006);
+	THROWDBG(host == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(port < 0 || 65535 < port, EXCPT_DBG_ARG_OUT_DOMAIN);
 	STcp* me2 = (STcp*)me_;
 
 	char host_name[KUIN_MAX_PATH + 1];
@@ -221,13 +221,13 @@ EXPORT SClass* _makeTcpClient(SClass* me_, const U8* host, S64 port)
 		const Char* host2 = (const Char*)(host + 0x10);
 		S64 len = *(S64*)(host + 0x08);
 		if (len > KUIN_MAX_PATH)
-			THROWDBG(True, 0xe9170006);
+			THROWDBG(True, EXCPT_DBG_ARG_OUT_DOMAIN);
 		S64 i;
 		for (i = 0; i < len; i++)
 		{
 			if (host2[i] > 0xff)
 			{
-				THROWDBG(True, 0xe9170006);
+				THROWDBG(True, EXCPT_DBG_ARG_OUT_DOMAIN);
 				return NULL;
 			}
 			host_name[i] = (char)host2[i];
@@ -315,7 +315,7 @@ EXPORT void _tcpFin(SClass* me_)
 
 EXPORT void _tcpSend(SClass* me_, const U8* data)
 {
-	THROWDBG(data == NULL, 0xc0000005);
+	THROWDBG(data == NULL, EXCPT_ACCESS_VIOLATION);
 	STcp* me2 = (STcp*)me_;
 	if (me2->ThreadExit)
 		return;
@@ -333,7 +333,7 @@ EXPORT void _tcpSend(SClass* me_, const U8* data)
 
 EXPORT void* _tcpReceive(SClass* me_, S64 size)
 {
-	THROWDBG(size < 0 || TCP_DATA_SIZE < size, 0xe9170006);
+	THROWDBG(size < 0 || TCP_DATA_SIZE < size, EXCPT_DBG_ARG_OUT_DOMAIN);
 	STcp* me2 = (STcp*)me_;
 	if (me2->ThreadExit)
 		return NULL;
@@ -395,7 +395,7 @@ EXPORT Bool _tcpConnecting(SClass* me_)
 
 EXPORT SClass* _makeHttp(SClass* me_, const U8* url, Bool post, const U8* agent)
 {
-	THROWDBG(url == NULL, 0xc0000005);
+	THROWDBG(url == NULL, EXCPT_ACCESS_VIOLATION);
 	SHttp* me2 = (SHttp*)me_;
 	URL_COMPONENTS url_components;
 	Char host_name[2049];

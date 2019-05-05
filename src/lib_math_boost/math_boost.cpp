@@ -55,7 +55,7 @@ EXPORT_CPP S64 _bigIntCmp(SClass* me_, SClass* t)
 EXPORT_CPP Bool _bigIntFromStr(SClass* me_, const void* value)
 {
 	SBigInt* me2 = reinterpret_cast<SBigInt*>(me_);
-	THROWDBG(value == NULL, 0xc0000005);
+	THROWDBG(value == NULL, EXCPT_ACCESS_VIOLATION);
 	try
 	{
 		me2->Value->assign(Converter.to_bytes(static_cast<const Char*>(value) + 0x08));
@@ -154,7 +154,7 @@ EXPORT_CPP SClass* _bigIntModInt(SClass* me_, S64 value)
 EXPORT_CPP SClass* _bigIntPowInt(SClass* me_, S64 value)
 {
 	U32 value2 = static_cast<U32>(value);
-	THROWDBG(value != static_cast<S64>(value2), 0xe9170006);
+	THROWDBG(value != static_cast<S64>(value2), EXCPT_DBG_ARG_OUT_DOMAIN);
 	*reinterpret_cast<SBigInt*>(me_)->Value = pow(*reinterpret_cast<SBigInt*>(me_)->Value, value2);
 	return me_;
 }
@@ -193,7 +193,7 @@ EXPORT_CPP S64 _bigFloatCmp(SClass* me_, SClass* t)
 EXPORT_CPP Bool _bigFloatFromStr(SClass* me_, const void* value)
 {
 	SBigFloat* me2 = reinterpret_cast<SBigFloat*>(me_);
-	THROWDBG(value == NULL, 0xc0000005);
+	THROWDBG(value == NULL, EXCPT_ACCESS_VIOLATION);
 	try
 	{
 		me2->Value->assign(Converter.to_bytes(static_cast<const Char*>(value) + 0x08));

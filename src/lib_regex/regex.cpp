@@ -14,7 +14,7 @@ static void* ResultsToArray(const wsmatch& results);
 
 EXPORT_CPP SClass* _makeRegex(SClass* me_, const U8* pattern)
 {
-	THROWDBG(pattern == NULL, 0xc0000005);
+	THROWDBG(pattern == NULL, EXCPT_ACCESS_VIOLATION);
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	me2->Pattern = static_cast<wsregex*>(AllocMem(sizeof(wsregex)));
 	new(me2->Pattern)wsregex();
@@ -44,8 +44,8 @@ EXPORT_CPP void _regexDtor(SClass* me_)
 
 EXPORT_CPP void* _regexFind(SClass* me_, S64* pos, const U8* text, S64 start)
 {
-	THROWDBG(pos == NULL, 0xc0000005);
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(pos == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
 	wsmatch results;
@@ -79,8 +79,8 @@ EXPORT_CPP void* _regexFind(SClass* me_, S64* pos, const U8* text, S64 start)
 
 EXPORT_CPP void* _regexFindLast(SClass* me_, S64* pos, const U8* text, S64 start)
 {
-	THROWDBG(pos == NULL, 0xc0000005);
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(pos == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
 	{
@@ -121,7 +121,7 @@ EXPORT_CPP void* _regexFindLast(SClass* me_, S64* pos, const U8* text, S64 start
 
 EXPORT_CPP void* _regexMatch(SClass* me_, const U8* text)
 {
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
 	wsmatch results;
@@ -140,8 +140,8 @@ EXPORT_CPP void* _regexMatch(SClass* me_, const U8* text)
 
 EXPORT_CPP void* _regexFindAll(SClass* me_, U8** pos, const U8* text)
 {
-	THROWDBG(pos == NULL, 0xc0000005);
-	THROWDBG(text == NULL, 0xc0000005);
+	THROWDBG(pos == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
 	try
@@ -183,8 +183,8 @@ EXPORT_CPP void* _regexFindAll(SClass* me_, U8** pos, const U8* text)
 
 EXPORT_CPP void* _regexReplace(SClass* me_, const U8* text, const U8* newText, Bool all)
 {
-	THROWDBG(text == NULL, 0xc0000005);
-	THROWDBG(newText == NULL, 0xc0000005);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(newText == NULL, EXCPT_ACCESS_VIOLATION);
 	SRegexPattern* me2 = reinterpret_cast<SRegexPattern*>(me_);
 	std::wstring text2 = reinterpret_cast<const Char*>(text + 0x10);
 	std::wstring new_text2 = reinterpret_cast<const Char*>(newText + 0x10);
