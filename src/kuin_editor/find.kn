@@ -29,7 +29,7 @@ var resultPoses: list<\src@Pos>
 	do @wndFindChkDistinguishCaseLast :: true
 end func
 
-+func show(replace: bool)
++func show(replace: bool, defaultWord: []char)
 	var x: int
 	var y: int
 	var w: int
@@ -45,6 +45,9 @@ end func
 		do wnd@makeLabel(@wndFindTabFind, 6, 28, 324, 12, %fix, %fix, \common@langEn ?("Find what:", "検索する文字列:"))
 		do @wndFindEditPattern :: wnd@makeEdit(@wndFindTabFind, 6, 46, 344, 19, %scale, %fix)
 		do @wndFindEditPattern.onChange :: wndFindEditPatternOnChange
+		if(defaultWord <>& null)
+			do @wndFindEditPattern.setText(defaultWord)
+		end if
 		do wnd@makeLabel(@wndFindTabFind, 6, 71, 324, 12, %fix, %fix, \common@langEn ?("Replace with:", "置換後の文字列:"))
 		do @wndFindEditReplace :: wnd@makeEdit(@wndFindTabFind, 6, 89, 344, 19, %scale, %fix)
 		do @wndFindEditReplace.onChange :: wndFindEditReplaceOnChange

@@ -91,6 +91,10 @@
 	+func getSelCode(): []char
 	end func
 
+	+func getCursorWord(): []char
+		ret null
+	end func
+
 	+func updateUi()
 	end func
 

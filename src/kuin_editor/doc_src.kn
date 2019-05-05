@@ -651,6 +651,43 @@ end func
 		ret str
 	end func
 
+	+*func getCursorWord(): []char
+		if(me.areaSel())
+			var x1: int :: me.areaX
+			var y1: int :: me.areaY
+			var x2: int :: me.cursorX
+			var y2: int :: me.cursorY
+			if(y1 > y2 | y1 = y2 & x1 > x2)
+				do x1 :$ x2
+				do y1 :$ y2
+			end if
+			if(y1 = y2)
+				ret me.src.src[y1].sub(x1, x2 - x1).trim()
+			else
+				ret me.src.src[y1].sub(x1, -1).trim()
+			end if
+		else
+			var x1: int :: me.cursorX
+			var x2: int :: x1
+			var y1: int :: me.cursorY
+			while loop(x1 > 0)
+				var c: char :: me.src.src[y1][x1 - 1]
+				if(!('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | '0' <= c & c <= '9' | c = '@' | c = '_' | c = '\\'))
+					break loop
+				end if
+				do x1 :- 1
+			end while
+			while loop(x2 < ^me.src.src[y1])
+				var c: char :: me.src.src[y1][x2]
+				if(!('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | '0' <= c & c <= '9' | c = '@' | c = '_' | c = '\\'))
+					break loop
+				end if
+				do x2 :+ 1
+			end while
+			ret x1 = x2 ?(null, me.src.src[y1].sub(x1, x2 - x1).trim())
+		end if
+	end func
+
 	+*func updateUi()
 		do \form@btnCode.setText(\common@langEn ?("Show Designer", "デザイナを表示"))
 		do \form@btnCode.setEnabled(false)

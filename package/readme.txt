@@ -45,6 +45,7 @@ v.2019.5.17
 
 v.2019.5.17
     - 細かな機能追加
+        - エディタの操作感の改善
         - テクスチャや画像のサイズを取得するdraw@Tex.width、draw@Tex.height、
           draw@Tex.imgWidth、draw@Tex.imgHeightメソッドの追加
         - cui@delimiter、cui@inputLetter、cui@inputInt、cui@inputFloat、

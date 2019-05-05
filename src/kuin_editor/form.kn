@@ -545,9 +545,9 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	case 0x0038
 		do \src@curDoc.cmdSelAll()
 	case 0x0039
-		do \find@show(false)
+		do \find@show(false, \src@curDoc.getCursorWord())
 	case 0x003A
-		do \find@show(true)
+		do \find@show(true, \src@curDoc.getCursorWord())
 	case 0x003B
 		do \find@findPrev()
 	case 0x003C
