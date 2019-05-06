@@ -844,6 +844,8 @@
 	func resizeObj(obj: @Obj, x: int, y: int, objX: &int, objY: &int, objWidth: &int, objHeight: &int)
 		var x2: int :: x - me.holdOriginX
 		var y2: int :: y - me.holdOriginY
+		var modX: int
+		var modY: int
 		switch(me.mode)
 		case %none, %sel
 			do objX :: obj.x
@@ -852,50 +854,50 @@
 			do objHeight :: obj.height
 			ret
 		case %move
-			do objX :: obj.x + x2
-			do objY :: obj.y + y2
+			do objX :: round(&, obj.x + x2)
+			do objY :: round(&, obj.y + y2)
 			do objWidth :: obj.width
 			do objHeight :: obj.height
 		case %resizeLT
-			do objX :: obj.x + x2
-			do objY :: obj.y + y2
-			do objWidth :: obj.width - x2
-			do objHeight :: obj.height - y2
+			do objX :: round(&modX, obj.x + x2)
+			do objY :: round(&modY, obj.y + y2)
+			do objWidth :: obj.width - x2 + modX
+			do objHeight :: obj.height - y2 + modY
 		case %resizeRT
 			do objX :: obj.x
-			do objY :: obj.y + y2
-			do objWidth :: obj.width + x2
-			do objHeight :: obj.height - y2
+			do objY :: round(&modY, obj.y + y2)
+			do objWidth :: round(&, obj.width + x2)
+			do objHeight :: obj.height - y2 + modY
 		case %resizeLB
-			do objX :: obj.x + x2
+			do objX :: round(&modX, obj.x + x2)
 			do objY :: obj.y
-			do objWidth :: obj.width - x2
-			do objHeight :: obj.height + y2
+			do objWidth :: obj.width - x2 + modX
+			do objHeight :: round(&, obj.height + y2)
 		case %put, %resizeRB
 			do objX :: obj.x
 			do objY :: obj.y
-			do objWidth :: obj.width + x2
-			do objHeight :: obj.height + y2
+			do objWidth :: round(&, obj.width + x2)
+			do objHeight :: round(&, obj.height + y2)
 		case %resizeL
-			do objX :: obj.x + x2
+			do objX :: round(&modX, obj.x + x2)
 			do objY :: obj.y
-			do objWidth :: obj.width - x2
+			do objWidth :: obj.width - x2 + modX
 			do objHeight :: obj.height
 		case %resizeT
 			do objX :: obj.x
-			do objY :: obj.y + y2
+			do objY :: round(&modY, obj.y + y2)
 			do objWidth :: obj.width
-			do objHeight :: obj.height - y2
+			do objHeight :: obj.height - y2 + modY
 		case %resizeR
 			do objX :: obj.x
 			do objY :: obj.y
-			do objWidth :: obj.width + x2
+			do objWidth :: round(&, obj.width + x2)
 			do objHeight :: obj.height
 		case %resizeB
 			do objX :: obj.x
 			do objY :: obj.y
 			do objWidth :: obj.width
-			do objHeight :: obj.height + y2
+			do objHeight :: round(&, obj.height + y2)
 		end switch
 
 		var minWidth: int
@@ -919,6 +921,16 @@
 		elif(objHeight > maxHeight)
 			do objHeight :: maxHeight
 		end if
+
+		func round(mod: &int, value: int): int
+			if(\form@snap)
+				do mod :: value % \form@snapValue
+				ret value / \form@snapValue * \form@snapValue
+			else
+				do mod :: 0
+				ret value
+			end if
+		end func
 	end func
 
 	func arrange(x: &int, y: &int)

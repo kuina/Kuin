@@ -10,10 +10,10 @@ end func
 +func [d0001.knd, _cnt] cnt(): int
 end func
 
-+func [d0001.knd, _viewport] viewport(x: float, y: float, width: float, height: float)
++func [d0001.knd, _screenWidth] screenWidth(): int
 end func
 
-+func [d0001.knd, _resetViewport] resetViewport()
++func [d0001.knd, _screenHeight] screenHeight(): int
 end func
 
 +func [d0001.knd, _depth] depth(test: bool, write: bool)
@@ -258,7 +258,7 @@ end func
 +func [d0001.knd, _argbToColor] argbToColor(a: float, r: float, g: float, b: float): int
 end func
 
-+func [d0001.knd, _colorToArgb] colorToArgb(color: int, a: &float, r: &float, g: &float, b: &float)
++func [d0001.knd, _colorToArgb] colorToArgb(a: &float, r: &float, g: &float, b: &float, color: int)
 end func
 
 +class Particle()

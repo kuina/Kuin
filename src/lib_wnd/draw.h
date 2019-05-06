@@ -5,8 +5,8 @@
 EXPORT_CPP void _set2dCallback(void*(*callback)(int, void*, void*));
 EXPORT_CPP void _render(S64 fps);
 EXPORT_CPP S64 _cnt();
-EXPORT_CPP void _viewport(double x, double y, double w, double h);
-EXPORT_CPP void _resetViewport();
+EXPORT_CPP S64 _screenWidth();
+EXPORT_CPP S64 _screenHeight();
 EXPORT_CPP void _depth(Bool test, Bool write);
 EXPORT_CPP void _blend(S64 kind);
 EXPORT_CPP void _sampler(S64 kind);
@@ -64,7 +64,7 @@ EXPORT_CPP void _objLookCamera(SClass* me_, double x, double y, double z, double
 EXPORT_CPP void _ambLight(double topR, double topG, double topB, double bottomR, double bottomG, double bottomB);
 EXPORT_CPP void _dirLight(double atX, double atY, double atZ, double r, double g, double b);
 EXPORT_CPP S64 _argbToColor(double a, double r, double g, double b);
-EXPORT_CPP void _colorToArgb(S64 color, double* a, double* r, double* g, double* b);
+EXPORT_CPP void _colorToArgb(double* a, double* r, double* g, double* b, S64 color);
 EXPORT_CPP void _particleDtor(SClass* me_);
 EXPORT_CPP void _particleDraw(SClass* me_, SClass* tex);
 EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex);
@@ -102,6 +102,8 @@ namespace Draw
 	void* MakeDrawBuf(int tex_width, int tex_height, int split, HWND wnd, void* old, Bool editable);
 	void FinDrawBuf(void* wnd_buf);
 	void ActiveDrawBuf(void* wnd_buf);
+	void Viewport(double x, double y, double w, double h);
+	void ResetViewport();
 	void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const_buf_size, int layout_num, const ELayoutType* layout_types, const Char** layout_semantics);
 	void FinShaderBuf(void* shader_buf);
 	void ConstBuf(void* shader_buf, const void* data);

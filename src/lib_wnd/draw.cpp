@@ -354,7 +354,7 @@ EXPORT_CPP void _render(S64 fps)
 		_blend(old_blend);
 		_sampler(old_sampler);
 
-		_resetViewport();
+		Draw::ResetViewport();
 	}
 
 	CurWndBuf->SwapChain->Present(fps == 0 ? 0 : 1, 0);
@@ -407,32 +407,14 @@ EXPORT_CPP S64 _cnt()
 	return Cnt;
 }
 
-EXPORT_CPP void _viewport(double x, double y, double w, double h)
+EXPORT_CPP S64 _screenWidth()
 {
-	D3D10_VIEWPORT viewport =
-	{
-		static_cast<INT>(x),
-		static_cast<INT>(y),
-		static_cast<UINT>(w),
-		static_cast<UINT>(h),
-		0.0f,
-		1.0f,
-	};
-	Device->RSSetViewports(1, &viewport);
+	return CurWndBuf->TexWidth;
 }
 
-EXPORT_CPP void _resetViewport()
+EXPORT_CPP S64 _screenHeight()
 {
-	D3D10_VIEWPORT viewport =
-	{
-		0,
-		0,
-		static_cast<UINT>(CurWndBuf->TexWidth / CurWndBuf->Split),
-		static_cast<UINT>(CurWndBuf->TexHeight / CurWndBuf->Split),
-		0.0f,
-		1.0f,
-	};
-	Device->RSSetViewports(1, &viewport);
+	return CurWndBuf->TexHeight;
 }
 
 EXPORT_CPP void _depth(Bool test, Bool write)
@@ -1924,7 +1906,7 @@ EXPORT_CPP S64 _argbToColor(double a, double r, double g, double b)
 	return Draw::ArgbToColor(a, r, g, b);
 }
 
-EXPORT_CPP void _colorToArgb(S64 color, double* a, double* r, double* g, double* b)
+EXPORT_CPP void _colorToArgb(double* a, double* r, double* g, double* b, S64 color)
 {
 	Draw::ColorToArgb(a, r, g, b, color);
 }
@@ -2033,7 +2015,7 @@ EXPORT_CPP SClass* _makeParticle(SClass* me_, S64 life_span, S64 color1, S64 col
 
 	{
 		double a, r, g, b;
-		_colorToArgb(color1, &a, &r, &g, &b);
+		Draw::ColorToArgb(&a, &r, &g, &b, color1);
 		me2->PsConstBuf.Color1[0] = static_cast<float>(r);
 		me2->PsConstBuf.Color1[1] = static_cast<float>(g);
 		me2->PsConstBuf.Color1[2] = static_cast<float>(b);
@@ -2041,7 +2023,7 @@ EXPORT_CPP SClass* _makeParticle(SClass* me_, S64 life_span, S64 color1, S64 col
 	}
 	{
 		double a, r, g, b;
-		_colorToArgb(color2, &a, &r, &g, &b);
+		Draw::ColorToArgb(&a, &r, &g, &b, color2);
 		me2->PsConstBuf.Color2[0] = static_cast<float>(r);
 		me2->PsConstBuf.Color2[1] = static_cast<float>(g);
 		me2->PsConstBuf.Color2[2] = static_cast<float>(b);
@@ -2167,7 +2149,7 @@ static void UpdateParticles(SParticle* particle)
 	_sampler(old_sampler);
 
 	Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
-	_resetViewport();
+	Draw::ResetViewport();
 
 	particle->Draw1To2 = !particle->Draw1To2;
 }
@@ -3566,7 +3548,7 @@ void* MakeDrawBuf(int tex_width, int tex_height, int split, HWND wnd, void* old,
 	}
 
 	ActiveDrawBuf(wnd_buf);
-	_resetViewport();
+	Draw::ResetViewport();
 	return wnd_buf;
 }
 
@@ -3599,11 +3581,39 @@ void ActiveDrawBuf(void* wnd_buf)
 		SWndBuf* wnd_buf2 = static_cast<SWndBuf*>(wnd_buf);
 		CurWndBuf = wnd_buf2;
 		Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
-		_resetViewport();
+		Draw::ResetViewport();
 
 		if (Callback2d != NULL)
 			Callback2d(2, wnd_buf, NULL);
 	}
+}
+
+void Viewport(double x, double y, double w, double h)
+{
+	D3D10_VIEWPORT viewport =
+	{
+		static_cast<INT>(x),
+		static_cast<INT>(y),
+		static_cast<UINT>(w),
+		static_cast<UINT>(h),
+		0.0f,
+		1.0f,
+	};
+	Device->RSSetViewports(1, &viewport);
+}
+
+void ResetViewport()
+{
+	D3D10_VIEWPORT viewport =
+	{
+		0,
+		0,
+		static_cast<UINT>(CurWndBuf->TexWidth / CurWndBuf->Split),
+		static_cast<UINT>(CurWndBuf->TexHeight / CurWndBuf->Split),
+		0.0f,
+		1.0f,
+	};
+	Device->RSSetViewports(1, &viewport);
 }
 
 void* MakeShaderBuf(EShaderKind kind, size_t size, const void* bin, size_t const_buf_size, int layout_num, const ELayoutType* layout_types, const Char** layout_semantics)

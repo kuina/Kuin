@@ -23,6 +23,8 @@ var editFile: wnd@Edit
 +var labelRbArMul2: wnd@Label
 +var editRbArHeight: wnd@Edit
 +var btnRbArProp: wnd@Btn
+var chkRbArSnap: wnd@Chk
+var editRbArSnap: wnd@Edit
 var tabOrderRbAr: wnd@TabOrder
 
 var editLog: wnd@EditMulti
@@ -49,6 +51,8 @@ var popupMainHelp: wnd@Popup
 var lockingEditor: bool
 var lockUi: bool
 var drag: bool
++var snap: bool
++var snapValue: int
 
 +func makeWnd()
 	do @wndMain :: wnd@makeWnd(null, %normal, 1224, 768, \common@title)
@@ -124,8 +128,12 @@ var drag: bool
 	do @labelRbArMul2 :: wnd@makeLabel(@groupRbAr, 225, 46, 11, 12, %fix, %fix, "x")
 	do @editRbArHeight :: wnd@makeEdit(@groupRbAr, 242, 43, 36, 19, %fix, %fix)
 	do @editRbArHeight.onFocus :: editRbArHeightOnFocus
-	do @btnRbArProp :: wnd@makeBtn(@groupRbAr, 8, 68, 152, 23, %fix, %fix, \common@langEn ?("Edit Properties...", "プロパティの編集..."))
+	do @btnRbArProp :: wnd@makeBtn(@groupRbAr, 6, 68, 152, 23, %fix, %fix, \common@langEn ?("Edit Properties...", "プロパティの編集..."))
 	do @btnRbArProp.onPush :: btnRbArPropOnPush
+	do @chkRbArSnap :: wnd@makeChk(@groupRbAr, 6, 110, 112, 16, %fix, %fix, \common@langEn ?("Snap to Grid:", "グリッドに吸着:"))
+	do @chkRbArSnap.onPush :: chkRbArSnapOnPush
+	do @editRbArSnap :: wnd@makeEdit(@groupRbAr, 124, 110, 36, 19, %fix, %fix)
+	do @editRbArSnap.onFocus :: editRbArSnapOnFocus
 	do @tabOrderRbAr :: wnd@makeTabOrder([@editRbArName $ wnd@WndBase, @editRbArX, @editRbArY, @editRbArWidth, @editRbArHeight])
 
 	func editRbArNameOnFocus(wnd: wnd@WndBase, focused: bool)
@@ -164,6 +172,29 @@ var drag: bool
 
 	func btnRbArPropOnPush(wnd: wnd@WndBase)
 		do \src@curDoc.onEvent(%btnRbArPropOnPush)
+	end func
+
+	func chkRbArSnapOnPush(wnd: wnd@WndBase)
+		do @snap :: @chkRbArSnap.getChk()
+		do \prop@changeProp()
+		do @updateUi()
+	end func
+
+	func editRbArSnapOnFocus(wnd: wnd@WndBase, focused: bool)
+		if(!focused)
+			var success: bool
+			var value: int :: @editRbArSnap.getText().trim().toInt(&success)
+			if(success)
+				if(value < 1)
+					do value :: 1
+				end if
+				if(@snapValue <> value)
+					do @snapValue :: value
+					do \prop@changeProp()
+				end if
+			end if
+			do @updateUi()
+		end if
 	end func
 
 	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
@@ -246,6 +277,8 @@ var drag: bool
 	do @lockUi :: false
 	do @editLog.setText("")
 	do @drag :: false
+	do @snap :: true
+	do @snapValue :: 6
 
 	func btnFileAddOnPush(wnd: wnd@WndBase)
 		do @wndMainOnPushMenu(@wndMain, 0x0030)
@@ -942,6 +975,9 @@ end func
 	do @updateFile()
 	do \src@curDoc.updateUi()
 	do \src@curDoc.updateScrollBar()
+	do @chkRbArSnap.setChk(@snap)
+	do @editRbArSnap.setEnabled(@snap)
+	do @editRbArSnap.setText(@snapValue.toStr())
 	do @lockUi :: false
 end func
 

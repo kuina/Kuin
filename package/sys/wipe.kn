@@ -1,0 +1,54 @@
++enum Type
+	none
+	fade
+	centerCircle
+end enum
+
+var state: float
+var type: @Type
+var speed: float
+var colorR: float
+var colorG: float
+var colorB: float
+
++func set(type: @Type, in: bool, time: int, color: int)
+	do @state :: 0.0
+	do @type :: type
+	do @speed :: 1.0 / (time $ float)
+	if(!in)
+		do @state :: 1.0
+		do @speed :: -@speed
+	end if
+	do draw@colorToArgb(&, &@colorR, &@colorG, &@colorB, color)
+end func
+
++func draw(): bool
+	do @state :+ @speed
+	if(@state < 0.0 & @speed < 0.0)
+		do @state :: 0.0
+		do @type :: %none
+		do @speed :: 0.0
+	elif(@state > 1.0 & @speed > 0.0)
+		do @state :: 1.0
+		do @type :: %none
+		do @speed :: 0.0
+	end if
+
+	var width: float :: draw@screenWidth() $ float
+	var height: float :: draw@screenHeight() $ float
+	if(@state = 0.0)
+		do draw@rect(0.0, 0.0, width, height, draw@argbToColor(1.0, @colorR, @colorG, @colorB))
+		ret true
+	elif(@state = 1.0)
+		ret true
+	else
+		switch(@type)
+		case %fade
+			do draw@rect(0.0, 0.0, width, height, draw@argbToColor(1.0 - @state, @colorR, @colorG, @colorB))
+		case %centerCircle
+			var radius: float :: lib@dist(0.0, 0.0, width / 2.0, height / 2.0) * (1.0 - @state)
+			do draw2d@circle(width / 2.0, height / 2.0, radius, radius, draw@argbToColor(1.0, @colorR, @colorG, @colorB))
+		end switch
+		ret false
+	end if
+end func
