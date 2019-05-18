@@ -7,6 +7,7 @@
 	do cfg.addChild("icon").setValue(\form@getIconPath())
 	do cfg.addChild("env").setValue(\form@getEnv())
 	do cfg.addChild("snap").setValue((\form@snap ?(\form@snapValue, 0)).toStr())
+	do cfg.addChild("zoom").setValue(\form@zoom.toStr())
 
 	class Data()
 		+var reses: xml@Node
@@ -51,6 +52,14 @@ end func
 			if(success)
 				do \form@snap :: snap <> 0
 				do \form@snapValue :: snap < 1 ?(6, snap)
+			end if
+		catch
+		end try
+		try
+			var success: bool
+			var zoom: float :: cfg.findChild("zoom").getValue().toFloat(&success)
+			if(success)
+				do \form@zoom :: zoom
 			end if
 		catch
 		end try

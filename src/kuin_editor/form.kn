@@ -25,6 +25,8 @@ var editFile: wnd@Edit
 +var btnRbArProp: wnd@Btn
 var chkRbArSnap: wnd@Chk
 var editRbArSnap: wnd@Edit
+var labelRbArZoom: wnd@Label
+var editRbArZoom: wnd@Edit
 var tabOrderRbAr: wnd@TabOrder
 
 var editLog: wnd@EditMulti
@@ -46,6 +48,7 @@ var popupMainFile: wnd@Popup
 var popupMainBuild: wnd@Popup
 var popupMainDbg: wnd@Popup
 var popupMainHelp: wnd@Popup
+var popupMainArranger: wnd@Popup
 +var popupRecentFiles: wnd@Popup
 
 var lockingEditor: bool
@@ -53,8 +56,11 @@ var lockUi: bool
 var drag: bool
 +var snap: bool
 +var snapValue: int
++var zoom: float
 
 +func makeWnd()
+	do @lockUi :: true
+
 	do @wndMain :: wnd@makeWnd(null, %normal, 1224, 768, \common@title)
 	do @wndMain.minMax(930, 640, -1, -1)
 	do @wndMain.acceptDraggedFiles(true)
@@ -62,6 +68,7 @@ var drag: bool
 	do @wndMain.onActivate :: @wndMainOnActivate
 	do @wndMain.onPushMenu :: @wndMainOnPushMenu
 	do @wndMain.onDropFiles :: @wndMainOnDropFiles
+	do @wndMain.onResize :: @wndMainOnResize
 	do @listLt :: wnd@makeListView(@wndMain, 12, 12, 244, 272, %fix, %fix, false, null, ["res/obj_none.png", "res/obj_btn.png", "res/obj_chk.png", "res/obj_edit.png", "res/obj_label.png", "res/obj_group.png", "res/obj_rect.png", "res/obj_circle.png", "res/obj_text.png", "res/obj_img.png", "res/obj_roundrect.png", "res/obj_particle.png"])
 	do @listLt.setVisible(false)
 	do @listLt.onMouseClick :: listLtOnMouseClick
@@ -134,7 +141,10 @@ var drag: bool
 	do @chkRbArSnap.onPush :: chkRbArSnapOnPush
 	do @editRbArSnap :: wnd@makeEdit(@groupRbAr, 124, 110, 36, 19, %fix, %fix)
 	do @editRbArSnap.onFocus :: editRbArSnapOnFocus
-	do @tabOrderRbAr :: wnd@makeTabOrder([@editRbArName $ wnd@WndBase, @editRbArX, @editRbArY, @editRbArWidth, @editRbArHeight])
+	do @labelRbArZoom :: wnd@makeLabel(@groupRbAr, 186, 110, 60, 16, %fix, %fix, \common@langEn ?("Zoom:", "ズーム:"))
+	do @editRbArZoom :: wnd@makeEdit(@groupRbAr, 252, 110, 36, 19, %fix, %fix)
+	do @editRbArZoom.onFocus :: editRbArZoomOnFocus
+	do @tabOrderRbAr :: wnd@makeTabOrder([@editRbArName $ wnd@WndBase, @editRbArX, @editRbArY, @editRbArWidth, @editRbArHeight, @editRbArSnap, @editRbArZoom])
 
 	func editRbArNameOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
@@ -197,6 +207,27 @@ var drag: bool
 		end if
 	end func
 
+	func editRbArZoomOnFocus(wnd: wnd@WndBase, focused: bool)
+		if(!focused)
+			var success: bool
+			var value: float :: @editRbArZoom.getText().trim().toFloat(&success)
+			if(success)
+				if(value < 0.1)
+					do value :: 0.1
+				end if
+				if(value > 8.0)
+					do value :: 8.0
+				end if
+				if(@zoom <> value)
+					do @zoom :: value
+					do \prop@changeProp()
+					do @paintDrawEditor()
+				end if
+			end if
+			do @updateUi()
+		end if
+	end func
+
 	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
 	do @editLog.readonly(true)
 	do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, \common@langEn ?("Compile && Run", "コンパイル＆実行"))
@@ -249,7 +280,8 @@ var drag: bool
 	do @popupMainEdit.add(0x0037, \common@langEn ?("&Delete\tDel", "削除(&D)\tDel"))
 	do @popupMainEdit.add(0x0038, \common@langEn ?("Select &All\tCtrl+A", "すべて選択(&A)\tCtrl+A"))
 	do @popupMainEdit.addLine()
-	do @popupMainEdit.add(0x003D, \common@langEn ?("Add &Selection To Snippet...", "選択範囲をスニペットに追加(&S)..."))
+	do @popupMainEdit.add(0x003D, \common@langEn ?("Add &Selection To Snippets...", "選択範囲をスニペットに追加(&S)..."))
+	do @popupMainEdit.add(0x003F, \common@langEn ?("&Edit Snippets...", "スニペットの編集(&E)..."))
 	do @popupMainEdit.addLine()
 	do @popupMainEdit.add(0x0039, \common@langEn ?("&Find...\tCtrl+F", "検索(&F)...\tCtrl+F"))
 	do @popupMainEdit.add(0x003A, \common@langEn ?("&Replace...\tCtrl+H", "置換(&R)...\tCtrl+H"))
@@ -271,6 +303,11 @@ var drag: bool
 	do @menuMain.addPopup(\common@langEn ?("&Help", "ヘルプ(&H)"), @popupMainHelp)
 	do @wndMain.setMenu(@menuMain)
 
+	do @popupMainArranger :: wnd@makePopup()
+	do @popupMainArranger.add(0x0050, \common@langEn ?("Zoom &In\tCtrl++", "ズームイン(&I)\tCtrl++"))
+	do @popupMainArranger.add(0x0051, \common@langEn ?("Zoom &Out\tCtrl+-", "ズームアウト(&O)\tCtrl+-"))
+	do @popupMainArranger.add(0x0052, "&100%\tCtrl+1")
+
 	do wnd@setOnKeyPress(@onKeyPress)
 
 	do @lockingEditor :: false
@@ -279,6 +316,7 @@ var drag: bool
 	do @drag :: false
 	do @snap :: true
 	do @snapValue :: 6
+	do @zoom :: 1.0
 
 	func btnFileAddOnPush(wnd: wnd@WndBase)
 		do @wndMainOnPushMenu(@wndMain, 0x0030)
@@ -353,7 +391,7 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			ret true
 		end if
 	elif(@wndMain.focusedWnd() | \completion@focused())
-		var editRbArFocused: bool :: @editRbArName.focused() | @editRbArX.focused() | @editRbArY.focused() | @editRbArWidth.focused() | @editRbArHeight.focused()
+		var editRbArFocused: bool :: @editRbArName.focused() | @editRbArX.focused() | @editRbArY.focused() | @editRbArWidth.focused() | @editRbArHeight.focused() | @editRbArSnap.focused() | @editRbArZoom.focused()
 		var editFocused: bool :: @editFile.focused() | @editHint.focused() | editRbArFocused | @editIcon.focused()
 		switch(shiftCtrl)
 		case %none
@@ -451,6 +489,21 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			case %z
 				if(!editFocused)
 					do @wndMainOnPushMenu(@wndMain, 0x0032)
+					ret true
+				end if
+			case %plus
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 0x0050)
+					ret true
+				end if
+			case %minus
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 0x0051)
+					ret true
+				end if
+			case %_1
+				if(!editFocused)
+					do @wndMainOnPushMenu(@wndMain, 0x0052)
 					ret true
 				end if
 			end switch
@@ -594,6 +647,8 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			ret
 		end if
 		do @openResFolder()
+	case 0x003F
+		do \snippet@show()
 	case 0x0040
 		if (\src@curDoc =$ \doc_src@DocSrc)
 			if(\src@breakPos =& null & @lockingEditor)
@@ -602,6 +657,51 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			end if
 			do (\src@curDoc $ \doc_src@DocSrc).toggleBreakPoint()
 		end if
+	case 0x0050
+		if(@zoom < 0.25)
+			do @zoom :: 0.25
+		elif(@zoom < 0.33)
+			do @zoom :: 0.33
+		elif(@zoom < 0.5)
+			do @zoom :: 0.5
+		elif(@zoom < 1.0)
+			do @zoom :: 1.0
+		elif(@zoom < 2.0)
+			do @zoom :: 2.0
+		elif(@zoom < 4.0)
+			do @zoom :: 4.0
+		elif(@zoom < 8.0)
+			do @zoom :: 8.0
+		end if
+		do \prop@changeProp()
+		do @paintDrawEditor()
+		do @updateUi()
+	case 0x0051
+		if(@zoom > 4.0)
+			do @zoom :: 4.0
+		elif(@zoom > 2.0)
+			do @zoom :: 2.0
+		elif(@zoom > 1.0)
+			do @zoom :: 1.0
+		elif(@zoom > 0.5)
+			do @zoom :: 0.5
+		elif(@zoom > 0.33)
+			do @zoom :: 0.33
+		elif(@zoom > 0.25)
+			do @zoom :: 0.25
+		elif(@zoom > 0.1)
+			do @zoom :: 0.1
+		end if
+		do \prop@changeProp()
+		do @paintDrawEditor()
+		do @updateUi()
+	case 0x0052
+		if(@zoom <> 1.0)
+			do @zoom :: 1.0
+			do \prop@changeProp()
+			do @paintDrawEditor()
+		end if
+		do @updateUi()
 	case 0x0400 to 0x04FF
 		do \recent@sel(id)
 	end switch
@@ -620,6 +720,14 @@ func wndMainOnDropFiles(wnd: wnd@WndBase, files: [][]char)
 		do \recent@save(files[0])
 	end if
 end func
+
+func wndMainOnResize(wnd: wnd@WndBase)
+	if(!@lockUi)
+		do @updateUi()
+	end if
+end func
+
+var test: bool
 
 func btnCodeOnPush(wnd: wnd@WndBase)
 	if(@lockUi)
@@ -978,6 +1086,16 @@ end func
 	do @chkRbArSnap.setChk(@snap)
 	do @editRbArSnap.setEnabled(@snap)
 	do @editRbArSnap.setText(@snapValue.toStr())
+	do @editRbArZoom.setText(@zoom.toStr())
+
+	do @menuMain.delPopup(@popupMainArranger)
+	if(\src@curDoc =$ \doc_gen@DocGen)
+		if((\src@curDoc $ \doc_gen@DocGen).designer =$ \doc_ar@DocAr)
+			do @menuMain.insPopup(@popupMainHelp, \common@langEn ?("&Arranger", "アレンジャー(&A)"), @popupMainArranger)
+		end if
+	end if
+	do @wndMain.updateMenu()
+
 	do @lockUi :: false
 end func
 

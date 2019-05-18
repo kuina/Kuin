@@ -89,6 +89,7 @@ struct SWnd
 	void* OnActivate;
 	void* OnPushMenu;
 	void* OnDropFiles;
+	void* OnResize;
 	Bool ModalLock;
 };
 
@@ -839,6 +840,7 @@ EXPORT_CPP SClass* _makeWnd(SClass* me_, SClass* parent, S64 style, S64 width, S
 		me3->OnActivate = NULL;
 		me3->OnPushMenu = NULL;
 		me3->OnDropFiles = NULL;
+		me3->OnResize = NULL;
 		me3->ModalLock = False;
 	}
 	SendMessage(me2->WndHandle, WM_SETFONT, reinterpret_cast<WPARAM>(FontCtrl), static_cast<LPARAM>(FALSE));
@@ -1034,6 +1036,11 @@ EXPORT_CPP S64 _wndGetAlpha(SClass* me_)
 EXPORT_CPP void _wndAcceptDraggedFiles(SClass* me_, Bool is_accepted)
 {
 	DragAcceptFiles(reinterpret_cast<SWndBase*>(me_)->WndHandle, is_accepted ? TRUE : FALSE);
+}
+
+EXPORT_CPP void _wndUpdateMenu(SClass* me_)
+{
+	DrawMenuBar(reinterpret_cast<SWndBase*>(me_)->WndHandle);
 }
 
 EXPORT_CPP void _wndSetModalLock(SClass* me_)
@@ -2042,10 +2049,32 @@ EXPORT_CPP void _menuAddPopup(SClass* me_, const U8* text, const U8* popup)
 	AppendMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, MF_ENABLED | MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), reinterpret_cast<const Char*>(text + 0x10));
 }
 
+EXPORT_CPP void _menuIns(SClass* me_, S64 targetId, S64 id, const U8* text)
+{
+	THROWDBG(targetId < 0x0001 || 0xffff < targetId, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(id < 0x0001 || 0xffff < id, EXCPT_DBG_ARG_OUT_DOMAIN);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
+	InsertMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, targetId, MF_ENABLED | MF_STRING, static_cast<UINT_PTR>(id), reinterpret_cast<const Char*>(text + 0x10));
+}
+
+EXPORT_CPP void _menuInsPopup(SClass* me_, const U8* target, const U8* text, const U8* popup)
+{
+	THROWDBG(target == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(popup == NULL, EXCPT_ACCESS_VIOLATION);
+	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
+	InsertMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(target)->MenuHandle), MF_ENABLED | MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), reinterpret_cast<const Char*>(text + 0x10));
+}
+
 EXPORT_CPP void _menuDel(SClass* me_, S64 id)
 {
 	THROWDBG(id < 0x0001 || 0xffff < id, EXCPT_DBG_ARG_OUT_DOMAIN);
-	DeleteMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, static_cast<UINT>(id), MF_BYCOMMAND);
+	RemoveMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, static_cast<UINT>(id), MF_BYCOMMAND);
+}
+
+EXPORT_CPP void _menuDelPopup(SClass* me_, const U8* popup)
+{
+	THROWDBG(popup == NULL, EXCPT_ACCESS_VIOLATION);
+	RemoveMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), MF_BYCOMMAND);
 }
 
 EXPORT_CPP SClass* _makePopup(SClass* me_)
@@ -2785,6 +2814,10 @@ static LRESULT CALLBACK WndProcWndNormal(HWND wnd, UINT msg, WPARAM w_param, LPA
 	{
 		case WM_SIZE:
 			EnumChildWindows(wnd, ResizeCallback, NULL);
+			if (wnd3->OnResize != NULL)
+			{
+				Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnResize);
+			}
 			return 0;
 		case WM_GETMINMAXINFO:
 			{
@@ -2824,6 +2857,10 @@ static LRESULT CALLBACK WndProcWndAspect(HWND wnd, UINT msg, WPARAM w_param, LPA
 	{
 		case WM_SIZE:
 			EnumChildWindows(wnd, ResizeCallback, NULL);
+			if (wnd3->OnResize != NULL)
+			{
+				Call1Asm(IncWndRef(reinterpret_cast<SClass*>(wnd2)), wnd3->OnResize);
+			}
 			return 0;
 		case WM_GETMINMAXINFO:
 			{

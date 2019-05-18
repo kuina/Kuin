@@ -220,7 +220,7 @@
 	end func
 
 	var src: \doc_src@DocSrc
-	var designer: @DocDesigner
+	+var designer: @DocDesigner
 	var cur: \doc@Doc
 end class
 

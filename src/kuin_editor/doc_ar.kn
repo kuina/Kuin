@@ -33,20 +33,20 @@
 				var width2: float :: objWidth $ float
 				var height2: float :: objHeight $ float
 				if(me.root.visible)
-					do me.root.draw(x, y, width2, height2)
+					do me.root.draw(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom)
 				end if
-				do draw@rectLine(x - 3.0, y - 3.0, width2 + 6.0, height2 + 6.0, 0xFF6666FF)
-				do draw@rectLine(x - 4.0, y - 4.0, width2 + 8.0, height2 + 8.0, 0xFF6666FF)
-				do draw@rectLine(x, y, width2, height2, 0x80000000)
+				do draw@rectLine((x - 3.0) * \form@zoom, (y - 3.0) * \form@zoom, (width2 + 6.0) * \form@zoom, (height2 + 6.0) * \form@zoom, 0xFF6666FF)
+				do draw@rectLine((x - 4.0) * \form@zoom, (y - 4.0) * \form@zoom, (width2 + 8.0) * \form@zoom, (height2 + 8.0) * \form@zoom, 0xFF6666FF)
+				do draw@rectLine(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom, 0x80000000)
 			else
 				var x: float :: (me.root.x - me.pageX) $ float
 				var y: float :: (me.root.y - me.pageY) $ float
 				var width2: float :: me.root.width $ float
 				var height2: float :: me.root.height $ float
 				if(me.root.visible)
-					do me.root.draw(x, y, width2, height2)
+					do me.root.draw(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom)
 				end if
-				do draw@rectLine(x, y, width2, height2, 0x80000000)
+				do draw@rectLine(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom, 0x80000000)
 			end if
 		end block
 		do me.nodes.head()
@@ -64,32 +64,32 @@
 				var width2: float :: objWidth $ float
 				var height2: float :: objHeight $ float
 				if(node.visible)
-					do node.draw(x, y, width2, height2)
+					do node.draw(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom)
 				end if
-				do draw@rectLine(x - 3.0, y - 3.0, width2 + 6.0, height2 + 6.0, 0xFF6666FF)
-				do draw@rectLine(x - 4.0, y - 4.0, width2 + 8.0, height2 + 8.0, 0xFF6666FF)
-				do draw@rectLine(x, y, width2, height2, 0x80000000)
+				do draw@rectLine((x - 3.0) * \form@zoom, (y - 3.0) * \form@zoom, (width2 + 6.0) * \form@zoom, (height2 + 6.0) * \form@zoom, 0xFF6666FF)
+				do draw@rectLine((x - 4.0) * \form@zoom, (y - 4.0) * \form@zoom, (width2 + 8.0) * \form@zoom, (height2 + 8.0) * \form@zoom, 0xFF6666FF)
+				do draw@rectLine(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom, 0x80000000)
 			else
 				var x: float :: (node.x - me.pageX) $ float
 				var y: float :: (node.y - me.pageY) $ float
 				var width2: float :: node.width $ float
 				var height2: float :: node.height $ float
 				if(node.visible)
-					do node.draw(x, y, width2, height2)
+					do node.draw(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom)
 				end if
-				do draw@rectLine(x, y, width2, height2, 0x80000000)
+				do draw@rectLine(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom, 0x80000000)
 			end if
 			do me.nodes.next()
 		end while
 
 		if(me.mode = %sel)
-			do draw@rectLine((me.holdOriginX - me.pageX) $ float, (me.holdOriginY - me.pageY) $ float, (me.curOriginX - me.holdOriginX) $ float, (me.curOriginY - me.holdOriginY) $ float, 0xFF6666FF)
+			do draw@rectLine((me.holdOriginX - me.pageX) $ float * \form@zoom, (me.holdOriginY - me.pageY) $ float * \form@zoom, (me.curOriginX - me.holdOriginX) $ float * \form@zoom, (me.curOriginY - me.holdOriginY) $ float * \form@zoom, 0xFF6666FF)
 		end if
 	end func
 
 	+*func mouseDownL(x: int, y: int)
-		var x2: int :: x + me.pageX
-		var y2: int :: y + me.pageY
+		var x2: int :: (x $ float / \form@zoom) $ int + me.pageX
+		var y2: int :: (y $ float / \form@zoom) $ int + me.pageY
 		do me.holdOriginX :: x2
 		do me.holdOriginY :: y2
 		do me.curOriginX :: x2
@@ -233,8 +233,8 @@
 				do \form@showMsgRunning()
 				ret
 			end if
-			var arrangedX: int :: x + me.pageX
-			var arrangedY: int :: y + me.pageY
+			var arrangedX: int :: (x $ float / \form@zoom) $ int + me.pageX
+			var arrangedY: int :: (y $ float / \form@zoom) $ int + me.pageY
 			do me.arrange(&arrangedX, &arrangedY)
 			do me.undo.recordBegin()
 			var objX: int
@@ -263,8 +263,8 @@
 		case %sel
 			var x1: int :: me.holdOriginX
 			var y1: int :: me.holdOriginY
-			var x2: int :: x + me.pageX
-			var y2: int :: y + me.pageY
+			var x2: int :: (x $ float / \form@zoom) $ int + me.pageX
+			var y2: int :: (y $ float / \form@zoom) $ int + me.pageY
 			if(x1 > x2)
 				do x1 :$ x2
 			end if
@@ -298,16 +298,16 @@
 				do \form@showMsgRunning()
 				ret
 			end if
-			var arrangedX: int :: x + me.pageX
-			var arrangedY: int :: y + me.pageY
+			var arrangedX: int :: (x $ float / \form@zoom) $ int + me.pageX
+			var arrangedY: int :: (y $ float / \form@zoom) $ int + me.pageY
 			do me.arrange(&arrangedX, &arrangedY)
 			do me.curOriginX :: arrangedX
 			do me.curOriginY :: arrangedY
 			do me.updateProp()
 			do \form@paintDrawEditor()
 		case %sel
-			do me.curOriginX :: x + me.pageX
-			do me.curOriginY :: y + me.pageY
+			do me.curOriginX :: (x $ float / \form@zoom) $ int + me.pageX
+			do me.curOriginY :: (y $ float / \form@zoom) $ int + me.pageY
 			do \form@paintDrawEditor()
 		end switch
 	end func
@@ -319,12 +319,24 @@
 	end func
 
 	+*func updateScrollBar()
-		const padding: int :: 32
+		var padding: int :: (50.0 / \form@zoom) $ int
 		var screenWidth: int
 		var screenHeight: int
 		do \form@drawEditor.getPos(&, &, &screenWidth, &screenHeight)
-		do \form@scrollXSrc.setState(me.root.x, me.root.width + padding, screenWidth, me.pageX + me.scrollOffsetX)
-		do \form@scrollYSrc.setState(me.root.y, me.root.height + padding, screenHeight, me.pageY + me.scrollOffsetY)
+		if(me.pageX > me.root.width + padding - me.scrollOffsetX - ((screenWidth $ float / \form@zoom) $ int - me.scrollOffsetX))
+			do me.pageX :: me.root.width + padding - me.scrollOffsetX - ((screenWidth $ float / \form@zoom) $ int - me.scrollOffsetX)
+		end if
+		if (me.pageX < -me.scrollOffsetX)
+			do me.pageX :: -me.scrollOffsetX
+		end if
+		if(me.pageY > me.root.height + padding - me.scrollOffsetY - ((screenHeight $ float / \form@zoom) $ int - me.scrollOffsetY))
+			do me.pageY :: me.root.height + padding - me.scrollOffsetY - ((screenHeight $ float / \form@zoom) $ int - me.scrollOffsetY)
+		end if
+		if (me.pageY < -me.scrollOffsetY)
+			do me.pageY :: -me.scrollOffsetY
+		end if
+		do \form@scrollXSrc.setState(me.root.x, me.root.width + padding, (screenWidth $ float / \form@zoom) $ int - me.scrollOffsetX, me.pageX + me.scrollOffsetX)
+		do \form@scrollYSrc.setState(me.root.y, me.root.height + padding, (screenHeight $ float / \form@zoom) $ int - me.scrollOffsetY, me.pageY + me.scrollOffsetY)
 	end func
 
 	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
@@ -359,8 +371,8 @@
 			var y: int
 			do input@mousePos(&x, &y)
 			do \form@drawEditor.screenToClient(&x, &y, x, y)
-			do x :+ me.pageX
-			do y :+ me.pageY
+			do x :: (x $ float / \form@zoom) $ int + me.pageX
+			do y :: (y $ float / \form@zoom) $ int + me.pageY
 			do me.nodes.tail()
 			while(!me.nodes.term())
 				var obj: @Obj :: me.nodes.get()

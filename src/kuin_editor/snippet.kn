@@ -1,3 +1,5 @@
+var wndSnippet: wnd@Wnd
+
 var snippets: list<@Snippet>
 
 class Snippet()
@@ -5,6 +7,20 @@ class Snippet()
 	+var removable: bool
 	+var code: []char
 end class
+
++func show()
+	do @wndSnippet :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 405, \common@langEn ?("Edit Snippets", "スニペットの編集"))
+	var wndSnippetListSnippets: wnd@ListView :: wnd@makeListView(@wndSnippet, 12, 41, 250, 352, %fix, %scale, false, null, null)
+	do wndSnippetListSnippets.style(%list_)
+	var btnOk: wnd@Btn :: wnd@makeBtn(@wndSnippet, 528, 370, 100, 23, %fix, %fix, "OK")
+	do btnOk.onPush :: btnOkOnPush
+	do @wndSnippet.modal()
+	do @wndSnippet :: null
+
+	func btnOkOnPush(wnd: wnd@WndBase)
+		do @wndSnippet.close()
+	end func
+end func
 
 +func load()
 	do @snippets :: #list<@Snippet>

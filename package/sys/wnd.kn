@@ -153,6 +153,9 @@ end class
 	+func [d0001.knd, _wndAcceptDraggedFiles] acceptDraggedFiles(isAccepted: bool)
 	end func
 
+	+func [d0001.knd, _wndUpdateMenu] updateMenu()
+	end func
+
 	+func modal()
 		do me.setModalLock()
 		while(@act() & me.modalLock)
@@ -167,6 +170,7 @@ end class
 	+var onActivate: func<(@WndBase, bool, bool)>
 	+var onPushMenu: func<(@WndBase, int)>
 	+var onDropFiles: func<(@WndBase, [][]char)>
+	+var onResize: func<(@WndBase)>
 	var modalLock: bool
 end class
 
@@ -888,7 +892,17 @@ end func
 		do me.children.add(popup)
 	end func
 
+	+func [d0001.knd, _menuIns] ins(targetId: int, id: int, text: []char)
+	end func
+
+	+func [d0001.knd, _menuInsPopup] insPopup(target: @Popup, text: []char, popup: @Popup)
+		do me.children.add(popup)
+	end func
+
 	+func [d0001.knd, _menuDel] del(id: int)
+	end func
+
+	+func [d0001.knd, _menuDelPopup] delPopup(popup: @Popup)
 	end func
 
 	var handle: int
@@ -998,6 +1012,10 @@ end func
 	f10
 	f11
 	f12
+	plus :: 0xBB
+	comma
+	minus
+	period
 end enum
 
 +enum MouseImg

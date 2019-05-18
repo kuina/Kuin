@@ -91,4 +91,5 @@ func updateUi()
 		do \form@popupRecentFiles.add(0x0400 + i, @recent.get())
 		do @recent.next()
 	end for
+	do \form@wndMain.updateMenu()
 end func
