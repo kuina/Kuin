@@ -151,7 +151,7 @@ end func
 		do @curDocName :: fileName
 		do @docs.forEach(callback, data)
 		do @docs :: newDocs
-		do \recent@save(fileName)
+		do \recent@save(file)
 		ret true
 
 		func callback(src: []char, doc: \doc@Doc, data: DocsClass): bool

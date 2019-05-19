@@ -68,7 +68,9 @@
 				end if
 				do draw@rectLine((x - 3.0) * \form@zoom, (y - 3.0) * \form@zoom, (width2 + 6.0) * \form@zoom, (height2 + 6.0) * \form@zoom, 0xFF6666FF)
 				do draw@rectLine((x - 4.0) * \form@zoom, (y - 4.0) * \form@zoom, (width2 + 8.0) * \form@zoom, (height2 + 8.0) * \form@zoom, 0xFF6666FF)
-				do draw@rectLine(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom, 0x80000000)
+				do draw@blend(%exclusion)
+				do draw@rectLine(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom, 0xFF808080)
+				do draw@blend(%alpha)
 			else
 				var x: float :: (node.x - me.pageX) $ float
 				var y: float :: (node.y - me.pageY) $ float
@@ -77,7 +79,9 @@
 				if(node.visible)
 					do node.draw(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom)
 				end if
-				do draw@rectLine(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom, 0x80000000)
+				do draw@blend(%exclusion)
+				do draw@rectLine(x * \form@zoom, y * \form@zoom, width2 * \form@zoom, height2 * \form@zoom, 0xFF808080)
+				do draw@blend(%alpha)
 			end if
 			do me.nodes.next()
 		end while

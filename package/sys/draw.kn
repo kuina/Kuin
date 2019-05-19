@@ -25,6 +25,7 @@ end func
 	add
 	sub
 	mul
+	exclusion
 end enum
 
 +func [d0001.knd, _blend] blend(kind: @Blend)

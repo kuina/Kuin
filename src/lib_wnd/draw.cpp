@@ -11,7 +11,7 @@
 #include "bc_decoder.h"
 
 static const int DepthNum = 4;
-static const int BlendNum = 5;
+static const int BlendNum = 6;
 static const int SamplerNum = 2;
 static const int JointMax = 256;
 static const int FontBitmapSize = 512;
@@ -2583,6 +2583,12 @@ void Init()
 			case 4:
 				desc.SrcBlend = D3D10_BLEND_DEST_COLOR;
 				desc.DestBlend = D3D10_BLEND_ZERO;
+				desc.BlendOp = D3D10_BLEND_OP_ADD;
+				break;
+			// Exclusion: S * (1 - D) + D * (S - 1).
+			case 5:
+				desc.SrcBlend = D3D10_BLEND_INV_DEST_COLOR;
+				desc.DestBlend = D3D10_BLEND_INV_SRC_COLOR;
 				desc.BlendOp = D3D10_BLEND_OP_ADD;
 				break;
 			default:
