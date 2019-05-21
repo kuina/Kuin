@@ -108,8 +108,8 @@ class ObjAr2d(\doc_ar@Obj)
 end class
 
 class ObjLayer(@ObjAr2d)
-	+*func draw(x: float, y: float, width: float, height: float)
-		do draw@rect(x, y, width, height, 0xFF000000)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
+		do draw@rect(x * zoom, y * zoom, width * zoom, height * zoom, 0xFF000000)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -150,14 +150,14 @@ class ObjLayer(@ObjAr2d)
 end class
 
 class ObjRect(@ObjAr2d)
-	+*func draw(x: float, y: float, width: float, height: float)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
 		var colorFill: int :: \doc_ar@getPropAsInt(me.props, "colorFill")
 		if(colorFill <> 0)
-			do draw2d@rect(x, y, width, height, colorFill)
+			do draw2d@rect(x * zoom, y * zoom, width * zoom, height * zoom, colorFill)
 		end if
 		var colorStroke: int :: \doc_ar@getPropAsInt(me.props, "colorStroke")
 		if(colorStroke <> 0)
-			do draw2d@rectLine(x, y, width, height, \doc_ar@getPropAsFloat(me.props, "strokeWidth"), colorStroke)
+			do draw2d@rectLine(x * zoom, y * zoom, width * zoom, height * zoom, \doc_ar@getPropAsFloat(me.props, "strokeWidth") * zoom, colorStroke)
 		end if
 	end func
 
@@ -217,16 +217,16 @@ class ObjRect(@ObjAr2d)
 end class
 
 class ObjCircle(@ObjAr2d)
-	+*func draw(x: float, y: float, width: float, height: float)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
 		var halfWidth: float :: width / 2.0
 		var halfHeight: float :: height / 2.0
 		var colorFill: int :: \doc_ar@getPropAsInt(me.props, "colorFill")
 		if(colorFill <> 0)
-			do draw2d@circle(x + halfWidth, y + halfHeight, halfWidth, halfHeight, colorFill)
+			do draw2d@circle((x + halfWidth) * zoom, (y + halfHeight) * zoom, halfWidth * zoom, halfHeight * zoom, colorFill)
 		end if
 		var colorStroke: int :: \doc_ar@getPropAsInt(me.props, "colorStroke")
 		if(colorStroke <> 0)
-			do draw2d@circleLine(x + halfWidth, y + halfHeight, halfWidth, halfHeight, \doc_ar@getPropAsFloat(me.props, "strokeWidth"), colorStroke)
+			do draw2d@circleLine((x + halfWidth) * zoom, (y + halfHeight) * zoom, halfWidth * zoom, halfHeight * zoom, \doc_ar@getPropAsFloat(me.props, "strokeWidth") * zoom, colorStroke)
 		end if
 	end func
 
@@ -286,7 +286,7 @@ class ObjCircle(@ObjAr2d)
 end class
 
 class ObjText(@ObjAr2d)
-	+*func draw(x: float, y: float, width: float, height: float)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
 		var color: int :: \doc_ar@getPropAsInt(me.props, "color")
 		if(color = 0 | me.font =& null)
 			ret
@@ -320,7 +320,7 @@ class ObjText(@ObjAr2d)
 		end switch
 
 		do me.font.align(alignHorizontal, alignVertical)
-		do me.font.draw(x2, y2, me.props.get("text", &), color)
+		do me.font.drawScale(x2 * zoom, y2 * zoom, zoom, zoom, me.props.get("text", &), color)
 		do me.font.align(%left, %top)
 	end func
 
@@ -411,13 +411,13 @@ class ObjText(@ObjAr2d)
 end class
 
 class ObjImg(@ObjAr2d)
-	+*func draw(x: float, y: float, width: float, height: float)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
 		var color: int :: \doc_ar@getPropAsInt(me.props, "color")
 		if(color = 0 | me.tex =& null)
 			ret
 		end if
 
-		do me.tex.drawScale(x, y, width, height, \doc_ar@getPropAsInt(me.props, "srcX") $ float, \doc_ar@getPropAsInt(me.props, "srcX") $ float, \doc_ar@getPropAsInt(me.props, "srcWidth") $ float, \doc_ar@getPropAsInt(me.props, "srcHeight") $ float, color)
+		do me.tex.drawScale(x * zoom, y * zoom, width * zoom, height * zoom, \doc_ar@getPropAsInt(me.props, "srcX") $ float, \doc_ar@getPropAsInt(me.props, "srcX") $ float, \doc_ar@getPropAsInt(me.props, "srcWidth") $ float, \doc_ar@getPropAsInt(me.props, "srcHeight") $ float, color)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -503,16 +503,16 @@ class ObjImg(@ObjAr2d)
 end class
 
 class ObjRoundRect(@ObjAr2d)
-	+*func draw(x: float, y: float, width: float, height: float)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
 		var radiusX: float :: \doc_ar@getPropAsInt(me.props, "radiusX") $ float
 		var radiusY: float :: \doc_ar@getPropAsInt(me.props, "radiusY") $ float
 		var colorFill: int :: \doc_ar@getPropAsInt(me.props, "colorFill")
 		if(colorFill <> 0)
-			do draw2d@roundRect(x, y, width, height, radiusX, radiusY, colorFill)
+			do draw2d@roundRect(x * zoom, y * zoom, width * zoom, height * zoom, radiusX * zoom, radiusY * zoom, colorFill)
 		end if
 		var colorStroke: int :: \doc_ar@getPropAsInt(me.props, "colorStroke")
 		if(colorStroke <> 0)
-			do draw2d@roundRectLine(x, y, width, height, radiusX, radiusY, \doc_ar@getPropAsFloat(me.props, "strokeWidth"), colorStroke)
+			do draw2d@roundRectLine(x * zoom, y * zoom, width * zoom, height * zoom, radiusX * zoom, radiusY * zoom, \doc_ar@getPropAsFloat(me.props, "strokeWidth") * zoom, colorStroke)
 		end if
 	end func
 
@@ -576,12 +576,12 @@ class ObjRoundRect(@ObjAr2d)
 end class
 
 class ObjParticle(@ObjAr2d)
-	+*func draw(x: float, y: float, width: float, height: float)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
 		if(me.particle =& null | me.tex =& null)
 			ret
 		end if
 
-		do me.particle.emit(x, y, 0.0, 0.0, 0.0, 0.0, width, 0.0, 0.0, 0.0)
+		do me.particle.emit(x * zoom, y * zoom, 0.0, 0.0, 0.0, 0.0, width * zoom, 0.0, 0.0, 0.0)
 
 		do me.particle.draw2d(me.tex)
 	end func

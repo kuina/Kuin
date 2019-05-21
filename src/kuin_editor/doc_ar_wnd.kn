@@ -109,11 +109,11 @@ class ObjArWnd(\doc_ar@Obj)
 end class
 
 class ObjWnd(@ObjArWnd)
-	+*func draw(x: float, y: float, width: float, height: float)
-		do draw@rect(x, y, width, height, 0xFFF0F0F0)
-		do draw@rect(x, y - 30.0, width, 30.0, 0xFFFFFFFF)
-		do draw@rectLine(x - 1.0, y - 31.0, width + 2.0, height + 32.0, 0xFF1883D7)
-		do \common@fontP.draw(x + 30.0, y - 30.0 + 6.0, me.props.get("text", &), draw@black)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
+		do draw@rect(x * zoom, y * zoom, width * zoom, height * zoom, 0xFFF0F0F0)
+		do draw@rect(x * zoom, (y - 30.0) * zoom, width * zoom, 30.0 * zoom, 0xFFFFFFFF)
+		do draw@rectLine((x - 1.0) * zoom, (y - 31.0) * zoom, (width + 2.0) * zoom, (height + 32.0) * zoom, 0xFF1883D7)
+		do \common@fontP.drawScale((x + 30.0) * zoom, (y - 30.0 + 6.0) * zoom, zoom, zoom, me.props.get("text", &), draw@black)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -164,11 +164,11 @@ class ObjWnd(@ObjArWnd)
 end class
 
 class ObjBtn(@ObjArWnd)
-	+*func draw(x: float, y: float, width: float, height: float)
-		do draw@rect(x, y, width, height, 0xFFE1E1E1)
-		do draw@rectLine(x, y, width, height, 0xFFADADAD)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
+		do draw@rect(x * zoom, y * zoom, width * zoom, height * zoom, 0xFFE1E1E1)
+		do draw@rectLine(x * zoom, y * zoom, width * zoom, height * zoom, 0xFFADADAD)
 		var text: []char :: me.props.get("text", &)
-		do \common@fontP.draw(lib@floor(x + (width - \common@fontP.calcWidth(text)) / 2.0), lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), text, draw@black)
+		do \common@fontP.drawScale(lib@floor(x + (width - \common@fontP.calcWidth(text)) / 2.0) * zoom, lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0) * zoom, zoom, zoom, text, draw@black)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -224,11 +224,11 @@ class ObjBtn(@ObjArWnd)
 end class
 
 class ObjEdit(@ObjArWnd)
-	+*func draw(x: float, y: float, width: float, height: float)
-		do draw@rect(x, y, width, height, 0xFFFFFFFF)
-		do draw@rectLine(x, y, width, height, 0xFF7A7A7A)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
+		do draw@rect(x * zoom, y * zoom, width * zoom, height * zoom, 0xFFFFFFFF)
+		do draw@rectLine(x * zoom, y * zoom, width * zoom, height * zoom, 0xFF7A7A7A)
 		var text: []char :: me.props.get("text", &)
-		do \common@fontP.draw(x + 5.0, y + 3.0, text, draw@black)
+		do \common@fontP.drawScale((x + 5.0) * zoom, (y + 3.0) * zoom, zoom, zoom, text, draw@black)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -293,10 +293,10 @@ class ObjEdit(@ObjArWnd)
 end class
 
 class ObjLabel(@ObjArWnd)
-	+*func draw(x: float, y: float, width: float, height: float)
-		do draw@rect(x, y, width, height, 0xFFEEEEEE)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
+		do draw@rect(x * zoom, y * zoom, width * zoom, height * zoom, 0xFFEEEEEE)
 		var text: []char :: me.props.get("text", &)
-		do \common@fontP.draw(x, y, text, draw@black)
+		do \common@fontP.drawScale(x * zoom, y * zoom, zoom, zoom, text, draw@black)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -352,11 +352,11 @@ class ObjLabel(@ObjArWnd)
 end class
 
 class ObjChk(@ObjArWnd)
-	+*func draw(x: float, y: float, width: float, height: float)
-		do draw@rect(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 0xFFFFFFFF)
-		do draw@rectLine(x, lib@floor(y + (height - 13.0) / 2.0), 13.0, 13.0, 0xFF333333)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
+		do draw@rect(x * zoom, lib@floor(y + (height - 13.0) / 2.0) * zoom, 13.0 * zoom, 13.0 * zoom, 0xFFFFFFFF)
+		do draw@rectLine(x * zoom, lib@floor(y + (height - 13.0) / 2.0) * zoom, 13.0 * zoom, 13.0 * zoom, 0xFF333333)
 		var text: []char :: me.props.get("text", &)
-		do \common@fontP.draw(x + 18.0, lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0), text, draw@black)
+		do \common@fontP.drawScale((x + 18.0) * zoom, lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0) * zoom, zoom, zoom, text, draw@black)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -417,14 +417,14 @@ class ObjChk(@ObjArWnd)
 end class
 
 class ObjGroup(@ObjArWnd)
-	+*func draw(x: float, y: float, width: float, height: float)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
 		var text: []char :: me.props.get("text", &)
-		do draw@line(x + 7.0, y + 6.0, x, y + 6.0, 0xFFDCDCDC)
-		do draw@line(x, y + 6.0, x, y + height, 0xFFDCDCDC)
-		do draw@line(x, y + height, x + width, y + height, 0xFFDCDCDC)
-		do draw@line(x + width, y + height, x + width, y + 6.0, 0xFFDCDCDC)
-		do draw@line(x + width, y + 6.0, x + 7.0 + \common@fontP.calcWidth(text), y + 6.0, 0xFFDCDCDC)
-		do \common@fontP.draw(x + 7.0, y, text, draw@black)
+		do draw@line((x + 7.0) * zoom, (y + 6.0) * zoom, x * zoom, (y + 6.0) * zoom, 0xFFDCDCDC)
+		do draw@line(x * zoom, (y + 6.0) * zoom, x * zoom, (y + height) * zoom, 0xFFDCDCDC)
+		do draw@line(x * zoom, (y + height) * zoom, (x + width) * zoom, (y + height) * zoom, 0xFFDCDCDC)
+		do draw@line((x + width) * zoom, (y + height) * zoom, (x + width) * zoom, (y + 6.0) * zoom, 0xFFDCDCDC)
+		do draw@line((x + width) * zoom, (y + 6.0) * zoom, (x + 7.0 + \common@fontP.calcWidth(text)) * zoom, (y + 6.0) * zoom, 0xFFDCDCDC)
+		do \common@fontP.drawScale((x + 7.0) * zoom, y * zoom, zoom, zoom, text, draw@black)
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)

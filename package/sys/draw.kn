@@ -146,6 +146,9 @@ end enum
 	+func [d0001.knd, _fontDraw] draw(dstX: float, dstY: float, text: []char, color: int)
 	end func
 
+	+func [d0001.knd, _fontDrawScale] drawScale(dstX: float, dstY: float, dstScaleX: float, dstScaleY: float, text: []char, color: int)
+	end func
+
 	+func [d0001.knd, _fontMaxWidth] maxWidth(): float
 	end func
 

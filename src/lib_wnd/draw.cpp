@@ -309,6 +309,7 @@ static double CalcFontLineWidth(SFont* font, const Char* text);
 static double CalcFontLineHeight(SFont* font, const Char* text);
 static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary);
 static void WriteFastPsConstBuf(SObjFastPsConstBuf* ps_const_buf);
+static int SearchFromCache(SFont* me, int cell_num_width, int cell_num, Char c);
 
 EXPORT_CPP void _set2dCallback(void*(*callback)(int, void*, void*))
 {
@@ -799,9 +800,11 @@ EXPORT_CPP void _circleLine(double x, double y, double radiusX, double radiusY, 
 EXPORT_CPP void _poly(const void* x, const void* y, const void* color)
 {
 	S64 len_x = static_cast<const S64*>(x)[1];
+#if defined(DBG)
 	S64 len_y = static_cast<const S64*>(y)[1];
 	S64 len_color = static_cast<const S64*>(color)[1];
 	THROWDBG(len_x != len_y || len_y != len_color || len_x > PolyVerticesNum, EXCPT_DBG_ARG_OUT_DOMAIN);
+#endif
 	const double* x2 = reinterpret_cast<const double*>(static_cast<const U8*>(x) + 0x10);
 	const double* y2 = reinterpret_cast<const double*>(static_cast<const U8*>(y) + 0x10);
 	const S64* color2 = reinterpret_cast<const S64*>(static_cast<const U8*>(color) + 0x10);
@@ -836,9 +839,11 @@ EXPORT_CPP void _poly(const void* x, const void* y, const void* color)
 EXPORT_CPP void _polyLine(const void* x, const void* y, const void* color)
 {
 	S64 len_x = static_cast<const S64*>(x)[1];
+#if defined(DBG)
 	S64 len_y = static_cast<const S64*>(y)[1];
 	S64 len_color = static_cast<const S64*>(color)[1];
 	THROWDBG(len_x != len_y || len_y != len_color || len_x > PolyVerticesNum, EXCPT_DBG_ARG_OUT_DOMAIN);
+#endif
 	const double* x2 = reinterpret_cast<const double*>(static_cast<const U8*>(x) + 0x10);
 	const double* y2 = reinterpret_cast<const double*>(static_cast<const U8*>(y) + 0x10);
 	const S64* color2 = reinterpret_cast<const S64*>(static_cast<const U8*>(color) + 0x10);
@@ -1160,6 +1165,11 @@ EXPORT_CPP void _fontDtor(SClass* me_)
 
 EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text, S64 color)
 {
+	_fontDrawScale(me_, dstX, dstY, 1.0, 1.0, text, color);
+}
+
+EXPORT_CPP void _fontDrawScale(SClass* me_, double dstX, double dstY, double dstScaleX, double dstScaleY, const U8* text, S64 color)
+{
 	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
 	double r, g, b, a;
 	Draw::ColorToArgb(&a, &r, &g, &b, color);
@@ -1183,10 +1193,10 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 	switch (me2->AlignHorizontal)
 	{
 		case 1: // 'center'
-			x -= CalcFontLineWidth(me2, ptr) / 2.0;
+			x -= CalcFontLineWidth(me2, ptr) / 2.0 * dstScaleX;
 			break;
 		case 2: // 'right'
-			x -= CalcFontLineWidth(me2, ptr);
+			x -= CalcFontLineWidth(me2, ptr) * dstScaleX;
 			break;
 	}
 
@@ -1194,10 +1204,10 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 	switch (me2->AlignVertical)
 	{
 		case 1: // 'center'
-			y -= CalcFontLineHeight(me2, ptr) / 2.0;
+			y -= CalcFontLineHeight(me2, ptr) / 2.0 * dstScaleY;
 			break;
 		case 2: // 'bottom'
-			y -= CalcFontLineHeight(me2, ptr);
+			y -= CalcFontLineHeight(me2, ptr) * dstScaleY;
 			break;
 	}
 
@@ -1212,120 +1222,52 @@ EXPORT_CPP void _fontDraw(SClass* me_, double dstX, double dstY, const U8* text,
 				switch (me2->AlignHorizontal)
 				{
 					case 1: // 'center'
-						x -= CalcFontLineWidth(me2, ptr) / 2.0;
+						x -= CalcFontLineWidth(me2, ptr) / 2.0 * dstScaleX;
 						break;
 					case 2: // 'right'
-						x -= CalcFontLineWidth(me2, ptr);
+						x -= CalcFontLineWidth(me2, ptr) * dstScaleX;
 						break;
 				}
-				y += me2->Height;
+				y += me2->Height * dstScaleY;
 				continue;
 			case L'\t':
 				c = L' ';
 				break;
 		}
 
-		int pos = -1;
-		for (int j = 0; j < cell_num; j++)
-		{
-			if (me2->CharMap[j] == c)
-			{
-				pos = j;
-				break;
-			}
-		}
-		if (pos == -1)
-		{
-			U32 min = 0xffffffff;
-			for (int j = 0; j < cell_num; j++)
-			{
-				if (me2->CharMap[j] == L'\0')
-				{
-					pos = j;
-					break;
-				}
-				if (min > static_cast<S64>(me2->CntMap[j]))
-				{
-					min = static_cast<S64>(me2->CntMap[j]);
-					pos = j;
-				}
-			}
-			{
-				HGDIOBJ old_bitmap = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Bitmap));
-				HGDIOBJ old_font = SelectObject(me2->Dc, static_cast<HGDIOBJ>(me2->Font));
-				SetBkMode(me2->Dc, OPAQUE);
-				SetBkColor(me2->Dc, RGB(0, 0, 0));
-				SetTextColor(me2->Dc, RGB(255, 255, 255));
-				RECT rect;
-				rect.left = static_cast<LONG>((pos % cell_num_width) * me2->CellWidth);
-				rect.top = static_cast<LONG>((pos / cell_num_width) * me2->CellHeight);
-				rect.right = rect.left + static_cast<LONG>(me2->CellWidth);
-				rect.bottom = rect.top + static_cast<LONG>(me2->CellHeight);
-				ExtTextOut(me2->Dc, static_cast<int>(rect.left), static_cast<int>(rect.top), ETO_CLIPPED | ETO_OPAQUE, &rect, &c, 1, NULL);
-				{
-					GLYPHMETRICS gm;
-					MAT2 mat = { { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 1 } };
-					GetGlyphOutline(me2->Dc, static_cast<UINT>(c), GGO_METRICS, &gm, 0, NULL, &mat);
-					me2->GlyphWidth[pos] = static_cast<int>(gm.gmCellIncX);
-				}
-				SelectObject(me2->Dc, old_font);
-				SelectObject(me2->Dc, old_bitmap);
-			}
-			me2->CharMap[pos] = c;
-			me2->CntMap[pos] = me2->Cnt;
-		}
-		{
-			D3D10_MAPPED_TEXTURE2D map;
-			me2->Tex->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_WRITE_DISCARD, 0, &map);
-			U8* dst = static_cast<U8*>(map.pData);
-			for (int j = 0; j < me2->CellHeight; j++)
-			{
-				int begin = ((pos / cell_num_width) * me2->CellHeight + j) * FontBitmapSize + (pos % cell_num_width) * me2->CellWidth;
-				for (int k = 0; k < me2->CellWidth; k++)
-					dst[(j * me2->CellSizeAligned + k) * 4] = me2->Pixel[(begin + k) * 3];
-				dst[(j * me2->CellSizeAligned + me2->CellWidth) * 4] = 0;
-			}
-			{
-				int j = me2->CellHeight;
-				for (int k = 0; k < me2->CellWidth + 1; k++)
-					dst[(j * me2->CellSizeAligned + k) * 4] = 0;
-			}
-			me2->Tex->Unmap(D3D10CalcSubresource(0, 0, 1));
-		}
+		int pos = SearchFromCache(me2, cell_num_width, cell_num, c);
 		double half_space = 0.0;
 		if (!me2->Proportional)
-			half_space = floor((me2->Advance - static_cast<double>(me2->GlyphWidth[pos])) / 2.0);
+			half_space = floor((me2->Advance - static_cast<double>(me2->GlyphWidth[pos])) / 2.0 * dstScaleX);
 		{
+			float const_buf_vs[8] =
 			{
-				float const_buf_vs[8] =
-				{
-					static_cast<float>(half_space + x) / static_cast<float>(CurWndBuf->TexWidth) * 2.0f - 1.0f,
-					-(static_cast<float>(y) / static_cast<float>(CurWndBuf->TexHeight) * 2.0f - 1.0f),
-					static_cast<float>(me2->CellWidth) / static_cast<float>(CurWndBuf->TexWidth) * 2.0f,
-					-(static_cast<float>(me2->CellHeight) / static_cast<float>(CurWndBuf->TexHeight) * 2.0f),
-					0.0f,
-					0.0f,
-					static_cast<float>(me2->CellWidth) / static_cast<float>(me2->CellSizeAligned),
-					-(static_cast<float>(me2->CellHeight) / static_cast<float>(me2->CellSizeAligned)),
-				};
-				float const_buf_ps[4] =
-				{
-					static_cast<float>(r),
-					static_cast<float>(g),
-					static_cast<float>(b),
-					static_cast<float>(a),
-				};
-				Draw::ConstBuf(TexVs, const_buf_vs);
-				Device->GSSetShader(NULL);
-				Draw::ConstBuf(FontPs, const_buf_ps);
-				Draw::VertexBuf(RectVertex);
-				Device->PSSetShaderResources(0, 1, &me2->View);
-			}
+				static_cast<float>(half_space + x) / static_cast<float>(CurWndBuf->TexWidth) * 2.0f - 1.0f,
+				-(static_cast<float>(y) / static_cast<float>(CurWndBuf->TexHeight) * 2.0f - 1.0f),
+				static_cast<float>(static_cast<double>(me2->CellWidth) * dstScaleX) / static_cast<float>(CurWndBuf->TexWidth) * 2.0f,
+				-(static_cast<float>(static_cast<double>(me2->CellHeight) * dstScaleY) / static_cast<float>(CurWndBuf->TexHeight) * 2.0f),
+				0.0f,
+				0.0f,
+				static_cast<float>(me2->CellWidth) / static_cast<float>(me2->CellSizeAligned),
+				-(static_cast<float>(me2->CellHeight) / static_cast<float>(me2->CellSizeAligned)),
+			};
+			float const_buf_ps[4] =
+			{
+				static_cast<float>(r),
+				static_cast<float>(g),
+				static_cast<float>(b),
+				static_cast<float>(a),
+			};
+			Draw::ConstBuf(TexVs, const_buf_vs);
+			Device->GSSetShader(NULL);
+			Draw::ConstBuf(FontPs, const_buf_ps);
+			Draw::VertexBuf(RectVertex);
+			Device->PSSetShaderResources(0, 1, &me2->View);
 			Device->DrawIndexed(6, 0, 0);
 		}
-		x += me2->Advance;
+		x += me2->Advance * dstScaleX;
 		if (me2->Proportional)
-			x += static_cast<double>(me2->GlyphWidth[pos]);
+			x += static_cast<double>(me2->GlyphWidth[pos]) * dstScaleX;
 		ptr++;
 	}
 }
@@ -2236,6 +2178,7 @@ static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary)
 			}
 			
 			int version = *reinterpret_cast<const int*>(buf + ptr);
+			UNUSED(version);
 			ptr += sizeof(int);
 			ASSERT(version == 1);
 			me2->Format = static_cast<EFormat>(*reinterpret_cast<const int*>(buf + ptr));
@@ -2436,6 +2379,78 @@ static void WriteFastPsConstBuf(SObjFastPsConstBuf* ps_const_buf)
 	ps_const_buf->Half[1] = static_cast<float>(half[1]);
 	ps_const_buf->Half[2] = static_cast<float>(half[2]);
 	ps_const_buf->Half[3] = static_cast<float>(pow(max(1.0 - Draw::Dot(eye, half), 0.0), 5.0));
+}
+
+static int SearchFromCache(SFont* me, int cell_num_width, int cell_num, Char c)
+{
+	int pos = -1;
+	for (int i = 0; i < cell_num; i++)
+	{
+		if (me->CharMap[i] == c)
+		{
+			pos = i;
+			break;
+		}
+	}
+	if (pos == -1)
+	{
+		U32 min = 0xffffffff;
+		for (int i = 0; i < cell_num; i++)
+		{
+			if (me->CharMap[i] == L'\0')
+			{
+				pos = i;
+				break;
+			}
+			if (min > static_cast<S64>(me->CntMap[i]))
+			{
+				min = static_cast<S64>(me->CntMap[i]);
+				pos = i;
+			}
+		}
+		{
+			HGDIOBJ old_bitmap = SelectObject(me->Dc, static_cast<HGDIOBJ>(me->Bitmap));
+			HGDIOBJ old_font = SelectObject(me->Dc, static_cast<HGDIOBJ>(me->Font));
+			SetBkMode(me->Dc, OPAQUE);
+			SetBkColor(me->Dc, RGB(0, 0, 0));
+			SetTextColor(me->Dc, RGB(255, 255, 255));
+			RECT rect;
+			rect.left = static_cast<LONG>((pos % cell_num_width) * me->CellWidth);
+			rect.top = static_cast<LONG>((pos / cell_num_width) * me->CellHeight);
+			rect.right = rect.left + static_cast<LONG>(me->CellWidth);
+			rect.bottom = rect.top + static_cast<LONG>(me->CellHeight);
+			ExtTextOut(me->Dc, static_cast<int>(rect.left), static_cast<int>(rect.top), ETO_CLIPPED | ETO_OPAQUE, &rect, &c, 1, NULL);
+			{
+				GLYPHMETRICS gm;
+				MAT2 mat = { { 0, 1 },{ 0, 0 },{ 0, 0 },{ 0, 1 } };
+				GetGlyphOutline(me->Dc, static_cast<UINT>(c), GGO_METRICS, &gm, 0, NULL, &mat);
+				me->GlyphWidth[pos] = static_cast<int>(gm.gmCellIncX);
+			}
+			SelectObject(me->Dc, old_font);
+			SelectObject(me->Dc, old_bitmap);
+		}
+		me->CharMap[pos] = c;
+		me->CntMap[pos] = me->Cnt;
+	}
+	{
+		D3D10_MAPPED_TEXTURE2D map;
+		me->Tex->Map(D3D10CalcSubresource(0, 0, 1), D3D10_MAP_WRITE_DISCARD, 0, &map);
+		U8* dst = static_cast<U8*>(map.pData);
+		for (int i = 0; i < me->CellHeight; i++)
+		{
+			int begin = ((pos / cell_num_width) * me->CellHeight + i) * FontBitmapSize + (pos % cell_num_width) * me->CellWidth;
+			for (int k = 0; k < me->CellWidth; k++)
+				dst[(i * me->CellSizeAligned + k) * 4] = me->Pixel[(begin + k) * 3];
+			dst[(i * me->CellSizeAligned + me->CellWidth) * 4] = 0;
+		}
+		{
+			int i = me->CellHeight;
+			for (int k = 0; k < me->CellWidth + 1; k++)
+				dst[(i * me->CellSizeAligned + k) * 4] = 0;
+		}
+		me->Tex->Unmap(D3D10CalcSubresource(0, 0, 1));
+	}
+	return pos;
 }
 
 namespace Draw
