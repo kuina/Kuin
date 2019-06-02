@@ -12,11 +12,15 @@ struct SWav
 
 static void Close(void* handle);
 static Bool Read(void* handle, void* buf, S64 size, S64 loop_pos);
+static void SetPos(void* handle, S64 pos);
+static S64 GetPos(void* handle);
 
-void* LoadWav(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64))
+void* LoadWav(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64), void(**func_set_pos)(void*, S64), S64(**func_get_pos)(void*))
 {
 	*func_close = Close;
 	*func_read = Read;
+	*func_set_pos = SetPos;
+	*func_get_pos = GetPos;
 
 	SWav* result = static_cast<SWav*>(AllocMem(sizeof(SWav)));
 	Bool success = False;
@@ -132,4 +136,17 @@ static Bool Read(void* handle, void* buf, S64 size, S64 loop_pos)
 		dst += actual_read;
 	}
 	return False;
+}
+
+static void SetPos(void* handle, S64 pos)
+{
+	SWav* handle2 = reinterpret_cast<SWav*>(handle);
+	S64 align = handle2->BitsPerSample / 8 * (handle2->Steleo ? 2 : 1);
+	SeekFileStream(handle2->FileStream, handle2->Begin + pos / align * align, SEEK_SET);
+}
+
+static S64 GetPos(void* handle)
+{
+	SWav* handle2 = reinterpret_cast<SWav*>(handle);
+	return TellFileStream(handle2->FileStream) - handle2->Begin;
 }

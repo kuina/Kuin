@@ -141,7 +141,7 @@ int wmain(int argc, Char** argv)
 							}
 						}
 						break;
-					case L'd':
+					case L'd': // This option is only used in Kuin Editor builds.
 						if (not_deploy != False)
 						{
 							wprintf(L"The option '-d' was used incorrectly.\n");

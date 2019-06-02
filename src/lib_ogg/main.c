@@ -11,6 +11,8 @@ static int OggCBClose(void* data);
 static long OggCBTell(void* data);
 static void OggClose(void* buf);
 static Bool OggRead(void* buf, void* data, S64 size, S64 loop_pos);
+static void SetPos(void* handle, S64 pos);
+static S64 GetPos(void* handle);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {
@@ -20,7 +22,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 	return TRUE;
 }
 
-EXPORT void* LoadOgg(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64))
+EXPORT void* LoadOgg(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64), void(**func_set_pos)(void*, S64), S64(**func_get_pos)(void*))
 {
 	OggVorbis_File* file = (OggVorbis_File*)AllocMem(sizeof(OggVorbis_File));
 	ov_callbacks cb = { OggCBRead, OggCBSeek, OggCBClose, OggCBTell };
@@ -39,6 +41,8 @@ EXPORT void* LoadOgg(const Char* path, S64* channel, S64* samples_per_sec, S64* 
 		*total = (S64)(info->channels * (16 / 8) * ov_pcm_total(file, -1));
 		*func_close = OggClose;
 		*func_read = OggRead;
+		*func_set_pos = SetPos;
+		*func_get_pos = GetPos;
 	}
 	return file;
 }
@@ -100,4 +104,16 @@ static Bool OggRead(void* buf, void* data, S64 size, S64 loop_pos)
 		dst += actual_read;
 	}
 	return False;
+}
+
+static void SetPos(void* handle, S64 pos)
+{
+	OggVorbis_File* file = (OggVorbis_File*)handle;
+	ov_pcm_seek(file, pos / (S64)(ov_info(file, -1)->channels * 2));
+}
+
+static S64 GetPos(void* handle)
+{
+	OggVorbis_File* file = (OggVorbis_File*)handle;
+	return ov_pcm_tell(handle) * (S64)(ov_info(file, -1)->channels * 2);
 }

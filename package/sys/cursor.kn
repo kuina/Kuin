@@ -1,0 +1,51 @@
++class Cursor()
+	+func set(num: int, pos: int, horizontal: bool, ring: bool)
+		if(dbg)
+			if(num < 1 | pos < 0 | num <= pos)
+				throw 0xE9170006
+			end if
+		end if
+		do me.num :: num
+		do me.pos :: pos
+		do me.horizontal :: horizontal
+		do me.ring :: ring
+	end func
+
+	+func update()
+		if(me.horizontal)
+			if(input@pad(0, %left) = 1)
+				do me.pos :- 1
+			elif(input@pad(0, %right) = 1)
+				do me.pos :+ 1
+			end if
+		else
+			if(input@pad(0, %up) = 1)
+				do me.pos :- 1
+			elif(input@pad(0, %down) = 1)
+				do me.pos :+ 1
+			end if
+		end if
+		if(me.pos < 0)
+			if(me.ring)
+				do me.pos :: me.num - 1
+			else
+				do me.pos :: 0
+			end if
+		elif(me.pos >= me.num)
+			if(me.ring)
+				do me.pos :: 0
+			else
+				do me.pos :: me.num - 1
+			end if
+		end if
+	end func
+
+	+func get(): int
+		ret me.pos
+	end func
+
+	var num: int
+	var pos: int
+	var horizontal: bool
+	var ring: bool
+end class

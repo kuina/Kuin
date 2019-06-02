@@ -1,0 +1,60 @@
+
+
+enum Sequence
+	fadeIn
+	menu
+	fadeOut
+end enum
+
+var sequence: @Sequence
+
+var wndMain: wnd@Wnd
+var drawMain: wnd@Draw
+
+func main()
+	do ogg@init()
+	do @wndMain :: wnd@makeWnd(null, %aspect, 1600, 900, "Title")
+	do @drawMain :: wnd@makeDraw(@wndMain, 0, 0, 1600, 900, %scale, %scale, false)
+	
+	do @sequence :: %fadeIn
+	do wipe@set(%fade, true, 60, draw@black)
+	do draw@clearColor(draw@white)
+	
+	do \menu@init()
+	
+	var cursor: cursor@Cursor :: #cursor@Cursor
+	do cursor.set(4, 0, false, true)
+	var volume: cursor@Cursor :: #cursor@Cursor
+	do volume.set(11, 10, true, false)
+	do bgm@play("res/bgm.ogg", 0.0, 0.0)
+	
+	while(wnd@act())
+		do \menu@draw()
+		switch(@sequence)
+		case %fadeIn
+			if(wipe@draw())
+				do @sequence :: %menu
+			end if
+		case %menu
+			do cursor.update()
+			do \menu@circle1.y :: (cursor.get() + 1) $ float * 100.0
+			do volume.update()
+			do \menu@rect2.width :: volume.get() $ float * 99.0
+			if(input@pad(0, %a) = 1)
+				switch(cursor.get())
+				case 3
+					do @sequence :: %fadeOut
+					do wipe@set(%fade, false, 60, draw@black)
+				end switch
+			end if
+		case %fadeOut
+			if(wipe@draw())
+				ret
+			end if
+		end switch
+		
+		do draw@render(60)
+	end while
+	
+	do \menu@fin()
+end func

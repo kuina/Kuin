@@ -3,6 +3,7 @@
 #pragma comment(lib, "dsound.lib")
 
 #include <dsound.h>
+#include <atomic>
 
 #include "wav.h"
 
@@ -19,10 +20,13 @@ struct SSnd
 	DWORD Freq;
 	Bool Streaming;
 	HANDLE Thread;
+	std::atomic_bool* Atomic;
 	double Volume;
 	void* Handle;
-	void (*FuncClose)(void*);
-	Bool (*FuncRead)(void*, void*, S64, S64);
+	void(*FuncClose)(void*);
+	Bool(*FuncRead)(void*, void*, S64, S64);
+	void(*FuncSetPos)(void*, S64);
+	S64(*FuncGetPos)(void*);
 };
 
 // The main volume controls these.
@@ -38,11 +42,13 @@ static SListSnd* ListSndTop = NULL;
 static SListSnd* ListSndBottom = NULL;
 static double MainVolume = 1.0;
 static HMODULE DllOgg = NULL;
-static void*(*LoadOgg)(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64)) = NULL;
+static void*(*LoadOgg)(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64), void(**func_set_pos)(void*, S64), S64(**func_get_pos)(void*)) = NULL;
 
 static LRESULT CALLBACK WndProc(HWND wnd, UINT msg, WPARAM w_param, LPARAM l_param);
 static DWORD WINAPI CBStreamThread(LPVOID param);
 static Bool StreamCopy(SSnd* me_, S64 id);
+static void LockAtomic(std::atomic_bool* atomic);
+static void UnlockAtomic(std::atomic_bool* atomic);
 
 EXPORT_CPP void _setMainVolume(double value)
 {
@@ -82,7 +88,7 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 			int len = static_cast<int>(wcslen(path2));
 			if (StrCmpIgnoreCase(path2 + len - 4, L".wav"))
 			{
-				me2->Handle = LoadWav(path2, &channel, &samples_per_sec, &bits_per_sample, &total, &me2->FuncClose, &me2->FuncRead);
+				me2->Handle = LoadWav(path2, &channel, &samples_per_sec, &bits_per_sample, &total, &me2->FuncClose, &me2->FuncRead, &me2->FuncSetPos, &me2->FuncGetPos);
 				if (me2->Handle == NULL)
 					break;
 			}
@@ -90,7 +96,7 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 			{
 				if (LoadOgg == NULL)
 					break;
-				me2->Handle = LoadOgg(path2, &channel, &samples_per_sec, &bits_per_sample, &total, &me2->FuncClose, &me2->FuncRead);
+				me2->Handle = LoadOgg(path2, &channel, &samples_per_sec, &bits_per_sample, &total, &me2->FuncClose, &me2->FuncRead, &me2->FuncSetPos, &me2->FuncGetPos);
 				if (me2->Handle == NULL)
 					break;
 			}
@@ -141,6 +147,8 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 		if (me2->Streaming)
 		{
 			DWORD id;
+			me2->Atomic = (std::atomic_bool*)AllocMem(sizeof(std::atomic_bool));
+			new(me2->Atomic)std::atomic_bool(false);
 			me2->Thread = CreateThread(NULL, 0, CBStreamThread, static_cast<LPVOID>(me2), 0, &id);
 		}
 		else
@@ -154,6 +162,7 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 			me2->FuncClose(me2->Handle);
 			me2->Handle = NULL;
 			me2->Thread = NULL;
+			me2->Atomic = NULL;
 		}
 		_sndVolume(me_, 1.0);
 		{
@@ -182,10 +191,19 @@ EXPORT_CPP void _sndDtor(SClass* me_)
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 	if (me2->SndBuf != NULL)
 	{
+		LockAtomic(me2->Atomic);
 		me2->SndBuf->Stop();
+		UnlockAtomic(me2->Atomic);
 		if (me2->Streaming)
+		{
 			TerminateThread(me2->Thread, 0);
-		me2->SndBuf->Release();
+			LockAtomic(me2->Atomic);
+			me2->SndBuf->Release();
+			UnlockAtomic(me2->Atomic);
+			FreeMem(me2->Atomic);
+		}
+		else
+			me2->SndBuf->Release();
 	}
 	if (me2->Handle != NULL)
 		me2->FuncClose(me2->Handle);
@@ -214,29 +232,37 @@ EXPORT_CPP void _sndDtor(SClass* me_)
 EXPORT_CPP void _sndPlay(SClass* me_)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
+	LockAtomic(me2->Atomic);
 	me2->LoopPos = -1;
 	me2->SndBuf->Play(0, 0, me2->Streaming ? DSBPLAY_LOOPING : 0);
+	UnlockAtomic(me2->Atomic);
 }
 
 EXPORT_CPP void _sndPlayLoop(SClass* me_, double loopPos)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 	THROWDBG(!me2->Streaming && loopPos != 0.0 || loopPos < 0.0 || me2->EndPos <= loopPos, EXCPT_DBG_ARG_OUT_DOMAIN);
+	LockAtomic(me2->Atomic);
 	me2->LoopPos = static_cast<S64>(loopPos * (double)me2->SizePerSec);
 	me2->SndBuf->Play(0, 0, DSBPLAY_LOOPING);
+	UnlockAtomic(me2->Atomic);
 }
 
 EXPORT_CPP void _sndStop(SClass* me_)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
+	LockAtomic(me2->Atomic);
 	me2->SndBuf->Stop();
+	UnlockAtomic(me2->Atomic);
 }
 
 EXPORT_CPP Bool _sndPlaying(SClass* me_)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
+	LockAtomic(me2->Atomic);
 	DWORD status;
 	me2->SndBuf->GetStatus(&status);
+	UnlockAtomic(me2->Atomic);
 	return (status & DSBSTATUS_PLAYING) != 0;
 }
 
@@ -244,41 +270,62 @@ EXPORT_CPP void _sndVolume(SClass* me_, double value)
 {
 	THROWDBG(value < 0.0 || 1.0 < value, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
+	LockAtomic(me2->Atomic);
 	me2->Volume = value;
 	value *= MainVolume;
 	double v = 1.0 - value;
 	me2->SndBuf->SetVolume(static_cast<LONG>(-v * v * 10000.0));
+	UnlockAtomic(me2->Atomic);
 }
 
 EXPORT_CPP void _sndPan(SClass* me_, double value)
 {
 	THROWDBG(value < -1.0 || 1.0 < value, EXCPT_DBG_ARG_OUT_DOMAIN);
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
+	LockAtomic(me2->Atomic);
 	me2->SndBuf->SetPan(static_cast<LONG>(value * 10000.0));
+	UnlockAtomic(me2->Atomic);
 }
 
 EXPORT_CPP void _sndFreq(SClass* me_, double value)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 	THROWDBG(value < 0.1 || 2.0 < value, EXCPT_DBG_ARG_OUT_DOMAIN);
+	LockAtomic(me2->Atomic);
 	me2->SndBuf->SetFrequency(static_cast<DWORD>(static_cast<double>(me2->Freq) * value));
+	UnlockAtomic(me2->Atomic);
 }
 
 EXPORT_CPP void _sndSetPos(SClass* me_, double value)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	THROWDBG(me2->Streaming, EXCPT_DBG_INOPERABLE_STATE);
 	THROWDBG(value < 0.0 || me2->EndPos <= value, EXCPT_DBG_ARG_OUT_DOMAIN);
-	me2->SndBuf->SetCurrentPosition(static_cast<DWORD>(value * (double)me2->SizePerSec));
+	if (me2->Streaming)
+	{
+		LockAtomic(me2->Atomic);
+		me2->FuncSetPos(me2->Handle, static_cast<S64>(value * static_cast<double>(me2->SizePerSec)));
+		UnlockAtomic(me2->Atomic);
+	}
+	else
+		me2->SndBuf->SetCurrentPosition(static_cast<DWORD>(value * static_cast<double>(me2->SizePerSec)));
 }
 
 EXPORT_CPP double _sndGetPos(SClass* me_)
 {
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
-	THROWDBG(me2->Streaming, EXCPT_DBG_INOPERABLE_STATE);
-	DWORD pos = 0;
-	me2->SndBuf->GetCurrentPosition(&pos, NULL);
-	return (double)pos / (double)me2->SizePerSec;
+	if (me2->Streaming)
+	{
+		LockAtomic(me2->Atomic);
+		double result = static_cast<double>(me2->FuncGetPos(me2->Handle)) / static_cast<double>(me2->SizePerSec);
+		UnlockAtomic(me2->Atomic);
+		return result;
+	}
+	else
+	{
+		DWORD pos = 0;
+		me2->SndBuf->GetCurrentPosition(&pos, NULL);
+		return static_cast<double>(pos) / static_cast<double>(me2->SizePerSec);
+	}
 }
 
 EXPORT_CPP double _sndLen(SClass* me_)
@@ -328,7 +375,7 @@ void Init()
 	DllOgg = LoadLibrary(L"data/d1000.knd");
 	if (DllOgg != NULL)
 	{
-		LoadOgg = reinterpret_cast<void*(*)(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64))>(GetProcAddress(DllOgg, "LoadOgg"));
+		LoadOgg = reinterpret_cast<void*(*)(const Char* path, S64* channel, S64* samples_per_sec, S64* bits_per_sample, S64* total, void(**func_close)(void*), Bool(**func_read)(void*, void*, S64, S64), void(**func_set_pos)(void*, S64), S64(**func_get_pos)(void*))>(GetProcAddress(DllOgg, "LoadOgg"));
 		if (LoadOgg == NULL)
 		{
 			FreeLibrary(DllOgg);
@@ -377,7 +424,9 @@ static DWORD WINAPI CBStreamThread(LPVOID param)
 		while (finish_cnt < 3) // Repeat until the buffer is completely cleared.
 		{
 			DWORD pos = 0;
+			LockAtomic(me_->Atomic);
 			me_->SndBuf->GetCurrentPosition(&pos, NULL);
+			UnlockAtomic(me_->Atomic);
 			if (flag)
 			{
 				if (pos < dsize)
@@ -398,7 +447,9 @@ static DWORD WINAPI CBStreamThread(LPVOID param)
 			}
 			Sleep(500);
 		}
+		LockAtomic(me_->Atomic);
 		me_->SndBuf->Stop();
+		UnlockAtomic(me_->Atomic);
 		finish_cnt = 0;
 	}
 }
@@ -411,8 +462,10 @@ static Bool StreamCopy(SSnd* me_, S64 id)
 	Bool finish = False;
 	for (; ; )
 	{
+		LockAtomic(me_->Atomic);
 		if (FAILED(me_->SndBuf->Lock(static_cast<DWORD>(dsize * id), static_cast<DWORD>(dsize), &lpvptr0, &dwbytes0, &lpvptr1, &dwbytes1, 0)))
 		{
+			UnlockAtomic(me_->Atomic);
 			Sleep(1);
 			continue;
 		}
@@ -429,5 +482,26 @@ static Bool StreamCopy(SSnd* me_, S64 id)
 			finish = True;
 	}
 	me_->SndBuf->Unlock(lpvptr0, dwbytes0, lpvptr1, dwbytes1);
+	UnlockAtomic(me_->Atomic);
 	return finish;
+}
+
+static void LockAtomic(std::atomic_bool* atomic)
+{
+	if (atomic == NULL)
+		return;
+	bool expected = false;
+	while (!atomic->compare_exchange_weak(expected, true))
+	{
+		Sleep(1);
+		expected = false;
+	}
+}
+
+static void UnlockAtomic(std::atomic_bool* atomic)
+{
+	if (atomic == NULL)
+		return;
+	ASSERT(atomic->load());
+	atomic->store(false);
 }

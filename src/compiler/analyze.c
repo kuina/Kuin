@@ -458,7 +458,7 @@ static Bool CmpType(const SAstType* type1, const SAstType* type2)
 		}
 		return ((SAst*)type1)->RefItem == ((SAst*)type2)->RefItem;
 	}
-	if ((type_id1 == AstTypeId_TypeUser && ((SAst*)type1)->RefItem->TypeId == AstTypeId_Enum || type_id1 == AstTypeId_TypeEnumElement) && (type_id2 == AstTypeId_TypeUser && ((SAst*)type2)->RefItem->TypeId == AstTypeId_Enum || type_id2 == AstTypeId_TypeEnumElement))
+	if ((type_id1 == AstTypeId_TypeUser && ((SAst*)type1)->RefItem->TypeId == AstTypeId_Enum || type_id1 == AstTypeId_TypeEnumElement) && (type_id2 == AstTypeId_TypeUser && ((SAst*)type2)->RefItem->TypeId == AstTypeId_Enum || type_id2 == AstTypeId_TypeEnumElement) && !(type_id1 == AstTypeId_TypeEnumElement && type_id2 == AstTypeId_TypeEnumElement))
 		return True;
 	return False;
 }
