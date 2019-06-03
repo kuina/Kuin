@@ -1,0 +1,74 @@
+var wndProjSettings: wnd@Wnd
+var editIcon: wnd@Edit
+var listRelatedFile: wnd@List
+
++func show()
+	do @wndProjSettings :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 405, \common@langEn ?("Other Settings", "その他の設定"))
+	var labelIcon: wnd@Label :: wnd@makeLabel(@wndProjSettings, 6, 6, 35, 12, %fix, %fix, \common@langEn ?("Icon", "アイコン"))
+	do @editIcon :: wnd@makeEdit(@wndProjSettings, 47, 6, 120, 16, %move, %fix)
+	do @editIcon.setText(\form@iconPath)
+	var btnIcon: wnd@Btn :: wnd@makeBtn(@wndProjSettings, 173, 6, 75, 23, %move, %fix, \common@langEn ?("Browse...", "参照..."))
+	do btnIcon.onPush :: btnIconOnPush
+
+	var labelRelatedFile: wnd@Label :: wnd@makeLabel(@wndProjSettings, 6, 35, 314, 12, %fix, %fix, \common@langEn ?("Related Files (They are copied into the data folder.)", "関連ファイル (dataフォルダ以下にコピーされます)"))
+	do @listRelatedFile :: wnd@makeList(@wndProjSettings, 6, 53, 314, 311, %fix, %fix)
+	do \form@relatedFiles.head()
+	while(!\form@relatedFiles.term())
+		do @listRelatedFile.add(\form@relatedFiles.get())
+		do \form@relatedFiles.next()
+	end while
+	var btnAddRelatedFile: wnd@Btn :: wnd@makeBtn(@wndProjSettings, 6, 370, 80, 23, %fix, %fix, \common@langEn ?("Add...", "追加..."))
+	do btnAddRelatedFile.onPush :: btnAddRelatedFileOnPush
+	var btnDelRelatedFile: wnd@Btn :: wnd@makeBtn(@wndProjSettings, 92, 370, 80, 23, %fix, %fix, \common@langEn ?("Remove", "削除"))
+	do btnDelRelatedFile.onPush :: btnDelRelatedFileOnPush
+
+	var btnOk: wnd@Btn :: wnd@makeBtn(@wndProjSettings, 422, 370, 100, 23, %fix, %fix, "OK")
+	do btnOk.onPush :: btnOkOnPush
+	var btnCancel: wnd@Btn :: wnd@makeBtn(@wndProjSettings, 528, 370, 100, 23, %fix, %fix, "キャンセル")
+	do btnCancel.onPush :: btnCancelOnPush
+
+	do @wndProjSettings.modal()
+	do @wndProjSettings :: null
+	do @editIcon :: null
+	do @listRelatedFile :: null
+
+	func btnIconOnPush(wnd: wnd@WndBase)
+		var file: []char :: wnd@openFileDialog(@wndProjSettings, [\common@langEn ?("Icon (*.ico,*.icon)", "アイコン (*.ico,*.icon)"), "*.ico;*.icon"], 0)
+		if(file =& null)
+			ret
+		end if
+		do @editIcon.setText(file)
+	end func
+
+	func btnAddRelatedFileOnPush(wnd: wnd@WndBase)
+		var file: []char :: wnd@openFileDialog(@wndProjSettings, [\common@langEn ?("All Files (*.*)", "すべてのファイル (*.*)"), "*.*"], 0)
+		if(file =& null)
+			ret
+		end if
+		do @listRelatedFile.add(file)
+	end func
+
+	func btnDelRelatedFileOnPush(wnd: wnd@WndBase)
+		var sel: int :: @listRelatedFile.getSel()
+		if(sel = -1)
+			ret
+		end if
+		do @listRelatedFile.del(sel)
+	end func
+
+	func btnOkOnPush(wnd: wnd@WndBase)
+		do \form@iconPath :: @editIcon.getText().trim()
+		do \form@relatedFiles :: #list<[]char>
+		var len: int :: @listRelatedFile.len()
+		for i(0, len - 1)
+			do \form@relatedFiles.add(@listRelatedFile.getText(i))
+		end for
+		do \form@relatedFiles.sort()
+		do \prop@changeProp()
+		do @wndProjSettings.close()
+	end func
+
+	func btnCancelOnPush(wnd: wnd@WndBase)
+		do @wndProjSettings.close()
+	end func
+end func

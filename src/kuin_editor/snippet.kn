@@ -16,6 +16,7 @@ end class
 	do btnOk.onPush :: btnOkOnPush
 	do @wndSnippet.modal()
 	do @wndSnippet :: null
+	do @snippets :: null
 
 	func btnOkOnPush(wnd: wnd@WndBase)
 		do @wndSnippet.close()

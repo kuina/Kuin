@@ -4,7 +4,7 @@ end func
 +func [d0917.knd, FinCompiler] finCompiler()
 end func
 
-+func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>, lang: int, appCode: int): bool
++func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, relatedFiles: list<[]char>, rls_: bool, env: []char, funcLog: func<([][]char, int, int)>, lang: int, appCode: int): bool
 end func
 
 +func [d0917.knd, Interpret1] interpret1(src: kuin@Class, line: int, me_: kuin@Class, replaceFunc: func<(kuin@Class, int, []char)>, cursorX: int, cursorY: int, newCursorX: &int, oldLine: int, newLine: int)

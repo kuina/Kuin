@@ -37,9 +37,7 @@ var groupConfig: wnd@Group
 var groupEnv: wnd@Group
 var radioEnvWnd: wnd@Radio
 var radioEnvCui: wnd@Radio
-var labelIcon: wnd@Label
-var editIcon: wnd@Edit
-var btnIcon: wnd@Btn
+var btnProjSettings: wnd@Btn
 var btnRls: wnd@Btn
 +var listFile: wnd@List
 var btnFileAdd: wnd@Btn
@@ -59,6 +57,8 @@ var drag: bool
 +var snap: bool
 +var snapValue: int
 +var zoom: float
++var iconPath: []char
++var relatedFiles: list<[]char>
 
 +func makeWnd()
 	do @lockUi :: true
@@ -246,19 +246,16 @@ var drag: bool
 	do @editLog.readonly(true)
 	do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, \common@langEn ?("Compile && Run", "コンパイル＆実行"))
 	do @btnCompile.onPush :: @btnCompileOnPush
-	do @groupConfig :: wnd@makeGroup(@wndMain, 1027, 41, 185, 125, %move, %fix, \common@langEn ?("Configuration", "設定"))
+	do @groupConfig :: wnd@makeGroup(@wndMain, 1027, 41, 185, 115, %move, %fix, \common@langEn ?("Configuration", "設定"))
 	do @groupEnv :: wnd@makeGroup(@wndMain, 1033, 59, 173, 62, %move, %fix, \common@langEn ?("Environment", "実行環境"))
 	do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 161, 16, %fix, %fix, \common@langEn ?("Window", "ウインドウ"))
 	do @radioEnvWnd.setChk(true)
 	do @radioEnvWnd.onPush :: @radioEnvOnPush
 	do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 161, 16, %fix, %fix, \common@langEn ?("CUI", "CUI"))
 	do @radioEnvCui.onPush :: @radioEnvOnPush
-	do @labelIcon :: wnd@makeLabel(@groupConfig, 6, 85, 173, 12, %fix, %fix, \common@langEn ?("Icon", "アイコン"))
-	do @editIcon :: wnd@makeEdit(@wndMain, 1033, 144, 92, 16, %move, %fix)
-	do @editIcon.onChange :: @editIconOnChange
-	do @btnIcon :: wnd@makeBtn(@wndMain, 1131, 137, 75, 23, %move, %fix, \common@langEn ?("Browse...", "参照..."))
-	do @btnIcon.onPush :: @btnIconOnPush
-	do @btnRls :: wnd@makeBtn(@wndMain, 1027, 172, 185, 23, %move, %fix, \common@langEn ?("Release Build...", "リリースビルド..."))
+	do @btnProjSettings :: wnd@makeBtn(@wndMain, 1033, 127, 120, 23, %move, %fix, \common@langEn ?("Other Settings...", "その他の設定..."))
+	do @btnProjSettings.onPush :: btnProjSettingsOnPush
+	do @btnRls :: wnd@makeBtn(@wndMain, 1027, 162, 185, 23, %move, %fix, \common@langEn ?("Release Build...", "リリースビルド..."))
 	do @btnRls.onPush :: @btnRlsOnPush
 	do @listFile :: wnd@makeList(@wndMain, 1027, 255, 185, 337, %move, %scale)
 	do @listFile.onSel :: @listFileOnSel
@@ -301,6 +298,8 @@ var drag: bool
 	do @popupMainEdit.add(0x003A, \common@langEn ?("&Replace...\tCtrl+H", "置換(&R)...\tCtrl+H"))
 	do @popupMainEdit.add(0x003B, \common@langEn ?("Find Pre&vious\tShift+F3", "前を検索(&V)\tShift+F3"))
 	do @popupMainEdit.add(0x003C, \common@langEn ?("Find &Next\tF3", "次を検索(&N)\tF3"))
+	do @popupMainEdit.addLine()
+	do @popupMainEdit.add(0x0060, \common@langEn ?("Other Settings...", "その他の設定..."))
 	do @menuMain.addPopup(\common@langEn ?("&Edit", "編集(&E)"), @popupMainEdit)
 	do @popupMainBuild :: wnd@makePopup()
 	do @popupMainBuild.add(0x0020, \common@langEn ?("&Compile && Run\tF5", "コンパイル＆実行(&C)\tF5"))
@@ -329,8 +328,10 @@ var drag: bool
 	do @editLog.setText("")
 	do @drag :: false
 	do @snap :: true
-	do @snapValue :: 6
+	do @snapValue :: 5
 	do @zoom :: 1.0
+	do @iconPath :: ""
+	do @relatedFiles :: #list<[]char>
 
 	func btnFileAddOnPush(wnd: wnd@WndBase)
 		do @wndMainOnPushMenu(@wndMain, 0x0030)
@@ -348,6 +349,10 @@ var drag: bool
 			do \src@docs.del(\src@getDocName(\src@curDoc))
 			do \src@setCurSrc(\src@mainDoc())
 		end if
+	end func
+
+	func btnProjSettingsOnPush(wnd: wnd@WndBase)
+		do @wndMainOnPushMenu(@wndMain, 0x0060)
 	end func
 end func
 
@@ -406,7 +411,7 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		end if
 	elif(@wndMain.focusedWnd() | \completion@focused())
 		var editRbArFocused: bool :: @editRbArName.focused() | @editRbArX.focused() | @editRbArY.focused() | @editRbArWidth.focused() | @editRbArHeight.focused() | @editRbArSnap.focused() | @editRbArZoom.focused()
-		var editFocused: bool :: @editFile.focused() | @editHint.focused() | editRbArFocused | @editIcon.focused()
+		var editFocused: bool :: @editFile.focused() | @editHint.focused() | editRbArFocused
 		switch(shiftCtrl)
 		case %none
 			switch(key)
@@ -716,6 +721,12 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			do @paintDrawEditor()
 		end if
 		do @updateUi()
+	case 0x0060
+		if(@lockingEditor)
+			do @showMsgRunning()
+			ret
+		end if
+		do \proj_settings@show()
 	case 0x0400 to 0x04FF
 		do \recent@sel(id)
 	end switch
@@ -847,7 +858,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	try
 		do \src@resetErrList()
 		do \src@docs.forEach(fixAll, null)
-		if(\dll@build(\src@mainSrcPath, \src@getSrc, null, out, @editIcon.getText().trim(), false, @getEnv(), @log, \common@langEn ?(1, 0), 0))
+		if(\dll@build(\src@mainSrcPath, \src@getSrc, null, out, @iconPath, @relatedFiles, false, @getEnv(), @log, \common@langEn ?(1, 0), 0))
 			if (\src@mainSrcDir <> \common@defaultDir)
 				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
 				do filePtr.writeStr(\src@mainSrcDir)
@@ -963,21 +974,6 @@ func radioEnvOnPush(wnd: wnd@WndBase)
 	do \prop@changeProp()
 end func
 
-func editIconOnChange(wnd: wnd@WndBase)
-	if(@lockUi)
-		ret
-	end if
-	do \prop@changeProp()
-end func
-
-func btnIconOnPush(wnd: wnd@WndBase)
-	var file: []char :: wnd@openFileDialog(@wndMain, [\common@langEn ?("Icon (*.ico,*.icon)", "アイコン (*.ico,*.icon)"), "*.ico;*.icon"], 0)
-	if(file =& null)
-		ret
-	end if
-	do @editIcon.setText(file)
-end func
-
 func btnRlsOnPush(wnd: wnd@WndBase)
 	if(@lockingEditor)
 		do @showMsgRunning()
@@ -1011,7 +1007,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		if(appCode = 0)
 			do appCode :: 1 {Since it is not convenient when 'AppCode' becomes 0, it is set to 1.}
 		end if
-		if(\dll@build(\src@mainSrcPath, \src@getSrc, null, out, @editIcon.getText().trim(), true, @getEnv(), @log, \common@langEn ?(1, 0), appCode))
+		if(\dll@build(\src@mainSrcPath, \src@getSrc, null, out, @iconPath, @relatedFiles, true, @getEnv(), @log, \common@langEn ?(1, 0), appCode))
 			if(\src@mainSrcDir <> \common@defaultDir)
 				var resSrc: []char :: \src@mainSrcDir ~ "res/"
 				if(file@exist(resSrc))
@@ -1117,14 +1113,6 @@ func lockEditor(lock: bool)
 	do @lockingEditor :: lock
 	do @btnCompile.setEnabled(!lock)
 	do @btnRls.setEnabled(!lock)
-	do @editIcon.setEnabled(!lock)
-	do @btnIcon.setEnabled(!lock)
-end func
-
-+func setEditIconDirectly(icon: []char)
-	do @lockUi :: true
-	do @editIcon.setText(icon)
-	do @lockUi :: false
 end func
 
 +func paintDrawEditor()
@@ -1189,10 +1177,6 @@ end func
 
 +func dragging(): bool
 	ret @drag
-end func
-
-+func getIconPath(): []char
-	ret @editIcon.getText()
 end func
 
 func openResFolder()

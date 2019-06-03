@@ -6,7 +6,7 @@
 static const void* CopyDlls(const Char* key, const void* value, void* param);
 static void CopyKuinFile(const Char* name, const SOption* option);
 
-void Deploy(U64 app_code, const SOption* option, SDict* dlls)
+void Deploy(U64 app_code, const SOption* option, SDict* dlls, const void* related_files)
 {
 #if defined(_DEBUG)
 	// When doing tests, the program uses debugging Dlls so do not copy these.
@@ -25,6 +25,26 @@ void Deploy(U64 app_code, const SOption* option, SDict* dlls)
 	}
 	DictForEach(dlls, CopyDlls, (void*)option);
 #endif
+
+	if (related_files != NULL)
+	{
+		const void* cur = *(const void**)((const U8*)related_files + 0x10);
+		while (cur != NULL)
+		{
+			const Char* path = (const Char*)((const U8*)*(const void**)((const U8*)cur + 0x10) + 0x10);
+			const Char* name = wcsrchr(path, L'/');
+			if (name != NULL)
+			{
+				Char dst[KUIN_MAX_PATH + 1];
+				wcscpy(dst, option->OutputDir);
+				wcscat(dst, L"data/");
+				wcscat(dst, name);
+				if (CopyFile(path, dst, FALSE) == 0)
+					Err(L"EK0013", NULL, path, dst);
+			}
+			cur = *(const void**)((const U8*)cur + 0x08);
+		}
+	}
 }
 
 static const void* CopyDlls(const Char* key, const void* value, void* param)
