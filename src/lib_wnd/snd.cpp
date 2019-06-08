@@ -19,6 +19,8 @@ struct SSnd
 	double EndPos;
 	DWORD Freq;
 	Bool Streaming;
+	Bool StreamingPlayingFirstBuffer;
+	U8 StreamingFinishCnt;
 	HANDLE Thread;
 	std::atomic_bool* Atomic;
 	double Volume;
@@ -149,6 +151,9 @@ EXPORT_CPP SClass* _makeSnd(SClass* me_, const U8* path, Bool streaming)
 			DWORD id;
 			me2->Atomic = (std::atomic_bool*)AllocMem(sizeof(std::atomic_bool));
 			new(me2->Atomic)std::atomic_bool(false);
+			StreamCopy(me2, 0);
+			me2->StreamingPlayingFirstBuffer = True;
+			me2->StreamingFinishCnt = 0;
 			me2->Thread = CreateThread(NULL, 0, CBStreamThread, static_cast<LPVOID>(me2), 0, &id);
 		}
 		else
@@ -304,7 +309,11 @@ EXPORT_CPP void _sndSetPos(SClass* me_, double value)
 	{
 		LockAtomic(me2->Atomic);
 		me2->FuncSetPos(me2->Handle, static_cast<S64>(value * static_cast<double>(me2->SizePerSec)));
+		me2->SndBuf->SetCurrentPosition(0);
+		me2->StreamingPlayingFirstBuffer = True;
+		me2->StreamingFinishCnt = 0;
 		UnlockAtomic(me2->Atomic);
+		StreamCopy(me2, 0);
 	}
 	else
 		me2->SndBuf->SetCurrentPosition(static_cast<DWORD>(value * static_cast<double>(me2->SizePerSec)));
@@ -315,8 +324,15 @@ EXPORT_CPP double _sndGetPos(SClass* me_)
 	SSnd* me2 = reinterpret_cast<SSnd*>(me_);
 	if (me2->Streaming)
 	{
+		double result;
 		LockAtomic(me2->Atomic);
-		double result = static_cast<double>(me2->FuncGetPos(me2->Handle)) / static_cast<double>(me2->SizePerSec);
+		DWORD stream_pos = 0;
+		S64 dsize = me2->SizePerSec * BufSize / 2;
+		me2->SndBuf->GetCurrentPosition(&stream_pos, NULL);
+		S64 offset = (me2->StreamingPlayingFirstBuffer && stream_pos < dsize || !me2->StreamingPlayingFirstBuffer && stream_pos >= dsize) ? dsize : 0;
+		result = static_cast<double>(me2->FuncGetPos(me2->Handle) - dsize * 2 + offset + stream_pos % dsize) / static_cast<double>(me2->SizePerSec);
+		if (result > me2->EndPos || me2->StreamingFinishCnt > 0)
+			result = me2->EndPos;
 		UnlockAtomic(me2->Atomic);
 		return result;
 	}
@@ -415,25 +431,21 @@ static DWORD WINAPI CBStreamThread(LPVOID param)
 {
 	SSnd* me_ = reinterpret_cast<SSnd*>(param);
 	S64 dsize = me_->SizePerSec * BufSize / 2;
-	Bool flag = False;
-	StreamCopy(me_, 0);
-	StreamCopy(me_, 1);
 	for (; ; )
 	{
-		int finish_cnt = 0;
-		while (finish_cnt < 3) // Repeat until the buffer is completely cleared.
+		while (me_->StreamingFinishCnt < 2) // Repeat until the buffer is completely cleared.
 		{
 			DWORD pos = 0;
 			LockAtomic(me_->Atomic);
 			me_->SndBuf->GetCurrentPosition(&pos, NULL);
 			UnlockAtomic(me_->Atomic);
-			if (flag)
+			if (me_->StreamingPlayingFirstBuffer)
 			{
 				if (pos < dsize)
 				{
 					if (StreamCopy(me_, 1))
-						finish_cnt++;
-					flag = False;
+						me_->StreamingFinishCnt++;
+					me_->StreamingPlayingFirstBuffer = False;
 				}
 			}
 			else
@@ -441,16 +453,17 @@ static DWORD WINAPI CBStreamThread(LPVOID param)
 				if (pos >= dsize)
 				{
 					if (StreamCopy(me_, 0))
-						finish_cnt++;
-					flag = True;
+						me_->StreamingFinishCnt++;
+					me_->StreamingPlayingFirstBuffer = True;
 				}
 			}
 			Sleep(500);
 		}
 		LockAtomic(me_->Atomic);
 		me_->SndBuf->Stop();
+		me_->StreamingPlayingFirstBuffer = False;
 		UnlockAtomic(me_->Atomic);
-		finish_cnt = 0;
+		me_->StreamingFinishCnt = 0;
 	}
 }
 
