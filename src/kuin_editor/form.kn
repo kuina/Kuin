@@ -292,7 +292,7 @@ var drag: bool
 	do @popupMainEdit.add(0x0038, \common@langEn ?("Select &All\tCtrl+A", "すべて選択(&A)\tCtrl+A"))
 	do @popupMainEdit.addLine()
 	do @popupMainEdit.add(0x003D, \common@langEn ?("Add &Selection To Snippets...", "選択範囲をスニペットに追加(&S)..."))
-	; TODO: do @popupMainEdit.add(0x003F, \common@langEn ?("&Edit Snippets...", "スニペットの編集(&E)..."))
+	do @popupMainEdit.add(0x003F, \common@langEn ?("&Edit Snippets...", "スニペットの編集(&E)..."))
 	do @popupMainEdit.addLine()
 	do @popupMainEdit.add(0x0039, \common@langEn ?("&Find...\tCtrl+F", "検索(&F)...\tCtrl+F"))
 	do @popupMainEdit.add(0x003A, \common@langEn ?("&Replace...\tCtrl+H", "置換(&R)...\tCtrl+H"))

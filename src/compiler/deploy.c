@@ -49,6 +49,9 @@ void Deploy(U64 app_code, const SOption* option, SDict* dlls, const void* relate
 
 static const void* CopyDlls(const Char* key, const void* value, void* param)
 {
+	size_t key_len = wcslen(key);
+	if (!(key_len > 4 && key[key_len - 4] == L'.' && key[key_len - 3] == L'k' && key[key_len - 2] == L'n' && key[key_len - 1] == L'd'))
+		return value;
 	const SOption* option = (SOption*)param;
 	{
 		Char src[KUIN_MAX_PATH + 1];
