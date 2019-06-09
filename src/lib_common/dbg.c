@@ -4,7 +4,7 @@ EXPORT void _dbgPrint(const U8* str)
 {
 #if defined(DBG)
 	if (str == NULL)
-		OutputDebugString(L"(null)");
+		OutputDebugString(L"dbg!(null)");
 	else
 	{
 		S64 len = ((S64*)str)[1];

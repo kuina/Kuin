@@ -315,6 +315,7 @@ end func
 			do snippet.code :: code
 			do @snippets.add(snippet)
 			do @save()
+			do \form@updateUi()
 		end if
 	end if
 end func
