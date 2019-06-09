@@ -730,7 +730,7 @@ end func
 			if(sel = -1)
 				ret
 			end if
-			var code: []char :: \snippet@getCode(\form@listLt.getText(&, sel, 0))
+			var code: []char :: \snippet@showPlace(\form@listLt.getText(&, sel, 0))
 			if(code =& null)
 				ret
 			end if

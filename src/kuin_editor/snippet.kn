@@ -1,4 +1,10 @@
 var wndSnippet: wnd@Wnd
+var wndSnippetListSnippets: wnd@ListView
+var wndSnippetEditName: wnd@Edit
+var wndSnippetEditCode: wnd@EditMulti
+
+var wndPlace: wnd@Wnd
+var wndPlaceResult: bool
 
 var snippets: list<@Snippet>
 
@@ -8,18 +14,200 @@ class Snippet()
 	+var code: []char
 end class
 
-+func show()
++func showSnippet()
 	do @wndSnippet :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 405, \common@langEn ?("Edit Snippets", "スニペットの編集"))
-	var wndSnippetListSnippets: wnd@ListView :: wnd@makeListView(@wndSnippet, 12, 41, 250, 352, %fix, %scale, false, null, null)
-	do wndSnippetListSnippets.style(%list_)
+	do @wndSnippetListSnippets :: wnd@makeListView(@wndSnippet, 12, 12, 250, 352, %fix, %scale, false, null, null)
+	do @wndSnippetListSnippets.style(%list_)
+	do @wndSnippetListSnippets.draggable(true)
+	do @snippets.head()
+	while(!@snippets.term())
+		var snippet: @Snippet :: @snippets.get()
+		if(snippet.removable)
+			do @wndSnippetListSnippets.add(snippet.name, -1)
+		end if
+		do @snippets.next()
+	end while
+	do @wndSnippetListSnippets.onSel :: listSnippetsOnSel
+	do @wndSnippetListSnippets.onMoveNode :: listSnippetsOnMoveNode
+	var labelName: wnd@Label :: wnd@makeLabel(@wndSnippet, 268, 12, 35, 12, %fix, %fix, \common@langEn ?("Name", "名前"))
+	do @wndSnippetEditName :: wnd@makeEdit(@wndSnippet, 268, 30, 360, 19, %fix, %fix)
+	do @wndSnippetEditName.onFocus :: editNameOnFocus
+	var labelCode: wnd@Label :: wnd@makeLabel(@wndSnippet, 268, 55, 35, 12, %fix, %fix, \common@langEn ?("Code", "コード"))
+	do @wndSnippetEditCode :: wnd@makeEditMulti(@wndSnippet, 268, 73, 360, 291, %fix, %fix)
+	do @wndSnippetEditCode.onFocus :: editCodeOnFocus
+	var btnAdd: wnd@Btn :: wnd@makeBtn(@wndSnippet, 12, 370, 100, 23, %fix, %fix, \common@langEn ?("Add", "追加"))
+	do btnAdd.onPush :: btnAddOnPush
+	var btnDel: wnd@Btn :: wnd@makeBtn(@wndSnippet, 118, 370, 100, 23, %fix, %fix, \common@langEn ?("Delete", "削除"))
+	do btnDel.onPush :: btnDelOnPush
 	var btnOk: wnd@Btn :: wnd@makeBtn(@wndSnippet, 528, 370, 100, 23, %fix, %fix, "OK")
 	do btnOk.onPush :: btnOkOnPush
+
 	do @wndSnippet.modal()
 	do @wndSnippet :: null
-	do @snippets :: null
+	do @wndSnippetListSnippets :: null
+	do @wndSnippetEditName :: null
+	do @wndSnippetEditCode :: null
+	do @save()
+	do \form@updateUi()
+
+	func listSnippetsOnSel(wnd: wnd@WndBase)
+		var snippet: @Snippet :: @findSelSnippet()
+		if(snippet =& null)
+			do @wndSnippetEditName.setText("")
+			do @wndSnippetEditCode.setText("")
+		else
+			do @wndSnippetEditName.setText(snippet.name)
+			do @wndSnippetEditCode.setText(snippet.code)
+		end if
+	end func
+
+	func listSnippetsOnMoveNode(wnd: wnd@WndBase)
+		var newSnippets: list<@Snippet> :: #list<@Snippet>
+		do @snippets.head()
+		while(!@snippets.term())
+			var snippet: @Snippet :: @snippets.get()
+			if(!snippet.removable)
+				do newSnippets.add(snippet)
+			end if
+			do @snippets.next()
+		end while
+		for i(0, @wndSnippetListSnippets.len() - 1)
+			var name: []char :: @wndSnippetListSnippets.getText(&, i, 0)
+			do @snippets.head()
+			while loop(!@snippets.term())
+				var snippet: @Snippet :: @snippets.get()
+				if(snippet.removable & snippet.name = name)
+					do newSnippets.add(snippet)
+					break loop
+				end if
+				do @snippets.next()
+			end while
+		end for
+		do @snippets :: newSnippets
+	end func
+
+	func editNameOnFocus(wnd: wnd@WndBase, focused: bool)
+		if(!focused)
+			var snippet: @Snippet :: @findSelSnippet()
+			if(snippet =& null)
+				ret
+			end if
+			var name: []char :: @wndSnippetEditName.getText().trim()
+			if(@validate(name))
+				do snippet.name :: name
+				do @wndSnippetListSnippets.setText(@wndSnippetListSnippets.getSel(), 0, name, -1)
+			end if
+			do @wndSnippetEditName.setText(snippet.name)
+		end if
+	end func
+
+	func editCodeOnFocus(wnd: wnd@WndBase, focused: bool)
+		if(!focused)
+			var snippet: @Snippet :: @findSelSnippet()
+			if(snippet =& null)
+				ret
+			end if
+			do snippet.code :: @wndSnippetEditCode.getText()
+		end if
+	end func
+
+	func btnAddOnPush(wnd: wnd@WndBase)
+		var unique: int :: 1
+		while(true)
+			var name: []char :: "Snippet" ~ unique.toStr()
+			var found: bool :: false
+			do @snippets.head()
+			while loop(!@snippets.term())
+				var snippet: @Snippet :: @snippets.get()
+				if(snippet.removable & snippet.name = name)
+					do found :: true
+					break loop
+				end if
+				do @snippets.next()
+			end while
+			if(!found)
+				var snippet: @Snippet :: #@Snippet
+				do snippet.name :: name
+				do snippet.removable :: true
+				do snippet.code :: ""
+				do @snippets.add(snippet)
+				do @wndSnippetListSnippets.add(name, -1)
+				do @wndSnippetListSnippets.setSel(@wndSnippetListSnippets.len() - 1)
+				ret
+			end if
+			do unique :+ 1
+		end while
+	end func
+
+	func btnDelOnPush(wnd: wnd@WndBase)
+		var sel: int :: @wndSnippetListSnippets.getSel()
+		if(sel = -1)
+			ret
+		end if
+		var name: []char :: @wndSnippetListSnippets.getText(&, sel, 0)
+		if(wnd@msgBox(@wndSnippet, \common@langEn ?("Do you want to remove the snippet '\{name}'?", "スニペット「\{name}」を削除しますか？"), \common@title, %none, %yesNoCancel) <> %yes)
+			ret
+		end if
+		do @snippets.head()
+		while loop(!@snippets.term())
+			var snippet: @Snippet :: @snippets.get()
+			if(snippet.removable & snippet.name = name)
+				do @snippets.del()
+				break loop
+			end if
+			do @snippets.next()
+		end while
+		do @wndSnippetListSnippets.del(sel)
+	end func
 
 	func btnOkOnPush(wnd: wnd@WndBase)
 		do @wndSnippet.close()
+	end func
+end func
+
++func showPlace(name: []char): []char
+	if(^name >= 1 & name[0] = '\\')
+		do name :: name.sub(1, -1)
+	end if
+	var snippet: @Snippet :: null
+	do @snippets.head()
+	while loop(!@snippets.term())
+		var item: @Snippet :: @snippets.get()
+		if(item.name = name)
+			do snippet :: item
+			break loop
+		end if
+		do @snippets.next()
+	end while
+	if(snippet =& null)
+		ret null
+	end if
+
+	do @wndPlace :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 600, 400, \common@langEn ?("Place Snippets", "スニペットの配置"))
+	var labelCode: wnd@Label :: wnd@makeLabel(@wndPlace, 12, 12, 276, 12, %fix, %fix, \common@langEn ?("The following code will be placed.", "以下のコードが配置されます。"))
+	var editCode: wnd@EditMulti :: wnd@makeEditMulti(@wndPlace, 12, 30, 326, 329, %fix, %fix)
+	do editCode.readonly(true)
+	do editCode.setText(snippet.code)
+	var labelName: wnd@Label :: wnd@makeLabel(@wndPlace, 344, 12, 70, 12, %fix, %fix, \common@langEn ?("Name", "名前:"))
+	var editName: wnd@Edit :: wnd@makeEdit(@wndPlace, 420, 12, 168, 19, %fix, %fix)
+	do editName.setText(snippet.name)
+	do editName.readonly(true)
+	var btnPlace: wnd@Btn :: wnd@makeBtn(@wndPlace, 382, 365, 100, 23, %fix, %fix, \common@langEn ?("Place", "配置"))
+	do btnPlace.onPush :: btnPlaceOnPush
+	var btnCancel: wnd@Btn :: wnd@makeBtn(@wndPlace, 488, 365, 100, 23, %fix, %fix, \common@langEn ?("Cancel", "キャンセル"))
+	do btnCancel.onPush :: btnCancelOnPush
+	do @wndPlaceResult :: false
+	do @wndPlace.modal()
+	do @wndPlace :: null
+	ret @wndPlaceResult ?(snippet.code, null)
+
+	func btnPlaceOnPush(wnd: wnd@WndBase)
+		do @wndPlaceResult :: true
+		do @wndPlace.close()
+	end func
+
+	func btnCancelOnPush(wnd: wnd@WndBase)
+		do @wndPlace.close()
 	end func
 end func
 
@@ -84,7 +272,7 @@ end func
 		ret
 	end if
 
-	var name: []char :: wndex@inputBox(\form@wndMain, \common@langEn ?("Input the snippet name.", "スニペットの名前を入力してください。"), \common@title, null, validate)
+	var name: []char :: wndex@inputBox(\form@wndMain, \common@langEn ?("Input the snippet name.", "スニペットの名前を入力してください。"), \common@title, null, @validate)
 	if(name <>& null)
 		do name :: name.trim()
 		if(name <> "")
@@ -96,17 +284,6 @@ end func
 			do @save()
 		end if
 	end if
-
-	func validate(name: []char): bool
-		do @snippets.head()
-		while(!@snippets.term())
-			if(@snippets.get().name = name)
-				ret false
-			end if
-			do @snippets.next()
-		end while
-		ret true
-	end func
 end func
 
 +func updateList(list_: wnd@ListView)
@@ -118,45 +295,34 @@ end func
 	end while
 end func
 
-+func getCode(name: []char): []char
-	if(^name >= 1 & name[0] = '\\')
-		do name :: name.sub(1, -1)
+func findSelSnippet(): @Snippet
+	var sel: int :: @wndSnippetListSnippets.getSel()
+	if (sel = -1)
+		ret null
 	end if
-	var snippet: @Snippet :: null
+	var name: []char :: @wndSnippetListSnippets.getText(&, sel, 0)
 	do @snippets.head()
-	while loop(!@snippets.term())
-		var item: @Snippet :: @snippets.get()
-		if(item.name = name)
-			do snippet :: item
-			break loop
+	while(!@snippets.term())
+		var snippet: @Snippet :: @snippets.get()
+		if(snippet.removable & snippet.name = name)
+			ret snippet
 		end if
 		do @snippets.next()
 	end while
-	if(snippet =& null)
-		ret null
+	ret null
+end func
+
+func validate(name: []char): bool
+	if(name.trim() = "")
+		ret false
 	end if
-	var result: wnd@MsgBoxResult :: wnd@msgBox(\form@wndMain, (\common@langEn ?("Insert the following code?", "以下のコードを挿入しますか？")) ~ "\n\n" ~ snippet.name ~ "\n\n" ~ snippet.code, \common@title, %question, %yesNoCancel)
-	switch(result)
-	case %yes
-		ret snippet.code
-	case %no
-		if(!snippet.removable)
-			ret null
+	do @snippets.head()
+	while(!@snippets.term())
+		var snippet: @Snippet :: @snippets.get()
+		if(snippet.removable & snippet.name = name)
+			ret false
 		end if
-		do result :: wnd@msgBox(\form@wndMain, (\common@langEn ?("Delete [\{snippet.name}] snippet?", "スニペット[\{snippet.name}]を削除しますか？")), \common@title, %question, %yesNoCancel)
-		if(result = %yes)
-			do @snippets.head()
-			while loop(!@snippets.term())
-				if(@snippets.get().name = name)
-					do @snippets.del()
-					skip loop
-				end if
-				do @snippets.next()
-			end while
-			do @save()
-		end if
-		ret null
-	case %cancel
-		ret null
-	end switch
+		do @snippets.next()
+	end while
+	ret true
 end func

@@ -667,7 +667,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		end if
 		do @openResFolder()
 	case 0x003F
-		do \snippet@show()
+		do \snippet@showSnippet()
 	case 0x0040
 		if (\src@curDoc =$ \doc_src@DocSrc)
 			if(\src@breakPos =& null & @lockingEditor)
