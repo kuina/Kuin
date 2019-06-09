@@ -4,7 +4,10 @@ var wndSnippetEditName: wnd@Edit
 var wndSnippetEditCode: wnd@EditMulti
 
 var wndPlace: wnd@Wnd
-var wndPlaceResult: bool
+var wndPlaceResult: []char
+var regexVariableSearch: regex@Regex
+var wndPlaceVariables: dict<[]char, wnd@Edit>
+var wndPlaceSnippetCode: []char
 
 var snippets: list<@Snippet>
 
@@ -182,28 +185,58 @@ end func
 	if(snippet =& null)
 		ret null
 	end if
+	do @wndPlaceSnippetCode :: snippet.code
 
-	do @wndPlace :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 600, 400, \common@langEn ?("Place Snippets", "スニペットの配置"))
+	do @wndPlace :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 600, 400, \common@langEn ?("Place Snippet \"\{snippet.name}\"", "スニペット「\{snippet.name}」の配置"))
 	var labelCode: wnd@Label :: wnd@makeLabel(@wndPlace, 12, 12, 276, 12, %fix, %fix, \common@langEn ?("The following code will be placed.", "以下のコードが配置されます。"))
 	var editCode: wnd@EditMulti :: wnd@makeEditMulti(@wndPlace, 12, 30, 326, 329, %fix, %fix)
 	do editCode.readonly(true)
-	do editCode.setText(snippet.code)
-	var labelName: wnd@Label :: wnd@makeLabel(@wndPlace, 344, 12, 70, 12, %fix, %fix, \common@langEn ?("Name", "名前:"))
-	var editName: wnd@Edit :: wnd@makeEdit(@wndPlace, 420, 12, 168, 19, %fix, %fix)
-	do editName.setText(snippet.name)
-	do editName.readonly(true)
+	do editCode.setText(@wndPlaceSnippetCode)
+	var labelDescription1: wnd@Label :: wnd@makeLabel(@wndPlace, 344, 12, 244, 12, %fix, %fix, \common@langEn ?("The parts enclosed by \"{{\" and \"}}\" are", "「{{」と「}}」で囲まれた部分は"))
+	var labelDescription2: wnd@Label :: wnd@makeLabel(@wndPlace, 344, 30, 244, 12, %fix, %fix, \common@langEn ?("replaced by the following.", "以下で置換されます。"))
 	var btnPlace: wnd@Btn :: wnd@makeBtn(@wndPlace, 382, 365, 100, 23, %fix, %fix, \common@langEn ?("Place", "配置"))
 	do btnPlace.onPush :: btnPlaceOnPush
 	var btnCancel: wnd@Btn :: wnd@makeBtn(@wndPlace, 488, 365, 100, 23, %fix, %fix, \common@langEn ?("Cancel", "キャンセル"))
 	do btnCancel.onPush :: btnCancelOnPush
-	do @wndPlaceResult :: false
+	do @wndPlaceResult :: null
+
+	do @wndPlaceVariables :: #dict<[]char, wnd@Edit>
+	if(@regexVariableSearch =& null)
+		do @regexVariableSearch :: regex@makeRegex("\\{\\{(.+?)\\}\\}")
+	end if
+	var matches: [][][]char :: @regexVariableSearch.findAll(&, @wndPlaceSnippetCode)
+	if(matches <>& null)
+		var itemCnt: int :: 0
+		for i(0, ^matches - 1)
+			var variable: []char :: matches[i][1]
+			if(!@wndPlaceVariables.exist(variable))
+				var labelVariable: wnd@Label :: wnd@makeLabel(@wndPlace, 344, 48 + itemCnt * 25, 70, 12, %fix, %fix, variable)
+				var editVariable: wnd@Edit :: wnd@makeEdit(@wndPlace, 420, 48 + itemCnt * 25, 168, 19, %fix, %fix)
+				do editVariable.setText(variable)
+				do @wndPlaceVariables.add(variable, editVariable)
+				do itemCnt :+ 1
+			end if
+		end for
+	end if
+
 	do @wndPlace.modal()
 	do @wndPlace :: null
-	ret @wndPlaceResult ?(snippet.code, null)
+	do @wndPlaceSnippetCode :: null
+	do @wndPlaceVariables :: null
+
+	ret @wndPlaceResult
 
 	func btnPlaceOnPush(wnd: wnd@WndBase)
-		do @wndPlaceResult :: true
+		var data: lib@Str :: #lib@Str
+		do data.value :: @wndPlaceSnippetCode
+		do @wndPlaceVariables.forEach(callback, data)
+		do @wndPlaceResult :: data.value
 		do @wndPlace.close()
+
+		func callback(key: []char, value: wnd@Edit, data: lib@Str): bool
+			do data.value :: data.value.replace("{{\{key}}}", value.getText().trim())
+			ret true
+		end func
 	end func
 
 	func btnCancelOnPush(wnd: wnd@WndBase)
