@@ -222,7 +222,8 @@
 				end if
 			end if
 			do me.undo.recordBegin()
-			do me.put(parent, name, @getDefaultName(name.lower(), me.nodes), true, x2, y2, -1, -1, null, true)
+			do me.holds :: #list<@Obj>
+			do me.holds.add(me.put(parent, name, @getDefaultName(name.lower(), me.nodes), true, x2, y2, -1, -1, null, true))
 			do me.undo.recordEnd()
 			do me.mode :: %put
 			do \form@updateUi()
@@ -496,10 +497,11 @@
 		end if
 		do me.undo.recordBegin()
 		do me.clipboard.head()
+		do me.holds :: #list<@Obj>
 		while(!me.clipboard.term())
 			var obj: @Obj :: me.clipboard.get()
 			var kind: []char :: obj.kind()
-			do me.put(null, kind, @getDefaultName(kind.lower(), me.nodes), obj.visible, obj.x, obj.y, obj.width, obj.height, ##obj.props, true)
+			do me.holds.add(me.put(null, kind, @getDefaultName(kind.lower(), me.nodes), obj.visible, obj.x, obj.y, obj.width, obj.height, ##obj.props, true))
 			do me.clipboard.next()
 		end while
 		do me.undo.recordEnd()
@@ -533,7 +535,8 @@
 	+*func undoImpl(undo2: \doc@UndoCmd)
 		if(undo2 =$ UndoArPut)
 			var undo3: UndoArPut :: undo2 $ UndoArPut
-			do me.put(undo3.parent, undo3.kind, undo3.name, undo3.visible, undo3.x, undo3.y, undo3.width, undo3.height, undo3.props, false)
+			do me.holds :: #list<@Obj>
+			do me.holds.add(me.put(undo3.parent, undo3.kind, undo3.name, undo3.visible, undo3.x, undo3.y, undo3.width, undo3.height, undo3.props, false))
 		elif(undo2 =$ UndoArDel)
 			var undo3: UndoArDel :: undo2 $ UndoArDel
 			do me.del(undo3.name, false)
@@ -1105,7 +1108,7 @@
 		end while
 	end func
 
-	func put(parent: []char, kind: []char, name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>, recordUndo: bool)
+	func put(parent: []char, kind: []char, name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>, recordUndo: bool): @Obj
 		if(recordUndo)
 			var undo: UndoArDel :: #UndoArDel
 			do undo.doc :: me
@@ -1138,9 +1141,8 @@
 			do me.find(me.nodes, parent)
 			do me.nodes.ins(obj)
 		end if
-		do me.holds :: #list<@Obj>
-		do me.holds.add(obj)
 		do me.changed :: true
+		ret obj
 	end func
 
 	func del(name: []char, recordUndo: bool)
