@@ -31,7 +31,10 @@ func getPropInfos(objs: []\doc_ar@Obj): []@PropInfo
 		for j(0, ^objs - 1)
 			var success: bool
 			var value: []char :: objs[j].props.get(propInfo.name, &success)
-			if(!success | propInfo.value <>& null & propInfo.value <> value)
+			if(!success)
+				skip i
+			end if
+			if(propInfo.value <>& null & propInfo.value <> value)
 				do same :: false
 				break j
 			end if
