@@ -87,6 +87,8 @@
 			ret #@ObjChk
 		case "Group"
 			ret #@ObjGroup
+		case "EditMulti"
+			ret #@ObjEditMulti
 		end switch
 		ret null
 	end func
@@ -97,6 +99,7 @@
 		do \form@listLt.add("Edit", 3)
 		do \form@listLt.add("Label", 4)
 		do \form@listLt.add("Group", 5)
+		do \form@listLt.add("EditMulti", 3)
 	end func
 end class
 
@@ -105,6 +108,14 @@ class ObjArWnd(\doc_ar@Obj)
 	end func
 
 	+func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
+	end func
+
+	func addEvent(indent: int, lines: list<[]char>, name: []char)
+		var value: []char :: me.props.get(name, &)
+		if(value = "" | value = "null")
+			ret
+		end if
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name}.\{name} :: \{value}")
 	end func
 end class
 
@@ -139,19 +150,24 @@ class ObjWnd(@ObjArWnd)
 		end if
 		do me.props.add("style", "%normal")
 		do me.props.add("text", me.name)
+		do me.props.add("onClose", "")
+		do me.props.add("onActivate", "")
+		do me.props.add("onPushMenu", "")
+		do me.props.add("onDropFiles", "")
+		do me.props.add("onResize", "")
 		do me.reloadRes()
 	end func
 
 	+*func propsNames(): [][]char
-		ret ["style", "text"]
+		ret ["style", "text", "onClose", "onActivate", "onPushMenu", "onDropFiles", "onResize"]
 	end func
 
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %str]
+		ret [%enum_ $ \doc_ar@PropType, %str, %str, %str, %str, %str, %str]
 	end func
 
 	+*func propsTypeDatas(): [][][]char
-		ret [["%normal", "%fix", "%aspect", "%popup"], null]
+		ret [["%normal", "%fix", "%aspect", "%popup"], null, null, null, null, null, null]
 	end func
 
 	+*func type(): []char
@@ -160,6 +176,11 @@ class ObjWnd(@ObjArWnd)
 
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(\{parent}, \{me.props.get("style", &)}, \{me.width}, \{me.height}, \"\{me.props.get("text", &)}\")")
+		do me.addEvent(indent, lines, "onClose")
+		do me.addEvent(indent, lines, "onActivate")
+		do me.addEvent(indent, lines, "onPushMenu")
+		do me.addEvent(indent, lines, "onDropFiles")
+		do me.addEvent(indent, lines, "onResize")
 	end func
 end class
 
@@ -199,19 +220,20 @@ class ObjBtn(@ObjArWnd)
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("text", me.name)
+		do me.props.add("on", "onPush")
 		do me.reloadRes()
 	end func
 
 	+*func propsNames(): [][]char
-		ret ["anchorX", "anchorY", "text"]
+		ret ["anchorX", "anchorY", "text", "onPush"]
 	end func
 
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %enum_, %str]
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %str, %str]
 	end func
 
 	+*func propsTypeDatas(): [][][]char
-		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null]
 	end func
 
 	+*func type(): []char
@@ -220,6 +242,7 @@ class ObjBtn(@ObjArWnd)
 
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)}, \"\{me.props.get("text", &)}\")")
+		do me.addEvent(indent, lines, "onPush")
 	end func
 end class
 
@@ -260,19 +283,21 @@ class ObjEdit(@ObjArWnd)
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("readonly", "false")
 		do me.props.add("text", "")
+		do me.props.add("onChange", "")
+		do me.props.add("onFocus", "")
 		do me.reloadRes()
 	end func
 
 	+*func propsNames(): [][]char
-		ret ["anchorX", "anchorY", "readonly", "text"]
+		ret ["anchorX", "anchorY", "readonly", "text", "onChange", "onFocus"]
 	end func
 
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str]
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str, %str]
 	end func
 
 	+*func propsTypeDatas(): [][][]char
-		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null]
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null]
 	end func
 
 	+*func type(): []char
@@ -289,6 +314,81 @@ class ObjEdit(@ObjArWnd)
 		if(^text > 0)
 			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setText(\"\{text}\")")
 		end if
+		do me.addEvent(indent, lines, "onChange")
+		do me.addEvent(indent, lines, "onFocus")
+	end func
+end class
+
+class ObjEditMulti(@ObjArWnd)
+	+*func draw(x: float, y: float, width: float, height: float, zoom: float)
+		do draw@rect(x * zoom, y * zoom, width * zoom, height * zoom, 0xFFFFFFFF)
+		do draw@rectLine(x * zoom, y * zoom, width * zoom, height * zoom, 0xFF7A7A7A)
+		var text: []char :: me.props.get("text", &)
+		do \common@fontP.drawScale((x + 5.0) * zoom, (y + 3.0) * zoom, zoom, zoom, text, draw@black)
+	end func
+
+	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
+		do minWidth :: 10
+		do minHeight :: 19
+		do maxWidth :: lib@intMax
+		do maxHeight :: lib@intMax
+	end func
+
+	+*func getDefaultSize(width: &int, height: &int)
+		do width :: 100
+		do height :: 19
+	end func
+
+	+*func kind(): []char
+		ret "EditMulti"
+	end func
+
+	+*func icon(): int
+		ret 2
+	end func
+
+	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
+		do super(me, name, visible, x, y, width, height, props)
+		if(props <>& null)
+			ret
+		end if
+		do me.props.add("anchorX", "%fix")
+		do me.props.add("anchorY", "%fix")
+		do me.props.add("readonly", "false")
+		do me.props.add("text", "")
+		do me.props.add("onChange", "")
+		do me.props.add("onFocus", "")
+		do me.reloadRes()
+	end func
+
+	+*func propsNames(): [][]char
+		ret ["anchorX", "anchorY", "readonly", "text", "onChange", "onFocus"]
+	end func
+
+	+*func propsTypes(): []\doc_ar@PropType
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str, %str]
+	end func
+
+	+*func propsTypeDatas(): [][][]char
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null]
+	end func
+
+	+*func type(): []char
+		ret "wnd@EditMulti"
+	end func
+
+	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
+		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeEditMulti(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)})")
+		var readonly: []char :: me.props.get("readonly", &)
+		if(readonly <> "false")
+			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.readonly(\{readonly})")
+		end if
+		var text: []char :: me.props.get("text", &)
+		if(^text > 0)
+			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setText(\"\{text}\")")
+		end if
+		do me.addEvent(indent, lines, "onChange")
+		do me.addEvent(indent, lines, "onFocus")
 	end func
 end class
 
@@ -388,19 +488,20 @@ class ObjChk(@ObjArWnd)
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("chk", "false")
 		do me.props.add("text", me.name)
+		do me.props.add("onPush", "")
 		do me.reloadRes()
 	end func
 
 	+*func propsNames(): [][]char
-		ret ["anchorX", "anchorY", "chk", "text"]
+		ret ["anchorX", "anchorY", "chk", "text", "onPush"]
 	end func
 
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str]
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str]
 	end func
 
 	+*func propsTypeDatas(): [][][]char
-		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null]
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null]
 	end func
 
 	+*func type(): []char
@@ -413,6 +514,7 @@ class ObjChk(@ObjArWnd)
 		if(chk <> "false")
 			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.setChk(\{chk})")
 		end if
+		do me.addEvent(indent, lines, "onPush")
 	end func
 end class
 

@@ -8,6 +8,8 @@ class PropInfo()
 	+var value: []char
 	+var label: wnd@Label
 	+var ctrls: []wnd@WndBase
+	+var same: bool
+	+var btnReset: wnd@Btn
 end class
 
 var propInfos: []@PropInfo
@@ -35,9 +37,11 @@ func getPropInfos(objs: []\doc_ar@Obj): []@PropInfo
 			end if
 			do propInfo.value :: value
 		end for
-		if(same)
-			do propInfos.add(propsNames[i], propInfo)
+		do propInfo.same :: same
+		if(!same)
+			do propInfo.value :: ""
 		end if
+		do propInfos.add(propsNames[i], propInfo)
 	end for
 	ret propInfos.toArrayValue()
 end func
@@ -61,9 +65,10 @@ end func
 		case %enum_
 			var combo: wnd@Combo :: wnd@makeCombo(@wndObjProp, 92, 12 + 25 * i, 180, 20, %fix, %fix)
 			var value: []char :: @propInfos[i].value
+			var empty: bool :: value = ""
 			for j(0, ^@propInfos[i].typeDatas - 1)
 				do combo.add(@propInfos[i].typeDatas[j])
-				if(@propInfos[i].typeDatas[j] = value)
+				if(empty & j = 0 | @propInfos[i].typeDatas[j] = value)
 					do combo.setSel(j)
 				end if
 			end for
@@ -80,6 +85,15 @@ end func
 			var btn: wnd@Btn :: wnd@makeBtn(@wndObjProp, 197, 12 + 25 * i, 75, 23, %fix, %fix, \common@langEn ?("Browse...", "参照..."))
 			do @propInfos[i].ctrls :: [edit $ wnd@WndBase, btn $ wnd@WndBase]
 		end switch
+
+		if(!@propInfos[i].same)
+			var btnReset: wnd@Btn :: wnd@makeBtn(@wndObjProp, 92, 12 + 25 * i, 100, 23, %fix, %fix, \common@langEn ?("Edit Values", "複数の編集"))
+			do btnReset.onPush :: btnResetOnPush
+			do @propInfos[i].btnReset :: btnReset
+			for j(0, ^@propInfos[i].ctrls - 1)
+				do @propInfos[i].ctrls[j].setVisible(false)
+			end for
+		end if
 	end for
 
 	var btnOk: wnd@Btn :: wnd@makeBtn(@wndObjProp, 72, 445, 75, 23, %fix, %fix, "OK")
@@ -98,6 +112,9 @@ end func
 
 	func btnOkOnPush(wnd: wnd@WndBase)
 		for i(0, ^@propInfos - 1)
+			if(!@propInfos[i].same)
+				skip i
+			end if
 			var value: []char
 			switch(@propInfos[i].type)
 			case %str
@@ -146,6 +163,18 @@ end func
 					do edit.setText("0xFF" ~ color.toStrFmt("06X"))
 				end if
 				ret
+			end if
+		end for
+	end func
+
+	func btnResetOnPush(wnd: wnd@WndBase)
+		for i(0, ^@propInfos - 1)
+			if(@propInfos[i].btnReset =& wnd)
+				do @propInfos[i].btnReset.setVisible(false)
+				for j(0, ^@propInfos[i].ctrls - 1)
+					do @propInfos[i].ctrls[j].setVisible(true)
+				end for
+				do @propInfos[i].same :: true
 			end if
 		end for
 	end func

@@ -782,6 +782,7 @@
 				do objs :: me.holds.toArray()
 			end if
 			if(\obj_prop@show(objs))
+				do me.changed :: true
 				for i(0, ^objs - 1)
 					do objs[i].reloadRes()
 				end for
@@ -1354,9 +1355,15 @@ end enum
 	+func load(node: xml@Node)
 		var props: dict<[]char, []char> :: #dict<[]char, []char>
 		var propsNames: [][]char :: me.propsNames()
+		var propsTypes: []@PropType :: me.propsTypes()
 		for i(0, ^propsNames - 1)
 			var attr: []char :: node.getAttr(propsNames[i])
-			if(attr <>& null)
+			if(attr =& null)
+				switch(propsTypes[i])
+				case %str
+					do props.add(propsNames[i], "")
+				end switch
+			else
 				do props.add(propsNames[i], attr)
 			end if
 		end for
