@@ -1,4 +1,4 @@
-+const userMin: int :: 0x00000000
++const userMin: int :: 0x00000001
 +const userMax: int :: 0x0000FFFF
 +const accessViolation: int :: 0xC0000005
 +const noMem: int :: 0xC0000017
