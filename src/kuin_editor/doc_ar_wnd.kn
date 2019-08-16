@@ -99,7 +99,7 @@
 		do \form@listLt.add("Edit", 3)
 		do \form@listLt.add("Label", 4)
 		do \form@listLt.add("Group", 5)
-		do \form@listLt.add("EditMulti", 3)
+		do \form@listLt.add("EditMulti", 12)
 	end func
 end class
 
@@ -344,7 +344,7 @@ class ObjEditMulti(@ObjArWnd)
 	end func
 
 	+*func icon(): int
-		ret 2
+		ret 11
 	end func
 
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
