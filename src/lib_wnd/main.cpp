@@ -1186,6 +1186,17 @@ EXPORT_CPP void _editReadonly(SClass* me_, Bool enabled)
 	SendMessage(wnd, EM_SETREADONLY, enabled ? TRUE : FALSE, 0);
 }
 
+EXPORT_CPP void _editRightAligned(SClass* me_, Bool enabled)
+{
+	HWND wnd = reinterpret_cast<SWndBase*>(me_)->WndHandle;
+	DWORD dw_style = GetWindowLong(wnd, GWL_STYLE);
+	if(enabled)
+		SetWindowLong(wnd, GWL_STYLE, dw_style | ES_RIGHT);
+	else
+		SetWindowLong(wnd, GWL_STYLE, dw_style & ~ES_RIGHT);
+	InvalidateRect(wnd, NULL, TRUE);
+}
+
 EXPORT_CPP void _editSetSel(SClass* me_, S64 start, S64 len)
 {
 	THROWDBG(!(len == -1 && (start == -1 || start == 0) || 0 <= start && 0 <= len), EXCPT_DBG_ARG_OUT_DOMAIN);
@@ -1691,6 +1702,7 @@ EXPORT_CPP void _listViewStyle(SClass* me_, S64 list_view_style)
 	DWORD ex = ListView_GetExtendedListViewStyle(me2->WndHandle);
 	const LONG ex_mask = LVS_EX_CHECKBOXES;
 	ListView_SetExtendedListViewStyle(me2->WndHandle, (ex & ~ex_mask) | (static_cast<LONG>(list_view_style) & ex_mask));
+	InvalidateRect(me2->WndHandle, NULL, TRUE);
 }
 
 EXPORT_CPP void _listViewDraggable(SClass* me_, bool enabled)

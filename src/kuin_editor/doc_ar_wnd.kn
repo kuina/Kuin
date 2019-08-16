@@ -251,7 +251,13 @@ class ObjEdit(@ObjArWnd)
 		do draw@rect(x * zoom, y * zoom, width * zoom, height * zoom, 0xFFFFFFFF)
 		do draw@rectLine(x * zoom, y * zoom, width * zoom, height * zoom, 0xFF7A7A7A)
 		var text: []char :: me.props.get("text", &)
-		do \common@fontP.drawScale((x + 5.0) * zoom, (y + 3.0) * zoom, zoom, zoom, text, draw@black)
+		var rightAligned: bool :: me.props.get("rightAligned", &) <> "false"
+		if(rightAligned)
+			var textWidth: float :: \common@fontP.calcWidth(text)
+			do \common@fontP.drawScale((x + width - 5.0 - textWidth) * zoom, (y + 3.0) * zoom, zoom, zoom, text, draw@black)
+		else
+			do \common@fontP.drawScale((x + 5.0) * zoom, (y + 3.0) * zoom, zoom, zoom, text, draw@black)
+		end if
 	end func
 
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
@@ -282,6 +288,7 @@ class ObjEdit(@ObjArWnd)
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("readonly", "false")
+		do me.props.add("rightAligned", "false")
 		do me.props.add("text", "")
 		do me.props.add("onChange", "")
 		do me.props.add("onFocus", "")
@@ -289,15 +296,15 @@ class ObjEdit(@ObjArWnd)
 	end func
 
 	+*func propsNames(): [][]char
-		ret ["anchorX", "anchorY", "readonly", "text", "onChange", "onFocus"]
+		ret ["anchorX", "anchorY", "readonly", "rightAligned", "text", "onChange", "onFocus"]
 	end func
 
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str, %str]
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %bool_, %str, %str, %str]
 	end func
 
 	+*func propsTypeDatas(): [][][]char
-		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null]
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null, null]
 	end func
 
 	+*func type(): []char
@@ -309,6 +316,10 @@ class ObjEdit(@ObjArWnd)
 		var readonly: []char :: me.props.get("readonly", &)
 		if(readonly <> "false")
 			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.readonly(\{readonly})")
+		end if
+		var rightAligned: []char :: me.props.get("rightAligned", &)
+		if(rightAligned <> "false")
+			do lines.add("\t".repeat(indent) ~ "do @\{me.name}.rightAligned(\{rightAligned})")
 		end if
 		var text: []char :: me.props.get("text", &)
 		if(^text > 0)

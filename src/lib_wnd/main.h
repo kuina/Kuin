@@ -63,6 +63,7 @@ EXPORT_CPP SClass* _makeChk(SClass* me_, SClass* parent, S64 x, S64 y, S64 width
 EXPORT_CPP SClass* _makeRadio(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY, const U8* text);
 EXPORT_CPP SClass* _makeEdit(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP void _editReadonly(SClass* me_, Bool enabled);
+EXPORT_CPP void _editRightAligned(SClass* me_, Bool enabled);
 EXPORT_CPP void _editSetSel(SClass* me_, S64 start, S64 len);
 EXPORT_CPP SClass* _makeEditMulti(SClass* me_, SClass* parent, S64 x, S64 y, S64 width, S64 height, S64 anchorX, S64 anchorY);
 EXPORT_CPP void _editMultiAddText(SClass* me_, const U8* text);

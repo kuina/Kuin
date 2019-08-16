@@ -302,6 +302,9 @@ end class
 +class Edit(@EditBase)
 	*func [d0001.knd, _wndBaseDtor, _force] _dtor()
 	end func
+
+	+func [d0001.knd, _editRightAligned] rightAligned(enabled: bool)
+	end func
 end class
 
 +class EditMulti(@EditBase)
