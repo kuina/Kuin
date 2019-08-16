@@ -221,11 +221,18 @@
 					end if
 				end if
 			end if
+			do me.mode :: %put
 			do me.undo.recordBegin()
 			do me.holds :: #list<@Obj>
-			do me.holds.add(me.put(parent, name, @getDefaultName(name.lower(), me.nodes), true, x2, y2, -1, -1, null, true))
+			var objX: int
+			var objY: int
+			var objWidth: int
+			var objHeight: int
+			var obj: @Obj :: me.put(parent, name, @getDefaultName(name.lower(), me.nodes), true, x2, y2, -1, -1, null, true)
+			do me.holds.add(obj)
+			do me.resizeObj(obj, 0, 0, &objX, &objY, &objWidth, &objHeight)
+			do me.move(obj.name, objX, objY, objWidth, objHeight, true)
 			do me.undo.recordEnd()
-			do me.mode :: %put
 			do \form@updateUi()
 		end if
 		do \form@paintDrawEditor()
@@ -871,6 +878,11 @@
 			do objWidth :: obj.width
 			do objHeight :: obj.height
 			ret
+		case %put
+			do objX :: round(&, obj.x)
+			do objY :: round(&, obj.y)
+			do objWidth :: round(&, obj.width)
+			do objHeight :: round(&, obj.height)
 		case %move
 			do objX :: round(&, obj.x + x2)
 			do objY :: round(&, obj.y + y2)
