@@ -220,7 +220,7 @@ class ObjBtn(@ObjArWnd)
 		do me.props.add("anchorX", "%fix")
 		do me.props.add("anchorY", "%fix")
 		do me.props.add("text", me.name)
-		do me.props.add("on", "onPush")
+		do me.props.add("onPush", "")
 		do me.reloadRes()
 	end func
 
