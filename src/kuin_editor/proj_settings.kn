@@ -5,9 +5,9 @@ var listRelatedFile: wnd@List
 +func show()
 	do @wndProjSettings :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 405, \common@langEn ?("Other Settings", "その他の設定"))
 	var labelIcon: wnd@Label :: wnd@makeLabel(@wndProjSettings, 6, 6, 35, 12, %fix, %fix, \common@langEn ?("Icon", "アイコン"))
-	do @editIcon :: wnd@makeEdit(@wndProjSettings, 47, 6, 120, 16, %move, %fix)
+	do @editIcon :: wnd@makeEdit(@wndProjSettings, 47, 6, 243, 19, %move, %fix)
 	do @editIcon.setText(\form@iconPath)
-	var btnIcon: wnd@Btn :: wnd@makeBtn(@wndProjSettings, 173, 6, 75, 23, %move, %fix, \common@langEn ?("Browse...", "参照..."))
+	var btnIcon: wnd@Btn :: wnd@makeBtn(@wndProjSettings, 290, 6, 30, 19, %move, %fix, "...")
 	do btnIcon.onPush :: btnIconOnPush
 
 	var labelRelatedFile: wnd@Label :: wnd@makeLabel(@wndProjSettings, 6, 35, 314, 12, %fix, %fix, \common@langEn ?("Related Files (They are copied into the data folder.)", "関連ファイル (dataフォルダ以下にコピーされます)"))

@@ -85,6 +85,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <PostBuildEvent>
+      <Command>echo F | xcopy /y /r $(TargetPath) $(ProjectDir)..\..\package\tools\knobj_maker.exe</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\common.h" />

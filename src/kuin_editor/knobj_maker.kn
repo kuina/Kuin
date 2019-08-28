@@ -1,0 +1,84 @@
+var wndKnobjMaker: wnd@Wnd
+var editPathInput: wnd@Edit
+var chkTangentBinormal: wnd@Chk
+var chkJoint: wnd@Chk
+var editLog: wnd@EditMulti
+var btnConvert: wnd@Btn
+var btnClose: wnd@Btn
+
++func show()
+	do @wndKnobjMaker :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 300, 265, \common@langEn ?("3D Model Converter", "3D モデルコンバータ"))
+
+	var labelPathInput: wnd@Label :: wnd@makeLabel(@wndKnobjMaker, 12, 12, 100, 12, %fix, %fix, \common@langEn ?("Input", "入力"))
+	do @editPathInput :: wnd@makeEdit(@wndKnobjMaker, 12, 30, 246, 19, %fix, %fix)
+	var btnPathInput: wnd@Btn :: wnd@makeBtn(@wndKnobjMaker, 258, 30, 30, 19, %fix, %fix, "...")
+	do btnPathInput.onPush :: btnPathInputOnPush
+	do @chkTangentBinormal :: wnd@makeChk(@wndKnobjMaker, 12, 55, 276, 16, %fix, %fix, \common@langEn ?("Write Tangents and Binormals", "タンジェントとバイノーマルを書き込む"))
+	do @chkJoint :: wnd@makeChk(@wndKnobjMaker, 12, 77, 276, 16, %fix, %fix, \common@langEn ?("Write Joints", "ジョイントを書き込む"))
+	do @editLog :: wnd@makeEditMulti(@wndKnobjMaker, 12, 99, 276, 125, %fix, %fix)
+	do @editLog.readonly(true)
+
+	do @btnConvert :: wnd@makeBtn(@wndKnobjMaker, 82, 230, 100, 23, %fix, %fix, \common@langEn ?("Convert", "コンバート"))
+	do @btnConvert.onPush :: btnConvertOnPush
+	do @btnClose :: wnd@makeBtn(@wndKnobjMaker, 188, 230, 100, 23, %fix, %fix, \common@langEn ?("Close", "閉じる"))
+	do @btnClose.onPush :: btnCloseOnPush
+
+	do @wndKnobjMaker.modal()
+	do @wndKnobjMaker :: null
+	do @editPathInput :: null
+	do @chkTangentBinormal :: null
+	do @chkJoint :: null
+	do @editLog :: null
+	do @btnConvert :: null
+	do @btnClose :: null
+
+	func btnPathInputOnPush(wnd: wnd@WndBase)
+		var file: []char :: wnd@openFileDialog(@wndKnobjMaker, [\common@langEn ?("FBX File (*.fbx)", "FBX ファイル (*.fbx)"), "*.fbx"], 0)
+		if(file =& null)
+			ret
+		end if
+		do @editPathInput.setText(file)
+	end func
+
+	func btnConvertOnPush(wnd: wnd@WndBase)
+		do @btnConvert.setEnabled(false)
+		do @btnClose.setEnabled(false)
+		do @editLog.setText("")
+		do wnd@act()
+		var format: bit32 :: 0b32
+		var inputPath: []char :: @editPathInput.getText().trim()
+		if(inputPath = "")
+			ret
+		end if
+		if(@chkTangentBinormal.getChk())
+			do format :: format.or(0x01b32)
+		end if
+		if(@chkJoint.getChk())
+			do format :: format.or(0x02b32)
+		end if
+		var process: task@Process :: task@makeProcess(file@exeDir() ~ "tools/knobj_maker.exe", "\{format $ int} \"\{inputPath}\"")
+		do process.run(false)
+		while(process.running(&), skip)
+			var log: []char :: process.readPipe()
+			if(log <>& null)
+				do @editLog.setText(log)
+			end if
+			do wnd@act()
+			do lib@sleep(100)
+		end while
+		block
+			var log: []char :: process.readPipe()
+			if(log <>& null)
+				do @editLog.setText(log)
+			end if
+		end block
+		do process.fin()
+		do wnd@msgBox(@wndKnobjMaker, \common@langEn ?("The conversion is complete.", "コンバートが完了しました。"), \common@title, %none, %ok)
+		do @btnConvert.setEnabled(true)
+		do @btnClose.setEnabled(true)
+	end func
+
+	func btnCloseOnPush(wnd: wnd@WndBase)
+		do @wndKnobjMaker.close()
+	end func
+end func

@@ -13,12 +13,6 @@ end func
 	aspect
 	popup
 	dialog
-{
-	mdi
-	mdiChild
-	dock
-	dockChild
-}
 	layered :: 0x10000
 	noMinimize :: 0x20000
 end enum

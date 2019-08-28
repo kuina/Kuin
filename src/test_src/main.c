@@ -9,7 +9,9 @@
 #include <io.h>
 #include <conio.h>
 
+// 0 = 'Ja', 1 = 'En'.
 #define LANG (0)
+
 #define TEST_NUM (24)
 
 #pragma comment(lib, "compiler.lib")

@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <io.h>
 
+// 0 = 'Ja', 1 = 'En'.
 #define LANG (0)
 
 typedef Bool(*TypeOfBuild)(const Char* path, const Char* sys_dir, const Char* output, const Char* icon, const void* related_files, Bool rls, const Char* env, void(*func_log)(const Char* code, const Char* msg, const Char* src, int row, int col), S64 lang, S64 app_code, Bool not_deploy);

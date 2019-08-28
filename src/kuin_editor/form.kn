@@ -47,6 +47,7 @@ var popupMainEdit: wnd@Popup
 var popupMainFile: wnd@Popup
 var popupMainBuild: wnd@Popup
 var popupMainDbg: wnd@Popup
+var popupMainTools: wnd@Popup
 var popupMainHelp: wnd@Popup
 var popupMainArranger: wnd@Popup
 +var popupRecentFiles: wnd@Popup
@@ -309,6 +310,9 @@ var drag: bool
 	do @popupMainDbg :: wnd@makePopup()
 	do @popupMainDbg.add(0x0040, \common@langEn ?("Toggle &Breakpoint\tF9", "ブレークポイントの設定/解除(&B)\tF9"))
 	do @menuMain.addPopup(\common@langEn ?("&Debug", "デバッグ(&D)"), @popupMainDbg)
+	do @popupMainTools :: wnd@makePopup()
+	do @popupMainTools.add(0x0070, \common@langEn ?("3D &Model Converter...", "3D モデルコンバータ(&M)..."))
+	do @menuMain.addPopup(\common@langEn ?("&Tools", "ツール(&T)"), @popupMainTools)
 	do @popupMainHelp :: wnd@makePopup()
 	do @popupMainHelp.add(0x0010, \common@langEn ?("&View Help\tF1", "ヘルプの表示(&V)\tF1"))
 	do @popupMainHelp.addLine()
@@ -727,6 +731,8 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			ret
 		end if
 		do \proj_settings@show()
+	case 0x0070
+		do \knobj_maker@show()
 	case 0x0400 to 0x04FF
 		do \recent@sel(id)
 	end switch

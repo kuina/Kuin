@@ -2066,7 +2066,7 @@ EXPORT_CPP void _menuIns(SClass* me_, S64 targetId, S64 id, const U8* text)
 	THROWDBG(targetId < 0x0001 || 0xffff < targetId, EXCPT_DBG_ARG_OUT_DOMAIN);
 	THROWDBG(id < 0x0001 || 0xffff < id, EXCPT_DBG_ARG_OUT_DOMAIN);
 	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
-	InsertMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, targetId, MF_ENABLED | MF_STRING, static_cast<UINT_PTR>(id), reinterpret_cast<const Char*>(text + 0x10));
+	InsertMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, static_cast<UINT>(targetId), MF_ENABLED | MF_STRING, static_cast<UINT_PTR>(id), reinterpret_cast<const Char*>(text + 0x10));
 }
 
 EXPORT_CPP void _menuInsPopup(SClass* me_, const U8* target, const U8* text, const U8* popup)
@@ -2074,7 +2074,8 @@ EXPORT_CPP void _menuInsPopup(SClass* me_, const U8* target, const U8* text, con
 	THROWDBG(target == NULL, EXCPT_ACCESS_VIOLATION);
 	THROWDBG(popup == NULL, EXCPT_ACCESS_VIOLATION);
 	THROWDBG(text == NULL, EXCPT_ACCESS_VIOLATION);
-	InsertMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(target)->MenuHandle), MF_ENABLED | MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), reinterpret_cast<const Char*>(text + 0x10));
+	// This cast is due to bad specifications of Windows API.
+	InsertMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, static_cast<UINT>(reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(target)->MenuHandle)), MF_ENABLED | MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), reinterpret_cast<const Char*>(text + 0x10));
 }
 
 EXPORT_CPP void _menuDel(SClass* me_, S64 id)
@@ -2086,7 +2087,8 @@ EXPORT_CPP void _menuDel(SClass* me_, S64 id)
 EXPORT_CPP void _menuDelPopup(SClass* me_, const U8* popup)
 {
 	THROWDBG(popup == NULL, EXCPT_ACCESS_VIOLATION);
-	RemoveMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle), MF_BYCOMMAND);
+	// This cast is due to bad specifications of Windows API.
+	RemoveMenu(reinterpret_cast<SMenu*>(me_)->MenuHandle, static_cast<UINT>(reinterpret_cast<UINT_PTR>(reinterpret_cast<const SMenu*>(popup)->MenuHandle)), MF_BYCOMMAND);
 }
 
 EXPORT_CPP SClass* _makePopup(SClass* me_)
