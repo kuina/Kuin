@@ -32,15 +32,13 @@ float4 main(PS_INPUT input): SV_TARGET
 
 	float up = dot(input.Up, normal) * 0.5f + 0.5f;
 	float3 half = normalize(input.Dir + input.Eye);
-	output.xyz = DirColor.xyz *
+	output.xyz = 
+		diffuse.xyz *
 		(
-			diffuse.xyz *
-			(
-				AmbTopColor.xyz * up + AmbBottomColor.xyz * (1.0f - up) +
-				max(1.0f - (specular.xyz + (1.0f - specular.xyz) * pow(max(1.0f - dot(normal, input.Dir), 0.0f), 5.0f)), 0.0f) / 3.14159265358979f
-			) +
-			(0.0397436f * specular.w + 0.0856832f) * (specular.xyz + (1.0f - specular.xyz) * pow(max(1.0f - dot(input.Eye, half), 0.0f), 5.0f)) * pow(max(dot(normal, half), 0.0f), specular.w) / max(max(dot(normal, input.Dir), dot(normal, input.Eye)), 0.00001f)
-		);
+			AmbTopColor.xyz * up + AmbBottomColor.xyz * (1.0f - up) +
+			DirColor.xyz * 20.0f * max(1.0f - (specular.xyz + (1.0f - specular.xyz) * pow(max(1.0f - dot(normal, input.Dir), 0.0f), 5.0f)), 0.0f) / 3.14159265358979f
+		) +
+		DirColor.xyz * (0.0397436f * specular.w + 0.0856832f) * (specular.xyz + (1.0f - specular.xyz) * pow(max(1.0f - dot(input.Eye, half), 0.0f), 5.0f)) * pow(max(dot(normal, half), 0.0f), specular.w) / max(max(dot(normal, input.Dir), dot(normal, input.Eye)), 0.00001f);
 	output.a = 1.0f;
 
 	if (output.a <= 0.02f)

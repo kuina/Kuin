@@ -3276,8 +3276,8 @@ void Init()
 	ObjPsConstBuf.CommonParam.DirColor[3] = 0.0f;
 	_camera(0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 	_proj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.1, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
-	_ambLight(0.05, 0.05, 0.08, 0.08, 0.05, 0.05);
-	_dirLight(1.0, -1.0, -1.0, 2.0, 2.0, 2.0);
+	_ambLight(0.2, 0.2, 0.32, 0.32, 0.2, 0.2);
+	_dirLight(1.0, -1.0, -1.0, 1.0, 1.0, 1.0);
 
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Device->RSSetState(RasterizerState);
