@@ -120,6 +120,19 @@ EXPORT void* _sqlGetStr(SClass* me_, S64 col)
 	return result;
 }
 
+EXPORT void* _sqlGetBlob8(SClass* me_, S64 col)
+{
+	SSql* me2 = (SSql*)me_;
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	size_t len = sqlite3_column_bytes(me2->Statement, (int)col);
+	const S8* blob = sqlite3_column_blob(me2->Statement, (int)col);
+	U8* result = (U8*)AllocMem(0x10 + sizeof(S8) * len);
+	((S64*)result)[0] = DefaultRefCntFunc;
+	((S64*)result)[1] = (S64)len;
+	memcpy(result + 0x10, blob, sizeof(S8) * len);
+	return result;
+}
+
 EXPORT Bool _sqlNext(SClass* me_)
 {
 	SSql* me2 = (SSql*)me_;

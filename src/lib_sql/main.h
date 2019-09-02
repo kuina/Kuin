@@ -10,4 +10,5 @@ EXPORT Bool _sqlExec(SClass* me_, const void* cmd);
 EXPORT S64 _sqlGetInt(SClass* me_, S64 col);
 EXPORT double _sqlGetFloat(SClass* me_, S64 col);
 EXPORT void* _sqlGetStr(SClass* me_, S64 col);
+EXPORT void* _sqlGetBlob8(SClass* me_, S64 col);
 EXPORT Bool _sqlNext(SClass* me_);
