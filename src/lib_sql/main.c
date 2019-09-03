@@ -133,6 +133,19 @@ EXPORT void* _sqlGetBlob8(SClass* me_, S64 col)
 	return result;
 }
 
+EXPORT void* _sqlErrMsg(SClass* me_)
+{
+	SSql* me2 = (SSql*)me_;
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	const Char* str = sqlite3_errmsg16(me2->Db);
+	size_t len = wcslen(str);
+	U8* result = (U8*)AllocMem(0x10 + sizeof(Char) * (len + 1));
+	((S64*)result)[0] = DefaultRefCntFunc;
+	((S64*)result)[1] = (S64)len;
+	memcpy(result + 0x10, str, sizeof(Char) * (len + 1));
+	return result;
+}
+
 EXPORT Bool _sqlNext(SClass* me_)
 {
 	SSql* me2 = (SSql*)me_;
