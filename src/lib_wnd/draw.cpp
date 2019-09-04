@@ -12,7 +12,7 @@
 
 static const int DepthNum = 4;
 static const int BlendNum = 6;
-static const int SamplerNum = 2;
+static const int SamplerNum = 3;
 static const int JointMax = 256;
 static const int FontBitmapSize = 512;
 static const int TexEvenNum = 3;
@@ -125,10 +125,11 @@ struct SObjCommonVsConstBuf
 	float World[4][4];
 	float NormWorld[4][4];
 	float ProjView[4][4];
+	float ShadowProjView[4][4];
 	float Eye[4];
 	float Dir[4];
 };
-STATIC_ASSERT(sizeof(SObjCommonVsConstBuf) == 4 * 56);
+STATIC_ASSERT(sizeof(SObjCommonVsConstBuf) == 4 * 72);
 
 struct SObjCommonPsConstBuf
 {
@@ -169,6 +170,13 @@ struct SObjOutlinePsConstBuf
 	float OutlineColor[4];
 };
 
+struct SObjShadowVsConstBuf
+{
+	float World[4][4];
+	float ProjView[4][4];
+	float Joint[JointMax][4][4];
+};
+
 struct SParticleTexSet
 {
 	ID3D10Texture2D* TexParam;
@@ -200,6 +208,17 @@ struct SParticle
 	Bool Draw1To2;
 };
 
+struct SShadow
+{
+	SClass Class;
+	ID3D10Texture2D* DepthTex;
+	ID3D10DepthStencilView* DepthView;
+	ID3D10ShaderResourceView* DepthResView;
+	int DepthWidth;
+	int DepthHeight;
+	float(*ShadowProjView)[4];
+};
+
 static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 static const D3D10_VIEWPORT ParticleViewport = { 0, 0, static_cast<UINT>(ParticleNum), 1, 0.0f, 1.0f };
@@ -215,16 +234,26 @@ const U8* GetTexVsBin(size_t* size);
 const U8* GetTexRotVsBin(size_t* size);
 const U8* GetTexPsBin(size_t* size);
 const U8* GetObjVsBin(size_t* size);
+const U8* GetObjSmVsBin(size_t* size);
 const U8* GetObjJointVsBin(size_t* size);
+const U8* GetObjJointSmVsBin(size_t* size);
 const U8* GetObjPsBin(size_t* size);
+const U8* GetObjSmPsBin(size_t* size);
 const U8* GetObjToonPsBin(size_t* size);
+const U8* GetObjToonSmPsBin(size_t* size);
 const U8* GetObjFastVsBin(size_t* size);
+const U8* GetObjFastSmVsBin(size_t* size);
 const U8* GetObjFastJointVsBin(size_t* size);
+const U8* GetObjFastJointSmVsBin(size_t* size);
 const U8* GetObjFastPsBin(size_t* size);
+const U8* GetObjFastSmPsBin(size_t* size);
 const U8* GetObjToonFastPsBin(size_t* size);
+const U8* GetObjToonFastSmPsBin(size_t* size);
 const U8* GetObjOutlineVsBin(size_t* size);
 const U8* GetObjOutlineJointVsBin(size_t* size);
 const U8* GetObjOutlinePsBin(size_t* size);
+const U8* GetObjShadowVsBin(size_t* size);
+const U8* GetObjShadowJointVsBin(size_t* size);
 const U8* GetFilterVsBin(size_t* size);
 const U8* GetFilterNonePsBin(size_t* size);
 const U8* GetFilterMonotonePsBin(size_t* size);
@@ -266,16 +295,26 @@ static void* TexRotVs = NULL;
 static void* TexPs = NULL;
 static void* FontPs = NULL;
 static void* ObjVs = NULL;
+static void* ObjSmVs = NULL;
 static void* ObjJointVs = NULL;
+static void* ObjJointSmVs = NULL;
 static void* ObjPs = NULL;
+static void* ObjSmPs = NULL;
 static void* ObjToonPs = NULL;
+static void* ObjToonSmPs = NULL;
 static void* ObjFastVs = NULL;
+static void* ObjFastSmVs = NULL;
 static void* ObjFastJointVs = NULL;
+static void* ObjFastJointSmVs = NULL;
 static void* ObjFastPs = NULL;
+static void* ObjFastSmPs = NULL;
 static void* ObjToonFastPs = NULL;
+static void* ObjToonFastSmPs = NULL;
 static void* ObjOutlineVs = NULL;
 static void* ObjOutlineJointVs = NULL;
 static void* ObjOutlinePs = NULL;
+static void* ObjShadowVs = NULL;
+static void* ObjShadowJointVs = NULL;
 static void* FilterVertex = NULL;
 static void* FilterVs = NULL;
 static void* FilterPs[FilterNum] = { NULL };
@@ -310,6 +349,8 @@ static double CalcFontLineHeight(SFont* font, const Char* text);
 static SClass* MakeObjImpl(SClass* me_, size_t size, const void* binary);
 static void WriteFastPsConstBuf(SObjFastPsConstBuf* ps_const_buf);
 static int SearchFromCache(SFont* me, int cell_num_width, int cell_num, Char c);
+static void ObjDrawImpl(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow);
+static void ObjDrawToonImpl(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow);
 
 EXPORT_CPP void _set2dCallback(void*(*callback)(int, void*, void*))
 {
@@ -1514,127 +1555,17 @@ EXPORT_CPP SClass* _makePlane(SClass* me_)
 
 EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal)
 {
-	SObj* me2 = (SObj*)me_;
-	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, EXCPT_DBG_ARG_OUT_DOMAIN);
-	switch (me2->ElementKinds[element])
-	{
-		case 0: // Polygon.
-			{
-				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
-				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), EXCPT_DBG_ARG_OUT_DOMAIN);
-				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, EXCPT_DBG_ARG_OUT_DOMAIN);
-				Bool joint = element2->JointNum != 0;
-
-				memcpy(ObjVsConstBuf.CommonParam.World, me2->Mat, sizeof(float[4][4]));
-				memcpy(ObjVsConstBuf.CommonParam.NormWorld, me2->NormMat, sizeof(float[4][4]));
-				if ((me2->Format & Format_HasTangent) == 0)
-				{
-					if (joint && frame >= 0.0f)
-					{
-						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
-						Draw::ConstBuf(ObjFastJointVs, &ObjVsConstBuf);
-					}
-					else
-						Draw::ConstBuf(ObjFastVs, &ObjVsConstBuf);
-					Device->GSSetShader(NULL);
-
-					SObjFastPsConstBuf ps_const_buf;
-					WriteFastPsConstBuf(&ps_const_buf);
-					Draw::ConstBuf(ObjFastPs, &ps_const_buf);
-					Draw::VertexBuf(element2->VertexBuf);
-					ID3D10ShaderResourceView* views[2];
-					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
-					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
-					Device->PSSetShaderResources(0, 2, views);
-				}
-				else
-				{
-					if (joint && frame >= 0.0f)
-					{
-						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
-						Draw::ConstBuf(ObjJointVs, &ObjVsConstBuf);
-					}
-					else
-						Draw::ConstBuf(ObjVs, &ObjVsConstBuf);
-					Device->GSSetShader(NULL);
-					Draw::ConstBuf(ObjPs, &ObjPsConstBuf);
-					Draw::VertexBuf(element2->VertexBuf);
-					ID3D10ShaderResourceView* views[3];
-					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
-					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
-					views[2] = normal == NULL ? ViewEven[2] : reinterpret_cast<STex*>(normal)->View;
-					Device->PSSetShaderResources(0, 3, views);
-				}
-				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
-			}
-			break;
-	}
+	ObjDrawImpl(me_, element, frame, diffuse, specular, normal, NULL);
 }
 
 EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal)
 {
-	SObj* me2 = (SObj*)me_;
-	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, EXCPT_DBG_ARG_OUT_DOMAIN);
-	switch (me2->ElementKinds[element])
-	{
-		case 0: // Polygon.
-			{
-				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
-				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), EXCPT_DBG_ARG_OUT_DOMAIN);
-				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, EXCPT_DBG_ARG_OUT_DOMAIN);
-				Bool joint = element2->JointNum != 0;
-
-				memcpy(ObjVsConstBuf.CommonParam.World, me2->Mat, sizeof(float[4][4]));
-				memcpy(ObjVsConstBuf.CommonParam.NormWorld, me2->NormMat, sizeof(float[4][4]));
-				if ((me2->Format & Format_HasTangent) == 0)
-				{
-					if (joint && frame >= 0.0f)
-					{
-						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
-						Draw::ConstBuf(ObjFastJointVs, &ObjVsConstBuf);
-					}
-					else
-						Draw::ConstBuf(ObjFastVs, &ObjVsConstBuf);
-					Device->GSSetShader(NULL);
-
-					SObjFastPsConstBuf ps_const_buf;
-					WriteFastPsConstBuf(&ps_const_buf);
-					Draw::ConstBuf(ObjToonFastPs, &ps_const_buf);
-					Draw::VertexBuf(element2->VertexBuf);
-					ID3D10ShaderResourceView* views[3];
-					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
-					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
-					views[2] = ViewToonRamp;
-					Device->PSSetShaderResources(0, 3, views);
-				}
-				else
-				{
-					if (joint && frame >= 0.0f)
-					{
-						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
-						Draw::ConstBuf(ObjJointVs, &ObjVsConstBuf);
-					}
-					else
-						Draw::ConstBuf(ObjVs, &ObjVsConstBuf);
-					Device->GSSetShader(NULL);
-					Draw::ConstBuf(ObjToonPs, &ObjPsConstBuf);
-					Draw::VertexBuf(element2->VertexBuf);
-					ID3D10ShaderResourceView* views[4];
-					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
-					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
-					views[2] = normal == NULL ? ViewEven[2] : reinterpret_cast<STex*>(normal)->View;
-					views[3] = ViewToonRamp;
-					Device->PSSetShaderResources(0, 4, views);
-				}
-				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
-			}
-			break;
-	}
+	ObjDrawToonImpl(me_, element, frame, diffuse, specular, normal, NULL);
 }
 
 EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double width, S64 color)
 {
-	SObj* me2 = (SObj*)me_;
+	SObj* me2 = reinterpret_cast<SObj*>(me_);
 	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, EXCPT_DBG_ARG_OUT_DOMAIN);
 	switch (me2->ElementKinds[element])
 	{
@@ -1677,9 +1608,19 @@ EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double w
 	}
 }
 
+EXPORT_CPP void _objDrawWithShadow(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow)
+{
+	ObjDrawImpl(me_, element, frame, diffuse, specular, normal, shadow);
+}
+
+EXPORT_CPP void _objDrawToonWithShadow(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow)
+{
+	ObjDrawToonImpl(me_, element, frame, diffuse, specular, normal, shadow);
+}
+
 EXPORT_CPP void _objMat(SClass* me_, const U8* mat, const U8* normMat)
 {
-	SObj* me2 = (SObj*)me_;
+	SObj* me2 = reinterpret_cast<SObj*>(me_);
 	THROWDBG(*(S64*)(mat + 0x08) != 16 || *(S64*)(normMat + 0x08) != 16, EXCPT_DBG_ARG_OUT_DOMAIN);
 	{
 		const double* ptr = reinterpret_cast<const double*>(mat + 0x10);
@@ -1723,7 +1664,7 @@ EXPORT_CPP void _objMat(SClass* me_, const U8* mat, const U8* normMat)
 
 EXPORT_CPP void _objPos(SClass* me_, double scaleX, double scaleY, double scaleZ, double rotX, double rotY, double rotZ, double transX, double transY, double transZ)
 {
-	SObj* me2 = (SObj*)me_;
+	SObj* me2 = reinterpret_cast<SObj*>(me_);
 	double cos_x = cos(rotX);
 	double sin_x = sin(rotX);
 	double cos_y = cos(rotY);
@@ -1769,7 +1710,7 @@ EXPORT_CPP void _objPos(SClass* me_, double scaleX, double scaleY, double scaleZ
 
 EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, double atY, double atZ, double upX, double upY, double upZ, Bool fixUp)
 {
-	SObj* me2 = (SObj*)me_;
+	SObj* me2 = reinterpret_cast<SObj*>(me_);
 	double at[3] = { atX - x, atY - y, atZ - z }, up[3] = { upX, upY, upZ }, right[3];
 	if (Draw::Normalize(at) == 0.0)
 		return;
@@ -2015,6 +1956,244 @@ EXPORT_CPP SClass* _makeParticle(SClass* me_, S64 life_span, S64 color1, S64 col
 		if (FAILED(Device->CreateTexture2D(&desc, NULL, &me2->TexTmp)))
 			return False;
 	}
+	return me_;
+}
+
+EXPORT_CPP void _shadowDtor(SClass* me_)
+{
+	SShadow* me2 = reinterpret_cast<SShadow*>(me_);
+	if (me2->ShadowProjView != NULL)
+		FreeMem(me2->ShadowProjView);
+	if (me2->DepthResView != NULL)
+		me2->DepthResView->Release();
+	if (me2->DepthView != NULL)
+		me2->DepthView->Release();
+	if (me2->DepthTex != NULL)
+		me2->DepthTex->Release();
+}
+
+EXPORT_CPP void _shadowBeginRecord(SClass* me_, double x, double y, double z, double radius)
+{
+	SShadow* me2 = reinterpret_cast<SShadow*>(me_);
+
+	double proj_mat[4][4];
+	double view_mat[4][4];
+
+	double dir_at[3] =
+	{
+		-static_cast<double>(ObjVsConstBuf.CommonParam.Dir[0]),
+		-static_cast<double>(ObjVsConstBuf.CommonParam.Dir[1]),
+		-static_cast<double>(ObjVsConstBuf.CommonParam.Dir[2])
+	};
+	double len = Draw::Normalize(dir_at);
+	THROWDBG(len == 0.0, EXCPT_DBG_INOPERABLE_STATE);
+	
+	double eye_pos[3] =
+	{
+		x - dir_at[0] * radius,
+		y - dir_at[1] * radius,
+		z - dir_at[2] * radius
+	};
+
+	{
+		proj_mat[0][0] = -1.0 / radius;
+		proj_mat[0][1] = 0.0;
+		proj_mat[0][2] = 0.0;
+		proj_mat[0][3] = 0.0;
+		proj_mat[1][0] = 0.0;
+		proj_mat[1][1] = 1.0 / radius;
+		proj_mat[1][2] = 0.0;
+		proj_mat[1][3] = 0.0;
+		proj_mat[2][0] = 0.0;
+		proj_mat[2][1] = 0.0;
+		proj_mat[2][2] = 0.5 / radius;
+		proj_mat[2][3] = 0.0;
+		proj_mat[3][0] = 0.0;
+		proj_mat[3][1] = 0.0;
+		proj_mat[3][2] = 0.0;
+		proj_mat[3][3] = 1.0;
+	}
+
+	{
+		double up[3], right[3], eye[3], pxyz[3];
+
+		up[0] = 0.0;
+		up[1] = 1.0;
+		up[2] = 0.0;
+		Draw::Cross(right, up, dir_at);
+		if (Draw::Normalize(right) == 0.0)
+		{
+			up[0] = 0.0;
+			up[1] = 0.0;
+			up[2] = 1.0;
+			Draw::Cross(right, up, dir_at);
+			Draw::Normalize(right);
+		}
+
+		Draw::Cross(up, dir_at, right);
+
+		eye[0] = eye_pos[0];
+		eye[1] = eye_pos[1];
+		eye[2] = eye_pos[2];
+		pxyz[0] = Draw::Dot(eye, right);
+		pxyz[1] = Draw::Dot(eye, up);
+		pxyz[2] = Draw::Dot(eye, dir_at);
+
+		view_mat[0][0] = right[0];
+		view_mat[0][1] = up[0];
+		view_mat[0][2] = dir_at[0];
+		view_mat[0][3] = 0.0;
+		view_mat[1][0] = right[1];
+		view_mat[1][1] = up[1];
+		view_mat[1][2] = dir_at[1];
+		view_mat[1][3] = 0.0;
+		view_mat[2][0] = right[2];
+		view_mat[2][1] = up[2];
+		view_mat[2][2] = dir_at[2];
+		view_mat[2][3] = 0.0;
+		view_mat[3][0] = -pxyz[0];
+		view_mat[3][1] = -pxyz[1];
+		view_mat[3][2] = -pxyz[2];
+		view_mat[3][3] = 1.0;
+	}
+
+	double proj_view[4][4];
+	Draw::MulMat(proj_view, proj_mat, view_mat);
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+			me2->ShadowProjView[i][j] = static_cast<float>(proj_view[i][j]);
+	}
+	{
+		double uv_mat[4][4];
+		uv_mat[0][0] = 0.5;
+		uv_mat[0][1] = 0.0;
+		uv_mat[0][2] = 0.0;
+		uv_mat[0][3] = 0.0;
+		uv_mat[1][0] = 0.0;
+		uv_mat[1][1] = -0.5;
+		uv_mat[1][2] = 0.0;
+		uv_mat[1][3] = 0.0;
+		uv_mat[2][0] = 0.0;
+		uv_mat[2][1] = 0.0;
+		uv_mat[2][2] = 1.0;
+		uv_mat[2][3] = 0.0;
+		uv_mat[3][0] = 0.5;
+		uv_mat[3][1] = 0.5;
+		uv_mat[3][2] = 0.0;
+		uv_mat[3][3] = 1.0;
+		Draw::SetProjViewMat(ObjVsConstBuf.CommonParam.ShadowProjView, uv_mat, proj_view);
+	}
+
+	Device->OMSetRenderTargets(0, NULL, me2->DepthView);
+	Device->ClearDepthStencilView(me2->DepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
+
+	D3D10_VIEWPORT viewport =
+	{
+		0,
+		0,
+		static_cast<UINT>(me2->DepthWidth),
+		static_cast<UINT>(me2->DepthHeight),
+		0.0f,
+		1.0f,
+	};
+	Device->RSSetViewports(1, &viewport);
+}
+
+EXPORT_CPP void _shadowEndRecord(SClass* me_)
+{
+	Device->OMSetRenderTargets(1, &CurWndBuf->TmpRenderTargetView, CurWndBuf->DepthView);
+	Draw::ResetViewport();
+}
+
+EXPORT_CPP void _shadowAdd(SClass* me_, SClass* obj, S64 element, double frame)
+{
+	SShadow* me2 = reinterpret_cast<SShadow*>(me_);
+	SObj* obj2 = reinterpret_cast<SObj*>(obj);
+	THROWDBG(element < 0 || static_cast<S64>(obj2->ElementNum) <= element, EXCPT_DBG_ARG_OUT_DOMAIN);
+	SObjShadowVsConstBuf const_buf;
+	switch (obj2->ElementKinds[element])
+	{
+		case 0: // Polygon.
+			{
+				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(obj2->Elements[element]);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), EXCPT_DBG_ARG_OUT_DOMAIN);
+				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, EXCPT_DBG_ARG_OUT_DOMAIN);
+				Bool joint = element2->JointNum != 0;
+
+				memcpy(const_buf.World, obj2->Mat, sizeof(float[4][4]));
+				memcpy(const_buf.ProjView, me2->ShadowProjView, sizeof(float[4][4]));
+				if ((obj2->Format & Format_HasTangent) == 0)
+				{
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, const_buf.Joint);
+						Draw::ConstBuf(ObjShadowJointVs, &const_buf);
+					}
+					else
+						Draw::ConstBuf(ObjShadowVs, &const_buf);
+					Device->GSSetShader(NULL);
+					Device->PSSetShader(NULL);
+					Draw::VertexBuf(element2->VertexBuf);
+				}
+				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
+			}
+			break;
+	}
+}
+
+EXPORT_CPP SClass* _makeShadow(SClass* me_, S64 width, S64 height)
+{
+	SShadow* me2 = reinterpret_cast<SShadow*>(me_);
+	{
+		Bool success = False;
+		for (; ; )
+		{
+			{
+				D3D10_TEXTURE2D_DESC desc;
+				memset(&desc, 0, sizeof(desc));
+				desc.Width = static_cast<UINT>(width);
+				desc.Height = static_cast<UINT>(height);
+				desc.MipLevels = 1;
+				desc.ArraySize = 1;
+				desc.Format = DXGI_FORMAT_R32_TYPELESS;
+				desc.SampleDesc.Count = 1;
+				desc.SampleDesc.Quality = 0;
+				desc.Usage = D3D10_USAGE_DEFAULT;
+				desc.BindFlags = D3D10_BIND_DEPTH_STENCIL | D3D10_BIND_SHADER_RESOURCE;
+				desc.CPUAccessFlags = 0;
+				desc.MiscFlags = 0;
+				if (FAILED(Device->CreateTexture2D(&desc, NULL, &me2->DepthTex)))
+					break;
+			}
+			{
+				D3D10_DEPTH_STENCIL_VIEW_DESC desc;
+				memset(&desc, 0, sizeof(desc));
+				desc.Format = DXGI_FORMAT_D32_FLOAT;
+				desc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
+				desc.Texture2D.MipSlice = 0;
+				if (FAILED(Device->CreateDepthStencilView(me2->DepthTex, &desc, &me2->DepthView)))
+					break;
+			}
+			{
+				D3D10_SHADER_RESOURCE_VIEW_DESC desc;
+				memset(&desc, 0, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+				desc.Format = DXGI_FORMAT_R32_FLOAT;
+				desc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+				desc.Texture2D.MostDetailedMip = 0;
+				desc.Texture2D.MipLevels = 1;
+				if (FAILED(Device->CreateShaderResourceView(me2->DepthTex, &desc, &me2->DepthResView)))
+					return False;
+			}
+			success = True;
+			break;
+		}
+		if (!success)
+			THROW(EXCPT_DEVICE_INIT_FAILED);
+	}
+	me2->DepthWidth = static_cast<int>(width);
+	me2->DepthHeight = static_cast<int>(height);
+	me2->ShadowProjView = static_cast<float(*)[4]>(AllocMem(sizeof(float) * 4 * 4));
 	return me_;
 }
 
@@ -2453,6 +2632,152 @@ static int SearchFromCache(SFont* me, int cell_num_width, int cell_num, Char c)
 	return pos;
 }
 
+static void ObjDrawImpl(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow)
+{
+	SObj* me2 = reinterpret_cast<SObj*>(me_);
+	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, EXCPT_DBG_ARG_OUT_DOMAIN);
+	Device->PSSetSamplers(1, 1, &Sampler[2]);
+	switch (me2->ElementKinds[element])
+	{
+		case 0: // Polygon.
+			{
+				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), EXCPT_DBG_ARG_OUT_DOMAIN);
+				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, EXCPT_DBG_ARG_OUT_DOMAIN);
+				Bool joint = element2->JointNum != 0;
+
+				memcpy(ObjVsConstBuf.CommonParam.World, me2->Mat, sizeof(float[4][4]));
+				memcpy(ObjVsConstBuf.CommonParam.NormWorld, me2->NormMat, sizeof(float[4][4]));
+				if ((me2->Format & Format_HasTangent) == 0)
+				{
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+						Draw::ConstBuf(shadow == NULL ? ObjFastJointVs : ObjFastJointSmVs, &ObjVsConstBuf);
+					}
+					else
+						Draw::ConstBuf(shadow == NULL ? ObjFastVs : ObjFastSmVs, &ObjVsConstBuf);
+					Device->GSSetShader(NULL);
+
+					SObjFastPsConstBuf ps_const_buf;
+					WriteFastPsConstBuf(&ps_const_buf);
+					Draw::ConstBuf(shadow == NULL ? ObjFastPs : ObjFastSmPs, &ps_const_buf);
+					Draw::VertexBuf(element2->VertexBuf);
+					ID3D10ShaderResourceView* views[3];
+					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
+					if (shadow == NULL)
+						Device->PSSetShaderResources(0, 2, views);
+					else
+					{
+						views[2] = reinterpret_cast<SShadow*>(shadow)->DepthResView;
+						Device->PSSetShaderResources(0, 3, views);
+					}
+				}
+				else
+				{
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+						Draw::ConstBuf(shadow == NULL ? ObjJointVs : ObjJointSmVs, &ObjVsConstBuf);
+					}
+					else
+						Draw::ConstBuf(shadow == NULL ? ObjVs : ObjSmVs, &ObjVsConstBuf);
+					Device->GSSetShader(NULL);
+					Draw::ConstBuf(shadow == NULL ? ObjPs : ObjSmPs, &ObjPsConstBuf);
+					Draw::VertexBuf(element2->VertexBuf);
+					ID3D10ShaderResourceView* views[4];
+					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
+					views[2] = normal == NULL ? ViewEven[2] : reinterpret_cast<STex*>(normal)->View;
+					if (shadow == NULL)
+						Device->PSSetShaderResources(0, 3, views);
+					else
+					{
+						views[3] = reinterpret_cast<SShadow*>(shadow)->DepthResView;
+						Device->PSSetShaderResources(0, 4, views);
+					}
+				}
+				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
+			}
+			break;
+	}
+}
+
+static void ObjDrawToonImpl(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow)
+{
+	SObj* me2 = reinterpret_cast<SObj*>(me_);
+	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, EXCPT_DBG_ARG_OUT_DOMAIN);
+	Device->PSSetSamplers(1, 1, &Sampler[2]);
+	switch (me2->ElementKinds[element])
+	{
+		case 0: // Polygon.
+			{
+				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), EXCPT_DBG_ARG_OUT_DOMAIN);
+				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, EXCPT_DBG_ARG_OUT_DOMAIN);
+				Bool joint = element2->JointNum != 0;
+
+				memcpy(ObjVsConstBuf.CommonParam.World, me2->Mat, sizeof(float[4][4]));
+				memcpy(ObjVsConstBuf.CommonParam.NormWorld, me2->NormMat, sizeof(float[4][4]));
+				if ((me2->Format & Format_HasTangent) == 0)
+				{
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+						Draw::ConstBuf(shadow == NULL ? ObjFastJointVs : ObjFastJointSmVs, &ObjVsConstBuf);
+					}
+					else
+						Draw::ConstBuf(shadow == NULL ? ObjFastVs : ObjFastSmVs, &ObjVsConstBuf);
+					Device->GSSetShader(NULL);
+
+					SObjFastPsConstBuf ps_const_buf;
+					WriteFastPsConstBuf(&ps_const_buf);
+					Draw::ConstBuf(shadow == NULL ? ObjToonFastPs : ObjToonFastSmPs, &ps_const_buf);
+					Draw::VertexBuf(element2->VertexBuf);
+					ID3D10ShaderResourceView* views[4];
+					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
+					views[2] = ViewToonRamp;
+					if (shadow == NULL)
+						Device->PSSetShaderResources(0, 3, views);
+					else
+					{
+						views[3] = reinterpret_cast<SShadow*>(shadow)->DepthResView;
+						Device->PSSetShaderResources(0, 4, views);
+					}
+				}
+				else
+				{
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+						Draw::ConstBuf(shadow == NULL ? ObjJointVs : ObjJointSmVs, &ObjVsConstBuf);
+					}
+					else
+						Draw::ConstBuf(shadow == NULL ? ObjVs : ObjSmVs, &ObjVsConstBuf);
+					Device->GSSetShader(NULL);
+					Draw::ConstBuf(shadow == NULL ? ObjToonPs : ObjToonSmPs, &ObjPsConstBuf);
+					Draw::VertexBuf(element2->VertexBuf);
+					ID3D10ShaderResourceView* views[5];
+					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+					views[1] = specular == NULL ? ViewEven[1] : reinterpret_cast<STex*>(specular)->View;
+					views[2] = normal == NULL ? ViewEven[2] : reinterpret_cast<STex*>(normal)->View;
+					views[3] = ViewToonRamp;
+					if (shadow == NULL)
+						Device->PSSetShaderResources(0, 4, views);
+					else
+					{
+						views[4] = reinterpret_cast<SShadow*>(shadow)->DepthResView;
+						Device->PSSetShaderResources(0, 5, views);
+					}
+				}
+				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
+			}
+			break;
+	}
+}
+
 namespace Draw
 {
 
@@ -2619,6 +2944,14 @@ void Init()
 	{
 		D3D10_SAMPLER_DESC desc;
 		memset(&desc, 0, sizeof(desc));
+		desc.AddressU = D3D10_TEXTURE_ADDRESS_MIRROR;
+		desc.AddressV = D3D10_TEXTURE_ADDRESS_MIRROR;
+		desc.AddressW = D3D10_TEXTURE_ADDRESS_MIRROR;
+		desc.MipLODBias = 0.0f;
+		desc.MaxAnisotropy = 0;
+		desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
+		desc.MinLOD = -D3D10_FLOAT32_MAX;
+		desc.MaxLOD = D3D10_FLOAT32_MAX;
 		switch (i)
 		{
 			// Nearest neighbor.
@@ -2629,15 +2962,19 @@ void Init()
 			case 1:
 				desc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
 				break;
+			// Shadow
+			case 2:
+				desc.AddressU = D3D10_TEXTURE_ADDRESS_BORDER;
+				desc.AddressV = D3D10_TEXTURE_ADDRESS_BORDER;
+				desc.AddressW = D3D10_TEXTURE_ADDRESS_BORDER;
+				desc.BorderColor[0] = 1.0f;
+				desc.BorderColor[1] = 1.0f;
+				desc.BorderColor[2] = 1.0f;
+				desc.BorderColor[3] = 1.0f;
+				desc.ComparisonFunc = D3D10_COMPARISON_LESS_EQUAL;
+				desc.Filter = D3D10_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+				break;
 		}
-		desc.AddressU = D3D10_TEXTURE_ADDRESS_MIRROR;
-		desc.AddressV = D3D10_TEXTURE_ADDRESS_MIRROR;
-		desc.AddressW = D3D10_TEXTURE_ADDRESS_MIRROR;
-		desc.MipLODBias = 0.0f;
-		desc.MaxAnisotropy = 0;
-		desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
-		desc.MinLOD = 0.0f;
-		desc.MaxLOD = D3D10_FLOAT32_MAX;
 		if (FAILED(Device->CreateSamplerState(&desc, &Sampler[i])))
 			THROW(EXCPT_DEVICE_INIT_FAILED);
 	}
@@ -2870,13 +3207,28 @@ void Init()
 			}
 			{
 				size_t size;
+				const U8* bin = GetObjSmVsBin(&size);
+				ObjSmVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 4, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
 				const U8* bin = GetObjPsBin(&size);
 				ObjPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
 			}
 			{
 				size_t size;
+				const U8* bin = GetObjSmPsBin(&size);
+				ObjSmPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
+			}
+			{
+				size_t size;
 				const U8* bin = GetObjToonPsBin(&size);
 				ObjToonPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
+			}
+			{
+				size_t size;
+				const U8* bin = GetObjToonSmPsBin(&size);
+				ObjToonSmPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
 			}
 		}
 		{
@@ -2904,6 +3256,11 @@ void Init()
 				size_t size;
 				const U8* bin = GetObjJointVsBin(&size);
 				ObjJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 6, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetObjJointSmVsBin(&size);
+				ObjJointSmVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 6, layout_types, layout_semantics);
 			}
 		}
 	}
@@ -2933,13 +3290,28 @@ void Init()
 			}
 			{
 				size_t size;
+				const U8* bin = GetObjFastSmVsBin(&size);
+				ObjFastSmVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 3, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
 				const U8* bin = GetObjFastPsBin(&size);
 				ObjFastPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
 			}
 			{
 				size_t size;
+				const U8* bin = GetObjFastSmPsBin(&size);
+				ObjFastSmPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
+			}
+			{
+				size_t size;
 				const U8* bin = GetObjToonFastPsBin(&size);
 				ObjToonFastPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
+			}
+			{
+				size_t size;
+				const U8* bin = GetObjToonFastSmPsBin(&size);
+				ObjToonFastSmPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
 			}
 		}
 		{
@@ -2965,6 +3337,11 @@ void Init()
 				size_t size;
 				const U8* bin = GetObjFastJointVsBin(&size);
 				ObjFastJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 5, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetObjFastJointSmVsBin(&size);
+				ObjFastJointSmVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 5, layout_types, layout_semantics);
 			}
 		}
 	}
@@ -3025,6 +3402,49 @@ void Init()
 				size_t size;
 				const U8* bin = GetObjOutlineJointVsBin(&size);
 				ObjOutlineJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjOutlineVsConstBuf), 6, layout_types, layout_semantics);
+			}
+		}
+	}
+
+	// Initialize 'ObjShadow'.
+	if (IsResUsed(UseResFlagsKind_Draw_ObjDraw))
+	{
+		{
+			ELayoutType layout_types[1] =
+			{
+				LayoutType_Float3,
+			};
+
+			const Char* layout_semantics[1] =
+			{
+				L"POSITION",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetObjShadowVsBin(&size);
+				ObjShadowVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjShadowVsConstBuf) - sizeof(SObjShadowVsConstBuf::Joint), 1, layout_types, layout_semantics);
+			}
+		}
+		{
+			ELayoutType layout_types[3] =
+			{
+				LayoutType_Float3,
+				LayoutType_Float4,
+				LayoutType_Int4,
+			};
+
+			const Char* layout_semantics[3] =
+			{
+				L"POSITION",
+				L"K_WEIGHT",
+				L"K_JOINT",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetObjShadowJointVsBin(&size);
+				ObjShadowJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjShadowVsConstBuf), 3, layout_types, layout_semantics);
 			}
 		}
 	}
@@ -3326,26 +3746,46 @@ void Fin()
 		FinShaderBuf(FilterVs);
 	if (FilterVertex != NULL)
 		FinVertexBuf(FilterVertex);
+	if (ObjShadowJointVs != NULL)
+		FinShaderBuf(ObjShadowJointVs);
+	if (ObjShadowVs != NULL)
+		FinShaderBuf(ObjShadowVs);
 	if (ObjOutlinePs != NULL)
 		FinShaderBuf(ObjOutlinePs);
 	if (ObjOutlineJointVs != NULL)
 		FinShaderBuf(ObjOutlineJointVs);
 	if (ObjOutlineVs != NULL)
 		FinShaderBuf(ObjOutlineVs);
+	if (ObjToonFastSmPs != NULL)
+		FinShaderBuf(ObjToonFastSmPs);
 	if (ObjToonFastPs != NULL)
 		FinShaderBuf(ObjToonFastPs);
+	if (ObjFastSmPs != NULL)
+		FinShaderBuf(ObjFastSmPs);
 	if (ObjFastPs != NULL)
 		FinShaderBuf(ObjFastPs);
+	if (ObjFastJointSmVs != NULL)
+		FinShaderBuf(ObjFastJointSmVs);
 	if (ObjFastJointVs != NULL)
 		FinShaderBuf(ObjFastJointVs);
+	if (ObjFastSmVs != NULL)
+		FinShaderBuf(ObjFastSmVs);
 	if (ObjFastVs != NULL)
 		FinShaderBuf(ObjFastVs);
+	if (ObjToonSmPs != NULL)
+		FinShaderBuf(ObjToonSmPs);
 	if (ObjToonPs != NULL)
 		FinShaderBuf(ObjToonPs);
+	if (ObjSmPs != NULL)
+		FinShaderBuf(ObjSmPs);
 	if (ObjPs != NULL)
 		FinShaderBuf(ObjPs);
+	if (ObjJointSmVs != NULL)
+		FinShaderBuf(ObjJointSmVs);
 	if (ObjJointVs != NULL)
 		FinShaderBuf(ObjJointVs);
+	if (ObjSmVs != NULL)
+		FinShaderBuf(ObjSmVs);
 	if (ObjVs != NULL)
 		FinShaderBuf(ObjVs);
 	if (FontPs != NULL)
@@ -3936,6 +4376,26 @@ void Cross(double out[3], const double a[3], const double b[3])
 	out[0] = a[1] * b[2] - a[2] * b[1];
 	out[1] = a[2] * b[0] - a[0] * b[2];
 	out[2] = a[0] * b[1] - a[1] * b[0];
+}
+
+void MulMat(double out[4][4], const double a[4][4], const double b[4][4])
+{
+	out[0][0] = a[0][0] * b[0][0] + a[1][0] * b[0][1] + a[2][0] * b[0][2] + a[3][0] * b[0][3];
+	out[0][1] = a[0][1] * b[0][0] + a[1][1] * b[0][1] + a[2][1] * b[0][2] + a[3][1] * b[0][3];
+	out[0][2] = a[0][2] * b[0][0] + a[1][2] * b[0][1] + a[2][2] * b[0][2] + a[3][2] * b[0][3];
+	out[0][3] = a[0][3] * b[0][0] + a[1][3] * b[0][1] + a[2][3] * b[0][2] + a[3][3] * b[0][3];
+	out[1][0] = a[0][0] * b[1][0] + a[1][0] * b[1][1] + a[2][0] * b[1][2] + a[3][0] * b[1][3];
+	out[1][1] = a[0][1] * b[1][0] + a[1][1] * b[1][1] + a[2][1] * b[1][2] + a[3][1] * b[1][3];
+	out[1][2] = a[0][2] * b[1][0] + a[1][2] * b[1][1] + a[2][2] * b[1][2] + a[3][2] * b[1][3];
+	out[1][3] = a[0][3] * b[1][0] + a[1][3] * b[1][1] + a[2][3] * b[1][2] + a[3][3] * b[1][3];
+	out[2][0] = a[0][0] * b[2][0] + a[1][0] * b[2][1] + a[2][0] * b[2][2] + a[3][0] * b[2][3];
+	out[2][1] = a[0][1] * b[2][0] + a[1][1] * b[2][1] + a[2][1] * b[2][2] + a[3][1] * b[2][3];
+	out[2][2] = a[0][2] * b[2][0] + a[1][2] * b[2][1] + a[2][2] * b[2][2] + a[3][2] * b[2][3];
+	out[2][3] = a[0][3] * b[2][0] + a[1][3] * b[2][1] + a[2][3] * b[2][2] + a[3][3] * b[2][3];
+	out[3][0] = a[0][0] * b[3][0] + a[1][0] * b[3][1] + a[2][0] * b[3][2] + a[3][0] * b[3][3];
+	out[3][1] = a[0][1] * b[3][0] + a[1][1] * b[3][1] + a[2][1] * b[3][2] + a[3][1] * b[3][3];
+	out[3][2] = a[0][2] * b[3][0] + a[1][2] * b[3][1] + a[2][2] * b[3][2] + a[3][2] * b[3][3];
+	out[3][3] = a[0][3] * b[3][0] + a[1][3] * b[3][1] + a[2][3] * b[3][2] + a[3][3] * b[3][3];
 }
 
 void SetProjViewMat(float out[4][4], const double proj[4][4], const double view[4][4])

@@ -44,6 +44,16 @@
     <ClCompile Include="obj_fast_ps.c" />
     <ClCompile Include="obj_fast_vs.c" />
     <ClCompile Include="obj_toon_fast_ps.c" />
+    <ClCompile Include="obj_shadow_joint_vs.c" />
+    <ClCompile Include="obj_shadow_vs.c" />
+    <ClCompile Include="obj_fast_joint_sm_vs.c" />
+    <ClCompile Include="obj_fast_sm_ps.c" />
+    <ClCompile Include="obj_fast_sm_vs.c" />
+    <ClCompile Include="obj_joint_sm_vs.c" />
+    <ClCompile Include="obj_sm_ps.c" />
+    <ClCompile Include="obj_sm_vs.c" />
+    <ClCompile Include="obj_toon_fast_sm_ps.c" />
+    <ClCompile Include="obj_toon_sm_ps.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />

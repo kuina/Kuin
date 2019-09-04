@@ -208,6 +208,12 @@ end func
 	+func [d0001.knd, _objDrawOutline, _6] drawOutline(element: int, frame: float, width: float, color: int)
 	end func
 
+	+func [d0001.knd, _objDrawWithShadow, _5] drawWithShadow(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex, shadow: @Shadow)
+	end func
+
+	+func [d0001.knd, _objDrawToonWithShadow, _5] drawToonWithShadow(element: int, frame: float, diffuse: @Tex, specular: @Tex, normal: @Tex, shadow: @Shadow)
+	end func
+
 	+func [d0001.knd, _objMat] mat(mat_: []float, normMat: []float)
 	end func
 
@@ -294,4 +300,27 @@ end func
 end class
 
 +func [d0001.knd, _makeParticle, _make_instance, _3] makeParticle(me2: @Particle, lifeSpan: int, color1: int, color2: int, friction: float, accelX: float, accelY: float, accelZ: float, sizeAccel: float, rotAccel: float): @Particle
+end func
+
++class Shadow()
+	*func [d0001.knd, _shadowDtor, _force] _dtor()
+	end func
+
+	+func [d0001.knd, _shadowBeginRecord] beginRecord(x: float, y: float, z: float, radius: float)
+	end func
+
+	+func [d0001.knd, _shadowEndRecord] endRecord()
+	end func
+
+	+func [d0001.knd, _shadowAdd] add(obj: @Obj, element: int, frame: float)
+	end func
+
+	var depthTex: int
+	var depthView: int
+	var depthResView: int
+	var depthSize: int
+	var shadowProjView: int
+end class
+
++func [d0001.knd, _makeShadow, _make_instance, _5] makeShadow(me2: @Shadow, width: int, height: int): @Shadow
 end func

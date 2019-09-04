@@ -3,6 +3,7 @@ cbuffer ConstBuf: register(b0)
 	float4x4 World;
 	float4x4 NormWorld;
 	float4x4 ProjView;
+	float4x4 ShadowProjView;
 	float4 Eye;
 	float4 Dir;
 #ifdef JOINT
@@ -30,6 +31,9 @@ struct VS_OUTPUT
 	float3 Dir: K_DIR;
 	float3 Up: K_UP;
 	float2 Tex: TEXCOORD;
+#ifdef SM
+	float4 TexSm: K_SM_COORD;
+#endif
 };
 
 VS_OUTPUT main(VS_INPUT input)
@@ -53,6 +57,11 @@ VS_OUTPUT main(VS_INPUT input)
 	float4 world_pos = mul(World, float4(input.Pos, 1.0f));
 	float4x4 normal_mat = NormWorld;
 #endif
+
+#ifdef SM
+	output.TexSm = mul(ShadowProjView, world_pos);
+#endif
+
 	output.Pos = mul(ProjView, world_pos);
 
 	// Convert normals to world space.

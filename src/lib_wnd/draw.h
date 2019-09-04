@@ -58,6 +58,8 @@ EXPORT_CPP SClass* _makePlane(SClass* me_);
 EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal);
 EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal);
 EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double width, S64 color);
+EXPORT_CPP void _objDrawWithShadow(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow);
+EXPORT_CPP void _objDrawToonWithShadow(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow);
 EXPORT_CPP void _objMat(SClass* me_, const U8* mat, const U8* normMat);
 EXPORT_CPP void _objPos(SClass* me_, double scaleX, double scaleY, double scaleZ, double rotX, double rotY, double rotZ, double transX, double transY, double transZ);
 EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, double atY, double atZ, double upX, double upY, double upZ, Bool fixUp);
@@ -71,6 +73,11 @@ EXPORT_CPP void _particleDraw(SClass* me_, SClass* tex);
 EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex);
 EXPORT_CPP void _particleEmit(SClass* me_, double x, double y, double z, double velo_x, double velo_y, double velo_z, double size, double size_velo, double rot, double rot_velo);
 EXPORT_CPP SClass* _makeParticle(SClass* me_, S64 life_span, S64 color1, S64 color2, double friction, double accel_x, double accel_y, double accel_z, double size_accel, double rot_accel);
+EXPORT_CPP void _shadowDtor(SClass* me_);
+EXPORT_CPP void _shadowBeginRecord(SClass* me_, double x, double y, double z, double radius);
+EXPORT_CPP void _shadowEndRecord(SClass* me_);
+EXPORT_CPP void _shadowAdd(SClass* me_, SClass* obj, S64 element, double frame);
+EXPORT_CPP SClass* _makeShadow(SClass* me_, S64 width, S64 height);
 
 // Assembly functions.
 extern "C" void* Call0Asm(void* func);
@@ -116,6 +123,7 @@ namespace Draw
 	double Normalize(double vec[3]);
 	double Dot(const double a[3], const double b[3]);
 	void Cross(double out[3], const double a[3], const double b[3]);
+	void MulMat(double out[4][4], const double a[4][4], const double b[4][4]);
 	void SetProjViewMat(float out[4][4], const double proj[4][4], const double view[4][4]);
 	HFONT ToFontHandle(SClass* font);
 	void ColorToArgb(double* a, double* r, double* g, double* b, S64 color);
@@ -123,7 +131,7 @@ namespace Draw
 	double Gamma(double value);
 	double Degamma(double value);
 	U8* AdjustTexSize(U8* argb, int* width, int* height);
-	void SetJointMat(const void* element, double frame, float (*joint)[4][4]);
+	void SetJointMat(const void* element, double frame, float(*joint)[4][4]);
 	SClass* MakeTexImpl(SClass* me_, const U8* path, Bool as_argb);
 	void Clear();
 }

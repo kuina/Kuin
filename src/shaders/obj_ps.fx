@@ -9,6 +9,10 @@ Texture2D ImgDiffuse: register(t0);
 Texture2D ImgSpecular: register(t1);
 Texture2D ImgNormal: register(t2);
 SamplerState Sampler: register(s0);
+#ifdef SM
+Texture2D ImgSm: register(t3);
+SamplerComparisonState SamplerSm: register(s1);
+#endif
 
 struct PS_INPUT
 {
@@ -18,6 +22,9 @@ struct PS_INPUT
 	float3 Dir: K_DIR;
 	float3 Up: K_UP;
 	float2 Tex: TEXCOORD;
+#ifdef SM
+	float4 TexSm: K_SM_COORD;
+#endif
 };
 
 float4 main(PS_INPUT input): SV_TARGET
@@ -32,13 +39,22 @@ float4 main(PS_INPUT input): SV_TARGET
 
 	float up = dot(input.Up, normal) * 0.5f + 0.5f;
 	float3 half = normalize(input.Dir + input.Eye);
+
+#ifdef SM
+	float3 coord = input.TexSm.xyz / input.TexSm.w;
+	float bias = 0.01f + 0.01f * max(abs(ddx(coord.z)), abs(ddy(coord.z)));
+	float3 dirColor2 = DirColor.xyz * ImgSm.SampleCmpLevelZero(SamplerSm, coord.xy, coord.z - bias);
+#else
+	float3 dirColor2 = DirColor.xyz;
+#endif
+
 	output.xyz = 
 		diffuse.xyz *
 		(
 			AmbTopColor.xyz * up + AmbBottomColor.xyz * (1.0f - up) +
-			DirColor.xyz * 20.0f * max(1.0f - (specular.xyz + (1.0f - specular.xyz) * pow(max(1.0f - dot(normal, input.Dir), 0.0f), 5.0f)), 0.0f) / 3.14159265358979f
+			dirColor2 * 20.0f * max(1.0f - (specular.xyz + (1.0f - specular.xyz) * pow(max(1.0f - dot(normal, input.Dir), 0.0f), 5.0f)), 0.0f) / 3.14159265358979f
 		) +
-		DirColor.xyz * (0.0397436f * specular.w + 0.0856832f) * (specular.xyz + (1.0f - specular.xyz) * pow(max(1.0f - dot(input.Eye, half), 0.0f), 5.0f)) * pow(max(dot(normal, half), 0.0f), specular.w) / max(max(dot(normal, input.Dir), dot(normal, input.Eye)), 0.00001f);
+		dirColor2 * (0.0397436f * specular.w + 0.0856832f) * (specular.xyz + (1.0f - specular.xyz) * pow(max(1.0f - dot(input.Eye, half), 0.0f), 5.0f)) * pow(max(dot(normal, half), 0.0f), specular.w) / max(max(dot(normal, input.Dir), dot(normal, input.Eye)), 0.00001f);
 	output.a = 1.0f;
 
 	if (output.a <= 0.02f)

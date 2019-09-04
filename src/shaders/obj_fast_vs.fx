@@ -3,6 +3,7 @@ cbuffer ConstBuf: register(b0)
 	float4x4 World;
 	float4x4 NormWorld;
 	float4x4 ProjView;
+	float4x4 ShadowProjView;
 	float4 Eye;
 	float4 Dir;
 #ifdef JOINT
@@ -26,6 +27,9 @@ struct VS_OUTPUT
 	float4 Pos: SV_POSITION;
 	float2 Tex: TEXCOORD;
 	float3 Normal: NORMAL;
+#ifdef SM
+	float4 TexSm: K_SM_COORD;
+#endif
 };
 
 VS_OUTPUT main(VS_INPUT input)
@@ -49,6 +53,11 @@ VS_OUTPUT main(VS_INPUT input)
 	float4 world_pos = mul(World, float4(input.Pos, 1.0f));
 	float4x4 normal_mat = NormWorld;
 #endif
+
+#ifdef SM
+	output.TexSm = mul(ShadowProjView, world_pos);
+#endif
+
 	output.Pos = mul(ProjView, world_pos);
 	output.Tex = input.Tex;
 	output.Normal = mul(normal_mat, float4(input.Normal, 1.0f)).xyz;
