@@ -7,7 +7,13 @@ var btnConvert: wnd@Btn
 var btnClose: wnd@Btn
 
 +func show()
-	do @wndKnobjMaker :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 300, 265, \common@langEn ?("3D Model Converter", "3D モデルコンバータ"))
+	if(@wndKnobjMaker <>& null)
+		do @wndKnobjMaker.activate()
+		ret
+	end if
+
+	do @wndKnobjMaker :: wnd@makeWnd(\form@wndMain, %fix, 300, 265, \common@langEn ?("3D Model Converter", "3D モデルコンバータ"))
+	do @wndKnobjMaker.onClose :: wndKnobjMakerOnClose
 
 	var labelPathInput: wnd@Label :: wnd@makeLabel(@wndKnobjMaker, 12, 12, 100, 12, %fix, %fix, \common@langEn ?("Input", "入力"))
 	do @editPathInput :: wnd@makeEdit(@wndKnobjMaker, 12, 30, 246, 19, %fix, %fix)
@@ -23,14 +29,16 @@ var btnClose: wnd@Btn
 	do @btnClose :: wnd@makeBtn(@wndKnobjMaker, 188, 230, 100, 23, %fix, %fix, \common@langEn ?("Close", "閉じる"))
 	do @btnClose.onPush :: btnCloseOnPush
 
-	do @wndKnobjMaker.modal()
-	do @wndKnobjMaker :: null
-	do @editPathInput :: null
-	do @chkTangentBinormal :: null
-	do @chkJoint :: null
-	do @editLog :: null
-	do @btnConvert :: null
-	do @btnClose :: null
+	func wndKnobjMakerOnClose(wnd: wnd@Wnd): bool
+		do @wndKnobjMaker :: null
+		do @editPathInput :: null
+		do @chkTangentBinormal :: null
+		do @chkJoint :: null
+		do @editLog :: null
+		do @btnConvert :: null
+		do @btnClose :: null
+		ret true
+	end func
 
 	func btnPathInputOnPush(wnd: wnd@WndBase)
 		var file: []char :: wnd@openFileDialog(@wndKnobjMaker, [\common@langEn ?("FBX File (*.fbx)", "FBX ファイル (*.fbx)"), "*.fbx"], 0)

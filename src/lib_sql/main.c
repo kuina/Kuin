@@ -120,7 +120,7 @@ EXPORT void* _sqlGetStr(SClass* me_, S64 col)
 	return result;
 }
 
-EXPORT void* _sqlGetBlob8(SClass* me_, S64 col)
+EXPORT void* _sqlGetBlob(SClass* me_, S64 col)
 {
 	SSql* me2 = (SSql*)me_;
 	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);

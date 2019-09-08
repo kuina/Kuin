@@ -23,10 +23,10 @@ end func
 	+func [d1005.knd, _sqlNext] next(): bool
 	end func
 
-	+func [d1005.knd,_sqlGetBlob8] getBlob8(col: int): []bit8
+	+func [d1005.knd, _sqlGetBlob] getBlob(col: int): []bit8
 	end func
 
-	+func [d1005.knd,_sqlErrMsg] errMsg(): []char
+	+func [d1005.knd, _sqlErrMsg] errMsg(): []char
 	end func
 
 	var db: int

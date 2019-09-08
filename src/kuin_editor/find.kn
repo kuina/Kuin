@@ -35,7 +35,7 @@ end func
 	var w: int
 	do \form@drawEditor.getPosScreen(&x, &y, &w, &)
 	if(@wndFind =& null)
-		do @wndFind :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 380, 332, \common@langEn ?("Find and Replace", "検索と置換"))
+		do @wndFind :: wnd@makeWnd(\form@wndMain, %fix $ wnd@WndStyle, 380, 332, \common@langEn ?("Find and Replace", "検索と置換"))
 		do @wndFind.setPos(x + w - 380 - 17, y, 380, 332)
 		do @wndFind.onClose :: wndFindOnClose
 		do @wndFindTabFind :: wnd@makeTab(@wndFind, 12, 12, 356, 308, %scale, %scale)
