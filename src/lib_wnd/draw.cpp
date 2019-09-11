@@ -17,7 +17,6 @@ static const int JointMax = 256;
 static const int FontBitmapSize = 512;
 static const int TexEvenNum = 3;
 static const double DiscardAlpha = 0.02;
-static const int FilterNum = 2;
 static const int ParticleNum = 256;
 static const int ParticleTexNum = 3;
 static const int PolyVerticesNum = 64;
@@ -219,6 +218,72 @@ struct SShadow
 	float(*ShadowProjView)[4];
 };
 
+enum EShaderBuf
+{
+	ShaderBuf_TriVs,
+	ShaderBuf_TriPs,
+	ShaderBuf_RectVs,
+	ShaderBuf_CircleVs,
+	ShaderBuf_CirclePs,
+	ShaderBuf_CircleLinePs,
+	ShaderBuf_TexVs,
+	ShaderBuf_TexRotVs,
+	ShaderBuf_TexPs,
+	ShaderBuf_FontPs,
+	ShaderBuf_ObjVs,
+	ShaderBuf_ObjSmVs,
+	ShaderBuf_ObjJointVs,
+	ShaderBuf_ObjJointSmVs,
+	ShaderBuf_ObjPs,
+	ShaderBuf_ObjSmPs,
+	ShaderBuf_ObjToonPs,
+	ShaderBuf_ObjToonSmPs,
+	ShaderBuf_ObjFastVs,
+	ShaderBuf_ObjFastSmVs,
+	ShaderBuf_ObjFastJointVs,
+	ShaderBuf_ObjFastJointSmVs,
+	ShaderBuf_ObjFastPs,
+	ShaderBuf_ObjFastSmPs,
+	ShaderBuf_ObjToonFastPs,
+	ShaderBuf_ObjToonFastSmPs,
+	ShaderBuf_ObjFlatVs,
+	ShaderBuf_ObjFlatJointVs,
+	ShaderBuf_ObjFlatFastVs,
+	ShaderBuf_ObjFlatFastJointVs,
+	ShaderBuf_ObjFlatPs,
+	ShaderBuf_ObjOutlineVs,
+	ShaderBuf_ObjOutlineJointVs,
+	ShaderBuf_ObjOutlinePs,
+	ShaderBuf_ObjShadowVs,
+	ShaderBuf_ObjShadowJointVs,
+	ShaderBuf_FilterVs,
+	ShaderBuf_Filter0Ps,
+	ShaderBuf_Filter1Ps,
+	ShaderBuf_Particle2dVs,
+	ShaderBuf_Particle2dPs,
+	ShaderBuf_ParticleUpdatingVs,
+	ShaderBuf_ParticleUpdatingPs,
+	ShaderBuf_PolyVs,
+	ShaderBuf_PolyPs,
+
+	ShaderBuf_Num,
+};
+
+enum EVertexBuf
+{
+	VertexBuf_TriVertex,
+	VertexBuf_RectVertex,
+	VertexBuf_LineVertex,
+	VertexBuf_RectLineVertex,
+	VertexBuf_CircleVertex,
+	VertexBuf_FilterVertex,
+	VertexBuf_ParticleVertex,
+	VertexBuf_ParticleUpdatingVertex,
+	VertexBuf_PolyVertex,
+
+	VertexBuf_Num,
+};
+
 static const FLOAT BlendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 static const D3D10_VIEWPORT ParticleViewport = { 0, 0, static_cast<UINT>(ParticleNum), 1, 0.0f, 1.0f };
@@ -249,6 +314,11 @@ const U8* GetObjFastPsBin(size_t* size);
 const U8* GetObjFastSmPsBin(size_t* size);
 const U8* GetObjToonFastPsBin(size_t* size);
 const U8* GetObjToonFastSmPsBin(size_t* size);
+const U8* GetObjFlatVsBin(size_t* size);
+const U8* GetObjFlatJointVsBin(size_t* size);
+const U8* GetObjFlatFastVsBin(size_t* size);
+const U8* GetObjFlatFastJointVsBin(size_t* size);
+const U8* GetObjFlatPsBin(size_t* size);
 const U8* GetObjOutlineVsBin(size_t* size);
 const U8* GetObjOutlineJointVsBin(size_t* size);
 const U8* GetObjOutlinePsBin(size_t* size);
@@ -279,54 +349,8 @@ static ID3D10DepthStencilState* DepthState[DepthNum] = { NULL };
 static ID3D10BlendState* BlendState[BlendNum] = { NULL };
 static ID3D10SamplerState* Sampler[SamplerNum] = { NULL };
 static SWndBuf* CurWndBuf = NULL;
-static void* TriVertex = NULL;
-static void* TriVs = NULL;
-static void* TriPs = NULL;
-static void* RectVertex = NULL;
-static void* LineVertex = NULL;
-static void* RectLineVertex = NULL;
-static void* RectVs = NULL;
-static void* CircleVertex = NULL;
-static void* CircleVs = NULL;
-static void* CirclePs = NULL;
-static void* CircleLinePs = NULL;
-static void* TexVs = NULL;
-static void* TexRotVs = NULL;
-static void* TexPs = NULL;
-static void* FontPs = NULL;
-static void* ObjVs = NULL;
-static void* ObjSmVs = NULL;
-static void* ObjJointVs = NULL;
-static void* ObjJointSmVs = NULL;
-static void* ObjPs = NULL;
-static void* ObjSmPs = NULL;
-static void* ObjToonPs = NULL;
-static void* ObjToonSmPs = NULL;
-static void* ObjFastVs = NULL;
-static void* ObjFastSmVs = NULL;
-static void* ObjFastJointVs = NULL;
-static void* ObjFastJointSmVs = NULL;
-static void* ObjFastPs = NULL;
-static void* ObjFastSmPs = NULL;
-static void* ObjToonFastPs = NULL;
-static void* ObjToonFastSmPs = NULL;
-static void* ObjOutlineVs = NULL;
-static void* ObjOutlineJointVs = NULL;
-static void* ObjOutlinePs = NULL;
-static void* ObjShadowVs = NULL;
-static void* ObjShadowJointVs = NULL;
-static void* FilterVertex = NULL;
-static void* FilterVs = NULL;
-static void* FilterPs[FilterNum] = { NULL };
-static void* ParticleVertex = NULL;
-static void* Particle2dVs = NULL;
-static void* Particle2dPs = NULL;
-static void* ParticleUpdatingVertex = NULL;
-static void* ParticleUpdatingVs = NULL;
-static void* ParticleUpdatingPs = NULL;
-static void* PolyVertex = NULL;
-static void* PolyVs = NULL;
-static void* PolyPs = NULL;
+static void* ShaderBufs[ShaderBuf_Num] = { NULL };
+static void* VertexBufs[VertexBuf_Num] = { NULL };
 static double ViewMat[4][4];
 static double ProjMat[4][4];
 static SObjVsConstBuf ObjVsConstBuf;
@@ -351,6 +375,7 @@ static void WriteFastPsConstBuf(SObjFastPsConstBuf* ps_const_buf);
 static int SearchFromCache(SFont* me, int cell_num_width, int cell_num, Char c);
 static void ObjDrawImpl(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow);
 static void ObjDrawToonImpl(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow);
+static void ObjDrawFlatImpl(SClass* me_, S64 element, double frame, SClass* diffuse);
 
 EXPORT_CPP void _set2dCallback(void*(*callback)(int, void*, void*))
 {
@@ -384,10 +409,10 @@ EXPORT_CPP void _render(S64 fps)
 
 		Device->OMSetRenderTargets(1, &CurWndBuf->RenderTargetView, NULL);
 		{
-			Draw::ConstBuf(FilterVs, NULL);
+			Draw::ConstBuf(ShaderBufs[ShaderBuf_FilterVs], NULL);
 			Device->GSSetShader(NULL);
-			Draw::ConstBuf(FilterPs[FilterIdx], FilterIdx == 0 ? NULL : FilterParam);
-			Draw::VertexBuf(FilterVertex);
+			Draw::ConstBuf(ShaderBufs[ShaderBuf_Filter0Ps + FilterIdx], FilterIdx == 0 ? NULL : FilterParam);
+			Draw::VertexBuf(VertexBufs[VertexBuf_FilterVertex]);
 			Device->PSSetShaderResources(0, 1, &CurWndBuf->TmpShaderResView);
 		}
 		Device->DrawIndexed(6, 0, 0);
@@ -629,10 +654,10 @@ EXPORT_CPP void _line(double x1, double y1, double x2, double y2, S64 color)
 			static_cast<float>(b),
 			static_cast<float>(a),
 		};
-		Draw::ConstBuf(RectVs, const_buf_vs);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_RectVs], const_buf_vs);
 		Device->GSSetShader(NULL);
-		Draw::ConstBuf(TriPs, const_buf_ps);
-		Draw::VertexBuf(LineVertex);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_TriPs], const_buf_ps);
+		Draw::VertexBuf(VertexBufs[VertexBuf_LineVertex]);
 	}
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 	Device->DrawIndexed(2, 0, 0);
@@ -672,10 +697,10 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 			static_cast<float>(b),
 			static_cast<float>(a),
 		};
-		Draw::ConstBuf(TriVs, const_buf_vs);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_TriVs], const_buf_vs);
 		Device->GSSetShader(NULL);
-		Draw::ConstBuf(TriPs, const_buf_ps);
-		Draw::VertexBuf(TriVertex);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_TriPs], const_buf_ps);
+		Draw::VertexBuf(VertexBufs[VertexBuf_TriVertex]);
 	}
 	Device->DrawIndexed(3, 0, 0);
 }
@@ -711,10 +736,10 @@ EXPORT_CPP void _rect(double x, double y, double w, double h, S64 color)
 			static_cast<float>(b),
 			static_cast<float>(a),
 		};
-		Draw::ConstBuf(RectVs, const_buf_vs);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_RectVs], const_buf_vs);
 		Device->GSSetShader(NULL);
-		Draw::ConstBuf(TriPs, const_buf_ps);
-		Draw::VertexBuf(RectVertex);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_TriPs], const_buf_ps);
+		Draw::VertexBuf(VertexBufs[VertexBuf_RectVertex]);
 	}
 	Device->DrawIndexed(6, 0, 0);
 }
@@ -750,10 +775,10 @@ EXPORT_CPP void _rectLine(double x, double y, double w, double h, S64 color)
 			static_cast<float>(b),
 			static_cast<float>(a),
 		};
-		Draw::ConstBuf(RectVs, const_buf_vs);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_RectVs], const_buf_vs);
 		Device->GSSetShader(NULL);
-		Draw::ConstBuf(TriPs, const_buf_ps);
-		Draw::VertexBuf(RectLineVertex);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_TriPs], const_buf_ps);
+		Draw::VertexBuf(VertexBufs[VertexBuf_RectLineVertex]);
 	}
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
 	Device->DrawIndexed(5, 0, 0);
@@ -791,10 +816,10 @@ EXPORT_CPP void _circle(double x, double y, double radiusX, double radiusY, S64 
 			0.0f,
 			0.0f
 		};
-		Draw::ConstBuf(CircleVs, const_buf_vs);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_CircleVs], const_buf_vs);
 		Device->GSSetShader(NULL);
-		Draw::ConstBuf(CirclePs, const_buf_ps);
-		Draw::VertexBuf(CircleVertex);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_CirclePs], const_buf_ps);
+		Draw::VertexBuf(VertexBufs[VertexBuf_CircleVertex]);
 	}
 	Device->DrawIndexed(6, 0, 0);
 }
@@ -830,10 +855,10 @@ EXPORT_CPP void _circleLine(double x, double y, double radiusX, double radiusY, 
 			0.0f,
 			0.0f
 		};
-		Draw::ConstBuf(CircleVs, const_buf_vs);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_CircleVs], const_buf_vs);
 		Device->GSSetShader(NULL);
-		Draw::ConstBuf(CircleLinePs, const_buf_ps);
-		Draw::VertexBuf(CircleVertex);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_CircleLinePs], const_buf_ps);
+		Draw::VertexBuf(VertexBufs[VertexBuf_CircleVertex]);
 	}
 	Device->DrawIndexed(6, 0, 0);
 }
@@ -866,10 +891,10 @@ EXPORT_CPP void _poly(const void* x, const void* y, const void* color)
 		const_buf_vs[4 * PolyVerticesNum + 4 * i + 2] = static_cast<float>(b);
 		const_buf_vs[4 * PolyVerticesNum + 4 * i + 3] = static_cast<float>(a);
 	}
-	Draw::ConstBuf(PolyVs, const_buf_vs);
+	Draw::ConstBuf(ShaderBufs[ShaderBuf_PolyVs], const_buf_vs);
 	Device->GSSetShader(NULL);
-	Draw::ConstBuf(PolyPs, NULL);
-	Draw::VertexBuf(PolyVertex);
+	Draw::ConstBuf(ShaderBufs[ShaderBuf_PolyPs], NULL);
+	Draw::VertexBuf(VertexBufs[VertexBuf_PolyVertex]);
 	Device->RSSetState(RasterizerStateNone);
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	Device->DrawIndexed(static_cast<UINT>(len_x), 0, 0);
@@ -905,10 +930,10 @@ EXPORT_CPP void _polyLine(const void* x, const void* y, const void* color)
 		const_buf_vs[4 * PolyVerticesNum + 4 * i + 2] = static_cast<float>(b);
 		const_buf_vs[4 * PolyVerticesNum + 4 * i + 3] = static_cast<float>(a);
 	}
-	Draw::ConstBuf(PolyVs, const_buf_vs);
+	Draw::ConstBuf(ShaderBufs[ShaderBuf_PolyVs], const_buf_vs);
 	Device->GSSetShader(NULL);
-	Draw::ConstBuf(PolyPs, NULL);
-	Draw::VertexBuf(PolyVertex);
+	Draw::ConstBuf(ShaderBufs[ShaderBuf_PolyPs], NULL);
+	Draw::VertexBuf(VertexBufs[VertexBuf_PolyVertex]);
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
 	Device->DrawIndexed(static_cast<UINT>(len_x), 0, 0);
 	Device->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -1040,10 +1065,10 @@ EXPORT_CPP void _texDrawScale(SClass* me_, double dstX, double dstY, double dstW
 			static_cast<float>(b),
 			static_cast<float>(a),
 		};
-		Draw::ConstBuf(TexVs, const_buf_vs);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_TexVs], const_buf_vs);
 		Device->GSSetShader(NULL);
-		Draw::ConstBuf(TexPs, const_buf_ps);
-		Draw::VertexBuf(RectVertex);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_TexPs], const_buf_ps);
+		Draw::VertexBuf(VertexBufs[VertexBuf_RectVertex]);
 		Device->PSSetShaderResources(0, 1, &me2->View);
 	}
 	Device->DrawIndexed(6, 0, 0);
@@ -1098,10 +1123,10 @@ EXPORT_CPP void _texDrawRot(SClass* me_, double dstX, double dstY, double dstW, 
 			static_cast<float>(b),
 			static_cast<float>(a),
 		};
-		Draw::ConstBuf(TexRotVs, const_buf_vs);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_TexRotVs], const_buf_vs);
 		Device->GSSetShader(NULL);
-		Draw::ConstBuf(TexPs, const_buf_ps);
-		Draw::VertexBuf(RectVertex);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_TexPs], const_buf_ps);
+		Draw::VertexBuf(VertexBufs[VertexBuf_RectVertex]);
 		Device->PSSetShaderResources(0, 1, &me2->View);
 	}
 	Device->DrawIndexed(6, 0, 0);
@@ -1299,10 +1324,10 @@ EXPORT_CPP void _fontDrawScale(SClass* me_, double dstX, double dstY, double dst
 				static_cast<float>(b),
 				static_cast<float>(a),
 			};
-			Draw::ConstBuf(TexVs, const_buf_vs);
+			Draw::ConstBuf(ShaderBufs[ShaderBuf_TexVs], const_buf_vs);
 			Device->GSSetShader(NULL);
-			Draw::ConstBuf(FontPs, const_buf_ps);
-			Draw::VertexBuf(RectVertex);
+			Draw::ConstBuf(ShaderBufs[ShaderBuf_FontPs], const_buf_ps);
+			Draw::VertexBuf(VertexBufs[VertexBuf_RectVertex]);
 			Device->PSSetShaderResources(0, 1, &me2->View);
 			Device->DrawIndexed(6, 0, 0);
 		}
@@ -1563,6 +1588,11 @@ EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* dif
 	ObjDrawToonImpl(me_, element, frame, diffuse, specular, normal, NULL);
 }
 
+EXPORT_CPP void _objDrawFlat(SClass* me_, S64 element, double frame, SClass* diffuse)
+{
+	ObjDrawFlatImpl(me_, element, frame, diffuse);
+}
+
 EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double width, S64 color)
 {
 	SObj* me2 = reinterpret_cast<SObj*>(me_);
@@ -1592,13 +1622,13 @@ EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double w
 				if (joint && frame >= 0.0f)
 				{
 					Draw::SetJointMat(element2, frame, vs_const_buf.Joint);
-					Draw::ConstBuf(ObjOutlineJointVs, &vs_const_buf);
+					Draw::ConstBuf(ShaderBufs[ShaderBuf_ObjOutlineJointVs], &vs_const_buf);
 				}
 				else
-					Draw::ConstBuf(ObjOutlineVs, &vs_const_buf);
+					Draw::ConstBuf(ShaderBufs[ShaderBuf_ObjOutlineVs], &vs_const_buf);
 				Device->GSSetShader(NULL);
 				Device->RSSetState(RasterizerStateInverted);
-				Draw::ConstBuf(ObjOutlinePs, &ps_const_buf);
+				Draw::ConstBuf(ShaderBufs[ShaderBuf_ObjOutlinePs], &ps_const_buf);
 
 				Draw::VertexBuf(element2->VertexBuf);
 				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
@@ -1833,10 +1863,10 @@ EXPORT_CPP void _particleDraw2d(SClass* me_, SClass* tex)
 		0.0f,
 		static_cast<float>(me2->Lifespan - 1.0f)
 	};
-	Draw::ConstBuf(Particle2dVs, screen);
+	Draw::ConstBuf(ShaderBufs[ShaderBuf_Particle2dVs], screen);
 	Device->GSSetShader(NULL);
-	Draw::ConstBuf(Particle2dPs, &me2->PsConstBuf);
-	Draw::VertexBuf(ParticleVertex);
+	Draw::ConstBuf(ShaderBufs[ShaderBuf_Particle2dPs], &me2->PsConstBuf);
+	Draw::VertexBuf(VertexBufs[VertexBuf_ParticleVertex]);
 	ID3D10ShaderResourceView* views[2];
 	views[0] = me2->Draw1To2 ? me2->TexSet[0].ViewParam : me2->TexSet[ParticleTexNum + 0].ViewParam;
 	views[1] = me2->Draw1To2 ? me2->TexSet[2].ViewParam : me2->TexSet[ParticleTexNum + 2].ViewParam;
@@ -2128,10 +2158,10 @@ EXPORT_CPP void _shadowAdd(SClass* me_, SClass* obj, S64 element, double frame)
 					if (joint && frame >= 0.0f)
 					{
 						Draw::SetJointMat(element2, frame, const_buf.Joint);
-						Draw::ConstBuf(ObjShadowJointVs, &const_buf);
+						Draw::ConstBuf(ShaderBufs[ShaderBuf_ObjShadowJointVs], &const_buf);
 					}
 					else
-						Draw::ConstBuf(ObjShadowVs, &const_buf);
+						Draw::ConstBuf(ShaderBufs[ShaderBuf_ObjShadowVs], &const_buf);
 					Device->GSSetShader(NULL);
 					Device->PSSetShader(NULL);
 					Draw::VertexBuf(element2->VertexBuf);
@@ -2253,10 +2283,10 @@ static void UpdateParticles(SParticle* particle)
 	Device->OMSetRenderTargets(static_cast<UINT>(ParticleTexNum), targets, NULL);
 	Device->RSSetViewports(1, &ParticleViewport);
 	{
-		Draw::ConstBuf(ParticleUpdatingVs, NULL);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_ParticleUpdatingVs], NULL);
 		Device->GSSetShader(NULL);
-		Draw::ConstBuf(ParticleUpdatingPs, &particle->UpdatingPsConstBuf);
-		Draw::VertexBuf(ParticleUpdatingVertex);
+		Draw::ConstBuf(ShaderBufs[ShaderBuf_ParticleUpdatingPs], &particle->UpdatingPsConstBuf);
+		Draw::VertexBuf(VertexBufs[VertexBuf_ParticleUpdatingVertex]);
 		ID3D10ShaderResourceView* views[3];
 		views[0] = particle->Draw1To2 ? particle->TexSet[0].ViewParam : particle->TexSet[ParticleTexNum + 0].ViewParam;
 		views[1] = particle->Draw1To2 ? particle->TexSet[1].ViewParam : particle->TexSet[ParticleTexNum + 1].ViewParam;
@@ -2653,15 +2683,15 @@ static void ObjDrawImpl(SClass* me_, S64 element, double frame, SClass* diffuse,
 					if (joint && frame >= 0.0f)
 					{
 						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
-						Draw::ConstBuf(shadow == NULL ? ObjFastJointVs : ObjFastJointSmVs, &ObjVsConstBuf);
+						Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjFastJointVs] : ShaderBufs[ShaderBuf_ObjFastJointSmVs], &ObjVsConstBuf);
 					}
 					else
-						Draw::ConstBuf(shadow == NULL ? ObjFastVs : ObjFastSmVs, &ObjVsConstBuf);
+						Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjFastVs] : ShaderBufs[ShaderBuf_ObjFastSmVs], &ObjVsConstBuf);
 					Device->GSSetShader(NULL);
 
 					SObjFastPsConstBuf ps_const_buf;
 					WriteFastPsConstBuf(&ps_const_buf);
-					Draw::ConstBuf(shadow == NULL ? ObjFastPs : ObjFastSmPs, &ps_const_buf);
+					Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjFastPs] : ShaderBufs[ShaderBuf_ObjFastSmPs], &ps_const_buf);
 					Draw::VertexBuf(element2->VertexBuf);
 					ID3D10ShaderResourceView* views[3];
 					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
@@ -2679,12 +2709,12 @@ static void ObjDrawImpl(SClass* me_, S64 element, double frame, SClass* diffuse,
 					if (joint && frame >= 0.0f)
 					{
 						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
-						Draw::ConstBuf(shadow == NULL ? ObjJointVs : ObjJointSmVs, &ObjVsConstBuf);
+						Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjJointVs] : ShaderBufs[ShaderBuf_ObjJointSmVs], &ObjVsConstBuf);
 					}
 					else
-						Draw::ConstBuf(shadow == NULL ? ObjVs : ObjSmVs, &ObjVsConstBuf);
+						Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjVs] : ShaderBufs[ShaderBuf_ObjSmVs], &ObjVsConstBuf);
 					Device->GSSetShader(NULL);
-					Draw::ConstBuf(shadow == NULL ? ObjPs : ObjSmPs, &ObjPsConstBuf);
+					Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjPs] : ShaderBufs[ShaderBuf_ObjSmPs], &ObjPsConstBuf);
 					Draw::VertexBuf(element2->VertexBuf);
 					ID3D10ShaderResourceView* views[4];
 					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
@@ -2725,15 +2755,15 @@ static void ObjDrawToonImpl(SClass* me_, S64 element, double frame, SClass* diff
 					if (joint && frame >= 0.0f)
 					{
 						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
-						Draw::ConstBuf(shadow == NULL ? ObjFastJointVs : ObjFastJointSmVs, &ObjVsConstBuf);
+						Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjFastJointVs] : ShaderBufs[ShaderBuf_ObjFastJointSmVs], &ObjVsConstBuf);
 					}
 					else
-						Draw::ConstBuf(shadow == NULL ? ObjFastVs : ObjFastSmVs, &ObjVsConstBuf);
+						Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjFastVs] : ShaderBufs[ShaderBuf_ObjFastSmVs], &ObjVsConstBuf);
 					Device->GSSetShader(NULL);
 
 					SObjFastPsConstBuf ps_const_buf;
 					WriteFastPsConstBuf(&ps_const_buf);
-					Draw::ConstBuf(shadow == NULL ? ObjToonFastPs : ObjToonFastSmPs, &ps_const_buf);
+					Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjToonFastPs] : ShaderBufs[ShaderBuf_ObjToonFastSmPs], &ps_const_buf);
 					Draw::VertexBuf(element2->VertexBuf);
 					ID3D10ShaderResourceView* views[4];
 					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
@@ -2752,12 +2782,12 @@ static void ObjDrawToonImpl(SClass* me_, S64 element, double frame, SClass* diff
 					if (joint && frame >= 0.0f)
 					{
 						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
-						Draw::ConstBuf(shadow == NULL ? ObjJointVs : ObjJointSmVs, &ObjVsConstBuf);
+						Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjJointVs] : ShaderBufs[ShaderBuf_ObjJointSmVs], &ObjVsConstBuf);
 					}
 					else
-						Draw::ConstBuf(shadow == NULL ? ObjVs : ObjSmVs, &ObjVsConstBuf);
+						Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjVs] : ShaderBufs[ShaderBuf_ObjSmVs], &ObjVsConstBuf);
 					Device->GSSetShader(NULL);
-					Draw::ConstBuf(shadow == NULL ? ObjToonPs : ObjToonSmPs, &ObjPsConstBuf);
+					Draw::ConstBuf(shadow == NULL ? ShaderBufs[ShaderBuf_ObjToonPs] : ShaderBufs[ShaderBuf_ObjToonSmPs], &ObjPsConstBuf);
 					Draw::VertexBuf(element2->VertexBuf);
 					ID3D10ShaderResourceView* views[5];
 					views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
@@ -2772,6 +2802,53 @@ static void ObjDrawToonImpl(SClass* me_, S64 element, double frame, SClass* diff
 						Device->PSSetShaderResources(0, 5, views);
 					}
 				}
+				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
+			}
+			break;
+	}
+}
+
+static void ObjDrawFlatImpl(SClass* me_, S64 element, double frame, SClass* diffuse)
+{
+	SObj* me2 = reinterpret_cast<SObj*>(me_);
+	THROWDBG(element < 0 || static_cast<S64>(me2->ElementNum) <= element, EXCPT_DBG_ARG_OUT_DOMAIN);
+	switch (me2->ElementKinds[element])
+	{
+		case 0: // Polygon.
+			{
+				SObj::SPolygon* element2 = static_cast<SObj::SPolygon*>(me2->Elements[element]);
+				THROWDBG(frame < static_cast<double>(element2->Begin) || element2->End < static_cast<int>(frame), EXCPT_DBG_ARG_OUT_DOMAIN);
+				THROWDBG(element2->JointNum < 0 || JointMax < element2->JointNum, EXCPT_DBG_ARG_OUT_DOMAIN);
+				Bool joint = element2->JointNum != 0;
+
+				memcpy(ObjVsConstBuf.CommonParam.World, me2->Mat, sizeof(float[4][4]));
+				if ((me2->Format & Format_HasTangent) == 0)
+				{
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+						Draw::ConstBuf(ShaderBufs[ShaderBuf_ObjFlatFastJointVs], &ObjVsConstBuf);
+					}
+					else
+						Draw::ConstBuf(ShaderBufs[ShaderBuf_ObjFlatFastVs], &ObjVsConstBuf);
+				}
+				else
+				{
+					if (joint && frame >= 0.0f)
+					{
+						Draw::SetJointMat(element2, frame, ObjVsConstBuf.Joint);
+						Draw::ConstBuf(ShaderBufs[ShaderBuf_ObjFlatJointVs], &ObjVsConstBuf);
+					}
+					else
+						Draw::ConstBuf(ShaderBufs[ShaderBuf_ObjFlatVs], &ObjVsConstBuf);
+				}
+				Device->GSSetShader(NULL);
+				Draw::ConstBuf(ShaderBufs[ShaderBuf_ObjFlatPs], NULL);
+				Draw::VertexBuf(element2->VertexBuf);
+				ID3D10ShaderResourceView* views[1];
+				views[0] = diffuse == NULL ? ViewEven[0] : reinterpret_cast<STex*>(diffuse)->View;
+				Device->PSSetShaderResources(0, 1, views);
+
 				Device->DrawIndexed(static_cast<UINT>(element2->VertexNum), 0, 0);
 			}
 			break;
@@ -2994,7 +3071,7 @@ void Init()
 				0, 1, 2,
 			};
 
-			TriVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 3, sizeof(idces), idces);
+			VertexBufs[VertexBuf_TriVertex] = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 3, sizeof(idces), idces);
 		}
 
 		{
@@ -3011,12 +3088,12 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetTriVsBin(&size);
-				TriVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 8, 1, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_TriVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 8, 1, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetTriPsBin(&size);
-				TriPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_TriPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
 			}
 		}
 	}
@@ -3038,7 +3115,7 @@ void Init()
 				3, 2, 1,
 			};
 
-			RectVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+			VertexBufs[VertexBuf_RectVertex] = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
 		}
 
 		{
@@ -3053,7 +3130,7 @@ void Init()
 				0, 1,
 			};
 
-			LineVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+			VertexBufs[VertexBuf_LineVertex] = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
 		}
 
 		{
@@ -3070,7 +3147,7 @@ void Init()
 				0, 1, 2, 3, 0
 			};
 
-			RectLineVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+			VertexBufs[VertexBuf_RectLineVertex] = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
 		}
 
 		{
@@ -3087,7 +3164,7 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetRectVsBin(&size);
-				RectVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4, 1, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_RectVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4, 1, layout_types, layout_semantics);
 			}
 		}
 	}
@@ -3110,7 +3187,7 @@ void Init()
 				3, 2, 1,
 			};
 
-			CircleVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+			VertexBufs[VertexBuf_CircleVertex] = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
 		}
 
 		{
@@ -3127,12 +3204,12 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetCircleVsBin(&size);
-				CircleVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4, 1, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_CircleVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4, 1, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetCirclePsBin(&size);
-				CirclePs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 8, 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_CirclePs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 8, 0, NULL, NULL);
 			}
 		}
 
@@ -3140,7 +3217,7 @@ void Init()
 		{
 			size_t size;
 			const U8* bin = GetCircleLinePsBin(&size);
-			CircleLinePs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 8, 0, NULL, NULL);
+			ShaderBufs[ShaderBuf_CircleLinePs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 8, 0, NULL, NULL);
 		}
 	}
 
@@ -3160,22 +3237,22 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetTexVsBin(&size);
-				TexVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 8, 1, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_TexVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 8, 1, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetTexRotVsBin(&size);
-				TexRotVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 16, 1, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_TexRotVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 16, 1, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetTexPsBin(&size);
-				TexPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_TexPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
 			}
 			{
 				size_t size;
 				const U8* bin = GetFontPsBin(&size);
-				FontPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_FontPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
 			}
 		}
 	}
@@ -3203,32 +3280,32 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetObjVsBin(&size);
-				ObjVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 4, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 4, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjSmVsBin(&size);
-				ObjSmVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 4, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjSmVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 4, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjPsBin(&size);
-				ObjPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_ObjPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjSmPsBin(&size);
-				ObjSmPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_ObjSmPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjToonPsBin(&size);
-				ObjToonPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_ObjToonPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjToonSmPsBin(&size);
-				ObjToonSmPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_ObjToonSmPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjPsConstBuf), 0, NULL, NULL);
 			}
 		}
 		{
@@ -3255,12 +3332,12 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetObjJointVsBin(&size);
-				ObjJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 6, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjJointVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 6, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjJointSmVsBin(&size);
-				ObjJointSmVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 6, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjJointSmVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 6, layout_types, layout_semantics);
 			}
 		}
 	}
@@ -3286,32 +3363,32 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetObjFastVsBin(&size);
-				ObjFastVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 3, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjFastVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 3, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjFastSmVsBin(&size);
-				ObjFastSmVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 3, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjFastSmVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 3, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjFastPsBin(&size);
-				ObjFastPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_ObjFastPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjFastSmPsBin(&size);
-				ObjFastSmPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_ObjFastSmPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjToonFastPsBin(&size);
-				ObjToonFastPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_ObjToonFastPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjToonFastSmPsBin(&size);
-				ObjToonFastSmPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_ObjToonFastSmPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
 			}
 		}
 		{
@@ -3336,12 +3413,118 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetObjFastJointVsBin(&size);
-				ObjFastJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 5, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjFastJointVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 5, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjFastJointSmVsBin(&size);
-				ObjFastJointSmVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 5, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjFastJointSmVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 5, layout_types, layout_semantics);
+			}
+		}
+	}
+
+	// Initialize 'ObjFlat'.
+	if (IsResUsed(UseResFlagsKind_Draw_ObjDraw))
+	{
+		{
+			ELayoutType layout_types[4] =
+			{
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float2,
+			};
+
+			const Char* layout_semantics[4] =
+			{
+				L"POSITION",
+				L"NORMAL",
+				L"TANGENT",
+				L"TEXCOORD",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetObjFlatVsBin(&size);
+				ShaderBufs[ShaderBuf_ObjFlatVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 4, layout_types, layout_semantics);
+			}
+			{
+				size_t size;
+				const U8* bin = GetObjFlatPsBin(&size);
+				ShaderBufs[ShaderBuf_ObjFlatPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjFastPsConstBuf), 0, NULL, NULL);
+			}
+		}
+		{
+			ELayoutType layout_types[7] =
+			{
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float2,
+				LayoutType_Float4,
+				LayoutType_Int4,
+			};
+
+			const Char* layout_semantics[6] =
+			{
+				L"POSITION",
+				L"NORMAL",
+				L"TANGENT",
+				L"TEXCOORD",
+				L"K_WEIGHT",
+				L"K_JOINT",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetObjFlatJointVsBin(&size);
+				ShaderBufs[ShaderBuf_ObjFlatJointVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 6, layout_types, layout_semantics);
+			}
+		}
+		{
+			ELayoutType layout_types[3] =
+			{
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float2,
+			};
+
+			const Char* layout_semantics[3] =
+			{
+				L"POSITION",
+				L"NORMAL",
+				L"TEXCOORD",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetObjFlatFastVsBin(&size);
+				ShaderBufs[ShaderBuf_ObjFlatFastVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf) - sizeof(SObjVsConstBuf::Joint), 3, layout_types, layout_semantics);
+			}
+		}
+		{
+			ELayoutType layout_types[5] =
+			{
+				LayoutType_Float3,
+				LayoutType_Float3,
+				LayoutType_Float2,
+				LayoutType_Float4,
+				LayoutType_Int4,
+			};
+
+			const Char* layout_semantics[5] =
+			{
+				L"POSITION",
+				L"NORMAL",
+				L"TEXCOORD",
+				L"K_WEIGHT",
+				L"K_JOINT",
+			};
+
+			{
+				size_t size;
+				const U8* bin = GetObjFlatFastJointVsBin(&size);
+				ShaderBufs[ShaderBuf_ObjFlatFastJointVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjVsConstBuf), 5, layout_types, layout_semantics);
 			}
 		}
 	}
@@ -3369,12 +3552,12 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetObjOutlineVsBin(&size);
-				ObjOutlineVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjOutlineVsConstBuf) - sizeof(SObjOutlineVsConstBuf::Joint), 4, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjOutlineVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjOutlineVsConstBuf) - sizeof(SObjOutlineVsConstBuf::Joint), 4, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetObjOutlinePsBin(&size);
-				ObjOutlinePs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjOutlinePsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_ObjOutlinePs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SObjOutlinePsConstBuf), 0, NULL, NULL);
 			}
 		}
 		{
@@ -3401,7 +3584,7 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetObjOutlineJointVsBin(&size);
-				ObjOutlineJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjOutlineVsConstBuf), 6, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjOutlineJointVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjOutlineVsConstBuf), 6, layout_types, layout_semantics);
 			}
 		}
 	}
@@ -3423,7 +3606,7 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetObjShadowVsBin(&size);
-				ObjShadowVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjShadowVsConstBuf) - sizeof(SObjShadowVsConstBuf::Joint), 1, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjShadowVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjShadowVsConstBuf) - sizeof(SObjShadowVsConstBuf::Joint), 1, layout_types, layout_semantics);
 			}
 		}
 		{
@@ -3444,7 +3627,7 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetObjShadowJointVsBin(&size);
-				ObjShadowJointVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjShadowVsConstBuf), 3, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ObjShadowJointVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(SObjShadowVsConstBuf), 3, layout_types, layout_semantics);
 			}
 		}
 	}
@@ -3466,7 +3649,7 @@ void Init()
 				3, 2, 1,
 			};
 
-			FilterVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+			VertexBufs[VertexBuf_FilterVertex] = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
 		}
 
 		{
@@ -3483,18 +3666,18 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetFilterVsBin(&size);
-				FilterVs = MakeShaderBuf(ShaderKind_Vs, size, bin, 0, 1, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_FilterVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, 0, 1, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetFilterNonePsBin(&size);
-				FilterPs[0] = MakeShaderBuf(ShaderKind_Ps, size, bin, 0, 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_Filter0Ps] = MakeShaderBuf(ShaderKind_Ps, size, bin, 0, 0, NULL, NULL);
 			}
 			if (IsResUsed(UseResFlagsKind_Draw_FilterMonotone))
 			{
 				size_t size;
 				const U8* bin = GetFilterMonotonePsBin(&size);
-				FilterPs[1] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_Filter1Ps] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(float) * 4, 0, NULL, NULL);
 			}
 		}
 	}
@@ -3528,7 +3711,7 @@ void Init()
 				idces[i * 6 + 5] = i * 4 + 1;
 			}
 
-			ParticleVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 3, sizeof(idces), idces);
+			VertexBufs[VertexBuf_ParticleVertex] = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 3, sizeof(idces), idces);
 		}
 		{
 			ELayoutType layout_types[2] =
@@ -3546,12 +3729,12 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetParticle2dVsBin(&size);
-				Particle2dVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4, 2, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_Particle2dVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4, 2, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetParticle2dPsBin(&size);
-				Particle2dPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SParticlePsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_Particle2dPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SParticlePsConstBuf), 0, NULL, NULL);
 			}
 		}
 		{
@@ -3569,7 +3752,7 @@ void Init()
 				3, 2, 1,
 			};
 
-			ParticleUpdatingVertex = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
+			VertexBufs[VertexBuf_ParticleUpdatingVertex] = MakeVertexBuf(sizeof(vertices), vertices, sizeof(float) * 2, sizeof(idces), idces);
 		}
 		{
 			ELayoutType layout_types[1] =
@@ -3585,12 +3768,12 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetParticleUpdatingVsBin(&size);
-				ParticleUpdatingVs = MakeShaderBuf(ShaderKind_Vs, size, bin, 0, 1, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_ParticleUpdatingVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, 0, 1, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetParticleUpdatingPsBin(&size);
-				ParticleUpdatingPs = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SParticleUpdatingPsConstBuf), 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_ParticleUpdatingPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, sizeof(SParticleUpdatingPsConstBuf), 0, NULL, NULL);
 			}
 		}
 	}
@@ -3607,7 +3790,7 @@ void Init()
 				idces[i] = i;
 			}
 
-			PolyVertex = MakeVertexBuf(sizeof(vertex_idx), vertex_idx, sizeof(int), sizeof(idces), idces);
+			VertexBufs[VertexBuf_PolyVertex] = MakeVertexBuf(sizeof(vertex_idx), vertex_idx, sizeof(int), sizeof(idces), idces);
 		}
 		{
 			ELayoutType layout_types[2] =
@@ -3623,12 +3806,12 @@ void Init()
 			{
 				size_t size;
 				const U8* bin = GetPolyVsBin(&size);
-				PolyVs = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4 * 64 + sizeof(float) * 4 * 64, 1, layout_types, layout_semantics);
+				ShaderBufs[ShaderBuf_PolyVs] = MakeShaderBuf(ShaderKind_Vs, size, bin, sizeof(float) * 4 * 64 + sizeof(float) * 4 * 64, 1, layout_types, layout_semantics);
 			}
 			{
 				size_t size;
 				const U8* bin = GetPolyPsBin(&size);
-				PolyPs = MakeShaderBuf(ShaderKind_Ps, size, bin, 0, 0, NULL, NULL);
+				ShaderBufs[ShaderBuf_PolyPs] = MakeShaderBuf(ShaderKind_Ps, size, bin, 0, 0, NULL, NULL);
 			}
 		}
 	}
@@ -3666,7 +3849,7 @@ void Init()
 				img[0] = 0.6f; // Diffuse red.
 				img[1] = 0.6f; // Diffuse green.
 				img[2] = 0.6f; // Diffuse blue.
-				img[3] = 0.0f; // Not used.
+				img[3] = 1.0f; // Alpha.
 				break;
 			case 1:
 				img[0] = 0.7f; // Metallic F(0) red.
@@ -3694,7 +3877,7 @@ void Init()
 	ObjPsConstBuf.CommonParam.AmbBottomColor[3] = 0.0f;
 	ObjVsConstBuf.CommonParam.Dir[3] = 0.0f;
 	ObjPsConstBuf.CommonParam.DirColor[3] = 0.0f;
-	_camera(0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	_camera(0.0, 1.0, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 	_proj(M_PI / 180.0 * 27.0, 16.0, 9.0, 0.1, 1000.0); // The angle of view of a 50mm lens is 27 degrees.
 	_ambLight(0.2, 0.2, 0.32, 0.32, 0.2, 0.2);
 	_dirLight(1.0, -1.0, -1.0, 1.0, 1.0, 1.0);
@@ -3719,103 +3902,10 @@ void Fin()
 		ViewToonRamp->Release();
 	if (TexToonRamp != NULL)
 		TexToonRamp->Release();
-	for (int i = 0; i < FilterNum; i++)
-	{
-		if (FilterPs[i] != NULL)
-			FinShaderBuf(FilterPs[i]);
-	}
-	if (PolyPs != NULL)
-		FinShaderBuf(PolyPs);
-	if (PolyVs != NULL)
-		FinShaderBuf(PolyVs);
-	if (PolyVertex != NULL)
-		FinVertexBuf(PolyVertex);
-	if (ParticleUpdatingPs != NULL)
-		FinShaderBuf(ParticleUpdatingPs);
-	if (ParticleUpdatingVs != NULL)
-		FinShaderBuf(ParticleUpdatingVs);
-	if (ParticleUpdatingVertex != NULL)
-		FinVertexBuf(ParticleUpdatingVertex);
-	if (Particle2dPs != NULL)
-		FinShaderBuf(Particle2dPs);
-	if (Particle2dVs != NULL)
-		FinShaderBuf(Particle2dVs);
-	if (ParticleVertex != NULL)
-		FinVertexBuf(ParticleVertex);
-	if (FilterVs != NULL)
-		FinShaderBuf(FilterVs);
-	if (FilterVertex != NULL)
-		FinVertexBuf(FilterVertex);
-	if (ObjShadowJointVs != NULL)
-		FinShaderBuf(ObjShadowJointVs);
-	if (ObjShadowVs != NULL)
-		FinShaderBuf(ObjShadowVs);
-	if (ObjOutlinePs != NULL)
-		FinShaderBuf(ObjOutlinePs);
-	if (ObjOutlineJointVs != NULL)
-		FinShaderBuf(ObjOutlineJointVs);
-	if (ObjOutlineVs != NULL)
-		FinShaderBuf(ObjOutlineVs);
-	if (ObjToonFastSmPs != NULL)
-		FinShaderBuf(ObjToonFastSmPs);
-	if (ObjToonFastPs != NULL)
-		FinShaderBuf(ObjToonFastPs);
-	if (ObjFastSmPs != NULL)
-		FinShaderBuf(ObjFastSmPs);
-	if (ObjFastPs != NULL)
-		FinShaderBuf(ObjFastPs);
-	if (ObjFastJointSmVs != NULL)
-		FinShaderBuf(ObjFastJointSmVs);
-	if (ObjFastJointVs != NULL)
-		FinShaderBuf(ObjFastJointVs);
-	if (ObjFastSmVs != NULL)
-		FinShaderBuf(ObjFastSmVs);
-	if (ObjFastVs != NULL)
-		FinShaderBuf(ObjFastVs);
-	if (ObjToonSmPs != NULL)
-		FinShaderBuf(ObjToonSmPs);
-	if (ObjToonPs != NULL)
-		FinShaderBuf(ObjToonPs);
-	if (ObjSmPs != NULL)
-		FinShaderBuf(ObjSmPs);
-	if (ObjPs != NULL)
-		FinShaderBuf(ObjPs);
-	if (ObjJointSmVs != NULL)
-		FinShaderBuf(ObjJointSmVs);
-	if (ObjJointVs != NULL)
-		FinShaderBuf(ObjJointVs);
-	if (ObjSmVs != NULL)
-		FinShaderBuf(ObjSmVs);
-	if (ObjVs != NULL)
-		FinShaderBuf(ObjVs);
-	if (FontPs != NULL)
-		FinShaderBuf(FontPs);
-	if (TexPs != NULL)
-		FinShaderBuf(TexPs);
-	if (TexRotVs != NULL)
-		FinShaderBuf(TexRotVs);
-	if (TexVs != NULL)
-		FinShaderBuf(TexVs);
-	if (CirclePs != NULL)
-		FinShaderBuf(CirclePs);
-	if (CircleVs != NULL)
-		FinShaderBuf(CircleVs);
-	if (CircleVertex != NULL)
-		FinVertexBuf(CircleVertex);
-	if (RectVs != NULL)
-		FinShaderBuf(RectVs);
-	if (RectLineVertex != NULL)
-		FinVertexBuf(RectLineVertex);
-	if (LineVertex != NULL)
-		FinVertexBuf(LineVertex);
-	if (RectVertex != NULL)
-		FinVertexBuf(RectVertex);
-	if (TriPs != NULL)
-		FinShaderBuf(TriPs);
-	if (TriVs != NULL)
-		FinShaderBuf(TriVs);
-	if (TriVertex != NULL)
-		FinVertexBuf(TriVertex);
+	for (int i = 0; i < VertexBuf_Num; i++)
+		FinVertexBuf(VertexBufs[i]);
+	for (int i = 0; i < ShaderBuf_Num; i++)
+		FinShaderBuf(ShaderBufs[i]);
 	for (int i = 0; i < SamplerNum; i++)
 	{
 		if (Sampler[i] != NULL)

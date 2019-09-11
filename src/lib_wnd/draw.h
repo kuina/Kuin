@@ -57,6 +57,7 @@ EXPORT_CPP SClass* _makeSphere(SClass* me_);
 EXPORT_CPP SClass* _makePlane(SClass* me_);
 EXPORT_CPP void _objDraw(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal);
 EXPORT_CPP void _objDrawToon(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal);
+EXPORT_CPP void _objDrawFlat(SClass* me_, S64 element, double frame, SClass* diffuse);
 EXPORT_CPP void _objDrawOutline(SClass* me_, S64 element, double frame, double width, S64 color);
 EXPORT_CPP void _objDrawWithShadow(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow);
 EXPORT_CPP void _objDrawToonWithShadow(SClass* me_, S64 element, double frame, SClass* diffuse, SClass* specular, SClass* normal, SClass* shadow);

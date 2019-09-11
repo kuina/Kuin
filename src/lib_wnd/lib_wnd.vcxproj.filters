@@ -54,6 +54,11 @@
     <ClCompile Include="obj_sm_vs.c" />
     <ClCompile Include="obj_toon_fast_sm_ps.c" />
     <ClCompile Include="obj_toon_sm_ps.c" />
+    <ClCompile Include="obj_flat_fast_joint_vs.c" />
+    <ClCompile Include="obj_flat_fast_vs.c" />
+    <ClCompile Include="obj_flat_joint_vs.c" />
+    <ClCompile Include="obj_flat_ps.c" />
+    <ClCompile Include="obj_flat_vs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />

@@ -51,7 +51,7 @@ float4 main(PS_INPUT input): SV_TARGET
 			dirColor2 * 20.0f * max(1.0f - (specular.xyz + (1.0f - specular.xyz) * pow(max(1.0f - dot(input.Normal, Dir.xyz), 0.0f), 5.0f)), 0.0f) / 3.14159265358979f
 		) +
 		dirColor2 * (0.0397436f * specular.w + 0.0856832f) * (specular.xyz + (1.0f - specular.xyz) * Half.w) * pow(max(dot(input.Normal, Half.xyz), 0.0f), specular.w) / max(max(dot(input.Normal, Dir.xyz), dot(input.Normal, Eye.xyz)), 0.00001f);
-	output.a = 1.0f;
+	output.a = diffuse.w;
 
 	if (output.a <= 0.02f)
 		discard;

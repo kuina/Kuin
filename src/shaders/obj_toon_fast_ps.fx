@@ -56,7 +56,7 @@ float4 main(PS_INPUT input): SV_TARGET
 			dirColor2 * toon_value
 		) +
 		dirColor2 * ImgToon.Sample(Sampler, float2(specular_x, 1.0f)).rgb;
-	output.a = 1.0f;
+	output.a = diffuse.w;
 
 	if (output.a <= 0.02f)
 		discard;
