@@ -42,8 +42,8 @@ float4 main(PS_INPUT input): SV_TARGET
 
 #ifdef SM
 	float3 coord = input.TexSm.xyz / input.TexSm.w;
-	float bias = 0.01f + 0.01f * max(abs(ddx(coord.z)), abs(ddy(coord.z)));
-	float3 dirColor2 = DirColor.xyz * ImgSm.SampleCmpLevelZero(SamplerSm, coord.xy, coord.z - bias);
+	float bias = min(0.01f + 0.01f * max(abs(ddx(coord.z)), abs(ddy(coord.z))), 0.1f);
+	float3 dirColor2 = DirColor.xyz * ImgSm.SampleCmpLevelZero(SamplerSm, coord.xy, saturate(coord.z - bias));
 #else
 	float3 dirColor2 = DirColor.xyz;
 #endif

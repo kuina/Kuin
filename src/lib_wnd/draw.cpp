@@ -1482,9 +1482,9 @@ EXPORT_CPP void _camera(double eyeX, double eyeY, double eyeZ, double atX, doubl
 	ViewMat[3][2] = -pxyz[2];
 	ViewMat[3][3] = 1.0;
 
-	ObjVsConstBuf.CommonParam.Eye[0] = static_cast<float>(eyeX);
-	ObjVsConstBuf.CommonParam.Eye[1] = static_cast<float>(eyeY);
-	ObjVsConstBuf.CommonParam.Eye[2] = static_cast<float>(eyeZ);
+	ObjVsConstBuf.CommonParam.Eye[0] = static_cast<float>(-look[0]);
+	ObjVsConstBuf.CommonParam.Eye[1] = static_cast<float>(-look[1]);
+	ObjVsConstBuf.CommonParam.Eye[2] = static_cast<float>(-look[2]);
 	ObjVsConstBuf.CommonParam.Eye[3] = static_cast<float>(eye_len);
 
 	Draw::SetProjViewMat(ObjVsConstBuf.CommonParam.ProjView, ProjMat, ViewMat);
@@ -1789,7 +1789,7 @@ EXPORT_CPP void _objLook(SClass* me_, double x, double y, double z, double atX, 
 
 EXPORT_CPP void _objLookCamera(SClass* me_, double x, double y, double z, double upX, double upY, double upZ, Bool fixUp)
 {
-	_objLook(me_, x, y, z, static_cast<double>(ObjVsConstBuf.CommonParam.Eye[0]), static_cast<double>(ObjVsConstBuf.CommonParam.Eye[1]), static_cast<double>(ObjVsConstBuf.CommonParam.Eye[2]), upX, upY, upZ, fixUp);
+	_objLook(me_, x, y, z, x + static_cast<double>(ObjVsConstBuf.CommonParam.Eye[0]), y + static_cast<double>(ObjVsConstBuf.CommonParam.Eye[1]), z + static_cast<double>(ObjVsConstBuf.CommonParam.Eye[2]), upX, upY, upZ, fixUp);
 }
 
 EXPORT_CPP void _ambLight(double topR, double topG, double topB, double bottomR, double bottomG, double bottomB)
@@ -2036,7 +2036,7 @@ EXPORT_CPP void _shadowBeginRecord(SClass* me_, double x, double y, double z, do
 		proj_mat[1][3] = 0.0;
 		proj_mat[2][0] = 0.0;
 		proj_mat[2][1] = 0.0;
-		proj_mat[2][2] = 0.5 / radius;
+		proj_mat[2][2] = 1.0 / radius;
 		proj_mat[2][3] = 0.0;
 		proj_mat[3][0] = 0.0;
 		proj_mat[3][1] = 0.0;
