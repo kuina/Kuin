@@ -24,10 +24,50 @@ end func
 		ret me.flags.and(0x08b64) <> 0b64
 	end func
 
-	+var x: float
-	+var y: float
 	+var width: float
 	+var height: float
+	+var x: float
+	+var y: float
+	+var veloX: float
+	+var veloY: float
+	var flags: bit64
+	var buf0: float
+	var buf1: float
+	var buf2: float
+	var buf3: float
+	var buf4: float
+	var buf5: float
+	var buf6: float
+	var buf7: float
+	var buf8: float
+end class
+
++class Circle()
+	+func [d1004.knd, _circleMove] move(maxVelo: float)
+	end func
+
+	+func [d1004.knd, _circleUpdate] update()
+	end func
+
+	+func hitLeft(): bool
+		ret me.flags.and(0x01b64) <> 0b64
+	end func
+
+	+func hitTop(): bool
+		ret me.flags.and(0x02b64) <> 0b64
+	end func
+
+	+func hitRight(): bool
+		ret me.flags.and(0x04b64) <> 0b64
+	end func
+
+	+func hitBottom(): bool
+		ret me.flags.and(0x08b64) <> 0b64
+	end func
+
+	+var radius: float
+	+var x: float
+	+var y: float
 	+var veloX: float
 	+var veloY: float
 	var flags: bit64
