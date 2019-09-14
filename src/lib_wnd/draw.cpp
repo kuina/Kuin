@@ -2036,7 +2036,7 @@ EXPORT_CPP void _shadowBeginRecord(SClass* me_, double x, double y, double z, do
 		proj_mat[1][3] = 0.0;
 		proj_mat[2][0] = 0.0;
 		proj_mat[2][1] = 0.0;
-		proj_mat[2][2] = 1.0 / radius;
+		proj_mat[2][2] = 0.5 / radius;
 		proj_mat[2][3] = 0.0;
 		proj_mat[3][0] = 0.0;
 		proj_mat[3][1] = 0.0;
