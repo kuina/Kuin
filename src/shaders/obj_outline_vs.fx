@@ -3,6 +3,7 @@ cbuffer ConstBuf: register(b0)
 	float4x4 World;
 	float4x4 NormWorld;
 	float4x4 ProjView;
+	float4x4 ShadowProjView;
 	float4 Eye;
 	float4 Dir;
 	float4 OutlineParam;
