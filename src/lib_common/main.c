@@ -1850,6 +1850,14 @@ EXPORT void* _join(const U8* me_, const U8* delimiter)
 	THROWDBG(delimiter == NULL, EXCPT_ACCESS_VIOLATION);
 	S64 delimiter_len = *(const S64*)(delimiter + 0x08);
 	S64 array_len = *(const S64*)(me_ + 0x08);
+	if (array_len == 0)
+	{
+		U8* blank = (U8*)AllocMem(0x10 + sizeof(Char));
+		((S64*)blank)[0] = DefaultRefCntFunc;
+		((S64*)blank)[1] = 0;
+		*(Char*)(blank + 0x10) = L'\0';
+		return blank;
+	}
 	const void** array_ = (const void**)(me_ + 0x10);
 	S64 total_len = delimiter_len * (array_len - 1);
 	U8* result;
