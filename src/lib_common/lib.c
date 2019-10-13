@@ -478,6 +478,38 @@ EXPORT void* _countUp(S64 min, S64 max)
 	return buf;
 }
 
+EXPORT S64 _addChkOverflow(Bool* overflowed, S64 n1, S64 n2)
+{
+	if (AddAsm(&n1, n2))
+		*overflowed = True;
+	else
+		*overflowed = False;
+	return n1;
+}
+
+EXPORT S64 _subChkOverflow(Bool* overflowed, S64 n1, S64 n2)
+{
+	if (SubAsm(&n1, n2))
+		*overflowed = True;
+	else
+		*overflowed = False;
+	return n1;
+}
+
+EXPORT S64 _mulChkOverflow(Bool* overflowed, S64 n1, S64 n2)
+{
+	if (MulAsm(&n1, n2))
+		*overflowed = True;
+	else
+		*overflowed = False;
+	return n1;
+}
+
+EXPORT U64 _addr(SClass* me_)
+{
+	return (U64)me_;
+}
+
 void LibInit(void)
 {
 	// Initialize the random number system.

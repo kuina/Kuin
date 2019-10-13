@@ -1619,7 +1619,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 			}
 		}
 		else
-			ListAdd(PackAsm->Asms, AsmSUB(ValReg(4, Reg_SP), ValImm(4, RefValueAddr(var_size, False))));
+			ListAdd(PackAsm->Asms, AsmSUB(ValReg(8, Reg_SP), ValImm(4, RefValueAddr(var_size, False))));
 		ListAdd(PackAsm->Asms, table->PostPrologue);
 		if (((SAst*)ast)->TypeId != AstTypeId_FuncRaw)
 		{
@@ -1663,7 +1663,7 @@ static void AssembleFunc(SAstFunc* ast, Bool entry)
 				SAsmLabel* lbl1 = AsmLabel();
 				DictForEach(Dlls, InitDlls, scope_entry->End);
 #if defined(_DEBUG)
-				// DbgBreak();
+				DbgBreak();
 #endif
 				ListAdd(PackAsm->Asms, lbl1);
 			}
@@ -3437,7 +3437,10 @@ static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f)
 					SAsmLabel* lbl1 = AsmLabel();
 					SAsmLabel* lbl2 = AsmLabel();
 					SAsmLabel* lbl3 = AsmLabel();
+					SAsmLabel* lbl4 = AsmLabel();
 					ASSERT(IsClass(t1));
+					ListAdd(PackAsm->Asms, AsmCMP(ValReg(8, RegI[reg_i]), ValImmU(8, 0x00)));
+					ListAdd(PackAsm->Asms, AsmJE(ValImm(4, RefValueAddr(((SAsm*)lbl4)->Addr, True))));
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, Reg_SI), ValReg(8, RegI[reg_i])));
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValMemS(8, ValReg(8, RegI[reg_i]), NULL, 0x08)));
 					ListAdd(PackAsm->Asms, lbl1);
@@ -3456,6 +3459,7 @@ static void AssembleExprAs(SAstExprAs* ast, int reg_i, int reg_f)
 					RaiseExcpt(EXCPT_CLASS_CAST_FAILED);
 					ListAdd(PackAsm->Asms, lbl3);
 					ListAdd(PackAsm->Asms, AsmMOV(ValReg(8, RegI[reg_i]), ValReg(8, Reg_SI)));
+					ListAdd(PackAsm->Asms, lbl4);
 				}
 			}
 			break;

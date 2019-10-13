@@ -158,6 +158,9 @@ end func
 func [d0000.knd] _toFloat(me_: []char, success: &bool): float
 end func
 
+func [d0000.knd] _toBit64(me_: []char, success: &bool): bit64
+end func
+
 func [d0000.knd] _lower(me_: []char): []char
 end func
 
@@ -267,4 +270,7 @@ func [d0000.knd, _any_type, _take_key_value_func] _forEach(me_: []bit8, type: in
 end func
 
 func [d0000.knd, _any_type, _take_child] _delDict(me_: []bit8, type: int, key: []bit8)
+end func
+
+func [d0000.knd, _any_type] _idx(me_: []bit8, type: int): int
 end func

@@ -57,6 +57,7 @@ EXPORT void* _max(const void* me_, const U8* type);
 EXPORT void* _repeat(const void* me_, const U8* type, S64 len);
 EXPORT S64 _toInt(const U8* me_, Bool* success);
 EXPORT double _toFloat(const U8* me_, Bool* success);
+EXPORT U64 _toBit64(const U8* me_, Bool* success);
 EXPORT void* _lower(const U8* me_);
 EXPORT void* _upper(const U8* me_);
 EXPORT void* _trim(const U8* me_);
@@ -94,6 +95,7 @@ EXPORT void* _peek(void* me_, const U8* type);
 EXPORT Bool _exist(void* me_, const U8* type, const void* key);
 EXPORT Bool _forEach(void* me_, const U8* type, const void* callback, void* data);
 EXPORT void _delDict(void* me_, const U8* type, const void* key);
+EXPORT S64 _idx(void* me_, const U8* type);
 
 // Assembly functions.
 void* ToBinClassAsm(const void* me_);

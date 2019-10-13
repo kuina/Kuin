@@ -49,4 +49,14 @@ EXPORT SClass* _makeBmSearch(SClass* me_, const U8* pattern);
 EXPORT void _bmSearchDtor(SClass* me_);
 EXPORT S64 _bmSearchFind(SClass* me_, const U8* text, S64 start);
 EXPORT void* _countUp(S64 min, S64 max);
+EXPORT S64 _addChkOverflow(Bool* overflowed, S64 n1, S64 n2);
+EXPORT S64 _subChkOverflow(Bool* overflowed, S64 n1, S64 n2);
+EXPORT S64 _mulChkOverflow(Bool* overflowed, S64 n1, S64 n2);
+EXPORT U64 _addr(SClass* me_);
+
 void LibInit(void);
+
+// Assembly functions.
+Bool AddAsm(S64* a, S64 b);
+Bool SubAsm(S64* a, S64 b);
+Bool MulAsm(S64* a, S64 b);

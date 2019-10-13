@@ -6136,6 +6136,7 @@ static void GetKeywordsAddMember(const Char* type)
 				GetKeywordsAdd(L"lower");
 				GetKeywordsAdd(L"replace");
 				GetKeywordsAdd(L"split");
+				GetKeywordsAdd(L"toBit64");
 				GetKeywordsAdd(L"toFloat");
 				GetKeywordsAdd(L"toInt");
 				GetKeywordsAdd(L"toStr");

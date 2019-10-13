@@ -1661,6 +1661,20 @@ EXPORT double _toFloat(const U8* me_, Bool* success)
 	return value;
 }
 
+EXPORT U64 _toBit64(const U8* me_, Bool* success)
+{
+	Char* ptr;
+	THROWDBG(me_ == NULL, EXCPT_ACCESS_VIOLATION);
+	const Char* str = (const Char*)(me_ + 0x10);
+	U64 value;
+	if (str[0] == '0' && str[1] == 'x')
+		value = wcstoull(str + 2, &ptr, 16);
+	else
+		value = wcstoull(str, &ptr, 10);
+	*success = *ptr == L'\0';
+	return value;
+}
+
 EXPORT void* _lower(const U8* me_)
 {
 	THROWDBG(me_ == NULL, EXCPT_ACCESS_VIOLATION);
@@ -2562,6 +2576,25 @@ EXPORT void _delDict(void* me_, const U8* type, const void* key)
 		if (deleted)
 			(*(S64*)((U8*)me_ + 0x08))--;
 	}
+}
+
+EXPORT S64 _idx(void* me_, const U8* type)
+{
+	UNUSED(type);
+	THROWDBG(me_ == NULL, EXCPT_ACCESS_VIOLATION);
+	void* cur = *(void**)((U8*)me_ + 0x20);
+	void* ptr = *(void**)((U8*)me_ + 0x10);
+	S64 idx = 0;
+	if (cur == NULL)
+		return -1;
+	while (ptr != NULL)
+	{
+		if (ptr == cur)
+			return idx;
+		idx++;
+		ptr = *(void**)((U8*)ptr + 0x08);
+	}
+	return -1;
 }
 
 static Bool IsRef(U8 type)
