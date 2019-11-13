@@ -34,6 +34,7 @@ static const Char* Reserved[] =
 	L"else",
 	L"end",
 	L"enum",
+	L"env",
 	L"false",
 	L"finally",
 	L"float",
@@ -3946,6 +3947,11 @@ static SAstExpr* ParseExprValue(void)
 						U64 value = Option->Rls ? 0 : 1;
 						return (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Bool, &value);
 					}
+					if (wcscmp(s, L"env") == 0)
+					{
+						U64 value = 0;
+						return (SAstExpr*)ObtainPrimValue(pos, AstTypePrimKind_Int, &value);
+					}
 					{
 						SAstExpr* ast = (SAstExpr*)Alloc(sizeof(SAstExpr));
 						InitAstExpr(ast, AstTypeId_ExprRef, pos);
@@ -5970,6 +5976,7 @@ static Bool GetKeywordsReadExprValue(const Char** str, Char** type)
 				if (GetKeywordsReadIdentifier(buf, str, True, True))
 				{
 					GetKeywordsAdd(L"dbg");
+					GetKeywordsAdd(L"env");
 					GetKeywordsAdd(L"false");
 					GetKeywordsAdd(L"inf");
 					GetKeywordsAdd(L"null");
