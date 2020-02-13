@@ -93,6 +93,54 @@ EXPORT Bool _sqlExec(SClass* me_, const void* cmd)
 	return True;
 }
 
+EXPORT Bool _sqlPrepare(SClass* me_, const void* cmd)
+{
+	SSql* me2 = (SSql*)me_;
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	Reset(me2);
+	int result = sqlite3_prepare16_v2(me2->Db, (const U8*)cmd + 0x10, (int)(*(const S64*)((const U8*)cmd + 0x08) * sizeof(Char)), &me2->Statement, NULL);
+	if (result == SQLITE_OK)
+	{
+		me2->Result = result;
+		return True;
+	}
+
+	Reset(me2);
+	return False;
+}
+
+EXPORT Bool _sqlSetInt(SClass* me_, S64 col, S64 value)
+{
+	SSql* me2 = (SSql*)me_;
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	int result = sqlite3_bind_int64(me2->Statement, (int)col, value);
+	return result == SQLITE_OK;
+}
+
+EXPORT Bool _sqlSetFloat(SClass* me_, S64 col, double value)
+{
+	SSql* me2 = (SSql*)me_;
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	int result = sqlite3_bind_double(me2->Statement, (int)col, value);
+	return result == SQLITE_OK;
+}
+
+EXPORT Bool _sqlSetStr(SClass* me_, S64 col, const void* value)
+{
+	SSql* me2 = (SSql*)me_;
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	int result = sqlite3_bind_text16(me2->Statement, (int)col, (const U8*)value + 0x10, (int)(*(const S64*)((const U8*)value + 0x08) * sizeof(Char)), SQLITE_TRANSIENT);
+	return result == SQLITE_OK;
+}
+
+EXPORT Bool _sqlSetBlob(SClass* me_, S64 col, const void* value)
+{
+	SSql* me2 = (SSql*)me_;
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	int result = sqlite3_bind_blob(me2->Statement, (int)col, (const U8*)value + 0x10, (int)(*(const S64*)((const U8*)value + 0x08) * sizeof(S8)), SQLITE_TRANSIENT);
+	return result == SQLITE_OK;
+}
+
 EXPORT S64 _sqlGetInt(SClass* me_, S64 col)
 {
 	SSql* me2 = (SSql*)me_;
@@ -150,7 +198,7 @@ EXPORT Bool _sqlNext(SClass* me_)
 {
 	SSql* me2 = (SSql*)me_;
 	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
-	if (me2->Result != SQLITE_ROW)
+	if (me2->Result != SQLITE_ROW && me2->Result != SQLITE_OK)
 		return False;
 	if (sqlite3_step(me2->Statement) != SQLITE_ROW)
 	{
@@ -158,6 +206,26 @@ EXPORT Bool _sqlNext(SClass* me_)
 		return False;
 	}
 	return True;
+}
+
+EXPORT Bool _sqlApply(SClass* me_)
+{
+	SSql* me2 = (SSql*)me_;
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
+
+	if (sqlite3_step(me2->Statement) != SQLITE_DONE)
+	{
+		Reset(me2);
+		return False;
+	}
+	return True;
+}
+
+EXPORT Bool _sqlCurrent(SClass* me_)
+{
+	SSql* me2 = (SSql*)me_;
+	THROWDBG(me2->Db == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	return me2->Result == SQLITE_ROW;
 }
 
 static void Reset(SSql* me)
