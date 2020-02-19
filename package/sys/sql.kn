@@ -11,6 +11,21 @@ end func
 	+func [d1005.knd, _sqlExec] exec(cmd: []char): bool
 	end func
 
+	+func [d1005.knd, _sqlPrepare] prepare(cmd: []char): bool
+	end func
+
+	+func [d1005.knd, _sqlSetInt] setInt(col: int, value: int): bool
+	end func
+
+	+func [d1005.knd, _sqlSetFloat] setFloat(col: int, value: float): bool
+	end func
+
+	+func [d1005.knd, _sqlSetStr] setStr(col: int, value: []char): bool
+	end func
+
+	+func [d1005.knd, _sqlSetBlob] setBlob(col: int, value: []bit8): bool
+	end func
+
 	+func [d1005.knd, _sqlGetInt] getInt(col: int): int
 	end func
 
@@ -20,7 +35,13 @@ end func
 	+func [d1005.knd, _sqlGetStr] getStr(col: int): []char
 	end func
 
+	+func [d1005.knd, _sqlCurrent] current(): bool
+	end func
+
 	+func [d1005.knd, _sqlNext] next(): bool
+	end func
+
+	+func [d1005.knd, _sqlApply] apply(): bool
 	end func
 
 	+func [d1005.knd, _sqlGetBlob] getBlob(col: int): []bit8
