@@ -1138,11 +1138,11 @@ end func
 	ret "wnd"
 end func
 
-+func setEnvDirectly(env: []char)
++func setEnvDirectly(env_: []char)
 	do @lockUi :: true
 	do @radioEnvWnd.setChk(false)
 	do @radioEnvCui.setChk(false)
-	switch(env)
+	switch(env_)
 	case "wnd"
 		do @radioEnvWnd.setChk(true)
 	case "cui"
