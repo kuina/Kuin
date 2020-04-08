@@ -920,7 +920,7 @@ EXPORT U8* _toStr(const void* me_, const U8* type)
 	switch (*type)
 	{
 		case TypeId_Int: len = swprintf(str, 33, L"%I64d", *(S64*)&me_); break;
-		case TypeId_Float: len = swprintf(str, 33, L"%g", *(double*)&me_); break;
+		case TypeId_Float: len = swprintf(str, 33, L"%.16g", *(double*)&me_); break;
 		case TypeId_Char:
 			len = 1;
 			str[0] = *(Char*)&me_;
