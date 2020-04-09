@@ -34,6 +34,12 @@ typedef struct SBinList
 	struct SBinList* Next;
 } SBinList;
 
+typedef struct SListPtr
+{
+	SClass Class;
+	void* Ptr;
+} SListPtr;
+
 extern Char ResRoot[KUIN_MAX_PATH + 1];
 
 static Bool IsRef(U8 type);
@@ -2595,6 +2601,19 @@ EXPORT S64 _idx(void* me_, const U8* type)
 		ptr = *(void**)((U8*)ptr + 0x08);
 	}
 	return -1;
+}
+
+EXPORT SClass* _getPtr(void* me_, const U8* type, SClass* me2)
+{
+	SListPtr* ptr = (SListPtr*)me2;
+	ptr->Ptr = *(void**)((U8*)me_ + 0x20);
+	return me2;
+}
+
+EXPORT void _setPtr(void* me_, const U8* type, SClass* ptr)
+{
+	SListPtr* ptr2 = (SListPtr*)ptr;
+	*(void**)((U8*)me_ + 0x20) = ptr2->Ptr;
 }
 
 static Bool IsRef(U8 type)

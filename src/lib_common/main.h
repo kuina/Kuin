@@ -96,6 +96,8 @@ EXPORT Bool _exist(void* me_, const U8* type, const void* key);
 EXPORT Bool _forEach(void* me_, const U8* type, const void* callback, void* data);
 EXPORT void _delDict(void* me_, const U8* type, const void* key);
 EXPORT S64 _idx(void* me_, const U8* type);
+EXPORT SClass* _getPtr(void* me_, const U8* type, SClass* me2);
+EXPORT void _setPtr(void* me_, const U8* type, SClass* ptr);
 
 // Assembly functions.
 void* ToBinClassAsm(const void* me_);

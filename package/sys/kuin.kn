@@ -274,3 +274,13 @@ end func
 
 func [d0000.knd, _any_type] _idx(me_: []bit8, type: int): int
 end func
+
++class ListPtr()
+	var ptr: int
+end class
+
+func [d0000.knd, _any_type, _make_instance] _getPtr(me_: []bit8, type: int, me2: @ListPtr): @ListPtr
+end func
+
+func [d0000.knd, _any_type] _setPtr(me_: []bit8, type: int, ptr: @ListPtr)
+end func
