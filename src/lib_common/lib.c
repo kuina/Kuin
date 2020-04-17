@@ -510,6 +510,16 @@ EXPORT U64 _addr(SClass* me_)
 	return (U64)me_;
 }
 
+EXPORT U64 _toBit64Forcibly(double x)
+{
+	return *(U64*)&x;
+}
+
+EXPORT double _toFloatForcibly(U64 x)
+{
+	return *(double*)&x;
+}
+
 void LibInit(void)
 {
 	// Initialize the random number system.

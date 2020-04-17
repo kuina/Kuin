@@ -53,6 +53,8 @@ EXPORT S64 _addChkOverflow(Bool* overflowed, S64 n1, S64 n2);
 EXPORT S64 _subChkOverflow(Bool* overflowed, S64 n1, S64 n2);
 EXPORT S64 _mulChkOverflow(Bool* overflowed, S64 n1, S64 n2);
 EXPORT U64 _addr(SClass* me_);
+EXPORT U64 _toBit64Forcibly(double x);
+EXPORT double _toFloatForcibly(U64 x);
 
 void LibInit(void);
 

@@ -117,10 +117,10 @@ end func
 +func [d0000.knd, _same] same(n1: float, n2: float): bool
 end func
 
-+func toBit64Forcibly(x: float): bit64
++func [d0000.knd, _toBit64Forcibly] toBit64Forcibly(x: float): bit64
 end func
 
-+func toFloatForcibly(x: bit64): float
++func [d0000.knd, _toFloatForcibly] toFloatForcibly(x: bit64): float
 end func
 
 +func [d0000.knd, _toRad] toRad(degree: float): float
