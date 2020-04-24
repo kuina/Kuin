@@ -31,6 +31,11 @@ EXPORT void _print(const U8* str)
 #endif
 }
 
+EXPORT void _flush(void)
+{
+	fflush(stdout);
+}
+
 EXPORT Char _inputLetter(void)
 {
 	Char c = fgetwc(stdin);

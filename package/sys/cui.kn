@@ -10,6 +10,9 @@ end func
 +func [d0002.knd, _print] print(str: []char)
 end func
 
++func [d0002.knd, _flush] flush()
+end func
+
 +func [d0002.knd, _inputLetter] inputLetter(): char
 end func
 

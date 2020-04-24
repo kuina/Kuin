@@ -28,6 +28,7 @@ EXPORT void _writerWriteInt(SClass* me_, S64 n);
 EXPORT void _writerWriteFloat(SClass* me_, double n);
 EXPORT void _writerWriteChar(SClass* me_, Char n);
 EXPORT void _writerWriteStr(SClass* me_, const U8* n);
+EXPORT void _writerFlush(SClass* me_);
 EXPORT Bool _makeDir(const U8* path);
 EXPORT Bool _forEachDir(const U8* path, Bool recursion, void* callback, void* data);
 EXPORT Bool _existPath(const U8* path);

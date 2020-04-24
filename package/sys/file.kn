@@ -81,6 +81,9 @@ end class
 	+func [d0000.knd, _writerWriteStr] writeStr(n: []char)
 	end func
 
+	+func [d0000.knd, _writerFlush] flush()
+	end func
+
 	var handle: int
 end class
 

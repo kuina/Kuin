@@ -447,6 +447,13 @@ EXPORT void _writerWriteStr(SClass* me_, const U8* n)
 	}
 }
 
+EXPORT void _writerFlush(SClass* me_)
+{
+	SWriter* me2 = (SWriter*)me_;
+	THROWDBG(me2->Handle == NULL, EXCPT_DBG_INOPERABLE_STATE);
+	fflush(me2->Handle);
+}
+
 EXPORT Bool _makeDir(const U8* path)
 {
 	THROWDBG(path == NULL, EXCPT_ACCESS_VIOLATION);
