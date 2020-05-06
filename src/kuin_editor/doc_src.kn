@@ -1691,7 +1691,7 @@ end func
 			ret null
 		end if
 		var last: int :: x
-		while(last < ^me.src.color[y] - 1 & keyword(me.src.color[y][last + 1]))
+		while(last < ^me.src.color[y] & keyword(me.src.color[y][last]))
 			do last :+ 1
 		end while
 		ret me.src.src[y].sub(first, last - first).trim()
