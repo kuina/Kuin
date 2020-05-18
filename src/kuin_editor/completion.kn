@@ -23,7 +23,11 @@ end func
 	end if
 	if(@wndCompletion =& null)
 		do @keywords :: #list<[]char>
-		var funcHint: []char :: \dll@getKeywords(src, srcName, posX, posY, getKeywordsCallback)
+		var funcHint: []char
+		try
+			do funcHint :: \dll@getKeywords(src, srcName, posX, posY, getKeywordsCallback)
+		catch
+		end try
 		if(funcHint <>& null & ^funcHint <> 0)
 			do \form@editHint.setText(funcHint)
 		end if
