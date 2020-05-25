@@ -27,10 +27,22 @@ struct SBrush
 	ID2D1Brush* Brush;
 };
 
+struct SBrushSolidColor
+{
+	SBrush Parent;
+	ID2D1SolidColorBrush* BrushSolidColor;
+};
+
 struct SBrushLinearGradient
 {
-	SClass Class;
-	ID2D1LinearGradientBrush* Brush;
+	SBrush Parent;
+	ID2D1LinearGradientBrush* BrushLinearGradient;
+};
+
+struct SBrushRadialGradient
+{
+	SBrush Parent;
+	ID2D1RadialGradientBrush* BrushRadialGradient;
 };
 
 struct SStrokeStyle
@@ -47,8 +59,8 @@ struct SGeometry
 
 struct SGeometryPath
 {
-	SClass Class;
-	ID2D1PathGeometry* Geometry;
+	SGeometry Parent;
+	ID2D1PathGeometry* GeometryPath;
 	ID2D1GeometrySink* Sink;
 };
 
@@ -175,6 +187,23 @@ EXPORT_CPP void _tri(double x1, double y1, double x2, double y2, double x3, doub
 	CurRenderTarget->Flush();
 }
 
+EXPORT_CPP SClass* _makeBrushSolidColor(SClass* me_, S64 color)
+{
+	SBrushSolidColor* me2 = reinterpret_cast<SBrushSolidColor*>(me_);
+	D2D1_COLOR_F color_ = ColorToColorF(color);
+	CurRenderTarget->CreateSolidColorBrush(color_, &me2->BrushSolidColor);
+	me2->BrushSolidColor->SetOpacity(color_.a);
+	me2->BrushSolidColor->QueryInterface(IID_ID2D1Brush, (void**)&me2->Parent.Brush);
+	return me_;
+}
+
+EXPORT_CPP void _brushSolidColorDtor(SClass* me_)
+{
+	SBrushSolidColor* me2 = reinterpret_cast<SBrushSolidColor*>(me_);
+	me2->Parent.Brush->Release();
+	me2->BrushSolidColor->Release();
+}
+
 EXPORT_CPP SClass* _makeBrushLinearGradient(SClass* me_, double x1, double y1, double x2, double y2, void* color_position, void* color)
 {
 	SBrushLinearGradient* me2 = reinterpret_cast<SBrushLinearGradient*>(me_);
@@ -190,14 +219,51 @@ EXPORT_CPP SClass* _makeBrushLinearGradient(SClass* me_, double x1, double y1, d
 	}
 	CurRenderTarget->CreateGradientStopCollection(gradient_stops, static_cast<UINT32>(len_pos), &gradient_stop_collection);
 	FreeMem(gradient_stops);
-	CurRenderTarget->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2))), gradient_stop_collection, &me2->Brush);
+	CurRenderTarget->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2))), gradient_stop_collection, &me2->BrushLinearGradient);
+	gradient_stop_collection->Release();
+	me2->BrushLinearGradient->QueryInterface(IID_ID2D1Brush, (void**)&me2->Parent.Brush);
 	return me_;
 }
 
 EXPORT_CPP void _brushLinearGradientDtor(SClass* me_)
 {
 	SBrushLinearGradient* me2 = reinterpret_cast<SBrushLinearGradient*>(me_);
-	me2->Brush->Release();
+	me2->Parent.Brush->Release();
+	me2->BrushLinearGradient->Release();
+}
+
+EXPORT_CPP SClass* _makeBrushRadialGradient(SClass* me_, double left, double top, double right, double bottom, void* color_position, void* color)
+{
+	SBrushRadialGradient* me2 = reinterpret_cast<SBrushRadialGradient*>(me_);
+	S64 lenPos = static_cast<S64*>(color_position)[1];
+	S64 lenColor = static_cast<S64*>(color)[1];
+	THROWDBG(lenPos != lenColor, 0xe9170006);
+	ID2D1GradientStopCollection* gradient_stop_collection = NULL;
+	D2D1_GRADIENT_STOP* gradient_stops = static_cast<D2D1_GRADIENT_STOP*>(AllocMem(sizeof(D2D1_GRADIENT_STOP) * lenPos));
+	for (S64 i = 0; i < lenPos; i++)
+	{
+		gradient_stops[i].color = ColorToColorF(static_cast<S64*>(color)[i + 2]);
+		gradient_stops[i].position = static_cast<FLOAT>(static_cast<double*>(color_position)[i + 2]);
+	}
+	CurRenderTarget->CreateGradientStopCollection(gradient_stops, static_cast<UINT32>(lenPos), &gradient_stop_collection);
+	FreeMem(gradient_stops);
+	CurRenderTarget->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties(D2D1::Point2F(static_cast<FLOAT>(0.5 * (right + left)), static_cast<FLOAT>(0.5 * (top + bottom))), D2D1::Point2F(0.0f, 0.0f), static_cast<FLOAT>(right - left), static_cast<FLOAT>(bottom - top)), gradient_stop_collection, &me2->BrushRadialGradient);
+	gradient_stop_collection->Release();
+	me2->BrushRadialGradient->QueryInterface(IID_ID2D1Brush, (void**)&me2->Parent.Brush);
+	return me_;
+}
+
+EXPORT_CPP void _brushRadialGradientSetGradientOriginOffset(SClass* me_, double offsetX, double offsetY)
+{
+	SBrushRadialGradient* me2 = reinterpret_cast<SBrushRadialGradient*>(me_);
+	me2->BrushRadialGradient->SetGradientOriginOffset(D2D1::Point2F(static_cast<FLOAT>(offsetX), static_cast<FLOAT>(offsetY)));
+}
+
+EXPORT_CPP void _brushRadialGradientDtor(SClass* me_)
+{
+	SBrushRadialGradient* me2 = reinterpret_cast<SBrushRadialGradient*>(me_);
+	me2->Parent.Brush->Release();
+	me2->BrushRadialGradient->Release();
 }
 
 EXPORT_CPP void _brushLine(SClass* me_, double x1, double y1, double x2, double y2, double stroke_width, SClass* stroke_style)
@@ -208,10 +274,101 @@ EXPORT_CPP void _brushLine(SClass* me_, double x1, double y1, double x2, double 
 	CurRenderTarget->Flush();
 }
 
+EXPORT_CPP void _brushRect(SClass* me_, double x, double y, double width, double height)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	CurRenderTarget->FillRectangle(D2D1::RectF(static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(x + width), static_cast<FLOAT>(y + height)), me2->Brush);
+}
+
+EXPORT_CPP void _brushRectLine(SClass* me_, double x, double y, double width, double height, double stroke_width, SClass* stroke_style)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SStrokeStyle* strokeStyle2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
+	CurRenderTarget->DrawRectangle(D2D1::RectF(static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(x + width), static_cast<FLOAT>(y + height)), me2->Brush, static_cast<FLOAT>(stroke_width), stroke_style != NULL ? strokeStyle2->StrokeStyle : NULL);
+}
+
+EXPORT_CPP void _brushCircle(SClass* me_, double x, double y, double radius_x, double radius_y)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	CurRenderTarget->FillEllipse(D2D1::Ellipse(D2D1::Point2F(static_cast<FLOAT>(x), static_cast<FLOAT>(y)), static_cast<FLOAT>(radius_x), static_cast<FLOAT>(radius_y)), me2->Brush);
+}
+
+EXPORT_CPP void _brushCircleLine(SClass* me_, double x, double y, double radius_x, double radius_y, double stroke_width, SClass* stroke_style)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SStrokeStyle* strokeStyle2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
+	CurRenderTarget->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(static_cast<FLOAT>(x), static_cast<FLOAT>(y)), static_cast<FLOAT>(radius_x), static_cast<FLOAT>(radius_y)), me2->Brush, static_cast<FLOAT>(stroke_width), stroke_style != NULL ? strokeStyle2->StrokeStyle : NULL);
+}
+
+EXPORT_CPP void _brushTri(SClass* me_, double x1, double y1, double x2, double y2, double x3, double y3)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	ID2D1PathGeometry* geometry = NULL;
+	ID2D1GeometrySink* sink = NULL;
+	Factory->CreatePathGeometry(&geometry);
+	geometry->Open(&sink);
+	sink->BeginFigure(D2D1::Point2F(static_cast<FLOAT>(x1), static_cast<FLOAT>(y1)), D2D1_FIGURE_BEGIN_FILLED);
+	sink->AddLine(D2D1::Point2F(static_cast<FLOAT>(x2), static_cast<FLOAT>(y2)));
+	sink->AddLine(D2D1::Point2F(static_cast<FLOAT>(x3), static_cast<FLOAT>(y3)));
+	sink->EndFigure(D2D1_FIGURE_END_CLOSED);
+	sink->Close();
+	CurRenderTarget->FillGeometry(geometry, me2->Brush);
+	sink->Release();
+	geometry->Release();
+}
+
+EXPORT_CPP void _brushDraw(SClass* me_, SClass* geometry)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SGeometry* geometry2 = reinterpret_cast<SGeometry*>(geometry);
+	CurRenderTarget->FillGeometry(geometry2->Geometry, me2->Brush);
+}
+
+EXPORT_CPP void _brushDrawLine(SClass* me_, SClass* geometry, double stroke_width, SClass* stroke_style)
+{
+	SBrush* me2 = reinterpret_cast<SBrush*>(me_);
+	SGeometry* geometry2 = reinterpret_cast<SGeometry*>(geometry);
+	SStrokeStyle* stroke_style2 = reinterpret_cast<SStrokeStyle*>(stroke_style);
+	CurRenderTarget->DrawGeometry(geometry2->Geometry, me2->Brush, static_cast<FLOAT>(stroke_width), stroke_style2 == NULL ? NULL : stroke_style2->StrokeStyle);
+}
+
+EXPORT_CPP SClass* _makeStrokeStyle(SClass *me_, S64 startCap, S64 endCap, S64 dashCap, S64 lineJoin, double miterLimit, S64 dashStyle, double dashOffset, void *dash)
+{
+	SStrokeStyle* me2 = reinterpret_cast<SStrokeStyle*>(me_);
+	D2D1_STROKE_STYLE_PROPERTIES prop;
+	prop.startCap = static_cast<D2D1_CAP_STYLE>(startCap);
+	prop.endCap = static_cast<D2D1_CAP_STYLE>(endCap);
+	prop.dashCap = static_cast<D2D1_CAP_STYLE>(dashCap);
+	prop.lineJoin = static_cast<D2D1_LINE_JOIN>(lineJoin);
+	prop.miterLimit = static_cast<FLOAT>(miterLimit);
+	prop.dashStyle = static_cast<D2D1_DASH_STYLE>(dashStyle);
+	prop.dashOffset = static_cast<FLOAT>(dashOffset);
+	if (dash == NULL) {
+		Factory->CreateStrokeStyle(prop, NULL, 0, &me2->StrokeStyle);
+	}
+	else {
+		S64 lenDash = reinterpret_cast<S64*>(dash)[1];
+		float* dashes = (float*)AllocMem(lenDash * sizeof(float));
+		double* dash_ = reinterpret_cast<double*>(dash);
+		for (S64 i = 0; i < lenDash; i++)
+			dashes[i] = static_cast<FLOAT>(dash_[i + 2]);
+		Factory->CreateStrokeStyle(prop, dashes, static_cast<UINT32>(lenDash), &me2->StrokeStyle);
+		FreeMem(dashes);
+	}
+	return me_;
+}
+
+EXPORT_CPP void _strokeStyleDtor(SClass* me_)
+{
+	SStrokeStyle* me2 = reinterpret_cast<SStrokeStyle*>(me_);
+	me2->StrokeStyle->Release();
+}
+
 EXPORT_CPP SClass* _makeGeometryPath(SClass* me_)
 {
 	SGeometryPath* me2 = reinterpret_cast<SGeometryPath*>(me_);
-	Factory->CreatePathGeometry(&me2->Geometry);
+	Factory->CreatePathGeometry(&me2->GeometryPath);
+	me2->GeometryPath->QueryInterface(IID_ID2D1Geometry, (void**)&me2->Parent.Geometry);
 	me2->Sink = NULL;
 	return me_;
 }
@@ -221,13 +378,14 @@ EXPORT_CPP void _geometryPathDtor(SClass* me_)
 	SGeometryPath* me2 = reinterpret_cast<SGeometryPath*>(me_);
 	if (me2->Sink != NULL)
 		me2->Sink->Release();
-	me2->Geometry->Release();
+	me2->Parent.Geometry->Release();
+	me2->GeometryPath->Release();
 }
 
 EXPORT_CPP void _geometryPathOpen(SClass* me_)
 {
 	SGeometryPath* me2 = reinterpret_cast<SGeometryPath*>(me_);
-	me2->Geometry->Open(&me2->Sink);
+	me2->GeometryPath->Open(&me2->Sink);
 }
 
 EXPORT_CPP void _geometryPathClose(SClass* me_)
