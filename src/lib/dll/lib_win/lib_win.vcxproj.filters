@@ -1,0 +1,196 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="..\common.c" />
+    <ClCompile Include="wnd_wnd.cpp" />
+    <ClCompile Include="wnd_common.cpp" />
+    <ClCompile Include="wnd_ctrl.cpp" />
+    <ClCompile Include="draw_common.cpp" />
+    <ClCompile Include="draw_ctrl.cpp" />
+    <ClCompile Include="draw_device.cpp" />
+    <ClCompile Include="bins\circle_line_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\circle_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\circle_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\filter_monotone_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\filter_none_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\filter_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\font_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_fast_joint_sm_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_fast_joint_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_fast_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_fast_sm_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_fast_sm_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_fast_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_flat_fast_joint_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_flat_fast_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_flat_joint_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_flat_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_flat_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_joint_sm_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_joint_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_outline_joint_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_outline_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_outline_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_shadow_joint_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_shadow_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_sm_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_sm_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_toon_fast_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_toon_fast_sm_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_toon_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_toon_sm_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\obj_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\particle_2d_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\particle_2d_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\particle_updating_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\particle_updating_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\rect_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\tex_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\tex_rot_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\tex_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\tri_ps_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\tri_vs_bin.cpp">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\box_knobj.c">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\plane_knobj.c">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\sphere_knobj.c">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="bins\toon_ramp_png.c">
+      <Filter>bins</Filter>
+    </ClCompile>
+    <ClCompile Include="jpg_decoder.cpp" />
+    <ClCompile Include="png_decoder.cpp" />
+    <ClCompile Include="draw_font.cpp" />
+    <ClCompile Include="draw_obj.cpp" />
+    <ClCompile Include="draw_particle.cpp" />
+    <ClCompile Include="draw_shadow.cpp" />
+    <ClCompile Include="draw_tex.cpp" />
+    <ClCompile Include="draw_primitive.cpp" />
+    <ClCompile Include="bc_decoder.cpp" />
+    <ClCompile Include="snd.cpp" />
+    <ClCompile Include="input.cpp" />
+    <ClCompile Include="wav_decoder.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\common.h" />
+    <ClInclude Include="main.h" />
+    <ClInclude Include="wnd_wnd.h" />
+    <ClInclude Include="wnd_common.h" />
+    <ClInclude Include="wnd_ctrl.h" />
+    <ClInclude Include="draw_common.h" />
+    <ClInclude Include="draw_ctrl.h" />
+    <ClInclude Include="draw_device.h" />
+    <ClInclude Include="jpg_decoder.h" />
+    <ClInclude Include="png_decoder.h" />
+    <ClInclude Include="draw_font.h" />
+    <ClInclude Include="draw_obj.h" />
+    <ClInclude Include="draw_particle.h" />
+    <ClInclude Include="draw_shadow.h" />
+    <ClInclude Include="draw_tex.h" />
+    <ClInclude Include="draw_primitive.h" />
+    <ClInclude Include="bc_decoder.h" />
+    <ClInclude Include="snd.h" />
+    <ClInclude Include="input.h" />
+    <ClInclude Include="wav_decoder.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\low_level.asm" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="bins">
+      <UniqueIdentifier>{71c7e2fe-ee80-4194-9058-4acb6b0bb1d5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

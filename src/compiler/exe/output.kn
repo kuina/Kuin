@@ -1,0 +1,64 @@
++var pack: \exe\asm@Pack
++var asts: dict<[]char, \ast@Ast>
+
++func output(entry: \ast@AstFunc, funcAttrs: dict<[]char, dict<[]char, bool>>, useResFlags: []bit8, asts: dict<[]char, \ast@Ast>): bool
+	; DLL functions loaded when the program starts.
+	var attrs1: dict<[]char, bool> :: funcAttrs.get("d0000.knd", &)
+	if(attrs1 =& null)
+		do attrs1 :: #dict<[]char, bool>
+		do funcAttrs.add("d0000.knd", attrs1)
+	end if
+	if(!\option@rls & !\option@extra.get("wnd", &) & \option@extra.get("pause", &))
+		do attrs1.add("_pause", true)
+	end if
+	do attrs1.add("_freeSet", true)
+	do attrs1.add("_copy", true)
+	do attrs1.add("_toBin", true)
+	do attrs1.add("_fromBin", true)
+	do attrs1.add("_powInt", true)
+	do attrs1.add("_powFloat", true)
+	do attrs1.add("_mod", true)
+	do attrs1.add("_cmpStr", true)
+	do attrs1.add("_newArray", true)
+	do attrs1.add("_dictValueType", true)
+	
+	var pack: \exe\asm@Pack :: \exe\asm@assemble(entry, funcAttrs, useResFlags)
+	do \exe\machine@convert(pack)
+	if(\option@extra.get("hint", &))
+		do @pack :: pack
+		do @asts :: asts
+	end if
+	if(!@deploy(funcAttrs))
+		ret false
+	end if
+	ret true
+end func
+
+func deploy(funcAttrs: dict<[]char, dict<[]char, bool>>): bool
+	block
+		var dataPath: []char :: \option@outputDir ~ "data/"
+		if(!file@makeDir(dataPath))
+			do \err@err(%fileSaveFailed, null, [dataPath])
+			ret false
+		end if
+	end block
+	if(!funcAttrs.forEach(deployDll, null))
+		ret false
+	end if
+	ret \convert@writeResFiles()
+	
+	func deployDll(key: []char, value: dict<[]char, bool>, data: kuin@Class): bool
+		var cfg: []char :: \option@rls ?("rls/", "dbg/")
+		if(!file@copyFile(\option@outputDir ~ "data/" ~ key, \option@sysDir ~ "data/" ~ cfg ~ key))
+			ret true
+		end if
+		switch(key)
+		case "d1000.knd"
+			if(!file@copyFile(\option@outputDir ~ "data/license_ogg_vorbis.txt", \option@sysDir ~ "license_ogg_vorbis.txt"))
+				do \err@err(%fileSaveFailed, null, [\option@sysDir ~ "license_ogg_vorbis.txt"])
+				ret false
+			end if
+		end switch
+		ret true
+	end func
+end func

@@ -1,0 +1,4 @@
++func exeDir(): []char
+	excode "return null;\n"
+end func
+

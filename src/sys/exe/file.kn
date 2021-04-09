@@ -1,0 +1,686 @@
+const bufSizeMin: int :: 1024
+var strBuf: []char
+var eBuf: []bit8
+
+func[d0000.knd, _fileInit]_init()
+	do @strBuf :: #[@bufSizeMin]char
+	do @eBuf :: #[8]bit8
+end func
+
+func[d0000.knd, _fileFin]_fin()
+end func
+
++enum Encoding
+	utf8
+	utf16le
+end enum
+
++enum Origin
+	head
+	cur
+	tail
+end enum
+
++class Reader()
+	*func[__ndc]ctor()
+	end func
+	
+	*func[__frc]_dtor()
+		do me.fin()
+	end func
+
+	+func _init(handle: int)
+		do me.handle :: handle
+		do me.delimiters :: " ,\n"
+		do @readerSeekImpl(me.handle, %tail, 0)
+		do me.size :: @readerTellImpl(me.handle)
+		do @readerSeekImpl(me.handle, %head, 0)
+		do me.cur :: 0
+		do me.parser :: @readUtf8
+	end func
+	
+	+func delimiter(delimiters: []char)
+		do me.delimiters :: delimiters
+	end func
+	
+	+func fileSize(): int
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		ret me.size
+	end func
+	
+	+func fin()
+		if(me.size >= 0)
+			do @readerClose(me.handle)
+			do me.size :: -1
+		end if
+	end func
+	
+	+func getPos(): int
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		ret me.cur
+	end func
+	
+	+func read(size: int): []bit8
+		if(dbg)
+			if(size < 0)
+				throw 0xE9170006
+			end if
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		var r: []bit8 :: #[size]bit8
+		if(@readerReadImpl(me.handle, r, 0, size))
+			do me.cur :+ size
+			ret r
+		end if
+		ret null
+	end func
+	
+	+func readPart(buf: []bit8, start: int, size: int): bool
+		if(dbg)
+			if(start < 0 | size < 0 | ^buf < start + size)
+				throw 0xE9170006
+			end if
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		if(@readerReadImpl(me.handle, buf, start, size))
+			do me.cur :+ size
+			ret true
+		end if
+		ret false
+	end func
+	
+	+func readChar(): char
+		while loop(true)
+			var c: char :: me.readCharWithDelimiters()
+			if(c <> '\0')
+				if(c = '\uFFFF')
+					throw 0xE9170008
+				end if
+				do me.skipDelimiters()
+				ret c
+			end if
+		end while
+	end func
+	
+	+func readFloat(): float
+		var s: []char :: me.readStr()
+		var b: bool
+		var r: float :: s.toFloat(&b)
+		if(!b)
+			throw 0xE9170008
+		end if
+		ret r
+	end func
+	
+	+func readInt(): int
+		var s: []char :: me.readStr()
+		var b: bool
+		var r: int :: s.toInt(&b)
+		if(!b)
+			throw 0xE9170008
+		end if
+		ret r
+	end func
+	
+	+func readLetter(): char
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		var parser: func<(int, &int): char> :: me.parser
+		ret parser(me.handle, &me.cur)
+	end func
+	
+	+func readLine(): []char
+		var buf: []char :: @strBuf
+		var ptr: int :: 0
+		while loop(true)
+			var c: char :: me.readLetter()
+			if(c = '\u000D')
+				skip loop
+			end if
+			if(c = '\uFFFF')
+				if(ptr = 0)
+					ret null
+				end if
+				break loop
+			end if
+			if(c = '\n')
+				break loop
+			end if
+			if(ptr = ^buf)
+				do buf :~ #[^buf]char
+			end if
+			do buf[ptr] :: c
+			do ptr :+ 1
+		end while
+		ret buf.sub(0, ptr)
+	end func
+	
+	+func readStr(): []char
+		var buf: []char :: @strBuf
+		var ptr: int :: 0
+		while loop(true)
+			var c: char :: me.readCharWithDelimiters()
+			if(c = '\uFFFF')
+				if(ptr = 0)
+					throw 0xE9170008
+				end if
+				break loop
+			end if
+			if(c = '\0')
+				if(ptr = 0)
+					skip loop
+				end if
+				break loop
+			end if
+			if(ptr = ^buf)
+				do buf :~ #[^buf]char
+			end if
+			do buf[ptr] :: c
+			do ptr :+ 1
+		end while
+		do me.skipDelimiters()
+		ret buf.sub(0, ptr)
+	end func
+	
+	+func setPos(origin: @Origin, pos: int)
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+			if(origin < %head | %tail < origin)
+				throw 0xE9170006
+			end if
+		end if
+		do @readerSeekImpl(me.handle, origin, pos)
+		do me.cur :: @readerTellImpl(me.handle)
+	end func
+	
+	+func term(): bool
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		ret me.cur >= me.size
+	end func
+	
+	func readCharWithDelimiters(): char
+		while loop(true)
+			var c: char :: me.readLetter()
+			for i(0, ^me.delimiters - 1)
+				if(c = me.delimiters[i] | (c = '\u000D' & me.delimiters[i] = '\n'))
+					ret '\0'
+				end if
+			end for
+			if(c = '\u000D')
+				skip loop
+			end if
+			ret c
+		end while
+	end func
+	
+	func skipDelimiters()
+		while loop(true)
+			var c: char :: me.readLetter()
+			for i(0, ^me.delimiters - 1)
+				if(c = me.delimiters[i] | (c = '\u000D' & me.delimiters[i] = '\n'))
+					skip loop
+				end if
+			end for
+			if(c = '\u000D')
+				skip loop
+			end if
+			if(c <> '\uFFFF')
+				do me.setPos(%cur, -1)
+			end if
+			ret
+		end while
+	end func
+	
+	var handle: int
+	var size: int
+	var cur: int
+	var delimiters: []char
+	var parser: func<(int, &int): char>
+end class
+
++class Writer()
+	*func[__ndc]ctor()
+	end func
+	
+	*func[__frc]_dtor()
+		do me.fin()
+	end func
+	
+	+func _init(handle: int, append: bool)
+		do me.handle :: handle
+		if(append)
+			do @writerSeekImpl(me.handle, %tail, 0)
+			do me.size :: @writerTellImpl(me.handle)
+			do @writerSeekImpl(me.handle, %head, 0)
+		else
+			do me.size :: 0
+		end if
+		do me.cur :: 0
+		do me.parser :: @writeUtf8
+	end func
+	
+	+func fileSize(): int
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		ret me.size
+	end func
+	
+	+func fin()
+		if(me.size >= 0)
+			do @writerCloseImpl(me.handle)
+			do me.size :: -1
+		end if
+	end func
+	
+	+func flush()
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		do @writerFlushImpl(me.handle)
+	end func
+
+	+func getPos(): int
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		ret me.cur
+	end func
+	
+	+func setPos(origin: @Origin, pos: int)
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+			if(origin < %head | %tail < origin)
+				throw 0xE9170006
+			end if
+		end if
+		do @writerSeekImpl(me.handle, origin, pos)
+		do me.cur :: @writerTellImpl(me.handle)
+	end func
+	
+	+func write(bin: []bit8)
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		do @writerWriteImpl(me.handle, bin, 0, ^bin)
+		do me.cur :+ ^bin
+	end func
+	
+	+func writePart(bin: []bit8, start: int, size: int)
+		if(dbg)
+			if(start < 0 | size < 0 | ^bin < start + size)
+				throw 0xE9170006
+			end if
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		do @writerWriteImpl(me.handle, bin, start, size)
+		do me.cur :+ size
+	end func
+	
+	+func writeChar(n: char)
+		if(dbg)
+			if(me.size < 0)
+				throw 0xE917000A
+			end if
+		end if
+		var parser: func<(int, char, &int)> :: me.parser
+		do parser(me.handle, n, &me.cur)
+	end func
+	
+	+func writeFloat(n: float)
+		var s: []char :: n.toStr()
+		for i(0, ^s - 1)
+			do me.writeChar(s[i])
+		end for
+	end func
+	
+	+func writeInt(n: int)
+		var s: []char :: n.toStr()
+		for i(0, ^s - 1)
+			do me.writeChar(s[i])
+		end for
+	end func
+	
+	+func writeStr(n: []char)
+		for i(0, ^n - 1)
+			do me.writeChar(n[i])
+		end for
+	end func
+	
+	var handle: int
+	var size: int
+	var cur: int
+	var parser: func<(int, char, &int)>
+end class
+
++func[d0000.knd, _copyDir]copyDir(dst: []char, src: []char): bool
+	if(dbg)
+		if(dst[^dst - 1] <> '/' | src[^src - 1] <> '/')
+			throw 0xE9170006
+		end if
+	end if
+end func
+
++func[d0000.knd, _copyFile]copyFile(dst: []char, src: []char): bool
+end func
+
++func[d0000.knd, _delDir]delDir(path: []char): bool
+	if(dbg)
+		if(path[^path - 1] <> '/')
+			throw 0xE9170006
+		end if
+	end if
+end func
+
++func delExt(path: []char): []char
+	var p: int :: ^path - 1
+	while(p >= 0 & path[p] <> '/' & path[p] <> '\\' & path[p] <> '.')
+		do p :- 1
+	end while
+	if(p < 0 | path[p] <> '.')
+		do p :: ^path
+	end if
+	var r: []char :: #[p]char
+	for i(0, p - 1)
+		do r[i] :: path[i] = '\\' ?('/', path[i])
+	end for
+	ret r
+end func
+
++func[d0000.knd, _delFile]delFile(path: []char): bool
+end func
+
++func dir(path: []char): []char
+	assert path <>& null
+	var p: int :: ^path - 1
+	while(p >= 0 & path[p] <> '/' & path[p] <> '\\')
+		do p :- 1
+	end while
+	if(p < 0)
+		ret "./"
+	end if
+	var r: []char :: #[p + 1]char
+	for i(0, p)
+		do r[i] :: path[i] = '\\' ?('/', path[i])
+	end for
+	ret r
+end func
+
++func[d0000.knd, _existPath]exist(path: []char): bool
+end func
+
++func ext(path: []char): []char
+	assert path <>& null
+	var p: int :: ^path - 1
+	while(p >= 0 & path[p] <> '/' & path[p] <> '\\' & path[p] <> '.')
+		do p :- 1
+	end while
+	if(path[p] <> '.')
+		ret ""
+	end if
+	do p :+ 1
+	var r: []char :: #[^path - p]char
+	for i(0, ^path - p - 1)
+		do r[i] :: path[p + i]
+	end for
+	ret r
+end func
+
++func fileName(path: []char): []char
+	assert path <>& null
+	var p: int :: ^path - 1
+	while(p >= 0 & path[p] <> '/' & path[p] <> '\\')
+		do p :- 1
+	end while
+	if(p < 0)
+		ret path
+	end if
+	do p :+ 1
+	var r: []char :: #[^path - p]char
+	for i(0, ^path - p - 1)
+		do r[i] :: path[p + i]
+	end for
+	ret r
+end func
+
++func fileSize(path: []char): int
+	var r: @Reader :: @makeReader(path)
+	if(r =& null)
+		ret -1
+	end if
+	var s: int :: r.fileSize()
+	do r.fin()
+	ret s
+end func
+
++func[d0000.knd, _forEachDir]forEach(path: []char, recursion: bool, callback: func<([]char, bool, kuin@Class): bool>, data: kuin@Class): bool
+end func
+
++func[d0000.knd, _fullPath]fullPath(path: []char): []char
+end func
+
++func[d0000.knd, _getCurDir]getCurDir(): []char
+end func
+
++func[d0000.knd, _makeDir]makeDir(path: []char): bool
+	if(dbg)
+		if(path[^path - 1] <> '/')
+			throw 0xE9170006
+		end if
+	end if
+end func
+
++func[__mki]makeReader(me2: @Reader, path: []char): @Reader
+	var pack: bool :: path[0] = 'r' & path[1] = 'e' & path[2] = 's' & path[3] = '/'
+	var success: bool
+	var handle: int :: @openAsReadingImpl(path, pack, &success)
+	if(!success)
+		ret null
+	end if
+	do me2._init(handle)
+	ret me2
+end func
+
++func[__mki]makeWriter(me2: @Writer, path: []char, append: bool): @Writer
+	var success: bool
+	var handle: int :: @openAsWritingImpl(path, append, &success)
+	if(!success)
+		ret null
+	end if
+	do me2._init(handle, append)
+	ret me2
+end func
+
++func[d0000.knd, _moveDir]moveDir(dst: []char, src: []char): bool
+	if(dbg)
+		if(dst[^dst - 1] <> '/' | src[^src - 1] <> '/')
+			throw 0xE9170006
+		end if
+	end if
+end func
+
++func[d0000.knd, _moveFile]moveFile(dst: []char, src: []char): bool
+end func
+
++func[d0000.knd, _setCurDir]setCurDir(path: []char)
+	if(dbg)
+		if(path[^path - 1] <> '/')
+			throw 0xE9170006
+		end if
+	end if
+end func
+
+func[d0000.knd, _openAsReadingImpl]openAsReadingImpl(path: []char, pack: bool, success: &bool): int
+end func
+
+func[d0000.knd, _readerCloseImpl]readerClose(handle: int)
+end func
+
+func[d0000.knd, _readerSeekImpl]readerSeekImpl(handle: int, origin: @Origin, pos: int)
+end func
+
+func[d0000.knd, _readerTellImpl]readerTellImpl(handle: int): int
+end func
+
+func[d0000.knd, _readerReadImpl]readerReadImpl(handle: int, buf: []bit8, start: int, size: int): bool
+end func
+
+func[d0000.knd, _openAsWritingImpl]openAsWritingImpl(path: []char, append: bool, success: &bool): int
+end func
+
+func[d0000.knd, _writerCloseImpl]writerCloseImpl(handle: int)
+end func
+
+func[d0000.knd, _writerFlushImpl]writerFlushImpl(handle: int)
+end func
+
+func[d0000.knd, _writerSeekImpl]writerSeekImpl(handle: int, origin: @Origin, pos: int)
+end func
+
+func[d0000.knd, _writerTellImpl]writerTellImpl(handle: int): int
+end func
+
+func[d0000.knd, _writerWriteImpl]writerWriteImpl(handle: int, data: []bit8, start: int, size: int)
+end func
+
+func[d0000.knd, _writerWriteNewLineImpl]writerWriteNewLineImpl(handle: int): int
+end func
+
+func readUtf8(handle: int, cur: &int): char
+	var u: bit64
+	var len: int
+	while loop(true)
+		if(!@readerReadImpl(handle, @eBuf, 0, 1))
+			ret '\uFFFF'
+		end if
+		do cur :+ 1
+		var c: bit8 :: @eBuf[0]
+		if(c.and(0xC0b8) = 0x80b8)
+			skip loop
+		end if
+		if(c.and(0x80b8) = 0x00b8)
+			do len :: 0
+		elif(c.and(0xE0b8) = 0xC0b8)
+			do len :: 1
+			do c :: c.and(0x1Fb8)
+		elif(c.and(0xF0b8) = 0xE0b8)
+			do len :: 2
+			do c :: c.and(0x0Fb8)
+		elif(c.and(0xF8b8) = 0xF0b8)
+			do len :: 3
+			do c :: c.and(0x07b8)
+		elif(c.and(0xFCb8) = 0xF8b8)
+			do len :: 4
+			do c :: c.and(0x03b8)
+		elif(c.and(0xFEb8) = 0xFCb8)
+			do len :: 5
+			do c :: c.and(0x01b8)
+		else
+			skip loop
+		end if
+		do u :: c $ bit64
+		break loop
+	end while
+	for i(0, len - 1)
+		if(!@readerReadImpl(handle, @eBuf, 0, 1))
+			throw 0xE9170008
+		end if
+		do cur :+ 1
+		var c: bit8 :: @eBuf[0]
+		if(c.and(0xC0b8) <> 0x80b8)
+			throw 0xE9170008
+		end if
+		do u :: u.shl(6).or((c $ bit64).and(0x3Fb64))
+	end for
+	ret u $ char
+end func
+
+func writeUtf8(handle: int, c: char, cur: &int)
+	var d: bit64 :: c $ bit64
+	var u: bit64
+	var size: int
+	if(d.shr(7) = 0b64)
+		do u :: d
+		do size :: 1
+	else
+		do u :: (0x80b64).or(d.and(0x3Fb64)).shl(8)
+		do d :: d.shr(6)
+		if(d.shr(5) = 0b64)
+			do u :: u.or(0xC0b64).or(d)
+			do size :: 2
+		else
+			do u :: u.or(0x80b64).or(d.and(0x3Fb64)).shl(8)
+			do d :: d.shr(6)
+			if(d.shr(4) = 0b64)
+				do u :: u.or(0xE0b64).or(d)
+				do size :: 3
+			else
+				do u :: u.or(0x80b64).or(d.and(0x3Fb64)).shl(8)
+				do d :: d.shr(6)
+				if(d.shr(3) = 0b64)
+					do u :: u.or(0xF0b64).or(d)
+					do size :: 4
+				else
+					do u :: u.or(0x80b64).or(d.and(0x3Fb64)).shl(8)
+					do d :: d.shr(6)
+					if(d.shr(2) = 0b64)
+						do u :: u.or(0xF8b64).or(d)
+						do size :: 5
+					else
+						do u :: u.or(0x80b64).or(d.and(0x3Fb64)).shl(8)
+						do d :: d.shr(6)
+						if(d.shr(1) = 0b64)
+							do u :: u.or(0xFCb64).or(d)
+							do size :: 6
+						else
+							ret
+						end if
+					end if
+				end if
+			end if
+		end if
+	end if
+	if(size = 1 & u = 0x0Ab64)
+		do cur :+ @writerWriteNewLineImpl(handle)
+	else
+		for i(0, size - 1)
+			do @eBuf[i] :: u $ bit8
+			do u :: u.shr(8)
+		end for
+		do @writerWriteImpl(handle, @eBuf, 0, size)
+		do cur :+ size
+	end if
+end func

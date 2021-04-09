@@ -1,0 +1,2089 @@
+var funcs: queue<\ast@AstFunc>
+var classes: queue<\ast@AstClass>
+
+var uniqueId: []char
+var codes: list<[]char>
+var tmpVars: list<@TmpVar>
+var globalVars: list<\ast@AstArg>
+var localVars: list<\ast@AstArg>
+var classTable: list<[]char>
+var curFunc: \ast@AstFunc
+
++class WebInfo(\ast@HasType)
+	+var id: []char
+	+var breakSkipLabel: []char
+	+var alreadyWritten: bool
+	+var classTableOffset: int
+end class
+
+class TmpVar()
+	+var identifier: []char
+end class
+
++func output(entry: \ast@AstFunc): bool
+	do @funcs :: #queue<\ast@AstFunc>
+	do @funcs.add(entry)
+	do @classes :: #queue<\ast@AstClass>
+	
+	do @uniqueId :: "a"
+	do @codes :: #list<[]char>
+	do @tmpVars :: #list<@TmpVar>
+	do @globalVars :: #list<\ast@AstArg>
+	do @localVars :: #list<\ast@AstArg>
+	do @classTable :: #list<[]char>
+	
+	while(^@funcs > 0 | ^@classes > 0)
+		while(^@funcs > 0)
+			var func_: \ast@AstFunc :: @funcs.get()
+			do @curFunc :: func_
+			do @buildFunc(func_)
+		end while
+		while(^@classes > 0)
+			var class_: \ast@AstClass :: @classes.get()
+			do @buildClass(class_)
+		end while
+	end while
+	
+	do @write()
+	
+	ret true
+end func
+
+func buildFunc(ast: \ast@AstFunc)
+	var info: @WebInfo :: @getInfo(ast)
+	if(info.alreadyWritten)
+		ret
+	end if
+	do info.alreadyWritten :: true
+	
+	var arg: []char :: ""
+	block
+		var first: bool :: true
+		var items: list<\ast@AstArg> :: ast.args
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstArg :: items.get()
+			var info2: @WebInfo :: @getInfo(item)
+			if(first)
+				do first :: false
+			else
+				do arg :~ ","
+			end if
+			do arg :~ "\{info2.id}"
+			if(item.name <>& null)
+				do arg :~ " /*\{item.name}*/"
+			end if
+			do items.next()
+		end while
+	end block
+	
+	if(ast.name <>& null)
+		do @codes.add("// \{ast.name}\n")
+	end if
+	do @codes.add("function \{info.id}(\{arg}){\n")
+	
+	do @codes.tail()
+	var listPtr: kuin@ListPtr :: @codes.getPtr()
+	
+	do @buildStats(ast.stats)
+	
+	do @codes.add("}\n")
+	
+	do @codes.setPtr(listPtr)
+	do @codes.next()
+	do @localVars.head()
+	while(!@localVars.term())
+		var localVar: \ast@AstArg :: @localVars.get()
+		var info2: @WebInfo :: @getInfo(localVar)
+		if(localVar.name =& null)
+			do @codes.ins("let \{info2.id};\n")
+		else
+			do @codes.ins("let \{info2.id}; // \{localVar.name}\n")
+		end if
+		do @localVars.del()
+	end while
+	do @tmpVars.head()
+	while(!@tmpVars.term())
+		var tmpVar: @TmpVar :: @tmpVars.get()
+		do @codes.ins("let \{tmpVar.identifier};\n")
+		do @tmpVars.del()
+	end while
+end func
+
+func buildClass(ast: \ast@AstClass)
+	var parentId: []char :: null
+	if(ast.refItem <>& null)
+		do parentId :: @refClass(ast.refItem $ \ast@AstClass)
+	end if
+	if(parentId =& null)
+		do parentId :: "Object"
+	end if
+	var info: @WebInfo :: @getInfo(ast)
+	if(ast.name <>& null)
+		do @codes.add("// \{ast.name}\n")
+	end if
+	block
+		var ctor: \ast@AstFunc :: findFunc(ast, "ctor")
+		do @codes.add("function \{info.id}(){\n")
+		do @codes.add("\{parentId}.call(this);\n")
+		if(ctor <>& null)
+			var ctorInfo: @WebInfo :: @getInfo(ctor)
+			do @codes.add("\{ctorInfo.id}(this);\n")
+		end if
+		do @codes.add("}\n")
+	end block
+	do @codes.add("\{info.id}.prototype=Object.create(\{parentId}.prototype);\n")
+	do @codes.add("\{info.id}.prototype.Y_=\{info.classTableOffset};\n")
+	block
+		var items: list<\ast@AstClassItem> :: ast.items
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstClassItem :: items.get()
+			if(item.def.typeId = %var_)
+				var arg: \ast@AstArg :: (item.def $ \ast@AstVar).arg
+				var info2: @WebInfo :: @getInfo(arg)
+				do @codes.add("\{info.id}.prototype.\{info2.id}=\{@getDefaultValue(arg.type)};\n")
+			elif(item.def.typeId = %func_)
+				do @funcs.add(item.def $ \ast@AstFunc)
+			end if
+			do items.next()
+		end while
+	end block
+	
+	func findFunc(ast: \ast@AstClass, name: []char): \ast@AstFunc
+		var items: list<\ast@AstClassItem> :: ast.items
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstClassItem :: items.get()
+			if(item.def.typeId = %func_ & item.def.name = name)
+				ret item.def $ \ast@AstFunc
+			end if
+			do items.next()
+		end while
+		ret null
+	end func
+end func
+
+func buildStats(stats: list<\ast@AstStat>)
+	do stats.head()
+	while(!stats.term())
+		var stat: \ast@AstStat :: stats.get()
+		switch(stat.typeId)
+		case %statIf
+			do @buildIf(stat $ \ast@AstStatIf)
+		case %statSwitch
+			do @buildSwitch(stat $ \ast@AstStatSwitch)
+		case %statWhile
+			do @buildWhile(stat $ \ast@AstStatWhile)
+		case %statFor
+			do @buildFor(stat $ \ast@AstStatFor)
+		case %statTry
+			do @buildTry(stat $ \ast@AstStatTry)
+		case %statThrow
+			do @buildThrow(stat $ \ast@AstStatThrow)
+		case %statBlock
+			do @buildBlock(stat $ \ast@AstStatBlock)
+		case %statRet
+			do @buildRet(stat $ \ast@AstStatRet)
+		case %statDo
+			do @buildDo(stat $ \ast@AstStatDo)
+		case %statBreak
+			do @buildBreak(stat $ \ast@AstStat)
+		case %statSkip
+			do @buildSkip(stat $ \ast@AstStat)
+		case %statAssert
+			do @buildAssert(stat $ \ast@AstStatAssert)
+		case %statExcode
+			do @buildExcode(stat $ \ast@AstStatExcode)
+		default
+			assert false
+		end switch
+		do stats.next()
+	end while
+end func
+
+func buildIf(ast: \ast@AstStatIf)
+	var infoMe: @WebInfo :: @getInfo(ast)
+	if(ast.cond =& null)
+		; Optimized code.
+		if(infoMe.breakSkipLabel <>& null)
+			do @codes.add("\{infoMe.breakSkipLabel}:{\n")
+		end if
+		do @buildBlock(ast.statBlock)
+		if(infoMe.breakSkipLabel <>& null)
+			do @codes.add("}\n")
+		end if
+		ret
+	end if
+	
+	if(infoMe.breakSkipLabel <>& null)
+		do @codes.add("\{infoMe.breakSkipLabel}:\n")
+	end if
+	do @codes.add("if(")
+	do @buildExpr(ast.cond)
+	do @codes.add("){\n")
+	do @buildBlock(ast.statBlock)
+	do @codes.add("}\n")
+	block
+		var items: list<\ast@AstStatElIf> :: ast.elIfs
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstStatElIf :: items.get()
+			do @codes.add("else if(")
+			do @buildExpr(item.cond)
+			do @codes.add("){\n")
+			do @buildBlock(item.statBlock)
+			do @codes.add("}\n")
+			do items.next()
+		end while
+	end block
+	if(ast.elseStatBlock <>& null)
+		do @codes.add("else{\n")
+		do @buildBlock(ast.elseStatBlock)
+		do @codes.add("}\n")
+	end if
+end func
+
+func buildSwitch(ast: \ast@AstStatSwitch)
+	var infoMe: @WebInfo :: @getInfo(ast)
+	var info: @WebInfo :: @getInfo(ast.blockVar)
+	if(!info.alreadyWritten)
+		do info.alreadyWritten :: true
+		do @localVars.add(ast.blockVar)
+	end if
+	var useSwitch: bool :: false
+	var switch64bit: bool :: false
+	if chk(\ast@isInt(ast.cond.type) | \ast@isChar(ast.cond.type) | \ast@isEnum(ast.cond.type) | ast.cond.type.typeId = %typeBit)
+		do useSwitch :: true
+		do switch64bit :: \ast@isInt(ast.cond.type) | \ast@isEnum(ast.cond.type) | ast.cond.type.typeId = %typeBit & (ast.cond.type $ \ast@AstTypeBit).size = 8
+		var items: list<\ast@AstStatCase> :: ast.cases
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstStatCase :: items.get()
+			var items2: list<\ast@AstExprPair> :: item.conds
+			do items2.head()
+			while(!items2.term())
+				var exprs: \ast@AstExprPair :: items2.get()
+				if(exprs.expr0.typeId <> %exprValuePrim | exprs.expr1 <>& null)
+					do useSwitch :: false
+					break chk
+				end if
+				if(switch64bit & (exprs.expr0 $ \ast@AstExprValuePrim).value.and(0xFFFFFFFF00000000b64) <> 0b64)
+					do useSwitch :: false
+					break chk
+				end if
+				do items2.next()
+			end while
+			do items.next()
+		end while
+	end if
+	do @codes.add("\{info.id}=")
+	do @buildExpr(ast.cond)
+	do @codes.add(";\n")
+	if(useSwitch)
+		if(infoMe.breakSkipLabel <>& null)
+			do @codes.add("\{infoMe.breakSkipLabel}:\n")
+		end if
+		if(switch64bit)
+			do @codes.add("switch(\{info.id}[1]){\n")
+		else
+			do @codes.add("switch(\{info.id}){\n")
+		end if
+		block
+			var items: list<\ast@AstStatCase> :: ast.cases
+			do items.head()
+			while(!items.term())
+				var item: \ast@AstStatCase :: items.get()
+				var items2: list<\ast@AstExprPair> :: item.conds
+				do items2.head()
+				if(switch64bit)
+					while(!items2.term())
+						var exprs: \ast@AstExprPair :: items2.get()
+						assert exprs.expr1 =& null
+						do @codes.add("case " ~ (exprs.expr0 $ \ast@AstExprValuePrim).value.toStr() ~ ":\n")
+						do items2.next()
+					end while
+				else
+					while(!items2.term())
+						var exprs: \ast@AstExprPair :: items2.get()
+						assert exprs.expr1 =& null
+						do @codes.add("case ")
+						do @buildExpr(exprs.expr0)
+						do @codes.add(":\n")
+						do items2.next()
+					end while
+				end if
+				do @buildBlock(item.statBlock)
+				do @codes.add("break;\n")
+				do items.next()
+			end while
+		end block
+		if(ast.defaultStatBlock <>& null)
+			do @codes.add("default:\n")
+			do @buildBlock(ast.defaultStatBlock)
+			do @codes.add("break;\n")
+		end if
+		do @codes.add("}\n")
+	else
+		if(infoMe.breakSkipLabel <>& null)
+			do @codes.add("\{infoMe.breakSkipLabel}:{\n")
+		end if
+		var tmp: []char :: null
+		var first: bool :: true
+		var items: list<\ast@AstStatCase> :: ast.cases
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstStatCase :: items.get()
+			if(first)
+				do first :: false
+				do @codes.add("if(")
+			else
+				do @codes.add("else if(")
+			end if
+			var first2: bool :: true
+			var items2: list<\ast@AstExprPair> :: item.conds
+			do items2.head()
+			while(!items2.term())
+				var exprs: \ast@AstExprPair :: items2.get()
+				if(first2)
+					do first2 :: false
+				else
+					do @codes.add("||")
+				end if
+				if(exprs.expr1 =& null)
+					if(\ast@isStr(ast.cond.type))
+						do @codes.add("\{info.id}.S==(")
+						do @buildExpr(exprs.expr0)
+						do @codes.add(").S")
+					elif(\ast@isRef(ast.cond.type))
+						assert \ast@isClass(ast.cond.type)
+						if(tmp =& null)
+							do tmp :: @addTmpVar()
+						end if
+						do @codes.add("(\{tmp}=CT_[\{info.id}.Y_+\{%cmp $ \convert@MethodOffset $ int}](\{info.id},(")
+						do @buildExpr(exprs.expr0)
+						do @codes.add(")),!(\{tmp}[0]|\{tmp}[1]))")
+					elif(\ast@isInt(ast.cond.type) | \ast@isEnum(ast.cond.type) | ast.cond.type.typeId = %typeBit & (ast.cond.type $ \ast@AstTypeBit).size = 8)
+						if(tmp =& null)
+							do tmp :: @addTmpVar()
+						end if
+						do @codes.add("(\{tmp}=(")
+						do @buildExpr(exprs.expr0)
+						do @codes.add("),\{info.id}[0]==\{tmp}[0]&&\{info.id}[1]==\{tmp}[1])")
+					else
+						do @codes.add("\{info.id}==(")
+						do @buildExpr(exprs.expr0)
+						do @codes.add(")")
+					end if
+				else
+					if(\ast@isStr(ast.cond.type))
+						do @codes.add("(")
+						do @buildExpr(exprs.expr0)
+						do @codes.add(").S<=\{info.id}.S&&\{info.id}.S<=(")
+						do @buildExpr(exprs.expr1)
+						do @codes.add(").S")
+					elif(\ast@isRef(ast.cond.type))
+						assert \ast@isClass(ast.cond.type)
+						do @codes.add("!(CT_[\{info.id}.Y_+\{%cmp $ \convert@MethodOffset $ int}](\{info.id},(")
+						do @buildExpr(exprs.expr0)
+						do @codes.add("))[0]&0x80000000)&&!(CT_[\{info.id}.Y_+\{%cmp $ \convert@MethodOffset $ int}]((")
+						do @buildExpr(exprs.expr1)
+						do @codes.add("),\{info.id})[0]&0x80000000)")
+					elif(\ast@isInt(ast.cond.type) | \ast@isEnum(ast.cond.type))
+						do @codes.add("SC_(\{info.id},(")
+						do @buildExpr(exprs.expr0)
+						do @codes.add("))>=0&&SC_(\{info.id},(")
+						do @buildExpr(exprs.expr1)
+						do @codes.add("))<=0")
+					elif(ast.cond.type.typeId = %typeBit & (ast.cond.type $ \ast@AstTypeBit).size = 8)
+						do @codes.add("UC_(\{info.id},(")
+						do @buildExpr(exprs.expr0)
+						do @codes.add("))>=0&&UC_(\{info.id},(")
+						do @buildExpr(exprs.expr1)
+						do @codes.add("))<=0")
+					else
+						do @codes.add("(")
+						do @buildExpr(exprs.expr0)
+						do @codes.add(")<=\{info.id}&&\{info.id}<=(")
+						do @buildExpr(exprs.expr1)
+						do @codes.add(")")
+					end if
+				end if
+				do items2.next()
+			end while
+			do @codes.add("){\n")
+			do @buildBlock(item.statBlock)
+			do @codes.add("}\n")
+			do items.next()
+		end while
+		if(ast.defaultStatBlock <>& null)
+			if(^items = 0)
+				do @codes.add("{")
+			else
+				do @codes.add("else{")
+			end if
+			do @buildBlock(ast.defaultStatBlock)
+			do @codes.add("}\n")
+		end if
+		if(infoMe.breakSkipLabel <>& null)
+			do @codes.add("}\n")
+		end if
+	end if
+end func
+
+func buildWhile(ast: \ast@AstStatWhile)
+	var infoMe: @WebInfo :: @getInfo(ast)
+	if(ast.cond =& null)
+		if(infoMe.breakSkipLabel <>& null)
+			do @codes.add("\{infoMe.breakSkipLabel}:\n")
+		end if
+		do @codes.add("for(;;){\n")
+		do @buildStats(ast.stats)
+		do @codes.add("}\n")
+		ret
+	end if
+	if(ast.skip_)
+		if(infoMe.breakSkipLabel <>& null)
+			do @codes.add("\{infoMe.breakSkipLabel}:\n")
+		end if
+		do @codes.add("do{\n")
+		do @buildStats(ast.stats)
+		do @codes.add("}while(")
+		do @buildExpr(ast.cond)
+		do @codes.add(");\n")
+		ret
+	end if
+	if(infoMe.breakSkipLabel <>& null)
+		do @codes.add("\{infoMe.breakSkipLabel}:\n")
+	end if
+	do @codes.add("while(")
+	do @buildExpr(ast.cond)
+	do @codes.add("){\n")
+	do @buildStats(ast.stats)
+	do @codes.add("}\n")
+end func
+
+func buildFor(ast: \ast@AstStatFor)
+	var infoMe: @WebInfo :: @getInfo(ast)
+	var info: @WebInfo :: @getInfo(ast.blockVar)
+	if(!info.alreadyWritten)
+		do info.alreadyWritten :: true
+		do @localVars.add(ast.blockVar)
+	end if
+	var endId: []char :: @addTmpVar()
+	if(infoMe.breakSkipLabel <>& null)
+		do @codes.add("\{infoMe.breakSkipLabel}:\n")
+	end if
+	do @codes.add("for(\{info.id}=(")
+	do @buildExpr(ast.start)
+	do @codes.add("),\{endId}=(")
+	do @buildExpr(ast.cond)
+	do @codes.add(");SC_(\{info.id},\{endId})")
+	assert ast.step.typeId = %exprValuePrim & \ast@isInt(ast.cond.type)
+	var step: int :: (ast.step $ \ast@AstExprValuePrim).value $ int
+	if(step > 0)
+		do @codes.add("<=0")
+	else
+		do @codes.add(">=0")
+	end if
+	do @codes.add(";\{info.id}=NA_(\{info.id},(")
+	do @buildExpr(ast.step)
+	do @codes.add("))){\n")
+	do @buildStats(ast.stats)
+	do @codes.add("}\n")
+end func
+
+func buildTry(ast: \ast@AstStatTry)
+	var infoMe: @WebInfo :: @getInfo(ast)
+	var info: @WebInfo :: @getInfo(ast.blockVar)
+	if(!info.alreadyWritten)
+		do info.alreadyWritten :: true
+		do @localVars.add(ast.blockVar)
+	end if
+	if(infoMe.breakSkipLabel <>& null)
+		do @codes.add("\{infoMe.breakSkipLabel}:\n")
+	end if
+	do @codes.add("try{\n")
+	do @buildBlock(ast.statBlock)
+	do @codes.add("}catch(\{info.id}){\n")
+	block
+		var first: bool :: true
+		var tmp: []char :: null
+		var items: list<\ast@AstStatCatch> :: ast.catches
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstStatCatch :: items.get()
+			if(first)
+				do first :: false
+				do @codes.add("if(")
+			else
+				do @codes.add("else if(")
+			end if
+			var first2: bool :: true
+			var items2: list<\ast@AstExprPair> :: item.conds
+			do items2.head()
+			while(!items2.term())
+				var exprs: \ast@AstExprPair :: items2.get()
+				if(first2)
+					do first2 :: false
+				else
+					do @codes.add("||")
+				end if
+				if(exprs.expr1 =& null)
+					if(tmp =& null)
+						do tmp :: @addTmpVar()
+					end if
+					do @codes.add("(\{tmp}=(")
+					do @buildExpr(exprs.expr0)
+					do @codes.add("),\{info.id}[0]==\{tmp}[0]&&\{info.id}[1]==\{tmp}[1])")
+				else
+					do @codes.add("SC_(\{info.id},(")
+					do @buildExpr(exprs.expr0)
+					do @codes.add("))>=0&&SC_(\{info.id},(")
+					do @buildExpr(exprs.expr1)
+					do @codes.add("))<=0")
+				end if
+				do items2.next()
+			end while
+			do @codes.add("){\n")
+			do @buildBlock(item.statBlock)
+			do @codes.add("}\n")
+			do items.next()
+		end while
+		if(first)
+			do @codes.add("{\n")
+		else
+			do @codes.add("else{\n")
+		end if
+		do @codes.add("throw \{info.id};\n}\n")
+	end block
+	do @codes.add("}\n")
+	if(ast.finallyStatBlock <>& null)
+		do @codes.add("finally{\n")
+		do @buildBlock(ast.finallyStatBlock)
+		do @codes.add("}\n")
+	end if
+end func
+
+func buildThrow(ast: \ast@AstStatThrow)
+	do @codes.add("throw ")
+	do @buildExpr(ast.code)
+	do @codes.add(";\n")
+end func
+
+func buildBlock(ast: \ast@AstStatBlock)
+	var infoMe: @WebInfo :: @getInfo(ast)
+	if(infoMe.breakSkipLabel <>& null)
+		do @codes.add("\{infoMe.breakSkipLabel}:{\n")
+	end if
+	do @buildStats(ast.stats)
+	if(infoMe.breakSkipLabel <>& null)
+		do @codes.add("}\n")
+	end if
+end func
+
+func buildRet(ast: \ast@AstStatRet)
+	if(ast.value =& null)
+		do @codes.add("return;\n")
+	else
+		do @codes.add("return ")
+		do @buildExpr(ast.value)
+		do @codes.add(";\n")
+	end if
+end func
+
+func buildDo(ast: \ast@AstStatDo)
+	do @buildExpr(ast.expr)
+	do @codes.add(";\n")
+end func
+
+func buildBreak(ast: \ast@AstStat)
+	assert ast.refItem.typeId.and(%statBreakable) = %statBreakable
+	var info: @WebInfo :: @getInfo(ast.refItem)
+	do @codes.add("break \{info.breakSkipLabel};\n")
+end func
+
+func buildSkip(ast: \ast@AstStat)
+	assert ast.refItem.typeId.and(%statSkipable) = %statSkipable
+	var info: @WebInfo :: @getInfo(ast.refItem)
+	do @codes.add("continue \{info.breakSkipLabel};\n")
+end func
+
+func buildAssert(ast: \ast@AstStatAssert)
+	do @codes.add("if(!(")
+	do @buildExpr(ast.cond)
+	do @codes.add(")){throw \{excpt@dbgAssertFailed $ bit32};}\n")
+end func
+
+func buildExcode(ast: \ast@AstStatExcode)
+	do @codes.add(\convert@parseExcode(ast, @curFunc, getIdCode))
+	
+	func getIdCode(arg: \ast@AstArg): []char
+		ret @getInfo(arg).id
+	end func
+end func
+
+func buildExpr(ast: \ast@AstExpr)
+	switch(ast.typeId)
+	case %expr1
+		do @buildExpr1(ast $ \ast@AstExpr1)
+	case %expr2
+		do @buildExpr2(ast $ \ast@AstExpr2)
+	case %expr3
+		do @buildExpr3(ast $ \ast@AstExpr3)
+	case %exprNew
+		do @buildExprNew(ast $ \ast@AstExprNew)
+	case %exprNewArray
+		do @buildExprNewArray(ast $ \ast@AstExprNewArray)
+	case %exprAs
+		do @buildExprAs(ast $ \ast@AstExprAs)
+	case %exprToBin
+		do @buildExprToBin(ast $ \ast@AstExprToBin)
+	case %exprFromBin
+		do @buildExprFromBin(ast $ \ast@AstExprFromBin)
+	case %exprCall
+		do @buildExprCall(ast $ \ast@AstExprCall)
+	case %exprArray
+		do @buildExprArray(ast $ \ast@AstExprArray)
+	case %exprDot
+		do @buildExprDot(ast $ \ast@AstExprDot)
+	case %exprValue
+		do @buildExprValue(ast $ \ast@AstExprValue)
+	case %exprValuePrim
+		do @buildExprValuePrim(ast $ \ast@AstExprValuePrim)
+	case %exprValueStr
+		do @buildExprValueStr(ast $ \ast@AstExprValueStr)
+	case %exprValueFloat
+		do @buildExprValueFloat(ast $ \ast@AstExprValueFloat)
+	case %exprValueArray
+		do @buildExprValueArray(ast $ \ast@AstExprValueArray)
+	case %exprRef
+		do @buildExprRef(ast)
+	default
+		assert false
+	end switch
+end func
+
+func buildExpr1(ast: \ast@AstExpr1)
+	assert ast.varKind <> %unknown
+	switch(ast.kind)
+	case %plus
+		assert false
+	case %minus
+		if(\ast@isInt(ast.child.type))
+			do @codes.add("NS_(new Uint32Array(2),(")
+			do @buildExpr(ast.child)
+			do @codes.add("))")
+		else
+			assert \ast@isFloat(ast.child.type)
+			do @codes.add("-(")
+			do @buildExpr(ast.child)
+			do @codes.add(")")
+		end if
+	case %not
+		do @codes.add("!(")
+		do @buildExpr(ast.child)
+		do @codes.add(")")
+	case %copy
+		var typeId: []char :: @makeTypeId(ast.child.type)
+		do @codes.add("C_(\{typeId},(")
+		do @buildExpr(ast.child)
+		do @codes.add("))")
+	case %len
+		var type: \ast@AstType :: ast.child.type
+		if(type.typeId = %typeGen)
+			switch((type $ \ast@AstTypeGen).kind)
+			case %list_
+				do @codes.add("Uint32Array.from([0,(")
+				do @buildExpr(ast.child)
+				do @codes.add(").L])")
+			case %stack_
+				do @codes.add("Uint32Array.from([0,(")
+				do @buildExpr(ast.child)
+				do @codes.add(").length])")
+			case %queue_
+				do @codes.add("Uint32Array.from([0,(")
+				do @buildExpr(ast.child)
+				do @codes.add(").length])")
+			default
+				assert false
+			end switch
+		elif(type.typeId = %typeDict)
+			do @codes.add("Uint32Array.from([0,(")
+			do @buildExpr(ast.child)
+			do @codes.add(").L])")
+		else
+			assert type.typeId = %typeArray
+			if(\ast@isChar((type $ \ast@AstTypeArray).itemType))
+				do @codes.add("Uint32Array.from([0,(")
+				do @buildExpr(ast.child)
+				do @codes.add(").S.length])")
+			else
+				do @codes.add("Uint32Array.from([0,(")
+				do @buildExpr(ast.child)
+				do @codes.add(").length])")
+			end if
+		end if
+	default
+		assert false
+	end switch
+end func
+
+func buildExpr2(ast: \ast@AstExpr2)
+	assert ast.varKind <> %unknown
+	var type: \ast@AstType :: ast.children0.type
+	switch(ast.kind)
+	case %assign
+		if(ast.children0.typeId = %exprArray)
+			var ast2: \ast@AstExprArray :: ast.children0 $ \ast@AstExprArray
+			var tmpVar: []char :: @addTmpVar()
+			var tmpIdx: []char :: @addTmpVar()
+			do @codes.add("\{tmpVar}=(")
+			do @buildExpr(ast2.var_)
+			do @codes.add("),\{tmpIdx}=(")
+			do @buildExpr(ast2.idx)
+			do @codes.add("),")
+			if(\ast@isChar((ast.children0 $ \ast@AstExprArray).type))
+				if(!\option@rls)
+					do @codes.add("CAS_(\{tmpVar}.S,~~\{tmpIdx}[1]),")
+				end if
+				do @codes.add("\{tmpVar}.S=\{tmpVar}.S.slice(0,\{tmpIdx}[1])+String.fromCharCode(")
+				do @buildExpr(ast.children1)
+				do @codes.add(")+\{tmpVar}.S.slice(\{tmpIdx}[1]+1)")
+			else
+				if(!\option@rls)
+					do @codes.add("CAI_(\{tmpVar},~~\{tmpIdx}[1]),")
+				end if
+				do @codes.add("\{tmpVar}[\{tmpIdx}[1]]=(")
+				do @buildExpr(ast.children1)
+				do @codes.add(")")
+			end if
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")=(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %or
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(")||(")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %and
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(")&&(")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %lt
+		if(\ast@isStr(type))
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(").S<(")
+			do @buildExpr(ast.children1)
+			do @codes.add(").S")
+		elif(\ast@isRef(type))
+			assert \ast@isClass(type)
+			var tmp: []char :: @addTmpVar()
+			do @codes.add("\{tmp}=(")
+			do @buildExpr(ast.children0)
+			do @codes.add("),CT_[\{tmp}.Y_+\{%cmp $ \convert@MethodOffset $ int}](\{tmp},(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))[0]&0x80000000")
+		elif(\ast@isInt(type) | \ast@isEnum(type))
+			do @codes.add("SC_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))<0")
+		elif(type.typeId = %typeBit & (type $ \ast@AstTypeBit).size = 8)
+			do @codes.add("UC_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))<0")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")<(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %gt
+		if(\ast@isStr(type))
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(").S>(")
+			do @buildExpr(ast.children1)
+			do @codes.add(").S")
+		elif(\ast@isRef(type))
+			assert \ast@isClass(type)
+			var tmp: []char :: @addTmpVar()
+			do @codes.add("\{tmp}=(")
+			do @buildExpr(ast.children1)
+			do @codes.add("),CT_[\{tmp}.Y_+\{%cmp $ \convert@MethodOffset $ int}](\{tmp},(")
+			do @buildExpr(ast.children0)
+			do @codes.add("))[0]&0x80000000")
+		elif(\ast@isInt(type) | \ast@isEnum(type))
+			do @codes.add("SC_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))>0")
+		elif(type.typeId = %typeBit & (type $ \ast@AstTypeBit).size = 8)
+			do @codes.add("UC_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))>0")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")>(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %le
+		if(\ast@isStr(type))
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(").S<=(")
+			do @buildExpr(ast.children1)
+			do @codes.add(").S")
+		elif(\ast@isRef(type))
+			assert \ast@isClass(type)
+			var tmp: []char :: @addTmpVar()
+			do @codes.add("\{tmp}=(")
+			do @buildExpr(ast.children1)
+			do @codes.add("),!(CT_[\{tmp}.Y_+\{%cmp $ \convert@MethodOffset $ int}](\{tmp},(")
+			do @buildExpr(ast.children0)
+			do @codes.add("))[0]&0x80000000)")
+		elif(\ast@isInt(type) | \ast@isEnum(type))
+			do @codes.add("SC_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))<=0")
+		elif(type.typeId = %typeBit & (type $ \ast@AstTypeBit).size = 8)
+			do @codes.add("UC_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))<=0")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")<=(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %ge
+		if(\ast@isStr(type))
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(").S>=(")
+			do @buildExpr(ast.children1)
+			do @codes.add(").S")
+		elif(\ast@isRef(type))
+			assert \ast@isClass(type)
+			var tmp: []char :: @addTmpVar()
+			do @codes.add("\{tmp}=(")
+			do @buildExpr(ast.children0)
+			do @codes.add("),!(CT_[\{tmp}.Y_+\{%cmp $ \convert@MethodOffset $ int}](\{tmp},(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))[0]&0x80000000)")
+		elif(\ast@isInt(type) | \ast@isEnum(type))
+			do @codes.add("SC_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))>=0")
+		elif(type.typeId = %typeBit & (type $ \ast@AstTypeBit).size = 8)
+			do @codes.add("UC_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))>=0")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")>=(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %eq
+		if(\ast@isStr(type))
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(").S==(")
+			do @buildExpr(ast.children1)
+			do @codes.add(").S")
+		elif(\ast@isRef(type))
+			assert \ast@isClass(type)
+			var tmp: []char :: @addTmpVar()
+			do @codes.add("\{tmp}=(")
+			do @buildExpr(ast.children0)
+			do @codes.add("),\{tmp}=CT_[\{tmp}.Y_+\{%cmp $ \convert@MethodOffset $ int}](\{tmp},(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")),!(\{tmp}[0]|\{tmp}[1])")
+		elif(\ast@isInt(type) | \ast@isEnum(type) | type.typeId = %typeBit & (type $ \ast@AstTypeBit).size = 8)
+			var tmp1: []char :: @addTmpVar()
+			var tmp2: []char :: @addTmpVar()
+			do @codes.add("(\{tmp1}=(")
+			do @buildExpr(ast.children0)
+			do @codes.add("),\{tmp2}=(")
+			do @buildExpr(ast.children1)
+			do @codes.add("),\{tmp1}[0]==\{tmp2}[0]&&\{tmp1}[1]==\{tmp2}[1])")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")==(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %nEq
+		if(\ast@isStr(type))
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(").S!=(")
+			do @buildExpr(ast.children1)
+			do @codes.add(").S")
+		elif(\ast@isRef(type))
+			assert \ast@isClass(type)
+			var tmp: []char :: @addTmpVar()
+			do @codes.add("\{tmp}=(")
+			do @buildExpr(ast.children0)
+			do @codes.add("),\{tmp}=CT_[\{tmp}.Y_+\{%cmp $ \convert@MethodOffset $ int}](\{tmp},(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")),\{tmp}[0]|\{tmp}[1]")
+		elif(\ast@isInt(type) | \ast@isEnum(type) | type.typeId = %typeBit & (type $ \ast@AstTypeBit).size = 8)
+			var tmp1: []char :: @addTmpVar()
+			var tmp2: []char :: @addTmpVar()
+			do @codes.add("(\{tmp1}=(")
+			do @buildExpr(ast.children0)
+			do @codes.add("),\{tmp2}=(")
+			do @buildExpr(ast.children1)
+			do @codes.add("),\{tmp1}[0]!=\{tmp2}[0]||\{tmp1}[1]!=\{tmp2}[1])")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")!=(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %eqRef
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(")==(")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %nEqRef
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(")!=(")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %cat
+		if(\ast@isStr(type))
+			do @codes.add("{S:(")
+			do @buildExpr(ast.children0)
+			do @codes.add(").S+(")
+			do @buildExpr(ast.children1)
+			do @codes.add(").S}")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(").concat(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %add
+		if(\ast@isInt(type) | type.typeId = %typeBit & (type $ \ast@AstTypeBit).size = 8)
+			do @codes.add("NA_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))")
+		elif(type.typeId = %typeBit)
+			do @codes.add("((")
+			do @buildExpr(ast.children0)
+			do @codes.add(")+(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))" ~ @roundBit((type $ \ast@AstTypeBit).size))
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")+(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %sub
+		if(\ast@isInt(type) | type.typeId = %typeBit & (type $ \ast@AstTypeBit).size = 8)
+			do @codes.add("NS_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))")
+		elif(type.typeId = %typeBit)
+			do @codes.add("((")
+			do @buildExpr(ast.children0)
+			do @codes.add(")-(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))" ~ @roundBit((type $ \ast@AstTypeBit).size))
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")-(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %mul
+		if(\ast@isInt(type))
+			do @codes.add("NM_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))")
+		elif(type.typeId = %typeBit)
+			if((type $ \ast@AstTypeBit).size = 8)
+				do @codes.add("NM_((")
+				do @buildExpr(ast.children0)
+				do @codes.add("),(")
+				do @buildExpr(ast.children1)
+				do @codes.add("))")
+			elif((type $ \ast@AstTypeBit).size = 4)
+				do @codes.add("UL_((")
+				do @buildExpr(ast.children0)
+				do @codes.add("),(")
+				do @buildExpr(ast.children1)
+				do @codes.add("))")
+			else
+				do @codes.add("((")
+				do @buildExpr(ast.children0)
+				do @codes.add(")*(")
+				do @buildExpr(ast.children1)
+				do @codes.add("))" ~ @roundBit((type $ \ast@AstTypeBit).size))
+			end if
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")*(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %div
+		if(\ast@isInt(type))
+			do @codes.add("SD_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))")
+		elif(type.typeId = %typeBit)
+			if((type $ \ast@AstTypeBit).size = 8)
+				do @codes.add("UD_((")
+				do @buildExpr(ast.children0)
+				do @codes.add("),(")
+				do @buildExpr(ast.children1)
+				do @codes.add("))")
+			else
+				do @codes.add("((")
+				do @buildExpr(ast.children0)
+				do @codes.add(")/(")
+				do @buildExpr(ast.children1)
+				do @codes.add("))" ~ @roundBit((type $ \ast@AstTypeBit).size))
+			end if
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")/(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %mod
+		if(\ast@isInt(type))
+			do @codes.add("SO_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))")
+		elif(type.typeId = %typeBit)
+			if((type $ \ast@AstTypeBit).size = 8)
+				do @codes.add("UO_((")
+				do @buildExpr(ast.children0)
+				do @codes.add("),(")
+				do @buildExpr(ast.children1)
+				do @codes.add("))")
+			else
+				do @codes.add("((")
+				do @buildExpr(ast.children0)
+				do @codes.add(")%(")
+				do @buildExpr(ast.children1)
+				do @codes.add("))" ~ @roundBit((type $ \ast@AstTypeBit).size))
+			end if
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(")%(")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %pow
+		if(\ast@isInt(type))
+			do @codes.add("PI_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))")
+		else
+			do @codes.add("Math.pow((")
+			do @buildExpr(ast.children0)
+			do @codes.add("),(")
+			do @buildExpr(ast.children1)
+			do @codes.add("))")
+		end if
+	default
+		assert false
+	end switch
+end func
+
+func buildExpr3(ast: \ast@AstExpr3)
+	assert ast.varKind <> %unknown
+	do @codes.add("(")
+	do @buildExpr(ast.children0)
+	do @codes.add(")?(")
+	do @buildExpr(ast.children1)
+	do @codes.add("):(")
+	do @buildExpr(ast.children2)
+	do @codes.add(")")
+end func
+
+func buildExprNew(ast: \ast@AstExprNew)
+	assert ast.varKind <> %unknown
+	if(\ast@isClass(ast.itemType))
+		var class_: \ast@AstClass :: ast.itemType.refItem $ \ast@AstClass
+		var id: []char :: @refClass(class_)
+		var tmp: []char :: @addTmpVar()
+		do @codes.add("(\{tmp}=new \{id}(),\{tmp}.A_=AD_++,\{tmp})") {A_ is an address.}
+	else
+		if(ast.itemType.typeId = %typeGen)
+			var gen: \ast@AstTypeGen :: ast.itemType $ \ast@AstTypeGen
+			switch(gen.kind)
+			case %list_
+				do @codes.add("{L:0,H:null,T:null,P:null}")
+			case %stack_
+				do @codes.add("[]")
+			case %queue_
+				do @codes.add("[]")
+			default
+				assert false
+			end switch
+		else
+			assert ast.itemType.typeId = %typeDict
+			do @codes.add("{L:0,B:null}")
+		end if
+	end if
+end func
+
+func buildExprNewArray(ast: \ast@AstExprNewArray)
+	assert ast.varKind <> %unknown
+	block
+		var items: list<\ast@AstExpr> :: ast.idces
+		do items.head()
+		if(\ast@isChar(ast.itemType))
+			if(^items = 1)
+				if(\option@rls)
+					do @codes.add("{S:R_(\"\\0\",(")
+					do @buildExpr(items.get())
+					do @codes.add(")[1])}")
+				else
+					do @codes.add("{S:R_(\"\\0\",CNA_(~~(")
+					do @buildExpr(items.get())
+					do @codes.add(")[1]))}")
+				end if
+			else
+				do @codes.add("(function A_(n){if(n.length==1)return{S:R_(\"\\0\",n[0])};else{let m=n[0],a=new Array(m),i;for(i=0;i<m;i++)a[i]=A_(n.slice(1));return a;}})([")
+				var first: bool :: true
+				while(!items.term())
+					if(\option@rls)
+						if(first)
+							do first :: false
+							do @codes.add("(")
+						else
+							do @codes.add(",(")
+						end if
+						do @buildExpr(items.get())
+						do @codes.add(")[1]")
+					else
+						if(first)
+							do first :: false
+							do @codes.add("CNA_(~~(")
+						else
+							do @codes.add(",CNA_(~~(")
+						end if
+						do @buildExpr(items.get())
+						do @codes.add(")[1])")
+					end if
+					do items.next()
+				end while
+				do @codes.add("])")
+			end if
+		else
+			if(^items = 1)
+				if(\option@rls)
+					do @codes.add("new Array((")
+					do @buildExpr(items.get())
+					do @codes.add(")[1]).fill(\{@getDefaultValue(ast.itemType)})")
+				else
+					do @codes.add("new Array(CNA_(~~(")
+					do @buildExpr(items.get())
+					do @codes.add(")[1])).fill(\{@getDefaultValue(ast.itemType)})")
+				end if
+			else
+				do @codes.add("(function A_(n){if(n.length==1)return new Array(n[0]).fill(\{@getDefaultValue(ast.itemType)});else{let m=n[0],a=new Array(m),i;for(i=0;i<m;i++)a[i]=A_(n.slice(1));return a}})([")
+				var first: bool :: true
+				while(!items.term())
+					if(\option@rls)
+						if(first)
+							do first :: false
+							do @codes.add("(")
+						else
+							do @codes.add(",(")
+						end if
+						do @buildExpr(items.get())
+						do @codes.add(")[1]")
+					else
+						if(first)
+							do first :: false
+							do @codes.add("CNA_(~~(")
+						else
+							do @codes.add(",CNA_(~~(")
+						end if
+						do @buildExpr(items.get())
+						do @codes.add(")[1])")
+					end if
+					do items.next()
+				end while
+				do @codes.add("])")
+			end if
+		end if
+	end block
+end func
+
+func buildExprAs(ast: \ast@AstExprAs)
+	assert ast.varKind <> %unknown
+	switch(ast.kind)
+	case %as
+		var t1: \ast@AstType :: ast.child.type
+		var t2: \ast@AstType :: ast.childType
+		if(\ast@isClass(t1))
+			assert \ast@isClass(t2)
+			do @refClass(t2.refItem $ \ast@AstClass)
+			do @buildExpr(ast.child)
+		else
+			if(\ast@isInt(t1) | \ast@isEnum(t1) | t1.typeId = %typeBit & (t1 $ \ast@AstTypeBit).size = 8)
+				if(\ast@isInt(t2) | \ast@isEnum(t2) | t2.typeId = %typeBit & (t2 $ \ast@AstTypeBit).size = 8)
+					do @buildExpr(ast.child)
+				elif(t2.typeId = %typeBit)
+					do @codes.add("((")
+					do @buildExpr(ast.child)
+					do @codes.add(")[1])" ~ @roundBit((t2 $ \ast@AstTypeBit).size))
+				elif(\ast@isChar(t2))
+					do @codes.add("((")
+					do @buildExpr(ast.child)
+					do @codes.add(")[1])&0xffff")
+				elif(\ast@isFloat(t2))
+					var tmp: []char :: @addTmpVar()
+					if(t1.typeId = %typeBit)
+						do @codes.add("UF_((")
+					else
+						do @codes.add("SF_((")
+					end if
+					do @buildExpr(ast.child)
+					do @codes.add("))")
+				else
+					assert \ast@isBool(t2)
+					var tmp: []char :: @addTmpVar()
+					do @codes.add("\{tmp}=(")
+					do @buildExpr(ast.child)
+					do @codes.add("),\{tmp}[0]|\{tmp}[1]")
+				end if
+			elif(t1.typeId = %typeBit | \ast@isChar(t1))
+				if(\ast@isInt(t2) | \ast@isEnum(t2) | t2.typeId = %typeBit & (t2 $ \ast@AstTypeBit).size = 8)
+					do @codes.add("Uint32Array.from([0,(")
+					do @buildExpr(ast.child)
+					do @codes.add(")])")
+				elif(t2.typeId = %typeBit)
+					do @codes.add("(")
+					do @buildExpr(ast.child)
+					do @codes.add(")" ~ @roundBit((t2 $ \ast@AstTypeBit).size))
+				elif(\ast@isChar(t2))
+					do @codes.add("(")
+					do @buildExpr(ast.child)
+					do @codes.add(")&0xffff")
+				elif(\ast@isFloat(t2))
+					if(t1.typeId = %typeBit & (t1 $ \ast@AstTypeBit).size = 4)
+						var tmp: []char :: @addTmpVar()
+						do @codes.add("\{tmp}=(")
+						do @buildExpr(ast.child)
+						do @codes.add("),(\{tmp}>>>31)*0x100000000+~~\{tmp}")
+					else
+						do @buildExpr(ast.child)
+					end if
+				else
+					assert \ast@isBool(t2)
+					do @codes.add("(")
+					do @buildExpr(ast.child)
+					do @codes.add(")!=0")
+				end if
+			elif(\ast@isFloat(t1))
+				if(\ast@isInt(t2))
+					do @codes.add("NI_((")
+					do @buildExpr(ast.child)
+					do @codes.add("))")
+				elif(t2.typeId = %typeBit)
+					if((t2 $ \ast@AstTypeBit).size = 8)
+						do @codes.add("NI_((")
+						do @buildExpr(ast.child)
+						do @codes.add("))")
+					else
+						do @codes.add("(")
+						do @buildExpr(ast.child)
+						do @codes.add(")" ~ @roundBit((t2 $ \ast@AstTypeBit).size))
+					end if
+				else
+					assert \ast@isFloat(t2)
+					do @buildExpr(ast.child)
+				end if
+			else
+				assert \ast@isBool(t1)
+				if(\ast@isInt(t2) | t2.typeId = %typeBit & (t2 $ \ast@AstTypeBit).size = 8)
+					do @codes.add("Uint32Array.from([0,(")
+					do @buildExpr(ast.child)
+					do @codes.add(")?1:0])")
+				elif(t2.typeId = %typeBit)
+					do @codes.add("(")
+					do @buildExpr(ast.child)
+					do @codes.add(")?1:0")
+				else
+					assert \ast@isBool(t2)
+					do @buildExpr(ast.child)
+				end if
+			end if
+		end if
+	case %is
+		do @refClass(ast.childType.refItem $ \ast@AstClass)
+		var info: @WebInfo :: @getInfo(ast.childType.refItem)
+		do @codes.add("(")
+		do @buildExpr(ast.child)
+		do @codes.add(")instanceof \{info.id}")
+	case %nIs
+		do @refClass(ast.childType.refItem $ \ast@AstClass)
+		var info: @WebInfo :: @getInfo(ast.childType.refItem)
+		do @codes.add("!((")
+		do @buildExpr(ast.child)
+		do @codes.add(")instanceof \{info.id})")
+	default
+		assert false
+	end switch
+end func
+
+func buildExprToBin(ast: \ast@AstExprToBin)
+	assert ast.varKind <> %unknown
+	do @codes.add("TB_(\{@makeTypeId(ast.child.type)},(")
+	do @buildExpr(ast.child)
+	do @codes.add("))")
+end func
+
+func buildExprFromBin(ast: \ast@AstExprFromBin)
+	assert ast.varKind <> %unknown
+	if(ast.offset.typeId.and(%exprValue) = %exprValue)
+		do @codes.add("FB_(\{@makeTypeId(ast.childType)},(")
+		do @buildExpr(ast.child)
+		do @codes.add("),{$:(")
+		do @buildExpr(ast.offset)
+		do @codes.add(")})")
+	else
+		var tmp: []char :: @addTmpVar()
+		var result: []char :: @addTmpVar()
+		do @codes.add("\{result}=FB_(\{@makeTypeId(ast.childType)},(")
+		do @buildExpr(ast.child)
+		do @codes.add("),(\{tmp}={$:(")
+		do @buildExpr(ast.offset)
+		do @codes.add(")},\{tmp})),(")
+		do @buildExpr(ast.offset)
+		do @codes.add(")=\{tmp}.$,\{result}")
+	end if
+end func
+
+func buildExprCall(ast: \ast@AstExprCall)
+	assert ast.varKind <> %unknown
+	var funcType: \ast@AstTypeFunc :: ast.func_.type $ \ast@AstTypeFunc
+	var meTypeId: []char :: null
+	if(funcType <>& null & funcType.funcOption.and(%any) = %any)
+		var items: list<\ast@AstExprCallArg> :: ast.args
+		do items.head()
+		do meTypeId :: @makeTypeId(items.get().arg.type)
+	end if
+	var refNum: int :: 0
+	block
+		var items: list<\ast@AstExprCallArg> :: ast.args
+		do items.head()
+		while(!items.term())
+			if(items.get().refVar)
+				do refNum :+ 1
+			end if
+			do items.next()
+		end while
+	end block
+	var resultVar: []char :: null
+	var refVar: [][]char :: null
+	if(refNum > 0)
+		do @codes.add("(")
+		if(ast.type <>& null)
+			do resultVar :: @addTmpVar()
+			do @codes.add("\{resultVar}=")
+		end if
+		do refVar :: #[refNum][]char
+	end if
+	do @codes.add("(")
+	do @buildExpr(ast.func_)
+	do @codes.add(")(")
+	block
+		var idx: int :: 0
+		var refCnt: int :: 0
+		var first: bool :: true
+		var items: list<\ast@AstExprCallArg> :: ast.args
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstExprCallArg :: items.get()
+			if(first)
+				do first :: false
+				do @codes.add("(")
+			else
+				do @codes.add(",(")
+			end if
+			if(meTypeId <>& null & idx = 1)
+				do @codes.add(meTypeId)
+			elif(item.refVar)
+				do refVar[refCnt] :: @addTmpVar()
+				do @codes.add("\{refVar[refCnt]}={$:(")
+				if(item.skipVar)
+					do @codes.add(@getDefaultValue(item.arg.type))
+				else
+					do @buildExpr(item.arg)
+				end if
+				do @codes.add(")},\{refVar[refCnt]}")
+				do refCnt :+ 1
+			else
+				do @buildExpr(item.arg)
+			end if
+			do @codes.add(")")
+			do idx :+ 1
+			do items.next()
+		end while
+	end block
+	do @codes.add(")")
+	if(refNum > 0)
+		block
+			var idx: int :: 0
+			var refCnt: int :: 0
+			var items: list<\ast@AstExprCallArg> :: ast.args
+			do items.head()
+			while(!items.term())
+				var item: \ast@AstExprCallArg :: items.get()
+				if(meTypeId <>& null & idx = 1)
+					; Do nothing.
+				elif(item.refVar)
+					do @codes.add(",(")
+					do @buildExpr(item.arg)
+					do @codes.add(")=\{refVar[refCnt]}.$")
+					do refCnt :+ 1
+				end if
+				do idx :+ 1
+				do items.next()
+			end while
+		end block
+		if(ast.type <>& null)
+			do @codes.add(",\{resultVar}")
+		end if
+		do @codes.add(")")
+	end if
+	
+	block
+		var type: \ast@AstType :: ast.type
+		if(type <>& null)
+			if(\ast@isClass(type))
+				do @refClass(type.refItem $ \ast@AstClass)
+			end if
+		end if
+	end block
+end func
+
+func buildExprArray(ast: \ast@AstExprArray)
+	assert ast.varKind <> %unknown
+	if(\ast@isChar(ast.type))
+		if(\option@rls)
+			do @codes.add("(")
+			do @buildExpr(ast.var_)
+			do @codes.add(").S.charCodeAt((")
+			do @buildExpr(ast.idx)
+			do @codes.add(")[1])")
+		else
+			do @codes.add("CAS_((")
+			do @buildExpr(ast.var_)
+			do @codes.add(").S,~~(")
+			do @buildExpr(ast.idx)
+			do @codes.add(")[1])")
+		end if
+	else
+		if(\option@rls)
+			do @codes.add("(")
+			do @buildExpr(ast.var_)
+			do @codes.add(")[(")
+			do @buildExpr(ast.idx)
+			do @codes.add(")[1]]")
+		else
+			do @codes.add("CAI_((")
+			do @buildExpr(ast.var_)
+			do @codes.add("),~~(")
+			do @buildExpr(ast.idx)
+			do @codes.add(")[1])")
+		end if
+	end if
+end func
+
+func buildExprDot(ast: \ast@AstExprDot)
+	assert ast.varKind <> %unknown
+	if(\ast@isClass(ast.var_.type))
+		var classItem: \ast@AstClassItem :: ast.classItem
+		assert classItem <>& null
+		do @refClass(ast.var_.type.refItem $ \ast@AstClass)
+		var info: @WebInfo
+		if(classItem.def.typeId = %var_)
+			do info :: @getInfo((classItem.def $ \ast@AstVar).arg)
+			do @codes.add("(")
+			do @buildExpr(ast.var_)
+			do @codes.add(").\{info.id}")
+		else
+			assert classItem.def.typeId = %func_
+			do info :: @getInfo(classItem.def)
+			do @codes.add("CT_[(")
+			do @buildExpr(ast.var_)
+			do @codes.add(").Y_ + \{info.classTableOffset}]")
+		end if
+	else
+		assert ast.refItem.typeId = %exprRef
+		do @buildExprRef(ast.refItem $ \ast@AstExpr)
+	end if
+end func
+
+func buildExprValue(ast: \ast@AstExprValue)
+	assert ast.type.typeId = %typeNull
+	do @codes.add("null")
+end func
+
+func buildExprValuePrim(ast: \ast@AstExprValuePrim)
+	var type: \ast@AstType :: ast.type
+	if(\ast@isInt(type) | \ast@isEnum(type))
+		do @codes.add("Uint32Array.from([\{ast.value.shr(32) $ bit32},\{ast.value $ bit32}])")
+	elif(\ast@isChar(type))
+		do @codes.add((ast.value $ bit16).toStr())
+	elif(\ast@isBool(type))
+		do @codes.add(ast.value = 0b64 ?("false", "true"))
+	elif(type.typeId = %typeBit)
+		switch((type $ \ast@AstTypeBit).size)
+		case 1
+			do @codes.add((ast.value $ bit8).toStr())
+		case 2
+			do @codes.add((ast.value $ bit16).toStr())
+		case 4
+			do @codes.add((ast.value $ bit32).toStr())
+		case 8
+			do @codes.add("Uint32Array.from([\{ast.value.shr(32) $ bit32},\{ast.value $ bit32}])")
+		default
+			assert false
+		end switch
+	else
+		assert false
+	end if
+end func
+
+func buildExprValueStr(ast: \ast@AstExprValueStr)
+	var value: []char :: ast.value
+	var s: []char :: "{S:\""
+	for i(0, ^value - 1)
+		do s :~ @escapeChar(value[i])
+	end for
+	do s :~ "\"}"
+	do @codes.add(s)
+end func
+
+func buildExprValueFloat(ast: \ast@AstExprValueFloat)
+	var value: []char :: ast.value.toStr()
+	if(value = "inf")
+		do @codes.add("Infinity")
+	else
+		do @codes.add(value)
+	end if
+end func
+
+func buildExprValueArray(ast: \ast@AstExprValueArray)
+	; Note that constant string values are handled by 'ExprValueStr'.
+	if(\ast@isStr(ast.type))
+		do @codes.add("{S:String.fromCharCode(")
+		var first: bool :: true
+		var items: list<\ast@AstExpr> :: ast.values
+		do items.head()
+		while(!items.term())
+			if(first)
+				do first :: false
+				do @codes.add("(")
+			else
+				do @codes.add(",(")
+			end if
+			do @buildExpr(items.get())
+			do @codes.add(")")
+			do items.next()
+		end while
+		do @codes.add(")}")
+		ret
+	end if
+	
+	do @codes.add("[")
+	var first: bool :: true
+	var items: list<\ast@AstExpr> :: ast.values
+	do items.head()
+	while(!items.term())
+		if(first)
+			do first :: false
+			do @codes.add("(")
+		else
+			do @codes.add(",(")
+		end if
+		do @buildExpr(items.get())
+		do @codes.add(")")
+		do items.next()
+	end while
+	do @codes.add("]")
+end func
+
+func buildExprRef(ast: \ast@AstExpr)
+	var ast2: \ast@Ast :: ast.refItem
+	var info: @WebInfo :: @getInfo(ast2)
+	if(ast2.typeId = %func_)
+		do @funcs.add(ast2 $ \ast@AstFunc)
+		do @codes.add(info.id)
+	else
+		assert ast2.typeId = %arg
+		var arg: \ast@AstArg :: ast2 $ \ast@AstArg
+		switch(arg.kind)
+		case %global
+			if(!info.alreadyWritten)
+				do info.alreadyWritten :: true
+				do @globalVars.add(arg)
+			end if
+		case %localArg
+			; Do nothing.
+		case %localVar
+			if(!info.alreadyWritten)
+				do info.alreadyWritten :: true
+				do @localVars.add(arg)
+			end if
+		default
+			assert false
+		end switch
+		if(arg.refVar)
+			do @codes.add("\{info.id}.$")
+		else
+			do @codes.add(info.id)
+		end if
+	end if
+end func
+
+func write()
+	var resFiles: list<[]char> :: \convert@getResFiles()
+	var writer: file@Writer
+	if(\option@extra.get("merge", &))
+		var fileName: []char :: file@fileName(\option@outputFile)
+		do writer :: file@makeWriter(\option@outputFile ~ ".html", false)
+		if(writer =& null)
+			do \err@err(%fileSaveFailed, null, [\option@outputFile ~ ".html"])
+			ret
+		end if
+		do writer.writeStr("<!DOCTYPE html>\n")
+		do writer.writeStr("<html>\n")
+		do writer.writeStr("\t<head>\n")
+		do writer.writeStr("\t\t<meta charset=\"utf-8\" />\n")
+		do writer.writeStr("\t\t<title>\{fileName}</title>\n")
+		do writer.writeStr("\t\t<script type=\"text/javascript\">\n")
+		do writeJs(writer, resFiles)
+		do writer.writeStr("\t\t</script>\n")
+		do writer.writeStr("\t</head>\n")
+		do writer.writeStr("\t<body id=\"k_body\">\n")
+		do writer.writeStr("\t</body>\n")
+		do writer.writeStr("</html>\n")
+		do writer.fin()
+	else
+		do writer :: file@makeWriter(\option@outputFile ~ ".js", false)
+		if(writer =& null)
+			do \err@err(%fileSaveFailed, null, [\option@outputFile ~ ".js"])
+			ret
+		end if
+		do writeJs(writer, resFiles)
+		do writer.fin()
+		
+		var fileName: []char :: file@fileName(\option@outputFile)
+		do writer :: file@makeWriter(\option@outputFile ~ ".html", false)
+		if(writer =& null)
+			do \err@err(%fileSaveFailed, null, [\option@outputFile ~ ".html"])
+			ret
+		end if
+		do writer.writeStr("<!DOCTYPE html>\n")
+		do writer.writeStr("<html>\n")
+		do writer.writeStr("\t<head>\n")
+		do writer.writeStr("\t\t<meta charset=\"utf-8\" />\n")
+		do writer.writeStr("\t\t<script src=\"\{fileName}.js\" type=\"text/javascript\"></script>\n")
+		do writer.writeStr("\t\t<title>\{fileName}</title>\n")
+		do writer.writeStr("\t</head>\n")
+		do writer.writeStr("\t<body id=\"k_body\">\n")
+		do writer.writeStr("\t</body>\n")
+		do writer.writeStr("</html>\n")
+		do writer.fin()
+	end if
+	
+	func writeJs(writer: file@Writer, resFiles: list<[]char>)
+		var static: bool :: \option@extra.get("static", &)
+		if(static)
+			do writer.writeStr("\"use strict\";function \{file@fileName(\option@outputFile)}(O_){\n")
+		else
+			do writer.writeStr("\"use strict\";!function(f){let d=document;function h(){d.removeEventListener(\"DOMContentLoaded\",h);removeEventListener(\"load\",h);f()}\"complete\"===d.readyState||\"loading\"!==d.readyState&&!d.documentElement.doScroll?setTimeout(f):(d.addEventListener(\"DOMContentLoaded\",h),addEventListener(\"load\",h))}(function(){\n")
+			do writer.writeStr("let O_;\n")
+		end if
+		
+		do writer.writeStr("let D_=document,B_=D_.getElementById(\"k_body\"),AD_=1;\n") {'document', 'body' and an address counter.}
+		
+		if(^@classTable <> 0)
+			do writer.writeStr("let CT_=new Array(\{^@classTable});\n")
+		end if
+		
+		do @globalVars.head()
+		while(!@globalVars.term())
+			var globalVar: \ast@AstArg :: @globalVars.get()
+			var info: @WebInfo :: @getInfo(globalVar)
+			do writer.writeStr("let \{info.id}=\{@getDefaultValue(globalVar.type)};\n")
+			do @globalVars.next()
+		end while
+		do @codes.head()
+		while(!@codes.term())
+			do writer.writeStr(@codes.get())
+			do @codes.next()
+		end while
+		
+		do \web\builtin@write(writer)
+		
+		do writer.writeStr("function F_(p,f){\n")
+		block
+			var first: bool :: true
+			do resFiles.head()
+			while(!resFiles.term())
+				var resFile: []char :: resFiles.get()
+				if(first)
+					do first :: false
+					do writer.writeStr("if(p==\"res/")
+				else
+					do writer.writeStr("else if(p==\"res/")
+				end if
+				for i(^file@fullPath(\option@resDir), ^resFile - 1)
+					do writer.writeStr(@escapeChar(resFile[i]))
+				end for
+				do writer.writeStr("\")\n")
+				if(resFile[^resFile - 1] = '/')
+					do writer.writeStr("return f?null:true;\n")
+				else
+					do writer.writeStr("return f?Uint8Array.from([")
+					var reader: file@Reader :: file@makeReader(resFile)
+					if(reader =& null)
+						do \err@err(%fileOpenFailed, null, [resFile])
+						ret
+					end if
+					var data: []bit8 :: reader.read(reader.fileSize())
+					for i(0, ^data - 1)
+						if(i <> 0)
+							do writer.writeStr(",")
+						end if
+						do writer.writeStr(data[i].toStr())
+					end for
+					do reader.fin()
+					do writer.writeStr("]):true;\n")
+				end if
+				do resFiles.next()
+			end while
+			if(^resFiles > 0)
+				do writer.writeStr("else return f?null:false;\n")
+			else
+				do writer.writeStr("return f?null:false;\n")
+			end if
+		end block
+		do writer.writeStr("}\n")
+		
+		block
+			do writer.writeStr("function FF_(){return[")
+			var first: bool :: true
+			do resFiles.head()
+			while(!resFiles.term())
+				var resFile: []char :: resFiles.get()
+				if(first)
+					do first :: false
+					do writer.writeStr("\"")
+				else
+					do writer.writeStr(",\"")
+				end if
+				for i(^\option@inputDir, ^resFile - 1)
+					do writer.writeStr(@escapeChar(resFile[i]))
+				end for
+				do writer.writeStr("\"")
+				do resFiles.next()
+			end while
+			do writer.writeStr("];}\n")
+		end block
+		
+		if(^@classTable <> 0)
+			do @classTable.head()
+			while(!@classTable.term())
+				var item: []char :: @classTable.get()
+				do writer.writeStr(item)
+				do @classTable.next()
+			end while
+		end if
+		
+		do writer.writeStr("k_main_();\n")
+		if(static)
+			do writer.writeStr("}\n")
+		else
+			do writer.writeStr("})\n")
+		end if
+	end func
+end func
+
+func getId(): []char
+	var curId: []char :: @uniqueId
+	var newId: []char :: ##@uniqueId
+	while loop2(true)
+		var idx: int :: ^newId - 1
+		while loop(true)
+			switch(newId[idx])
+			case 'z'
+				do newId[idx] :: idx = 0 ?('A', '0')
+			case '9'
+				do newId[idx] :: 'A'
+			case 'Z'
+				if(idx = 0)
+					do newId :: #[^newId + 1]char
+					do newId.fill('a')
+				else
+					do newId[idx] :: 'a'
+					do idx :- 1
+					skip loop
+				end if
+			default
+				do newId[idx] :: newId[idx].offset(1)
+			end switch
+			break loop
+		end while
+		switch(^newId)
+		case 2
+			switch(newId)
+			case "do", "if", "in"
+				skip loop2
+			end switch
+		case 3
+			switch(newId)
+			case "for", "let", "new", "try", "var", "Map", "NaN", "Set"
+				skip loop2
+			end switch
+		case 4
+			switch(newId)
+			case "case", "else", "enum", "eval", "name", "null", "this", "true", "void", "with", "Date", "Intl", "JSON", "Math"
+				skip loop2
+			end switch
+		end switch
+		break loop2
+	end while
+	do @uniqueId :: newId
+	ret curId
+end func
+
++func getInfo(ast: \ast@Ast): @WebInfo
+	if(ast.extra =& null | ast.extra.typeId <> %info)
+		var info: @WebInfo :: #@WebInfo
+		do info.typeId :: %info
+		if(ast.typeId = %func_ & (ast $ \ast@AstFunc).funcOption.and(%rwi) = %rwi)
+			do info.id :: ast.name
+		else
+			do info.id :: @getId()
+		end if
+		if(ast.typeId.and(%statBreakable) = %statBreakable & ast.name <>& null & ast.name <> "$")
+			do info.breakSkipLabel :: @getId()
+		else
+			do info.breakSkipLabel :: null
+		end if
+		do info.classTableOffset :: -1
+		do info.alreadyWritten :: false
+		do ast.extra :: info
+	end if
+	ret ast.extra $ @WebInfo
+end func
+
+func addTmpVar(): []char
+	var tmpVar: @TmpVar :: #@TmpVar
+	do tmpVar.identifier :: @getId()
+	do @tmpVars.add(tmpVar)
+	ret tmpVar.identifier
+end func
+
+func refClass(ast: \ast@AstClass): []char
+	var info: @WebInfo :: @getInfo(ast)
+	if(info.alreadyWritten)
+		ret info.id
+	end if
+	do info.alreadyWritten :: true
+	if(ast.refItem <>& null)
+		do @refClass(ast.refItem $ \ast@AstClass)
+	end if
+	block
+		var parentOffset: int
+		if(ast.refItem =& null)
+			do parentOffset :: 0
+		else
+			var parentInfo: @WebInfo :: @getInfo(ast.refItem)
+			assert parentInfo.classTableOffset <> -1
+			do parentOffset :: parentInfo.classTableOffset
+		end if
+		if(info.classTableOffset = -1)
+			do info.classTableOffset :: ^@classTable
+		end if
+		do @classTable.add("CT_[\{info.classTableOffset}]=\{parentOffset};\n")
+		var funcs: dict<int, \ast@AstFunc> :: #dict<int, \ast@AstFunc>
+		do setFuncOffsetRecursion(&, funcs, ast, false)
+		do funcs.forEach(addFuncPosCallback, null)
+	end block
+	do @classes.add(ast)
+	ret info.id
+	
+	func setFuncOffsetRecursion(idx: &int, funcs: dict<int, \ast@AstFunc>, ast: \ast@AstClass, parent: bool)
+		if(ast.refItem <>& null)
+			do setFuncOffsetRecursion(&idx, funcs, ast.refItem $ \ast@AstClass, true)
+		end if
+		var items: list<\ast@AstClassItem> :: ast.items
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstClassItem :: items.get()
+			if(item.def.typeId = %func_)
+				var func_: \ast@AstFunc :: item.def $ \ast@AstFunc
+				var info: @WebInfo :: @getInfo(func_)
+				if(item.override)
+					var parentItem: \ast@AstClassItem :: item.parentItem
+					assert parentItem <>& null
+					var parentInfo: @WebInfo :: @getInfo(parentItem.def)
+					assert parentInfo.classTableOffset <> -1
+					do info.classTableOffset :: parentInfo.classTableOffset
+				else
+					do idx :+ 1
+					if(info.classTableOffset = -1)
+						do info.classTableOffset :: idx
+					else
+						assert info.classTableOffset = idx
+					end if
+				end if
+				do funcs.add(info.classTableOffset, func_)
+			end if
+			do items.next()
+		end while
+	end func
+	
+	func addFuncPosCallback(key: int, value: \ast@AstFunc, data: kuin@Class): bool
+		var info: @WebInfo :: @getInfo(value)
+		var s: []char :: "CT_[\{^@classTable}]=\{info.id};\n"
+		do @classTable.add(s)
+		ret true
+	end func
+end func
+
+func getDefaultValue(type: \ast@AstType): []char
+	if(\ast@isNullable(type))
+		ret "null"
+	end if
+	switch(type.typeId)
+	case %typeUser
+		assert \ast@isEnum(type)
+		ret "0"
+	case %typeBit
+		if((type $ \ast@AstTypeBit).size = 8)
+			ret "new Uint32Array(2)"
+		end if
+		ret "0"
+	case %typePrim
+		switch((type $ \ast@AstTypePrim).kind)
+		case %int_
+			ret "new Uint32Array(2)"
+		case %char_, %float_
+			ret "0"
+		case %bool_
+			ret "false"
+		default
+			assert false
+		end switch
+	default
+		assert false
+	end switch
+	ret ""
+end func
+
+func makeTypeId(type: \ast@AstType): []char
+	var result: []char :: "["
+	var first: bool :: true
+	var items: list<int> :: \convert@getTypeId(type)
+	do items.head()
+	while(!items.term())
+		if(first)
+			do first :: false
+		else
+			do result :~ ","
+		end if
+		do result :~ items.get().toStr()
+		do items.next()
+	end while
+	do result :~ "]"
+	ret result
+end func
+
+func escapeChar(c: char): []char
+	switch(c)
+	case '"'
+		ret "\\\""
+	case '\''
+		ret "\\'"
+	case '\\'
+		ret "\\\\"
+	case ' ' to '~'
+		ret c.toStr()
+	default
+		ret "\\u\{(c $ bit16).toStr().sub(2, -1)}"
+	end switch
+end func
+
+func roundBit(size: int): []char
+	switch(size)
+	case 1
+		ret "&0xff"
+	case 2
+		ret "&0xffff"
+	case 4
+		ret ">>0"
+	default
+		assert false
+	end switch
+	ret ""
+end func

@@ -9,9 +9,9 @@ var wndAddFileListType: wnd@ListView
 	do @wndAddFileResuiltFile :: null
 	do @wndAddFileResuiltType :: 0
 	do @wndAddFileListType :: wnd@makeListView(@wndAddFile, 12, 12, 616, 320, %fix, %scale, false, null, ["res/kn.png", "res/wnd.png", "res/draw2d.png"])
-	do @wndAddFileListType.add(\common@langEn?("Source Code", "ソースコード"), 0)
-	do @wndAddFileListType.add(\common@langEn?("Window", "ウインドウ"), 1)
-	do @wndAddFileListType.add(\common@langEn?("2D Draw", "2D描画"), 2)
+	do @wndAddFileListType.add(\common@langEn ?("Source Code", "ソースコード"), 0)
+	do @wndAddFileListType.add(\common@langEn ?("Window", "ウインドウ"), 1)
+	do @wndAddFileListType.add(\common@langEn ?("2D Draw", "2D描画"), 2)
 	do @wndAddFileListType.setSel(0)
 	do @wndAddFileListType.style(%large)
 	do @wndAddFileListType.onSel :: wndAddFileListTypeOnSel
@@ -30,10 +30,10 @@ var wndAddFileListType: wnd@ListView
 			do doc :: #\doc_src@DocSrc
 		case 1
 			do doc :: #\doc_gen@DocGen
-			do (doc $ \doc_gen@DocGen).create(#\doc_ar_wnd@DocArWnd)
+			do(doc $ \doc_gen@DocGen).create(#\doc_ar_wnd@DocArWnd)
 		case 2
 			do doc :: #\doc_gen@DocGen
-			do (doc $ \doc_gen@DocGen).create(#\doc_ar_2d@DocAr2d)
+			do(doc $ \doc_gen@DocGen).create(#\doc_ar_2d@DocAr2d)
 		end switch
 		if(doc <>& null)
 			do doc.setChanged(true)
@@ -46,7 +46,7 @@ var wndAddFileListType: wnd@ListView
 	do @wndAddFileResuiltFile :: null
 	do @wndAddFileEditFile :: null
 	do @wndAddFileListType :: null
-
+	
 	func uniqueName(kind: int): []char
 		var name: []char :: null
 		switch(kind)
@@ -65,14 +65,14 @@ var wndAddFileListType: wnd@ListView
 		end while
 		ret name ~ n.toStr()
 	end func
-
+	
 	func wndAddFileListTypeOnSel(wnd: wnd@WndBase)
 		var name: []char :: uniqueName(@wndAddFileListType.getSel())
 		if(name <>& null)
 			do @wndAddFileEditFile.setText(name)
 		end if
 	end func
-
+	
 	func btnAddOnPush(wnd: wnd@WndBase)
 		do @wndAddFileResuiltFile :: @wndAddFileEditFile.getText().trim()
 		do @wndAddFileResuiltType :: @wndAddFileListType.getSel()
@@ -91,7 +91,7 @@ var wndAddFileListType: wnd@ListView
 			do wnd@msgBox(\form@wndMain, \common@langEn ?("The file name is invalid.", "ファイル名が不正です。"), \common@title, %err, %ok)
 			do @wndAddFileResuiltFile :: null
 		end if
-
+		
 		func valid(name: []char): bool
 			if(^name = 0)
 				ret false

@@ -1,0 +1,10 @@
+#exe
+func main()
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1024, 768, "")
+	var editLog: wnd@EditMulti :: wnd@makeEditMulti(wndMain, 12, 12, 1000, 744, %scale, %scale)
+	do editLog.readonly(true)
+	do editLog.setText("q")
+	
+	while(wnd@act())
+	end while
+end func

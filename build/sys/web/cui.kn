@@ -1,0 +1,40 @@
+const strBufSize: int :: 1024
+var delimiters: []char :: " ,\n"
+
++func delimiter(delimiters_: []char)
+	do @delimiters :: delimiters_
+end func
+
++func flush()
+end func
+
++func input(): []char
+	ret null
+end func
+
++func inputChar(): char
+	ret 0 $ char
+end func
+
++func inputFloat(): float
+	ret 0.0
+end func
+
++func inputInt(): int
+	ret 0
+end func
+
++func inputLetter(): char
+	ret 0 $ char
+end func
+
++func inputStr(): []char
+	ret null
+end func
+
++func print(str: []char)
+	excode "if(`0`==null)`0`={S:\"(null)\"};\n"
+	excode "if(O_&&O_.print){O_.print(`0`.S);return;}\n"
+	excode "console.log(`0`.S);\n"
+end func
+

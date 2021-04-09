@@ -1,0 +1,3055 @@
+var reserved: [][]char
+
+var useResFlags: []bit8
+var makeHint: bool
+var srcesCur: dict<[]char, \ast@Ast>
+var srcesNext: dict<[]char, \ast@Ast>
+var filePtr: file@Reader
+var fileHandle: int
+
+var srcName: []char
+var row: int
+var col: int
+
+var fileBuf: char
+var fileBufTmp: char {For single line comments and line breaking.}
+var fileLast: bool
+var scope: stack<\ast@Ast>
+var uniqueCnt: int
+var scopeRefedItems: list<\ast@ScopeRefedItem>
+var inSubSrc: bool
+
+var fileOpenFunc: func<([]char): int>
+var fileCloseFunc: func<(int)>
+var fileSizeFunc: func<(int): int>
+var fileReadLetterFunc: func<(int): char>
+
++func[__rwi]setFileFuncs(fileOpenFunc: func<([]char): int>, fileCloseFunc: func<(int)>, fileSizeFunc: func<(int): int>, fileReadLetterFunc: func<(int): char>)
+	do @fileOpenFunc :: fileOpenFunc
+	do @fileCloseFunc :: fileCloseFunc
+	do @fileSizeFunc :: fileSizeFunc
+	do @fileReadLetterFunc :: fileReadLetterFunc
+end func
+
++func parse(useResFlags: []bit8, prioritizedCode: []char): dict<[]char, \ast@Ast>
+	do @useResFlags :: useResFlags
+	do @makeHint :: \option@extra.get("hint", &)
+	
+	do @srcesCur :: #dict<[]char, \ast@Ast>
+	block
+		var inputName: []char :: "\\" ~ \option@inputName
+		if(inputName.find('.', -1) <> -1)
+			do \err@err(%incorrectSrcName, null, [inputName])
+			ret @srcesCur
+		end if
+		do @srcesCur.add(inputName, null)
+	end block
+	do @srcesCur.add("kuin", null)
+	
+	var endFlag: lib@Bool :: #lib@Bool
+	do endFlag.value :: false
+	if(prioritizedCode <>& null)
+		do @srcesCur.del(prioritizedCode)
+		do endFlag.value :: true
+		do @srcesNext :: #dict<[]char, \ast@Ast>
+		do @parseSrc(prioritizedCode, null, endFlag)
+		do @srcesCur.forEach(@parseSrc, endFlag)
+		do @srcesCur :: @srcesNext
+	end if
+	while(!endFlag.value)
+		do endFlag.value :: true
+		do @srcesNext :: #dict<[]char, \ast@Ast>
+		do @srcesCur.forEach(@parseSrc, endFlag)
+		do @srcesCur :: @srcesNext
+	end while
+	
+	ret @srcesCur
+end func
+
+func parseSrc(key: []char, value: \ast@Ast, data: kuin@Class): bool
+	if(value <>& null)
+		do @srcesNext.add(key, value)
+		ret true
+	end if
+	
+	if(!isCorrectSrcName(key))
+		do \err@err(%incorrectSrcName, null, [key])
+		ret true
+	end if
+	do(data $ lib@Bool).value :: false
+	
+	var truePath: []char
+	if(key[0] = '\\')
+		do truePath :: \option@inputDir ~ replacePath(key.sub(1, -1)) ~ ".kn"
+	else
+		do truePath :: \option@sysDir ~ \option@getEnvStr(\option@env_) ~ "/" ~ replacePath(key) ~ ".kn"
+	end if
+	if(@fileOpenFunc =& null)
+		do @filePtr :: file@makeReader(truePath)
+	else
+		do @fileHandle :: @fileOpenFunc(truePath)
+	end if
+	if(@filePtr =& null & @fileHandle = 0)
+		do \err@err(%fileOpenFailed, null, [truePath])
+		ret true
+	end if
+	
+	block
+		var reload: []char :: null
+		var fileSize: int :: @fileSizeFunc =& null ?(@filePtr.fileSize(), @fileSizeFunc(@fileHandle))
+		if(fileSize <= 1 & key = "\\" ~ \option@inputName)
+			var prefix: []char :: \option@env_ = %exe & \option@extra.get("wnd", &) ?("_wnd", "")
+			if(fileSize = 0)
+				do reload :: \option@sysDir ~ \option@getEnvStr(\option@env_) ~ "/_preset00" ~ prefix ~ ".kn"
+			else
+				var c: char
+				if(@fileReadLetterFunc =& null)
+					do c :: @filePtr.readLetter()
+				else
+					do c :: @fileReadLetterFunc(@fileHandle)
+				end if
+				switch(c)
+				case 'q'
+					do reload :: \option@sysDir ~ \option@getEnvStr(\option@env_) ~ "/_preset01" ~ prefix ~ ".kn"
+				case 'f'
+					do reload :: \option@sysDir ~ \option@getEnvStr(\option@env_) ~ "/_preset02" ~ prefix ~ ".kn"
+				case '9'
+					do reload :: \option@sysDir ~ \option@getEnvStr(\option@env_) ~ "/_preset03" ~ prefix ~ ".kn"
+				end switch
+			end if
+		end if
+		if(reload <>& null)
+			if(@fileCloseFunc =& null)
+				do @filePtr.fin()
+			else
+				do @fileCloseFunc(@fileHandle)
+			end if
+			do truePath :: reload
+			if(@fileOpenFunc =& null)
+				do @filePtr :: file@makeReader(truePath)
+			else
+				do @fileHandle :: @fileOpenFunc(truePath)
+			end if
+			if(@filePtr =& null & @fileHandle = 0)
+				do \err@err(%fileOpenFailed, null, [truePath])
+				ret true
+			end if
+		end if
+	end block
+	
+	do @srcName :: key
+	do @row :: 1
+	do @col :: 0
+	do @fileBuf :: '\0'
+	do @fileBufTmp :: '\0'
+	do @fileLast :: false
+	do @scope :: #stack<\ast@Ast>
+	do @uniqueCnt :: 0
+	do @scopeRefedItems :: null
+	
+	var parentAstRoot: \ast@AstRoot :: null
+	block
+		var dot: int :: @srcName.findLast('.', -1)
+		if(dot = -1)
+			do @inSubSrc :: false
+		else
+			do @inSubSrc :: true
+			var existence: bool
+			do parentAstRoot :: @srcesNext.get(@srcName.sub(0, dot), &existence) $ \ast@AstRoot
+			if(!existence)
+				do \err@err(%parentOfSubsourceNotFound, null, [@srcName])
+				if(@fileCloseFunc =& null)
+					do @filePtr.fin()
+				else
+					do @fileCloseFunc(@fileHandle)
+				end if
+				ret true
+			end if
+			assert parentAstRoot <>& null
+			; Set a dummy source so that the 'subSrc' will not be reprocessed.
+			do @srcesNext.add(@srcName, \ast@getSubSrcDummyAst())
+		end if
+	end block
+	
+	var ast: \ast@AstRoot :: @parseRoot(parentAstRoot)
+	if(@fileCloseFunc =& null)
+		do @filePtr.fin()
+	else
+		do @fileCloseFunc(@fileHandle)
+	end if
+	if(parentAstRoot =& null)
+		do @srcesNext.add(key, ast)
+	end if
+	ret true
+	
+	func isCorrectSrcName(name: []char): bool
+		var idx: int :: 0
+		if(idx < ^name & name[idx] = '\\')
+			do idx :+ 1
+		end if
+		while(true)
+			if(idx >= ^name | !('a' <= name[idx] & name[idx] <= 'z' | name[idx] = '_'))
+				ret false
+			end if
+			while loop(true)
+				do idx :+ 1
+				if(idx >= ^name)
+					ret true
+				end if
+				if('a' <= name[idx] & name[idx] <= 'z' | name[idx] = '_' | '0' <= name[idx] & name[idx] <= '9' | name[idx] = '.')
+					skip loop
+				end if
+				if(name[idx] = '\\')
+					do idx :+ 1
+					break loop
+				end if
+				ret false
+			end while
+		end while
+	end func
+	
+	func replacePath(path: []char): []char
+		var r: []char :: #[^path]char
+		for i(0, ^path - 1)
+			do r[i] :: path[i] = '\\' ?('/', path[i])
+		end for
+		ret r
+	end func
+end func
+
+; 'parentAstRoot' is the parent of a 'subSrc'.
+func parseRoot(parentAstRoot: \ast@AstRoot): \ast@AstRoot
+	var ast: \ast@AstRoot
+	if(parentAstRoot =& null)
+		do ast :: #\ast@AstRoot
+		do @initAst(ast, %root, \pos@make(@srcName, 1, 1), null, false)
+		do ast.scopeChildren :: #dict<[]char, \ast@Ast>
+		do ast.items :: #list<\ast@Ast>
+		do ast.scopeRefedItems :: #list<\ast@ScopeRefedItem>
+	else
+		; In a 'subSrc', add codes to the parent.
+		do ast :: parentAstRoot
+	end if
+	do @scopeRefedItems :: ast.scopeRefedItems
+	
+	do @scope.add(ast)
+	
+	; For the case where there is a single line comment at the beginning of source codes.
+	do @fileBuf :: '\n'
+	do @fileBuf :: @readChar()
+	
+	while loop(true)
+		var c: char :: @readChar()
+		if(c = '\0')
+			break loop
+		end if
+		if(c = '\n')
+			skip loop
+		end if
+		
+		var item: \ast@Ast
+		var itemPublic: bool :: false
+		if(c = '+')
+			do itemPublic :: true
+		else
+			do @fileBuf :: c
+		end if
+		
+		block
+			var row: int :: @row
+			var col: int :: @col
+			var id: []char :: @readIdentifier(true, false)
+			switch(id)
+			case "func"
+				do item :: @parseFunc(null, false)
+			case "var"
+				do item :: @parseVar(%global, null)
+			case "const"
+				do item :: @parseConst()
+			case "alias"
+				do item :: @parseAlias()
+			case "include"
+				do @parseInclude()
+				skip loop
+			case "class"
+				do item :: @parseClass()
+			case "enum"
+				do item :: @parseEnum()
+			default
+				do \err@err(%incorrectBlockOrSentence, \pos@make(@srcName, row, col), [id])
+				do @readUntilRet(@read())
+				skip loop
+			end switch
+		end block
+		
+		if(item.typeId = %var_)
+			do(item $ \ast@AstVar).arg.publicInSrc :: itemPublic
+		elif(item.typeId = %const_)
+			do(item $ \ast@AstConst).arg.publicInSrc :: itemPublic
+		else
+			do item.publicInSrc :: itemPublic
+		end if
+		do ast.items.add(item)
+	end while
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func parseFunc(parentClass: []char, overritten: bool): \ast@AstFunc
+	var ast: \ast@AstFunc :: #\ast@AstFunc
+	
+	block
+		do ast.funcOption :: %none
+		do ast.funcAttr :: #list<[]char>
+		var c: char :: @readChar()
+		if(c = '[')
+			while loop(true)
+				var row: int :: @row
+				var col: int :: @col
+				var s: []char :: @readFuncAttr()
+				if(^s = 5 & s[0] = '_' & s[1] = '_')
+					switch(s[2])
+					case 'a'
+						if(s[3] = 'n' & s[4] = 'y')
+							do ast.funcOption :: ast.funcOption.or(%any)
+						end if
+					case 'e'
+						if(s[3] = 'x' & s[4] = 't')
+							do ast.funcOption :: ast.funcOption.or(%ext)
+						end if
+					case 'f'
+						if(s[3] = 'r' & s[4] = 'c')
+							do ast.funcOption :: ast.funcOption.or(%frc)
+						end if
+					case 'k'
+						if(s[3] = 'v' & s[4] = 'f')
+							do ast.funcOption :: ast.funcOption.or(%kvf)
+						end if
+					case 'm'
+						if(s[3] = 'k' & s[4] = 'i')
+							do ast.funcOption :: ast.funcOption.or(%mki)
+						end if
+					case 'n'
+						if(s[3] = 'd' & s[4] = 'c')
+							do ast.funcOption :: ast.funcOption.or(%ndc)
+						end if
+					case 'r'
+						if(s[3] = 'm' & s[4] = 'e')
+							do ast.funcOption :: ast.funcOption.or(%rme)
+						elif(s[3] = 'c' & s[4] = 'h')
+							do ast.funcOption :: ast.funcOption.or(%rch)
+						elif(s[3] = 'a' & s[4] = 'c')
+							do ast.funcOption :: ast.funcOption.or(%rac)
+						elif(s[3] = 'w' & s[4] = 'i')
+							do ast.funcOption :: ast.funcOption.or(%rwi)
+						end if
+					case 't'
+						if(s[3] = 'm' & s[4] = 'e')
+							do ast.funcOption :: ast.funcOption.or(%tme)
+						elif(s[3] = 'c' & s[4] = 'h')
+							do ast.funcOption :: ast.funcOption.or(%tch)
+						elif(s[3] = 'k' & s[4] = 'v')
+							do ast.funcOption :: ast.funcOption.or(%tkv)
+						end if
+					end switch
+				elif(^s >= 2 & s[0] = '_' & '0' <= s[1] & s[1] <= '9')
+					var success: bool
+					var value: int :: s.sub(1, -1).toInt(&success)
+					if(success)
+						var value2: int :: (value - 1) / 8
+						if(1 <= value & value2 < \main@useResFlagsLen)
+							do @useResFlags[value2] :: @useResFlags[value2].or((1b8).shl((value - 1) % 8))
+						end if
+					end if
+				else
+					do ast.funcAttr.add(s)
+				end if
+				do c :: @readChar()
+				if(c = '\0')
+					break loop
+				end if
+				if(c = ']')
+					break loop
+				end if
+				if(c <> ',')
+					do @nextCharErr(',', c)
+					break loop
+				end if
+			end while
+		else
+			do @fileBuf :: c
+		end if
+	end block
+	
+	do @initAst(ast, %func_, @makePos(), @readIdentifier(true, false), true)
+	do ast.args :: #list<\ast@AstArg>
+	do ast.ret_ :: null
+	do ast.stats :: #list<\ast@AstStat>
+	
+	do ast.scopeChildren :: #dict<[]char, \ast@Ast>
+	do @scope.add(ast)
+	
+	if(parentClass <>& null)
+		do @addScopeRefeds(ast, parentClass)
+	end if
+	do @assertNextChar('(', true)
+	if(parentClass <>& null)
+		var arg: \ast@AstArg :: #\ast@AstArg
+		do @initAst(arg, %arg, ast.pos, null, false)
+		do arg.name :: "me"
+		do arg.kind :: %localArg
+		do arg.refVar :: false
+		do arg.expr :: null
+		do @addScopeName(arg, false)
+		block
+			var type: \ast@AstTypeUser :: #\ast@AstTypeUser
+			do @initAst(type, %typeUser, ast.pos, null, false)
+			do @addScopeRefeds(type, parentClass)
+			do arg.type :: type
+		end block
+		do ast.args.add(arg)
+	end if
+	
+	block
+		var c: char :: @readChar()
+		if(c <> ')')
+			do @fileBuf :: c
+			while loop(true)
+				do ast.args.add(@parseArg(%localArg, null))
+				do c :: @readChar()
+				if(c = '\0')
+					break loop
+				end if
+				if(c = ')')
+					break loop
+				end if
+				if(c <> ',')
+					do @nextCharErr(',', c)
+					break loop
+				end if
+			end while
+		end if
+	end block
+	
+	block
+		var c: char :: @readChar()
+		if(c = ':')
+			do ast.ret_ :: @parseType()
+			do c :: @readChar()
+		end if
+		if(c <> '\n')
+			do @nextCharErr('\n', c)
+		end if
+	end block
+	
+	if(overritten & ast.name <> "_dtor")
+		var statVar: \ast@AstStatVar :: #\ast@AstStatVar
+		do @initAst(statVar, %statVar, ast.pos, null, false)
+		block
+			var var_: \ast@AstVar :: #\ast@AstVar
+			do @initAst(var_, %var_, ast.pos, null, false)
+			block
+				var arg: \ast@AstArg :: #\ast@AstArg
+				do @initAst(arg, %arg, ast.pos, null, false)
+				do arg.name :: "super"
+				do arg.kind :: %localVar
+				do arg.refVar :: false
+				do arg.expr :: null
+				do @addScopeName(arg, false)
+				block
+					var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+					do @initAst(type, %typePrim, ast.pos, null, false)
+					do type.kind :: %int_ {When the type is null, an error occurs, so temporary 'int' is set.}
+					do arg.type :: type
+				end block
+				do var_.arg :: arg
+			end block
+			do statVar.def :: var_
+		end block
+		do ast.stats.add(statVar)
+	end if
+	
+	while loop(true)
+		var stat: \ast@AstStat :: @parseStat(ast)
+		if(stat =& null)
+			if(@fileLast)
+				break loop
+			else
+				skip loop
+			end if
+		end if
+		if(stat.typeId = %statEnd)
+			break loop
+		end if
+		do ast.stats.add(stat)
+	end while
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func parseVar(kind: \ast@AstArgKind, parentClass: []char): \ast@AstVar
+	var ast: \ast@AstVar :: #\ast@AstVar
+	do @initAst(ast, %var_, @makePos(), null, false)
+	do ast.arg :: @parseArg(kind, parentClass)
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseConst(): \ast@AstConst
+	var ast: \ast@AstConst :: #\ast@AstConst
+	do @initAst(ast, %const_, @makePos(), null, false)
+	do ast.arg :: @parseArg(%const_, null)
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseAlias(): \ast@AstAlias
+	var ast: \ast@AstAlias :: #\ast@AstAlias
+	do @initAst(ast, %alias_, @makePos(), @readIdentifier(true, false), true)
+	do @assertNextChar(':', true)
+	do ast.type :: @parseType()
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseInclude()
+	var subSrcName: []char :: @readIdentifier(true, false)
+	if(@inSubSrc)
+		do \err@err(%cannotIncludeInSubsourceFile, @makePos(), [subSrcName])
+		ret
+	end if
+	var newSrcName: []char :: "\{@srcName}.\{subSrcName}"
+	do @assertNextChar('\n', true)
+	var existence: bool
+	do @srcesNext.get(newSrcName, &existence)
+	if(!existence)
+		do @srcesNext.add(newSrcName, null)
+	end if
+end func
+
+func parseClass(): \ast@AstClass
+	var ast: \ast@AstClass :: #\ast@AstClass
+	do @initAst(ast, %class_, @makePos(), @readIdentifier(true, false), true)
+	do ast.items :: #list<\ast@AstClassItem>
+	do @assertNextChar('(', true)
+	
+	block
+		var c: char :: @readChar()
+		if(c <> ')')
+			do @fileBuf :: c
+			do @addScopeRefeds(ast, @readIdentifier(true, true))
+			do @assertNextChar(')', true)
+		else
+			var kuinSrc: bool :: @srcName = "kuin"
+			if(!(kuinSrc & ast.name = "Class"))
+				do @addScopeRefeds(ast, kuinSrc ?("@Class", "kuin@Class"))
+			end if
+		end if
+	end block
+	
+	do @assertNextChar('\n', true)
+	
+	do ast.scopeChildren :: #dict<[]char, \ast@Ast>
+	do @scope.add(ast)
+	
+	while loop(true)
+		var c: char :: @readChar()
+		if(c = '\0')
+			do \err@err(%noEnd, @makePos(), ["class"])
+			break loop
+		end if
+		if(c = '\n')
+			skip loop
+		end if
+		
+		var row: int :: @row
+		var col: int :: @col
+		var item: \ast@AstClassItem :: #\ast@AstClassItem
+		do item.public :: false
+		do item.override :: false
+		do item.parentItem :: null
+		do item.extra :: null
+		if(c = '+')
+			do item.public :: true
+		else
+			do @fileBuf :: c
+		end if
+		do c :: @readChar()
+		if(c = '*')
+			do item.override :: true
+		else
+			do @fileBuf :: c
+		end if
+		
+		var id: []char :: @readIdentifier(true, false)
+		var className: []char :: ast.scopeParent.typeId = %root ?("@" ~ ast.name, ast.name)
+		if(id = "func")
+			do item.def :: @parseFunc(className, item.override)
+		elif(id = "var")
+			if(item.override)
+				do \err@err(%overrideNonFunctionMember, \pos@make(@srcName, row, col), [id])
+			end if
+			do item.def :: @parseVar(%member, className)
+		else
+			if(item.public)
+				do \err@err(%exposeNonFunctionOrVariableMember, \pos@make(@srcName, row, col), [id])
+			end if
+			if(item.override)
+				do \err@err(%overrideNonFunctionMember, \pos@make(@srcName, row, col), [id])
+			end if
+			switch(id)
+				
+			case "end"
+				var id2: []char :: @readIdentifier(true, false)
+				if(id2 <> "class")
+					do \err@err(%wrongEnd, \pos@make(@srcName, row, col), ["class", id2])
+				end if
+				var astEndClass: \ast@Ast :: #\ast@Ast
+				do @initAst(astEndClass, %none, \pos@make(@srcName, row, col), null, false)
+				do @assertNextChar('\n', true)
+				break loop
+			case "const"
+				do item.def :: @parseConst()
+			case "alias"
+				do item.def :: @parseAlias()
+			case "class"
+				do item.def :: @parseClass()
+			case "enum"
+				do item.def :: @parseEnum()
+			default
+				do \err@err(%wrongMember, \pos@make(@srcName, row, col), [id])
+				do @readUntilRet(@read())
+				skip loop
+			end switch
+		end if
+		do ast.items.add(item)
+	end while
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func parseEnum(): \ast@AstEnum
+	var ast: \ast@AstEnum :: #\ast@AstEnum
+	do @initAst(ast, %enum_, @makePos(), @readIdentifier(true, false), true)
+	do ast.items :: #list<\ast@AstExpr>
+	do @assertNextChar('\n', true)
+	
+	do ast.scopeChildren :: #dict<[]char, \ast@Ast>
+	do @scope.add(ast)
+	
+	while loop(true)
+		var c: char :: @readChar()
+		if(c = '\0')
+			do \err@err(%noEnd, @makePos(), ["enum"])
+			break loop
+		end if
+		if(c = '\n')
+			skip loop
+		end if
+		do @fileBuf :: c
+		
+		var item: \ast@AstExpr
+		var id: []char :: @readIdentifier(true, false)
+		if(id = "end")
+			var id2: []char :: @readIdentifier(true, false)
+			if(id2 <> "enum")
+				do \err@err(%wrongEnd, @makePos(), ["enum", id2])
+			end if
+			do @assertNextChar('\n', true)
+			break loop
+		end if
+		do c :: @readChar()
+		if(c = ':')
+			do @assertNextChar(':', false)
+			do item :: @parseExpr()
+			if(item =& null)
+				do @readUntilRet(@read())
+				skip loop
+			end if
+			do c :: @readChar()
+		else
+			var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+			do @initAstExpr(expr, %exprValuePrim, ast.pos)
+			do expr.type :: null {Set the type to 'null' when no value is specified.}
+			do expr.value :: 0b64
+			do item :: expr
+		end if
+		do item.name :: id
+		if(c <> '\n')
+			do @nextCharErr('\n', c)
+		end if
+		do ast.items.add(item)
+		do @addScopeName(item, true)
+	end while
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func parseArg(kind: \ast@AstArgKind, parentClass: []char): \ast@AstArg
+	var ast: \ast@AstArg :: #\ast@AstArg
+	do @initAst(ast, %arg, @makePos(), @readIdentifier(true, false), false)
+	do ast.kind :: kind
+	do ast.refVar :: false
+	if(parentClass <>& null)
+		do @addScopeRefeds(ast, parentClass)
+	end if
+	do @assertNextChar(':', true)
+	
+	block
+		var c: char :: @readChar()
+		if(c = '&')
+			if(kind <> %localArg)
+				do \err@err(%ampersandInNonArgument, @makePos(), null)
+			else
+				do ast.refVar :: true
+			end if
+		else
+			do @fileBuf :: c
+		end if
+	end block
+	
+	do ast.type :: @parseType()
+	
+	block
+		var c: char :: @readChar()
+		if(c = ':')
+			do @assertNextChar(':', false)
+			assert kind <> %unknown
+			switch(kind)
+			case %localArg
+				do \err@err(%initializerInArgument, @makePos(), null)
+				do ast.expr :: null
+			case %member
+				do \err@err(%initializerInMember, @makePos(), null)
+				do ast.expr :: null
+			default
+				do ast.expr :: @parseExpr()
+			end switch
+		else
+			if(kind = %const_)
+				do \err@err(%noInitializerInConst, @makePos(), null)
+			end if
+			do ast.expr :: null
+			do @fileBuf :: c
+		end if
+	end block
+	
+	ret ast
+end func
+
+func parseStat(block_: \ast@Ast): \ast@AstStat
+	var ast: \ast@AstStat
+	
+	block
+		var c: char
+		while(c = '\n', skip)
+			do c :: @readChar()
+			if(c = '\0')
+				do \err@err(%noEndUnspecified, @makePos(), null)
+				ret null
+			end if
+		end while
+		do @fileBuf :: c
+	end block
+	
+	var row: int :: @row
+	var col: int :: @col
+	var id: []char :: @readIdentifier(true, false)
+	switch(id)
+	case "end"
+		do ast :: @parseStatEnd(row, col, block_)
+	case "func"
+		do ast :: @parseStatFunc()
+	case "var"
+		do ast :: @parseStatVar()
+	case "const"
+		do ast :: @parseStatConst()
+	case "alias"
+		do ast :: @parseStatAlias()
+	case "class"
+		do ast :: @parseStatClass()
+	case "enum"
+		do ast :: @parseStatEnum()
+	case "if"
+		do ast :: @parseStatIf()
+	case "elif"
+		do ast :: @parseStatElIf(row, col, block_)
+	case "else"
+		do ast :: @parseStatElse(row, col, block_)
+	case "switch"
+		do ast :: @parseStatSwitch(row, col)
+	case "case"
+		do ast :: @parseStatCase(row, col, block_)
+	case "default"
+		do ast :: @parseStatDefault(row, col, block_)
+	case "while"
+		do ast :: @parseStatWhile()
+	case "for"
+		do ast :: @parseStatFor(row, col)
+	case "try"
+		do ast :: @parseStatTry(row, col)
+	case "catch"
+		do ast :: @parseStatCatch(row, col, block_)
+	case "finally"
+		do ast :: @parseStatFinally(row, col, block_)
+	case "throw"
+		do ast :: @parseStatThrow()
+	case "block"
+		do ast :: @parseStatBlock()
+	case "ret"
+		do ast :: @parseStatRet()
+	case "do"
+		do ast :: @parseStatDo()
+	case "break"
+		do ast :: @parseStatBreak()
+	case "skip"
+		do ast :: @parseStatSkip()
+	case "assert"
+		do ast :: @parseStatAssert()
+	case "excode"
+		do ast :: @parseStatExcode()
+	default
+		do \err@err(%incorrectBlockOrSentence, \pos@make(@srcName, row, col), [id])
+		do @readUntilRet(@read())
+		ret null
+	end switch
+	
+	if(ast =& null)
+		ret null
+	end if
+	do ast.pos :: \pos@make(@srcName, row, col)
+	ret ast
+end func
+
+func parseStatEnd(row: int, col: int, block_: \ast@Ast): \ast@AstStat
+	var ast: \ast@AstStat :: #\ast@AstStat
+	do @initAst(ast, %statEnd, \pos@make(@srcName, row, col), null, false)
+	
+	var id: []char :: @readIdentifier(true, false)
+	var err: bool :: false
+	do @assertNextChar('\n', true)
+	switch(id)
+	case "func"
+		if(block_.typeId <> %func_)
+			do err :: true
+		end if
+	case "if"
+		if(block_.typeId <> %statIf)
+			do err :: true
+		end if
+	case "switch"
+		if(block_.typeId <> %statSwitch)
+			do err :: true
+		end if
+	case "while"
+		if(block_.typeId <> %statWhile)
+			do err :: true
+		end if
+	case "for"
+		if(block_.typeId <> %statFor)
+			do err :: true
+		end if
+	case "try"
+		if(block_.typeId <> %statTry)
+			do err :: true
+		end if
+	case "block"
+		if(block_.typeId <> %statBlock)
+			do err :: true
+		end if
+	default
+		do \err@err(%wrongEndUnspecified, \pos@make(@srcName, row, col), [id])
+	end switch
+	if(err)
+		do \err@err(%nonCorrespondingEnd, \pos@make(@srcName, row, col), [id])
+	end if
+	ret ast
+end func
+
+func parseStatFunc(): \ast@AstStat
+	var ast: \ast@AstStatFunc :: #\ast@AstStatFunc
+	do @initAst(ast, %statFunc, null, null, false)
+	do ast.def :: @parseFunc(null, false)
+	ret ast
+end func
+
+func parseStatVar(): \ast@AstStat
+	var ast: \ast@AstStatVar :: #\ast@AstStatVar
+	do @initAst(ast, %statVar, null, null, false)
+	do ast.def :: @parseVar(%localVar, null)
+	ret ast
+end func
+
+func parseStatConst(): \ast@AstStat
+	var ast: \ast@AstStatConst :: #\ast@AstStatConst
+	do @initAst(ast, %statConst, null, null, false)
+	do ast.def :: @parseConst()
+	ret ast
+end func
+
+func parseStatAlias(): \ast@AstStat
+	var ast: \ast@AstStatAlias :: #\ast@AstStatAlias
+	do @initAst(ast, %statAlias, null, null, false)
+	do ast.def :: @parseAlias()
+	ret ast
+end func
+
+func parseStatClass(): \ast@AstStat
+	var ast: \ast@AstStatClass :: #\ast@AstStatClass
+	do @initAst(ast, %statClass, null, null, false)
+	do ast.def :: @parseClass()
+	ret ast
+end func
+
+func parseStatEnum(): \ast@AstStat
+	var ast: \ast@AstStatEnum :: #\ast@AstStatEnum
+	do @initAst(ast, %statEnum, null, null, false)
+	do ast.def :: @parseEnum()
+	ret ast
+end func
+
+func parseStatIf(): \ast@AstStat
+	var ast: \ast@AstStatIf :: #\ast@AstStatIf
+	do @initAst(ast, %statIf, @makePos(), null, false)
+	do ast.blockVar :: null
+	do ast.elIfs :: #list<\ast@AstStatElIf>
+	do ast.elseStatBlock :: null
+	do @pushDummyScope(ast)
+	do @obtainBlockName(ast)
+	do ast.cond :: @parseExpr()
+	do @assertNextChar(')', true)
+	do @assertNextChar('\n', true)
+	
+	block
+		var stat: \ast@AstStat
+		var typeId: \ast@TypeId
+		do ast.statBlock :: @parseDummyBlock(&stat, &typeId, %statIf, ast)
+		while(typeId = %statElIf)
+			var elIf: \ast@AstStatElIf :: stat $ \ast@AstStatElIf
+			do elIf.statBlock :: @parseDummyBlock(&stat, &typeId, %statElIf, ast)
+			do ast.elIfs.add(elIf)
+		end while
+		while(typeId = %statElse)
+			do ast.elseStatBlock :: @parseDummyBlock(&stat, &typeId, %statElse, ast)
+		end while
+		assert typeId = %statEnd
+	end block
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func parseStatElIf(row: int, col: int, block_: \ast@Ast): \ast@AstStat
+	var ast: \ast@AstStatElIf :: #\ast@AstStatElIf
+	do @initAst(ast, %statElIf, null, null, false)
+	do ast.statBlock :: null
+	if(block_.typeId <> %statIf)
+		do \err@err(%wrongClause, \pos@make(@srcName, row, col), ["if", "elif"])
+		do @readUntilRet(@read())
+		ret null
+	end if
+	do @assertNextChar('(', true)
+	do ast.cond :: @parseExpr()
+	do @assertNextChar(')', true)
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseStatElse(row: int, col: int, block_: \ast@Ast): \ast@AstStat
+	var ast: \ast@AstStat :: #\ast@AstStat
+	do @initAst(ast, %statElse, null, null, false)
+	if(block_.typeId <> %statIf)
+		do \err@err(%wrongClause, \pos@make(@srcName, row, col), ["if", "else"])
+		do @readUntilRet(@read())
+		ret null
+	end if
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseStatSwitch(row: int, col: int): \ast@AstStat
+	var ast: \ast@AstStatSwitch :: #\ast@AstStatSwitch
+	do @initAst(ast, %statSwitch, @makePos(), null, false)
+	do ast.blockVar :: @makeBlockVar(ast.pos)
+	do ast.cases :: #list<\ast@AstStatCase>
+	do ast.defaultStatBlock :: null
+	do @pushDummyScope(ast)
+	do @obtainBlockName(ast)
+	do ast.cond :: @parseExpr()
+	do @assertNextChar(')', true)
+	do @assertNextChar('\n', true)
+	
+	block
+		var stat: \ast@AstStat
+		var typeId: \ast@TypeId
+		while loop(true)
+			do stat :: @parseStat(ast)
+			if(stat =& null)
+				if(@fileLast)
+					ret null
+				else
+					skip loop
+				end if
+			end if
+			break loop
+		end while
+		do typeId :: stat.typeId
+		if(!(typeId = %statCase | typeId = %statDefault | typeId = %statEnd))
+			do \err@err(%wrongClauseInSwitch, @makePos(), null)
+		end if
+		while(typeId = %statCase)
+			var case_: \ast@AstStatCase :: stat $ \ast@AstStatCase
+			do case_.statBlock :: @parseDummyBlock(&stat, &typeId, %statCase, ast)
+			do ast.cases.add(case_)
+		end while
+		while(typeId = %statDefault)
+			do ast.defaultStatBlock :: @parseDummyBlock(&stat, &typeId, %statDefault, ast)
+		end while
+		assert typeId = %statEnd
+	end block
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func parseStatCase(row: int, col: int, block_: \ast@Ast): \ast@AstStat
+	var ast: \ast@AstStatCase :: #\ast@AstStatCase
+	do @initAst(ast, %statCase, null, null, false)
+	do ast.conds :: #list<\ast@AstExprPair>
+	do ast.statBlock :: null
+	if(block_.typeId <> %statSwitch)
+		do \err@err(%wrongClause, \pos@make(@srcName, row, col), ["switch", "case"])
+		do @readUntilRet(@read())
+		ret null
+	end if
+	
+	while loop(true)
+		var exprs: \ast@AstExprPair :: #\ast@AstExprPair
+		do exprs.expr0 :: @parseExpr()
+		do exprs.expr1 :: null
+		var c: char :: @readChar()
+		if(c = '\0')
+			break loop
+		end if
+		if(c = '\n')
+			do ast.conds.add(exprs)
+			break loop
+		end if
+		if(c = ',')
+			do ast.conds.add(exprs)
+			skip loop
+		end if
+		do @fileBuf :: c
+		var id: []char :: @readIdentifier(true, false)
+		if(id <> "to")
+			do \err@err(%wrongWord, @makePos(), ["to", id])
+			do @readUntilRet(@read())
+			ret null
+		end if
+		do exprs.expr1 :: @parseExpr()
+		do c :: @readChar()
+		if(c = '\0')
+			break loop
+		end if
+		do ast.conds.add(exprs)
+		if(c = '\n')
+			break loop
+		end if
+		if(c <> ',')
+			do @nextCharErr(',', c)
+		end if
+	end while
+	
+	ret ast
+end func
+
+func parseStatDefault(row: int, col: int, block_: \ast@Ast): \ast@AstStat
+	var ast: \ast@AstStat :: #\ast@AstStat
+	do @initAst(ast, %statDefault, null, null, false)
+	if(block_.typeId <> %statSwitch)
+		do \err@err(%wrongClause, \pos@make(@srcName, row, col), ["switch", "default"])
+		do @readUntilRet(@read())
+		ret null
+	end if
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseStatWhile(): \ast@AstStat
+	var ast: \ast@AstStatWhile :: #\ast@AstStatWhile
+	do @initAst(ast, %statWhile, @makePos(), null, false)
+	do ast.blockVar :: null
+	do ast.skip_ :: false
+	do ast.stats :: #list<\ast@AstStat>
+	do @pushDummyScope(ast)
+	do @obtainBlockName(ast)
+	do ast.cond :: @parseExpr()
+	
+	block
+		var c: char :: @readChar()
+		if(c = ',')
+			var id: []char :: @readIdentifier(true, false)
+			if(id <> "skip")
+				do \err@err(%wrongWord, @makePos(), ["skip", id])
+			end if
+			do ast.skip_ :: true
+		else
+			do @fileBuf :: c
+		end if
+		do @assertNextChar(')', true)
+		do @assertNextChar('\n', true)
+	end block
+	
+	while loop(true)
+		var stat: \ast@AstStat :: @parseStat(ast)
+		if(stat =& null)
+			if(@fileLast)
+				ret null
+			else
+				skip loop
+			end if
+		end if
+		if(stat.typeId = %statEnd)
+			break loop
+		end if
+		do ast.stats.add(stat)
+	end while
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func parseStatFor(row: int, col: int): \ast@AstStat
+	var ast: \ast@AstStatFor :: #\ast@AstStatFor
+	do @initAst(ast, %statFor, @makePos(), null, false)
+	do ast.blockVar :: @makeBlockVar(ast.pos)
+	do ast.stats :: #list<\ast@AstStat>
+	do @pushDummyScope(ast)
+	do @obtainBlockName(ast)
+	do ast.start :: @parseExpr()
+	do @assertNextChar(',', true)
+	do ast.cond :: @parseExpr()
+	
+	block
+		var c: char :: @readChar()
+		if(c = ',')
+			do ast.step :: @parseExpr()
+			do @assertNextChar(')', true)
+			do @assertNextChar('\n', true)
+		else
+			do ast.step :: @makePrimValue(@makePos(), %int_, 1b64)
+			do @fileBuf :: c
+			do @assertNextChar(')', true)
+			do @assertNextChar('\n', true)
+		end if
+	end block
+	
+	while loop(true)
+		var stat: \ast@AstStat :: @parseStat(ast)
+		if(stat =& null)
+			if(@fileLast)
+				ret null
+			else
+				skip loop
+			end if
+		end if
+		if(stat.typeId = %statEnd)
+			break loop
+		end if
+		do ast.stats.add(stat)
+	end while
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func parseStatTry(row: int, col: int): \ast@AstStat
+	var ast: \ast@AstStatTry :: #\ast@AstStatTry
+	do @initAst(ast, %statTry, @makePos(), null, false)
+	do ast.blockVar :: @makeBlockVar(ast.pos)
+	do ast.catches :: #list<\ast@AstStatCatch>
+	do ast.finallyStatBlock :: null
+	do @pushDummyScope(ast)
+	
+	block
+		var c: char :: @readChar()
+		if(c <> '\n')
+			do @fileBuf :: c
+			do ast.name :: @readIdentifier(true, false)
+			do @addScopeName(ast, true)
+			do @assertNextChar('\n', true)
+		else
+			do ast.name :: "$"
+		end if
+	end block
+	
+	block
+		var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+		do @initAst(type, %typePrim, \pos@make(@srcName, row, col), null, false)
+		do type.kind :: %int_
+		do ast.blockVar.type :: type
+	end block
+	
+	block
+		var stat: \ast@AstStat
+		var typeId: \ast@TypeId
+		do ast.statBlock :: @parseDummyBlock(&stat, &typeId, %statTry, ast)
+		while(typeId = %statCatch)
+			var catch_: \ast@AstStatCatch :: stat $ \ast@AstStatCatch
+			do catch_.statBlock :: @parseDummyBlock(&stat, &typeId, %statCatch, ast)
+			do ast.catches.add(catch_)
+		end while
+		if(typeId = %statFinally)
+			do ast.finallyStatBlock :: @parseDummyBlock(&stat, &typeId, %statFinally, ast)
+		end if
+		assert typeId = %statEnd
+	end block
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func parseStatCatch(row: int, col: int, block_: \ast@Ast): \ast@AstStat
+	var ast: \ast@AstStatCatch :: #\ast@AstStatCatch
+	do @initAst(ast, %statCatch, null, null, false)
+	do ast.conds :: #list<\ast@AstExprPair>
+	do ast.statBlock :: null
+	if(block_.typeId <> %statTry)
+		do \err@err(%wrongClause, \pos@make(@srcName, row, col), ["try", "catch"])
+		do @readUntilRet(@read())
+		ret null
+	end if
+	
+	block
+		var c: char :: @readChar()
+		if(c = '\n')
+			var exprs: \ast@AstExprPair :: #\ast@AstExprPair
+			var pos: \pos@Pos :: @makePos()
+			do exprs.expr0 :: @makePrimValue(pos, %int_, 0b64)
+			do exprs.expr1 :: @makePrimValue(pos, %int_, 0xFFFFFFFFb64)
+			do ast.conds.add(exprs)
+		else
+			do @fileBuf :: c
+			while loop(true)
+				var exprs: \ast@AstExprPair :: #\ast@AstExprPair
+				do exprs.expr0 :: @parseExpr()
+				do exprs.expr1 :: null
+				do c :: @readChar()
+				if(c = '\0')
+					break loop
+				end if
+				if(c = '\n')
+					do ast.conds.add(exprs)
+					break loop
+				end if
+				if(c = ',')
+					do ast.conds.add(exprs)
+					skip loop
+				end if
+				do @fileBuf :: c
+				var id: []char :: @readIdentifier(true, false)
+				if(id <> "to")
+					do \err@err(%wrongWord, @makePos(), ["to", id])
+				end if
+				do exprs.expr1 :: @parseExpr()
+				do c :: @readChar()
+				if(c = '\0')
+					break loop
+				end if
+				do ast.conds.add(exprs)
+				if(c = '\n')
+					break loop
+				end if
+				if(c <> ',')
+					do @nextCharErr(',', c)
+				end if
+			end while
+		end if
+	end block
+	
+	ret ast
+end func
+
+func parseStatFinally(row: int, col: int, block_: \ast@Ast): \ast@AstStat
+	var ast: \ast@AstStat :: #\ast@AstStat
+	do @initAst(ast, %statFinally, null, null, false)
+	if(block_.typeId <> %statTry)
+		do \err@err(%wrongClause, \pos@make(@srcName, row, col), ["try", "finally"])
+		do @readUntilRet(@read())
+		ret null
+	end if
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseStatThrow(): \ast@AstStat
+	var ast: \ast@AstStatThrow :: #\ast@AstStatThrow
+	do @initAst(ast, %statThrow, @makePos(), null, false)
+	do ast.code :: @parseExpr()
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseStatBlock(): \ast@AstStat
+	var ast: \ast@AstStatBlock :: #\ast@AstStatBlock
+	do @initAst(ast, %statBlock, @makePos(), null, false)
+	do ast.blockVar :: null
+	do ast.stats :: #list<\ast@AstStat>
+	do @pushDummyScope(ast)
+	
+	block
+		var c: char :: @readChar()
+		if(c <> '\n')
+			do @fileBuf :: c
+			do ast.name :: @readIdentifier(true, false)
+			do @addScopeName(ast, true)
+			do @assertNextChar('\n', true)
+		else
+			do ast.name :: "$"
+		end if
+	end block
+	
+	while loop(true)
+		var stat: \ast@AstStat :: @parseStat(ast)
+		if(stat =& null)
+			if(@fileLast)
+				ret null
+			else
+				skip loop
+			end if
+		end if
+		if(stat.typeId = %statEnd)
+			break loop
+		end if
+		do ast.stats.add(stat)
+	end while
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func parseStatRet(): \ast@AstStat
+	var ast: \ast@AstStatRet :: #\ast@AstStatRet
+	do @initAst(ast, %statRet, @makePos(), null, false)
+	
+	block
+		var c: char :: @readChar()
+		if(c <> '\n')
+			do @fileBuf :: c
+			do ast.value :: @parseExpr()
+			do @assertNextChar('\n', true)
+		else
+			do ast.value :: null
+		end if
+	end block
+	
+	ret ast
+end func
+
+func parseStatDo(): \ast@AstStat
+	var ast: \ast@AstStatDo :: #\ast@AstStatDo
+	do @initAst(ast, %statDo, @makePos(), null, false)
+	do ast.expr :: @parseExpr()
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseStatBreak(): \ast@AstStat
+	var ast: \ast@AstStat :: #\ast@AstStat
+	do @initAst(ast, %statBreak, @makePos(), null, false)
+	do @addScopeRefeds(ast, @readIdentifier(true, false))
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseStatSkip(): \ast@AstStat
+	var ast: \ast@AstStat :: #\ast@AstStat
+	do @initAst(ast, %statSkip, @makePos(), null, false)
+	do @addScopeRefeds(ast, @readIdentifier(true, false))
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseStatAssert(): \ast@AstStat
+	var ast: \ast@AstStatAssert :: #\ast@AstStatAssert
+	do @initAst(ast, %statAssert, @makePos(), null, false)
+	do ast.cond :: @parseExpr()
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseStatExcode(): \ast@AstStat
+	var ast: \ast@AstStatExcode :: #\ast@AstStatExcode
+	do @initAst(ast, %statExcode, @makePos(), null, false)
+	do ast.code :: @parseExpr()
+	do @assertNextChar('\n', true)
+	ret ast
+end func
+
+func parseType(): \ast@AstType
+	var pos: \pos@Pos :: @makePos()
+	var ast: \ast@AstType :: null
+	var c: char :: @readChar()
+	if(c = '[')
+		do @assertNextChar(']', true)
+		
+		var ast2: \ast@AstTypeArray :: #\ast@AstTypeArray
+		do @initAst(ast2, %typeArray, pos, null, false)
+		do ast2.itemType :: @parseType()
+		do ast :: ast2
+	else
+		do @fileBuf :: c
+		var id: []char :: @readIdentifier(true, true)
+		if(^id >= 4 & id[0] = 'b' & id[1] = 'i' & id[2] = 't')
+			var size: []char :: id.sub(3, ^id - 3)
+			if(size = "8" | size = "16" | size = "32" | size = "64")
+				var ast2: \ast@AstTypeBit :: #\ast@AstTypeBit
+				do @initAst(ast2, %typeBit, pos, null, false)
+				do ast2.size :: size.toInt(&) / 8
+				do ast :: ast2
+			end if
+		end if
+		if(ast =& null)
+			switch(id)
+			case "func"
+				do @assertNextChar('<', true)
+				do @assertNextChar('(', true)
+				var ast2: \ast@AstTypeFunc :: #\ast@AstTypeFunc
+				do @initAst(ast2, %typeFunc, pos, null, false)
+				do ast2.funcOption :: %none
+				do ast2.args :: #list<\ast@AstTypeFuncArg>
+				do ast2.ret_ :: null
+				do c :: @readChar()
+				if(c <> ')')
+					do @fileBuf :: c
+					while loop(true)
+						var arg: \ast@AstTypeFuncArg :: #\ast@AstTypeFuncArg
+						do c :: @readChar()
+						if(c = '\0')
+							break loop
+						end if
+						if(c = '&')
+							do arg.refVar :: true
+						else
+							do arg.refVar :: false
+							do @fileBuf :: c
+						end if
+						do arg.arg :: @parseType()
+						do ast2.args.add(arg)
+						do c :: @readChar()
+						if(c = ')')
+							break loop
+						end if
+						if(c <> ',')
+							do @nextCharErr(',', c)
+							break loop
+						end if
+					end while
+				end if
+				do c :: @readChar()
+				if(c = ':')
+					do ast2.ret_ :: @parseType()
+					do c :: @readChar()
+				end if
+				if(c <> '>')
+					do @nextCharErr('>', c)
+				end if
+				do ast :: ast2
+			case "list"
+				do @assertNextChar('<', true)
+				var ast2: \ast@AstTypeGen :: #\ast@AstTypeGen
+				do @initAst(ast2, %typeGen, pos, null, false)
+				do ast2.kind :: %list_
+				do ast2.itemType :: @parseType()
+				do @assertNextChar('>', true)
+				do ast :: ast2
+			case "stack"
+				do @assertNextChar('<', true)
+				var ast2: \ast@AstTypeGen :: #\ast@AstTypeGen
+				do @initAst(ast2, %typeGen, pos, null, false)
+				do ast2.kind :: %stack_
+				do ast2.itemType :: @parseType()
+				do @assertNextChar('>', true)
+				do ast :: ast2
+			case "queue"
+				do @assertNextChar('<', true)
+				var ast2: \ast@AstTypeGen :: #\ast@AstTypeGen
+				do @initAst(ast2, %typeGen, pos, null, false)
+				do ast2.kind :: %queue_
+				do ast2.itemType :: @parseType()
+				do @assertNextChar('>', true)
+				do ast :: ast2
+			case "dict"
+				do @assertNextChar('<', true)
+				var ast2: \ast@AstTypeDict :: #\ast@AstTypeDict
+				do @initAst(ast2, %typeDict, pos, null, false)
+				do ast2.itemTypeKey :: @parseType()
+				do @assertNextChar(',', true)
+				do ast2.itemTypeValue :: @parseType()
+				do @assertNextChar('>', true)
+				do ast :: ast2
+			case "int"
+				var ast2: \ast@AstTypePrim :: #\ast@AstTypePrim
+				do @initAst(ast2, %typePrim, pos, null, false)
+				do ast2.kind :: %int_
+				do ast :: ast2
+			case "float"
+				var ast2: \ast@AstTypePrim :: #\ast@AstTypePrim
+				do @initAst(ast2, %typePrim, pos, null, false)
+				do ast2.kind :: %float_
+				do ast :: ast2
+			case "char"
+				var ast2: \ast@AstTypePrim :: #\ast@AstTypePrim
+				do @initAst(ast2, %typePrim, pos, null, false)
+				do ast2.kind :: %char_
+				do ast :: ast2
+			case "bool"
+				var ast2: \ast@AstTypePrim :: #\ast@AstTypePrim
+				do @initAst(ast2, %typePrim, pos, null, false)
+				do ast2.kind :: %bool_
+				do ast :: ast2
+			default
+				var ast2: \ast@AstTypeUser :: #\ast@AstTypeUser
+				do @initAst(ast2, %typeUser, pos, null, false)
+				do @addScopeRefeds(ast2, id)
+				do ast :: ast2
+			end switch
+		end if
+	end if
+	ret ast
+end func
+
+; parseExprAssign
+func parseExpr(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprThree()
+	var row: int :: @row
+	var col: int :: @col
+	var c: char :: @readChar()
+	if(c = ':')
+		var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+		do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+		var c2: char :: @read()
+		switch(c2)
+		case ':'
+			do ast2.kind :: %assign
+		case '+'
+			do ast2.kind :: %assignAdd
+		case '-'
+			do ast2.kind :: %assignSub
+		case '*'
+			do ast2.kind :: %assignMul
+		case '/'
+			do ast2.kind :: %assignDiv
+		case '%'
+			do ast2.kind :: %assignMod
+		case '^'
+			do ast2.kind :: %assignPow
+		case '~'
+			do ast2.kind :: %assignCat
+		default
+			do \err@err(%wrongOperator, ast2.pos, [@charToStr(c2)])
+			do @readUntilRet(c2)
+			ret null
+		end switch
+		do ast2.children0 :: ast
+		do ast2.children1 :: @parseExpr()
+		do ast :: ast2
+	else
+		do @fileBuf :: c
+	end if
+	ret ast
+end func
+
+func parseExprThree(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprOr()
+	while loop(true)
+		var row: int :: @row
+		var col: int :: @col
+		var c: char :: @readChar()
+		if(c = '?')
+			do @assertNextChar('(', false)
+			var ast2: \ast@AstExpr3 :: #\ast@AstExpr3
+			do @initAstExpr(ast2, %expr3, \pos@make(@srcName, row, col))
+			do ast2.children0 :: ast
+			do ast2.children1 :: @parseExpr()
+			do @assertNextChar(',', true)
+			do ast2.children2 :: @parseExpr()
+			do ast :: ast2
+			do @assertNextChar(')', true)
+		else
+			do @fileBuf :: c
+			break loop
+		end if
+	end while
+	ret ast
+end func
+
+func parseExprOr(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprAnd()
+	while loop(true)
+		var row: int :: @row
+		var col: int :: @col
+		var c: char :: @readChar()
+		if(c = '|')
+			var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+			do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+			do ast2.kind :: %or
+			do ast2.children0 :: ast
+			do ast2.children1 :: @parseExprAnd()
+			do ast :: ast2
+		else
+			do @fileBuf :: c
+			break loop
+		end if
+	end while
+	ret ast
+end func
+
+func parseExprAnd(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprCmp()
+	while loop(true)
+		var row: int :: @row
+		var col: int :: @col
+		var c: char :: @readChar()
+		if(c = '&')
+			var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+			do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+			do ast2.kind :: %and
+			do ast2.children0 :: ast
+			do ast2.children1 :: @parseExprCmp()
+			do ast :: ast2
+		else
+			do @fileBuf :: c
+			break loop
+		end if
+	end while
+	ret ast
+end func
+
+func parseExprCmp(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprCat()
+	while loop(true)
+		var row: int :: @row
+		var col: int :: @col
+		var c: char :: @readChar()
+		switch(c)
+		case '<'
+			do c :: @read()
+			switch(c)
+			case '='
+				var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+				do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+				do ast2.kind :: %le
+				do ast2.children0 :: ast
+				do ast2.children1 :: @parseExprCat()
+				do ast :: ast2
+			case '>'
+				do c :: @read()
+				switch(c)
+				case '&'
+					var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+					do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+					do ast2.kind :: %nEqRef
+					do ast2.children0 :: ast
+					do ast2.children1 :: @parseExprCat()
+					do ast :: ast2
+				case '$'
+					var ast2: \ast@AstExprAs :: #\ast@AstExprAs
+					do @initAstExpr(ast2, %exprAs, \pos@make(@srcName, row, col))
+					do ast2.kind :: %nIs
+					do ast2.child :: ast
+					do ast2.childType :: @parseType()
+					do ast :: ast2
+				default
+					do @fileBuf :: c
+					var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+					do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+					do ast2.kind :: %nEq
+					do ast2.children0 :: ast
+					do ast2.children1 :: @parseExprCat()
+					do ast :: ast2
+				end switch
+			default
+				do @fileBuf :: c
+				var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+				do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+				do ast2.kind :: %lt
+				do ast2.children0 :: ast
+				do ast2.children1 :: @parseExprCat()
+				do ast :: ast2
+			end switch
+		case '>'
+			var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+			do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+			do c :: @read()
+			if(c = '=')
+				do ast2.kind :: %ge
+			else
+				do @fileBuf :: c
+				do ast2.kind :: %gt
+			end if
+			do ast2.children0 :: ast
+			do ast2.children1 :: @parseExprCat()
+			do ast :: ast2
+		case '='
+			do c :: @read()
+			switch(c)
+			case '&'
+				var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+				do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+				do ast2.kind :: %eqRef
+				do ast2.children0 :: ast
+				do ast2.children1 :: @parseExprCat()
+				do ast :: ast2
+			case '$'
+				var ast2: \ast@AstExprAs :: #\ast@AstExprAs
+				do @initAstExpr(ast2, %exprAs, \pos@make(@srcName, row, col))
+				do ast2.kind :: %is
+				do ast2.child :: ast
+				do ast2.childType :: @parseType()
+				do ast :: ast2
+			default
+				do @fileBuf :: c
+				var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+				do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+				do ast2.kind :: %eq
+				do ast2.children0 :: ast
+				do ast2.children1 :: @parseExprCat()
+				do ast :: ast2
+			end switch
+		default
+			do @fileBuf :: c
+			break loop
+		end switch
+	end while
+	ret ast
+end func
+
+func parseExprCat(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprAdd()
+	while loop(true)
+		var row: int :: @row
+		var col: int :: @col
+		var c: char :: @readChar()
+		if(c = '~')
+			var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+			do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+			do ast2.kind :: %cat
+			do ast2.children0 :: ast
+			do ast2.children1 :: @parseExprAdd()
+			do ast :: ast2
+		else
+			do @fileBuf :: c
+			break loop
+		end if
+	end while
+	ret ast
+end func
+
+func parseExprAdd(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprMul()
+	while loop(true)
+		var row: int :: @row
+		var col: int :: @col
+		var c: char :: @readChar()
+		switch(c)
+		case '+'
+			var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+			do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+			do ast2.kind :: %add
+			do ast2.children0 :: ast
+			do ast2.children1 :: @parseExprMul()
+			do ast :: ast2
+		case '-'
+			var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+			do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+			do ast2.kind :: %sub
+			do ast2.children0 :: ast
+			do ast2.children1 :: @parseExprMul()
+			do ast :: ast2
+		default
+			do @fileBuf :: c
+			break loop
+		end switch
+	end while
+	ret ast
+end func
+
+func parseExprMul(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprPlus()
+	while loop(true)
+		var row: int :: @row
+		var col: int :: @col
+		var c: char :: @readChar()
+		switch(c)
+		case '*'
+			var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+			do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+			do ast2.kind :: %mul
+			do ast2.children0 :: ast
+			do ast2.children1 :: @parseExprPlus()
+			do ast :: ast2
+		case '/'
+			var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+			do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+			do ast2.kind :: %div
+			do ast2.children0 :: ast
+			do ast2.children1 :: @parseExprPlus()
+			do ast :: ast2
+		case '%'
+			var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+			do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+			do ast2.kind :: %mod
+			do ast2.children0 :: ast
+			do ast2.children1 :: @parseExprPlus()
+			do ast :: ast2
+		default
+			do @fileBuf :: c
+			break loop
+		end switch
+	end while
+	ret ast
+end func
+
+func parseExprPlus(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprPow()
+	if(ast <>& null)
+		ret ast
+	end if
+	var row: int :: @row
+	var col: int :: @col
+	var c: char :: @readChar()
+	if(c = '#')
+		do c :: @read()
+		switch(c)
+		case '['
+			var ast2: \ast@AstExprNewArray :: #\ast@AstExprNewArray
+			do @initAstExpr(ast2, %exprNewArray, \pos@make(@srcName, row, col))
+			do ast2.idces :: #list<\ast@AstExpr>
+			while loop(true)
+				do ast2.idces.add(@parseExpr())
+				do c :: @readChar()
+				if(c = '\0')
+					break loop
+				end if
+				if(c = ']')
+					break loop
+				end if
+				if(c <> ',')
+					do @nextCharErr(',', c)
+					ret null
+				end if
+			end while
+			do ast2.itemType :: @parseType()
+			do ast :: ast2
+		case '#'
+			var ast2: \ast@AstExpr1 :: #\ast@AstExpr1
+			do @initAstExpr(ast2, %expr1, \pos@make(@srcName, row, col))
+			do ast2.kind :: %copy
+			do ast2.child :: @parseExprPlus()
+			do ast :: ast2
+		default
+			do @fileBuf :: c
+			var ast2: \ast@AstExprNew :: #\ast@AstExprNew
+			do @initAstExpr(ast2, %exprNew, \pos@make(@srcName, row, col))
+			do ast2.itemType :: @parseType()
+			do ast2.direct :: true
+			do ast :: ast2
+		end switch
+	else
+		var ast2: \ast@AstExpr1 :: #\ast@AstExpr1
+		do @initAstExpr(ast2, %expr1, \pos@make(@srcName, row, col))
+		switch(c)
+		case '+'
+			do ast2.kind :: %plus
+		case '-'
+			do ast2.kind :: %minus
+		case '!'
+			do ast2.kind :: %not
+		case '^'
+			do ast2.kind :: %len
+		default
+			do \err@err(%wrongOperator, ast2.pos, [@charToStr(c)])
+			do @readUntilRet(c)
+			ret null
+		end switch
+		do ast2.child :: @parseExprPlus()
+		do ast :: ast2
+	end if
+	ret ast
+end func
+
+func parseExprPow(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprCall()
+	if(ast =& null)
+		ret ast {Interpret as a unary operator.}
+	end if
+	var row: int :: @row
+	var col: int :: @col
+	var c: char :: @readChar()
+	if(c = '^')
+		var ast2: \ast@AstExpr2 :: #\ast@AstExpr2
+		do @initAstExpr(ast2, %expr2, \pos@make(@srcName, row, col))
+		do ast2.kind :: %pow
+		do ast2.children0 :: ast
+		do ast2.children1 :: @parseExprPlus()
+		do ast :: ast2
+	else
+		do @fileBuf :: c
+	end if
+	ret ast
+end func
+
+func parseExprCall(): \ast@AstExpr
+	var ast: \ast@AstExpr :: @parseExprValue()
+	if(ast =& null)
+		ret ast
+	end if
+	while loop(true)
+		var row: int :: @row
+		var col: int :: @col
+		var c: char :: @readChar()
+		switch(c)
+		case '('
+			assert ast <>& null
+			var ast2: \ast@AstExprCall :: #\ast@AstExprCall
+			do @initAstExpr(ast2, %exprCall, \pos@make(@srcName, row, col))
+			do ast2.func_ :: ast
+			do ast2.args :: #list<\ast@AstExprCallArg>
+			do c :: @readChar()
+			if(c <> ')')
+				do @fileBuf :: c
+				while loop2(true)
+					var arg: \ast@AstExprCallArg :: #\ast@AstExprCallArg
+					do arg.skipVar :: false
+					do c :: @readChar()
+					if(c = '&')
+						do arg.refVar :: true
+						do c :: @readChar()
+						if(c = ',' | c = ')')
+							do arg.skipVar :: true
+						end if
+					else
+						do arg.refVar :: false
+					end if
+					do @fileBuf :: c
+					if(arg.skipVar)
+						var ast3: \ast@AstExpr :: #\ast@AstExpr
+						do @initAstExpr(ast3, %exprRef, ast2.pos)
+						do ast3.refName :: "$"
+						do ast3.refItem :: @makeBlockVar(ast3.pos)
+						do arg.arg :: ast3
+					else
+						do arg.arg :: @parseExpr()
+					end if
+					do ast2.args.add(arg)
+					do c :: @readChar()
+					if(c = '\0')
+						break loop2
+					end if
+					if(c = ')')
+						break loop2
+					end if
+					if(c <> ',')
+						do @nextCharErr(',', c)
+						ret null
+					end if
+				end while
+			end if
+			do ast :: ast2
+		case '['
+			assert ast <>& null
+			var ast2: \ast@AstExprArray :: #\ast@AstExprArray
+			do @initAstExpr(ast2, %exprArray, \pos@make(@srcName, row, col))
+			do ast2.var_ :: ast
+			do ast2.idx :: @parseExpr()
+			do @assertNextChar(']', true)
+			do ast :: ast2
+		case '.'
+			assert ast <>& null
+			var ast2: \ast@AstExprDot :: #\ast@AstExprDot
+			do @initAstExpr(ast2, %exprDot, \pos@make(@srcName, row, col))
+			do ast2.var_ :: ast
+			do ast2.member :: @readIdentifier(true, false)
+			do ast2.classItem :: null
+			do ast :: ast2
+		case '$'
+			assert ast <>& null
+			do c :: @read()
+			switch(c)
+			case '>'
+				var ast2: \ast@AstExprToBin :: #\ast@AstExprToBin
+				do @initAstExpr(ast2, %exprToBin, \pos@make(@srcName, row, col))
+				do ast2.child :: ast
+				do ast2.childType :: @parseType()
+				do ast :: ast2
+			case '<'
+				var ast2: \ast@AstExprFromBin :: #\ast@AstExprFromBin
+				do @initAstExpr(ast2, %exprFromBin, \pos@make(@srcName, row, col))
+				do ast2.child :: ast
+				do ast2.childType :: @parseType()
+				do ast2.offset :: @makePrimValue(ast2.pos, %int_, 0b64)
+				do ast :: ast2
+			default
+				do @fileBuf :: c
+				var ast2: \ast@AstExprAs :: #\ast@AstExprAs
+				do @initAstExpr(ast2, %exprAs, \pos@make(@srcName, row, col))
+				do ast2.kind :: %as
+				do ast2.child :: ast
+				do ast2.childType :: @parseType()
+				do ast :: ast2
+			end switch
+		default
+			do @fileBuf :: c
+			break loop
+		end switch
+	end while
+	ret ast
+end func
+
+func parseExprValue(): \ast@AstExpr
+	var row: int :: @row
+	var col: int :: @col
+	var c: char :: @readChar()
+	var pos: \pos@Pos :: \pos@make(@srcName, row, col)
+	switch(c)
+	case '"'
+		var buf: []char :: #[1024]char
+		var len: int :: 0
+		var esc: bool :: false
+		while loop(true)
+			do c :: @readInStr()
+			if(c = '\0')
+				do \err@err(%nonClosingStrLiteral, pos, null)
+				ret null
+			end if
+			if(esc)
+				if(c = '{')
+					var cat: \ast@AstExpr2 :: #\ast@AstExpr2
+					do @initAstExpr(cat, %expr2, pos)
+					do cat.kind :: %cat
+					block
+						var cat2: \ast@AstExpr2 :: #\ast@AstExpr2
+						do @initAstExpr(cat2, %expr2, pos)
+						do cat2.kind :: %cat
+						do cat2.children0 :: @makeStrValue(pos, buf.sub(0, len))
+						block
+							var call: \ast@AstExprCall :: #\ast@AstExprCall
+							do @initAstExpr(call, %exprCall, pos)
+							do call.args :: #list<\ast@AstExprCallArg>
+							block
+								var dot: \ast@AstExprDot :: #\ast@AstExprDot
+								do @initAstExpr(dot, %exprDot, pos)
+								do dot.var_ :: @parseExpr()
+								do dot.member :: "toStr"
+								do dot.classItem :: null
+								do call.func_ :: dot
+							end block
+							do cat2.children1 :: call
+						end block
+						do @assertNextChar('}', false)
+						do cat.children0 :: cat2
+						do @fileBuf :: '"'
+						do cat.children1 :: @parseExprValue()
+					end block
+					ret cat
+				end if
+				if(len = ^buf)
+					do buf :~ #[1024]char
+				end if
+				do buf[len] :: @escChar(c)
+				do len :+ 1
+				do esc :: false
+				skip loop
+			end if
+			if(c = '"')
+				break loop
+			end if
+			if(c = '\\')
+				do esc :: true
+				skip loop
+			end if
+			if(len = ^buf)
+				do buf :~ #[1024]char
+			end if
+			do buf[len] :: c
+			do len :+ 1
+		end while
+		ret @makeStrValue(pos, buf.sub(0, len))
+	case '\''
+		var buf: char :: '\0'
+		var set: bool :: false
+		var esc: bool :: false
+		while loop(true)
+			do c :: @readInStr()
+			if(c = '\0')
+				do \err@err(%nonClosingStrLiteral, pos, null)
+				ret null
+			end if
+			if(esc)
+				if(set)
+					do \err@err(%tooLongCharLiteral, pos, [@charToStr(buf)])
+					do @readUntilRet(c)
+					ret null
+				end if
+				do buf :: @escChar(c)
+				do set :: true
+				do esc :: false
+				skip loop
+			end if
+			if(c = '\'')
+				break loop
+			end if
+			if(c = '\\')
+				do esc :: true
+				skip loop
+			end if
+			if(set)
+				do \err@err(%tooLongCharLiteral, pos, [@charToStr(buf)])
+				do @readUntilRet(c)
+				ret null
+			end if
+			do buf :: c
+			do set :: true
+		end while
+		if(!set)
+			do \err@err(%emptyCharLiteral, pos, null)
+			do @readUntilRet(c)
+			ret null
+		end if
+		ret @makePrimValue(pos, %char_, buf $ bit64)
+	case '('
+		var ast: \ast@AstExpr :: @parseExpr()
+		do c :: @readChar()
+		if(c <> ')')
+			do \err@err(%noParenthesis, pos, null)
+			do @readUntilRet(c)
+			ret null
+		end if
+		ret ast
+	case '['
+		var ast: \ast@AstExprValueArray :: #\ast@AstExprValueArray
+		do @initAstExpr(ast, %exprValueArray, pos)
+		do ast.values :: #list<\ast@AstExpr>
+		do c :: @readChar()
+		if(c <> ']')
+			do @fileBuf :: c
+			while loop(true)
+				var expr: \ast@AstExpr :: @parseExpr()
+				if(expr <>& null)
+					do ast.values.add(expr)
+				end if
+				do c :: @readChar()
+				if(c = '\0')
+					break loop
+				end if
+				if(c = ']')
+					break loop
+				end if
+				if(c <> ',')
+					do @nextCharErr(',', c)
+					ret null
+				end if
+			end while
+		end if
+		ret ast
+	case '%'
+		var id: []char :: @readIdentifier(false, false)
+		var expr: \ast@AstExprValueEnumElement :: #\ast@AstExprValueEnumElement
+		do @initAstExpr(expr, %exprValueEnumElement, pos)
+		block
+			var type: \ast@AstTypeEnumElement :: #\ast@AstTypeEnumElement
+			do @initAst(type, %typeEnumElement, pos, null, false)
+			do expr.type :: type
+		end block
+		do expr.identifier :: id
+		ret expr
+	default
+		if('0' <= c & c <= '9')
+			ret @parseExprNumber(row, col, c)
+		end if
+		if('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | c = '_' | c = '@' | c = '\\')
+			do @fileBuf :: c
+			var id: []char :: @readIdentifier(true, true)
+			switch(id)
+			case "false"
+				ret @makePrimValue(pos, %bool_, 0b64)
+			case "true"
+				ret @makePrimValue(pos, %bool_, 1b64)
+			case "inf"
+				ret @makeFloatValue(pos, inf)
+			case "null"
+				var ast: \ast@AstExprValue :: #\ast@AstExprValue
+				do @initAstExpr(ast, %exprValue, pos)
+				block
+					var type: \ast@AstTypeNull :: #\ast@AstTypeNull
+					do @initAst(type, %typeNull, pos, null, false)
+					do ast.type :: type
+				end block
+				ret ast
+			case "dbg"
+				ret @makePrimValue(pos, %bool_, \option@rls ?(0b64, 1b64))
+			case "env"
+				do @assertNextChar('(', true)
+				do @assertNextChar('"', true)
+				var envName: []char :: @readIdentifier(false, false)
+				do @assertNextChar('"', false)
+				do @assertNextChar(')', true)
+				ret @makeStrValue(pos, \option@getEnvValue(envName))
+			default
+				var ast: \ast@AstExpr :: #\ast@AstExpr
+				do @initAstExpr(ast, %exprRef, pos)
+				do @addScopeRefeds(ast, id)
+				ret ast
+			end switch
+		end if
+	end switch
+	do @fileBuf :: c
+	ret null
+end func
+
+func parseExprNumber(row: int, col: int, c: char): \ast@AstExpr
+	var ast: \ast@AstExprValue
+	var pos: \pos@Pos :: \pos@make(@srcName, row, col)
+	var buf: []char :: #[1024]char
+	var len: int :: 0
+	var base: int :: 10
+	var changeBase: bool :: false
+	var floatType: bool :: false
+	var byteSize: int :: 0 {The size for bit types.}
+	while loop(true)
+		switch(c)
+		case 'x'
+			if(changeBase | floatType)
+				do \err@err(%wrongNumericLiteral, pos, ["x"])
+				do @readUntilRet(c)
+				ret null
+			end if
+			if(len <> 1 | buf[0] <> '0')
+				do \err@err(%wrongHexadecimalLiteral, pos, null)
+				do @readUntilRet(c)
+				ret null
+			end if
+			do len :: 0
+			do base :: 16
+			do changeBase :: true
+		case '.'
+			if(changeBase | floatType)
+				do \err@err(%wrongNumericLiteral, pos, ["."])
+				do @readUntilRet(c)
+				ret null
+			end if
+			if(len = 1024)
+				do \err@err(%tooLongNumericLiteral, pos, [buf.sub(0, len)])
+				do @readUntilRet(c)
+				ret null
+			end if
+			do buf[len] :: c
+			do len :+ 1
+			do floatType :: true
+		case '0' to '9', 'A' to 'F'
+			if(len = 1024)
+				do \err@err(%tooLongNumericLiteral, pos, [buf.sub(0, len)])
+				do @readUntilRet(c)
+				ret null
+			end if
+			do buf[len] :: c
+			do len :+ 1
+		default
+			do @fileBuf :: c
+			break loop
+		end switch
+		do c :: @read()
+	end while
+	if(len = 0 | buf[len - 1] = '.')
+		do \err@err(%wrongNumericLiteral, pos, ["."])
+		do @readUntilRet(@read())
+		ret null
+	end if
+	if(floatType)
+		do c :: @read()
+		if(c = 'e')
+			if(len = 1024)
+				do \err@err(%tooLongNumericLiteral, pos, [buf.sub(0, len)])
+				do @readUntilRet(c)
+				ret null
+			end if
+			do buf[len] :: c
+			do len :+ 1
+			do c :: @read()
+			if(c <> '+' & c <> '-')
+				do \err@err(%wrongExponentialNotationLiteral, pos, null)
+				do @readUntilRet(c)
+				ret null
+			end if
+			if(len = 1024)
+				do \err@err(%tooLongNumericLiteral, pos, [buf.sub(0, len)])
+				do @readUntilRet(c)
+				ret null
+			end if
+			do buf[len] :: c
+			do len :+ 1
+			do c :: @read()
+			if(!('0' <= c & c <= '9'))
+				do \err@err(%wrongExponentialNotationLiteral, pos, null)
+				do @readUntilRet(c)
+				ret null
+			end if
+			while('0' <= c & c <= '9', skip)
+				if(len = 1024)
+					do \err@err(%tooLongNumericLiteral, pos, [buf.sub(0, len)])
+					do @readUntilRet(c)
+					ret null
+				end if
+				do buf[len] :: c
+				do len :+ 1
+				do c :: @read()
+			end while
+		end if
+		do @fileBuf :: c
+		block
+			var success: bool
+			var value: float :: buf.sub(0, len).toFloat(&success)
+			if(!success)
+				do \err@err(%wrongFloatingPointLiteral, pos, [buf.sub(0, len)])
+				do @readUntilRet(@read())
+				ret null
+			end if
+			var ast2: \ast@AstExprValueFloat :: #\ast@AstExprValueFloat
+			do @initAstExpr(ast2, %exprValueFloat, pos)
+			do ast2.value :: value
+			do ast :: ast2
+		end block
+	else
+		do c :: @read()
+		if(c = 'b')
+			do c :: @read()
+			switch(c)
+			case '8'
+				do byteSize :: 1
+			case '1'
+				do @assertNextChar('6', false)
+				do byteSize :: 2
+			case '3'
+				do @assertNextChar('2', false)
+				do byteSize :: 4
+			case '6'
+				do @assertNextChar('4', false)
+				do byteSize :: 8
+			default
+				do \err@err(%wrongBitTypeLiteral, pos, [buf.sub(0, len)])
+				do @readUntilRet(c)
+			end switch
+		else
+			do @fileBuf :: c
+		end if
+		
+		block
+			var value: bit64
+			var success: bool
+			if(base = 10)
+				do value :: buf.sub(0, len).toBit64(&success)
+			else
+				assert base = 16
+				do value :: ("0x" ~ buf.sub(0, len)).toBit64(&success)
+			end if
+			if(!success)
+				do \err@err(%integerLiteralOverflowed, pos, [buf.sub(0, len)])
+				do @readUntilRet(@read())
+				ret null
+			end if
+			if(byteSize = 1 & value > 0xFFb64 | byteSize = 2 & value > 0xFFFFb64 | byteSize = 4 & value > 0xFFFFFFFFb64 | byteSize = 0 & value > lib@intMax $ bit64)
+				do \err@err(%integerLiteralOverflowed, pos, [buf.sub(0, len)])
+				do @readUntilRet(@read())
+				ret null
+			end if
+			
+			var ast2: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+			do @initAstExpr(ast2, %exprValuePrim, pos)
+			do ast2.value :: value
+			do ast :: ast2
+		end block
+	end if
+	if(byteSize = 0)
+		var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+		do @initAst(type, %typePrim, pos, null, false)
+		if(floatType)
+			do type.kind :: %float_
+		else
+			do type.kind :: %int_
+		end if
+		do ast.type :: type
+	else
+		var type: \ast@AstTypeBit :: #\ast@AstTypeBit
+		do @initAst(type, %typeBit, pos, null, false)
+		do type.size :: byteSize
+		do ast.type :: type
+	end if
+	ret ast
+end func
+
+func makePos(): \pos@Pos
+	ret \pos@make(@srcName, @row, @col)
+end func
+
+func initAst(ast: \ast@Ast, typeId: \ast@TypeId, pos: \pos@Pos, name: []char, setParent: bool)
+	assert ast <>$ \ast@AstExpr
+	do @initAstImpl(ast, typeId, pos, name, setParent)
+end func
+
+func initAstExpr(ast: \ast@AstExpr, typeId: \ast@TypeId, pos: \pos@Pos)
+	assert ast =$ \ast@AstExpr
+	do @initAstImpl(ast, typeId, pos, null, false)
+	do ast.type :: null
+	do ast.varKind :: %unknown
+end func
+
+func initAstImpl(ast: \ast@Ast, typeId: \ast@TypeId, pos: \pos@Pos, name: []char, setParent: bool)
+	do ast.typeId :: typeId
+	do ast.pos :: pos
+	do ast.name :: name
+	do ast.scopeParent :: null
+	do ast.scopeChildren :: null
+	do ast.refName :: null
+	do ast.refItem :: null
+	do ast.extra :: null
+	do ast.publicInSrc :: false
+	if(ast.name <>& null)
+		do @addScopeName(ast, true)
+	end if
+	if(setParent)
+		do ast.scopeParent :: @scope.peek()
+	end if
+end func
+
+func addScopeName(ast: \ast@Ast, refuseReserved: bool)
+	assert ast.name <>& null
+	if(refuseReserved & @isReserved(ast.name))
+		do \err@err(%sameIdentifierInSameScope, @makePos(), [ast.name])
+		ret
+	end if
+	var scope: \ast@Ast :: @scope.peek()
+	if(scope.scopeChildren.get(ast.name, &) <>& null)
+		do \err@err(%sameIdentifierInSameScope, @makePos(), [ast.name])
+	end if
+	
+	var parent: \ast@Ast :: scope
+	var overFunc: bool :: false
+	while loop(true)
+		if(parent.scopeParent =& null)
+			break loop
+		end if
+		if(parent.name <>& null & parent.name = ast.name & !((parent.typeId = %func_ & parent.refName <>& null)))
+			do \err@err(%sameIdentifierInUpperScope, @makePos(), [ast.name])
+			ret
+		end if
+		var child: \ast@Ast :: parent.scopeChildren.get(ast.name, &)
+		if(child <>& null)
+			var flag: bool :: false
+			if(overFunc)
+				if(child.typeId = %arg)
+					var kind: \ast@AstArgKind :: (child $ \ast@AstArg).kind
+					if(kind = %member | kind = %localVar | kind = %localArg)
+						do flag :: true
+					end if
+				end if
+				if(!flag & child.typeId.and(%statBreakable) = %statBreakable)
+					do flag :: true
+				end if
+			end if
+			if(!flag & child.typeId = %func_ & child.refName <>& null)
+				do flag :: true
+			end if
+			if(!flag)
+				do \err@err(%sameIdentifierInUpperScope, @makePos(), [ast.name])
+				ret
+			end if
+		end if
+		if(parent.typeId = %func_)
+			do overFunc :: true
+		end if
+		do parent :: parent.scopeParent
+	end while
+	do scope.scopeChildren.add(ast.name, ast)
+end func
+
++func isReserved(name: []char): bool
+	if(@reserved =& null)
+		do @reserved :: [
+		|"alias",
+		|"assert",
+		|"bit16",
+		|"bit32",
+		|"bit64",
+		|"bit8",
+		|"block",
+		|"bool",
+		|"break",
+		|"case",
+		|"catch",
+		|"char",
+		|"class",
+		|"const",
+		|"dbg",
+		|"default",
+		|"dict",
+		|"do",
+		|"elif",
+		|"else",
+		|"end",
+		|"enum",
+		|"env",
+		|"excode",
+		|"false",
+		|"finally",
+		|"float",
+		|"for",
+		|"func",
+		|"if",
+		|"include",
+		|"inf",
+		|"int",
+		|"list",
+		|"me",
+		|"null",
+		|"queue",
+		|"ret",
+		|"skip",
+		|"stack",
+		|"super",
+		|"switch",
+		|"throw",
+		|"to",
+		|"true",
+		|"try",
+		|"var",
+		|"while"]
+		
+		if(dbg)
+			for i(0, ^@reserved - 2)
+				assert @reserved[i] < @reserved[i + 1]
+			end for
+		end if
+	end if
+	ret @reserved.findBin(name) <> -1
+end func
+
+func readChar(): char
+	while loop(true)
+		var c: char :: @read()
+		if(c = '\n')
+			do c :: @readChar()
+			switch(c)
+			case '\n'
+				ret '\n'
+			case ';'
+				while(c <> '\n', skip)
+					do c :: @readBuf()
+					if(c = '\0')
+						ret '\0'
+					end if
+				end while
+				do @fileBuf :: c
+				skip loop
+			case '|'
+				ret @readChar()
+			end switch
+			do @fileBufTmp :: c
+			ret '\n'
+		end if
+		if(c <> ' ')
+			ret c
+		end if
+	end while
+end func
+
+func read(): char
+	var c: char :: @readBuf()
+	switch(c)
+	case '{'
+		do @readComment()
+		ret ' '
+	case '\t'
+		ret ' '
+	end switch
+	ret c
+end func
+
+func readBuf(): char
+	var c: char
+	if(@fileBuf = '\0')
+		if(@fileBufTmp = '\0')
+			while(c = '\u000D', skip)
+				if(@fileReadLetterFunc =& null)
+					do c :: @filePtr.term() ?('\0', @filePtr.readLetter())
+				else
+					do c :: @fileReadLetterFunc(@fileHandle)
+				end if
+			end while
+			if(c = '\n')
+				do @row :+ 1
+				do @col :: 0
+			elif(c = '\0')
+				if(!@fileLast)
+					do @fileLast :: true
+					do c :: '\n'
+					do @row :+ 1
+					do @col :: 0
+				end if
+			else
+				do @col :+ 1
+			end if
+		else
+			do c :: @fileBufTmp
+			do @fileBufTmp :: '\0'
+		end if
+	else
+		do c :: @fileBuf
+		do @fileBuf :: '\0'
+	end if
+	ret c
+end func
+
+func readComment()
+	var row: int :: @row
+	var col: int :: @col
+	var c: char
+	while(c <> '}', skip)
+		do c :: @read()
+		if(c = '\0')
+			do \err@err(%noBrace, \pos@make(@srcName, row, col), null)
+			ret
+		end if
+		if(c = '"')
+			var esc: bool :: false
+			while loop(true)
+				do c :: @readInStr()
+				if(c = '\0')
+					do \err@err(%noBrace, \pos@make(@srcName, row, col), null)
+					ret
+				end if
+				if(esc)
+					if(c = '{')
+						do @readComment()
+					end if
+					do esc :: false
+					skip loop
+				end if
+				if(c = '"')
+					break loop
+				end if
+				if(c = '\\')
+					do esc :: true
+				end if
+			end while
+		elif(c = '\'')
+			var esc: bool :: false
+			while loop(true)
+				do c :: @readInStr()
+				if(c = '\0')
+					do \err@err(%noBrace, \pos@make(@srcName, row, col), null)
+					ret
+				end if
+				if(esc)
+					do esc :: false
+					skip loop
+				end if
+				if(c = '\'')
+					break loop
+				end if
+				if(c = '\\')
+					do esc :: true
+				end if
+			end while
+		elif(c = ';')
+			while loop(true)
+				do c :: @readBuf()
+				if(c = '\0')
+					do \err@err(%noBrace, \pos@make(@srcName, row, col), null)
+					ret
+				end if
+				if(c = '\n')
+					break loop
+				end if
+			end while
+		end if
+	end while
+end func
+
+func readInStr(): char
+	while loop(true)
+		var c: char :: @readBuf()
+		switch(c)
+		case '\t'
+			do \err@err(%tabInStr, @makePos(), null)
+			skip loop
+		case '\n'
+			do \err@err(%lineBreakInStr, @makePos(), null)
+		end switch
+		ret c
+	end while
+end func
+
+func readIdentifier(skipSpaces: bool, refName: bool): []char
+	var c: char :: skipSpaces ?(@readChar(), @read())
+	if(!('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | c = '_' | refName & (c = '@' | c = '\\')))
+		do @fileBuf :: c
+		do \err@err(%wrongCharacterInIdentifier, @makePos(), [@charToStr(c)])
+		ret ""
+	end if
+	
+	var buf: []char :: #[128]char
+	var pos: int :: 0
+	var at: bool :: false
+	while('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | c = '_' | '0' <= c & c <= '9' | refName & (c = '@' | c = '\\'), skip)
+		switch(c)
+		case '@'
+			if(at)
+				do @fileBuf :: c
+				do \err@err(%wrongAtInIdentifier, @makePos(), null)
+				ret ""
+			end if
+			if(pos <> 0)
+				var srcName: []char :: buf.sub(0, pos)
+				for i(0, ^srcName - 1)
+					var c2: char :: srcName[i]
+					if('A' <= c2 & c2 <= 'Z')
+						do @fileBuf :: c
+						do \err@err(%uppercaseFileName, @makePos(), [srcName])
+						ret ""
+					end if
+				end for
+				do @addSrc(srcName)
+			end if
+			do at :: true
+		case '\\'
+			if(at)
+				do @fileBuf :: c
+				do \err@err(%wrongBackslashInIdentifier, @makePos(), null)
+				ret ""
+			end if
+		end switch
+		if(pos = 128)
+			do @fileBuf :: c
+			do \err@err(%tooLongIdentifier, @makePos(), [buf])
+			ret ""
+		end if
+		do buf[pos] :: c
+		do pos :+ 1
+		do c :: @read()
+	end while
+	do @fileBuf :: c
+	ret buf.sub(0, pos)
+end func
+
+func readUntilRet(c: char)
+	while(c <> '\n' & c <> '\0')
+		do c :: @read()
+	end while
+	do @fileBuf :: c
+end func
+
+func readFuncAttr(): []char
+	var c: char :: @readChar()
+	if(!('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | '0' <= c & c <= '9' | c = '_' | c = '.'))
+		do \err@err(%wrongCharacterInFuncAttr, @makePos(), [@charToStr(c)])
+		ret ""
+	end if
+	
+	var buf: []char :: #[128]char
+	var pos: int :: 0
+	while('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | '0' <= c & c <= '9' | c = '_' | c = '.', skip)
+		if(pos = 128)
+			do \err@err(%tooLongFuncAttr, @makePos(), [buf])
+			ret ""
+		end if
+		do buf[pos] :: c
+		do pos :+ 1
+		do c :: @read()
+	end while
+	do @fileBuf :: c
+	ret buf.sub(0, pos)
+end func
+
+func addSrc(name: []char)
+	var existence: bool
+	do @srcesNext.get(name, &existence)
+	if(!existence)
+		do @srcesNext.add(name, null)
+	end if
+end func
+
+func nextCharErr(c: char, c2: char)
+	do \err@err(%charShouldBeWritten, @makePos(), [@charToStr(c), @charToStr(c2)])
+	do @readUntilRet(c2)
+end func
+
+func assertNextChar(c: char, skipSpaces: bool)
+	var c2: char :: skipSpaces ?(@readChar(), @read())
+	if(c <> c2)
+		do @nextCharErr(c, c2)
+		do @fileBuf :: c2
+	end if
+end func
+
+func addScopeRefeds(ast: \ast@Ast, name: []char)
+	; 'RefName' added here will be resolved later.
+	do ast.refName :: name
+	var scopeRefedItem: \ast@ScopeRefedItem :: #\ast@ScopeRefedItem
+	do scopeRefedItem.def :: ast
+	do scopeRefedItem.scope :: @scope.peek()
+	do @scopeRefedItems.add(scopeRefedItem)
+end func
+
+func charToStr(c: char): []char
+	switch(c)
+	case '\0'
+		ret " "
+	case '\u000D'
+		assert false
+	case '\n'
+		ret "(RETURN)"
+	case '\t', ' '
+		ret "(SPACE)"
+	end switch
+	ret c.toStr()
+end func
+
+func obtainBlockName(ast: \ast@Ast)
+	var c: char :: @readChar()
+	if(c <> '(')
+		do @fileBuf :: c
+		do ast.name :: @readIdentifier(true, false)
+		do @addScopeName(ast, true)
+		do @assertNextChar('(', true)
+	else
+		do ast.name :: "$"
+	end if
+end func
+
+func pushDummyScope(ast: \ast@Ast)
+	var dummy: \ast@Ast :: #\ast@Ast
+	do @initAst(dummy, %none, null, null, true)
+	do @scope.peek().scopeChildren.add("$" ~ @uniqueCnt.toStr(), dummy)
+	do @uniqueCnt :+ 1
+	
+	do dummy.scopeChildren :: #dict<[]char, \ast@Ast>
+	do @scope.add(dummy)
+	
+	do ast.scopeParent :: dummy
+end func
+
+func parseDummyBlock(outStat: &\ast@AstStat, outTypeId: &\ast@TypeId, typeId: \ast@TypeId, block_: \ast@Ast): \ast@AstStatBlock
+	var ast: \ast@AstStatBlock :: #\ast@AstStatBlock
+	do @initAst(ast, %statBlock, @makePos(), null, false)
+	do ast.blockVar :: null
+	do ast.stats :: #list<\ast@AstStat>
+	do @pushDummyScope(ast)
+	do ast.name :: "$"
+	
+	while loop(true)
+		var stat: \ast@AstStat :: @parseStat(block_)
+		if(stat =& null)
+			if(@fileLast)
+				do outStat :: null
+				do outTypeId :: %statEnd
+				break loop
+			else
+				skip loop
+			end if
+		end if
+		
+		var endFlag: bool :: false
+		switch(typeId)
+		case %statIf
+			switch(stat.typeId)
+			case %statElIf, %statElse, %statEnd
+				do endFlag :: true
+			end switch
+		case %statElIf
+			switch(stat.typeId)
+			case %statElIf, %statElse, %statEnd
+				do endFlag :: true
+			end switch
+		case %statElse
+			switch(stat.typeId)
+			case %statElIf, %statElse
+				do \err@err(%elifOrElseAfterElse, @makePos(), null)
+				skip loop
+			case %statEnd
+				do endFlag :: true
+			end switch
+		case %statCase
+			switch(stat.typeId)
+			case %statCase, %statDefault, %statEnd
+				do endFlag :: true
+			end switch
+		case %statDefault
+			switch(stat.typeId)
+			case %statCase, %statDefault
+				do \err@err(%caseOrDefaultAfterDefault, @makePos(), null)
+				skip loop
+			case %statEnd
+				do endFlag :: true
+			end switch
+		case %statTry
+			switch(stat.typeId)
+			case %statCatch, %statFinally
+				do endFlag :: true
+			end switch
+		case %statCatch
+			switch(stat.typeId)
+			case %statCatch, %statFinally, %statEnd
+				do endFlag :: true
+			end switch
+		case %statFinally
+			switch(stat.typeId)
+			case %statCatch, %statFinally
+				do \err@err(%catchOrFinallyAfterFinally, @makePos(), null)
+				skip loop
+			case %statEnd
+				do endFlag :: true
+			end switch
+		default
+			assert false
+		end switch
+		if(endFlag)
+			do outStat :: stat
+			do outTypeId :: stat.typeId
+			break loop
+		end if
+		do ast.stats.add(stat)
+	end while
+	
+	if(@makeHint)
+		do @addEndPosScope()
+	end if
+	do @scope.get()
+	ret ast
+end func
+
+func makePrimValue(pos: \pos@Pos, kind: \ast@AstTypePrimKind, value: bit64): \ast@AstExprValuePrim
+	var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+	do @initAstExpr(expr, %exprValuePrim, pos)
+	block
+		var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+		do @initAst(type, %typePrim, pos, null, false)
+		do type.kind :: kind
+		do expr.type :: type
+	end block
+	do expr.value :: value
+	ret expr
+end func
+
+func makeStrValue(pos: \pos@Pos, value: []char): \ast@AstExprValueStr
+	var expr: \ast@AstExprValueStr :: #\ast@AstExprValueStr
+	do @initAstExpr(expr, %exprValueStr, pos)
+	block
+		var type: \ast@AstTypeArray :: #\ast@AstTypeArray
+		do @initAst(type, %typeArray, pos, null, false)
+		block
+			var type2: \ast@AstTypePrim :: #\ast@AstTypePrim
+			do @initAst(type2, %typePrim, pos, null, false)
+			do type2.kind :: %char_
+			do type.itemType :: type2
+		end block
+		do expr.type :: type
+	end block
+	do expr.value :: value
+	ret expr
+end func
+
+func makeFloatValue(pos: \pos@Pos, value: float): \ast@AstExprValueFloat
+	var expr: \ast@AstExprValueFloat :: #\ast@AstExprValueFloat
+	do @initAstExpr(expr, %exprValueFloat, pos)
+	block
+		var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+		do @initAst(type, %typePrim, pos, null, false)
+		do type.kind :: %float_
+		do expr.type :: type
+	end block
+	do expr.value :: value
+	ret expr
+end func
+
+func makeBlockVar(pos: \pos@Pos): \ast@AstArg
+	var arg: \ast@AstArg :: #\ast@AstArg
+	do @initAst(arg, %arg, pos, null, false)
+	do arg.kind :: %localVar
+	do arg.refVar :: false
+	do arg.type :: null
+	do arg.expr :: null
+	ret arg
+end func
+
+func escChar(c: char): char
+	switch(c)
+	case '"', '\'', '\\'
+		ret c
+	case '0'
+		ret '\0'
+	case 'n'
+		ret '\n'
+	case 't'
+		ret '\t'
+	case 'u'
+		var buf: []char :: #[6]char
+		do buf[0] :: '0'
+		do buf[1] :: 'x'
+		for i(0, 3)
+			do c :: @readInStr()
+			if(!('0' <= c & c <= '9' | 'A' <= c & c <= 'F'))
+				do \err@err(%wrongCharCodeRepresentation, @makePos(), null)
+				ret 'u'
+			end if
+			do buf[2 + i] :: c
+		end for
+		ret buf.toInt(&) $ char
+	default
+		do \err@err(%wrongEscSequence, @makePos(), [@charToStr(c)])
+		ret c
+	end switch
+end func
+
+func addEndPosScope()
+	assert @makeHint
+	; This is used for hints on the editor.
+	var dummy: \ast@Ast :: #\ast@Ast
+	do @initAst(dummy, %none, \pos@make(@srcName, @row - 1, 0), null, true)
+	do dummy.scopeChildren :: #dict<[]char, \ast@Ast>
+	do @scope.peek().scopeChildren.add("$E", dummy)
+end func

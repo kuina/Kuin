@@ -1,35 +1,41 @@
-+func [d0917.knd, InitCompiler] initCompiler(lang: int)
++func[d0917.knd, InitCompiler]initCompiler()
 end func
 
-+func [d0917.knd, FinCompiler] finCompiler()
++func[d0917.knd, FinCompiler]finCompiler()
 end func
 
-+func [d0917.knd, BuildMem] build(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, output: []char, icon: []char, relatedFiles: list<[]char>, rls_: bool, env_: []char, funcLog: func<([][]char, int, int)>, lang: int, appCode: int): bool
++func[d0917.knd, BuildMem]build(option: [][]char, funcGetSrc: func<([]char): [][]char>, funcLog: func<([][]char, int, int)>): bool
 end func
 
-+func [d0917.knd, Interpret1] interpret1(src: kuin@Class, line: int, me_: kuin@Class, replaceFunc: func<(kuin@Class, int, []char)>, cursorX: int, cursorY: int, newCursorX: &int, oldLine: int, newLine: int)
++func[d0917.knd, Interpret1]interpret1(src: kuin@Class, line: int, me_: kuin@Class, replaceFunc: func<(\doc_src@DocSrc, int, []char)>, cursorX: int, cursorY: int, newCursorX: &int, oldLine: int, newLine: int)
 end func
 
-+func [d0917.knd, Interpret2] interpret2(path: []char, funcGetSrc: func<([]char): [][]char>, sysDir: []char, env_: []char, funcLog: func<([][]char, int, int)>, lang: int): bool
++func[d0917.knd, Interpret2]interpret2(option: [][]char, funcGetSrc: func<([]char): [][]char>, funcLog: func<([][]char, int, int)>, funcComplete: func<()>, prioritizedCode: []char)
 end func
 
-+func [d0917.knd, Version] version(major: &int, minor: &int, micro: &int)
++func[d0917.knd, Version]version(major: &int, minor: &int, micro: &int)
 end func
 
-+func [d0917.knd, ResetMemAllocator] resetMemAllocator()
++func[d0917.knd, ResetMemAllocator]resetMemAllocator()
 end func
 
 ; TODO: +func [d0917.knd, GetHint] getHint(bufIdx: int, src: []char, row: int, keyword: []char, hintSrc: &[]char, hintRow: &int, hintCol: &int): []char
 ; end func
 
-+func [d0917.knd, GetKeywords] getKeywords(src: kuin@Class, srcName: []char, x: int, y: int, callback: func<([]char)>): []char
++func[d0917.knd, GetKeywords]getKeywords(src: kuin@Class, srcName: []char, x: int, y: int, callback: func<([]char)>): []char
 end func
 
-+func [d0917.knd, RunDbg] runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>, breakPointsFunc: func<()>, breakFunc: func<(int, \src@Pos, []char)>, dbgFunc: func<(int, []char, []char)>): bool
++func[d0917.knd, RunDbg]runDbg(name: []char, cmdLine: []char, idleFunc: func<()>, eventFunc: func<(int, []char): int>, breakPointsFunc: func<()>, breakFunc: func<(int, \src@Pos, []char)>, dbgFunc: func<(int, []char, []char)>): bool
 end func
 
-+func [d0917.knd, SetBreakPoints] setBreakPoints(breakPoints: []\src@Pos)
++func[d0917.knd, SetBreakPoints]setBreakPoints(breakPoints: []\src@Pos)
 end func
 
-+func [d0917.knd, Archive] archive(dst: []char, src: []char, appCode: int): bool
++func[d0917.knd, LockThread]lockThread()
+end func
+
++func[d0917.knd, Interpret2Running]interpret2Running(): bool
+end func
+
++func[d0917.knd, WaitEndOfInterpret2]waitEndOfInterpret2()
 end func

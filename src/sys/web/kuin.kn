@@ -1,0 +1,1228 @@
++const envCui: bit64 :: 0b64
++const envWnd: bit64 :: 1b64
+
++class Class()
+	func ctor()
+	end func
+	
+	func _dtor()
+	end func
+	
+	+func cmp(t: @Class): int
+		throw 0xE9170004
+	end func
+	
+	func _copy(): @Class
+	end func
+	
+	func _toBin(): []bit8
+	end func
+	
+	func _fromBin(bin: []bit8, idx: &int): @Class
+	end func
+	
+	+func toStr(): []char
+		ret ""
+	end func
+end class
+
+func _init()
+end func
+
+func _fin()
+end func
+
+func _err(excpt: int)
+	if(dbg)
+		excode "console.log('An error occurred: 0x'+`0`.toString(16));\n"
+		; TODO:
+	end if
+end func
+
+func _initVars()
+end func
+
+func _finVars()
+end func
+
++class ListPtr()
+	*func[__ndc]ctor()
+	end func
+	
+	var ptr: int
+end class
+
+func _absFloat(me_: float): float
+	ret me_ >= 0.0 ?(me_, -me_)
+end func
+
+func _absInt(me_: int): int
+	ret me_ >= 0 ?(me_, -me_)
+end func
+
+func[__any, __tkv]_addDict(me_: int, type: []int, key: int, item: int)
+	excode "DA_(`0`,`1`,`2`,`3`);\n"
+end func
+
+func[__any, __tch]_addList(me_: int, type: []int, item: int)
+	excode "let n_={P:null,N:null,I:`2`};\n"
+	excode "if(`0`.H==null){`0`.H=n_;`0`.T=n_}else{n_.P=`0`.T;`0`.T.N=n_;`0`.T=n_}\n"
+	excode "`0`.L++;\n"
+end func
+
+func[__any, __tch]_addQueue(me_: int, type: []int, item: int)
+	excode "`0`.push(`2`);\n"
+end func
+
+func[__any, __tch]_addStack(me_: int, type: []int, item: int)
+	excode "`0`.push(`2`);\n"
+end func
+
+func[__any, __tme, __rme]_and(me_: int, type: []int, n: int): int
+	excode "switch(`1`[0]){\n"
+	excode "case 0x07:\n"
+	excode "case 0x09:\n"
+	excode "return Uint32Array.from([`0`[0]&`2`[0],`0`[1]&`2`[1]]);\n"
+	excode "default:\n"
+	excode "return `0`&`2`;\n"
+	excode "}\n"
+end func
+
+func[__any]_del(me_: int, type: []int)
+	if(dbg)
+		excode "if(`0`.P==null)throw 0xe917000a;\n"
+	end if
+	excode "let p_=`0`.P;\n"
+	excode "if(p_.P==null)`0`.H=p_.N;else p_.P.N=p_.N;\n"
+	excode "if(p_.N==null)`0`.T=p_.P;else p_.N.P=p_.P;\n"
+	excode "`0`.P=p_.N;\n"
+	excode "`0`.L--;\n"
+end func
+
+func[__any, __tch]_delDict(me_: int, type: []int, key: int)
+	excode "DD_(`0`,`1`,`2`);\n"
+end func
+
+func[__any]_delNext(me_: int, type: []int)
+	if(dbg)
+		excode "if(`0`.P==null)throw 0xe917000a;\n"
+	end if
+	excode "let n_=`0`.P.N;\n"
+	if(dbg)
+		excode "if(n_==null)throw 0xe917000a;\n"
+	end if
+	excode "let m_=n_.N;\n"
+	excode "`0`.P.N=m_;\n"
+	excode "if(m_==null)`0`->T=`0`.P;else m_.P=`0`.P;\n"
+	excode "`0`.L--;\n"
+end func
+
+func[__any, __rme]_endian(me_: int, type: []int): int
+	excode "switch(`1`[0]){\n"
+	excode "case 0x04:return `0`;\n"
+	excode "case 0x05:return((`0`&0x00ff)<<8)|((`0`&0xff00)>>>8);\n"
+	excode "case 0x06:\n"
+	excode "`0`=((`0`&0x00ff00ff)<<8)|((`0`&0xff00ff00)>>>8);\n"
+	excode "return((`0`&0x0000ffff)<<16)|((`0`&0xffff0000)>>>16);\n"
+	excode "default:\n"
+	excode "let r_=Uint32Array.from([((`0`[0]&0x00ff00ff)<<8)|((`0`[0]&0xff00ff00)>>>8),((`0`[1]&0x00ff00ff)<<8)|((`0`[1]&0xff00ff00)>>>8)])\n"
+	excode "let n_=((r_[1]&0x0000ffff)<<16)|((r_[1]&0xffff0000)>>>16);\n"
+	excode "r_[1]=((r_[0]&0x0000ffff)<<16)|((r_[0]&0xffff0000)>>>16);\n"
+	excode "r_[0]=n_;\n"
+	excode "return r_\n"
+	excode "}\n"
+end func
+
+func[__any, __tch]_exist(me_: int, type: []int, key: int): bool
+	if(dbg)
+		excode "if(`2`===null)throw 0xc0000005;\n"
+	end if
+	excode "let n_=`0`.B,m_=CM_(`1`[1]);\n"
+	excode "while(n_!=null){\n"
+	excode "let c_=m_(`2`,n_.K);\n"
+	excode "if(c_==0)return true;\n"
+	excode "if(c_<0)n_=n_.CL;else n_=n_.CR;\n"
+	excode "}\n"
+	excode "return false;\n"
+end func
+
+func[__any, __tch]_fill(me_: int, type: []int, value: int)
+	excode "if(`1`[0]==0x81&&`1`[1]==0x02)\n"
+	excode "`0`.S=R_(String.fromCharCode(`2`),`0`.S.length);\n"
+	excode "else\n"
+	excode "`0`.fill(`2`);\n"
+end func
+
+func[__any, __tch]_findArray(me_: int, type: []int, item: int, start: int): int
+	excode "let n_;\n"
+	excode "if(`1`[0]==0x81)\n"
+	excode "n_=`0`.S.indexOf(String.fromCharCode(`2`),~~`3`[1]==-1?0:~~`3`[1]);\n"
+	excode "else{\n"
+	excode "n_=-1;\n"
+	excode "let m_=CM_(`1`[1]);\n"
+	excode "for(let i_=~~`3`[1]==-1?0:~~`3`[1];i_<`0`.length;i_++){\n"
+	excode "if(m_(`0`[i_],`2`)==0){n_=i_;break};\n"
+	excode "}\n"
+	excode "}\n"
+	excode "return Uint32Array.from([n_<0?-1:0,n_]);\n"
+end func
+
+func[__any, __tch]_findBin(me_: int, type: []int, item: int): int
+	excode "let a_=0,b_=`1`[1]==0x02?`0`.S.length-1:`0`.length-1,c_,m_,f_=CM_(`1`[1]);\n"
+	excode "while (a_<=b_){\n"
+	excode "c_=Math.floor((a_+b_)/2);\n"
+	excode "m_=f_(`2`,`1`[1]==0x02?`0`.S.charCodeAt(c_):`0`[c_]);\n"
+	excode "if(m_<0)b_=c_-1;\n"
+	excode "else if(m_>0)a_=c_+1;\n"
+	excode "else return Uint32Array.from([0,c_]);\n"
+	excode "}\n"
+	excode "return Uint32Array.from([-1,-1]);\n"
+end func
+
+func[__any, __tch]_findLastArray(me_: int, type: []int, item: int, start: int): int
+	excode "let n_;\n"
+	excode "if(`1`[0]==0x81)\n"
+	excode "n_=`0`.S.lastIndexOf(String.fromCharCode(`2`),~~`3`[1]==-1?`0`.S.length-1:~~`3`[1]);\n"
+	excode "else{\n"
+	excode "n_=-1;\n"
+	excode "let m_=CM_(`1`[1]);\n"
+	excode "for(let i_=~~`3`[1]==-1?`0`.length-1:~~`3`[1];i_>=0;i_--){\n"
+	excode "if(m_(`0`[i_],`2`)==0){n_=i_;break};\n"
+	excode "}\n"
+	excode "}\n"
+	excode "return Uint32Array.from([n_<0?-1:0,n_]);\n"
+end func
+
+func[__any, __tch]_findLastList(me_: int, type: []int, item: int): bool
+	excode "let m_=CM_(`1`[1]);\n"
+	excode "for(;;){\n"
+	excode "let c_=`0`.P;\n"
+	excode "if(c_==null)return false;\n"
+	excode "if(m_(`0`.P.I,`2`)==0)return true;\n"
+	excode "`0`.P=c_.P;\n"
+	excode "}\n"
+end func
+
+func[__any, __tch]_findList(me_: int, type: []int, item: int): bool
+	excode "let m_=CM_(`1`[1]);\n"
+	excode "for(;;){\n"
+	excode "let c_=`0`.P;\n"
+	excode "if(c_==null)return false;\n"
+	excode "if(m_(`0`.P.I,`2`)==0)return true;\n"
+	excode "`0`.P=c_.N;\n"
+	excode "}\n"
+end func
+
+func _findStr(me_: []char, pattern: []char, start: int): int
+	if(start = -1)
+		do start :: 0
+	end if
+	if(start < 0)
+		ret -1
+	end if
+	for i(start, ^me_ - ^pattern)
+		for j(0, ^pattern - 1)
+			if(me_[i + j] <> pattern[j])
+				skip i
+			end if
+		end for
+		ret i
+	end for
+	ret - 1
+end func
+
+func _findStrLast(me_: []char, pattern: []char, start: int): int
+	if(start = -1)
+		do start :: ^me_ - ^pattern
+	end if
+	if(^me_ <= start)
+		ret - 1
+	end if
+	for i(start < ^me_ - ^pattern ?(start, ^me_ - ^pattern), 0, -1)
+		for j(0, ^pattern - 1)
+			if(me_[i + j] <> pattern[j])
+				skip i
+			end if
+		end for
+		ret i
+	end for
+	ret - 1
+end func
+
+func _findStrEx(me_: []char, pattern: []char, start: int, fromLast: bool, ignoreCase: bool, wholeWord: bool): int
+	var f: func<(char, char): bool> :: ignoreCase ?(f1, f2)
+	if(fromLast)
+		if(start = -1)
+			do start :: ^me_ - ^pattern
+		end if
+		if(^me_ <= start)
+			ret - 1
+		end if
+		for i(start < ^me_ - ^pattern ?(start, ^me_ - ^pattern), 0, -1)
+			for j(0, ^pattern - 1)
+				if(!f(me_[i + j], pattern[j]))
+					skip i
+				end if
+			end for
+			if(wholeWord)
+				if(!chk(me_, i, ^pattern))
+					skip i
+				end if
+			end if
+			ret i
+		end for
+		ret - 1
+	else
+		if(start = -1)
+			do start :: 0
+		end if
+		if(start < 0)
+			ret -1
+		end if
+		for i(start, ^me_ - ^pattern)
+			for j(0, ^pattern - 1)
+				if(!f(me_[i + j], pattern[j]))
+					skip i
+				end if
+			end for
+			if(wholeWord)
+				if(!chk(me_, i, ^pattern))
+					skip i
+				end if
+			end if
+			ret i
+		end for
+		ret - 1
+	end if
+	
+	func f1(c1: char, c2: char): bool
+		if('A' <= c1 & c1 <= 'Z')
+			do c1 :: (c1 $ bit16 - 0x41b16 + 0x61b16) $ char
+		end if
+		if('A' <= c2 & c2 <= 'Z')
+			do c2 :: (c2 $ bit16 - 0x41b16 + 0x61b16) $ char
+		end if
+		ret c1 = c2
+	end func
+	
+	func f2(c1: char, c2: char): bool
+		ret c1 = c2
+	end func
+	
+	func chk(s: []char, pos: int, len: int): bool
+		if(pos > 0)
+			var c: char :: s[pos - 1]
+			if('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | '0' <= c & c <= '9' | c = '_')
+				ret false
+			end if
+		end if
+		if(pos + len < ^s)
+			var c: char :: s[pos + len]
+			if('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | '0' <= c & c <= '9' | c = '_')
+				ret false
+			end if
+		end if
+		ret true
+	end func
+end func
+
+func[__any, __kvf]_forEach(me_: int, type: []int, callback: int, data: @Class): bool
+	excode "return f_(`0`.B);\n"
+	excode "function f_(r_){\n"
+	excode "if(r_==null)return true;\n"
+	excode "if(!f_(r_.CL))return false;\n"
+	excode "if(!`2`(r_.K,r_.V,`3`))return false;\n"
+	excode "if(!f_(r_.CR))return false;\n"
+	excode "return true;\n"
+	excode "}\n"
+end func
+
+func[__any, __tch, __rch]_getDict(me_: int, type: []int, key: int, existed: &bool): int
+	if(dbg)
+		excode "if(`2`===null)throw 0xc0000005;\n"
+	end if
+	excode "let n_=`0`.B,m_=CM_(`1`[1]);\n"
+	excode "while(n_!=null){\n"
+	excode "let c_=m_(`2`,n_.K);\n"
+	excode "if(c_==0){`3`.$=true;return n_.V;}\n"
+	excode "if(c_<0)n_=n_.CL;else n_=n_.CR;\n"
+	excode "}\n"
+	excode "`3`.$=false;\n"
+	excode "return DV_(DT_(`1`.slice(1))[0]);\n"
+end func
+
+func[__any, __rch]_getList(me_: int, type: []int): int
+	if(dbg)
+		excode "if(`0`.P==null)throw 0xe917000a;\n"
+	end if
+	excode "return `0`.P.I;\n"
+end func
+
+func[__any, __rch]_getOffset(me_: int, type: []int, offset: int): int
+	excode "let p_=`0`.P;\n"
+	excode "if(`2`>=0){\n"
+	excode "for(let i_=0;i_<`2`;i_++){\n"
+	if(dbg)
+		excode "if(p_==null)throw 0xe917000a;\n"
+	end if
+	excode "p_=p_.N;\n"
+	excode "}\n"
+	excode "}else{\n"
+	excode "for(let i_=0;i_>`2`;i_--){\n"
+	if(dbg)
+		excode "if(p_==null)throw 0xe917000a;\n"
+	end if
+	excode "p_=p_.P;\n"
+	excode "}\n"
+	excode "}\n"
+	if(dbg)
+		excode "if(p_==null)throw 0xe917000a;\n"
+	end if
+	excode "return p_.I;\n"
+end func
+
+func[__any, __mki]_getPtr(me_: int, type: []int, me2: @ListPtr): @ListPtr
+	excode "`2`.`.ptr`=`0`.P;\n"
+	excode "return `2`;"
+end func
+
+func[__any, __rch]_getQueue(me_: int, type: []int): int
+	if(dbg)
+		excode "if(`0`.length==0)throw 0xe917000a;\n"
+	end if
+	excode "return `0`.shift();\n"
+end func
+
+func[__any, __rch]_getStack(me_: int, type: []int): int
+	if(dbg)
+		excode "if(`0`.length==0)throw 0xe917000a;\n"
+	end if
+	excode "return `0`.pop();\n"
+end func
+
+func[__any]_head(me_: int, type: []int)
+	excode "`0`.P=`0`.H;\n"
+end func
+
+func[__any]_idx(me_: int, type: []int): int
+	excode "let p_=`0`.H,i_=0;\n"
+	excode "if(`0`.P==null)return Uint32Array.from([-1,-1]);\n"
+	excode "while(p_!=null){\n"
+	excode "if(p_==`0`.P)return Uint32Array.from([0,i_])\n"
+	excode "i_++;\n"
+	excode "p_=p_.N;\n"
+	excode "}\n"
+	excode "return Uint32Array.from([-1,-1]);\n"
+end func
+
+func[__any, __tch]_ins(me_: int, type: []int, item: int)
+	if(dbg)
+		excode "if(`0`.P==null)throw 0xe917000a;\n"
+	end if
+	excode "let p_=`0`.P;\n"
+	excode "let n_={P:p_.P,N:p_,I:`2`}\n"
+	excode "if(p_.P==null)`0`.H=n_;else p_.P.N=n_;\n"
+	excode "if(`0`.T==null)`0`.T=n_;\n"
+	excode "p_.P=n_;\n"
+	excode "`0`.L++;\n"
+end func
+
+func _join(me_: [][]char, delimiter: []char): []char
+	var t: int :: ^delimiter * (^me_ - 1)
+	for i(0, ^me_ - 1)
+		do t :+ ^me_[i]
+	end for
+	var r: []char :: #[t]char
+	var p: int :: 0
+	for i(0, ^me_ - 1)
+		if(i <> 0)
+			for j(0, ^delimiter - 1)
+				do r[p] :: delimiter[j]
+				do p :+ 1
+			end for
+		end if
+		var s: []char :: me_[i]
+		for j(0, ^s - 1)
+			do r[p] :: s[j]
+			do p :+ 1
+		end for
+	end for
+	ret r
+end func
+
+func _lower(me_: []char): []char
+	var s: []char :: #[^me_]char
+	for i(0, ^me_ - 1)
+		if('A' <= me_[i] & me_[i] <= 'Z')
+			do s[i] :: (me_[i] $ bit64 - 0x41b64 + 0x61b64) $ char
+		else
+			do s[i] :: me_[i]
+		end if
+	end for
+	ret s
+end func
+
+func[__any, __rch]_max(me_: int, type: []int): int
+	excode "if(`1`[1]==0x02){\n"
+	excode "let l_=`0`.S.length,r_;\n"
+	excode "if(l_==0)return DV_(`1`[1]);\n"
+	excode "for(let i_=0;i_<l_;i_++){\n"
+	excode "let c_=`0`.S.charCodeAt(i_);\n"
+	excode "if(i_==0||r_<c_)r_=c_;\n"
+	excode "}\n"
+	excode "return r_;\n"
+	excode "}else{\n"
+	excode "let m_=CM_(`1`[1]),l_=`0`.length,r_;\n"
+	excode "if(l_==0)return DV_(`1`[1]);\n"
+	excode "for(let i_=0;i_<l_;i_++){\n"
+	excode "if(i_==0||m_(r_,`0`[i_])<0)r_=`0`[i_];\n"
+	excode "}\n"
+	excode "return r_;\n"
+	excode "}\n"
+end func
+
+func[__any, __rch]_min(me_: int, type: []int): int
+	excode "if(`1`[1]==0x02){\n"
+	excode "let l_=`0`.S.length,r_;\n"
+	excode "if(l_==0)return DV_(`1`[1]);\n"
+	excode "for(let i_=0;i_<l_;i_++){\n"
+	excode "let c_=`0`.S.charCodeAt(i_);\n"
+	excode "if(i_==0||r_>c_)r_=c_;\n"
+	excode "}\n"
+	excode "return r_;\n"
+	excode "}else{\n"
+	excode "let m_=CM_(`1`[1]),l_=`0`.length,r_;\n"
+	excode "if(l_==0)return DV_(`1`[1]);\n"
+	excode "for(let i_=0;i_<l_;i_++){\n"
+	excode "if(i_==0||m_(r_,`0`[i_])>0)r_=`0`[i_];\n"
+	excode "}\n"
+	excode "return r_;\n"
+	excode "}\n"
+end func
+
+func[__any]_moveOffset(me_: int, type: []int, offset: int)
+	excode "let o_=~~`2`[1];\n"
+	excode "if(o_>=0){\n"
+	excode "for(let i_=0;i_<o_;i_++){\n"
+	excode "if(`0`.P==null)break;\n"
+	excode "`0`.P=`0`.P.N;\n"
+	excode "}\n"
+	excode "}else{\n"
+	excode "for(let i_=0;i_>o_;i_--){\n"
+	excode "if(`0`.P==null)break;\n"
+	excode "`0`.P=`0`.P.P;\n"
+	excode "}\n"
+	excode "}\n"
+end func
+
+func _nan(me_: float): bool
+	excode "return isNaN(`0`);\n"
+end func
+
+func[__any]_next(me_: int, type: []int)
+	excode "if(`0`.P==null)return;\n"
+	excode "`0`.P=`0`.P.N;\n"
+end func
+
+func[__any, __rme]_not(me_: int, type: []int): int
+	excode "switch(`1`[0]){\n"
+	excode "case 0x04:\n"
+	excode "return(~`0`)&0xff;\n"
+	excode "case 0x05:\n"
+	excode "return(~`0`)&0xffff;\n"
+	excode "case 0x06:\n"
+	excode "return ~`0`;\n"
+	excode "default:"
+	excode "return Uint32Array.from([~`0`[0],~`0`[1]]);\n"
+	excode "}\n"
+end func
+
+func _offset(me_: char, n: int): char
+	ret(me_ $ bit64 + n $ bit64) $ char
+end func
+
+func[__any, __tme, __rme]_or(me_: int, type: []int, n: int): int
+	excode "switch(`1`[0]){\n"
+	excode "case 0x07:\n"
+	excode "case 0x09:\n"
+	excode "return Uint32Array.from([`0`[0]|`2`[0],`0`[1]|`2`[1]]);\n"
+	excode "default:\n"
+	excode "return `0`|`2`;\n"
+	excode "}\n"
+end func
+
+func[__any, __rch]_peekQueue(me_: int, type: []int): int
+	if(dbg)
+		excode "if(`0`.length==0)throw 0xe917000a;\n"
+	end if
+	excode "return `0`[0];\n"
+end func
+
+func[__any, __rch]_peekStack(me_: int, type: []int): int
+	if(dbg)
+		excode "if(`0`.length==0)throw 0xe917000a;\n"
+	end if
+	excode "return `0`[`0`.length-1];\n"
+end func
+
+func[__any]_prev(me_: int, type: []int)
+	excode "if(`0`.P==null)return;\n"
+	excode "`0`.P=`0`.P.P;\n"
+end func
+
+func[__any, __rme]_repeat(me_: int, type: []int, len: int): int
+	if(dbg)
+		if(len < 0)
+			throw 0xE9170006
+		end if
+	end if
+	excode "if(`1`[1]==0x02)return{S:R_(`0`.S,`2`[1])};\n"
+	excode "let l_=`0`.length,r_=new Array(l_*`2`[1]);\n"
+	excode "for(let i_=0;i_<`2`[1];i_++){\n"
+	excode "for(let j_=0;j_<l_;j_++)r_[i_*l_+j_]=`0`[j_];\n"
+	excode "}\n"
+	excode "return r_;\n"
+end func
+
+func _replace(me_: []char, old: []char, new: []char): []char
+	if(^old=0)
+		ret me_
+	end if
+	var r: []char :: ""
+	var p: int :: 0
+	while loop(p < ^me_)
+		var p2: int :: me_.findStr(old, p)
+		if(p2 = -1)
+			do r :~ me_.sub(p, -1)
+			break loop
+		end if
+		do r :~ me_.sub(p, p2 - p) ~ new
+		do p :: p2 + ^old
+	end while
+	ret r
+end func
+
+func[__any]_reverse(me_: int, type: []int)
+	excode "if(`1`[1]==0x02)\n"
+	excode "`0`.S=`0`.S.split(\"\").reverse().join(\"\");\n"
+	excode "else\n"
+	excode "`0`.reverse();\n"
+end func
+
+func[__any, __rme]_sar(me_: int, type: []int, n: int): int
+	excode "switch(`1`[0]){\n"
+	excode "case 0x04:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=8)throw 0xe9170006;\n"
+	end if
+	excode "return `0`<<24>>`2`[1]>>>24;\n"
+	excode "case 0x05:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=16)throw 0xe9170006;\n"
+	end if
+	excode "return `0`<<16>>`2`[1]>>>16;\n"
+	excode "case 0x06:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=32)throw 0xe9170006;\n"
+	end if
+	excode "return `0`>>`2`[1];\n"
+	excode "default:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=64)throw 0xe9170006;\n"
+	end if
+	excode "if(`2`[1]>=32)\n"
+	excode "return Uint32Array.from([`0`[0]&0x80000000?-1:0,`0`[0]>>(`2`[1]-32)]);\n"
+	excode "else\n"
+	excode "return `2`[1]?Uint32Array.from([`0`[0]>>`2`[1],(`0`[1]>>>`2`[1])|(`0`[0]<<(32-`2`[1]))]):`0`;\n"
+	excode "}\n"
+end func
+
+func[__any]_setPtr(me_: int, type: []int, ptr: @ListPtr)
+	excode "`0`.P=`2`.`.ptr`;\n"
+end func
+
+func[__any, __rme]_shl(me_: int, type: []int, n: int): int
+	excode "switch(`1`[0]){\n"
+	excode "case 0x04:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=8)throw 0xe9170006;\n"
+	end if
+	excode "return(`0`<<`2`[1])&0xff;\n"
+	excode "case 0x05:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=16)throw 0xe9170006;\n"
+	end if
+	excode "return(`0`<<`2`[1])&0xffff;\n"
+	excode "case 0x06:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=32)throw 0xe9170006;\n"
+	end if
+	excode "return `0`<<`2`[1];\n"
+	excode "default:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=64)throw 0xe9170006;\n"
+	end if
+	excode "if(`2`[1]>=32)\n"
+	excode "return Uint32Array.from([`0`[1]<<(`2`[1]-32),0]);\n"
+	excode "else\n"
+	excode "return `2`[1]?Uint32Array.from([(`0`[0]<<`2`[1])|(`0`[1]>>>(32-`2`[1])),`0`[1]<<`2`[1]]):`0`;\n"
+	excode "}\n"
+end func
+
+func[__any, __rme]_shr(me_: int, type: []int, n: int): int
+	excode "switch(`1`[0]){\n"
+	excode "case 0x04:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=8)throw 0xe9170006;\n"
+	end if
+	excode "return `0`>>>`2`[1];\n"
+	excode "case 0x05:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=16)throw 0xe9170006;\n"
+	end if
+	excode "return `0`>>>`2`[1];\n"
+	excode "case 0x06:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=32)throw 0xe9170006;\n"
+	end if
+	excode "return `0`>>>`2`[1];\n"
+	excode "default:\n"
+	if(dbg)
+		excode "if(`2`[0]!=0||`2`[1]>=64)throw 0xe9170006;\n"
+	end if
+	excode "if(`2`[1]>=32)\n"
+	excode "return Uint32Array.from([0,`0`[0]>>>(`2`[1]-32)]);\n"
+	excode "else\n"
+	excode "return `2`[1]?Uint32Array.from([`0`[0]>>>`2`[1],(`0`[1]>>>`2`[1])|(`0`[0]<<(32-`2`[1]))]):`0`;\n"
+	excode "}\n"
+end func
+
+func _signFloat(me_: float): float
+	ret me_ > 0.0 ?(1.0, me_ < 0.0 ?(-1.0, 0.0))
+end func
+
+func _signInt(me_: int): int
+	ret me_ > 0 ?(1, me_ < 0 ?(-1, 0))
+end func
+
+func[__any]_sort(me_: int, type: []int)
+	excode "if(`1`[1]==0x02)\n"
+	excode "`0`.S=`0`.S.split(\"\").sort().join(\"\");\n"
+	excode "else if(`1`[1]==0x81)\n"
+	excode "`0`.sort();\n"
+	excode "else\n"
+	excode "`0`.sort(CM_(`1`[1]));\n"
+end func
+
+func _split(me_: []char, delimiter: []char): [][]char
+	if(dbg)
+		if(^delimiter = 0)
+			throw 0xE9170006
+		end if
+	end if
+	var result: list<[]char> :: #list<[]char>
+	var p: int :: 0
+	while(true)
+		var p2: int :: me_.findStr(delimiter, p)
+		if(p2 = -1)
+			do result.add(me_.sub(p, -1))
+			ret result.toArray()
+		end if
+		do result.add(me_.sub(p, p2 - p))
+		do p :: p2 + ^delimiter
+	end while
+end func
+
+func[__any, __rme]_sub(me_: int, type: []int, start: int, len: int): int
+	excode "if(`1`[0]==0x81&&`1`[1]==0x02){\n"
+	if(dbg)
+		excode "let s_=~~`2`[1],l_=~~`3`[1];\n"
+		excode "if(l_==-1)l_=`0`.S.length-s_;\n"
+		excode "if(s_<0||l_<0||s_+l_>`0`.S.length)throw 0xe9170006;\n"
+	end if
+	excode "return {S:~~`3`[1]==-1?`0`.S.slice(~~`2`[1]):`0`.S.slice(~~`2`[1],~~`2`[1]+~~`3`[1])};\n"
+	excode "}else{\n"
+	if(dbg)
+		excode "let s_=~~`2`[1],l_=~~`3`[1];\n"
+		excode "if(l_==-1)l_=`0`.length-s_;\n"
+		excode "if(s_<0||l_<0||s_+l_>`0`.length)throw 0xe9170006;\n"
+	end if
+	excode "return ~~`3`[1]==-1?`0`.slice(~~`2`[1]):`0`.slice(~~`2`[1],~~`2`[1]+~~`3`[1]);\n"
+	excode "}\n"
+end func
+
+func[__any]_tail(me_: int, type: []int)
+	excode "`0`.P=`0`.T;\n"
+end func
+
+func[__any]_term(me_: int, type: []int): bool
+	excode "return `0`.P==null;\n"
+end func
+
+func[__any]_termOffset(me_: int, type: []int, offset: int): bool
+	excode "let p_=`0`.P,o_=~~`2`[1];\n"
+	excode "if(p_==null)return true;\n"
+	excode "if(o_>=0){\n"
+	excode "for(let i_=0;i_<o_;i_++){\n"
+	excode "p_=p_.N;\n"
+	excode "if(p_==null)return true;\n"
+	excode "}\n"
+	excode "}else{\n"
+	excode "for(let i_=0;i_>o_;i_--){\n"
+	excode "p_=p_.P;\n"
+	excode "if(p_==null)return true;\n"
+	excode "}\n"
+	excode "}\n"
+	excode "return false;\n"
+end func
+
+func[__any, __rac]_toArray(me_: int, type: []int): int
+	excode "if(`1`[1]==0x02){\n"
+	excode "let s_=\"\",e_=`0`.H;\n"
+	excode "for(let i_=0;i_<`0`.L;i_++){\n"
+	excode "s_+=String.fromCharCode(e_.I);\n"
+	excode "e_=e_.N;\n"
+	excode "}\n"
+	excode "return{S:s_};\n"
+	excode "}\n"
+	excode "let a_=new Array(`0`.L),e_=`0`.H;\n"
+	excode "for(let i_=0;i_<`0`.L;i_++){\n"
+	excode "a_[i_]=e_.I;\n"
+	excode "e_=e_.N;\n"
+	excode "}\n"
+	excode "return a_;\n"
+end func
+
+func _toBit64(me_: []char, success: &bool): bit64
+	excode "if(`0`.S.length>=2&&`0`.S[0]==\"0\"&&`0`.S[1]==\"x\"){\n"
+	excode "let r_=Number(`0`.S);\n"
+	excode "`1`.$=!isNaN(r_);\n"
+	excode "let s_=`0`.S.slice(2),n1_=s_.length>=9?parseInt(s_.slice(0,s_.length-8),16):0,n2_=parseInt(s_.length>=9?s_.slice(s_.length-8):s_,16);\n"
+	excode "return Uint32Array.from([n1_,n2_]);\n"
+	excode "}else{\n"
+	excode "let r_=Number(`0`.S);\n"
+	excode "`1`.$=!isNaN(r_);\n"
+	excode "let s_=`0`.S,n1_=s_.length>=10?parseInt(s_.slice(0,s_.length-9),10):0,n2_=parseInt(s_.length>=10?s_.slice(s_.length-9):s_,10);\n"
+	excode "let x_=Uint32Array.from([0,n2_]),y_=Uint32Array.from([0,0x3b9aca00]),z_=Uint32Array.from([0,1000000000]);\n"
+	excode "while(n1_>0){\n"
+	excode "let w_=Uint32Array.from([0,n1_%1000000000]);\n"
+	excode "n1_=Math.floor(n1_/1000000000);\n"
+	excode "FA_(x_,NM_(w_,y_));\n"
+	excode "y_=NM_(y_,z_);\n"
+	excode "}\n"
+	excode "return x_;\n"
+	excode "}\n"
+end func
+
+func _toFloat(me_: []char, success: &bool): float
+	excode "let r_=Number(`0`.S);\n"
+	excode "`1`.$=!isNaN(r_);\n"
+	excode "return r_;\n"
+end func
+
+func _toInt(me_: []char, success: &bool): int
+	; TODO: Sign
+	excode "if(`0`.S.length>=2&&`0`.S[0]==\"0\"&&`0`.S[1]==\"x\"){\n"
+	excode "let r_=Number(`0`.S);\n"
+	excode "`1`.$=!isNaN(r_);\n"
+	excode "let s_=`0`.S.slice(2),n1_=s_.length>=9?parseInt(s_.slice(0,s_.length-8),16):0,n2_=parseInt(s_.length>=9?s_.slice(s_.length-8):s_,16);\n"
+	excode "return Uint32Array.from([n1_,n2_]);\n"
+	excode "}else{\n"
+	excode "let r_=Number(`0`.S);\n"
+	excode "`1`.$=!isNaN(r_);\n"
+	excode "let s_=`0`.S,n1_=s_.length>=10?parseInt(s_.slice(0,s_.length-9),10):0,n2_=parseInt(s_.length>=10?s_.slice(s_.length-9):s_,10);\n"
+	excode "let x_=Uint32Array.from([0,n2_]),y_=Uint32Array.from([0,0x3b9aca00]),z_=Uint32Array.from([0,1000000000]);\n"
+	excode "while(n1_>0){\n"
+	excode "let w_=Uint32Array.from([0,n1_%1000000000]);\n"
+	excode "n1_=Math.floor(n1_/1000000000);\n"
+	excode "FA_(x_,NM_(w_,y_));\n"
+	excode "y_=NM_(y_,z_);\n"
+	excode "}\n"
+	excode "return x_;\n"
+	excode "}\n"
+end func
+
+func[__any]_toStr(me_: int, type: []int): []char
+	excode "let n_,s_,x_;\n"
+	excode "switch(`1`[0]){\n"
+	excode "case 0x00:\n"
+	excode "x_=`0`;\n"
+	excode "if(s_=(x_[0]&0x80000000)){x_=Uint32Array.from([~x_[0]+(x_[1]?0:1),~x_[1]+1])}\n"
+	excode "n_=DO_(x_,Uint32Array.from([2,0x540be400]));\n"
+	excode "return{S:(s_?\"-\":\"\")+(n_[0][1]?n_[0][1].toString(10)+(\"0000000000\"+(n_[1][0]*0x100000000+n_[1][1]).toString(10)).slice(-10):(n_[1][0]*0x100000000+n_[1][1]).toString(10))};\n"
+	excode "case 0x01:\n"
+	excode "return{S:`0`.toString(10)};\n"
+	excode "case 0x02:\n"
+	excode "return{S:String.fromCharCode(`0`)};\n"
+	excode "case 0x03:\n"
+	excode "return{S:`0`?\"true\":\"false\"};\n"
+	excode "case 0x04:\n"
+	excode "return{S:\"0x\"+(\"00\"+`0`.toString(16)).slice(-2).toUpperCase()};\n"
+	excode "case 0x05:\n"
+	excode "return{S:\"0x\"+(\"0000\"+`0`.toString(16)).slice(-4).toUpperCase()};\n"
+	excode "case 0x06:\n"
+	excode "return{S:\"0x\"+(\"00000000\"+((`0`>>>31)*0x100000000+~~`0`).toString(16)).slice(-8).toUpperCase()};\n"
+	excode "case 0x07:\n"
+	excode "return{S:\"0x\"+(\"00000000\"+`0`[0].toString(16)).slice(-8).toUpperCase()+(\"00000000\"+`0`[1].toString(16)).slice(-8).toUpperCase()};\n"
+	excode "case 0x81:\n"
+	excode "return `0`;\n"
+	excode "}\n"
+end func
+
+func _toStrFmtFloat(me_: float, fmt: []char): []char
+	var plus: bool :: false
+	var space: bool :: false
+	var minus: bool :: false
+	var zero: bool :: false
+	var len1: int :: 0
+	var len2: int :: 6
+	var type: char :: '\0'
+	var idx: int :: 0
+	if(idx < ^fmt)
+		if(fmt[idx] = '+')
+			do plus :: true
+			do idx :+ 1
+		elif(fmt[idx] = ' ')
+			do space :: true
+			do idx :+ 1
+		end if
+	end if
+	if(idx < ^fmt)
+		if(fmt[idx] = '-')
+			do minus :: true
+			do idx :+ 1
+		elif(fmt[idx] = '0')
+			do zero :: true
+			do idx :+ 1
+		end if
+	end if
+	if(idx < ^fmt & '1' <= fmt[idx] & fmt[idx] <= '9')
+		do len1 :: fmt[idx] $ int - '0' $ int
+		do idx :+ 1
+		if(idx < ^fmt & '0' <= fmt[idx] & fmt[idx] <= '9')
+			do len1 :: len1 * 10 + fmt[idx] $ int - '0' $ int
+			do idx :+ 1
+			if(idx < ^fmt & '0' <= fmt[idx] & fmt[idx] <= '9')
+				do len1 :: len1 * 10 + fmt[idx] $ int - '0' $ int
+				do idx :+ 1
+			end if
+		end if
+	end if
+	if(idx < ^fmt & fmt[idx] = '.')
+		do idx :+ 1
+		if(idx < ^fmt & '0' <= fmt[idx] & fmt[idx] <= '9')
+			do len2 :: fmt[idx] $ int - '0' $ int
+			do idx :+ 1
+			if(idx < ^fmt & '0' <= fmt[idx] & fmt[idx] <= '9')
+				do len2 :: len2 * 10 + fmt[idx] $ int - '0' $ int
+				do idx :+ 1
+				if(idx < ^fmt & '0' <= fmt[idx] & fmt[idx] <= '9')
+					do len2 :: len2 * 10 + fmt[idx] $ int - '0' $ int
+					do idx :+ 1
+				end if
+			end if
+		end if
+	end if
+	if(idx = ^fmt - 1)
+		switch c(fmt[idx])
+		case 'f', 'e', 'E', 'g', 'G'
+			do type :: c
+		end switch
+	end if
+	if(type = '\0')
+		if(dbg)
+			throw 0xE9170006
+		end if
+		ret null
+	end if
+	
+	var sign: []char
+	var value: float
+	if(me_.nan())
+		do sign :: "-"
+		do value :: me_
+		do zero :: false
+	elif(me_ < 0.0)
+		do sign :: "-"
+		do value :: -me_
+	else
+		do sign :: plus ?("+", space ?(" ", ""))
+		do value :: me_
+	end if
+	if(value = inf)
+		do zero :: false
+	end if
+	var s: []char
+	switch t(type)
+	case 'f'
+		do s :: @toStrFImpl(value, len2)
+	case 'e', 'E'
+		do s :: @toStrEImpl(value, len2, t = 'E')
+	case 'g', 'G'
+		var s1: []char
+		var s2: []char
+		do s1 :: @toStrFImpl(value, len2)
+		do s2 :: @toStrEImpl(value, len2, t = 'G')
+		do s :: ^s1 <= ^s2 ?(s1, s2)
+	end switch
+	var padding: int :: len1 - (^sign + ^s)
+	if(padding < 0)
+		do padding :: 0
+	end if
+	if(minus)
+		do s :: sign ~ s ~ " ".repeat(padding)
+	elif(zero)
+		do s :: sign ~ "0".repeat(padding) ~ s
+	else
+		do s :: " ".repeat(padding) ~ sign ~ s
+	end if
+	ret s
+end func
+
+func _toStrFmtInt(me_: int, fmt: []char): []char
+	var plus: bool :: false
+	var space: bool :: false
+	var minus: bool :: false
+	var zero: bool :: false
+	var len: int :: 0
+	var type: char :: '\0'
+	var idx: int :: 0
+	if(idx < ^fmt)
+		if(fmt[idx] = '+')
+			do plus :: true
+			do idx :+ 1
+		elif(fmt[idx] = ' ')
+			do space :: true
+			do idx :+ 1
+		end if
+	end if
+	if(idx < ^fmt)
+		if(fmt[idx] = '-')
+			do minus :: true
+			do idx :+ 1
+		elif(fmt[idx] = '0')
+			do zero :: true
+			do idx :+ 1
+		end if
+	end if
+	if(idx < ^fmt & '1' <= fmt[idx] & fmt[idx] <= '9')
+		do len :: fmt[idx] $ int - '0' $ int
+		do idx :+ 1
+		if(idx < ^fmt & '0' <= fmt[idx] & fmt[idx] <= '9')
+			do len :: len * 10 + fmt[idx] $ int - '0' $ int
+			do idx :+ 1
+			if(idx < ^fmt & '0' <= fmt[idx] & fmt[idx] <= '9')
+				do len :: len * 10 + fmt[idx] $ int - '0' $ int
+				do idx :+ 1
+			end if
+		end if
+	end if
+	if(idx = ^fmt - 1)
+		switch c(fmt[idx])
+		case 'd', 'x', 'X', 'u', 'o', 'b'
+			do type :: c
+		end switch
+	end if
+	if(type = '\0')
+		if(dbg)
+			throw 0xE9170006
+		end if
+		ret null
+	end if
+	
+	var sign: []char
+	var value: bit64
+	if(type = 'd' & me_ < 0)
+		do sign :: "-"
+		do value :: (-me_) $ bit64
+	else
+		do sign :: plus ?("+", space ?(" ", ""))
+		do value :: me_ $ bit64
+	end if
+	var base: bit64
+	switch(type)
+	case 'd'
+		do base :: 10b64
+	case 'x', 'X'
+		do base :: 16b64
+	case 'u'
+		do base :: 10b64
+	case 'o'
+		do base :: 8b64
+	case 'b'
+		do base :: 2b64
+	end switch
+	var s: []char :: ""
+	while(value > 0b64)
+		var r: bit64 :: value % base
+		do value :/ base
+		var c: char
+		if(r <= 9b64)
+			do c :: ('0' $ bit64 + r) $ char
+		elif(type = 'x')
+			do c :: ('a' $ bit64 + (r - 10b64)) $ char
+		else
+			do c :: ('A' $ bit64 + (r - 10b64)) $ char
+		end if
+		do s :: c.toStr() ~ s
+	end while
+	if(^s = 0)
+		do s :: "0"
+	end if
+	var padding: int :: len - (^sign + ^s)
+	if(padding < 0)
+		do padding :: 0
+	end if
+	if(minus)
+		do s :: sign ~ s ~ " ".repeat(padding)
+	elif(zero)
+		do s :: sign ~ "0".repeat(padding) ~ s
+	else
+		do s :: " ".repeat(padding) ~ sign ~ s
+	end if
+	ret s
+end func
+
+func _trim(me_: []char): []char
+	var f: int :: -1
+	for i(0, ^me_ - 1)
+		var c: bit64 :: me_[i] $ bit64
+		if(!(c <= 0x20b64 | c = 0xA0b64))
+			do f :: i
+			break i
+		end if
+	end for
+	if(f = -1)
+		ret me_
+	end if
+	var l: int :: -1
+	for i(^me_ - 1, 0, -1)
+		var c: bit64 :: me_[i] $ bit64
+		if(!(c <= 0x20b64 | c = 0xA0b64))
+			do l :: i
+			break i
+		end if
+	end for
+	var r: []char :: #[l - f + 1]char
+	for i(0, l - f)
+		do r[i] :: me_[f + i]
+	end for
+	ret r
+end func
+
+func _trimLeft(me_: []char): []char
+	var f: int :: -1
+	for i(0, ^me_ - 1)
+		var c: bit64 :: me_[i] $ bit64
+		if(!(c <= 0x20b64 | c = 0xA0b64))
+			do f :: i
+			break i
+		end if
+	end for
+	if(f = -1)
+		ret me_
+	end if
+	var r: []char :: #[^me_ - f]char
+	for i(0, ^me_ - f - 1)
+		do r[i] :: me_[f + i]
+	end for
+	ret r
+end func
+
+func _trimRight(me_: []char): []char
+	var l: int :: -1
+	for i(^me_ - 1, 0, -1)
+		var c: bit64 :: me_[i] $ bit64
+		if(!(c <= 0x20b64 | c = 0xA0b64))
+			do l :: i
+			break i
+		end if
+	end for
+	if(l = -1)
+		ret me_
+	end if
+	var r: []char :: #[l + 1]char
+	for i(0, l)
+		do r[i] :: me_[i]
+	end for
+	ret r
+end func
+
+func _upper(me_: []char): []char
+	var s: []char :: #[^me_]char
+	for i(0, ^me_ - 1)
+		if('a' <= me_[i] & me_[i] <= 'z')
+			do s[i] :: (me_[i] $ bit64 - 0x61b64 + 0x41b64) $ char
+		else
+			do s[i] :: me_[i]
+		end if
+	end for
+	ret s
+end func
+
+func[__any, __tme, __rme]_xor(me_: int, type: []int, n: int): int
+	excode "switch(`1`[0]){\n"
+	excode "case 0x07:\n"
+	excode "case 0x09:\n"
+	excode "return Uint32Array.from([`0`[0]^`2`[0],`0`[1]^`2`[1]]);\n"
+	excode "default:\n"
+	excode "return `0`^`2`;\n"
+	excode "}\n"
+end func
+
+func toStrFImpl(value: float, len: int): []char
+	if(value.nan())
+		ret "nan"
+	elif(value = inf)
+		ret "inf"
+	end if
+	var s: []char :: ""
+	do value :+ 0.5 * 10.0 ^ -(len $ float)
+	var v1: float :: lib@floor(value)
+	var v2: float :: value - v1
+	while(v1 >= 1.0)
+		var c: char :: ('0' $ int + (v1 % 10.0) $ int) $ char
+		do v1 :/ 10.0
+		do s :: c.toStr() ~ s
+	end while
+	if(^s = 0)
+		do s :: "0"
+	end if
+	for i(0, len - 1)
+		do v2 :* 10.0
+		var c: char :: ('0' $ int + v2 $ int) $ char
+		do v2 :- lib@floor(v2)
+		do s :~ (i = 0 ?(".", "")) ~ c.toStr()
+	end for
+	ret s
+end func
+
+func toStrEImpl(value: float, len: int, large: bool): []char
+	if(value.nan())
+		ret large ?("NAN", "nan")
+	elif(value = inf)
+		ret large ?("INF", "inf")
+	elif(value = 0.0)
+		ret "0" ~ (len > 0 ?(".", "")) ~ "0".repeat(len) ~ (large ?("E", "e")) ~ "+0"
+	end if
+	var e: int :: lib@log(10.0, value) $ int
+	if((value / 10.0 ^ (e $ float)) $ int = 0)
+		do e :- 1
+	end if
+	do value :/ 10.0 ^ (e $ float)
+	do value :+ 0.5 * 10.0 ^ -(len $ float)
+	if(value $ int = 10)
+		do value :/ 10.0
+		do e :+ 1
+	end if
+	var s: []char :: (('0' $ int + value $ int) $ char).toStr()
+	do value :- lib@floor(value)
+	for i(0, len - 1)
+		do value :* 10.0
+		var c: char :: ('0' $ int + value $ int) $ char
+		do value :- lib@floor(value)
+		do s :~ (i = 0 ?(".", "")) ~ c.toStr()
+	end for
+	do s :~ (large ?("E", "e")) ~ (e >= 0 ?("+", "-")) ~ (e >= 0 ?(e, -e)).toStr()
+	ret s
+end func

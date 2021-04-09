@@ -1,0 +1,362 @@
+var dbgStartAddr: bit64
+var breakPointPoses: []\pos@Pos
+var breakPointAddrs: []bit64
+var breakPointOpes: []bit8
+
++func preventDeadCodeElimination()
+	excode "}\n"
+	excode "template uint64_t* newArrayImpl_<uint64_t>(std::size_t n);\n"
+	excode "template Array_<uint64_t>* newImpl_<Array_<uint64_t>>();\n"
+	excode "namespace{\n"
+end func
+
++func[__rwi]setDbgStartAddr(addr: bit64)
+	do @dbgStartAddr :: addr
+end func
+
++func[__rwi]setBreakPointAddrs(addrs: []bit64, opes: []bit8)
+	do @breakPointAddrs :: addrs
+	do @breakPointOpes :: opes
+end func
+
++func[__rwi]getBreakPointAddrs(addrs: &[]bit64, opes: &[]bit8)
+	do addrs :: @breakPointAddrs
+	do opes :: @breakPointOpes
+end func
+
++func[__rwi]setBreakPointPoses(srcNames: [][]char, rows: []int, cols: []int)
+	do @breakPointPoses :: #[^srcNames]\pos@Pos
+	for i(0, ^srcNames - 1)
+		do @breakPointPoses[i] :: #\pos@Pos
+		var success: bool :: false
+		while loop(true)
+			var pos: \pos@Pos :: #\pos@Pos
+			do pos.srcName :: srcNames[i]
+			do pos.row :: rows[i]
+			do pos.col :: cols[i]
+			var addr: bit64 :: @posToAddrImpl(pos)
+			if(addr <> 0b64)
+				var pos2: \pos@Pos :: @addrToPosImpl(&, addr)
+				if(pos2 <>& null & pos.srcName = pos2.srcName)
+					if(pos.row <> pos2.row)
+						do rows[i] :: pos2.row
+						skip loop
+					end if
+					do success :: true
+				end if
+			end if
+			break loop
+		end while
+		if(!success)
+			do @breakPointPoses[i].srcName :: ""
+			do @breakPointPoses[i].row :: -1
+			do @breakPointPoses[i].col :: -1
+			do rows[i] :: -1
+			skip i
+		end if
+		do @breakPointPoses[i].srcName :: srcNames[i]
+		do @breakPointPoses[i].row :: rows[i]
+		do @breakPointPoses[i].col :: cols[i]
+	end for
+end func
+
++func[__rwi]getBreakPointPosesNum(): int
+	ret @breakPointPoses =& null ?(0, ^@breakPointPoses)
+end func
+
++func[__rwi]posToAddr(idx: int): bit64
+	ret @posToAddrImpl(@breakPointPoses[idx])
+end func
+
++func[__rwi]addrToPos(name: &[]char, src: &[]char, row: &int, col: &int, addr: bit64): bool
+	var pos: \pos@Pos :: @addrToPosImpl(&name, addr)
+	if(pos =& null)
+		ret false
+	end if
+	do src :: pos.srcName
+	do row :: pos.row
+	do col :: pos.col
+	ret true
+end func
+
++func[__rwi]getExcptMsg(code: int): []char
+	; TODO:
+	; "%s\nAn exception '0x%08X' occurred."
+	ret "An exception \{code $ bit32} occurred."
+end func
+
+func posToAddrImpl(pos: \pos@Pos): bit64
+	class Data()
+		+var addr: bit64
+		+var pos2: \pos@Pos
+	end class
+	
+	var data: Data :: #Data
+	do data.pos2 :: pos
+	do \exe\output@pack.funcAddrs.forEach(posToAddrCallback, data)
+	ret data.addr
+	
+	func posToAddrCallback(key: \ast@AstFunc, value: []\exe\asm@Asm, data: kuin@Class): bool
+		var data2: Data :: data $ Data
+		var funcPos: \pos@Pos :: key.pos
+		var pos: \pos@Pos :: data2.pos2
+		if(data2.addr = 0b64 & funcPos <>& null & funcPos.srcName = pos.srcName & funcPos.row <= pos.row & pos.row <= getFuncPosRowBottom(key))
+			do data2.addr :: posToAddrCallbackRecursion(key.stats, pos)
+			ret false
+		end if
+		ret true
+	end func
+	
+	func posToAddrCallbackRecursion(stats: list<\ast@AstStat>, targetPos: \pos@Pos): bit64
+		do stats.head()
+		while(!stats.term())
+			var stat: \ast@AstStat :: stats.get()
+			var statInfo: \exe\asm@ExeStatInfo :: \exe\asm@getExeStatInfo(stat)
+			var statPos: \pos@Pos :: stat.pos
+			if(statInfo.asmTop <>& null & statPos <>& null & statPos.srcName = targetPos.srcName & statPos.row <= targetPos.row & targetPos.row <= getStatPosRowBottom(stat))
+				var result: bit64
+				switch(stat.typeId)
+				case %statIf
+					var stat2: \ast@AstStatIf :: stat $ \ast@AstStatIf
+					do result :: posToAddrCallbackRecursion(stat2.statBlock.stats, targetPos)
+					if(result <> 0b64)
+						ret result
+					end if
+					var items: list<\ast@AstStatElIf> :: stat2.elIfs
+					do items.head()
+					while(!items.term())
+						var item: \ast@AstStatElIf :: items.get()
+						do result :: posToAddrCallbackRecursion(item.statBlock.stats, targetPos)
+						if(result <> 0b64)
+							ret result
+						end if
+						do items.next()
+					end while
+					if(stat2.elseStatBlock <>& null)
+						do result :: posToAddrCallbackRecursion(stat2.elseStatBlock.stats, targetPos)
+						if(result <> 0b64)
+							ret result
+						end if
+					end if
+				case %statSwitch
+					var stat2: \ast@AstStatSwitch :: stat $ \ast@AstStatSwitch
+					var items: list<\ast@AstStatCase> :: stat2.cases
+					do items.head()
+					while(!items.term())
+						var item: \ast@AstStatCase :: items.get()
+						do result :: posToAddrCallbackRecursion(item.statBlock.stats, targetPos)
+						if(result <> 0b64)
+							ret result
+						end if
+						do items.next()
+					end while
+					if(stat2.defaultStatBlock <>& null)
+						do result :: posToAddrCallbackRecursion(stat2.defaultStatBlock.stats, targetPos)
+						if(result <> 0b64)
+							ret result
+						end if
+					end if
+				case %statWhile
+					var stat2: \ast@AstStatWhile :: stat $ \ast@AstStatWhile
+					do result :: posToAddrCallbackRecursion(stat2.stats, targetPos)
+					if(result <> 0b64)
+						ret result
+					end if
+				case %statFor
+					var stat2: \ast@AstStatFor :: stat $ \ast@AstStatFor
+					do result :: posToAddrCallbackRecursion(stat2.stats, targetPos)
+					if(result <> 0b64)
+						ret result
+					end if
+				case %statTry
+					var stat2: \ast@AstStatTry :: stat $ \ast@AstStatTry
+					do result :: posToAddrCallbackRecursion(stat2.statBlock.stats, targetPos)
+					if(result <> 0b64)
+						ret result
+					end if
+					var items: list<\ast@AstStatCatch> :: stat2.catches
+					do items.head()
+					while(!items.term())
+						var item: \ast@AstStatCatch :: items.get()
+						do result :: posToAddrCallbackRecursion(item.statBlock.stats, targetPos)
+						if(result <> 0b64)
+							ret result
+						end if
+						do items.next()
+					end while
+					if(stat2.finallyStatBlock <>& null)
+						do result :: posToAddrCallbackRecursion(stat2.finallyStatBlock.stats, targetPos)
+						if(result <> 0b64)
+							ret result
+						end if
+					end if
+				case %statBlock
+					var stat2: \ast@AstStatBlock :: stat $ \ast@AstStatBlock
+					do result :: posToAddrCallbackRecursion(stat2.stats, targetPos)
+					if(result <> 0b64)
+						ret result
+					end if
+				end switch
+				ret statInfo.asmTop.addr.value $ bit64 + @dbgStartAddr
+			end if
+			do stats.next()
+		end while
+		ret 0b64
+	end func
+	
+	func getFuncPosRowBottom(func_: \ast@AstFunc): int
+		var found: bool
+		var ast: \ast@Ast
+		do ast :: func_.scopeChildren.get("$E", &found)
+		assert found
+		ret ast.pos.row
+	end func
+	
+	func getStatPosRowBottom(stat: \ast@AstStat): int
+		switch(stat.typeId)
+		case %statIf, %statSwitch, %statWhile, %statFor, %statTry, %statBlock
+			if(stat.scopeParent <>& null)
+				; In a dummy scope.
+				do ast :: stat.scopeParent.scopeChildren.get("$E", &found)
+				assert found
+				ret ast.pos.row
+			end if
+		end switch
+		if(stat.scopeChildren =& null)
+			ret stat.pos.row
+		end if
+		var found: bool
+		var ast: \ast@Ast
+		do ast :: stat.scopeChildren.get("$E", &found)
+		assert found
+		ret ast.pos.row
+	end func
+end func
+
+func addrToPosImpl(name: &[]char, addr: bit64): \pos@Pos
+	class Data()
+		+var pos: \pos@Pos
+		+var addr2: bit64
+		+var name2: []char
+	end class
+	
+	var data: Data :: #Data
+	do data.addr2 :: addr
+	do data.name2 :: ""
+	do \exe\output@pack.funcAddrs.forEach(addrToPosCallback, data)
+	do name :: data.name2
+	ret data.pos
+	
+	func addrToPosCallback(key: \ast@AstFunc, value: []\exe\asm@Asm, data: kuin@Class): bool
+		var data2: Data :: data $ Data
+		var addr: bit64 :: data2.addr2
+		var funcInfo: \exe\asm@ExeFuncInfo :: \exe\asm@getExeFuncInfo(key)
+		if(funcInfo.addrTop.value $ bit64 + @dbgStartAddr <= addr & addr <= funcInfo.addrBottom $ bit64 + @dbgStartAddr)
+			do data2.pos :: key.pos
+			var pos: \pos@Pos :: addrToPosCallbackRecursion(key.stats, addr)
+			if(pos <>& null)
+				do data2.pos :: pos
+				do data2.name2 :: pos.srcName ~ "@" ~ key.name
+			else
+				do data2.name2 :: key.name
+			end if
+		end if
+		ret true
+	end func
+	
+	func addrToPosCallbackRecursion(stats: list<\ast@AstStat>, addr: bit64): \pos@Pos
+		do stats.head()
+		while(!stats.term())
+			var stat: \ast@AstStat :: stats.get()
+			var statInfo: \exe\asm@ExeStatInfo :: \exe\asm@getExeStatInfo(stat)
+			if(statInfo.asmTop <>& null & statInfo.asmBottom <>& null & statInfo.asmTop.addr <>& null & statInfo.asmBottom.addr <>& null & statInfo.asmTop.addr.value $ bit64 + @dbgStartAddr <= addr & addr <= statInfo.asmBottom.addr.value $ bit64 + @dbgStartAddr)
+				var pos: \pos@Pos
+				switch(stat.typeId)
+				case %statIf
+					var stat2: \ast@AstStatIf :: stat $ \ast@AstStatIf
+					do pos :: addrToPosCallbackRecursion(stat2.statBlock.stats, addr)
+					if(pos <>& null)
+						ret pos
+					end if
+					var items: list<\ast@AstStatElIf> :: stat2.elIfs
+					do items.head()
+					while(!items.term())
+						var item: \ast@AstStatElIf :: items.get()
+						do pos :: addrToPosCallbackRecursion(item.statBlock.stats, addr)
+						if(pos <>& null)
+							ret pos
+						end if
+						do items.next()
+					end while
+					if(stat2.elseStatBlock <>& null)
+						do pos :: addrToPosCallbackRecursion(stat2.elseStatBlock.stats, addr)
+						if(pos <>& null)
+							ret pos
+						end if
+					end if
+				case %statSwitch
+					var stat2: \ast@AstStatSwitch :: stat $ \ast@AstStatSwitch
+					var items: list<\ast@AstStatCase> :: stat2.cases
+					do items.head()
+					while(!items.term())
+						var item: \ast@AstStatCase :: items.get()
+						do pos :: addrToPosCallbackRecursion(item.statBlock.stats, addr)
+						if(pos <>& null)
+							ret pos
+						end if
+						do items.next()
+					end while
+					if(stat2.defaultStatBlock <>& null)
+						do pos :: addrToPosCallbackRecursion(stat2.defaultStatBlock.stats, addr)
+						if(pos <>& null)
+							ret pos
+						end if
+					end if
+				case %statWhile
+					var stat2: \ast@AstStatWhile :: stat $ \ast@AstStatWhile
+					do pos :: addrToPosCallbackRecursion(stat2.stats, addr)
+					if(pos <>& null)
+						ret pos
+					end if
+				case %statFor
+					var stat2: \ast@AstStatFor :: stat $ \ast@AstStatFor
+					do pos :: addrToPosCallbackRecursion(stat2.stats, addr)
+					if(pos <>& null)
+						ret pos
+					end if
+				case %statTry
+					var stat2: \ast@AstStatTry :: stat $ \ast@AstStatTry
+					do pos :: addrToPosCallbackRecursion(stat2.statBlock.stats, addr)
+					if(pos <>& null)
+						ret pos
+					end if
+					var items: list<\ast@AstStatCatch> :: stat2.catches
+					do items.head()
+					while(!items.term())
+						var item: \ast@AstStatCatch :: items.get()
+						do pos :: addrToPosCallbackRecursion(item.statBlock.stats, addr)
+						if(pos <>& null)
+							ret pos
+						end if
+						do items.next()
+					end while
+					if(stat2.finallyStatBlock <>& null)
+						do pos :: addrToPosCallbackRecursion(stat2.finallyStatBlock.stats, addr)
+						if(pos <>& null)
+							ret pos
+						end if
+					end if
+				case %statBlock
+					var stat2: \ast@AstStatBlock :: stat $ \ast@AstStatBlock
+					do pos :: addrToPosCallbackRecursion(stat2.stats, addr)
+					if(pos <>& null)
+						ret pos
+					end if
+				end switch
+				ret stat.pos
+			end if
+			do stats.next()
+		end while
+		ret null
+	end func
+end func

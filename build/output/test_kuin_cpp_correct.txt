@@ -1,0 +1,855 @@
+-- Test 1 --
+Kuin Test Program
+23, 2, 823543
+23, 2, 823543
+1, -2, 4, -8, 16, -32
+23, 2, 823543
+23, 2, 823543
+1, -2, 4, -8, 16, -32
+0x17, 0x02
+0x17, 0x02
+0x01, 0x01, 0xFF, 0xFF
+0x0017, 0x0002
+0x0017, 0x0002
+0x0001, 0x0001, 0xFFFF, 0xFFFF
+0x00000017, 0x00000002
+0x00000017, 0x00000002
+0x00000001, 0x00000001, 0xFFFFFFFF, 0xFFFFFFFF
+0x0000000000000017, 0x0000000000000002
+0x0000000000000017, 0x0000000000000002
+0x0000000000000001, 0x0000000000000001, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
+-- Test 2 --
+false, true, true, true, false, false
+false, true, true, true, false, false
+true, false, false, true, false, true
+true, false, false, true, false, true
+false, true, true, true, false, false
+false, true, true, true, false, false
+true, false, false, true, false, true
+true, false, false, true, false, true
+false, true, true, true, false, false
+false, true, true, true, false, false
+true, false, false, true, false, true
+true, false, false, true, false, true
+false, true, true, true, false, false
+false, true, true, true, false, false
+true, false, false, true, false, true
+true, false, false, true, false, true
+false, true, true, true, false, false
+false, true, true, true, false, false
+true, false, false, true, false, true
+true, false, false, true, false, true
+false, true, true, true, false, false
+false, true, true, true, false, false
+true, false, false, true, false, true
+true, false, false, true, false, true
+false, true, true, true, false, false
+false, true, true, true, false, false
+true, false, false, true, false, true
+true, false, false, true, false, true
+-- Test 3 --
+false, true
+true, false
+false, true
+false, true
+true, false
+true, false
+true, false
+true, true
+false, true
+false, true
+false, false
+T
+F
+F
+T
+true, true
+false, true
+false, true
+false, false
+T
+F
+F
+T
+true, false
+-- Test 4 --
+6
+5
+5
+5
+5
+5, 3
+def, abc
+65537
+65537
+0x01
+0x0001
+0x00010001
+0x0000000000010001
+!
+false
+true
+65537
+65537
+0x01
+0x0001
+0x00010001
+0x0000000000010001
+!
+false
+true
+65537
+65537.5
+0x01
+0x0001
+0x00010001
+0x0000000000010001
+65537
+65537.5
+0x01
+0x0001
+0x00010001
+0x0000000000010001
+65
+A
+0x41
+0x0041
+0x00000041
+0x0000000000000041
+65
+A
+0x41
+0x0041
+0x00000041
+0x0000000000000041
+0
+false
+0x00
+0x0000
+0x00000000
+0x0000000000000000
+1
+true
+0x01
+0x0001
+0x00000001
+0x0000000000000001
+0
+false
+0x00
+0x0000
+0x00000000
+0x0000000000000000
+1
+true
+0x01
+0x0001
+0x00000001
+0x0000000000000001
+255
+255
+!
+false
+true
+0xFF
+0x00FF
+0x000000FF
+0x00000000000000FF
+255
+255
+!
+false
+true
+0xFF
+0x00FF
+0x000000FF
+0x00000000000000FF
+255
+255
+!
+false
+true
+0xFF
+0x00FF
+0x000000FF
+0x00000000000000FF
+255
+255
+!
+false
+true
+0xFF
+0x00FF
+0x000000FF
+0x00000000000000FF
+255
+255
+!
+false
+true
+0xFF
+0x00FF
+0x000000FF
+0x00000000000000FF
+255
+255
+!
+false
+true
+0xFF
+0x00FF
+0x000000FF
+0x00000000000000FF
+255
+255
+!
+false
+true
+0xFF
+0x00FF
+0x000000FF
+0x00000000000000FF
+255
+255
+!
+false
+true
+0xFF
+0x00FF
+0x000000FF
+0x00000000000000FF
+-- Test 5 --
+abcdef
+ab, cd, ef
+120
+2, ab, ef
+1, 1
+3, 3
+3, 1
+5, 5
+5, 3
+5, 1
+1, 1
+3, 3
+3, 1
+5, 5
+5, 3
+5, 1
+1
+2
+1
+2
+Fizz
+4
+Buzz
+Fizz
+7
+8
+Fizz
+Buzz
+11
+Fizz
+13
+14
+FizzBuzz
+1
+abc
+3
+def
+def
+abc
+abc
+8
+def
+10
+1
+abc
+3
+def
+def
+abc
+abc
+8
+def
+10
+0x01
+abc
+0x03
+def
+def
+abc
+abc
+0x08
+def
+0x0A
+0x0001
+abc
+0x0003
+def
+def
+abc
+abc
+0x0008
+def
+0x000A
+0x00000001
+abc
+0x00000003
+def
+def
+abc
+abc
+0x00000008
+def
+0x0000000A
+0x0000000000000001
+abc
+0x0000000000000003
+def
+def
+abc
+abc
+0x0000000000000008
+def
+0x000000000000000A
+B
+abc
+D
+abc
+abc
+def
+def
+I
+def
+K
+1
+abc
+3
+def
+def
+abc
+abc
+8
+def
+10
+-- Test 6 --
+1, 1
+1, 2
+1, 4
+3, 1
+3, 2
+3, 4
+5
+0
+1
+5
+6
+-2
+-1
+0xFE
+0xFFFE
+0xFFFFFFFE
+0xFFFFFFFFFFFFFFFE
+-1, true, false, false, true
+1234
+255
+255
+255
+255
+-- Test 7 --
+true, true, true, true, false, false
+false, false, false, false, true, true
+5, 1234
+5, 1234
+4
+5
+1
+2
+6
+7
+3
+5
+5
+1
+2
+6
+7
+ef
+mn
+kl
+cd
+ab
+ij
+gh
+5
+-- Test 8 --
+5
+5
+4
+3
+2
+1
+e
+e
+d
+c
+b
+a
+1
+1
+2
+3
+4
+5
+a
+a
+b
+c
+d
+e
+-- Test 9 --
+9
+0
+Not existed.
+11
+12
+13
+14
+0
+Not existed.
+16
+17
+18
+19
+20
+0
+Not existed.
+9
+(null)Not existed.
+a
+b
+c
+d
+(null)Not existed.
+f
+g
+h
+i
+j
+(null)Not existed.
+9
+0
+Not existed.
+1
+2
+3
+4
+0
+Not existed.
+6
+7
+8
+9
+10
+0
+Not existed.
+9
+(null)Not existed.
+A
+B
+C
+D
+(null)Not existed.
+F
+G
+H
+I
+J
+(null)Not existed.
+-- Test 10 --
+true, false
+3, 3
+3, 3
+5, 5
+3, 3
+3, 3
+5, 5
+ABC
+ABC
+true, false
+0xFE
+0x02
+0xFC
+0x09
+0xEC
+0x7B
+0xFB
+0xFEFE
+0x0202
+0xFCFC
+0x0909
+0xEDEC
+0x7B7B
+0xFB7B
+0xFEFEFEFE
+0x02020202
+0xFCFCFCFC
+0x09090909
+0xEDEDEDEC
+0x7B7B7B7B
+0xFB7B7B7B
+0xFEFEFEFEFEFEFEFE
+0x0202020202020202
+0xFCFCFCFCFCFCFCFC
+0x0909090909090909
+0xEDEDEDEDEDEDEDEC
+0x7B7B7B7B7B7B7B7B
+0xFB7B7B7B7B7B7B7B
+-- Test 11 --
+3
+-1
+8
+-1
+bcd
+bcde
+b
+c
+.eulav gnirts a si sihT
+EFCDAB
+    .Taaeghiiilnrssstuv
+ABCDEF
+vutsssrnliiihgeaaT.    
+EFCDAB
+0.8660254037844387
+0.4999999999999999
+0.5773502691896257
+1.414213562373095
+7.38905609893065
+1
+3
+4.999999999999998, 6
+1.570796326794897
+5
+7
+9
+10
+13
+11
+10
+2
+-3
+3
+-2
+5556
+-5556
+5555.56
+-5555.56
+5600
+-5600
+-- Test 12 --
+abcdef
+ABCDEF
+abcde
+abcd  e
+a  bcde
+A, 5, 3.5, Z
+false, true
+d
+b
+true, false, false, true
+false, false, true, false
+3, 4, 5, 7
+5, true, false
+-- Test 13 --
+ 0x14 0x1A 0x99 0xBE 0x1C 0x00 0x00 0x00
+123456789012
+ 0x18 0x2D 0x44 0x54 0xFB 0x21 0x09 0x40
+3.141592653589793
+ 0x58 0x00
+X
+ 0x01
+true
+ 0x12
+0x12
+ 0x34 0x12
+0x1234
+ 0x78 0x56 0x34 0x12
+0x12345678
+ 0xEF 0xCD 0xAB 0x78 0x56 0x34 0x12 0xF0
+0xF012345678ABCDEF
+ 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x01 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x02 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+1, 2, 3
+ 0x06 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x61 0x00 0x62 0x00 0x63 0x00 0x64 0x00 0x65 0x00 0x66 0x00
+abcdef
+ 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x02 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x61 0x00 0x62 0x00 0x02 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x63 0x00 0x64 0x00 0x02 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x65 0x00 0x66 0x00
+ab, cd, ef
+ 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x01 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x61 0x00 0x62 0x00 0x63 0x00
+b
+a
+b
+c
+ 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x61 0x00 0x62 0x00 0x63 0x00
+c
+b
+a
+ 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x61 0x00 0x62 0x00 0x63 0x00
+a
+b
+c
+ 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x01 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x61 0x00 0x01 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x01 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x62 0x00 0x02 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x01 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x63 0x00 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+1, 2, 3
+ 0xD2 0x04 0x00 0x00 0x00 0x00 0x00 0x00
+1234
+ 0x47 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x05 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x61 0x00 0x62 0x00 0x63 0x00
+5, abc
+-- Test 14 --
+Line breaking.
+Comment test #1.
+3, 1, 2, 3
+3, 2, 4
+3.14159
+5
+abc
+3, 3, 4, 5
+3, ab, cd, ef
+5
+ab
+cde
+f
+
+g
+n
+00Test00
+-- Test 15 --
+2.352409615243247
+2.129279455094817
+0.9051482536448664
+true
+true
+true
+true
+true
+true
+-- Test 16 --
+2017, 1, 22, 21, 34, 19, 0
+1485120859, true
+i=1234, f=3.14159, s=abc, @x=5678.
+abxxcdxxef
+9223372036854775807, -9223372036854775808
+0x12
+0x3412
+0x78563412
+0x01EFCDAB78563412
+5
+-1
+-- Test 17 --
+-16
+-16
+2
+7a
+5
+5
+true
+true
+xxxxx
+yyyyy
+x
+y
+def.txt
+
+abcdef.txt
+ef.txt
+
+abc/def
+abc/
+abcdef
+ab/cd/ef
+ab/cd/
+a
+a
+-- Test 18 --
+AX
+BX
+CX
+3
+true
+a, null
+100
+b, B
+100
+false
+abc
+null
+def
+def
+null
+abc
+abc
+null
+def
+0x1255D720D5A79DF2
+0x0EEC092239A5D678
+0x85F5EABB6C54BFFA
+0x029F0E4B159E0E76
+0x3F149E4CF6765D3B
+0x0C61F8E8E969AAAC
+0x7214AF3336CFBBCF
+0x356AA34691F2538D
+0x46481BB70D12C172
+0x6D0223056E6F7B13
+1
+1
+6
+2
+1
+2
+5
+6
+4
+4
+5.289210104111324
+3.181403429203363
+3.660144172336198
+3.484343464832059
+4.165953962086699
+2.99220301540741
+4.867400963561989
+4.329176461948522
+3.630342866566894
+5.347863749638671
+-- Test 19 --
+25
+445
+3
+5
+120
+1, -1, 0
+1, -1, 0
+83
+97
+100
+0
+100
+0
+true
+false
+true
+false
+true
+false
+true
+false
+true
+false
+-54115063
+-1640224669
+-3398646843
+-3861048027
+-3832122204
+-2240506601
+-3568056224
+-3348585048
+-2579021031
+-3677651486
+true
+true
+true
+true, testdir
+false, test.txt
+true
+true, testdir
+false, test.txt
+true
+true, testdir
+false, test.txt
+true
+5
+Hello, world!
+true
+true
+true
+true
+true
+true
+true
+true
+false
+true, testdir
+true
+true, testdir
+true, a
+true, c
+false, test2.txt
+true, d
+true, c
+false, test3.txt
+true
+true
+true
+true, testdir
+true
+true, testdir
+true
+-- Test 20 --
+true
+false
+3.141592653589793
+45
+0
+4
+7
+-1
+7
+4
+0
+3
+5
+-5
+-3
+aa
+ee
+abcabcabc
+ab|cd|ab|cd|ab|cd
+test
+000000000000ffff
+0000000000000000003.141592653590
+5, 5, 5, 5
+5.5, 5.05, 5.950000000000001, 5.14
+6, 5.2, 6.8, 5.52
+6.5, 5.449999999999999, 7.55, 6.08
+7, 5.800000000000001, 8.200000000000001, 6.76
+7.5, 6.25, 8.75, 7.5
+8, 6.8, 9.200000000000001, 8.24
+8.5, 7.449999999999999, 9.550000000000001, 8.92
+9, 8.200000000000001, 9.800000000000001, 9.48
+9.5, 9.050000000000001, 9.949999999999999, 9.859999999999999
+10, 10, 10, 10
+4
+3.816
+3.528
+3.232
+3.024
+3
+3.16
+3.44
+3.84
+4.36
+5
+5.888000000000001
+7.023999999999999
+8.216000000000001
+9.271999999999998
+10
+3
+5
+Not found.
+3
+Not found.
+Not found.
+-- Test 21 --
+0x129B262CF42BB844
+0x93C7B8D9405EC1C2
+47E4EE7F211F73265DD17658F6E21C1318BD6C81F37598E20A2756299542EFCF
+97724C69665D4AA2CE3C7B1B42B8A5DE
+1234
+3, abc

@@ -1,0 +1,44 @@
+var curTarget: []char
+
+func main()
+	var target: [][]char :: ["cpp", "web", "exe"]
+	for i(0, ^target - 1)
+		do @curTarget :: target[i]
+		do file@makeDir("./../sys/\{@curTarget}/")
+		do file@forEach("./sys/", false, @convert, null)
+	end for
+end func
+
+func convert(path: []char, dir: bool, data: kuin@Class): bool
+	if(dir | file@ext(path) <> "kn")
+		ret true
+	end if
+	var reader: file@Reader :: file@makeReader(path)
+	var writingPath: []char :: "./../sys/\{@curTarget}/\{file@fileName(path)}"
+	var writer: file@Writer :: file@makeWriter(writingPath, false)
+	var skip_: bool :: false
+	while loop(!reader.term())
+		var s: []char :: reader.readLine()
+		if(^s >= 1 & s[0] = '#')
+			var targets: [][]char :: s.sub(1, -1).split(",")
+			do skip_ :: true
+			for i(0, ^targets - 1)
+				var t: []char :: targets[i].trim()
+				if(t = "any" | t = @curTarget)
+					do skip_ :: false
+					break i
+				end if
+			end for
+			skip loop
+		end if
+		if(!skip_)
+			do writer.writeStr(s ~ "\n")
+		end if
+	end while
+	do writer.fin()
+	do reader.fin()
+	if(file@fileSize(writingPath) = 0)
+		do file@delFile(writingPath)
+	end if
+	ret true
+end func

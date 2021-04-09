@@ -1,0 +1,213 @@
++enum Env
+	exe
+	cpp
+	web
+end enum
+
++var inputFile: []char
++var outputFile: []char
++var sysDir: []char
++var icon: []char
++var additionalFiles: []char
++var rls: bool
++var env_: @Env
++var help: bool
++var version: bool
++var quiet: bool
++var appCode: int
++var resDir: []char
++var extra: dict<[]char, bool>
++var envDict: dict<[]char, []char>
+
++var inputDir: []char
++var inputName: []char
++var outputDir: []char
+
++func[__rwi]acquireOption(cmdLines: [][]char, toFullPath: bool): bool
+	var envStr: []char
+	var appCodeStr: []char
+	do @extra :: #dict<[]char, bool>
+	do @envDict :: #dict<[]char, []char>
+	
+	for i(0, ^cmdLines - 1)
+		var cmdLine: []char :: cmdLines[i]
+		if(^cmdLine = 2 & cmdLine[0] = '-')
+			switch c(cmdLine[1])
+			case 'i'
+				if(!getArg1(&@inputFile, cmdLines, &i, c))
+					ret false
+				end if
+				if(toFullPath)
+					do @inputFile :: file@fullPath(@inputFile)
+				end if
+			case 'o'
+				if(!getArg1(&@outputFile, cmdLines, &i, c))
+					ret false
+				end if
+				do @outputFile :: file@fullPath(@outputFile)
+			case 's'
+				if(!getArg1(&@sysDir, cmdLines, &i, c))
+					ret false
+				end if
+				do @sysDir :: file@fullPath(@sysDir)
+			case 'c'
+				if(!getArg1(&@icon, cmdLines, &i, c))
+					ret false
+				end if
+				do @icon :: file@fullPath(@icon)
+			case 'f'
+				if(!getArg1(&@additionalFiles, cmdLines, &i, c))
+					ret false
+				end if
+				do @additionalFiles :: file@fullPath(@additionalFiles)
+			case 'r'
+				if(!getArg0(&@rls, c))
+					ret false
+				end if
+			case 'e'
+				if(!getArg1(&envStr, cmdLines, &i, c))
+					ret false
+				end if
+			case 'h'
+				if(!getArg0(&@help, c))
+					ret false
+				end if
+			case 'v'
+				if(!getArg0(&@version, c))
+					ret false
+				end if
+			case 'q'
+				if(!getArg0(&@quiet, c))
+					ret false
+				end if
+			case 'p'
+				if(!getArg1(&@resDir, cmdLines, &i, c))
+					ret false
+				end if
+				do @resDir :: file@fullPath(@resDir)
+			case 'x'
+				var extra: []char
+				var value: []char
+				if(!getArgExtra(&extra, &value, cmdLines, &i, c))
+					ret false
+				end if
+				if(value = "true")
+					do @extra.add(extra, true)
+				end if
+				do @envDict.add(extra, value)
+			default
+				do \err@err(%unexpectedOption, null, ["-\{c}"])
+				ret false
+			end switch
+		else
+			do \err@err(%unexpectedOption, null, ["\{cmdLine}"])
+			ret false
+		end if
+	end for
+	
+	if(@inputFile =& null)
+		ret true
+	end if
+	
+	if(envStr =& null)
+		do @env_ :: %exe
+	else
+		switch(envStr)
+		case "exe"
+			do @env_ :: %exe
+		case "web"
+			do @env_ :: %web
+		case "cpp"
+			do @env_ :: %cpp
+		default
+			do \err@err(%incorrectOption, null, ["-e"])
+		end switch
+	end if
+	do @envDict.add("e", @getEnvStr(@env_))
+	
+	do @appCode :: lib@rnd(1, 0xFFFFFFFF)
+	
+	if(@outputFile =& null)
+		do @outputFile :: file@dir(@inputFile) ~ "out"
+	else
+		do @outputFile :: file@delExt(@outputFile)
+	end if
+	
+	if(@sysDir =& null)
+		var exeDir: []char :: wnd@exeDir()
+		do @sysDir :: (exeDir =& null ?("", exeDir)) ~ "sys/"
+	end if
+	
+	if(@icon =& null)
+		do @icon :: @sysDir ~ "default.ico"
+	end if
+	
+	do @inputDir :: file@dir(@inputFile)
+	do @inputName :: file@delExt(file@fileName(@inputFile))
+	do @outputDir :: file@dir(@outputFile)
+	
+	if(@resDir =& null)
+		do @resDir :: @inputDir ~ "res/"
+	end if
+	
+	if(file@ext(@inputFile) <> "kn")
+		do \err@err(%incorrectExt, null, [@inputName])
+	end if
+	
+	ret true
+	
+	func getArg0(out: &bool, option: char): bool
+		if(out <> false)
+			do \err@err(%incorrectOption, null, ["-\{option}"])
+			ret false
+		end if
+		do out :: true
+		ret true
+	end func
+	
+	func getArg1(out: &[]char, cmdLines: [][]char, idx: &int, option: char): bool
+		if(out <>& null | idx + 1 >= ^cmdLines)
+			do \err@err(%incorrectOption, null, ["-\{option}"])
+			ret false
+		end if
+		do out :: cmdLines[idx + 1]
+		do idx :+ 1
+		ret true
+	end func
+	
+	func getArgExtra(out: &[]char, outValue: &[]char, cmdLines: [][]char, idx: &int, option: char): bool
+		if(out <>& null | idx + 1 >= ^cmdLines)
+			do \err@err(%incorrectOption, null, ["-\{option}"])
+			ret false
+		end if
+		var strs: [][]char :: cmdLines[idx + 1].split("=")
+		do idx :+ 1
+		do out :: strs[0]
+		if(^strs = 1)
+			do outValue :: "true"
+		else
+			do outValue :: strs[1]
+		end if
+		ret true
+	end func
+end func
+
++func getEnvStr(env_: @Env): []char
+	switch(env_)
+	case %exe
+		ret "exe"
+	case %web
+		ret "web"
+	case %cpp
+		ret "cpp"
+	default
+		assert false
+		ret null
+	end switch
+end func
+
++func getEnvValue(envName: []char): []char
+	var existence: bool
+	var value: []char :: @envDict.get(envName, &existence)
+	ret existence ?(value, "")
+end func

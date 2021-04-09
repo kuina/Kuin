@@ -1,0 +1,782 @@
+class Section()
+	+var len: int
+	+var dataPos: int
+	+var dataSize: int
+	+var imgPos: int
+	+var imgSize: int
+end class
+
+var pack: \exe\asm@Pack
+var writer: file@Writer
+var code: @Section
+var readonlyData: @Section
+var excpt: @Section
+var writableData: @Section
+var res: @Section
+var lookupLen: int
+var readonlyDataLen: int
+var importLen: int
+
++func convert(pack: \exe\asm@Pack)
+	do @pack :: pack
+	do @code :: #@Section
+	do @readonlyData :: #@Section
+	do @excpt :: #@Section
+	do @writableData :: #@Section
+	do @res :: #@Section
+	do @writer :: file@makeWriter(\option@outputFile ~ ".exe", false)
+	if(@writer =& null)
+		do \err@err(%fileSaveFailed, null, [\option@outputFile ~ ".exe"])
+		ret
+	end if
+	do @writer.write(dosHeader())
+	do @writer.write(#[0x80 - @writer.getPos()]bit8)
+	do @writer.write(peHeader())
+	do @writer.write(sectionHeader())
+	do @writer.write(#[0x0400 - @writer.getPos()]bit8)
+	
+	do @code.dataPos :: @writer.getPos()
+	do @code.imgPos :: 0x1000
+	do @writeCode()
+	do @code.len :: @writer.getPos() - @code.dataPos
+	do @writer.write(#[@padding(@writer.getPos(), 0x0200)]bit8)
+	do @code.dataSize :: @writer.getPos() - @code.dataPos
+	do @code.imgSize :: @code.len
+	do @code.imgSize :+ @padding(@code.imgSize $ int, 0x1000)
+	
+	do @readonlyData.dataPos :: @writer.getPos()
+	do @readonlyData.imgPos :: @code.imgPos + @code.imgSize
+	do @writeReadonlyData()
+	do @readonlyData.len :: @writer.getPos() - @readonlyData.dataPos
+	do @writer.write(#[@padding(@writer.getPos(), 0x0200)]bit8)
+	do @readonlyData.dataSize :: @writer.getPos() - @readonlyData.dataPos
+	do @readonlyData.imgSize :: @readonlyData.len
+	do @readonlyData.imgSize :+ @padding(@readonlyData.imgSize $ int, 0x1000)
+	
+	do @excpt.dataPos :: @writer.getPos()
+	do @excpt.imgPos :: @readonlyData.imgPos + @readonlyData.imgSize
+	do @writeExcpt()
+	do @excpt.len :: @writer.getPos() - @excpt.dataPos
+	do @writer.write(#[@padding(@writer.getPos(), 0x0200)]bit8)
+	do @excpt.dataSize :: @writer.getPos() - @excpt.dataPos
+	do @excpt.imgSize :: @excpt.len
+	do @excpt.imgSize :+ @padding(@excpt.imgSize $ int, 0x1000)
+	
+	; 'WritableData' is virtual.
+	do @writableData.dataPos :: 0
+	do @writableData.imgPos :: @excpt.imgPos + @excpt.imgSize
+	block
+		var addr: lib@Int :: #lib@Int
+		do @pack.writableData.forEach(@calcWritableData, addr)
+		do @writableData.len :: addr.value
+	end block
+	do @writableData.dataSize :: 0
+	do @writableData.imgSize :: @writableData.len
+	do @writableData.imgSize :+ @padding(@writableData.imgSize $ int, 0x1000)
+	
+	do @res.dataPos :: @writer.getPos()
+	do @res.imgPos :: @writableData.imgPos + @writableData.imgSize
+	do @writeRes()
+	do @res.len :: @writer.getPos() - @res.dataPos
+	do @writer.write(#[@padding(@writer.getPos(), 0x0200)]bit8)
+	do @res.dataSize :: @writer.getPos() - @res.dataPos
+	do @res.imgSize :: @res.len
+	do @res.imgSize :+ @padding(@res.imgSize $ int, 0x1000)
+	
+	; Update the header information.
+	block
+		const top: int :: 0x80 {The start address of 'PEHeader'}
+		do @write(top + 0x0008, \convert@bit32ToBin(lib@now() $ bit32)) {'Time date stamp'}
+		do @write(top + 0x001A, [0x09b8, 0x11b8]) {'Major/minor linker version'}
+		do @write(top + 0x001C, \convert@bit32ToBin(@code.dataSize $ bit32)) {'Code size'}
+		do @write(top + 0x0020, \convert@bit32ToBin(@readonlyData.dataSize $ bit32)) {'Initialized data size'}
+		do @write(top + 0x0050, \convert@bit32ToBin((@res.imgPos + @res.imgSize) $ bit32)) {'Image size'}
+		var subsystem: []bit8
+		if(\option@extra.get("wnd", &))
+			do subsystem :: [0x02b8, 0x00b8] {'GUI'}
+		else
+			do subsystem :: [0x03b8, 0x00b8] {'CUI'}
+		end if
+		do @write(top + 0x005C, subsystem) {'Subsystem'}
+		; 'Import table'
+		do @write(top + 0x0090, \convert@bit32ToBin((@readonlyData.imgPos + @lookupLen + @readonlyDataLen + @lookupLen) $ bit32))
+		do @write(top + 0x0094, \convert@bit32ToBin(@importLen $ bit32))
+		; 'Resource table'
+		do @write(top + 0x0098, \convert@bit32ToBin(@res.imgPos $ bit32))
+		do @write(top + 0x009C, \convert@bit32ToBin(@res.len $ bit32))
+		; 'Exception table'
+		do @write(top + 0x00A0, \convert@bit32ToBin(@excpt.imgPos $ bit32))
+		do @write(top + 0x00A4, \convert@bit32ToBin(@excpt.len $ bit32))
+		; 'Import address table'
+		do @write(top + 0x00E8, \convert@bit32ToBin(@readonlyData.imgPos $ bit32))
+		do @write(top + 0x00EC, \convert@bit32ToBin(@lookupLen $ bit32))
+		; '.text'
+		do @write(top + 0x0110, \convert@bit32ToBin(@code.len $ bit32)) {'Misc'}
+		do @write(top + 0x0114, \convert@bit32ToBin(@code.imgPos $ bit32)) {'Virtual address'}
+		do @write(top + 0x0118, \convert@bit32ToBin(@code.dataSize $ bit32)) {'Size of raw data'}
+		do @write(top + 0x011C, \convert@bit32ToBin(@code.dataPos $ bit32)) {'Pointer to raw data'}
+		; '.rdata'
+		do @write(top + 0x0138, \convert@bit32ToBin(@readonlyData.len $ bit32)) {'Misc'}
+		do @write(top + 0x013C, \convert@bit32ToBin(@readonlyData.imgPos $ bit32)) {'Virtual address'}
+		do @write(top + 0x0140, \convert@bit32ToBin(@readonlyData.dataSize $ bit32)) {'Size of raw data'}
+		do @write(top + 0x0144, \convert@bit32ToBin(@readonlyData.dataPos $ bit32)) {'Pointer to raw data'}
+		; '.pdata'
+		do @write(top + 0x0160, \convert@bit32ToBin(@excpt.len $ bit32)) {'Misc'}
+		do @write(top + 0x0164, \convert@bit32ToBin(@excpt.imgPos $ bit32)) {'Virtual address'}
+		do @write(top + 0x0168, \convert@bit32ToBin(@excpt.dataSize $ bit32)) {'Size of raw data'}
+		do @write(top + 0x016C, \convert@bit32ToBin(@excpt.dataPos $ bit32)) {'Pointer to raw data'}
+		; '.data'
+		do @write(top + 0x0188, \convert@bit32ToBin(@writableData.len $ bit32)) {'Misc'}
+		do @write(top + 0x018C, \convert@bit32ToBin(@writableData.imgPos $ bit32)) {'Virtual address'}
+		; '.rsrc'
+		do @write(top + 0x01B0, \convert@bit32ToBin(@res.len $ bit32)) {'Misc'}
+		do @write(top + 0x01B4, \convert@bit32ToBin(@res.imgPos $ bit32)) {'Virtual address'}
+		do @write(top + 0x01B8, \convert@bit32ToBin(@res.dataSize $ bit32)) {'Size of raw data'}
+		do @write(top + 0x01BC, \convert@bit32ToBin(@res.dataPos $ bit32)) {'Pointer to raw data'}
+	end block
+	
+	; Update reference addresses.
+	block
+		var items: list<\exe\asm@RefValueAddr> :: @pack.refValueList
+		do items.head()
+		while(!items.term())
+			var refAddr: \exe\asm@RefValueAddr :: items.get()
+			var addr: bit32 :: (refAddr.relative ?(refAddr.addr.value - refAddr.bottom, refAddr.addr.value)) $ bit32
+			var pos: int :: refAddr.pos - @code.imgPos + @code.dataPos
+			assert @code.dataPos <= pos & pos < @code.dataPos + @code.dataSize
+			do @write(pos $ int, \convert@bit32ToBin(addr))
+			do items.next()
+		end while
+	end block
+	
+	do @writer.fin()
+	
+	func dosHeader(): []bit8
+		ret[
+		|0x4Db8, 0x5Ab8, {Magic number(MZ)}
+		|0x90b8, 0x00b8, {Bytes on last page of file}
+		|0x03b8, 0x00b8, {Pages in file}
+		|0x00b8, 0x00b8, {Relocations}
+		|0x04b8, 0x00b8, {Size of header in paragraphs}
+		|0x00b8, 0x00b8, {Minimum extra paragraphs needed}
+		|0xFFb8, 0xFFb8, {Maximum extra paragraphs needed}
+		|0x00b8, 0x00b8, {Initial SS value}
+		|0xB8b8, 0x00b8, {Initial SP value}
+		|0x00b8, 0x00b8, {Checksum}
+		|0x00b8, 0x00b8, {Initial IP value}
+		|0x00b8, 0x00b8, {Initial CS value}
+		|0x40b8, 0x00b8, {File address of relocation table}
+		|0x00b8, 0x00b8, {Overlay number}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Reserved words}
+		|0x00b8, 0x00b8, {OEM identifier}
+		|0x00b8, 0x00b8, {OEM information}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8,
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8,
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Reserved words}
+		|0x80b8, 0x00b8, 0x00b8, 0x00b8, {File address of new exe header}
+		|{MS-DOS}
+		|0x0Eb8, {push cs}
+		|0x1Fb8, {pop ds}
+		|0xBAb8, 0x0Eb8, 0x00b8, {mov dx, 000eh}
+		|0xB4b8, 0x09b8, {mov ah, 09h}
+		|0xCDb8, 0x21b8, {int 21h}
+		|0xB8b8, 0x01b8, 0x4Cb8, {mov ax, 4c01h}
+		|0xCDb8, 0x21b8, {int 21h}
+		|{This program cannot be run in DOS mode.\r\n$}
+		|0x54b8, 0x68b8, 0x69b8, 0x73b8, 0x20b8, 0x70b8, 0x72b8, 0x6Fb8,
+		|0x67b8, 0x72b8, 0x61b8, 0x6Db8, 0x20b8, 0x63b8, 0x61b8, 0x6Eb8,
+		|0x6Eb8, 0x6Fb8, 0x74b8, 0x20b8, 0x62b8, 0x65b8, 0x20b8, 0x72b8,
+		|0x75b8, 0x6Eb8, 0x20b8, 0x69b8, 0x6Eb8, 0x20b8, 0x44b8, 0x4Fb8,
+		|0x53b8, 0x20b8, 0x6Db8, 0x6Fb8, 0x64b8, 0x65b8, 0x2Eb8, 0x0Db8,
+		|0x0Ab8, 0x24b8]
+	end func
+	
+	func peHeader(): []bit8
+		ret[
+		|0x50b8, 0x45b8, 0x00b8, 0x00b8, {PE}
+		|0x64b8, 0x86b8, {Machine = IMAGE_FILE_MACHINE_AMD64}
+		|0x05b8, 0x00b8, {Number of sections}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Time date stamp}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to symbol table}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Number of symbols}
+		|0xF0b8, 0x00b8, {Optional header size}
+		|0x2Eb8, 0x00b8, {Characteristics}
+		|0x0Bb8, 0x02b8, {Magic = IMAGE_NT_OPTIONAL_HDR64_MAGIC}
+		|0x00b8, {Major linker version}
+		|0x00b8, {Minor linker version}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Code size}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Initialized data size}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Uninitialized data size}
+		|0x00b8, 0x10b8, 0x00b8, 0x00b8, {Entry point RVA}
+		|0x00b8, 0x10b8, 0x00b8, 0x00b8, {Base of Code}
+		|0x00b8, 0x00b8, 0x00b8, 0x40b8, 0x01b8, 0x00b8, 0x00b8, 0x00b8, {Image base}
+		|0x00b8, 0x10b8, 0x00b8, 0x00b8, {Section alignment}
+		|0x00b8, 0x02b8, 0x00b8, 0x00b8, {File alignment}
+		|0x06b8, 0x00b8, {Major OS version}
+		|0x00b8, 0x00b8, {Minor OS version}
+		|0x00b8, 0x00b8, {Major image version}
+		|0x00b8, 0x00b8, {Minor image version}
+		|0x06b8, 0x00b8, {Major subsystem version}
+		|0x00b8, 0x00b8, {Minor subsystem version}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Reserved}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Image size}
+		|0x00b8, 0x04b8, 0x00b8, 0x00b8, {Header size}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {File checksum}
+		|0x00b8, 0x00b8, {Subsystem}
+		|0x40b8, 0x81b8, {DLL flags}
+		|0x00b8, 0x00b8, 0x80b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Stack reserve size}
+		|0x00b8, 0x00b8, 0x80b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Stack commit size}
+		|0x00b8, 0x00b8, 0x10b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Heap reserve size}
+		|0x00b8, 0x10b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Heap commit size}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Loader flags}
+		|0x10b8, 0x00b8, 0x00b8, 0x00b8, {Number of data directories}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Export table}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Import table}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Resource table}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Exception table}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Certificate table}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Base relocation table}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Debug}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Copyright}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Global pointer}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Thread local strage table}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Load configuration table}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Bound import}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Import address table}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {Delay import descriptor}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, {CLI header}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8 {Reserved}]
+	end func
+	
+	func sectionHeader(): []bit8
+		ret[
+		|0x2Eb8, 0x74b8, 0x65b8, 0x78b8, 0x74b8, 0x00b8, 0x00b8, 0x00b8, {.text}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Misc}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Virtual address}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Size of raw data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to raw data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to relocations}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to line numbers}
+		|0x00b8, 0x00b8, {Number of relocations}
+		|0x00b8, 0x00b8, {Number of line numbers}
+		|0x20b8, 0x00b8, 0x00b8, 0x60b8, {Characteristics}
+		|0x2Eb8, 0x72b8, 0x64b8, 0x61b8, 0x74b8, 0x61b8, 0x00b8, 0x00b8, {.rdata}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Misc}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Virtual address}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Size of raw data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to raw data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to relocations}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to line numbers}
+		|0x00b8, 0x00b8, {Number of relocations}
+		|0x00b8, 0x00b8, {Number of line numbers}
+		|0x40b8, 0x00b8, 0x00b8, 0x40b8, {Characteristics}
+		|0x2Eb8, 0x70b8, 0x64b8, 0x61b8, 0x74b8, 0x61b8, 0x00b8, 0x00b8, {.pdata}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Misc}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Virtual address}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Size of raw data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to raw data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to relocations}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to line numbers}
+		|0x00b8, 0x00b8, {Number of relocations}
+		|0x00b8, 0x00b8, {Number of line numbers}
+		|0x40b8, 0x00b8, 0x00b8, 0x40b8, {Characteristics}
+		|0x2Eb8, 0x64b8, 0x61b8, 0x74b8, 0x61b8, 0x00b8, 0x00b8, 0x00b8, {.data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Misc}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Virtual address}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Size of raw data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to raw data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to relocations}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to line numbers}
+		|0x00b8, 0x00b8, {Number of relocations}
+		|0x00b8, 0x00b8, {Number of line numbers}
+		|0x40b8, 0x00b8, 0x00b8, 0xC0b8, {Characteristics}
+		|0x2Eb8, 0x72b8, 0x73b8, 0x72b8, 0x63b8, 0x00b8, 0x00b8, 0x00b8, {.rsrc}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Misc}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Virtual address}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Size of raw data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to raw data}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to relocations}
+		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Pointer to line numbers}
+		|0x00b8, 0x00b8, {Number of relocations}
+		|0x00b8, 0x00b8, {Number of line numbers}
+		|0x40b8, 0x00b8, 0x00b8, 0x40b8 {Characteristics}]
+	end func
+end func
+
+func padding(value: int, align: int): int
+	ret(align - 1) - (value + align - 1) % align
+end func
+
+func write(addr: int, data: []bit8)
+	do @writer.setPos(%head, addr)
+	do @writer.write(data)
+end func
+
+func writeCode()
+	var items: list<\exe\asm@Asm> :: @pack.asms
+	do items.head()
+	while(!items.term())
+		var asm: \exe\asm@Asm :: items.get()
+		var addr: int :: @writer.getPos() - @code.dataPos $ int + @code.imgPos $ int
+		assert addr >= 0
+		; Write machine language.
+		var refValueList: list<\exe\asm@RefValueAddr> :: @pack.refValueList
+		do refValueList.tail()
+		var listPtr: kuin@ListPtr :: refValueList.getPtr()
+		do \exe\asm@writeAsmBin(@writer, refValueList, addr, asm)
+		do refValueList.setPtr(listPtr)
+		if(refValueList.term())
+			do refValueList.head()
+		else
+			do refValueList.next()
+		end if
+		var addr2: int :: @writer.getPos() - @code.dataPos $ int + @code.imgPos $ int
+		while(!refValueList.term())
+			do(refValueList.get()).bottom :: addr2
+			do refValueList.next()
+		end while
+		do items.next()
+	end while
+	; Update all the function addresses.
+	do @pack.funcAddrs.forEach(@updateFuncAddrCallback, null)
+end func
+
+func updateFuncAddrCallback(key: \ast@AstFunc, value: []\exe\asm@Asm, data: kuin@Class): bool
+	var info: \exe\asm@ExeFuncInfo :: \exe\asm@getExeFuncInfo(key)
+	do info.addrTop.value :: value[0].addr.value
+	do info.addrBottom :: value[1].addr.value
+	ret true
+end func
+
+func writeReadonlyData()
+	; Calculate 'LookupLen'
+	do @lookupLen :: 0
+	block
+		var items: list<\exe\asm@DllImport> :: @pack.dllImport
+		do items.head()
+		while(!items.term())
+			do @lookupLen :+ (^items.get().funcs * 8 + 8)
+			do items.next()
+		end while
+	end block
+	; Calculate 'ReadonlyDataLen'
+	var padding: int :: @padding(@lookupLen $ int, 16)
+	do @readonlyDataLen :: 0
+	block
+		var items: list<\exe\asm@ReadonlyData> :: @pack.readonlyData
+		do items.head()
+		while(!items.term())
+			var data: \exe\asm@ReadonlyData :: items.get()
+			if(data.align128)
+				do @readonlyDataLen :+ @padding(@readonlyDataLen, 16)
+			end if
+			do @readonlyDataLen :+ ^data.buf
+			do items.next()
+		end while
+	end block
+	do @readonlyDataLen :+ @padding(@readonlyDataLen, 8)
+	block
+		var items: list<\exe\asm@ClassTable> :: @pack.classTable
+		do items.head()
+		while(!items.term())
+			var table: \exe\asm@ClassTable :: items.get()
+			do @readonlyDataLen :+ 0x08 + \exe\asm@getExeClassInfo(table.class_).funcSize
+			do items.next()
+		end while
+	end block
+	do @readonlyDataLen :+ @padding(@readonlyDataLen, 0x08)
+	do @readonlyDataLen :+ padding
+	; 'Lookup'
+	block
+		var baseAddr: int :: @writer.getPos()
+		var dllPos: int :: 0
+		var items: list<\exe\asm@DllImport> :: @pack.dllImport
+		do items.head()
+		while(!items.term())
+			var dll: \exe\asm@DllImport :: items.get()
+			do dll.addr :: dllPos
+			do dllPos :+ ^dll.dllName + 1
+			if(dllPos % 2 <> 0)
+				do dllPos :+ 1
+			end if
+			var items2: list<\exe\asm@DllImportFunc> :: dll.funcs
+			do items2.head()
+			while(!items2.term())
+				var func_: \exe\asm@DllImportFunc :: items2.get()
+				do func_.addr.value :: @readonlyData.imgPos + @writer.getPos() - baseAddr
+				var addr: bit32 :: (@readonlyData.imgPos + @lookupLen + @readonlyDataLen + @lookupLen + 20 * (^@pack.dllImport + 1) + dllPos) $ bit32
+				do @writer.write(\convert@bit32ToBin(addr))
+				do @writer.write(#[4]bit8)
+				do dllPos :+ 2 + ^func_.funcName + 1
+				if(dllPos % 2 <> 0)
+					do dllPos :+ 1
+				end if
+				do items2.next()
+			end while
+			; 'Null function'
+			do @writer.write(#[8]bit8)
+			do items.next()
+		end while
+	end block
+	; 'ReadonlyData'
+	block
+		var baseAddr: int :: @writer.getPos()
+		; Write a blank.
+		do @writer.write(#[padding]bit8)
+		; Write all the literals.
+		block
+			var items: list<\exe\asm@ReadonlyData> :: @pack.readonlyData
+			do items.head()
+			while(!items.term())
+				var data: \exe\asm@ReadonlyData :: items.get()
+				if(data.align128)
+					var n: int :: @padding(@writer.getPos(), 16)
+					do @writer.write(#[n]bit8)
+				end if
+				do data.addr.value :: @writer.getPos() - baseAddr + @readonlyData.imgPos + @lookupLen
+				do @writer.write(data.buf)
+				do items.next()
+			end while
+		end block
+		block
+			var n: int :: @padding(@writer.getPos(), 8)
+			do @writer.write(#[n]bit8)
+		end block
+		; Write all the class tables.
+		block
+			var classPos: int :: @writer.getPos() - baseAddr
+			block
+				var items: list<\exe\asm@ClassTable> :: @pack.classTable
+				do items.head()
+				while(!items.term())
+					var table: \exe\asm@ClassTable :: items.get()
+					do table.addr.value :: @readonlyData.imgPos + @lookupLen + classPos
+					do classPos :+ 0x08 + \exe\asm@getExeClassInfo(table.class_).funcSize
+					do items.next()
+				end while
+			end block
+			block
+				var items: list<\exe\asm@ClassTable> :: @pack.classTable
+				do items.head()
+				while(!items.term())
+					var table: \exe\asm@ClassTable :: items.get()
+					var addr: bit64 :: (table.parent =& null ?(0, table.parent.value - table.addr.value)) $ bit64
+					var origin: int
+					do @writer.write(\convert@bit64ToBin(addr))
+					do origin :: @writer.getPos()
+					do @writer.write(#[\exe\asm@getExeClassInfo(table.class_).funcSize]bit8)
+					do @writeFuncAddrRecursion(table.class_, origin, table.addr.value + 0x08)
+					do @writer.setPos(%head, origin + \exe\asm@getExeClassInfo(table.class_).funcSize)
+					do items.next()
+				end while
+			end block
+		end block
+		do @writer.write(#[@padding(@writer.getPos(), 8)]bit8)
+	end block
+	; 'Lookup'
+	block
+		var dllPos: int :: 0
+		var items: list<\exe\asm@DllImport> :: @pack.dllImport
+		do items.head()
+		while(!items.term())
+			var dll: \exe\asm@DllImport :: items.get()
+			do dllPos :+ ^dll.dllName + 1
+			if(dllPos % 2 <> 0)
+				do dllPos :+ 1
+			end if
+			var items2: list<\exe\asm@DllImportFunc> :: dll.funcs
+			do items2.head()
+			while(!items2.term())
+				var func_: \exe\asm@DllImportFunc :: items2.get()
+				var addr: bit32 :: (@readonlyData.imgPos + @lookupLen + @readonlyDataLen + @lookupLen + 20 * (^@pack.dllImport + 1) + dllPos) $ bit32
+				do @writer.write(\convert@bit32ToBin(addr))
+				do @writer.write(#[4]bit8)
+				do dllPos :+ 2 + ^func_.funcName + 1
+				if(dllPos % 2 <> 0)
+					do dllPos :+ 1
+				end if
+				do items2.next()
+			end while
+			; 'Null function'
+			do @writer.write(#[8]bit8)
+			do items.next()
+		end while
+	end block
+	; 'DLL Import'
+	block
+		var baseAddr: int :: @writer.getPos()
+		block
+			var lookupPos: int :: 0
+			var dllPos: int :: 0
+			var items: list<\exe\asm@DllImport> :: @pack.dllImport
+			do items.head()
+			while(!items.term())
+				var dll: \exe\asm@DllImport :: items.get()
+				var originalFirstChunk: bit32 :: (@readonlyData.imgPos + @lookupLen + @readonlyDataLen + lookupPos) $ bit32
+				do @writer.write(\convert@bit32ToBin(originalFirstChunk))
+				; 'Time date stamp', 'Forwarder chain'
+				do @writer.write(#[8]bit8)
+				var name: bit32 :: (@readonlyData.imgPos + @lookupLen + @readonlyDataLen + @lookupLen + 20 * (^@pack.dllImport + 1) + dllPos) $ bit32
+				do @writer.write(\convert@bit32ToBin(name))
+				do dllPos :+ ^dll.dllName + 1
+				if(dllPos % 2 <> 0)
+					do dllPos :+ 1
+				end if
+				var items2: list<\exe\asm@DllImportFunc> :: dll.funcs
+				do items2.head()
+				while(!items2.term())
+					do dllPos :+ 2 + ^items2.get().funcName + 1
+					if(dllPos % 2 <> 0)
+						do dllPos :+ 1
+					end if
+					do items2.next()
+				end while
+				var firstChunk: bit32 :: (@readonlyData.imgPos + lookupPos) $ bit32
+				do @writer.write(\convert@bit32ToBin(firstChunk))
+				do lookupPos :+ ^dll.funcs * 8 + 8
+				do items.next()
+			end while
+			; 'Null'
+			do @writer.write(#[20]bit8)
+		end block
+		block
+			var items: list<\exe\asm@DllImport> :: @pack.dllImport
+			do items.head()
+			while(!items.term())
+				var dll: \exe\asm@DllImport :: items.get()
+				do @writer.write(dll.dllName)
+				do @writer.write(#[1]bit8) {The terminating character.}
+				if(@writer.getPos() % 2 <> 0)
+					do @writer.write(#[1]bit8)
+				end if
+				var items2: list<\exe\asm@DllImportFunc> :: dll.funcs
+				do items2.head()
+				while(!items2.term())
+					var func_: \exe\asm@DllImportFunc :: items2.get()
+					do @writer.write(#[2]bit8)
+					do @writer.write(func_.funcName)
+					do @writer.write(#[1]bit8) {The terminating character.}
+					if(@writer.getPos() % 2 <> 0)
+						do @writer.write(#[1]bit8)
+					end if
+					do items2.next()
+				end while
+				do items.next()
+			end while
+			do @writer.write(#[@padding(@writer.getPos(), 4)]bit8)
+		end block
+		do @importLen :: @writer.getPos() - baseAddr
+	end block
+	; 'Unwind'
+	block
+		var items: list<\exe\asm@ExcptTable> :: @pack.excptTable
+		do items.head()
+		while(!items.term())
+			var table: \exe\asm@ExcptTable :: items.get()
+			var sizeOfPrologue: bit8
+			block
+				var size: int :: table.postPrologue.addr.value - table.begin.addr.value
+				do sizeOfPrologue :: size $ bit8
+				assert size = sizeOfPrologue $ int {The size of 'Prologue' should fit in bit8.}
+			end block
+			do table.addr :: @writer.getPos() - @readonlyData.dataPos + @readonlyData.imgPos
+			do @writer.write([^table.tryScopes = 0 ?(0x01b8, 0x09b8), sizeOfPrologue]) {'Version and flags'}
+			if(table.stackSize = -1)
+				; For special functions of exception handling.
+				do @writer.write([
+				|0x0Cb8, {'Count of unwind codes'}
+				|0x00b8, {'Frame register'}
+				|sizeOfPrologue, {'Offset in prologue'}
+				|0x64b8, {'Unwind operation code and operation infomation'}
+				|0x11b8, 0x00b8, sizeOfPrologue, 0x54b8,
+				|0x10b8, 0x00b8, sizeOfPrologue, 0x34b8,
+				|0x0Eb8, 0x00b8, sizeOfPrologue, 0x72b8,
+				|0x1Cb8, 0xF0b8, 0x1Ab8, 0xE0b8,
+				|0x18b8, 0xD0b8, 0x16b8, 0xC0b8,
+				|0x14b8, 0x70b8])
+			else
+				var stackSize: int :: (table.stackSize - 8) / 8
+				if(stackSize > 0x0F)
+					do @writer.write([
+					|0x02b8, {'Count of unwind codes'}
+					|0x00b8, {'Frame register'}
+					|sizeOfPrologue, {'Offset in prologue'}
+					|0x01b8]) {'Unwind operation code and operation information'}
+					var stackSize2: bit16 :: (table.stackSize / 8) $ bit16
+					do @writer.write(\convert@bit16ToBin(stackSize2))
+				else
+					do @writer.write([
+					|0x01b8, {'Count of unwind codes'}
+					|0x00b8, {'Frame register'}
+					|sizeOfPrologue, {'Offset in prologue'}
+					|(0x02b8).or((stackSize $ bit8).shl(4))]) {'Unwind operation code and operation information'}
+					; 'None'
+					do @writer.write(#[2]bit8)
+				end if
+			end if
+			if(^table.tryScopes <> 0)
+				do @writer.write(\convert@bit32ToBin(@pack.excptFunc.value $ bit32))
+				do @writer.write(\convert@bit32ToBin((^table.tryScopes) $ bit32))
+				; Write 'TryScopes' in reverse order.
+				var items2: list<\exe\asm@ExcptTableTry> :: table.tryScopes
+				do items2.tail()
+				while(!items2.term())
+					var try_: \exe\asm@ExcptTableTry :: items2.get()
+					assert try_.begin.addr.value = try_.begin.addr.value $ bit32 $ int
+					do @writer.write(\convert@bit32ToBin(try_.begin.addr.value $ bit32))
+					assert try_.end_.addr.value = try_.end_.addr.value $ bit32 $ int
+					do @writer.write(\convert@bit32ToBin(try_.end_.addr.value $ bit32))
+					if(try_.catchFunc =& null)
+						do @writer.write([0x01b8, 0x00b8, 0x00b8, 0x00b8])
+					else
+						do @writer.write(\convert@bit32ToBin(try_.catchFunc.value $ bit32))
+					end if
+					do @writer.write(\convert@bit32ToBin(try_.end_.addr.value $ bit32))
+					do items2.prev()
+				end while
+			end if
+			do items.next()
+		end while
+	end block
+end func
+
+func writeFuncAddrRecursion(class_: \ast@AstClass, fileOrigin: int, addrOrigin: int)
+	if(class_.refItem <>& null)
+		do @writeFuncAddrRecursion(class_.refItem $ \ast@AstClass, fileOrigin, addrOrigin)
+	end if
+	var items: list<\ast@AstClassItem> :: class_.items
+	do items.head()
+	while(!items.term())
+		var item: \ast@AstClassItem :: items.get()
+		if(item.def.typeId = %func_)
+			var info: \exe\asm@ExeClassItemInfo :: \exe\asm@getExeClassItemInfo(item)
+			assert info.addr >= 0
+			var info2: \exe\asm@ExeFuncInfo :: \exe\asm@getExeFuncInfo(item.def $ \ast@AstFunc)
+			var addr: int :: info2.addrTop.value
+			assert addr <> -1 & addr <> -2
+			do addr :- addrOrigin + info.addr
+			do @writer.setPos(%head, fileOrigin + info.addr)
+			do @writer.write(\convert@bit64ToBin(addr $ bit64))
+		end if
+		do items.next()
+	end while
+end func
+
+func writeExcpt()
+	var items: list<\exe\asm@ExcptTable> :: @pack.excptTable
+	do items.head()
+	while(!items.term())
+		var table: \exe\asm@ExcptTable :: items.get()
+		assert table.begin.addr.value = table.begin.addr.value $ bit32 $ int
+		do @writer.write(\convert@bit32ToBin(table.begin.addr.value $ bit32))
+		assert table.end_.addr.value = table.end_.addr.value $ bit32 $ int
+		do @writer.write(\convert@bit32ToBin(table.end_.addr.value $ bit32))
+		assert table.addr = table.addr $ bit32 $ int
+		do @writer.write(\convert@bit32ToBin(table.addr $ bit32))
+		do items.next()
+	end while
+end func
+
+func calcWritableData(key: []char, value: \exe\asm@WritableData, param: kuin@Class): bool
+	var addr: lib@Int :: param $ lib@Int
+	var size: int :: value.size
+	assert size = 1 | size = 2 | size = 4 | size = 8
+	do addr.value :+ @padding(addr.value, size)
+	do value.addr.value :: @writableData.imgPos + addr.value
+	do addr.value :+ size
+	ret true
+end func
+
+func writeRes()
+	var baseAddr: int :: @writer.getPos()
+	var dataEntryAddrs: []int :: #[@pack.resIconNum + 2]int
+	block
+		var idx: int :: 0
+		do @writeResRecursion(@pack.resEntries, dataEntryAddrs, &idx, baseAddr)
+		if(idx <> @pack.resIconNum + 2)
+			do \err@err(%iconFileBroken, null, [\option@icon])
+			ret
+		end if
+	end block
+	for i(0, @pack.resIconNum {no -1})
+		var addr: bit32 :: (@writer.getPos() - baseAddr + @res.imgPos) $ bit32
+		var size: bit32 :: (i = @pack.resIconNum ?(6 + 14 * @pack.resIconNum, @pack.resIconBinSize[i])) $ bit32
+		var pos: int :: dataEntryAddrs[i]
+		var tmp: int :: @writer.getPos()
+		do @writer.setPos(%head, pos)
+		do @writer.write(\convert@bit32ToBin(addr))
+		do @writer.write(\convert@bit32ToBin(size))
+		do @writer.setPos(%head, tmp)
+		if(i = @pack.resIconNum)
+			do @writer.write([0x00b8, 0x00b8, 0x01b8, 0x00b8, 0x09b8, 0x00b8])
+			for j(0, @pack.resIconNum - 1)
+				do @writer.write(@pack.resIconHeaderBins[j])
+			end for
+		else
+			do @writer.write(@pack.resIconBins[i])
+		end if
+	end for
+	block
+		var manifest: []bit8 :: \exe\manifest@getManifestBin()
+		var addr: bit32 :: (@writer.getPos() - baseAddr + @res.imgPos) $ bit32
+		var size: bit32 :: (^manifest) $ bit32
+		var pos: int :: dataEntryAddrs[@pack.resIconNum + 1]
+		var tmp: int :: @writer.getPos()
+		do @writer.setPos(%head, pos)
+		do @writer.write(\convert@bit32ToBin(addr))
+		do @writer.write(\convert@bit32ToBin(size))
+		do @writer.setPos(%head, tmp)
+		do @writer.write(manifest)
+	end block
+end func
+
+func writeResRecursion(res: list<\exe\asm@ResEntry>, dataEntryAddrs: []int, idx: &int, baseAddr: int)
+	do @writer.write([
+	|0x00b8, 0x00b8, 0x00b8, 0x00b8, {'Characteristics'}
+	|0x00b8, 0x00b8, 0x00b8, 0x00b8, {'Time date stamp'}
+	|0x04b8, 0x00b8, {'Major version'}
+	|0x00b8, 0x00b8, {'Minor version'}
+	|0x00b8, 0x00b8]) {'Number of named entries'}
+	block
+		var len: bit16 :: (^res) $ bit16
+		if(len $ int <> ^res)
+			do \err@err(%tooManyResources, null, [(^res).toStr()])
+			ret
+		end if
+		do @writer.write(\convert@bit16ToBin(len))
+	end block
+	do res.head()
+	while(!res.term())
+		var entry: \exe\asm@ResEntry :: res.get()
+		do @writer.write(\convert@bit32ToBin(entry.value $ bit32))
+		do entry.addr :: @writer.getPos()
+		do @writer.write([0xFFb8, 0xFFb8, 0xFFb8, 0xFFb8])
+		do res.next()
+	end while
+	do res.head()
+	while(!res.term())
+		var entry: \exe\asm@ResEntry :: res.get()
+		var addr: bit32 :: (@writer.getPos() - baseAddr) $ bit32
+		var tmp: int :: @writer.getPos()
+		if(entry.children <>& null)
+			do addr :: addr.or(0x80000000b32)
+		end if
+		do @writer.setPos(%head, entry.addr)
+		do @writer.write(\convert@bit32ToBin(addr))
+		do @writer.setPos(%head, tmp)
+		if(entry.children =& null)
+			if(idx = @pack.resIconNum + 2)
+				do \err@err(%iconFileBroken, null, [\option@icon])
+				ret
+			end if
+			do dataEntryAddrs[idx] :: @writer.getPos()
+			do idx :+ 1
+			do @writer.write([
+			|0xFFb8, 0xFFb8, 0xFFb8, 0xFFb8, 0xFFb8, 0xFFb8, 0xFFb8, 0xFFb8,
+			|0xE4b8, 0x04b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8, 0x00b8])
+		else
+			do @writeResRecursion(entry.children, dataEntryAddrs, &idx, baseAddr)
+		end if
+		do res.next()
+	end while
+end func

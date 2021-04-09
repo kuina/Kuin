@@ -1,0 +1,83 @@
+const p1: bit64 :: 0x9E3779B185EBCA87b64
+const p2: bit64 :: 0xC2B2AE3D27D4EB4Fb64
+const p3: bit64 :: 0x165667B19E3779F9b64
+const p4: bit64 :: 0x85EBCA77C2B2AE63b64
+const p5: bit64 :: 0x27D4EB2F165667C5b64
+
++func xxh64(data: []bit8, seed: bit64): bit64
+	var h: bit64
+	var ptr: int :: 0
+	if(^data >= 32)
+		var v1: bit64 :: seed + @p1 + @p2
+		var v2: bit64 :: seed + @p2
+		var v3: bit64 :: seed
+		var v4: bit64 :: seed - @p1
+		var limit: int :: ^data - 32
+		while(ptr <= limit, skip)
+			do v1 :: @round(v1, (data[ptr] $ bit64).or((data[ptr + 1] $ bit64).shl(8)).or((data[ptr + 2] $ bit64).shl(16)).or((data[ptr + 3] $ bit64).shl(24)).or((data[ptr + 4] $ bit64).shl(32)).or((data[ptr + 5] $ bit64).shl(40)).or((data[ptr + 6] $ bit64).shl(48)).or((data[ptr + 7] $ bit64).shl(56)))
+			do ptr :+ 8
+			do v2 :: @round(v2, (data[ptr] $ bit64).or((data[ptr + 1] $ bit64).shl(8)).or((data[ptr + 2] $ bit64).shl(16)).or((data[ptr + 3] $ bit64).shl(24)).or((data[ptr + 4] $ bit64).shl(32)).or((data[ptr + 5] $ bit64).shl(40)).or((data[ptr + 6] $ bit64).shl(48)).or((data[ptr + 7] $ bit64).shl(56)))
+			do ptr :+ 8
+			do v3 :: @round(v3, (data[ptr] $ bit64).or((data[ptr + 1] $ bit64).shl(8)).or((data[ptr + 2] $ bit64).shl(16)).or((data[ptr + 3] $ bit64).shl(24)).or((data[ptr + 4] $ bit64).shl(32)).or((data[ptr + 5] $ bit64).shl(40)).or((data[ptr + 6] $ bit64).shl(48)).or((data[ptr + 7] $ bit64).shl(56)))
+			do ptr :+ 8
+			do v4 :: @round(v4, (data[ptr] $ bit64).or((data[ptr + 1] $ bit64).shl(8)).or((data[ptr + 2] $ bit64).shl(16)).or((data[ptr + 3] $ bit64).shl(24)).or((data[ptr + 4] $ bit64).shl(32)).or((data[ptr + 5] $ bit64).shl(40)).or((data[ptr + 6] $ bit64).shl(48)).or((data[ptr + 7] $ bit64).shl(56)))
+			do ptr :+ 8
+		end while
+		do h :: @rotl(v1, 1) + @rotl(v2, 7) + @rotl(v3, 12) + @rotl(v4, 18)
+		do h :: @mergeRound(h, v1)
+		do h :: @mergeRound(h, v2)
+		do h :: @mergeRound(h, v3)
+		do h :: @mergeRound(h, v4)
+	else
+		do h :: seed + @p5
+	end if
+	do h :+ (^data) $ bit64
+	while(^data - ptr >= 8)
+		do @process8(data, &h, &ptr)
+	end while
+	while(^data - ptr >= 4)
+		do @process4(data, &h, &ptr)
+	end while
+	for(0, ^data - ptr - 1)
+		do @process1(data, &h, &ptr)
+	end for
+	ret @avalanche(h)
+end func
+
+func process1(data: []bit8, h: &bit64, ptr: &int)
+	do h :: h.xor(data[ptr] $ bit64 * @p5)
+	do ptr :+ 1
+	do h :: @rotl(h, 11) * @p1
+end func
+
+func process4(data: []bit8, h: &bit64, ptr: &int)
+	do h :: h.xor((data[ptr] $ bit64).or((data[ptr + 1] $ bit64).shl(8)).or((data[ptr + 2] $ bit64).shl(16)).or((data[ptr + 3] $ bit64).shl(24)) * @p1)
+	do ptr :+ 4
+	do h :: @rotl(h, 23) * @p2 + @p3
+end func
+
+func process8(data: []bit8, h: &bit64, ptr: &int)
+	do h :: h.xor(@round(0b64, (data[ptr] $ bit64).or((data[ptr + 1] $ bit64).shl(8)).or((data[ptr + 2] $ bit64).shl(16)).or((data[ptr + 3] $ bit64).shl(24)).or((data[ptr + 4] $ bit64).shl(32)).or((data[ptr + 5] $ bit64).shl(40)).or((data[ptr + 6] $ bit64).shl(48)).or((data[ptr + 7] $ bit64).shl(56))))
+	do ptr :+ 8
+	do h :: @rotl(h, 27) * @p1 + @p4
+end func
+
+func rotl(x: bit64, r: int): bit64
+	ret x.shl(r).or(x.shr(64 - r))
+end func
+
+func round(acc: bit64, input: bit64): bit64
+	ret @rotl(acc + input * @p2, 31) * @p1
+end func
+
+func mergeRound(acc: bit64, value: bit64): bit64
+	ret acc.xor(@round(0b64, value)) * @p1 + @p4
+end func
+
+func avalanche(h: bit64): bit64
+	do h :: h.xor(h.shr(33))
+	do h :* @p2
+	do h :: h.xor(h.shr(29))
+	do h :* @p3
+	ret h.xor(h.shr(32))
+end func

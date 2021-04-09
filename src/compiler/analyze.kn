@@ -1,0 +1,3844 @@
+var asts: dict<[]char, \ast@Ast>
+var funcAttrs: dict<[]char, dict<[]char, bool>>
+
++func analyze(asts: dict<[]char, \ast@Ast>, funcAttrs: &dict<[]char, dict<[]char, bool>>): \ast@AstFunc
+	do @asts :: asts
+	do @funcAttrs :: #dict<[]char, dict<[]char, bool>>
+	
+	var mainFunc: \ast@AstFunc :: @searchMain()
+	if(mainFunc =& null)
+		ret null
+	end if
+	
+	do asts.forEach(@resolveIdentifier, null)
+	do funcAttrs :: @funcAttrs
+	ret @rebuild(mainFunc)
+end func
+
++func searchMain(): \ast@AstFunc
+	var ast: \ast@Ast :: @asts.get("\\" ~ \option@inputName, &)
+	if(ast =& null)
+		do \err@err(%noMainFunc, null, null)
+		ret null
+	end if
+	
+	var mainFunc: \ast@Ast :: ast.scopeChildren.get("main", &)
+	if(mainFunc =& null | mainFunc.typeId <> %func_)
+		do \err@err(%noMainFunc, null, null)
+		ret null
+	end if
+	
+	var mainFunc2: \ast@AstFunc :: mainFunc $ \ast@AstFunc
+	if(^mainFunc2.args <> 0 | mainFunc2.ret_ <>& null | mainFunc2.funcOption <> %none | ^mainFunc2.funcAttr <> 0)
+		do \err@err(%wrongMainFunc, mainFunc2.pos, null)
+	end if
+	ret mainFunc2
+end func
+
+func resolveIdentifier(key: []char, value: \ast@Ast, data: kuin@Class): bool
+	if(value =& \ast@getSubSrcDummyAst())
+		ret true
+	end if
+	assert value =$ \ast@AstRoot
+	var scopeRefedItems: list<\ast@ScopeRefedItem> :: (value $ \ast@AstRoot).scopeRefedItems
+	
+	; Search scopes for identifiers and resolve references.
+	do scopeRefedItems.head()
+	while(!scopeRefedItems.term())
+		var item: \ast@ScopeRefedItem :: scopeRefedItems.get()
+		var ast: \ast@Ast :: item.def
+		assert ast.refItem =& null {Must not resolve references that have been already resolved.}
+		assert ast.refName <>& null
+		var otherFile: bool :: false
+		var ptrAt: int :: ast.refName.find('@', -1)
+		var ptrName: []char :: ptrAt = -1 ?(ast.refName, ast.refName.sub(ptrAt + 1, -1))
+		var foundAst: \ast@Ast :: null
+		if(ptrAt <> -1)
+			; Search the root of the source.
+			var ptrSrc: []char {The source name before '@'.}
+			if(ptrAt = 0)
+				do ptrSrc :: key
+			else
+				do ptrSrc :: ast.refName.sub(0, ptrAt)
+				if(ptrSrc = key)
+					do \err@err(%nonOmittingAt, ast.pos, [ptrSrc])
+				end if
+				do otherFile :: true
+			end if
+			var ast2: \ast@Ast :: @asts.get(ptrSrc, &)
+			if(ast2 <>& null)
+				do foundAst :: ast2.scopeChildren.get(ptrName, &)
+			end if
+		else
+			; Search from the current scope toward its parent's scope.
+			var scope: \ast@Ast :: item.scope
+			var overFunc: bool :: false
+			while loop(true)
+				if(scope.scopeParent =& null)
+					break loop {No more parent scope exists.}
+				end if
+				if(scope.name <>& null & scope.name = ptrName)
+					if(scope.typeId = %func_ & scope.refName <>& null)
+						do \err@err(%accessMemberWithoutMe, ast.pos, [ptrName])
+					else
+						; The compiler also looks at the current scope's name.
+						do foundAst :: scope
+						break loop
+					end if
+				end if
+				var ast2: \ast@Ast :: scope.scopeChildren.get(ptrName, &)
+				if(ast2 <>& null)
+					var err: bool :: false
+					if(overFunc)
+						if(ast2.typeId = %arg)
+							var kind: \ast@AstArgKind :: (ast2 $ \ast@AstArg).kind
+							if(kind = %member | kind = %localVar | kind = %localArg)
+								do err :: true
+							end if
+						end if
+						if(!err & ast2.typeId.and(%statBreakable) = %statBreakable)
+							do err :: true
+						end if
+					end if
+					if(!err & ast2.typeId = %func_ & ast2.refName <>& null)
+						do err :: true
+					end if
+					if(err)
+						do \err@err(%accessMemberWithoutMe, ast.pos, [ptrName])
+					else
+						do foundAst :: ast2
+						break loop
+					end if
+				end if
+				if(scope.typeId = %func_)
+					do overFunc :: true
+				end if
+				do scope :: scope.scopeParent
+			end while
+		end if
+		if(foundAst <>& null)
+			if(otherFile & !foundAst.publicInSrc)
+				do \err@err(%accessUnpublishedElement, ast.pos, [ast.refName])
+			end if
+			do ast.refItem :: foundAst
+		else
+			do \err@err(%identifierNotFound, ast.pos, [ast.refName])
+			do ast.refItem :: null
+		end if
+		do scopeRefedItems.next()
+	end while
+	ret true
+end func
+
+func rebuild(mainFunc: \ast@AstFunc): \ast@AstFunc
+	var entry: \ast@AstFunc
+	
+	; Build the entry point and register it in the root.
+	block
+		if(\option@env_ = %cpp & \option@extra.get("lib", &))
+			do entry :: @makeLibraryPoint(mainFunc)
+		else
+			do entry :: @makeEntryPoint(mainFunc)
+		end if
+		do @rebuildFunc(entry)
+		var root: \ast@Ast :: @asts.get("\\" ~ \option@inputName, &)
+		assert root =$ \ast@AstRoot
+		do(root $ \ast@AstRoot).items.add(entry)
+	end block
+	
+	do @asts.forEach(@rebuildRoot, null)
+	
+	ret entry
+end func
+
+class AddInitFuncsData()
+	+var funcs: list<\ast@Ast>
+	+var name: []char
+end class
+
+func addInitFuncs(key: []char, value: \ast@Ast, data: kuin@Class): bool
+	if(key[0] = '\\' | key = "kuin" | value.scopeChildren =& null)
+		ret true
+	end if
+	var data2: @AddInitFuncsData :: data $ @AddInitFuncsData
+	var ast: \ast@Ast :: value.scopeChildren.get(data2.name, &)
+	if(ast =& null)
+		ret true
+	end if
+	do data2.funcs.add(ast)
+	ret true
+end func
+
+func makeLibraryPoint(mainFunc: \ast@AstFunc): \ast@AstFunc
+	var pos: \pos@Pos :: \pos@make("kuin", 1, 1)
+	var entry: \ast@AstFunc :: #\ast@AstFunc
+	var init: \ast@AstFunc :: #\ast@AstFunc
+	var fin: \ast@AstFunc :: #\ast@AstFunc
+	do @initAst(entry, %func_, pos)
+	do entry.name :: "$"
+	do entry.funcOption :: %none
+	do entry.funcAttr :: #list<[]char>
+	do entry.args :: #list<\ast@AstArg>
+	do entry.ret_ :: null
+	do entry.stats :: #list<\ast@AstStat>
+	do @initAst(init, %func_, pos)
+	do init.name :: "k_init_"
+	do init.funcOption :: %rwi
+	do init.funcAttr :: #list<[]char>
+	do init.args :: #list<\ast@AstArg>
+	do init.ret_ :: null
+	do init.stats :: #list<\ast@AstStat>
+	do @initAst(fin, %func_, pos)
+	do fin.name :: "k_fin_"
+	do fin.funcOption :: %rwi
+	do fin.funcAttr :: #list<[]char>
+	do fin.args :: #list<\ast@AstArg>
+	do fin.ret_ :: null
+	do fin.stats :: #list<\ast@AstStat>
+	block
+		var do_: \ast@AstStatDo :: #\ast@AstStatDo
+		do @initAst(do_, %statDo, pos)
+		block
+			var call: \ast@AstExprCall :: #\ast@AstExprCall
+			do @initAstExpr(call, %exprCall, pos)
+			do call.args :: #list<\ast@AstExprCallArg>
+			block
+				var ref: \ast@AstExpr :: #\ast@AstExpr
+				do @initAstExpr(ref, %exprRef, pos)
+				do ref.refItem :: init
+				do call.func_ :: ref
+			end block
+			do do_.expr :: call
+		end block
+		do entry.stats.add(do_)
+	end block
+	block
+		var do_: \ast@AstStatDo :: #\ast@AstStatDo
+		do @initAst(do_, %statDo, pos)
+		block
+			var call: \ast@AstExprCall :: #\ast@AstExprCall
+			do @initAstExpr(call, %exprCall, pos)
+			do call.args :: #list<\ast@AstExprCallArg>
+			block
+				var ref: \ast@AstExpr :: #\ast@AstExpr
+				do @initAstExpr(ref, %exprRef, pos)
+				do ref.refItem :: mainFunc
+				do call.func_ :: ref
+			end block
+			do do_.expr :: call
+		end block
+		do entry.stats.add(do_)
+	end block
+	block
+		var do_: \ast@AstStatDo :: #\ast@AstStatDo
+		do @initAst(do_, %statDo, pos)
+		block
+			var call: \ast@AstExprCall :: #\ast@AstExprCall
+			do @initAstExpr(call, %exprCall, pos)
+			do call.args :: #list<\ast@AstExprCallArg>
+			block
+				var ref: \ast@AstExpr :: #\ast@AstExpr
+				do @initAstExpr(ref, %exprRef, pos)
+				do ref.refItem :: fin
+				do call.func_ :: ref
+			end block
+			do do_.expr :: call
+		end block
+		do entry.stats.add(do_)
+	end block
+	block
+		; Make the program to call 'init'.
+		var funcs: list<\ast@Ast> :: #list<\ast@Ast>
+		do funcs.add(@searchStdItem("kuin", "_init", false))
+		var data: @AddInitFuncsData :: #@AddInitFuncsData
+		do data.funcs :: funcs
+		do data.name :: "_init"
+		do @asts.forEach(@addInitFuncs, data)
+		do funcs.add(@searchStdItem("kuin", "_initVars", false))
+		block
+			do funcs.head()
+			while(!funcs.term())
+				var do_: \ast@AstStatDo :: #\ast@AstStatDo
+				do @initAst(do_, %statDo, pos)
+				block
+					var call: \ast@AstExprCall :: #\ast@AstExprCall
+					do @initAstExpr(call, %exprCall, pos)
+					do call.args :: #list<\ast@AstExprCallArg>
+					block
+						var ref: \ast@AstExpr :: #\ast@AstExpr
+						do @initAstExpr(ref, %exprRef, pos)
+						do ref.refItem :: funcs.get()
+						do call.func_ :: ref
+					end block
+					do do_.expr :: call
+				end block
+				do init.stats.add(do_)
+				do funcs.next()
+			end while
+		end block
+	end block
+	if(\option@env_ <> %web)
+		; Make the program to call 'fin'.
+		var funcs: list<\ast@Ast> :: #list<\ast@Ast>
+		do funcs.add(@searchStdItem("kuin", "_finVars", false))
+		var data: @AddInitFuncsData :: #@AddInitFuncsData
+		do data.funcs :: funcs
+		do data.name :: "_fin"
+		do @asts.forEach(@addInitFuncs, data)
+		do funcs.add(@searchStdItem("kuin", "_fin", false))
+		block
+			do funcs.head()
+			while(!funcs.term())
+				var do_: \ast@AstStatDo :: #\ast@AstStatDo
+				do @initAst(do_, %statDo, pos)
+				block
+					var call: \ast@AstExprCall :: #\ast@AstExprCall
+					do @initAstExpr(call, %exprCall, pos)
+					do call.args :: #list<\ast@AstExprCallArg>
+					block
+						var ref: \ast@AstExpr :: #\ast@AstExpr
+						do @initAstExpr(ref, %exprRef, pos)
+						do ref.refItem :: funcs.get()
+						do call.func_ :: ref
+					end block
+					do do_.expr :: call
+				end block
+				do fin.stats.add(do_)
+				do funcs.next()
+			end while
+		end block
+	end if
+	ret entry
+end func
+
+func makeEntryPoint(mainFunc: \ast@AstFunc): \ast@AstFunc
+	var pos: \pos@Pos :: \pos@make("kuin", 1, 1)
+	var entry: \ast@AstFunc :: #\ast@AstFunc
+	do @initAst(entry, %func_, pos)
+	do entry.name :: "k_main_"
+	do entry.funcOption :: %rwi
+	do entry.funcAttr :: #list<[]char>
+	do entry.args :: #list<\ast@AstArg>
+	do entry.ret_ :: null
+	do entry.stats :: #list<\ast@AstStat>
+	block
+		var try_: \ast@AstStatTry :: #\ast@AstStatTry
+		do @initAst(try_, %statTry, pos)
+		block
+			var var_: \ast@AstArg :: #\ast@AstArg
+			do @initAst(var_, %arg, pos)
+			do var_.name :: "$"
+			do var_.kind :: %localVar
+			do var_.refVar :: false
+			block
+				var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+				do @initAst(type, %typePrim, pos)
+				do type.kind :: %int_
+				do var_.type :: type
+			end block
+			do var_.expr :: null
+			do try_.blockVar :: var_
+		end block
+		block
+			var block_: \ast@AstStatBlock :: #\ast@AstStatBlock
+			do @initAst(block_, %statBlock, pos)
+			do block_.name :: "$"
+			do block_.blockVar :: null
+			do block_.stats :: #list<\ast@AstStat>
+			do try_.statBlock :: block_
+		end block
+		do try_.catches :: #list<\ast@AstStatCatch>
+		block
+			var block_: \ast@AstStatBlock :: #\ast@AstStatBlock
+			do @initAst(block_, %statBlock, pos)
+			do block_.name :: "$"
+			do block_.blockVar :: null
+			do block_.stats :: #list<\ast@AstStat>
+			do try_.finallyStatBlock :: block_
+		end block
+		block
+			; Make the program to call 'init' and 'main'.
+			var funcs: list<\ast@Ast> :: #list<\ast@Ast>
+			do funcs.add(@searchStdItem("kuin", "_init", false))
+			var data: @AddInitFuncsData :: #@AddInitFuncsData
+			do data.funcs :: funcs
+			do data.name :: "_init"
+			do @asts.forEach(@addInitFuncs, data)
+			do funcs.add(@searchStdItem("kuin", "_initVars", false))
+			do funcs.add(mainFunc)
+			block
+				do funcs.head()
+				while(!funcs.term())
+					var do_: \ast@AstStatDo :: #\ast@AstStatDo
+					do @initAst(do_, %statDo, pos)
+					block
+						var call: \ast@AstExprCall :: #\ast@AstExprCall
+						do @initAstExpr(call, %exprCall, pos)
+						do call.args :: #list<\ast@AstExprCallArg>
+						block
+							var ref: \ast@AstExpr :: #\ast@AstExpr
+							do @initAstExpr(ref, %exprRef, pos)
+							do ref.refItem :: funcs.get()
+							do call.func_ :: ref
+						end block
+						do do_.expr :: call
+					end block
+					do try_.statBlock.stats.add(do_)
+					do funcs.next()
+				end while
+			end block
+		end block
+		block
+			var catch_: \ast@AstStatCatch :: #\ast@AstStatCatch
+			do @initAst(catch_, %statCatch, pos)
+			do catch_.conds :: #list<\ast@AstExprPair>
+			block
+				var block_: \ast@AstStatBlock :: #\ast@AstStatBlock
+				do @initAst(block_, %statBlock, pos)
+				do block_.name :: "$"
+				do block_.blockVar :: null
+				do block_.stats :: #list<\ast@AstStat>
+				do catch_.statBlock :: block_
+			end block
+			block
+				var exprs: \ast@AstExprPair :: #\ast@AstExprPair
+				block
+					var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+					do @initAstExpr(expr, %exprValuePrim, pos)
+					do expr.varKind :: %value
+					do expr.value :: 0b64
+					block
+						var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+						do @initAst(type, %typePrim, pos)
+						do type.kind :: %int_
+						do expr.type :: type
+					end block
+					do exprs.expr0 :: expr
+				end block
+				block
+					var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+					do @initAstExpr(expr, %exprValuePrim, pos)
+					do expr.varKind :: %value
+					do expr.value :: 0xFFFFFFFFb64
+					block
+						var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+						do @initAst(type, %typePrim, pos)
+						do type.kind :: %int_
+						do expr.type :: type
+					end block
+					do exprs.expr1 :: expr
+				end block
+				do catch_.conds.add(exprs)
+			end block
+			block
+				; Make the program to call 'err'.
+				var do_: \ast@AstStatDo :: #\ast@AstStatDo
+				do @initAst(do_, %statDo, pos)
+				block
+					var call: \ast@AstExprCall :: #\ast@AstExprCall
+					do @initAstExpr(call, %exprCall, pos)
+					do call.args :: #list<\ast@AstExprCallArg>
+					block
+						var ref_: \ast@AstExpr :: #\ast@AstExpr
+						do @initAstExpr(ref_, %exprRef, pos)
+						do ref_.refItem :: @searchStdItem("kuin", "_err", false)
+						do call.func_ :: ref_
+					end block
+					block
+						var excpt: \ast@AstExprCallArg :: #\ast@AstExprCallArg
+						do excpt.refVar :: false
+						do excpt.skipVar :: false
+						block
+							var ref_: \ast@AstExpr :: #\ast@AstExpr
+							do @initAstExpr(ref_, %exprRef, pos)
+							do ref_.refItem :: try_.blockVar
+							do excpt.arg :: ref_
+						end block
+						do call.args.add(excpt)
+					end block
+					do do_.expr :: call
+				end block
+				do catch_.statBlock.stats.add(do_)
+			end block
+			do try_.catches.add(catch_)
+		end block
+		if(\option@env_ <> %web)
+			; Make the program to call 'fin'.
+			var funcs: list<\ast@Ast> :: #list<\ast@Ast>
+			do funcs.add(@searchStdItem("kuin", "_finVars", false))
+			var data: @AddInitFuncsData :: #@AddInitFuncsData
+			do data.funcs :: funcs
+			do data.name :: "_fin"
+			do @asts.forEach(@addInitFuncs, data)
+			do funcs.add(@searchStdItem("kuin", "_fin", false))
+			block
+				do funcs.head()
+				while(!funcs.term())
+					var do_: \ast@AstStatDo :: #\ast@AstStatDo
+					do @initAst(do_, %statDo, pos)
+					block
+						var call: \ast@AstExprCall :: #\ast@AstExprCall
+						do @initAstExpr(call, %exprCall, pos)
+						do call.args :: #list<\ast@AstExprCallArg>
+						block
+							var ref: \ast@AstExpr :: #\ast@AstExpr
+							do @initAstExpr(ref, %exprRef, pos)
+							do ref.refItem :: funcs.get()
+							do call.func_ :: ref
+						end block
+						do do_.expr :: call
+					end block
+					do try_.finallyStatBlock.stats.add(do_)
+					do funcs.next()
+				end while
+			end block
+		end if
+		do entry.stats.add(try_)
+	end block
+	ret entry
+end func
+
+func rebuildRoot(key: []char, value: \ast@Ast, data: kuin@Class): bool
+	if(value =& \ast@getSubSrcDummyAst())
+		ret true
+	end if
+	var ast: \ast@AstRoot :: value $ \ast@AstRoot
+	if(ast.extra <>& null)
+		ret true
+	end if
+	do ast.extra :: ast
+	
+	; Initialize and finalize global variables of each source file.
+	var initVarsFunc: \ast@AstFunc :: @searchStdItem("kuin", "_initVars", false) $ \ast@AstFunc
+	var finVarsFunc: \ast@AstFunc :: @searchStdItem("kuin", "_finVars", false) $ \ast@AstFunc
+	var items: list<\ast@Ast> :: ast.items
+	do items.head()
+	while(!items.term())
+		var item: \ast@Ast :: items.get()
+		if(item.typeId = %func_)
+			do @rebuildFunc(item $ \ast@AstFunc)
+		elif(item.typeId = %var_)
+			var var_: \ast@AstVar :: item $ \ast@AstVar
+			assert var_.arg.kind = %global
+			if(var_.arg.expr <>& null)
+				; Add initialization processing of global variables to '_initVars'.
+				do var_.arg.expr :: @rebuildExpr(var_.arg.expr, false)
+				
+				var do_: \ast@AstStatDo :: #\ast@AstStatDo
+				do @initAst(do_, %statDo, ast.pos)
+				block
+					var assign: \ast@AstExpr2 :: #\ast@AstExpr2
+					do @initAstExpr(assign, %expr2, ast.pos)
+					do assign.kind :: %assign
+					block
+						var ref: \ast@AstExpr :: #\ast@AstExpr
+						do @initAstExpr(ref, %exprRef, ast.pos)
+						do ref.type :: var_.arg.type
+						do ref.refItem :: var_.arg
+						do assign.children0 :: ref
+					end block
+					do assign.children1 :: var_.arg.expr
+					do do_.expr :: assign
+				end block
+				do initVarsFunc.stats.add(@rebuildStat(do_, null, null))
+			end if
+			if(var_.arg.type <>& null & \ast@isRef(var_.arg.type))
+				; Add finalization processing of global variables to '_finVars'.
+				var do_: \ast@AstStatDo :: #\ast@AstStatDo
+				do @initAst(do_, %statDo, ast.pos)
+				block
+					var assign: \ast@AstExpr2 :: #\ast@AstExpr2
+					do @initAstExpr(assign, %expr2, ast.pos)
+					do assign.kind :: %assign
+					block
+						var ref: \ast@AstExpr :: #\ast@AstExpr
+						do @initAstExpr(ref, %exprRef, ast.pos)
+						do ref.type :: var_.arg.type
+						do ref.refItem :: var_.arg
+						do assign.children0 :: ref
+					end block
+					do assign.children1 :: @makeExprNull(ast.pos)
+					do do_.expr :: assign
+				end block
+				do finVarsFunc.stats.add(@rebuildStat(do_, null, null))
+			end if
+		else
+			assert item.typeId = %const_ | item.typeId = %alias_ | item.typeId = %class_ | item.typeId = %enum_
+		end if
+		do items.next()
+	end while
+	ret true
+end func
+
+func rebuildFunc(ast: \ast@AstFunc)
+	if(ast.extra <>& null)
+		ret
+	end if
+	do ast.extra :: ast
+	
+	if(^ast.funcAttr >= 1)
+		do ast.funcAttr.head()
+		var name1: []char :: ast.funcAttr.get()
+		var name2: []char
+		if(^ast.funcAttr = 1)
+			do name2 :: ast.name
+		else
+			do ast.funcAttr.next()
+			do name2 :: ast.funcAttr.get()
+		end if
+		do addFuncAttr(name1, name2)
+	end if
+	
+	var items: list<\ast@AstArg> :: ast.args
+	do items.head()
+	while(!items.term())
+		do @rebuildArg(items.get())
+		do items.next()
+	end while
+	
+	if(ast.ret_ <>& null)
+		do ast.ret_ :: @rebuildType(ast.ret_, null)
+	end if
+	do ast.stats :: @refreshStats(ast.stats, ast.ret_, ast)
+	
+	func addFuncAttr(name1: []char, name2: []char)
+		var attrs1: dict<[]char, bool> :: @funcAttrs.get(name1, &)
+		if(attrs1 =& null)
+			do attrs1 :: #dict<[]char, bool>
+			do @funcAttrs.add(name1, attrs1)
+		end if
+		do attrs1.add(name2, true)
+	end func
+end func
+
+func rebuildVar(ast: \ast@AstVar)
+	if(ast.extra <>& null)
+		ret
+	end if
+	do ast.extra :: ast
+	
+	do @rebuildArg(ast.arg)
+end func
+
+func rebuildAlias(ast: \ast@AstAlias, parent: \ast@AstAlias)
+	; Make sure that the enum references do not circulate.
+	if(ast =& parent)
+		do \err@err(%circulatingAlias, parent.pos, [parent.name])
+		do ast.type :: null
+		ret
+	end if
+	
+	if(ast.extra <>& null)
+		ret
+	end if
+	do ast.extra :: ast
+	
+	do ast.type :: @rebuildType(ast.type, ast)
+end func
+
+func rebuildClass(ast: \ast@AstClass)
+	if(ast.extra <>& null)
+		ret
+	end if
+	do ast.extra :: ast
+	
+	var dtor: \ast@AstFunc :: null
+	var copy: \ast@AstFunc :: null
+	var toBin: \ast@AstFunc :: null
+	var fromBin: \ast@AstFunc :: null
+	do process1(ast, &dtor, &copy, &toBin, &fromBin)
+	if(dtor <>& null & copy <>& null & toBin <>& null & fromBin <>& null)
+		do process2(ast, dtor, copy, toBin, fromBin)
+		do @rebuildFunc(dtor)
+		do @rebuildFunc(copy)
+		do @rebuildFunc(toBin)
+		do @rebuildFunc(fromBin)
+	end if
+	
+	func process1(ast: \ast@AstClass, dtor: &\ast@AstFunc, copy: &\ast@AstFunc, toBin: &\ast@AstFunc, fromBin: &\ast@AstFunc)
+		if(ast.refItem <>& null)
+			var parent: \ast@Ast :: ast.refItem
+			if(parent.typeId = %alias_)
+				do @rebuildAlias(parent $ \ast@AstAlias, null)
+				do ast.refItem :: (parent $ \ast@AstAlias).type.refItem
+				assert ast.refItem.typeId = %class_
+			else
+				assert parent.typeId = %class_
+				do @rebuildClass(parent $ \ast@AstClass)
+			end if
+		end if
+		
+		block
+			; Make sure that the class references do not circulate.
+			var parent: \ast@AstClass :: ast
+			var chk: dict<\ast@AstClass, bool> :: #dict<\ast@AstClass, bool>
+			while(parent <>& null)
+				if(chk.get(parent, &))
+					do \err@err(%circulatingClass, ast.pos, [ast.name])
+					do parent :: ast
+					while(parent <>& null)
+						var item: \ast@AstClass :: parent
+						do parent :: parent.refItem $ \ast@AstClass
+						do item.refItem :: null
+					end while
+					ret
+				end if
+				do chk.add(parent, true)
+				do parent :: parent.refItem $ \ast@AstClass
+			end while
+		end block
+		
+		block
+			var astItems: list<\ast@AstClassItem> :: ast.items
+			do astItems.head()
+			while(!astItems.term())
+				var item: \ast@AstClassItem :: astItems.get()
+				var memberName: []char
+				block
+					var def: \ast@Ast :: item.def
+					if(def.typeId = %var_)
+						do memberName :: (def $ \ast@AstVar).arg.name
+					elif(def.typeId = %const_)
+						do memberName :: (def $ \ast@AstConst).arg.name
+					else
+						do memberName :: def.name
+					end if
+				end block
+				; Check whether functions are overriding another.
+				var parentItem: \ast@AstClassItem :: null
+				block
+					var parent: \ast@AstClass :: ast.refItem $ \ast@AstClass
+					while(parentItem =& null & parent <>& null)
+						var items: list<\ast@AstClassItem> :: parent.items
+						do items.head()
+						while(!items.term())
+							var parentName: []char
+							var item2: \ast@AstClassItem :: items.get()
+							var def: \ast@Ast :: item2.def
+							if(def.typeId = %var_)
+								do parentName :: (def $ \ast@AstVar).arg.name
+							elif(def.typeId = %const_)
+								do parentName :: (def $ \ast@AstConst).arg.name
+							else
+								do parentName :: def.name
+							end if
+							if(memberName = parentName)
+								do parentItem :: item2
+							end if
+							do items.next()
+						end while
+						do parent :: parent.refItem $ \ast@AstClass
+					end while
+				end block
+				if(parentItem =& null)
+					if(item.override)
+						do \err@err(%overridedMemberNotFound, item.def.pos, [memberName])
+						ret
+					end if
+				else
+					if(!item.override)
+						do \err@err(%memberDuplicatedWithParentClass, item.def.pos, [memberName])
+						ret
+					end if
+					if(!(item.def.typeId = %func_ & parentItem.def.typeId = %func_))
+						do \err@err(%overridingNonFunc, item.def.pos, [memberName])
+						ret
+					end if
+					if(item.public <> parentItem.public)
+						do \err@err(%overriddenMemberNotMatchAccessModifier, item.def.pos, [memberName])
+						ret
+					end if
+					var func1: \ast@AstFunc :: item.def $ \ast@AstFunc
+					var func2: \ast@AstFunc :: parentItem.def $ \ast@AstFunc
+					if(func1.ret_ =& null & func2.ret_ <>& null |
+						|func1.ret_ <>& null & func2.ret_ =& null |
+						|func1.ret_ <>& null & func2.ret_ <>& null & !@cmpType(func1.ret_, func2.ret_, %strict) |
+						|^func1.args <> ^func2.args)
+						do \err@err(%overriddenMemberNotMatchTypeOrArg, item.def.pos, [memberName])
+						ret
+					end if
+					var items1: list<\ast@AstArg> :: func1.args
+					var items2: list<\ast@AstArg> :: func2.args
+					do items1.head()
+					do items2.head()
+					for i(0, ^items1 - 1)
+						var arg1: \ast@AstArg :: items1.get()
+						var arg2: \ast@AstArg :: items2.get()
+						if(arg1.type.typeId = %typeUser & arg1.type.refItem =& null |
+							|arg2.type.typeId = %typeUser & arg2.type.refItem =& null |
+							|!@cmpType(arg1.type, arg2.type, i = 0 ?(%oneWay $ @CmpTypeStrict, %strict)) |
+							|arg1.name <>& null & arg2.name <>& null & arg1.name <> arg2.name |
+							|arg1.refVar <> arg2.refVar)
+							do \err@err(%overriddenMemberNotMatchTypeOrArg, item.def.pos, [memberName])
+							ret
+						end if
+						do items1.next()
+						do items2.next()
+					end for
+					do item.parentItem :: parentItem
+				end if
+				
+				switch(memberName)
+				case "_dtor", "_copy", "_toBin", "_fromBin"
+					assert item.def.typeId = %func_
+					var func_: \ast@AstFunc :: item.def $ \ast@AstFunc
+					if(item.override & (item.def $ \ast@AstFunc).funcOption.and(%frc) = %none)
+						do \err@err(%notAllowedToBeOverridden, func_.pos, [memberName])
+						ret
+					end if
+					switch(memberName[1])
+					case 'd'
+						do dtor :: func_
+					case 'c'
+						do copy :: func_
+					case 't'
+						do toBin :: func_
+					case 'f'
+						do fromBin :: func_
+					default
+						assert false
+					end switch
+				end switch
+				
+				do astItems.next()
+			end while
+			
+			do astItems.head()
+			while loop(!astItems.term())
+				var item: \ast@AstClassItem :: astItems.get()
+				block
+					var def: \ast@Ast :: item.def
+					; Analyze functions and variables in classes because they can be referred to as instances.
+					if(def.typeId = %func_)
+						switch(def.name)
+						case "_dtor", "_copy", "_toBin", "_fromBin"
+							; Skip 'RebuildFunc' to add the contents later.
+						default
+							var listPtr: kuin@ListPtr :: astItems.getPtr()
+							do @rebuildFunc(def $ \ast@AstFunc)
+							do astItems.setPtr(listPtr)
+						end switch
+					elif(def.typeId = %var_)
+						var listPtr: kuin@ListPtr :: astItems.getPtr()
+						do @rebuildVar(def $ \ast@AstVar)
+						do astItems.setPtr(listPtr)
+					end if
+				end block
+				do astItems.next()
+			end while
+			
+			; Get 'me' of special functions.
+			if(dtor =& null)
+				do dtor :: @addSpecialFunc(ast, "_dtor")
+			end if
+			if(copy =& null)
+				do copy :: @addSpecialFunc(ast, "_copy")
+				var type: \ast@AstTypeUser :: #\ast@AstTypeUser
+				do @initAst(type, %typeUser, ast.pos)
+				do type.refItem :: ast
+				do copy.ret_ :: type
+			end if
+			if(toBin =& null)
+				do toBin :: @addSpecialFunc(ast, "_toBin")
+				var type: \ast@AstTypeArray :: #\ast@AstTypeArray
+				do @initAst(type, %typeArray, ast.pos)
+				block
+					var type2: \ast@AstTypeBit :: #\ast@AstTypeBit
+					do @initAst(type2, %typeBit, ast.pos)
+					do type2.size :: 1
+					do type.itemType :: type2
+				end block
+				do toBin.ret_ :: type
+			end if
+			if(fromBin =& null)
+				do fromBin :: @addSpecialFunc(ast, "_fromBin")
+				; 'bin'.
+				block
+					var arg: \ast@AstArg :: #\ast@AstArg
+					do @initAst(arg, %arg, ast.pos)
+					do arg.kind :: %localArg
+					do arg.refVar :: false
+					do arg.expr :: null
+					block
+						var type: \ast@AstTypeArray :: #\ast@AstTypeArray
+						do @initAst(type, %typeArray, ast.pos)
+						block
+							var type2: \ast@AstTypeBit :: #\ast@AstTypeBit
+							do @initAst(type2, %typeBit, ast.pos)
+							do type2.size :: 1
+							do type.itemType :: type2
+						end block
+						do arg.type :: type
+					end block
+					do fromBin.args.add(arg)
+				end block
+				; 'idx'.
+				block
+					var arg: \ast@AstArg :: #\ast@AstArg
+					do @initAst(arg, %arg, ast.pos)
+					do arg.kind :: %localArg
+					do arg.refVar :: true
+					do arg.expr :: null
+					block
+						var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+						do @initAst(type, %typePrim, ast.pos)
+						do type.kind :: %int_
+						do arg.type :: type
+					end block
+					do fromBin.args.add(arg)
+				end block
+				do fromBin.args.head()
+				do fromBin.ret_ :: fromBin.args.get().type
+			end if
+		end block
+	end func
+	
+	func process2(ast: \ast@AstClass, dtor: \ast@AstFunc, copy: \ast@AstFunc, toBin: \ast@AstFunc, fromBin: \ast@AstFunc)
+		; The '_dtor' function.
+		block
+			var ptr: \ast@AstClass :: ast
+			while(ptr <>& null)
+				var items: list<\ast@AstClassItem> :: ptr.items
+				do items.head()
+				while(!items.term())
+					var listPtr: kuin@ListPtr :: items.getPtr()
+					var item: \ast@AstClassItem :: items.get()
+					if(item.def.typeId = %var_ & \ast@isRef((item.def $ \ast@AstVar).arg.type))
+						var do_: \ast@AstStatDo :: #\ast@AstStatDo
+						do @initAst(do_, %statDo, ast.pos)
+						block
+							var assign: \ast@AstExpr2 :: #\ast@AstExpr2
+							do @initAstExpr(assign, %expr2, ast.pos)
+							do assign.kind :: %assign
+							do dtor.args.head()
+							do assign.children0 :: @makeMeDot(ast, dtor.args.get(), (item.def $ \ast@AstVar).arg.name)
+							do assign.children1 :: @makeExprNull(ast.pos)
+							do do_.expr :: assign
+						end block
+						do dtor.stats.add(@rebuildStat(do_, dtor.ret_, dtor))
+					end if
+					do items.setPtr(listPtr)
+					do items.next()
+				end while
+				do ptr :: ptr.refItem $ \ast@AstClass
+			end while
+		end block
+		
+		; The '_copy' function.
+		block
+			var result: \ast@AstExpr
+			block
+				var var_: \ast@AstStatVar :: #\ast@AstStatVar
+				do @initAst(var_, %statVar, ast.pos)
+				block
+					var var2: \ast@AstVar :: #\ast@AstVar
+					do @initAst(var2, %var_, ast.pos)
+					block
+						var arg: \ast@AstArg :: #\ast@AstArg
+						do @initAst(arg, %arg, ast.pos)
+						do arg.kind :: %localVar
+						do arg.refVar :: false
+						block
+							var type: \ast@AstTypeUser :: #\ast@AstTypeUser
+							do @initAst(type, %typeUser, ast.pos)
+							do type.refItem :: ast
+							do arg.type :: type
+						end block
+						block
+							var new_: \ast@AstExprNew :: #\ast@AstExprNew
+							do @initAstExpr(new_, %exprNew, ast.pos)
+							do new_.itemType :: arg.type
+							do new_.direct :: false
+							do arg.expr :: new_
+						end block
+						do var2.arg :: arg
+					end block
+					do var_.def :: var2
+				end block
+				do copy.stats.add(@rebuildStat(var_, copy.ret_, copy))
+				block
+					do result :: #\ast@AstExpr
+					do @initAstExpr(result, %exprRef, ast.pos)
+					do result.refName :: "me"
+					do result.refItem :: var_.def.arg
+					block
+						var type: \ast@AstTypeUser :: #\ast@AstTypeUser
+						do @initAst(type, %typeUser, ast.pos)
+						do type.refItem :: ast
+						do result.type :: type
+					end block
+				end block
+			end block
+			block
+				var ptr: \ast@AstClass :: ast
+				while(ptr <>& null)
+					var items: list<\ast@AstClassItem> :: ptr.items
+					do items.head()
+					while(!items.term())
+						var listPtr: kuin@ListPtr :: items.getPtr()
+						var item: \ast@AstClassItem :: items.get()
+						if(item.def.typeId = %var_)
+							var member: \ast@AstArg :: (item.def $ \ast@AstVar).arg
+							block
+								var do_: \ast@AstStatDo :: #\ast@AstStatDo
+								do @initAst(do_, %statDo, ast.pos)
+								block
+									var assign: \ast@AstExpr2 :: #\ast@AstExpr2
+									do @initAstExpr(assign, %expr2, ast.pos)
+									do assign.kind :: %assign
+									block
+										var dot: \ast@AstExprDot :: #\ast@AstExprDot
+										do @initAstExpr(dot, %exprDot, ast.pos)
+										do dot.var_ :: result
+										do dot.member :: member.name
+										do dot.classItem :: null
+										do assign.children0 :: dot
+									end block
+									if(\ast@isRef(member.type))
+										var copy2: \ast@AstExpr1 :: #\ast@AstExpr1
+										do @initAstExpr(copy2, %expr1, ast.pos)
+										do copy2.kind :: %copy
+										do copy.args.head()
+										do copy2.child :: @makeMeDot(ast, copy.args.get(), member.name)
+										do assign.children1 :: copy2
+									else
+										do copy.args.head()
+										do assign.children1 :: @makeMeDot(ast, copy.args.get(), member.name)
+									end if
+									do do_.expr :: assign
+								end block
+								do copy.stats.add(@rebuildStat(do_, copy.ret_, copy))
+							end block
+						end if
+						do items.setPtr(listPtr)
+						do items.next()
+					end while
+					do ptr :: ptr.refItem $ \ast@AstClass
+				end while
+			end block
+			block
+				var ret_: \ast@AstStatRet :: #\ast@AstStatRet
+				do @initAst(ret_, %statRet, ast.pos)
+				block
+					var as: \ast@AstExprAs :: #\ast@AstExprAs
+					do @initAstExpr(as, %exprAs, ast.pos)
+					do as.kind :: %as
+					do as.child :: result
+					do as.childType :: copy.ret_
+					do ret_.value :: as
+				end block
+				do copy.stats.add(@rebuildStat(ret_, copy.ret_, copy))
+			end block
+		end block
+		
+		; The '_toBin' function.
+		block
+			var result: \ast@AstExpr
+			block
+				var var_: \ast@AstStatVar :: #\ast@AstStatVar
+				do @initAst(var_, %statVar, ast.pos)
+				block
+					var var2: \ast@AstVar :: #\ast@AstVar
+					do @initAst(var2, %var_, ast.pos)
+					block
+						var arg: \ast@AstArg :: #\ast@AstArg
+						do @initAst(arg, %arg, ast.pos)
+						do arg.kind :: %localVar
+						do arg.refVar :: false
+						block
+							var new_: \ast@AstExprNewArray :: #\ast@AstExprNewArray
+							do @initAstExpr(new_, %exprNewArray, ast.pos)
+							do new_.idces :: #list<\ast@AstExpr>
+							block
+								var value: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+								do @initAstExpr(value, %exprValuePrim, ast.pos)
+								do value.value :: 0b64
+								block
+									var prim: \ast@AstTypePrim :: #\ast@AstTypePrim
+									do @initAst(prim, %typePrim, ast.pos)
+									do prim.kind :: %int_
+									do value.type :: prim
+								end block
+								do new_.idces.add(value)
+							end block
+							block
+								var type: \ast@AstTypeBit :: #\ast@AstTypeBit
+								do @initAst(type, %typeBit, ast.pos)
+								do type.size :: 1
+								do new_.itemType :: type
+							end block
+							do arg.expr :: new_
+						end block
+						block
+							var type: \ast@AstTypeArray :: #\ast@AstTypeArray
+							do @initAst(type, %typeArray, ast.pos)
+							block
+								var type2: \ast@AstTypeBit :: #\ast@AstTypeBit
+								do @initAst(type2, %typeBit, ast.pos)
+								do type2.size :: 1
+								do type.itemType :: type2
+							end block
+							do arg.type :: type
+						end block
+						do var2.arg :: arg
+					end block
+					do var_.def :: var2
+				end block
+				do toBin.stats.add(@rebuildStat(var_, toBin.ret_, toBin))
+				block
+					do result :: #\ast@AstExpr
+					do @initAstExpr(result, %exprRef, ast.pos)
+					do result.refItem :: var_.def.arg
+					block
+						var type: \ast@AstTypeUser :: #\ast@AstTypeUser
+						do @initAst(type, %typeUser, ast.pos)
+						do type.refItem :: ast
+						do result.type :: type
+					end block
+				end block
+			end block
+			block
+				var ptr: \ast@AstClass :: ast
+				while(ptr <>& null)
+					var items: list<\ast@AstClassItem> :: ptr.items
+					do items.head()
+					while(!items.term())
+						var listPtr: kuin@ListPtr :: items.getPtr()
+						var item: \ast@AstClassItem :: items.get()
+						if(item.def.typeId = %var_)
+							var member: \ast@AstArg :: (item.def $ \ast@AstVar).arg
+							block
+								var do_: \ast@AstStatDo :: #\ast@AstStatDo
+								do @initAst(do_, %statDo, ast.pos)
+								block
+									var assign: \ast@AstExpr2 :: #\ast@AstExpr2
+									do @initAstExpr(assign, %expr2, ast.pos)
+									do assign.kind :: %assignCat
+									do assign.children0 :: result
+									block
+										var expr: \ast@AstExprToBin :: #\ast@AstExprToBin
+										do @initAstExpr(expr, %exprToBin, ast.pos)
+										do toBin.args.head()
+										do expr.child :: @makeMeDot(ast, toBin.args.get(), member.name)
+										block
+											var array_: \ast@AstTypeArray :: #\ast@AstTypeArray
+											do @initAst(array_, %typeArray, ast.pos)
+											block
+												var bit: \ast@AstTypeBit :: #\ast@AstTypeBit
+												do @initAst(bit, %typeBit, ast.pos)
+												do bit.size :: 1
+												do array_.itemType :: bit
+											end block
+											do expr.childType :: array_
+										end block
+										do assign.children1 :: expr
+									end block
+									do do_.expr :: assign
+								end block
+								do toBin.stats.add(@rebuildStat(do_, toBin.ret_, toBin))
+							end block
+						end if
+						do items.setPtr(listPtr)
+						do items.next()
+					end while
+					do ptr :: ptr.refItem $ \ast@AstClass
+				end while
+			end block
+			block
+				var ret_: \ast@AstStatRet :: #\ast@AstStatRet
+				do @initAst(ret_, %statRet, ast.pos)
+				do ret_.value :: result
+				do toBin.stats.add(@rebuildStat(ret_, toBin.ret_, toBin))
+			end block
+		end block
+		
+		; The '_fromBin' function.
+		block
+			var result: \ast@AstExpr
+			block
+				var var_: \ast@AstStatVar :: #\ast@AstStatVar
+				do @initAst(var_, %statVar, ast.pos)
+				block
+					var var2: \ast@AstVar :: #\ast@AstVar
+					do @initAst(var2, %var_, ast.pos)
+					block
+						var arg: \ast@AstArg :: #\ast@AstArg
+						do @initAst(arg, %arg, ast.pos)
+						do arg.kind :: %localVar
+						do arg.refVar :: false
+						do fromBin.args.head()
+						do arg.type :: fromBin.args.get().type
+						block
+							var new_: \ast@AstExprNew :: #\ast@AstExprNew
+							do @initAstExpr(new_, %exprNew, ast.pos)
+							do new_.itemType :: arg.type
+							do new_.direct :: false
+							do arg.expr :: new_
+						end block
+						do var2.arg :: arg
+					end block
+					do var_.def :: var2
+				end block
+				do fromBin.stats.add(@rebuildStat(var_, fromBin.ret_, fromBin))
+				block
+					do result :: #\ast@AstExpr
+					do @initAstExpr(result, %exprRef, ast.pos)
+					do result.refItem :: var_.def.arg
+					do result.refName :: "me" {In fact, the referenced member name is not 'me', but it needs to be set to 'me' to access private members.}
+					block
+						var type: \ast@AstTypeUser :: #\ast@AstTypeUser
+						do @initAst(type, %typeUser, ast.pos)
+						do type.refItem :: ast
+						do result.type :: type
+					end block
+				end block
+			end block
+			block
+				var ptr: \ast@AstClass :: ast
+				while(ptr <>& null)
+					var items: list<\ast@AstClassItem> :: ptr.items
+					do items.head()
+					while(!items.term())
+						var listPtr: kuin@ListPtr :: items.getPtr()
+						var item: \ast@AstClassItem :: items.get()
+						if(item.def.typeId = %var_)
+							var member: \ast@AstArg :: (item.def $ \ast@AstVar).arg
+							block
+								var do_: \ast@AstStatDo :: #\ast@AstStatDo
+								do @initAst(do_, %statDo, ast.pos)
+								block
+									var assign: \ast@AstExpr2 :: #\ast@AstExpr2
+									do @initAstExpr(assign, %expr2, ast.pos)
+									do assign.kind :: %assign
+									block
+										var dot: \ast@AstExprDot :: #\ast@AstExprDot
+										do @initAstExpr(dot, %exprDot, ast.pos)
+										do dot.classItem :: null
+										do dot.var_ :: result
+										do dot.member :: member.name
+										do assign.children0 :: dot
+									end block
+									block
+										var expr: \ast@AstExprFromBin :: #\ast@AstExprFromBin
+										do @initAstExpr(expr, %exprFromBin, ast.pos)
+										block
+											var ref: \ast@AstExpr :: #\ast@AstExpr
+											do @initAstExpr(ref, %exprRef, ast.pos)
+											do fromBin.args.head()
+											do fromBin.args.next()
+											do ref.refItem :: fromBin.args.get()
+											assert ref.refItem <>& null
+											do expr.child :: ref
+										end block
+										do expr.childType :: member.type
+										block
+											var ref: \ast@AstExpr :: #\ast@AstExpr
+											do @initAstExpr(ref, %exprRef, ast.pos)
+											do fromBin.args.head()
+											do fromBin.args.next()
+											do fromBin.args.next()
+											do ref.refItem :: fromBin.args.get()
+											assert ref.refItem <>& null
+											do expr.offset :: ref
+										end block
+										do assign.children1 :: expr
+									end block
+									do do_.expr :: assign
+								end block
+								do fromBin.stats.add(@rebuildStat(do_, fromBin.ret_, fromBin))
+							end block
+						end if
+						do items.setPtr(listPtr)
+						do items.next()
+					end while
+					do ptr :: ptr.refItem $ \ast@AstClass
+				end while
+			end block
+			block
+				var ret_: \ast@AstStatRet :: #\ast@AstStatRet
+				do @initAst(ret_, %statRet, ast.pos)
+				do ret_.value :: result
+				do fromBin.stats.add(@rebuildStat(ret_, fromBin.ret_, fromBin))
+			end block
+		end block
+	end func
+end func
+
+func rebuildEnum(ast: \ast@AstEnum)
+	if(ast.extra <>& null)
+		ret
+	end if
+	do ast.extra :: ast
+	
+	var type: \ast@AstTypeUser :: #\ast@AstTypeUser
+	do @initAst(type, %typeUser, ast.pos)
+	do type.extra :: type
+	do type.refItem :: ast
+	
+	; Assign values to items.
+	var defaultNum: int :: -1
+	var enumValues: dict<int, bool> :: #dict<int, bool>
+	var items: list<\ast@AstExpr> :: ast.items
+	do items.head()
+	while loop(!items.term())
+		var item: \ast@AstExpr :: items.get()
+		var itemName: []char :: item.name
+		do item :: @rebuildExpr(item, item.type =& null)
+		if(item =& null)
+			skip loop
+		end if
+		do item.name :: itemName
+		do items.ins(item)
+		do items.del()
+		if(item.typeId <> %exprValuePrim | item.type <>& null & !\ast@isInt(item.type))
+			do \err@err(%enumValueMustBeInt, ast.pos, [ast.name, item.name])
+			ret
+		end if
+		var item2: \ast@AstExprValuePrim :: item $ \ast@AstExprValuePrim
+		if(item.type =& null)
+			; 'type' is 'null' when the value is not set.
+			if(defaultNum = lib@intMax)
+				do \err@err(%enumValueExceedIntRange, ast.pos, [ast.name, item.name])
+				ret
+			end if
+			do defaultNum :+ 1
+			do item2.value :: defaultNum $ bit64
+		else
+			do defaultNum :: item2.value $ int
+		end if
+		block
+			var value: int :: item2.value $ int
+			if(enumValues.get(value, &))
+				do \err@err(%enumValueDuplicated, ast.pos, [ast.name, item.name, value.toStr()])
+				ret
+			end if
+			do enumValues.add(value, true)
+		end block
+		do item.type :: type {Cast values of 'int' to 'enum' so as not to being treated as 'int'.}
+		; The item was already deleted so do not do 'do items.next()'.
+	end while
+end func
+
+func rebuildEnumElement(enumElement: \ast@AstExpr, type: \ast@AstType): \ast@AstExprValuePrim
+	assert enumElement.typeId = %exprValueEnumElement
+	assert \ast@isEnum(type)
+	var enumElement2: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+	do @initAstExpr(enumElement2, %exprValuePrim, enumElement.pos)
+	do enumElement2.value :: @searchEnumElementValue(enumElement $ \ast@AstExprValueEnumElement, type.refItem $ \ast@AstEnum)
+	do enumElement2.type :: type
+	do enumElement2 :: @rebuildExprValuePrim(enumElement2) $ \ast@AstExprValuePrim
+	ret enumElement2
+end func
+
+func rebuildArg(ast: \ast@AstArg)
+	if(ast.extra <>& null)
+		ret
+	end if
+	do ast.extra :: ast
+	
+	do ast.type :: @rebuildType(ast.type, null)
+	if(ast.expr <>& null)
+		do ast.expr :: @rebuildExpr(ast.expr, false)
+		if(ast.expr =& null)
+			ret
+		end if
+		if(ast.kind = %global & ast.expr.typeId.and(%exprValue) <> %exprValue)
+			do \err@err(%valueOfGlobalVarMustBeConst, ast.pos, [ast.name])
+		end if
+		if(ast.kind = %const_ & ast.expr.typeId.and(%exprValue) <> %exprValue)
+			do \err@err(%valueOfConstMustBeConst, ast.pos, [ast.name])
+		end if
+		if(!@cmpType(ast.expr.type, ast.type, %oneWay))
+			do \err@err(%varAndValueTypeNotMatch, ast.pos, [ast.name])
+		elif(ast.expr.type.typeId = %typeEnumElement)
+			do ast.expr :: @rebuildEnumElement(ast.expr, ast.type)
+		end if
+	end if
+end func
+
+func rebuildStat(ast: \ast@AstStat, retType: \ast@AstType, parentFunc: \ast@AstFunc): \ast@AstStat
+	if(ast =& null)
+		ret null
+	end if
+	switch(ast.typeId)
+	case %statFunc, %statConst, %statAlias, %statClass, %statEnum
+		ret null
+	case %statVar
+		var ast2: \ast@AstStatVar :: ast $ \ast@AstStatVar
+		do @rebuildVar(ast2.def)
+		var arg: \ast@AstArg :: ast2.def.arg
+		if(arg.name <>& null & arg.name = "super")
+			assert parentFunc <>& null & parentFunc.name <>& null
+			assert \ast@isInt(arg.type)
+			block
+				var listPtr: kuin@ListPtr :: parentFunc.args.getPtr()
+				do parentFunc.args.head()
+				var refClass: \ast@AstClass :: parentFunc.args.get().type.refItem $ \ast@AstClass
+				do parentFunc.args.setPtr(listPtr)
+				assert refClass.typeId = %class_
+				var superFunc: \ast@AstFunc :: null
+				var items: list<\ast@AstClassItem> :: refClass.items
+				do items.head()
+				while loop(!items.term())
+					var item: \ast@AstClassItem :: items.get()
+					if(item.def.name <>& null & item.def.name = parentFunc.name)
+						assert item.override
+						do superFunc :: item.parentItem.def $ \ast@AstFunc
+						break loop
+					end if
+					do items.next()
+				end while
+				assert superFunc <>& null
+				
+				var type: \ast@AstTypeFunc :: #\ast@AstTypeFunc
+				do @initAst(type, %typeFunc, ast.pos)
+				do type.funcOption :: superFunc.funcOption
+				do type.args :: #list<\ast@AstTypeFuncArg>
+				do type.ret_ :: superFunc.ret_
+				var args2: list<\ast@AstArg> :: superFunc.args
+				do args2.head()
+				while(!args2.term())
+					var data: \ast@AstArg :: args2.get()
+					var arg2: \ast@AstTypeFuncArg :: #\ast@AstTypeFuncArg
+					do arg2.arg :: data.type
+					do arg2.refVar :: data.refVar
+					do type.args.add(arg2)
+					do args2.next()
+				end while
+				do arg.type :: type
+				
+				var astRef: \ast@AstExpr :: #\ast@AstExpr
+				do @initAstExpr(astRef, %exprRef, ast.pos)
+				do astRef.refItem :: superFunc
+				do arg.expr :: astRef
+			end block
+		end if
+		if(arg.type =& null)
+			ret null
+		end if
+		if(arg.expr =& null)
+			do arg.expr :: @makeExprDefaultValue(arg.type, arg.pos) $ \ast@AstExpr
+		end if
+		block
+			; Replace initializers with assignment operators.
+			var astDo: \ast@AstStatDo :: #\ast@AstStatDo
+			do @initAst(astDo, %statDo, ast.pos)
+			block
+				var astAssign: \ast@AstExpr2 :: #\ast@AstExpr2
+				do @initAstExpr(astAssign, %expr2, ast.pos)
+				do astAssign.kind :: %assign
+				block
+					var astRef: \ast@AstExpr :: #\ast@AstExpr
+					do @initAstExpr(astRef, %exprRef, ast.pos)
+					do astRef.refItem :: arg
+					do astAssign.children0 :: astRef
+				end block
+				do astAssign.children1 :: arg.expr
+				do astDo.expr :: astAssign
+			end block
+			do arg.expr :: null
+			do ast :: @rebuildStat(astDo, retType, parentFunc)
+		end block
+	case %statIf
+		do ast :: @rebuildIf(ast $ \ast@AstStatIf, retType, parentFunc)
+	case %statSwitch
+		do ast :: @rebuildSwitch(ast $ \ast@AstStatSwitch, retType, parentFunc)
+	case %statWhile
+		do ast :: @rebuildWhile(ast $ \ast@AstStatWhile, retType, parentFunc)
+	case %statFor
+		do ast :: @rebuildFor(ast $ \ast@AstStatFor, retType, parentFunc)
+	case %statTry
+		do ast :: @rebuildTry(ast $ \ast@AstStatTry, retType, parentFunc)
+	case %statThrow
+		do ast :: @rebuildThrow(ast $ \ast@AstStatThrow)
+	case %statBlock
+		do ast :: @rebuildBlock(ast $ \ast@AstStatBlock, retType, parentFunc)
+	case %statRet
+		do ast :: @rebuildRet(ast $ \ast@AstStatRet, retType)
+	case %statDo
+		do ast :: @rebuildDo(ast $ \ast@AstStatDo)
+	case %statBreak
+		do ast :: @rebuildBreak(ast $ \ast@AstStat, retType, parentFunc)
+	case %statSkip
+		do ast :: @rebuildSkip(ast $ \ast@AstStat, retType, parentFunc)
+	case %statAssert
+		do ast :: @rebuildAssert(ast $ \ast@AstStatAssert)
+	case %statExcode
+		do ast :: @rebuildExcode(ast $ \ast@AstStatExcode)
+	default
+		assert false
+	end switch
+	if(ast =& null)
+		ret null
+	end if
+	assert ast.extra <>& null
+	ret ast
+end func
+
+func rebuildIf(ast: \ast@AstStatIf, retType: \ast@AstType, parentFunc: \ast@AstFunc): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	do ast.cond :: @rebuildExpr(ast.cond, false)
+	if(ast.cond <>& null & !\ast@isBool(ast.cond.type))
+		do \err@err(%ifCondMustBeBool, ast.cond.pos, null)
+	end if
+	do ast.statBlock :: @rebuildBlock(ast.statBlock, retType, parentFunc) $ \ast@AstStatBlock
+	block
+		var items: list<\ast@AstStatElIf> :: ast.elIfs
+		do items.head()
+		while(!items.term())
+			var elIf: \ast@AstStatElIf :: items.get()
+			do elIf.cond :: @rebuildExpr(elIf.cond, false)
+			if(elIf.cond <>& null & !\ast@isBool(elIf.cond.type))
+				do \err@err(%elIfCondMustBeBool, elIf.cond.pos, null)
+			end if
+			do elIf.statBlock :: @rebuildBlock(elIf.statBlock, retType, parentFunc) $ \ast@AstStatBlock
+			do items.next()
+		end while
+	end block
+	if(ast.elseStatBlock <>& null)
+		do ast.elseStatBlock :: @rebuildBlock(ast.elseStatBlock, retType, parentFunc) $ \ast@AstStatBlock
+	end if
+	if(ast.cond <>& null)
+		; Optimize the code.
+		var stats: \ast@AstStatBlock :: null
+		if(ast.cond.typeId <> %exprValuePrim)
+			ret ast
+		end if
+		if((ast.cond $ \ast@AstExprValuePrim).value <> 0b64)
+			do stats :: ast.statBlock
+		end if
+		if(stats =& null)
+			var items: list<\ast@AstStatElIf> :: ast.elIfs
+			do items.head()
+			while loop(!items.term())
+				var elIf: \ast@AstStatElIf :: items.get()
+				if(elIf.cond.typeId <> %exprValuePrim)
+					ret ast
+				end if
+				if((elIf.cond $ \ast@AstExprValuePrim).value <> 0b64)
+					do stats :: elIf.statBlock
+					break loop
+				end if
+				do items.next()
+			end while
+			if(stats =& null)
+				if(ast.elseStatBlock =& null)
+					var block_: \ast@AstStatBlock :: #\ast@AstStatBlock
+					do @initAst(block_, %statBlock, ast.pos)
+					do block_.name :: "$"
+					do block_.stats :: #list<\ast@AstStat>
+					do stats :: block_
+				else
+					do stats :: ast.elseStatBlock
+				end if
+			end if
+		end if
+		do ast.cond :: null
+		do ast.statBlock :: stats
+	end if
+	ret ast
+end func
+
+func rebuildSwitch(ast: \ast@AstStatSwitch, retType: \ast@AstType, parentFunc: \ast@AstFunc): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	do ast.cond :: @rebuildExpr(ast.cond, false)
+	if(ast.cond <>& null)
+		if(!\ast@isComparable(ast.cond.type, true))
+			do \err@err(%switchCondMustBeComparable, ast.cond.pos, null)
+		end if
+		do ast.blockVar.type :: ast.cond.type
+	end if
+	block
+		var items: list<\ast@AstStatCase> :: ast.cases
+		do items.head()
+		while(!items.term())
+			var case_: \ast@AstStatCase :: items.get()
+			var items2: list<\ast@AstExprPair> :: case_.conds
+			do items2.head()
+			while(!items2.term())
+				var exprs: \ast@AstExprPair :: items2.get()
+				do exprs.expr0 :: @rebuildExpr(exprs.expr0, false)
+				if(ast.cond <>& null & exprs.expr0 <>& null)
+					if(!@cmpType(ast.cond.type, exprs.expr0.type, %oneWay))
+						do \err@err(%caseCondNotMatchSwitch, exprs.expr0.pos, null)
+					elif(exprs.expr0.type.typeId = %typeEnumElement)
+						do exprs.expr0 :: @rebuildEnumElement(exprs.expr0, ast.cond.type)
+					end if
+				end if
+				if(exprs.expr1 <>& null)
+					do exprs.expr1 :: @rebuildExpr(exprs.expr1, false)
+					if(ast.cond <>& null & exprs.expr1 <>& null)
+						if(!@cmpType(ast.cond.type, exprs.expr1.type, %oneWay))
+							do \err@err(%caseCondNotMatchSwitch, exprs.expr1.pos, null)
+						elif(exprs.expr1.type.typeId = %typeEnumElement)
+							do exprs.expr1 :: @rebuildEnumElement(exprs.expr1, ast.cond.type)
+						end if
+					end if
+				end if
+				do items2.next()
+			end while
+			do case_.statBlock :: @rebuildBlock(case_.statBlock, retType, parentFunc) $ \ast@AstStatBlock
+			do items.next()
+		end while
+	end block
+	if(ast.defaultStatBlock <>& null)
+		do ast.defaultStatBlock :: @rebuildBlock(ast.defaultStatBlock, retType, parentFunc) $ \ast@AstStatBlock
+	end if
+	ret ast
+end func
+
+func rebuildWhile(ast: \ast@AstStatWhile, retType: \ast@AstType, parentFunc: \ast@AstFunc): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	if(ast.cond <>& null)
+		do ast.cond :: @rebuildExpr(ast.cond, false)
+		if(ast.cond <>& null & !\ast@isBool(ast.cond.type))
+			do \err@err(%whileCondMustBeBool, ast.cond.pos, null)
+		end if
+	end if
+	do ast.stats :: @refreshStats(ast.stats, retType, parentFunc)
+	ret ast
+end func
+
+func rebuildFor(ast: \ast@AstStatFor, retType: \ast@AstType, parentFunc: \ast@AstFunc): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	do ast.start :: @rebuildExpr(ast.start, false)
+	if(ast.start <>& null)
+		if(!\ast@isInt(ast.start.type))
+			do \err@err(%forBeginValueMustBeInt, ast.start.pos, null)
+		end if
+		do ast.blockVar.type :: ast.start.type
+	end if
+	do ast.cond :: @rebuildExpr(ast.cond, false)
+	if(ast.cond <>& null & !\ast@isInt(ast.cond.type))
+		do \err@err(%forEndValueMustBeInt, ast.cond.pos, null)
+	end if
+	do ast.step :: @rebuildExpr(ast.step, false)
+	if(ast.step <>& null)
+		if(!\ast@isInt(ast.step.type))
+			do \err@err(%forIncreaseDecreaseValueMustBeInt, ast.step.pos, null)
+		elif(ast.step.typeId <> %exprValuePrim)
+			do \err@err(%forIncreaseDecreaseValueMustBeConst, ast.step.pos, null)
+		elif((ast.step $ \ast@AstExprValuePrim).value = 0b64)
+			do \err@err(%forIncreaseDecreaseValueMustBeOtherThanZero, ast.step.pos, null)
+		end if
+	end if
+	do ast.stats :: @refreshStats(ast.stats, retType, parentFunc)
+	ret ast
+end func
+
+func rebuildTry(ast: \ast@AstStatTry, retType: \ast@AstType, parentFunc: \ast@AstFunc): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	do @rebuildArg(ast.blockVar)
+	do ast.statBlock :: @rebuildBlock(ast.statBlock, retType, parentFunc) $ \ast@AstStatBlock
+	if(^ast.catches <> 0)
+		var items: list<\ast@AstStatCatch> :: ast.catches
+		do items.head()
+		while(!items.term())
+			var catch_: \ast@AstStatCatch :: items.get()
+			var items2: list<\ast@AstExprPair> :: catch_.conds
+			do items2.head()
+			while(!items2.term())
+				var exprs: \ast@AstExprPair :: items2.get()
+				do exprs.expr0 :: @rebuildExpr(exprs.expr0, false)
+				if(exprs.expr0 <>& null & (!\ast@isInt(exprs.expr0.type) | exprs.expr0.typeId <> %exprValuePrim))
+					do \err@err(%catchCondMustBeConstInt, exprs.expr0.pos, null)
+				end if
+				if(exprs.expr1 <>& null)
+					do exprs.expr1 :: @rebuildExpr(exprs.expr1, false)
+					if(exprs.expr1 <>& null & (!\ast@isInt(exprs.expr1.type) | exprs.expr1.typeId <> %exprValuePrim))
+						do \err@err(%catchCondMustBeConstInt, exprs.expr1.pos, null)
+					end if
+				end if
+				do items2.next()
+			end while
+			do catch_.statBlock :: @rebuildBlock(catch_.statBlock, retType, parentFunc) $ \ast@AstStatBlock
+			do items.next()
+		end while
+	end if
+	if(ast.finallyStatBlock <>& null)
+		do ast.finallyStatBlock :: @rebuildBlock(ast.finallyStatBlock, retType, parentFunc) $ \ast@AstStatBlock
+	end if
+	ret ast
+end func
+
+func rebuildThrow(ast: \ast@AstStatThrow): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	do ast.code :: @rebuildExpr(ast.code, false)
+	if(ast.code <>& null & !\ast@isInt(ast.code.type))
+		do \err@err(%excptCodeMustBeInt, ast.code.pos, null)
+	end if
+	ret ast
+end func
+
+func rebuildBlock(ast: \ast@AstStatBlock, retType: \ast@AstType, parentFunc: \ast@AstFunc): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	do ast.stats :: @refreshStats(ast.stats, retType, parentFunc)
+	ret ast
+end func
+
+func rebuildRet(ast: \ast@AstStatRet, retType: \ast@AstType): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	if(ast.value =& null)
+		if(retType <>& null)
+			do \err@err(%mustRetValue, ast.pos, null)
+		end if
+	else
+		do ast.value :: @rebuildExpr(ast.value, false)
+		if(ast.value <>& null)
+			if(retType =& null | !@cmpType(ast.value.type, retType, %oneWay))
+				do \err@err(%retTypeNotMatchFunc, ast.pos, null)
+			elif(ast.value.type.typeId = %typeEnumElement)
+				do ast.value :: @rebuildEnumElement(ast.value, retType)
+			end if
+		end if
+	end if
+	ret ast
+end func
+
+func rebuildDo(ast: \ast@AstStatDo): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	if(ast.expr <>& null & ast.expr.typeId = %expr2)
+		; Replace all assignment operators that are not '::' with '::'
+		var expr: \ast@AstExpr2 :: ast.expr $ \ast@AstExpr2
+		var kind: \ast@AstExpr2Kind :: %assign
+		switch(expr.kind)
+		case %assignAdd
+			do kind :: %add
+		case %assignSub
+			do kind :: %sub
+		case %assignMul
+			do kind :: %mul
+		case %assignDiv
+			do kind :: %div
+		case %assignMod
+			do kind :: %mod
+		case %assignPow
+			do kind :: %pow
+		case %assignCat
+			do kind :: %cat
+		end switch
+		if(kind <> %assign)
+			var block_: \ast@AstStatBlock :: #\ast@AstStatBlock
+			do @initAst(block_, %statBlock, ast.pos)
+			do block_.extra :: block_
+			do block_.name :: "$"
+			do block_.blockVar :: null
+			do block_.stats :: #list<\ast@AstStat>
+			block
+				var lhs: \ast@AstExpr :: @rebuildExpr(expr.children0, false)
+				if(lhs =& null)
+					ret null
+				end if
+				if(lhs.typeId = %exprDot)
+					var lhs2: \ast@AstExprDot :: lhs $ \ast@AstExprDot
+					do lhs2.var_ :: @cacheSubExpr(block_.stats, lhs2.var_, ast.pos)
+				elif(lhs.typeId = %exprArray)
+					var lhs2: \ast@AstExprArray :: lhs $ \ast@AstExprArray
+					do lhs2.var_ :: @cacheSubExpr(block_.stats, lhs2.var_, ast.pos)
+					do lhs2.idx :: @cacheSubExpr(block_.stats, lhs2.idx, ast.pos)
+				end if
+				var exprAssign: \ast@AstExpr2 :: #\ast@AstExpr2
+				do @initAstExpr(exprAssign, %expr2, ast.pos)
+				do exprAssign.kind :: %assign
+				do exprAssign.children0 :: lhs
+				block
+					var exprOne: \ast@AstExpr2 :: #\ast@AstExpr2
+					do @initAstExpr(exprOne, %expr2, ast.pos)
+					do exprOne.kind :: kind
+					do exprOne.children0 :: lhs
+					do exprOne.children1 :: expr.children1
+					do exprAssign.children1 :: exprOne
+				end block
+				do ast.expr :: @rebuildExpr(exprAssign, true)
+				do block_.stats.add(ast)
+			end block
+			ret block_
+		end if
+	end if
+	do ast.expr :: @rebuildExpr(ast.expr, true)
+	if(ast.expr =& null)
+		ret null
+	end if
+	; 'do' needs to end with side effects.
+	if(!(ast.expr.typeId = %expr2 & ((ast.expr $ \ast@AstExpr2).kind = %assign) | ast.expr.typeId = %exprCall))
+		do \err@err(%noSideEffectDo, ast.expr.pos, null)
+	end if
+	ret ast
+end func
+
+func rebuildBreak(ast: \ast@AstStat, retType: \ast@AstType, parentFunc: \ast@AstFunc): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	if(ast.refItem =& null | ast.refItem.typeId.and(%statBreakable) <> %statBreakable)
+		do \err@err(%mustSpecifyBlockName, ast.pos, ["break"])
+		ret null
+	end if
+	do ast.refItem :: @rebuildStat(ast.refItem $ \ast@AstStat, retType, parentFunc)
+	ret ast
+end func
+
+func rebuildSkip(ast: \ast@AstStat, retType: \ast@AstType, parentFunc: \ast@AstFunc): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	
+	if(ast.refItem =& null | ast.refItem.typeId.and(%statBreakable) <> %statBreakable)
+		do \err@err(%mustSpecifyBlockName, ast.pos, ["skip"])
+		ret null
+	end if
+	do ast.refItem :: @rebuildStat(ast.refItem $ \ast@AstStat, retType, parentFunc)
+	ret ast
+end func
+
+func rebuildAssert(ast: \ast@AstStatAssert): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	
+	if(\option@rls)
+		ret null
+	end if
+	do ast.extra :: ast
+	do ast.cond :: @rebuildExpr(ast.cond, false)
+	if(ast.cond <>& null & !\ast@isBool(ast.cond.type))
+		do \err@err(%assertCondMustBeBool, ast.cond.pos, null)
+	end if
+	ret ast
+end func
+
+func rebuildExcode(ast: \ast@AstStatExcode): \ast@AstStat
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstStat
+	end if
+	do ast.extra :: ast
+	do ast.code :: @rebuildExpr(ast.code, false)
+	if(ast.code <>& null & ast.code.typeId <> %exprValueStr)
+		do \err@err(%excodeMustBeStrConst, ast.code.pos, null)
+	end if
+	ret ast
+end func
+
+func rebuildType(ast: \ast@AstType, parentAlias: \ast@AstAlias): \ast@AstType
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstType
+	end if
+	do ast.extra :: ast
+	
+	var type: \ast@TypeId :: ast.typeId
+	switch(type)
+	case %typeUser
+		var refItem: \ast@Ast :: ast.refItem
+		if(refItem =& null)
+			ret null
+		end if
+		switch(refItem.typeId)
+		case %class_
+			do @rebuildClass(refItem $ \ast@AstClass)
+		case %enum_
+			do @rebuildEnum(refItem $ \ast@AstEnum)
+		case %alias_
+			do @rebuildAlias(refItem $ \ast@AstAlias, parentAlias)
+			do ast.extra :: (refItem $ \ast@AstAlias).type
+			do ast :: (refItem $ \ast@AstAlias).type
+		default
+			do \err@err(%nonTypeWritten, ast.pos, null)
+			ret null
+		end switch
+	case %typeArray
+		do(ast $ \ast@AstTypeArray).itemType :: @rebuildType((ast $ \ast@AstTypeArray).itemType, parentAlias)
+	case %typeFunc
+		var ast2: \ast@AstTypeFunc :: ast $ \ast@AstTypeFunc
+		var items: list<\ast@AstTypeFuncArg> :: ast2.args
+		do items.head()
+		while(!items.term())
+			var arg: \ast@AstTypeFuncArg :: items.get()
+			do arg.arg :: @rebuildType(arg.arg, parentAlias)
+			do items.next()
+		end while
+		if(ast2.ret_ <>& null)
+			do ast2.ret_ :: @rebuildType(ast2.ret_, parentAlias)
+		end if
+	case %typeGen
+		do(ast $ \ast@AstTypeGen).itemType :: @rebuildType((ast $ \ast@AstTypeGen).itemType, parentAlias)
+	case %typeDict
+		var ast2: \ast@AstTypeDict :: ast $ \ast@AstTypeDict
+		do ast2.itemTypeKey :: @rebuildType(ast2.itemTypeKey, parentAlias)
+		if(!\ast@isComparable(ast2.itemTypeKey, true))
+			do \err@err(%dictKeyMustBeComparable, ast.pos, null)
+		end if
+		do ast2.itemTypeValue :: @rebuildType(ast2.itemTypeValue, parentAlias)
+	default
+		assert type = %none {Error}|type = %typeBit | type = %typePrim | type = %typeNull
+	end switch
+	ret ast
+end func
+
+func rebuildExpr(ast: \ast@AstExpr, nullable: bool): \ast@AstExpr
+	if(ast =& null)
+		ret null
+	end if
+	switch(ast.typeId)
+	case %none
+		ret null
+	case %expr1
+		do ast :: @rebuildExpr1(ast $ \ast@AstExpr1)
+	case %expr2
+		do ast :: @rebuildExpr2(ast $ \ast@AstExpr2)
+	case %expr3
+		do ast :: @rebuildExpr3(ast $ \ast@AstExpr3)
+	case %exprNew
+		do ast :: @rebuildExprNew(ast $ \ast@AstExprNew)
+	case %exprNewArray
+		do ast :: @rebuildExprNewArray(ast $ \ast@AstExprNewArray)
+	case %exprAs
+		do ast :: @rebuildExprAs(ast $ \ast@AstExprAs)
+	case %exprToBin
+		do ast :: @rebuildExprToBin(ast $ \ast@AstExprToBin)
+	case %exprFromBin
+		do ast :: @rebuildExprFromBin(ast $ \ast@AstExprFromBin)
+	case %exprCall
+		do ast :: @rebuildExprCall(ast $ \ast@AstExprCall)
+	case %exprArray
+		do ast :: @rebuildExprArray(ast $ \ast@AstExprArray)
+	case %exprDot
+		do ast :: @rebuildExprDot(ast $ \ast@AstExprDot)
+	case %exprValue
+		do ast :: @rebuildExprValue(ast $ \ast@AstExprValue)
+	case %exprValuePrim
+		do ast :: @rebuildExprValuePrim(ast $ \ast@AstExprValuePrim)
+	case %exprValueStr
+		do ast :: @rebuildExprValueStr(ast $ \ast@AstExprValueStr)
+	case %exprValueEnumElement
+		do ast :: @rebuildExprValueEnumElement(ast $ \ast@AstExprValueEnumElement)
+	case %exprValueFloat
+		do ast :: @rebuildExprValueFloat(ast $ \ast@AstExprValueFloat)
+	case %exprValueArray
+		do ast :: @rebuildExprValueArray(ast $ \ast@AstExprValueArray)
+	case %exprRef
+		do ast :: @rebuildExprRef(ast)
+	end switch
+	if(ast =& null)
+		ret null
+	end if
+	if(!nullable & ast.type =& null)
+		; 'type' is null, for example, when calling a function whose return value is 'void'.
+		do \err@err(%noValuePassed, ast.pos, null)
+		ret null
+	end if
+	ret ast
+end func
+
+func rebuildExpr1(ast: \ast@AstExpr1): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.child :: @rebuildExpr(ast.child, false)
+	if(ast.child =& null)
+		ret null
+	end if
+	assert ast.type =& null
+	var childType: \ast@AstType :: ast.child.type
+	switch(ast.kind)
+	case %plus
+		if(\ast@isInt(childType) | \ast@isFloat(childType) | childType.typeId = %typeBit)
+			do ast.extra :: ast.child
+			ret ast.extra $ \ast@AstExpr
+		end if
+	case %minus
+		if(\ast@isInt(childType) | \ast@isFloat(childType))
+			if(ast.child.typeId.and(%exprValue) = %exprValue)
+				if(\ast@isInt(childType))
+					var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+					do @initAstExpr(expr, %exprValuePrim, ast.pos)
+					do expr.type :: childType
+					do expr.value :: (-((ast.child $ \ast@AstExprValuePrim).value $ int)) $ bit64
+					do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+					do ast.extra :: expr
+					ret ast.extra $ \ast@AstExpr
+				end if
+				
+				assert \ast@isFloat(childType)
+				var expr: \ast@AstExprValueFloat :: #\ast@AstExprValueFloat
+				do @initAstExpr(expr, %exprValueFloat, ast.pos)
+				do expr.type :: childType
+				do expr.value :: -(ast.child $ \ast@AstExprValueFloat).value
+				do expr :: @rebuildExprValueFloat(expr) $ \ast@AstExprValueFloat
+				do ast.extra :: expr
+				ret ast.extra $ \ast@AstExpr
+			end if
+			do ast.type :: childType
+		end if
+	case %not
+		if(\ast@isBool(childType))
+			if(ast.child.typeId = %exprValuePrim)
+				var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+				do @initAstExpr(expr, %exprValuePrim, ast.pos)
+				do expr.type :: childType
+				do expr.value :: (ast.child $ \ast@AstExprValuePrim).value <> 0b64 ?(0b64, 1b64)
+				do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+				do ast.extra :: expr
+				ret ast.extra $ \ast@AstExpr
+			end if
+			do ast.type :: childType
+		end if
+	case %copy
+		if(\ast@isClass(childType) | childType.typeId = %typeArray | childType.typeId = %typeGen | childType.typeId = %typeDict)
+			do ast.type :: childType
+		end if
+	case %len
+		if(childType.typeId = %typeArray | childType.typeId = %typeGen | childType.typeId = %typeDict)
+			var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+			do @initAst(type, %typePrim, ast.pos)
+			do type.kind :: %int_
+			do ast.type :: type
+		end if
+	default
+		assert false
+	end switch
+	if(ast.type =& null)
+		do \err@err(%wrongOperatorType, ast.pos, null)
+		ret null
+	end if
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExpr2(ast: \ast@AstExpr2): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.children0 :: @rebuildExpr(ast.children0, false)
+	if(ast.children0 =& null)
+		ret null
+	end if
+	do ast.children1 :: @rebuildExpr(ast.children1, false)
+	if(ast.children1 =& null)
+		ret null
+	end if
+	var strict: @CmpTypeStrict
+	switch(ast.kind)
+	case %lt, %gt, %le, %ge, %eq, %nEq
+		do strict :: %strict
+	case %eqRef, %nEqRef
+		do strict :: %twoWay
+	default
+		do strict :: %oneWay
+	end switch
+	if(!@cmpType(ast.children1.type, ast.children0.type, strict))
+		do \err@err(%wrongOperatorType, ast.pos, null)
+		ret null
+	end if
+	
+	block
+		var correct: bool :: false
+		switch(ast.kind)
+		case %assign
+			if(ast.children0.varKind = %value)
+				do \err@err(%wrongLeftValueOfAssignOperator, ast.pos, null)
+				ret null
+			end if
+			if(\ast@isClass(ast.children0.type) & \ast@isClass(ast.children1.type))
+				var ptr: \ast@AstClass :: ast.children1.type.refItem $ \ast@AstClass
+				while(ast.children0.type.refItem <>& ptr)
+					do ptr :: ptr.refItem $ \ast@AstClass
+					if(ptr =& null)
+						do \err@err(%wrongOperatorType, ast.pos, null)
+						ret null
+					end if
+				end while
+			end if
+			if(ast.children1.type.typeId = %typeEnumElement)
+				do ast.children1 :: @rebuildEnumElement(ast.children1, ast.children0.type)
+			end if
+			do ast.type :: null
+			do correct :: true
+		case %or, %and
+			if(\ast@isBool(ast.children0.type))
+				if(ast.children0.typeId = %exprValuePrim)
+					var value: bool :: (ast.children0 $ \ast@AstExprValuePrim).value <> 0b64
+					; 'true | x' becomes 'true'. 'false & x' becomes 'false'.
+					if(ast.kind = %or)
+						do ast.extra :: value ?(ast.children0, ast.children1)
+					else
+						assert ast.kind = %and
+						do ast.extra :: !value ?(ast.children0, ast.children1)
+					end if
+					ret ast.extra $ \ast@AstExpr
+				end if
+				do ast.type :: ast.children0.type
+				do correct :: true
+			end if
+		case %lt, %gt, %le, %ge
+			if(ast.children0.type.typeId = %typeNull | ast.children1.type.typeId = %typeNull)
+				do \err@err(%comparingNullByValue, ast.pos, null)
+				ret null
+			end if
+			if(\ast@isComparable(ast.children0.type, true))
+				var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+				do @initAst(type, %typePrim, ast.pos)
+				do type.kind :: %bool_
+				if(ast.children0.type.typeId = %typeEnumElement)
+					if(ast.children1.type.typeId = %typeEnumElement)
+						assert(ast.children0.typeId = %exprValueEnumElement)
+						do \err@err(%enumTypeNotInferred, ast.pos, [(ast.children0 $ \ast@AstExprValueEnumElement).identifier])
+						ret null
+					end if
+					do ast.children0 :: @rebuildEnumElement(ast.children0, ast.children1.type)
+				elif(ast.children1.type.typeId = %typeEnumElement)
+					do ast.children1 :: @rebuildEnumElement(ast.children1, ast.children0.type)
+				end if
+				if(ast.children0.typeId.and(%exprValue) = %exprValue & ast.children1.typeId.and(%exprValue) = %exprValue)
+					var value: bool :: false
+					var children0Type: \ast@AstType :: ast.children0.type
+					if(children0Type.typeId = %typeBit | \ast@isChar(children0Type))
+						var n1: bit64 :: (ast.children0 $ \ast@AstExprValuePrim).value
+						var n2: bit64 :: (ast.children1 $ \ast@AstExprValuePrim).value
+						switch(ast.kind)
+						case %lt
+							do value :: n1 < n2
+						case %gt
+							do value :: n1 > n2
+						case %le
+							do value :: n1 <= n2
+						case %ge
+							do value :: n1 >= n2
+						default
+							assert false
+						end switch
+					elif(\ast@isInt(children0Type) | \ast@isEnum(children0Type))
+						var n1: int :: (ast.children0 $ \ast@AstExprValuePrim).value $ int
+						var n2: int :: (ast.children1 $ \ast@AstExprValuePrim).value $ int
+						switch(ast.kind)
+						case %lt
+							do value :: n1 < n2
+						case %gt
+							do value :: n1 > n2
+						case %le
+							do value :: n1 <= n2
+						case %ge
+							do value :: n1 >= n2
+						default
+							assert false
+						end switch
+					elif(\ast@isFloat(children0Type))
+						var n1: float :: (ast.children0 $ \ast@AstExprValueFloat).value
+						var n2: float :: (ast.children1 $ \ast@AstExprValueFloat).value
+						switch(ast.kind)
+						case %lt
+							do value :: n1 < n2
+						case %gt
+							do value :: n1 > n2
+						case %le
+							do value :: n1 <= n2
+						case %ge
+							do value :: n1 >= n2
+						default
+							assert false
+						end switch
+					else
+						assert \ast@isStr(children0Type)
+						var cmp: int :: lib@cmp((ast.children0 $ \ast@AstExprValueStr).value, (ast.children1 $ \ast@AstExprValueStr).value)
+						switch(ast.kind)
+						case %lt
+							do value :: cmp < 0
+						case %gt
+							do value :: cmp > 0
+						case %le
+							do value :: cmp <= 0
+						case %ge
+							do value :: cmp >= 0
+						default
+							assert false
+						end switch
+					end if
+					
+					var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+					do @initAstExpr(expr, %exprValuePrim, ast.pos)
+					do expr.type :: type
+					do expr.value :: value ?(1b64, 0b64)
+					do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+					do ast.extra :: expr
+					ret ast.extra $ \ast@AstExpr
+				end if
+				do ast.type :: type
+				do correct :: true
+			end if
+		case %eq, %nEq
+			if(ast.children0.type.typeId = %typeNull | ast.children1.type.typeId = %typeNull)
+				do \err@err(%comparingNullByValue, ast.pos, null)
+				ret null
+			end if
+			if(\ast@isComparable(ast.children0.type, false))
+				var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+				do @initAst(type, %typePrim, ast.pos)
+				do type.kind :: %bool_
+				if(ast.children0.type.typeId = %typeEnumElement)
+					if(ast.children1.type.typeId = %typeEnumElement)
+						assert(ast.children0.typeId = %exprValueEnumElement)
+						do \err@err(%enumTypeNotInferred, ast.pos, [(ast.children0 $ \ast@AstExprValueEnumElement).identifier])
+						ret null
+					end if
+					do ast.children0 :: @rebuildEnumElement(ast.children0, ast.children1.type)
+				elif(ast.children1.type.typeId = %typeEnumElement)
+					do ast.children1 :: @rebuildEnumElement(ast.children1, ast.children0.type)
+				end if
+				if(ast.children0.typeId.and(%exprValue) = %exprValue & ast.children1.typeId.and(%exprValue) = %exprValue)
+					var value: bool :: false
+					var children0Type: \ast@AstType :: ast.children0.type
+					if(children0Type.typeId = %typeBit | \ast@isInt(children0Type) | \ast@isChar(children0Type) | \ast@isBool(children0Type) | \ast@isEnum(children0Type))
+						var n1: bit64 :: (ast.children0 $ \ast@AstExprValuePrim).value
+						var n2: bit64 :: (ast.children1 $ \ast@AstExprValuePrim).value
+						switch(ast.kind)
+						case %eq
+							do value :: n1 = n2
+						case %nEq
+							do value :: n1 <> n2
+						default
+							assert false
+						end switch
+					elif(\ast@isFloat(children0Type))
+						var n1: float :: (ast.children0 $ \ast@AstExprValueFloat).value
+						var n2: float :: (ast.children1 $ \ast@AstExprValueFloat).value
+						switch(ast.kind)
+						case %eq
+							do value :: n1 = n2
+						case %nEq
+							do value :: n1 <> n2
+						default
+							assert false
+						end switch
+					else
+						assert \ast@isStr(children0Type)
+						var cmp: int :: lib@cmp((ast.children0 $ \ast@AstExprValueStr).value, (ast.children1 $ \ast@AstExprValueStr).value)
+						switch(ast.kind)
+						case %eq
+							do value :: cmp = 0
+						case %nEq
+							do value :: cmp <> 0
+						default
+							assert false
+						end switch
+					end if
+					
+					var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+					do @initAstExpr(expr, %exprValuePrim, ast.pos)
+					do expr.type :: type
+					do expr.value :: value ?(1b64, 0b64)
+					do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+					do ast.extra :: expr
+					ret ast.extra $ \ast@AstExpr
+				end if
+				do ast.type :: type
+				do correct :: true
+			end if
+		case %eqRef, %nEqRef
+			if(\ast@isNullable(ast.children0.type) | ast.children0.type.typeId = %typeNull)
+				var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+				do @initAst(type, %typePrim, ast.pos)
+				do type.kind :: %bool_
+				do ast.type :: type
+				do correct :: true
+			end if
+		case %cat
+			if(ast.children0.type.typeId = %typeNull | ast.children1.type.typeId = %typeNull)
+				do \err@err(%concatNull, ast.pos, null)
+				ret null
+			end if
+			if(ast.children0.type.typeId = %typeArray)
+				if(ast.children0.typeId.and(%exprValue) = %exprValue & ast.children1.typeId.and(%exprValue) = %exprValue)
+					if(\ast@isStr(ast.children0.type))
+						var s1: []char :: (ast.children0 $ \ast@AstExprValueStr).value
+						var s2: []char :: (ast.children1 $ \ast@AstExprValueStr).value
+						var expr: \ast@AstExprValueStr :: #\ast@AstExprValueStr
+						do @initAstExpr(expr, %exprValueStr, ast.pos)
+						do expr.type :: ast.children0.type
+						do expr.value :: s1 ~ s2
+						do expr :: @rebuildExprValueStr(expr) $ \ast@AstExprValueStr
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					end if
+				end if
+				do ast.type :: ast.children0.type
+				do correct :: true
+			end if
+		case %add, %sub, %mul, %div, %mod
+			if(ast.children0.type.typeId = %typeBit | \ast@isInt(ast.children0.type) | \ast@isFloat(ast.children0.type))
+				if(ast.children0.typeId.and(%exprValue) = %exprValue & ast.children1.typeId.and(%exprValue) = %exprValue)
+					if(ast.children0.type.typeId = %typeBit)
+						var n1: bit64 :: (ast.children0 $ \ast@AstExprValuePrim).value
+						var n2: bit64 :: (ast.children1 $ \ast@AstExprValuePrim).value
+						switch(ast.kind)
+						case %add
+							do n1 :+ n2
+						case %sub
+							do n1 :- n2
+						case %mul
+							do n1 :* n2
+						case %div
+							if(n2 = 0b64)
+								do \err@err(%dividedBy0, ast.pos, null)
+								ret null
+							end if
+							do n1 :/ n2
+						case %mod
+							if(n2 = 0b64)
+								do \err@err(%dividedBy0, ast.pos, null)
+								ret null
+							end if
+							do n1 :% n2
+						default
+							assert false
+						end switch
+						var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+						do @initAstExpr(expr, %exprValuePrim, ast.pos)
+						do expr.type :: ast.children0.type
+						do expr.value :: @bitCast((ast.children0.type $ \ast@AstTypeBit).size, n1)
+						do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					elif(\ast@isInt(ast.children0.type))
+						var n1: int :: (ast.children0 $ \ast@AstExprValuePrim).value $ int
+						var n2: int :: (ast.children1 $ \ast@AstExprValuePrim).value $ int
+						switch(ast.kind)
+						case %add
+							do n1 :+ n2
+						case %sub
+							do n1 :- n2
+						case %mul
+							do n1 :* n2
+						case %div
+							if(n2 = 0)
+								do \err@err(%dividedBy0, ast.pos, null)
+								ret null
+							end if
+							do n1 :/ n2
+						case %mod
+							if(n2 = 0)
+								do \err@err(%dividedBy0, ast.pos, null)
+								ret null
+							end if
+							do n1 :% n2
+						default
+							assert false
+						end switch
+						var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+						do @initAstExpr(expr, %exprValuePrim, ast.pos)
+						do expr.type :: ast.children0.type
+						do expr.value :: n1 $ bit64
+						do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					else
+						assert \ast@isFloat(ast.children0.type)
+						var n1: float :: (ast.children0 $ \ast@AstExprValueFloat).value
+						var n2: float :: (ast.children1 $ \ast@AstExprValueFloat).value
+						switch(ast.kind)
+						case %add
+							do n1 :+ n2
+						case %sub
+							do n1 :- n2
+						case %mul
+							do n1 :* n2
+						case %div
+							if(n1 = 0.0 & n2 = 0.0)
+								do \err@err(%dividedBy0, ast.pos, null)
+								ret null
+							end if
+							do n1 :/ n2
+						case %mod
+							if(n1 = 0.0 & n2 = 0.0)
+								do \err@err(%dividedBy0, ast.pos, null)
+								ret null
+							end if
+							do n1 :% n2
+						default
+							assert false
+						end switch
+						var expr: \ast@AstExprValueFloat :: #\ast@AstExprValueFloat
+						do @initAstExpr(expr, %exprValueFloat, ast.pos)
+						do expr.type :: ast.children0.type
+						do expr.value :: n1
+						do expr :: @rebuildExprValueFloat(expr) $ \ast@AstExprValueFloat
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					end if
+				end if
+				do ast.type :: ast.children0.type
+				do correct :: true
+			end if
+		case %pow
+			if(\ast@isInt(ast.children0.type) | \ast@isFloat(ast.children0.type))
+				do ast.type :: ast.children0.type
+				do correct :: true
+			end if
+		end switch
+		if(!correct)
+			do \err@err(%wrongOperatorType, ast.pos, null)
+			ret null
+		end if
+	end block
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExpr3(ast: \ast@AstExpr3): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.children0 :: @rebuildExpr(ast.children0, false)
+	if(ast.children0 =& null)
+		ret null
+	end if
+	do ast.children1 :: @rebuildExpr(ast.children1, false)
+	if(ast.children1 =& null)
+		ret null
+	end if
+	do ast.children2 :: @rebuildExpr(ast.children2, false)
+	if(ast.children2 =& null)
+		ret null
+	end if
+	if(!\ast@isBool(ast.children0.type))
+		do \err@err(%condForCondOperatorMustBeBool, ast.pos, null)
+		ret null
+	end if
+	if(!@cmpType(ast.children1.type, ast.children2.type, %twoWay))
+		do \err@err(%twoValueForCondOperatorMustSameType, ast.pos, null)
+		ret null
+	end if
+	if(ast.children0.typeId = %exprValuePrim)
+		do ast.extra :: (ast.children0 $ \ast@AstExprValuePrim).value <> 0b64 ?(ast.children1, ast.children2)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	if(ast.children1.type.typeId = %typeEnumElement)
+		if(ast.children2.type.typeId = %typeEnumElement)
+			assert ast.children1.typeId = %exprValueEnumElement
+			do \err@err(%enumTypeNotInferred, ast.pos, [(ast.children1 $ \ast@AstExprValueEnumElement).identifier])
+			ret null
+		end if
+		do ast.children1 :: @rebuildEnumElement(ast.children1, ast.children2.type)
+	elif(ast.children2.type.typeId = %typeEnumElement)
+		do ast.children2 :: @rebuildEnumElement(ast.children2, ast.children1.type)
+	end if
+	if(@cmpType(ast.children1.type, ast.children2.type, %oneWay))
+		do ast.type :: ast.children2.type.typeId = %typeNull ?(ast.children1.type, ast.children2.type)
+	else
+		do ast.type :: ast.children1.type.typeId = %typeNull ?(ast.children2.type, ast.children1.type)
+	end if
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprNew(ast: \ast@AstExprNew): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.itemType :: @rebuildType(ast.itemType, null)
+	if(ast.itemType =& null)
+		ret null
+	end if
+	
+	var isClass: bool :: \ast@isClass(ast.itemType)
+	if(isClass & ast.itemType.refItem =& null)
+		ret null
+	end if
+	
+	if(!(isClass | ast.itemType.typeId = %typeGen | ast.itemType.typeId = %typeDict))
+		do \err@err(%wrongTypeForNewOperator, ast.pos, null)
+		ret null
+	end if
+	if(ast.direct & isClass)
+		var astItems: list<\ast@AstClassItem> :: (ast.itemType.refItem $ \ast@AstClass).items
+		do astItems.head()
+		while(!astItems.term())
+			var item: \ast@AstClassItem :: astItems.get()
+			var def: \ast@Ast :: item.def
+			if(def.typeId = %func_ & (def $ \ast@AstFunc).funcOption.and(%ndc) = %ndc & def.name = "ctor")
+				do \err@err(%cannotInstantiateDirectly, ast.pos, [ast.itemType.refItem.name])
+				ret null
+			end if
+			do astItems.next()
+		end while
+	end if
+	do ast.type :: ast.itemType
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprNewArray(ast: \ast@AstExprNewArray): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	block
+		var items: list<\ast@AstExpr> :: ast.idces
+		do items.head()
+		while loop(!items.term())
+			var data: \ast@AstExpr :: items.get()
+			do data :: @rebuildExpr(data, false)
+			if(data =& null)
+				ret null
+			end if
+			if(!\ast@isInt(data.type))
+				do \err@err(%numOfElementsMustBeInt, data.pos, null)
+				ret null
+			end if
+			do items.ins(data)
+			do items.del()
+		end while
+	end block
+	
+	do ast.itemType :: @rebuildType(ast.itemType, null)
+	if(ast.itemType =& null)
+		ret null
+	end if
+	
+	block
+		; Make a type of '[][]...[]type'.
+		var type: \ast@AstType :: ast.itemType
+		for i(0, ^ast.idces - 1)
+			var type2: \ast@AstTypeArray :: #\ast@AstTypeArray
+			do @initAst(type2, %typeArray, ast.pos)
+			do type2.itemType :: type
+			do type :: type2
+		end for
+		do ast.type :: type
+	end block
+	
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprAs(ast: \ast@AstExprAs): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.child :: @rebuildExpr(ast.child, false)
+	if(ast.child =& null)
+		ret null
+	end if
+	do ast.childType :: @rebuildType(ast.childType, null)
+	if(ast.childType =& null)
+		ret null
+	end if
+	assert ast.type =& null
+	switch(ast.kind)
+	case %as
+		var t1: \ast@AstType :: ast.child.type
+		var t2: \ast@AstType :: ast.childType
+		if(t1.typeId = %typeBit | \ast@isInt(t1))
+			if(t2.typeId = %typeBit | \ast@isInt(t2) | \ast@isFloat(t2) | \ast@isChar(t2) | \ast@isBool(t2) | \ast@isEnum(t2))
+				if(@cmpType(t1, t2, %oneWay))
+					do ast.extra :: ast.child
+					ret ast.extra $ \ast@AstExpr
+				end if
+				do ast.type :: t2
+			end if
+		elif(\ast@isFloat(t1))
+			if(t2.typeId = %typeBit | \ast@isInt(t2) | \ast@isFloat(t2))
+				if(@cmpType(t1, t2, %oneWay))
+					do ast.extra :: ast.child
+					ret ast.extra $ \ast@AstExpr
+				end if
+				do ast.type :: t2
+			end if
+		elif(\ast@isChar(t1))
+			if(t2.typeId = %typeBit | \ast@isInt(t2) | \ast@isChar(t2))
+				if(@cmpType(t1, t2, %oneWay))
+					do ast.extra :: ast.child
+					ret ast.extra $ \ast@AstExpr
+				end if
+				do ast.type :: t2
+			end if
+		elif(\ast@isBool(t1))
+			if(t2.typeId = %typeBit | \ast@isInt(t2) | \ast@isBool(t2))
+				if(@cmpType(t1, t2, %oneWay))
+					do ast.extra :: ast.child
+					ret ast.extra $ \ast@AstExpr
+				end if
+				do ast.type :: t2
+			end if
+		elif(\ast@isClass(t1))
+			if(\ast@isClass(t2))
+				do ast.type :: t2
+			end if
+		elif(\ast@isEnum(t1))
+			if(t2.typeId = %typeBit | \ast@isInt(t2) | \ast@isEnum(t2))
+				if(@cmpType(t1, t2, %oneWay))
+					do ast.extra :: ast.child
+					ret ast.extra $ \ast@AstExpr
+				end if
+				do ast.type :: t2
+			end if
+		elif(t1.typeId = %typeEnumElement)
+			if(\ast@isEnum(t2))
+				do ast.type :: t2
+			end if
+		end if
+		if(ast.type <>& null)
+			if(ast.child.typeId.and(%exprValue) = %exprValue)
+				if(t1.typeId = %typeBit | \ast@isChar(t1) | \ast@isBool(t1) | \ast@isInt(t1) | \ast@isEnum(t1))
+					var n: bit64 :: (ast.child $ \ast@AstExprValuePrim).value
+					if(t2.typeId = %typeBit)
+						var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+						do @initAstExpr(expr, %exprValuePrim, ast.pos)
+						do expr.type :: ast.type
+						do expr.value :: @bitCast((t2 $ \ast@AstTypeBit).size, n)
+						do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					elif(\ast@isInt(t2) | \ast@isEnum(t2))
+						var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+						do @initAstExpr(expr, %exprValuePrim, ast.pos)
+						do expr.type :: ast.type
+						do expr.value :: n
+						do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					elif(\ast@isFloat(t2))
+						var expr: \ast@AstExprValueFloat :: #\ast@AstExprValueFloat
+						do @initAstExpr(expr, %exprValueFloat, ast.pos)
+						do expr.type :: ast.type
+						if(\ast@isInt(t1) | \ast@isEnum(t1))
+							do expr.value :: n $ int $ float
+						else
+							do expr.value :: n $ float
+						end if
+						do expr :: @rebuildExprValueFloat(expr) $ \ast@AstExprValueFloat
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					elif(\ast@isChar(t2))
+						var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+						do @initAstExpr(expr, %exprValuePrim, ast.pos)
+						do expr.type :: ast.type
+						do expr.value :: @bitCast(2, n)
+						do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					else
+						assert \ast@isBool(t2)
+						var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+						do @initAstExpr(expr, %exprValuePrim, ast.pos)
+						do expr.type :: ast.type
+						do expr.value :: n <> 0b64 ?(1b64, 0b64)
+						do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					end if
+				elif(t1.typeId = %typeEnumElement)
+					assert t2.refItem.typeId = %enum_
+					var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+					do @initAstExpr(expr, %exprValuePrim, ast.pos)
+					do expr.type :: ast.type
+					do expr.value :: @searchEnumElementValue(ast.child $ \ast@AstExprValueEnumElement, t2.refItem $ \ast@AstEnum)
+					do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+					do ast.extra :: expr
+					ret ast.extra $ \ast@AstExpr
+				else
+					assert \ast@isFloat(t1)
+					var n: float :: (ast.child $ \ast@AstExprValueFloat).value
+					if(t2.typeId = %typeBit)
+						var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+						do @initAstExpr(expr, %exprValuePrim, ast.pos)
+						do expr.type :: ast.type
+						do expr.value :: @bitCast((t2 $ \ast@AstTypeBit).size, n $ bit64)
+						do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					else
+						assert \ast@isInt(t2)
+						var expr: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+						do @initAstExpr(expr, %exprValuePrim, ast.pos)
+						do expr.type :: ast.type
+						do expr.value :: n $ bit64
+						do expr :: @rebuildExprValuePrim(expr) $ \ast@AstExprValuePrim
+						do ast.extra :: expr
+						ret ast.extra $ \ast@AstExpr
+					end if
+				end if
+			end if
+		end if
+	case %is, %nIs
+		if(\ast@isClass(ast.child.type) & \ast@isClass(ast.childType))
+			var type: \ast@AstTypePrim :: #\ast@AstTypePrim
+			do @initAst(type, %typePrim, ast.pos)
+			do type.kind :: %bool_
+			do ast.type :: type
+		end if
+	default
+		assert false
+	end switch
+	if(ast.type =& null)
+		do \err@err(%wrongOperatorType, ast.pos, null)
+		ret null
+	end if
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprToBin(ast: \ast@AstExprToBin): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.child :: @rebuildExpr(ast.child, false)
+	if(ast.child =& null)
+		ret null
+	end if
+	if(ast.child.type.typeId = %typeNull | ast.child.type.typeId = %typeEnumElement)
+		do \err@err(%wrongOperatorType, ast.pos, null)
+		ret null
+	end if
+	if(ast.childType.typeId <> %typeArray | (ast.childType $ \ast@AstTypeArray).itemType.typeId <> %typeBit | ((ast.childType $ \ast@AstTypeArray).itemType $ \ast@AstTypeBit).size <> 1)
+		do \err@err(%wrongOperatorType, ast.pos, null)
+		ret null
+	end if
+	do ast.type :: ast.childType
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprFromBin(ast: \ast@AstExprFromBin): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.child :: @rebuildExpr(ast.child, false)
+	if(ast.child =& null)
+		ret null
+	end if
+	if(ast.child.type.typeId <> %typeArray | ((ast.child.type) $ \ast@AstTypeArray).itemType.typeId <> %typeBit | ((ast.child.type $ \ast@AstTypeArray).itemType $ \ast@AstTypeBit).size <> 1)
+		do \err@err(%wrongOperatorType, ast.pos, null)
+		ret null
+	end if
+	do ast.type :: ast.childType
+	do ast.varKind :: %value
+	do ast.offset :: @rebuildExpr(ast.offset, false)
+	ret ast
+end func
+
+func rebuildExprCall(ast: \ast@AstExprCall): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.func_ :: @rebuildExpr(ast.func_, false)
+	if(ast.func_ =& null)
+		ret null
+	end if
+	
+	block
+		if(ast.func_.type.typeId <> %typeFunc)
+			do \err@err(%callNonFunction, ast.pos, null)
+			ret null
+		end if
+		var type: \ast@AstTypeFunc :: ast.func_.type $ \ast@AstTypeFunc
+		if(type.funcOption.and(%mki) <> %none)
+			; Make an instance and add it to the second argument when '__mki' is specified.
+			var valueType: \ast@AstExprCallArg :: #\ast@AstExprCallArg
+			assert type.ret_ <>& null
+			block
+				var expr: \ast@AstExprNew :: #\ast@AstExprNew
+				do @initAstExpr(expr, %exprNew, ast.pos)
+				do expr.itemType :: type.ret_
+				do expr.direct :: false
+				do valueType.arg :: @rebuildExpr(expr, false)
+			end block
+			do valueType.refVar :: false
+			do valueType.skipVar :: false
+			if(^ast.args = 0)
+				do ast.args.add(valueType)
+			else
+				do ast.args.head()
+				do ast.args.ins(valueType)
+			end if
+		end if
+		if(ast.func_.typeId = %exprDot)
+			var me_: \ast@AstExprCallArg :: #\ast@AstExprCallArg
+			do me_.arg :: (ast.func_ $ \ast@AstExprDot).var_
+			do me_.refVar :: false
+			do me_.skipVar :: false
+			if(^ast.args = 0)
+				do ast.args.add(me_)
+			else
+				do ast.args.head()
+				do ast.args.ins(me_)
+			end if
+			if(type.funcOption.and(%any) <> %none)
+				; Add the type of 'me' to the second argument when '_any_type' is specified.
+				var meType: \ast@AstExprCallArg :: #\ast@AstExprCallArg
+				block
+					var expr: \ast@AstExprValue :: #\ast@AstExprValue
+					do @initAstExpr(expr, %exprValue, ast.pos)
+					block
+						var type2: \ast@AstTypeNull :: #\ast@AstTypeNull
+						do @initAst(type2, %typeNull, ast.pos)
+						do expr.type :: type2
+					end block
+					do meType.arg :: @rebuildExpr(expr, false)
+				end block
+				do meType.refVar :: false
+				do meType.skipVar :: false
+				if(^ast.args = 1)
+					do ast.args.add(meType)
+				else
+					assert ^ ast.args >= 2
+					do ast.args.head()
+					do ast.args.next()
+					do ast.args.ins(meType)
+				end if
+			end if
+		end if
+		do ast.type :: type.ret_
+		if(^ast.args <> ^type.args)
+			do \err@err(%wrongArgNumInFunc, ast.pos, [(^type.args).toStr(), (^ast.args).toStr(), @getTypeName(type)])
+			ret null
+		end if
+		block
+			var n: int :: 0
+			var itemsExpr: list<\ast@AstExprCallArg> :: ast.args
+			var itemsType: list<\ast@AstTypeFuncArg> :: type.args
+			do itemsExpr.head()
+			do itemsType.head()
+			while(!itemsExpr.term())
+				var argExpr: \ast@AstExprCallArg :: itemsExpr.get()
+				var argType: \ast@AstTypeFuncArg :: itemsType.get()
+				if(argExpr.skipVar)
+					do(argExpr.arg.refItem $ \ast@AstArg).type :: argType.arg
+				end if
+				do argExpr.arg :: @rebuildExpr(argExpr.arg, false)
+				if(argExpr.arg <>& null)
+					if(argExpr.refVar & !argExpr.skipVar & argExpr.arg.varKind = %value)
+						do \err@err(%nonRefArgPassed, ast.pos, [(n + 1).toStr()])
+						ret null
+					end if
+					if(argExpr.refVar <> argType.refVar | !@cmpType(argExpr.arg.type, argType.arg, %oneWay))
+						do \err@err(%wrongArgTypeInFunc, ast.pos, [(n + 1).toStr(), (argType.refVar ?("&", "")) ~ @getTypeName(argType.arg), (argExpr.refVar ?("&", "")) ~ @getTypeName(argExpr.arg.type)])
+						ret null
+					end if
+					if(argExpr.arg.type.typeId = %typeEnumElement)
+						do argExpr.arg :: @rebuildEnumElement(argExpr.arg, argType.arg)
+					end if
+				end if
+				do itemsExpr.next()
+				do itemsType.next()
+				do n :+ 1
+			end while
+		end block
+	end block
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprArray(ast: \ast@AstExprArray): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.var_ :: @rebuildExpr(ast.var_, false)
+	if(ast.var_ =& null)
+		ret null
+	end if
+	if(ast.var_.type.typeId <> %typeArray)
+		do \err@err(%nonArrayAccess, ast.pos, null)
+		ret null
+	end if
+	do ast.idx :: @rebuildExpr(ast.idx, false)
+	if(ast.idx =& null)
+		ret null
+	end if
+	if(!\ast@isInt(ast.idx.type))
+		do \err@err(%arrayIdxMustBeInt, ast.idx.pos, null)
+		ret null
+	end if
+	do ast.type :: (ast.var_.type $ \ast@AstTypeArray).itemType
+	do ast.varKind :: %globalVar {An array can be an left value.}
+	ret ast
+end func
+
+func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.var_ :: @rebuildExpr(ast.var_, false)
+	if(ast.var_ =& null)
+		ret null
+	end if
+	if(\ast@isClass(ast.var_.type))
+		var found: bool :: false
+		var ptr: \ast@AstClass :: ast.var_.type.refItem $ \ast@AstClass
+		while(ptr <>& null)
+			var items: list<\ast@AstClassItem> :: ptr.items
+			do items.head()
+			while(!items.term())
+				var item: \ast@AstClassItem :: items.get()
+				if(item.def.typeId = %var_ & ast.member = (item.def $ \ast@AstVar).arg.name)
+					do ast.type :: (item.def $ \ast@AstVar).arg.type
+					do ast.varKind :: %globalVar {The addresses of properties are treated as those of global variables. They can be left values.}
+					do found :: true
+				elif(item.def.typeId = %func_ & ast.member = item.def.name)
+					var func_: \ast@AstFunc :: item.def $ \ast@AstFunc
+					var type: \ast@AstTypeFunc :: #\ast@AstTypeFunc
+					do @initAst(type, %typeFunc, ast.pos)
+					do type.funcOption :: func_.funcOption
+					do type.args :: #list<\ast@AstTypeFuncArg>
+					block
+						var items2: list<\ast@AstArg> :: func_.args
+						do items2.head()
+						while(!items2.term())
+							var arg: \ast@AstArg :: items2.get()
+							var arg2: \ast@AstTypeFuncArg :: #\ast@AstTypeFuncArg
+							do arg2.arg :: arg.type
+							do arg2.refVar :: arg.refVar
+							do type.args.add(arg2)
+							do items2.next()
+						end while
+					end block
+					do type.ret_ :: func_.ret_
+					do ast.type :: type
+					do ast.varKind :: %value
+					do found :: true
+				end if
+				if(found)
+					; 'me' and automatically generated arguments can be accessed even though they are private.
+					if(!item.public & (ast.var_.refName =& null | ast.var_.refName <> "me"))
+						do \err@err(%refUnpublishedMember, ast.pos, [ast.member])
+						ret null
+					end if
+					do ast.classItem :: item
+					ret ast
+				end if
+				do items.next()
+			end while
+			do ptr :: ptr.refItem $ \ast@AstClass
+		end while
+	else
+		; Built-in methods.
+		var varType: \ast@AstType :: ast.var_.type
+		if(varType.typeId = %typeEnumElement)
+			assert ast.var_.typeId = %exprValueEnumElement
+			do \err@err(%enumTypeNotInferred, ast.pos, [(ast.var_ $ \ast@AstExprValueEnumElement).identifier])
+			ret null
+		end if
+		var member: []char :: ast.member
+		if(\builtin_func@chkBuiltinFuncType(&member, varType))
+			var expr: \ast@AstExpr :: @searchStdItem("kuin", "_" ~ member, true) $ \ast@AstExpr
+			if(expr =& null)
+				assert false
+				ret null
+			end if
+			
+			block
+				var func_: \ast@AstTypeFunc :: expr.type $ \ast@AstTypeFunc
+				if(func_.funcOption.and(%any) <> %none)
+					if(dbg)
+						assert ^ func_.args >= 2
+						do func_.args.head()
+						assert \ast@isInt(func_.args.get().arg)
+						do func_.args.next()
+						var argType: \ast@AstType :: func_.args.get().arg
+						assert argType.typeId = %typeArray & \ast@isInt((argType $ \ast@AstTypeArray).itemType)
+					end if
+					do func_.args.head()
+					do func_.args.get().arg :: varType
+				end if
+				if(func_.funcOption.and(%tme) <> %none)
+					if(dbg)
+						assert func_.funcOption.and(%any) <> %none
+						assert func_.funcOption.and(%tch) = %none
+						assert func_.funcOption.and(%tkv) = %none
+						assert func_.funcOption.and(%kvf) = %none
+						assert ^ func_.args >= 3
+						do func_.args.head()
+						do func_.args.next()
+						do func_.args.next()
+						assert \ast@isInt(func_.args.get().arg)
+					end if
+					do func_.args.head()
+					do func_.args.next()
+					do func_.args.next()
+					do func_.args.get().arg :: varType
+				end if
+				if(func_.funcOption.and(%tch) <> %none)
+					if(dbg)
+						assert func_.funcOption.and(%any) <> %none
+						assert func_.funcOption.and(%tme) = %none
+						assert func_.funcOption.and(%tkv) = %none
+						assert func_.funcOption.and(%kvf) = %none
+						assert ^ func_.args >= 3
+						do func_.args.head()
+						do func_.args.next()
+						do func_.args.next()
+						assert \ast@isInt(func_.args.get().arg)
+					end if
+					do func_.args.head()
+					do func_.args.next()
+					do func_.args.next()
+					if(varType.typeId = %typeArray)
+						do func_.args.get().arg :: (varType $ \ast@AstTypeArray).itemType
+					elif(varType.typeId = %typeGen)
+						do func_.args.get().arg :: (varType $ \ast@AstTypeGen).itemType
+					else
+						assert varType.typeId = %typeDict
+						do func_.args.get().arg :: (varType $ \ast@AstTypeDict).itemTypeKey
+					end if
+				end if
+				if(func_.funcOption.and(%tkv) <> %none)
+					if(dbg)
+						assert func_.funcOption.and(%any) <> %none
+						assert func_.funcOption.and(%tme) = %none
+						assert func_.funcOption.and(%tch) = %none
+						assert func_.funcOption.and(%kvf) = %none
+						assert ^ func_.args >= 4
+						do func_.args.head()
+						do func_.args.next()
+						do func_.args.next()
+						assert \ast@isInt(func_.args.get().arg)
+						do func_.args.next()
+						assert \ast@isInt(func_.args.get().arg)
+						assert varType.typeId = %typeDict
+					end if
+					do func_.args.head()
+					do func_.args.next()
+					do func_.args.next()
+					do func_.args.get().arg :: (varType $ \ast@AstTypeDict).itemTypeKey
+					do func_.args.next()
+					do func_.args.get().arg :: (varType $ \ast@AstTypeDict).itemTypeValue
+				end if
+				if(func_.funcOption.and(%kvf) <> %none)
+					if(dbg)
+						assert func_.funcOption.and(%any) <> %none
+						assert func_.funcOption.and(%tme) = %none
+						assert func_.funcOption.and(%tch) = %none
+						assert func_.funcOption.and(%tkv) = %none
+						assert ^ func_.args >= 3
+						do func_.args.head()
+						do func_.args.next()
+						do func_.args.next()
+						assert \ast@isInt(func_.args.get().arg)
+						assert varType.typeId = %typeDict
+					end if
+					var type: \ast@AstTypeFunc :: #\ast@AstTypeFunc
+					do @initAst(type, %typeFunc, ast.pos)
+					do type.funcOption :: %none
+					do type.args :: #list<\ast@AstTypeFuncArg>
+					block
+						var item: \ast@AstTypeFuncArg :: #\ast@AstTypeFuncArg
+						do item.arg :: (varType $ \ast@AstTypeDict).itemTypeKey
+						do item.refVar :: false
+						do type.args.add(item)
+					end block
+					block
+						var item: \ast@AstTypeFuncArg :: #\ast@AstTypeFuncArg
+						do item.arg :: (varType $ \ast@AstTypeDict).itemTypeValue
+						do item.refVar :: false
+						do type.args.add(item)
+					end block
+					block
+						var item: \ast@AstTypeFuncArg :: #\ast@AstTypeFuncArg
+						do func_.args.head()
+						do func_.args.next()
+						do func_.args.next()
+						do func_.args.next()
+						do item.arg :: func_.args.get().arg
+						do item.refVar :: false
+						do type.args.add(item)
+					end block
+					do type.ret_ :: func_.ret_
+					do func_.args.head()
+					do func_.args.next()
+					do func_.args.next()
+					do func_.args.get().arg :: type
+				end if
+				if(func_.funcOption.and(%rme) <> %none)
+					if(dbg)
+						assert func_.funcOption.and(%any) <> %none
+						assert func_.funcOption.and(%rch) = %none
+						assert func_.funcOption.and(%rac) = %none
+						assert \ast@isInt(func_.ret_)
+					end if
+					do func_.ret_ :: varType
+				end if
+				if(func_.funcOption.and(%rch) <> %none)
+					if(dbg)
+						assert func_.funcOption.and(%any) <> %none
+						assert func_.funcOption.and(%rme) = %none
+						assert func_.funcOption.and(%rac) = %none
+						assert \ast@isInt(func_.ret_)
+					end if
+					if(varType.typeId = %typeArray)
+						do func_.ret_ :: (varType $ \ast@AstTypeArray).itemType
+					elif(varType.typeId = %typeGen)
+						do func_.ret_ :: (varType $ \ast@AstTypeGen).itemType
+					else
+						assert varType.typeId = %typeDict
+						do func_.ret_ :: (varType $ \ast@AstTypeDict).itemTypeValue
+					end if
+				end if
+				if(func_.funcOption.and(%rac) <> %none)
+					if(dbg)
+						assert func_.funcOption.and(%any) <> %none
+						assert func_.funcOption.and(%rme) = %none
+						assert func_.funcOption.and(%rch) = %none
+						assert \ast@isInt(func_.ret_)
+						assert varType.typeId = %typeGen
+						assert(varType $ \ast@AstTypeGen).kind = %list_
+					end if
+					var type: \ast@AstTypeArray :: #\ast@AstTypeArray
+					do @initAst(type, %typeArray, ast.pos)
+					do type.itemType :: (varType $ \ast@AstTypeGen).itemType
+					do func_.ret_ :: type
+				end if
+			end block
+			
+			do ast.refItem :: expr
+			do ast.type :: expr.type
+			do ast.varKind :: %value
+			ret ast
+		end if
+	end if
+	do \err@err(%memberNotExist, ast.pos, [ast.member])
+	ret null
+end func
+
+func rebuildExprValue(ast: \ast@AstExprValue): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	assert ast.typeId = %exprValue
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprValuePrim(ast: \ast@AstExprValuePrim): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprValueStr(ast: \ast@AstExprValueStr): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprValueEnumElement(ast: \ast@AstExprValueEnumElement): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprValueFloat(ast: \ast@AstExprValueFloat): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	do ast.varKind :: %value
+	ret ast
+end func
+
+func rebuildExprValueArray(ast: \ast@AstExprValueArray): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	assert ast.type =& null
+	
+	block
+		var nullSet: bool :: false
+		var enumSet: bool :: false
+		var items: list<\ast@AstExpr> :: ast.values
+		do items.head()
+		while(!items.term())
+			var data: \ast@AstExpr :: items.get()
+			do data :: @rebuildExpr(data, false)
+			if(data =& null)
+				ret null
+			end if
+			block
+				var dataType: \ast@AstType :: data.type
+				if(ast.type =& null)
+					if(dataType.typeId = %typeNull)
+						if(enumSet)
+							do \err@err(%elementTypesOfArrayInitNotMatch, ast.pos, null)
+							ret null
+						end if
+						do nullSet :: true
+					elif(dataType.typeId = %typeEnumElement)
+						if(nullSet)
+							do \err@err(%nullForValueTypeArrayInit, ast.pos, null)
+							ret null
+						end if
+						do enumSet :: true
+					else
+						; Determine the type of the array initializer when a value other than 'null' is specified.
+						if(nullSet & !\ast@isNullable(dataType))
+							do \err@err(%nullForValueTypeArrayInit, ast.pos, null)
+							ret null
+						end if
+						if(enumSet & !\ast@isEnum(dataType))
+							do \err@err(%elementTypesOfArrayInitNotMatch, ast.pos, null)
+							ret null
+						end if
+						
+						var type: \ast@AstTypeArray :: #\ast@AstTypeArray
+						do @initAst(type, %typeArray, dataType.pos)
+						do type.itemType :: dataType
+						do ast.type :: type
+					end if
+				elif(!@cmpType((ast.type $ \ast@AstTypeArray).itemType, dataType, %strict))
+					; The types of the second and subsequent elements of the array initializer do not match the type of the first element.
+					do \err@err(%elementTypesOfArrayInitNotMatch, ast.pos, null)
+					ret null
+				end if
+			end block
+			do items.ins(data)
+			do items.del()
+		end while
+		if(ast.type =& null)
+			if(enumSet)
+				do \err@err(%allElementsAreEnum, ast.pos, null)
+				ret null
+			else
+				do \err@err(%allElementsAreNull, ast.pos, null)
+				ret null
+			end if
+		end if
+	end block
+	
+	if(\ast@isEnum((ast.type $ \ast@AstTypeArray).itemType))
+		var items: list<\ast@AstExpr> :: ast.values
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstExpr :: items.get()
+			if(item.type.typeId = %typeEnumElement)
+				do item :: @rebuildEnumElement(item, (ast.type $ \ast@AstTypeArray).itemType)
+				do items.ins(item)
+				do items.del()
+			else
+				do items.next()
+			end if
+		end while
+	end if
+	
+	if(\ast@isStr(ast.type))
+		; Replace constants consisting only of characters with string literals.
+		if(chkConst(ast.values))
+			var ast2: \ast@AstExprValueStr :: #\ast@AstExprValueStr
+			do @initAstExpr(ast2, %exprValueStr, ast.pos)
+			do ast2.type :: ast.type
+			var s: []char :: #[^ast.values]char
+			var idx: int :: 0
+			var items: list<\ast@AstExpr> :: ast.values
+			do items.head()
+			while(!items.term())
+				do s[idx] :: (items.get() $ \ast@AstExprValuePrim).value $ char
+				do items.next()
+				do idx :+ 1
+			end while
+			do ast2.value :: s
+			do ast2 :: @rebuildExprValueStr(ast2) $ \ast@AstExprValueStr
+			do ast.extra :: ast2
+			ret ast.extra $ \ast@AstExpr
+		end if
+	end if
+	
+	do ast.varKind :: %value
+	ret ast
+	
+	func chkConst(values: list<\ast@AstExpr>): bool
+		do values.head()
+		while(!values.term())
+			if(values.get().typeId.and(%exprValue) <> %exprValue)
+				ret false
+			end if
+			do values.next()
+		end while
+		ret true
+	end func
+end func
+
+func rebuildExprRef(ast: \ast@AstExpr): \ast@AstExpr
+	if(ast.extra <>& null)
+		ret ast.extra $ \ast@AstExpr
+	end if
+	do ast.extra :: ast
+	
+	assert ast.typeId = %exprRef
+	var refItem: \ast@Ast :: ast.refItem
+	if(refItem =& null)
+		ret null
+	end if
+	
+	switch(refItem.typeId)
+	case %func_
+		var func_: \ast@AstFunc :: ast.refItem $ \ast@AstFunc
+		do @rebuildFunc(func_)
+		block
+			var type: \ast@AstTypeFunc :: #\ast@AstTypeFunc
+			do @initAst(type, %typeFunc, ast.pos)
+			do type.funcOption :: func_.funcOption
+			do type.args :: #list<\ast@AstTypeFuncArg>
+			block
+				var items: list<\ast@AstArg> :: func_.args
+				do items.head()
+				while(!items.term())
+					var arg: \ast@AstArg :: items.get()
+					var arg2: \ast@AstTypeFuncArg :: #\ast@AstTypeFuncArg
+					do arg2.refVar :: arg.refVar
+					do arg2.arg :: arg.type
+					do type.args.add(arg2)
+					do items.next()
+				end while
+			end block
+			do type.ret_ :: func_.ret_
+			do ast.type :: type
+		end block
+		do ast.varKind :: %value
+	case %arg
+		var arg: \ast@AstArg :: ast.refItem $ \ast@AstArg
+		do @rebuildArg(arg)
+		switch(arg.kind)
+		case %global
+			do ast.type :: arg.type
+			do ast.varKind :: %globalVar
+		case %localArg
+			do ast.type :: arg.type
+			do ast.varKind :: arg.refVar ?(%refVar $ \ast@AstExprVarKind, %localVar)
+		case %localVar
+			do ast.type :: arg.type
+			do ast.varKind :: %localVar
+		case %const_
+			if(arg.expr =& null)
+				ret null
+			end if
+			assert arg.expr.typeId.and(%exprValue) = %exprValue
+			do ast.extra :: arg.expr
+			ret ast.extra $ \ast@AstExpr
+		case %member
+			do \err@err(%accessMemberWithoutMe, ast.pos, [ast.refName])
+			ret null
+		default
+			assert false
+		end switch
+	case %statSwitch, %statFor, %statTry
+		assert refItem.extra <>& null
+		do ast.refItem :: (refItem $ \ast@AstStatBreakable).blockVar
+		do ast.type :: (refItem $ \ast@AstStatBreakable).blockVar.type
+		do ast.varKind :: %localVar
+	default
+		if(refItem.typeId.and(%expr) = %expr & refItem.extra <>& null & \ast@isEnum((refItem.extra $ \ast@AstExpr).type))
+			do ast.extra :: refItem.extra
+			ret ast.extra $ \ast@AstExpr
+		end if
+		
+		do \err@err(%inaccessibleElement, ast.pos, [ast.refName])
+		ret null
+	end switch
+	ret ast
+end func
+
+func searchStdItem(src: []char, identifier: []char, makeExprRef: bool): \ast@Ast
+	var ast: \ast@Ast :: @asts.get(src, &)
+	if(ast =& null)
+		do \err@err(%fileOpenFailed, null, [src])
+		ret null
+	end if
+	
+	var ast2: \ast@Ast :: ast.scopeChildren.get(identifier, &)
+	if(ast2 =& null)
+		do \err@err(%sysFileBroken, null, [src])
+		ret null
+	end if
+	
+	if(makeExprRef)
+		var expr: \ast@AstExpr :: #\ast@AstExpr
+		do @initAstExpr(expr, %exprRef, \pos@make("kuin", 1, 1))
+		do expr.refItem :: ast2
+		ret @rebuildExprRef(expr)
+	end if
+	ret ast2
+end func
+
+func initAst(ast: \ast@Ast, typeId: \ast@TypeId, pos: \pos@Pos)
+	assert ast <>$ \ast@AstExpr
+	do @initAstImpl(ast, typeId, pos)
+end func
+
+func initAstExpr(ast: \ast@AstExpr, typeId: \ast@TypeId, pos: \pos@Pos)
+	assert ast =$ \ast@AstExpr
+	do @initAstImpl(ast, typeId, pos)
+	do ast.type :: null
+	do ast.varKind :: %unknown
+end func
+
+func initAstImpl(ast: \ast@Ast, typeId: \ast@TypeId, pos: \pos@Pos)
+	do ast.typeId :: typeId
+	do ast.pos :: pos
+	do ast.name :: null
+	do ast.scopeParent :: null
+	do ast.scopeChildren :: null
+	do ast.refName :: null
+	do ast.refItem :: null
+	do ast.extra :: null
+	do ast.publicInSrc :: false
+end func
+
+func makeExprNull(pos: \pos@Pos): \ast@AstExprValue
+	var value: \ast@AstExprValue :: #\ast@AstExprValue
+	do @initAstExpr(value, %exprValue, pos)
+	block
+		var type: \ast@AstTypeNull :: #\ast@AstTypeNull
+		do @initAst(type, %typeNull, pos)
+		do value.type :: type
+	end block
+	ret value
+end func
+
+func makeExprDefaultValue(type: \ast@AstType, pos: \pos@Pos): \ast@AstExprValue
+	if(\ast@isEnum(type))
+		var value: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+		do @initAstExpr(value, %exprValuePrim, pos)
+		do value.type :: type
+		do value.value :: 0b64
+		ret value
+	end if
+	if(\ast@isNullable(type))
+		ret @makeExprNull(pos)
+	end if
+	if(\ast@isFloat(type))
+		var value: \ast@AstExprValueFloat :: #\ast@AstExprValueFloat
+		do @initAstExpr(value, %exprValueFloat, pos)
+		do value.type :: type
+		do value.value :: 0.0
+		ret value
+	end if
+	switch(type.typeId)
+	case %typeBit, %typePrim
+		var value: \ast@AstExprValuePrim :: #\ast@AstExprValuePrim
+		do @initAstExpr(value, %exprValuePrim, pos)
+		do value.type :: type
+		do value.value :: 0b64
+		ret value
+	default
+		assert false
+	end switch
+	ret null
+end func
+
+func refreshStats(stats: list<\ast@AstStat>, retType: \ast@AstType, parentFunc: \ast@AstFunc): list<\ast@AstStat>
+	var stats2: list<\ast@AstStat> :: #list<\ast@AstStat>
+	do stats.head()
+	while(!stats.term())
+		var stat: \ast@AstStat :: @rebuildStat(stats.get(), retType, parentFunc)
+		if(stat <>& null)
+			do stats2.add(stat)
+		end if
+		do stats.next()
+	end while
+	ret stats2
+end func
+
+func addSpecialFunc(class_: \ast@AstClass, name: []char): \ast@AstFunc
+	; Make frameworks for '_dtor', '_copy', '_toBin', and '_fromBin'.
+	var ast: \ast@AstFunc :: #\ast@AstFunc
+	do @initAst(ast, %func_, class_.pos)
+	do ast.name :: name
+	do ast.funcOption :: %none
+	do ast.funcAttr :: #list<[]char>
+	do ast.args :: #list<\ast@AstArg>
+	do ast.ret_ :: null
+	do ast.stats :: #list<\ast@AstStat>
+	block
+		var me_: \ast@AstArg :: #\ast@AstArg
+		do @initAst(me_, %arg, class_.pos)
+		do me_.kind :: %localArg
+		do me_.refVar :: false
+		do me_.expr :: null
+		block
+			var type: \ast@AstTypeUser :: #\ast@AstTypeUser
+			do @initAst(type, %typeUser, class_.pos)
+			do type.refItem :: class_
+			do me_.type :: type
+		end block
+		do ast.args.add(me_)
+	end block
+	
+	block
+		; These functions override functions of the root class.
+		var item: \ast@AstClassItem :: #\ast@AstClassItem
+		do item.override :: true
+		do item.def :: ast
+		do item.parentItem :: null
+		do item.extra :: null
+		var ptr: \ast@AstClass :: class_.refItem $ \ast@AstClass
+		while(ptr.refItem <>& null)
+			do ptr :: ptr.refItem $ \ast@AstClass
+		end while
+		var items: list<\ast@AstClassItem> :: ptr.items
+		do items.head()
+		while loop(!items.term())
+			var item2: \ast@AstClassItem :: items.get()
+			if(item2.def.name = name)
+				do item.parentItem :: item2
+				break loop
+			end if
+			do items.next()
+		end while
+		assert item.parentItem <>& null
+		do item.public :: item.parentItem.public
+		do class_.items.add(item)
+	end block
+	
+	ret ast
+end func
+
+enum CmpTypeStrict
+	strict
+	oneWay
+	twoWay
+end enum
+
+func cmpType(type1: \ast@AstType, type2: \ast@AstType, strict: @CmpTypeStrict): bool
+	if(type1 =& null | type2 =& null)
+		ret false
+	end if
+	if(type1 =& type2)
+		ret true
+	end if
+	var typeId1: \ast@TypeId :: type1.typeId
+	var typeId2: \ast@TypeId :: type2.typeId
+	block
+		; Comparing 'null' and 'nullable' should be true.
+		var nullable1: bool :: typeId1 = %typeUser & type1.refItem.typeId = %enum_ ?(false, typeId1.and(%typeNullable) = %typeNullable)
+		var nullable2: bool :: typeId2 = %typeUser & type2.refItem.typeId = %enum_ ?(false, typeId2.and(%typeNullable) = %typeNullable)
+		if(nullable1 & typeId2 = %typeNull | typeId1 = %typeNull & nullable2 | typeId1 = %typeNull & typeId2 = %typeNull)
+			ret true
+		end if
+	end block
+	if(typeId1 = %typeArray & typeId2 = %typeArray)
+		ret @cmpType((type1 $ \ast@AstTypeArray).itemType, (type2 $ \ast@AstTypeArray).itemType, %strict)
+	end if
+	if(typeId1 = %typeBit & typeId2 = %typeBit)
+		ret(type1 $ \ast@AstTypeBit).size = (type2 $ \ast@AstTypeBit).size
+	end if
+	if(typeId1 = %typeFunc & typeId2 = %typeFunc)
+		var func1: \ast@AstTypeFunc :: type1 $ \ast@AstTypeFunc
+		var func2: \ast@AstTypeFunc :: type2 $ \ast@AstTypeFunc
+		var args1: list<\ast@AstTypeFuncArg> :: func1.args
+		var args2: list<\ast@AstTypeFuncArg> :: func2.args
+		do args1.head()
+		do args2.head()
+		while(!args1.term() & !args2.term())
+			var arg1: \ast@AstTypeFuncArg :: args1.get()
+			var arg2: \ast@AstTypeFuncArg :: args2.get()
+			if(arg1.refVar <> arg2.refVar | !@cmpType(arg1.arg, arg2.arg, %strict))
+				ret false
+			end if
+			do args1.next()
+			do args2.next()
+		end while
+		if(!(args1.term() & args2.term()))
+			ret false
+		end if
+		if(func1.ret_ =& null & func2.ret_ =& null)
+			ret true
+		end if
+		if(func1.ret_ =& null | func2.ret_ =& null)
+			ret false
+		end if
+		ret @cmpType(func1.ret_, func2.ret_, %strict)
+	end if
+	if(typeId1 = %typeGen & typeId2 = %typeGen)
+		if((type1 $ \ast@AstTypeGen).kind <> (type2 $ \ast@AstTypeGen).kind)
+			ret false
+		end if
+		ret @cmpType((type1 $ \ast@AstTypeGen).itemType, (type2 $ \ast@AstTypeGen).itemType, %strict)
+	end if
+	if(typeId1 = %typeDict & typeId2 = %typeDict)
+		var dict1: \ast@AstTypeDict :: type1 $ \ast@AstTypeDict
+		var dict2: \ast@AstTypeDict :: type2 $ \ast@AstTypeDict
+		ret @cmpType(dict1.itemTypeKey, dict2.itemTypeKey, %strict) & @cmpType(dict1.itemTypeValue, dict2.itemTypeValue, %strict)
+	end if
+	if(typeId1 = %typePrim & typeId2 = %typePrim)
+		ret(type1 $ \ast@AstTypePrim).kind = (type2 $ \ast@AstTypePrim).kind
+	end if
+	if(typeId1 = %typeUser & typeId2 = %typeUser)
+		assert type1.refItem.typeId <> %alias_ & type2.refItem.typeId <> %alias_
+		if(type1.refItem.typeId = %class_ & type2.refItem.typeId = %class_)
+			if(strict = %strict)
+				ret type1.refItem $ \ast@AstClass =& type2.refItem $ \ast@AstClass
+			else
+				; Check whether they are parent-child relationship.
+				var class1: \ast@AstClass :: type1.refItem $ \ast@AstClass
+				var class2: \ast@AstClass :: type2.refItem $ \ast@AstClass
+				var ptr: \ast@AstClass :: class1
+				while(ptr <>& null)
+					if(ptr =& class2)
+						ret true
+					end if
+					do ptr :: ptr.refItem $ \ast@AstClass
+				end while
+				if(strict = %twoWay)
+					do ptr :: class2
+					while(ptr <>& null)
+						if(ptr =& class1)
+							ret true
+						end if
+						do ptr :: ptr.refItem $ \ast@AstClass
+					end while
+				end if
+				ret false
+			end if
+		end if
+		ret type1.refItem =& type2.refItem
+	end if
+	if((typeId1 = %typeUser & type1.refItem.typeId = %enum_ | typeId1 = %typeEnumElement) &
+		|(typeId2 = %typeUser & type2.refItem.typeId = %enum_ | typeId2 = %typeEnumElement) &
+		|!(typeId1 = %typeEnumElement & typeId2 = %typeEnumElement))
+		ret true
+	end if
+	ret false
+end func
+
+func makeMeDot(class_: \ast@AstClass, arg: \ast@AstArg, name: []char): \ast@AstExprDot
+	var ast: \ast@AstExprDot :: #\ast@AstExprDot
+	do @initAstExpr(ast, %exprDot, class_.pos)
+	do ast.member :: name
+	do ast.classItem :: null
+	block
+		var me_: \ast@AstExpr :: #\ast@AstExpr
+		do @initAstExpr(me_, %exprRef, class_.pos)
+		do me_.refName :: "me"
+		do me_.refItem :: arg
+		block
+			var type: \ast@AstTypeUser :: #\ast@AstTypeUser
+			do @initAst(type, %typeUser, class_.pos)
+			do type.refItem :: class_
+			do me_.type :: type
+		end block
+		do ast.var_ :: me_
+	end block
+	ret ast
+end func
+
+func searchEnumElementValue(ast: \ast@AstExprValueEnumElement, enum_: \ast@AstEnum): bit64
+	assert ast.type.typeId = %typeEnumElement
+	do @rebuildEnum(enum_)
+	var name: []char :: ast.identifier
+	var items: list<\ast@AstExpr> :: enum_.items
+	do items.head()
+	while(!items.term())
+		var item: \ast@AstExpr :: items.get()
+		if(name = item.name)
+			if(item.typeId <> %exprValuePrim)
+				ret 0b64
+			end if
+			ret(item $ \ast@AstExprValuePrim).value
+		end if
+		do items.next()
+	end while
+	do \err@err(%notExistedElementName, ast.pos, [name])
+	ret 0b64
+end func
+
+func cacheSubExpr(stats: list<\ast@AstStat>, ast: \ast@AstExpr, pos: \pos@Pos): \ast@AstExpr
+	if(ast =& null)
+		ret null
+	end if
+	if(ast.typeId = %exprRef | ast.typeId.and(%exprValue) = %exprValue)
+		ret ast
+	end if
+	var ref: \ast@AstExpr :: #\ast@AstExpr
+	do @initAstExpr(ref, %exprRef, pos)
+	do ref.refName :: "$"
+	do ref.varKind :: %localVar
+	do ref.extra :: ref
+	block
+		var arg: \ast@AstArg :: #\ast@AstArg
+		do @initAst(arg, %arg, pos)
+		do arg.kind :: %localVar
+		do arg.refVar :: false
+		do arg.type :: ast.type
+		do arg.expr :: null
+		do arg.extra :: arg
+		do ref.refItem :: arg
+		do ref.type :: arg.type
+	end block
+	block
+		var do_: \ast@AstStatDo :: #\ast@AstStatDo
+		do @initAst(do_, %statDo, pos)
+		block
+			var exprAssign: \ast@AstExpr2 :: #\ast@AstExpr2
+			do @initAstExpr(exprAssign, %expr2, pos)
+			do exprAssign.kind :: %assign
+			do exprAssign.children0 :: ref
+			do exprAssign.children1 :: ast
+			do do_.expr :: exprAssign
+		end block
+		do stats.add(@rebuildDo(do_))
+	end block
+	ret ref
+end func
+
+func bitCast(size: int, n: bit64): bit64
+	switch(size)
+	case 1
+		ret n $ bit8 $ bit64
+	case 2
+		ret n $ bit16 $ bit64
+	case 4
+		ret n $ bit32 $ bit64
+	case 8
+		ret n
+		assert false
+	end switch
+	ret 0b64
+end func
+
+func getTypeName(type: \ast@AstType): []char
+	if(type =& null)
+		ret ""
+	end if
+	switch(type.typeId)
+	case %typeArray
+		ret "[]" ~ @getTypeName((type $ \ast@AstTypeArray).itemType)
+	case %typeBit
+		ret "bit" ~ ((type $ \ast@AstTypeBit).size * 8).toStr()
+	case %typeFunc
+		var type2: \ast@AstTypeFunc :: type $ \ast@AstTypeFunc
+		var s: []char :: "func<("
+		var first: bool :: true
+		var items: list<\ast@AstTypeFuncArg> :: type2.args
+		do items.head()
+		while(!items.term())
+			var arg: \ast@AstTypeFuncArg :: items.get()
+			if(first)
+				do first :: false
+			else
+				do s :~ ", "
+			end if
+			if(arg.refVar)
+				do s :~ "&"
+			end if
+			do s :~ @getTypeName(arg.arg)
+			do items.next()
+		end while
+		if(type2.ret_ =& null)
+			do s :~ ")>"
+		else
+			do s :~ "): " ~ @getTypeName(type2.ret_) ~ ">"
+		end if
+		ret s
+	case %typeGen
+		var type2: \ast@AstTypeGen :: type $ \ast@AstTypeGen
+		var s: []char
+		switch(type2.kind)
+		case %list_
+			do s :: "list<"
+		case %stack_
+			do s :: "stack<"
+		case %queue_
+			do s :: "queue<"
+		default
+			assert false
+		end switch
+		ret s ~ @getTypeName(type2.itemType) ~ ">"
+	case %typeDict
+		var type2: \ast@AstTypeDict :: type $ \ast@AstTypeDict
+		ret "dict<" ~ @getTypeName(type2.itemTypeKey) ~ ", " ~ @getTypeName(type2.itemTypeValue) ~ ">"
+	case %typePrim
+		var type2: \ast@AstTypePrim :: type $ \ast@AstTypePrim
+		switch(type2.kind)
+		case %int_
+			ret "int"
+		case %float_
+			ret "float"
+		case %char_
+			ret "char"
+		case %bool_
+			ret "bool"
+		default
+			assert false
+		end switch
+	case %typeUser
+		ret(type.refName = "@" ?(type.pos.srcName, "")) ~ type.refName
+	case %typeEnumElement
+		ret "(UNKNOWN)"
+	default
+		assert false
+	end switch
+	ret ""
+end func

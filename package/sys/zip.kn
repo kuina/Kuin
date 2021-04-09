@@ -1,8 +1,0 @@
-func [d1001.knd, _init] _init()
-end func
-
-+func [d1001.knd, _zip] zip(dst: []char, src: []char, compressionLevel: int): bool
-end func
-
-+func [d1001.knd, _unzip] unzip(dst: []char, src: []char): bool
-end func

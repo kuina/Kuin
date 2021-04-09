@@ -1,0 +1,135 @@
+const major: int :: 2020
+const minor: int :: 9
+const micro: int :: 17
+
++const useResFlagsLen: int :: 1
+
+func main()
+	do refLibFuncs()
+	
+	if(!\option@acquireOption(lib@cmdLine(), true))
+		do lib@exitCode(1)
+		ret
+	end if
+	
+	if(\option@version)
+		do cui@print("Kuin Programming Language v.\{@major}.\{@minor}.\{@micro}\n")
+		do cui@print("(C)Kuina-chan\n")
+		do lib@exitCode(0)
+		ret
+	end if
+	
+	if(\option@help | \option@inputFile =& null)
+		do cui@print("Usage: kuincl [-i input.kn] [-o output.kn] [-s 'sys' directory] [-e environment] [-a appcode] [-p 'res' directory] [-c icon.ico] [-f additional files] [-r] [-h] [-v] [-q] [-x extra option]\n")
+		do lib@exitCode(0)
+		ret
+	end if
+	
+	if(@build())
+		do \err@err(%success, null, null)
+		do lib@exitCode(0)
+		ret
+	end if
+	
+	do \err@err(%failure, null, null)
+	do lib@exitCode(1)
+	
+	func refLibFuncs()
+		; Prevent dead code elimination.
+		if(env("e") = "cpp")
+			var refGetVersion: func<(&int, &int, &int)> :: @getVersion
+			var refSetLogFunc: func<(func<(int, []char, []char, int, int)>)> :: \err@setLogFunc
+			var refSetFileFuncs: func<(func<([]char): int>, func<(int)>, func<(int): int>, func<(int): char>)> :: \parse@setFileFuncs
+			
+			var refPreventDeadCodeElimination: func<()> :: \interpret@preventDeadCodeElimination
+			var refSetDbgStartAddr: func<(bit64)> :: \interpret@setDbgStartAddr
+			var refSetBreakPointAddrs: func<([]bit64, []bit8)> :: \interpret@setBreakPointAddrs
+			var refGetBreakPointAddrs: func<(&[]bit64, &[]bit8)> :: \interpret@getBreakPointAddrs
+			var refgetBreakPointPosesNum: func<(): int> :: \interpret@getBreakPointPosesNum
+			var refPosToAddr: func<(int): bit64> :: \interpret@posToAddr
+			var refAddrToPos: func<(&[]char, &[]char, &int, &int, bit64): bool> :: \interpret@addrToPos
+			var refGetExcptMsg: func<(int): []char> :: \interpret@getExcptMsg
+			var refSetBreakPointPoses: func<([][]char, []int, []int)> :: \interpret@setBreakPointPoses
+			
+			var refIsReserved: func<([]char): bool> :: \interpret@isReserved
+			
+			var refInterpret2: func<([]char): int> :: \interpret@interpret2
+			var refGetKeywordsRoot: func<(int, []char, []char, int, int, func<(int, []char)>, int): []char> :: \interpret@getKeywordsRoot
+			var refInitDbgVars: func<(): int> :: \interpret@initDbgVars
+			var refGetDbgVars: func<(int, []char, int, int, bit64, func<(int, bit64): bit64>, func<([]char, []char, int)>, int)> :: \interpret@getDbgVars
+		end if
+	end func
+end func
+
+func[__rwi]getVersion(major: &int, minor: &int, micro: &int)
+	do major :: @major
+	do minor :: @minor
+	do micro :: @micro
+end func
+
+func[__rwi]build(): bool
+	var asts: dict<[]char, \ast@Ast>
+	var entry: \ast@AstFunc
+	var useResFlags: []bit8 :: #[@useResFlagsLen]bit8
+	
+	do \err@errCnt :: 0
+	var beginTime: int :: lib@sysTime()
+	do \err@err(%compilationStarted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStr()])
+	
+	; 'Parse'
+	do asts :: \parse@parse(useResFlags, null)
+	do \err@err(%parsingCompleted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStr()])
+	
+	; Convert to binary files.
+	if(\option@extra.get("binary", &))
+		if(\err@errCnt > 0)
+			ret false
+		end if
+		do \convert@convertToBinaryFiles(asts)
+		ret false
+	end if
+	
+	; 'Analyze'
+	var funcAttrs: dict<[]char, dict<[]char, bool>>
+	do entry :: \analyze@analyze(asts, &funcAttrs)
+	do \err@err(%semanticAnalysisCompleted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStr()])
+	
+	; Stop compilation if some errors occur.
+	if(\err@errCnt > 0)
+		ret false
+	end if
+	
+	; 'Output'
+	switch(\option@env_)
+	case %exe
+		if(env("e") = "web")
+			ret false
+		else
+			if(!\exe\output@output(entry, funcAttrs, useResFlags, asts))
+				ret false
+			end if
+		end if
+	case %cpp
+		if(!\cpp\output@output(entry, funcAttrs))
+			ret false
+		end if
+	case %web
+		if(!\web\output@output(entry))
+			ret false
+		end if
+	default
+		assert false
+	end switch
+	
+	; Copy additional files.
+	if(!\convert@copyAdditionalFiles())
+		ret false
+	end if
+	
+	do \err@err(%generationProcessCompleted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStr()])
+	if(\err@errCnt > 0)
+		ret false
+	end if
+	
+	ret true
+end func

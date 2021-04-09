@@ -1,0 +1,248 @@
++class Obj()
+	+func draw()
+	end func
+
+	+func init(x: float, y: float, width: float, height: float, visible: bool)
+		do me.x :: x
+		do me.y :: y
+		do me.width :: width
+		do me.height :: height
+		do me.visible :: visible
+	end func
+
+	+func fin(resCacheDraw: @ResCacheDraw)
+	end func
+
+	+var x: float
+	+var y: float
+	+var width: float
+	+var height: float
+	+var visible: bool
+end class
+
++class ObjRect(@Obj)
+	+*func draw()
+		if(!me.visible)
+			ret
+		end if
+		if(me.colorFill <> 0)
+			do draw2d@rect(me.x, me.y, me.width, me.height, me.colorFill)
+		end if
+		if(me.colorStroke <> 0)
+			do draw2d@rectLine(me.x, me.y, me.width, me.height, me.strokeWidth, me.colorStroke)
+		end if
+	end func
+
+	+var colorFill: int
+	+var colorStroke: int
+	+var strokeWidth: float
+end class
+
++class ObjCircle(@Obj)
+	+*func draw()
+		if(!me.visible)
+			ret
+		end if
+		var halfWidth: float :: me.width / 2.0
+		var halfHeight: float :: me.height / 2.0
+		if(me.colorFill <> 0)
+			do draw2d@circle(me.x + halfWidth, me.y + halfHeight, halfWidth, halfHeight, me.colorFill)
+		end if
+		if(me.colorStroke <> 0)
+			do draw2d@circleLine(me.x + halfWidth, me.y + halfHeight, halfWidth, halfHeight, me.strokeWidth, me.colorStroke)
+		end if
+	end func
+
+	+var colorFill: int
+	+var colorStroke: int
+	+var strokeWidth: float
+end class
+
++class ObjText(@Obj)
+	+*func draw()
+		if(!me.visible)
+			ret
+		end if
+		if(me.color <> 0 & me.font <>& null)
+			do me.font.align(me.alignHorizontal, me.alignVertical)
+			var x: float
+			var y: float
+			switch(me.alignHorizontal)
+			case %left
+				do x :: me.x
+			case %center
+				do x :: me.x + me.width / 2.0
+			case %right
+				do x :: me.x + me.width
+			default
+				assert false
+			end switch
+			switch(me.alignVertical)
+			case %top
+				do y :: me.y
+			case %center
+				do y :: me.y + me.height / 2.0
+			case %bottom
+				do y :: me.y + me.height
+			default
+				assert false
+			end switch
+			do me.font.draw(x, y, me.text, me.color)
+		end if
+	end func
+
+	+*func fin(resCacheDraw: @ResCacheDraw)
+		if(me.font <>& null)
+			do resCacheDraw.del(me.font)
+			do me.font :: null
+		end if
+	end func
+
+	+func setFont(resCacheDraw: @ResCacheDraw, fontName: []char, fontSize: int, bold: bool, italic: bool, proportional: bool, advance: float)
+		if(me.font <>& null)
+			do resCacheDraw.del(me.font)
+			do me.font :: null
+		end if
+		do me.font :: resCacheDraw.makeFont(fontName, fontSize, bold, italic, proportional, advance)
+	end func
+
+	var font: draw@Font
+	+var text: []char
+	+var color: int
+	+var alignHorizontal: draw@AlignHorizontal
+	+var alignVertical: draw@AlignVertical
+end class
+
++class ObjImg(@Obj)
+	+*func draw()
+		if(!me.visible)
+			ret
+		end if
+		if(me.color <> 0 & me.tex <>& null)
+			do me.tex.drawScale(me.x, me.y, me.width, me.height, me.srcX, me.srcY, me.srcWidth, me.srcHeight, me.color)
+		end if
+	end func
+
+	+*func fin(resCacheDraw: @ResCacheDraw)
+		if(me.tex <>& null)
+			do resCacheDraw.del(me.tex)
+			do me.tex :: null
+		end if
+	end func
+
+	+func setTex(resCacheDraw: @ResCacheDraw, texPath: []char)
+		if(me.tex <>& null)
+			do resCacheDraw.del(me.tex)
+			do me.tex :: null
+		end if
+		do me.tex :: resCacheDraw.makeTex(texPath)
+	end func
+
+	var tex: draw@Tex
+	+var srcX: float
+	+var srcY: float
+	+var srcWidth: float
+	+var srcHeight: float
+	+var color: int
+end class
+
++class ObjRoundRect(@Obj)
+	+*func draw()
+		if(!me.visible)
+			ret
+		end if
+		if(me.colorFill <> 0)
+			do draw2d@roundRect(me.x, me.y, me.width, me.height, me.radiusX, me.radiusY, me.colorFill)
+		end if
+		if(me.colorStroke <> 0)
+			do draw2d@roundRectLine(me.x, me.y, me.width, me.height, me.radiusX, me.radiusY, me.strokeWidth, me.colorStroke)
+		end if
+	end func
+
+	+var colorFill: int
+	+var colorStroke: int
+	+var radiusX: float
+	+var radiusY: float
+	+var strokeWidth: float
+end class
+
++class ObjParticle(@Obj)
+	+*func draw()
+		if(!me.visible)
+			ret
+		end if
+		if(me.color <> 0 & me.particle <>& null)
+			do me.particle.emit(me.x, me.y, 0.0, 0.0, 0.0, 0.0, me.width, 0.0, 0.0, 0.0)
+			do me.particle.draw2d(me.tex)
+		end if
+	end func
+
+	+*func fin(resCacheDraw: @ResCacheDraw)
+		if(me.particle <>& null)
+			do resCacheDraw.del(me.particle)
+			do me.particle :: null
+		end if
+		if(me.tex <>& null)
+			do resCacheDraw.del(me.tex)
+			do me.tex :: null
+		end if
+	end func
+
+	+func setParticle(resCacheDraw: @ResCacheDraw, lifeSpan: int, color1: int, color2: int, friction: float, accelX: float, accelY: float, accelZ: float, sizeAccel: float, rotAccel: float)
+		if(me.particle <>& null)
+			do resCacheDraw.del(me.particle)
+			do me.particle :: null
+		end if
+		do me.particle :: resCacheDraw.makeParticle(lifeSpan, color1, color2, friction, accelX, accelY, accelZ, sizeAccel, rotAccel)
+	end func
+
+	+func setTex(resCacheDraw: @ResCacheDraw, texPath: []char)
+		if(me.tex <>& null)
+			do resCacheDraw.del(me.tex)
+			do me.tex :: null
+		end if
+		do me.tex :: resCacheDraw.makeTex(texPath)
+	end func
+
+	var particle: draw@Particle
+	var tex: draw@Tex
+	+var srcX: float
+	+var srcY: float
+	+var srcWidth: float
+	+var srcHeight: float
+	+var color: int
+end class
+
++class ResCacheDraw(rescache@ResCache)
+	+func makeFont(fontName: []char, size: int, bold: bool, italic: bool, proportional: bool, advance: float): draw@Font
+		var instance: rescache@Instance :: me.add("font,\{fontName},\{size},\{bold},\{italic},\{proportional},\{advance}")
+		if(instance.instance =& null)
+			do instance.instance :: draw@makeFont(fontName, size, bold, italic, proportional, advance)
+		end if
+		ret instance.instance $ draw@Font
+	end func
+
+	+func makeTex(texPath: []char): draw@Tex
+		var instance: rescache@Instance :: me.add("tex,\{texPath}")
+		if(instance.instance =& null)
+			do instance.instance :: draw@makeTex(me.baseDir ~ texPath)
+		end if
+		ret instance.instance $ draw@Tex
+	end func
+
+	+func makeParticle(lifeSpan: int, color1: int, color2: int, friction: float, accelX: float, accelY: float, accelZ: float, sizeAccel: float, rotAccel: float): draw@Particle
+		var instance: rescache@Instance :: me.add("particle,\{lifeSpan},\{color1},\{color2},\{friction},\{accelX},\{accelY},\{accelZ},\{sizeAccel},\{rotAccel}")
+		if(instance.instance =& null)
+			do instance.instance :: draw@makeParticle(lifeSpan, color1, color2, friction, accelX, accelY, accelZ, sizeAccel, rotAccel)
+		end if
+		ret instance.instance $ draw@Particle
+	end func
+end class
+
++func draw(objs: list<@Obj>)
+	do objs.head()
+	while(!objs.term())
+		do objs.get().draw()
+		do objs.next()
+	end while
+end func

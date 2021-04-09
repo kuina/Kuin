@@ -1,0 +1,74 @@
+const charPerLine: int :: 32
+
+func main()
+	var args: [][]char :: lib@cmdLine()
+	if(^args = 0)
+		do cui@print("Usage: bin_to_text [file1] [file2] ...\n")
+		ret
+	end if
+	for i(0, ^args - 1)
+		var path: []char :: file@fullPath(args[i])
+		var reader: file@Reader :: file@makeReader(path)
+		if(reader =& null)
+			do cui@print("The file '\{path}' could not be opened.\n")
+			ret
+		end if
+		var size: int :: reader.fileSize()
+		var name: []char :: file@fileName(path).replace(".", "_") ~ "_bin"
+		var path2: []char :: file@fullPath("../lib_win/bins/" ~ name ~ ".cpp")
+		var upperName: []char :: ""
+		block
+			var ptr: int :: 0
+			var first: bool :: true
+			while loop(ptr < ^name)
+				if(name[ptr] = '_')
+					do first :: true
+					do ptr :+ 1
+					skip loop
+				end if
+				if(first)
+					if('a' <= name[ptr] & name[ptr] <= 'z')
+						do upperName :~ name[ptr].toStr().upper()
+					else
+						do upperName :~ name[ptr].toStr()
+					end if
+					do first :: false
+				else
+					do upperName :~ name[ptr].toStr()
+				end if
+				do ptr :+ 1
+			end while
+		end block
+		var writer: file@Writer :: file@makeWriter(path2, false)
+		if(writer =& null)
+			do cui@print("The file '\{path2}' could not be opened.\n")
+			ret
+		end if
+		do writer.writeStr("#include \"../../common.h\"\n")
+		do writer.writeStr("\n")
+		do writer.writeStr("const U8* Get\{upperName}(size_t* size)\n")
+		do writer.writeStr("{\n")
+		do writer.writeStr("\tstatic const U8 \{name}[\{size $ bit32}] =\n")
+		do writer.writeStr("\t{\n")
+		for j(0, size - 1)
+			var bin: []bit8 :: reader.read(1)
+			if(j % @charPerLine = 0)
+				do writer.writeStr("\t\t\{bin[0]}")
+			elif(j % @charPerLine = @charPerLine - 1)
+				do writer.writeStr(", \{bin[0]},\n")
+			else
+				do writer.writeStr(", \{bin[0]}")
+			end if
+		end for
+		if(size % @charPerLine <> 0)
+			do writer.writeStr(",\n")
+		end if
+		do writer.writeStr("\t};\n")
+		do writer.writeStr("\n")
+		do writer.writeStr("\t*size = \{size $ bit32};\n")
+		do writer.writeStr("\treturn \{name};\n")
+		do writer.writeStr("}\n")
+		do writer.fin()
+		do reader.fin()
+	end for
+end func

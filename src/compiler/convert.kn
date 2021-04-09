@@ -1,0 +1,358 @@
++enum RuntimeTypeId
+	int_
+	float_
+	char_
+	bool_
+	bit8_
+	bit16_
+	bit32_
+	bit64_
+	func_
+	enum_
+	ref :: 0x80
+	array
+	list_
+	stack_
+	queue_
+	dict_
+	class_
+end enum
+
++enum MethodOffset
+	ctor :: 1
+	dtor
+	cmp
+	copy
+	toBin
+	fromBin
+	toStr
+end enum
+
++func getTypeId(type: \ast@AstType): list<int>
+	var result: list<int> :: #list<int>
+	do @makeTypeIdRecursion(type, result)
+	ret result
+end func
+
+func makeTypeIdRecursion(type: \ast@AstType, output: list<int>)
+	if(\ast@isInt(type))
+		do output.add(%int_ $ @RuntimeTypeId $ int)
+		ret
+	end if
+	if(\ast@isFloat(type))
+		do output.add(%float_ $ @RuntimeTypeId $ int)
+		ret
+	end if
+	if(\ast@isChar(type))
+		do output.add(%char_ $ @RuntimeTypeId $ int)
+		ret
+	end if
+	if(\ast@isBool(type))
+		do output.add(%bool_ $ @RuntimeTypeId $ int)
+		ret
+	end if
+	if(type.typeId = %typeBit)
+		switch((type $ \ast@AstTypeBit).size)
+		case 1
+			do output.add(%bit8_ $ @RuntimeTypeId $ int)
+		case 2
+			do output.add(%bit16_ $ @RuntimeTypeId $ int)
+		case 4
+			do output.add(%bit32_ $ @RuntimeTypeId $ int)
+		case 8
+			do output.add(%bit64_ $ @RuntimeTypeId $ int)
+		default
+			assert false
+		end switch
+		ret
+	end if
+	if(type.typeId = %typeFunc)
+		do output.add(%func_ $ @RuntimeTypeId $ int)
+		ret
+	end if
+	if(\ast@isEnum(type))
+		do output.add(%enum_ $ @RuntimeTypeId $ int)
+		ret
+	end if
+	if(type.typeId = %typeArray)
+		do output.add(%array $ @RuntimeTypeId $ int)
+		do @makeTypeIdRecursion((type $ \ast@AstTypeArray).itemType, output)
+		ret
+	end if
+	if(type.typeId = %typeGen)
+		switch((type $ \ast@AstTypeGen).kind)
+		case %list_
+			do output.add(%list_ $ @RuntimeTypeId $ int)
+		case %stack_
+			do output.add(%stack_ $ @RuntimeTypeId $ int)
+		case %queue_
+			do output.add(%queue_ $ @RuntimeTypeId $ int)
+		default
+			assert false
+		end switch
+		do @makeTypeIdRecursion((type $ \ast@AstTypeGen).itemType, output)
+		ret
+	end if
+	if(type.typeId = %typeDict)
+		do output.add(%dict_ $ @RuntimeTypeId $ int)
+		do @makeTypeIdRecursion((type $ \ast@AstTypeDict).itemTypeKey, output)
+		do @makeTypeIdRecursion((type $ \ast@AstTypeDict).itemTypeValue, output)
+		ret
+	end if
+	assert \ast@isClass(type)
+	do output.add(%class_ $ @RuntimeTypeId $ int)
+end func
+
++func parseExcode(ast: \ast@AstStatExcode, func_: \ast@AstFunc, getIdCodeFunc: func<(\ast@AstArg): []char>): []char
+	var ptr: int :: 0
+	var code: []char :: (ast.code $ \ast@AstExprValueStr).value
+	var s: []char :: ""
+	var funcArgs: list<\ast@AstArg> :: func_.args
+	var listPtr: kuin@ListPtr :: funcArgs.getPtr()
+	var args: []\ast@AstArg :: #[^funcArgs]\ast@AstArg
+	do funcArgs.head()
+	for i(0, ^args - 1)
+		do args[i] :: funcArgs.get()
+		do funcArgs.next()
+	end for
+	do funcArgs.setPtr(listPtr)
+	while(ptr < ^code)
+		var pos: int :: code.find('`', ptr)
+		if(pos = ptr)
+			do ptr :+ 1
+			var value: []char :: parseValue(code, &ptr)
+			if(^value = 0)
+				do s :~ "`"
+			elif(^value >= 1 & value[0] = '.')
+				var class_: \ast@AstClass :: null
+				if(func_.funcOption.and(%any) = %none & ^args >= 1 & args[0].type.refItem <>& null & args[0].type.refItem.typeId = %class_)
+					do class_ :: (args[0].type.refItem $ \ast@AstClass)
+				elif(func_.funcOption.and(%any) <> %none & ^args >= 3 & args[2].type.refItem <>& null & args[2].type.refItem.typeId = %class_)
+					do class_ :: (args[2].type.refItem $ \ast@AstClass)
+				end if
+				if(class_ <>& null)
+					var name: []char :: value.sub(1, -1)
+					while loop(class_ <>& null)
+						var members: list<\ast@AstClassItem> :: class_.items
+						do members.head()
+						while(!members.term())
+							var def: \ast@Ast :: members.get().def
+							if(def.typeId = %var_ & (def $ \ast@AstVar).arg.name <>& null & (def $ \ast@AstVar).arg.name = name)
+								do s :~ getIdCodeFunc((def $ \ast@AstVar).arg)
+								break loop
+							end if
+							do members.next()
+						end while
+						do class_ :: class_.refItem $ \ast@AstClass
+					end while
+				end if
+			else
+				var success: bool
+				var value2: int :: value.toInt(&success)
+				if(success & value2 < ^args)
+					do s :~ getIdCodeFunc(args[value2])
+				end if
+			end if
+		elif(pos = -1)
+			do s :~ code.sub(ptr, -1)
+			do ptr :: ^code
+		else
+			do s :~ code.sub(ptr, pos - ptr)
+			do ptr :: pos
+		end if
+	end while
+	ret s
+	
+	func parseValue(code: []char, ptr: &int): []char
+		var pos: int :: code.find('`', ptr)
+		var value: []char
+		if(pos = -1)
+			do value :: code.sub(ptr, -1)
+			do ptr :: ^code
+		else
+			do value :: code.sub(ptr, pos - ptr)
+			do ptr :: pos + 1
+		end if
+		ret value
+	end func
+end func
+
++func bit16ToBin(n: bit16): []bit8
+	ret[n $ bit8, n.shr(8) $ bit8]
+end func
+
++func bit32ToBin(n: bit32): []bit8
+	ret[n $ bit8, n.shr(8) $ bit8, n.shr(16) $ bit8, n.shr(24) $ bit8]
+end func
+
++func bit64ToBin(n: bit64): []bit8
+	ret[n $ bit8, n.shr(8) $ bit8, n.shr(16) $ bit8, n.shr(24) $ bit8, n.shr(32) $ bit8, n.shr(40) $ bit8, n.shr(48) $ bit8, n.shr(56) $ bit8]
+end func
+
++func getResFiles(): list<[]char>
+	class ResFiles()
+		+var files: list<[]char>
+	end class
+	var resFiles: ResFiles :: #ResFiles
+	do resFiles.files :: #list<[]char>
+	if(file@exist(\option@resDir))
+		do file@forEach(\option@resDir, true, searchResFiles, resFiles)
+	end if
+	ret resFiles.files
+	
+	func searchResFiles(path: []char, isDir: bool, data: kuin@Class): bool
+		var data2: ResFiles :: data $ ResFiles
+		do data2.files.add(path)
+		ret true
+	end func
+end func
+
++func writeResFiles(): bool
+	if(\option@rls)
+		ret archive(getResFiles())
+	else
+		var src: []char :: \option@resDir
+		var dst: []char :: \option@outputDir ~ "res/"
+		if(!file@exist(src) | src = dst)
+			ret true
+		end if
+		if(!file@copyDir(dst, src))
+			do \err@err(%fileSaveFailed, null, [dst])
+			ret false
+		end if
+		ret true
+	end if
+	
+	func getResFiles(): [][]char
+		var resFiles: list<[]char> :: @getResFiles()
+		var result: list<[]char> :: #list<[]char>
+		var resDirLen: int :: ^\option@resDir
+		do resFiles.head()
+		while loop(!resFiles.term())
+			var resFile: []char :: resFiles.get()
+			if(resFile[^resFile - 1] = '/')
+				do resFiles.next()
+				skip loop
+			end if
+			do result.add(resFile.sub(resDirLen, -1))
+			do resFiles.next()
+		end while
+		var result2: [][]char :: result.toArray()
+		do result2.sort()
+		ret result2
+	end func
+	
+	func archive(paths: [][]char): bool
+		if(^paths = 0)
+			ret true
+		end if
+		var writer: file@Writer :: file@makeWriter(\option@outputDir ~ "res.knd", false)
+		if(writer =& null)
+			do \err@err(%fileSaveFailed, null, [\option@outputDir ~ "res.knd"])
+			ret false
+		end if
+		var key: bit64 :: lib@rndBit64()
+		do writer.write(@bit64ToBin(key))
+		do key :: key.xor(\option@appCode $ bit64 * 0x9271AC8394027ACBb64 + 0x35718394CA72849Eb64)
+		block
+			var signature: bit64 :: (0x83261772FA0C01A7b64).xor(key)
+			do writer.write(@bit64ToBin(signature))
+			var len: bit64 :: ((^paths) $ bit64).xor(0x9C4CAB83CE74A67Eb64).xor(key)
+			do writer.write(@bit64ToBin(len))
+		end block
+		var offset: int :: 0x18 + ^paths * (260 + 0x08)
+		var v: bit64 :: (0x17100B7AC917DC87b64).xor(key)
+		var maxSize: int :: 0
+		for i(0, ^paths - 1)
+			var p: []bit8 :: #[260]bit8
+			for j(0, lib@min(^paths[i], 260) - 1)
+				do p[j] :: paths[i][j] $ bit8
+				if(p[j] $ char <> paths[i][j])
+					do \err@err(%archivingFilePathMustBeAscii, null, [\option@resDir ~ paths[i]])
+					ret false
+				end if
+			end for
+			for j(0, 260 - 1)
+				do v :: v * 0x8121BBA7C238010Fb64 + 0x190273B5C19BF763b64
+				do p[j] :: p[j].xor(v.shr(32) $ bit8)
+			end for
+			do writer.write(p)
+			do v :: v * 0x8121BBA7C238010Fb64 + 0x190273B5C19BF763b64
+			do writer.write(@bit64ToBin((offset $ bit64).xor(v)))
+			var size: int :: file@fileSize(\option@resDir ~ paths[i])
+			if(size < 0)
+				do writer.fin()
+				do \err@err(%fileOpenFailed, null, [\option@resDir ~ paths[i]])
+				ret false
+			end if
+			if(maxSize < size)
+				do maxSize :: size
+			end if
+			do offset :+ size
+		end for
+		var bin: []bit8 :: #[maxSize]bit8
+		for i(0, ^paths - 1)
+			var reader: file@Reader :: file@makeReader(\option@resDir ~ paths[i])
+			var size: int :: reader.fileSize()
+			if(reader =& null | !reader.readPart(bin, 0, size))
+				do writer.fin()
+				do \err@err(%fileOpenFailed, null, [\option@resDir ~ paths[i]])
+				ret false
+			end if
+			do reader.fin()
+			for j(0, ^bin - 1)
+				do bin[j] :: bin[j].xor(((j $ bit64).xor(key) * 0x351CD819923ACAE7b64).shr(32) $ bit8)
+			end for
+			do writer.writePart(bin, 0, size)
+		end for
+		do writer.fin()
+		ret true
+	end func
+end func
+
++func copyAdditionalFiles(): bool
+	if(\option@additionalFiles =& null)
+		ret true
+	end if
+	
+	var reader: file@Reader :: file@makeReader(\option@additionalFiles)
+	if(reader =& null)
+		do \err@err(%fileOpenFailed, null, [\option@additionalFiles])
+		ret false
+	end if
+	while loop1(!reader.term())
+		var readingPath: []char :: reader.readLine().trim()
+		if(^readingPath = 0)
+			skip loop1
+		end if
+		var writingPath: []char :: null
+		while loop2(!reader.term())
+			var path: []char :: reader.readLine().trim()
+			if(^path <> 0)
+				do writingPath :: path
+				break loop2
+			end if
+		end while
+		if(writingPath =& null)
+			skip loop1
+		end if
+		
+		var trueReadingPath: []char :: file@fullPath(readingPath)
+		var trueWritingPath: []char :: file@fullPath(\option@outputDir ~ writingPath)
+		if(!file@copyFile(trueWritingPath, trueReadingPath))
+			do \err@err(%fileSaveFailed, null, [trueWritingPath])
+			ret false
+		end if
+	end while
+	do reader.fin()
+	ret true
+end func
+
++func convertToBinaryFiles(asts: dict<[]char, \ast@Ast>)
+	do asts.forEach(convertToBinaryFile, null)
+	
+	func convertToBinaryFile(key: []char, value: \ast@Ast, data: kuin@Class): bool
+		; TODO:
+		ret true
+	end func
+end func

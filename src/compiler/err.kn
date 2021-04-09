@@ -1,0 +1,36 @@
++var errCnt: int
+var logFunc: func<(int, []char, []char, int, int)>
+
++func err(id: \msg@Id, pos: \pos@Pos, args: [][]char)
+	if(id < %_nonErrs)
+		if(@errCnt >= 100)
+			ret {Stop error detection at 100 pieces.}
+		end if
+	else
+		if(\option@quiet)
+			ret
+		end if
+	end if
+	
+	var msg: []char :: \msg@get(id, args)
+	if(@logFunc =& null)
+		do cui@print((id $ bit32).toStr() ~ ": ")
+		if(pos <>& null)
+			do cui@print("[\{pos.srcName}: \{pos.row}, \{pos.col}]")
+		end if
+		do cui@print(msg ~ "\n")
+	else
+		if(pos =& null)
+			do @logFunc(id $ int, msg, null, -1, -1)
+		else
+			do @logFunc(id $ int, msg, pos.srcName, pos.row, pos.col)
+		end if
+	end if
+	if(id < %_nonErrs)
+		do @errCnt :+ 1
+	end if
+end func
+
++func[__rwi]setLogFunc(logFunc: func<(int, []char, []char, int, int)>)
+	do @logFunc :: logFunc
+end func

@@ -3,52 +3,48 @@
 
 ## [English]
 
-***-- Welcome to the Labyrinth of Kuin Compiler,***  
+***-- Welcome to the Labyrinth of Kuin Compiler,***
 ***where many programmers who challenged to read the code never came back. --***
 
-This is the git repository for the Kuin programming language, developed by Kuina-chan.  
+This is the git repository for the Kuin programming language, developed by Kuina-chan.
 It is still under development and the software shows only Japanese messages yet.
 
-All the files here are provided under the Kuina-chan License.  
+All the files here are provided under the Kuina-chan License.
 If you have any questions, please let me know in English or Japanese.
 
-Kuina-chan's website: <http://kuina.ch/>  
+Kuina-chan's website: <https://kuina.ch>
 Kuina-chan's twitter account: <https://twitter.com/kuina_ch> (@kuina_ch)
 
 ## [Japanese]
 
-***――Kuinコンパイラの迷宮へようこそ。***  
+***――Kuinコンパイラの迷宮へようこそ。***
 ***ここは、読解に挑んだ多くのプログラマが帰らぬこととなった場所です――。***
 
-「くいなちゃん」が開発するプログラミング言語「Kuin」( <http://kuina.ch/kuin/a01> )のリポジトリです。  
+「くいなちゃん」が開発するプログラミング言語「Kuin」( <https://kuina.ch/kuin> )のリポジトリです。
 
-本リポジトリでは、開発中のソースコードは「develop」ブランチにマージし、リリースするタイミングでそれらの変更を「master」ブランチにマージします。  
+本リポジトリでは、開発中のソースコードは「develop」ブランチにマージし、リリースするタイミングでそれらの変更を「master」ブランチにマージします。
 
 #### # 報告の方法
-不具合の報告や機能追加を要望したい場合は、下記の方法で行うことができます。  
+不具合の報告や機能追加を要望したい場合は、下記の方法で行うことができます。
 * 開発者(くいなちゃん)に日本語か英語で直接報告する。
 * リポジトリをForkして編集した後Pull Requestをくいなちゃん宛てに送る。
-* 修正したソースコードの断片をどこかにアップロードしてくいなちゃんに知らせる。  
-戴いたソースコードはわたしが検査して適宜修正しますので、不具合やコーディングルールの不統一があっても問題ありません。  
+* 修正したソースコードの断片をどこかにアップロードしてくいなちゃんに知らせる。
+戴いたソースコードはわたしが検査して適宜修正しますので、不具合やコーディングルールの不統一があっても問題ありません。
 
 #### # ビルド方法
-Kuinコンパイラを手元でビルドする場合には、Visual C++ 2015でのビルドにのみ対応しており、/kuin.slnを開いてビルドすると完了します。  
-他のバージョンのVisual C++でビルドするには調整する必要があるかもしれません。
+Kuinコンパイラを手元でビルドする場合には、Visual C++ 2019が必要です。
 
-#### # Kuinコンパイラに対するテスト
-Kuinコンパイラに対するテストプログラムを実行する場合は、下記のようにビルドします。  
-1. ソリューション構成を「Debug」でビルドする。  
-2. 「test」プロジェクトをスタートアッププロジェクトに指定して実行する。  
-3. テストに成功した場合「Success.」が、失敗した場合は「Failure.」が表示される。
+/build/deploy_for_exe.batを実行すると、以下の段階を経て/build/deploy_exe内にKuinコンパイラが生成されます。
+1. 仮のKuinコンパイラ(/build/kuincl.exe)を使って、/src/compilerのソースからKuinコンパイラが/build/output/kuin.exeに生成されます。
+2. 生成されたコンパイラを使って、/src/compilerのソースからC++のKuinコンパイラ(/build/output/kuin_cpp.cppおよび/build/output/kuin_dll.cpp)が生成されます。
+3. Visual C++を使って、C++のKuinコンパイラから最終的なKuinコンパイラ/build/deploy_exe/kuincl.exeが生成されます。
+C++を経ているのは、Visual C++の強力な最適化によってパフォーマンスを高めるためです。
 
-#### # 完成物の生成
-Kuinコンパイラの完成物を生成する場合は、下記のようにビルドします。  
-1. ソリューション構成を「Release_dbg」でリビルドする。  
-2. ソリューション構成を「Release_rls」でリビルドする。  
-3. 成功した場合は、/packageディレクトリ内に完成物がまとめて配置される。
+その後、/build/build_editor.batを実行すると、Kuinエディタが/build/deploy_exe/kuin.exeに生成されます。
+/build/deploy_exe/内の全ファイルを/build/package/内にコピーすると、パッケージが完成します。
 
-すべてのファイルは「くいなちゃんライセンス( <http://kuina.ch/others/license> )」でご自由にお使いいただけます。  
+すべてのファイルは「くいなちゃんライセンス( <https://kuina.ch/others/license> )」でご自由にお使いいただけます。
 その他、あらゆるご質問はくいなちゃんまでどうぞ。
 
-Webサイト: <http://kuina.ch/>  
+Webサイト: <https://kuina.ch>
 Twitterアカウント: <https://twitter.com/kuina_ch> (@kuina_ch)

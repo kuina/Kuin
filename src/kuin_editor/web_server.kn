@@ -1,0 +1,77 @@
+var wndMsg: wnd@Wnd
+var exit: bool
+
++func run(tmpDir: []char)
+	do @wndMsg :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 271, 135, \common@langEn ?("Other Settings", "実行を終了するには「OK」を押してください。"))
+	do @wndMsg.onClose :: wndMsgOnClose
+	var btnOk: wnd@Btn :: wnd@makeBtn(@wndMsg, 159, 100, 100, 23, %fix, %fix, "OK")
+	do btnOk.onPush :: btnOkOnPush
+	
+	var server: net@TcpServer :: net@makeTcpServer(8080)
+	do task@open("http://localhost:8080/out.html", %open, false)
+	do @exit :: false
+	while loop2(!@exit)
+		var serverConnect: net@Tcp :: null
+		while(wnd@act() & serverConnect =& null & !@exit)
+			do lib@sleep(10)
+			do serverConnect :: server.get()
+		end while
+		if(serverConnect =& null)
+			break loop2
+		end if
+		do serverConnect.send(strToBin("HTTP/1.0 200 OK\ntext/html\n\n"))
+		var cnt: int :: 0
+		while loop(wnd@act() & serverConnect.connecting() & !@exit)
+			do cnt :+ 1
+			if(cnt >= 10)
+				break loop
+			end if
+			do lib@sleep(10)
+			var size: int :: serverConnect.receivedSize()
+			if(size > 0)
+				var str: [][]char :: binToStr(serverConnect.receive(size)).split(" ")
+				var name: []char :: str[1].sub(1, -1)
+				var reader: file@Reader
+				if(name = "out.html" | name = "out.js")
+					do reader :: file@makeReader(tmpDir ~ name)
+				else
+					do reader :: file@makeReader(\src@mainSrcDir ~ name)
+				end if
+				if(reader <>& null)
+					var fileSize: int :: reader.fileSize()
+					do serverConnect.send(reader.read(fileSize))
+					do reader.fin()
+				end if
+				do serverConnect.fin()
+				break loop
+			end if
+		end while
+		do serverConnect.fin()
+	end while
+	do server.fin()
+	
+	func binToStr(bin: []bit8): []char
+		var str: []char :: #[^bin]char
+		for i(0, ^str - 1)
+			do str[i] :: bin[i] $ char
+		end for
+		ret str
+	end func
+	
+	func strToBin(str: []char): []bit8
+		var bin: []bit8 :: #[^str]bit8
+		for i(0, ^bin - 1)
+			do bin[i] :: str[i] $ bit8
+		end for
+		ret bin
+	end func
+	
+	func wndMsgOnClose(wnd: wnd@WndBase): bool
+		do @exit :: true
+		ret true
+	end func
+	
+	func btnOkOnPush(wnd: wnd@WndBase)
+		do @wndMsg.close()
+	end func
+end func

@@ -1,0 +1,8 @@
+*.bat			text eol=crlf
+*.c				text eol=crlf
+*.cpp			text eol=crlf
+*.h				text eol=crlf
+*.kn			text eol=crlf
+*.sln			eol=crlf
+*.txt			text eol=crlf
+*.vcxproj		eol=crlf

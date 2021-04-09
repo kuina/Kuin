@@ -1,0 +1,266 @@
+#web
+var uniqueId: int
++var initFunc: func<(@Draw)>
+
++class Btn(@TagBase)
+	*func[__ndc]ctor()
+	end func
+	
+	+func getText(): []char
+		ret me.getContent()
+	end func
+	
+	+func setText(text: []char)
+		do me.setContent(text)
+	end func
+	
+	+var onPush: func<(@TagBase)>
+end class
+
++class Chk(@TagBase)
+	*func[__ndc]ctor()
+	end func
+	
+	+func getChk(): bool
+		excode "return `0`.`.objChk`.checked;\n"
+	end func
+	
+	+func getText(): []char
+		excode "return{S:`0`.`.objSpan`.textContent};\n"
+	end func
+	
+	+func setChk(value: bool)
+		excode "`0`.`.objChk`.checked=`1`;\n"
+	end func
+	
+	+func setText(text: []char)
+		excode "`0`.`.objSpan`.textContent=`1`.S;\n"
+	end func
+	
+	var objChk: int
+	var objSpan: int
+end class
+
++class CallRepeat()
+	*func[__ndc]ctor()
+	end func
+	
+	+func fin()
+		excode "if(`0`.`.handle`!==null){\n"
+		excode "clearInterval(`0`.`.handle`);\n"
+		excode "`0`.`.handle`=null;\n"
+		excode "}\n"
+	end func
+	
+	var handle: int
+end class
+
++class Draw(@TagBase)
+	*func[__ndc]ctor()
+	end func
+	
+	var gl: int
+	var triShader: int
+	var triVertex: int
+	var triIdx: int
+	var triVertexSlot: int
+	var triVecs0Slot: int
+	var triVecs1Slot: int
+	var triColorSlot: int
+	var rectShader: int
+	var rectVertex: int
+	var rectIdx: int
+	var rectVertexSlot: int
+	var rectVecsSlot: int
+	var rectColorSlot: int
+	var texShader: int
+	var texVertexSlot: int
+	var texVecs0Slot: int
+	var texVecs1Slot: int
+	var texColorSlot: int
+	var texTexSlot: int
+end class
+
++class Edit(@TagBase)
+	*func[__ndc]ctor()
+	end func
+	
+	+func getText(): []char
+		ret me.getAttr("value")
+	end func
+	
+	+func readonly(enabled: bool)
+		excode "`0`.`.obj`.readOnly=`1`;\n"
+	end func
+	
+	+func setText(text: []char)
+		do me.setAttr("value", text)
+	end func
+end class
+
++class EditMulti(@TagBase)
+	*func[__ndc]ctor()
+	end func
+	
+	+func getText(): []char
+		ret me.getContent()
+	end func
+	
+	+func readonly(enabled: bool)
+		excode "`0`.`.obj`.readOnly=`1`;\n"
+	end func
+	
+	+func setText(text: []char)
+		do me.setContent(text)
+	end func
+end class
+
++enum MsgBoxBtn
+	ok
+	okCancel
+end enum
+
++enum MsgBoxResult
+	ok
+	cancel
+end enum
+
++class TagBase()
+	*func[__ndc]ctor()
+	end func
+	
+	+func getAttr(attr: []char): []char
+		excode "return{S:String(`0`.`.obj`.getAttribute(`1`.S))};\n"
+	end func
+	
+	+func getContent(): []char
+		excode "return{S:String(`0`.`.obj`.textContent)};\n"
+	end func
+	
+	+func getPos(x: &int, y: &int, width: &int, height: &int)
+		do x :: @removePx(me.getStyle("x"))
+		do y :: @removePx(me.getStyle("y"))
+		do width :: @removePx(me.getStyle("width"))
+		do height :: @removePx(me.getStyle("height"))
+	end func
+	
+	+func getStyle(style: []char): []char
+		excode "return{S:String(`0`.`.obj`.style[`1`.S])};\n"
+	end func
+	
+	+func setAttr(attr: []char, value: []char)
+		excode "`0`.`.obj`.setAttribute(`1`.S,`2`.S);\n"
+	end func
+	
+	+func setContent(value: []char)
+		excode "`0`.`.obj`.textContent=`1`.S;\n"
+	end func
+	
+	+func setPos(x: int, y: int, width: int, height: int)
+		do me.setStyle("x", x.toStr() ~ "px")
+		do me.setStyle("y", y.toStr() ~ "px")
+		do me.setStyle("width", width.toStr() ~ "px")
+		do me.setStyle("height", height.toStr() ~ "px")
+	end func
+	
+	+func setStyle(style: []char, value: []char)
+		excode "`0`.`.obj`.style[`1`.S]=`2`.S;\n"
+	end func
+	
+	var obj: int
+end class
+
++func call(func_: func<(kuin@Class)>, time: int, data: kuin@Class)
+	if(dbg)
+		if(time < 0)
+			throw 0xE9170006
+		end if
+	end if
+	excode "setTimeout(`0`,`1`[1],`2`);\n"
+end func
+
++func inputBox(text: []char, defaultValue: []char): []char
+	excode "let r_=prompt(`0`==null?\"\":`0`.S,`1`==null?\"\":`1`.S);\n"
+	excode "return r_==null||r_==\"\"?null:{S:r_};\n"
+end func
+
++func[__mki]makeCallRepeat(me2: @CallRepeat, func_: func<(kuin@Class)>, time: int, data: kuin@Class): @CallRepeat
+	if(dbg)
+		if(time < 0)
+			throw 0xE9170006
+		end if
+	end if
+	excode "`0`.`.handle`=setInterval(`1`,`2`[1],`3`);\n"
+	ret me2
+end func
+
++func[__mki]makeBtn(me2: @Btn, parent: @TagBase, x: int, y: int, width: int, height: int, text: []char): @Btn
+	do @addTag(parent, me2, "button")
+	do me2.setPos(x, y, width, height)
+	do me2.setAttr("type", "button")
+	do me2.setText(text)
+	excode "`0`.`.obj`.addEventListener(\"click\",function(){`0`.`.onPush`&&`0`.`.onPush`(`0`)});\n"
+	ret me2
+end func
+
++func[__mki]makeChk(me2: @Chk, parent: @TagBase, x: int, y: int, width: int, height: int, text: []char): @Chk
+	do @addTag(parent, me2, "label")
+	excode "`0`.`.objChk`=`0`.`.obj`.appendChild(D_.createElement(\"input\"));\n"
+	excode "`0`.`.objSpan`=`0`.`.obj`.appendChild(D_.createElement(\"span\"));\n"
+	do me2.setPos(x, y, width, height)
+	excode "`0`.`.objChk`.setAttribute(\"type\",\"checkbox\");\n"
+	excode "`0`.`.objSpan`.textContent=`6`.S;\n"
+	ret me2
+end func
+
++func[__mki]makeEdit(me2: @Edit, parent: @TagBase, x: int, y: int, width: int, height: int): @Edit
+	do @addTag(parent, me2, "input")
+	do me2.setPos(x, y, width, height)
+	do me2.setAttr("type", "text")
+	ret me2
+end func
+
++func[__mki]makeEditMulti(me2: @EditMulti, parent: @TagBase, x: int, y: int, width: int, height: int): @EditMulti
+	do @addTag(parent, me2, "textarea")
+	do me2.setPos(x, y, width, height)
+	ret me2
+end func
+
++func[__mki]makeDraw(me2: @Draw, parent: @TagBase, x: int, y: int, width: int, height: int): @Draw
+	do @addTag(parent, me2, "canvas")
+	do me2.setPos(x, y, width, height)
+	excode "`0`.`.obj`.width=`4`[1];\n"
+	excode "`0`.`.obj`.height=`5`[1];\n"
+	if(@initFunc <>& null)
+		do @initFunc(me2)
+	end if
+	ret me2
+end func
+
++func msgBox(text: []char, btn: @MsgBoxBtn): @MsgBoxResult
+	switch(btn)
+	case %ok
+		excode "alert(`0`==null?\"\":`0`.S);\n"
+	case %okCancel
+		excode "return Uint32Array.from([0,confirm(`0`==null?\"\":`0`.S)?0:1]);\n"
+	end switch
+	ret %ok
+end func
+
+func addTag(parent: @TagBase, tag: @TagBase, kind: []char)
+	excode "let t_=(`0`==null?B_:`0`.`.obj`).appendChild(D_.createElement(`2`.S));\n"
+	excode "`1`.`.obj`=t_;\n"
+end func
+
+func makeUniqueId(): []char
+	do @uniqueId :+ 1
+	ret "k_" ~ @uniqueId.toStr()
+end func
+
+func removePx(s: []char): int
+	var len: int :: ^s
+	if(len >= 2 & s[len - 2] = 'p' & s[len - 1] = 'x')
+		ret s.sub(0, len - 2).toInt(&)
+	end if
+	ret 0
+end func

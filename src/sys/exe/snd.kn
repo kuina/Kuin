@@ -1,0 +1,72 @@
+func[d0001.knd, _sndInit]_init()
+end func
+
+func[d0001.knd, _sndFin]_fin()
+end func
+
++class Snd()
+	*func[__ndc]ctor()
+	end func
+	
+	*func[__frc]_dtor()
+		do me.fin()
+	end func
+	
+	+func[d0001.knd, _sndFin2]fin()
+	end func
+	
+	+func[d0001.knd, _sndFreq]freq(value: float)
+	end func
+	
+	+func[d0001.knd, _sndGetPos]getPos(): float
+	end func
+	
+	+func[d0001.knd, _sndLen]len(): float
+	end func
+	
+	+func[d0001.knd, _sndPan]pan(value: float)
+	end func
+	
+	+func[d0001.knd, _sndPlay]play()
+	end func
+	
+	+func[d0001.knd, _sndPlaying]playing(): bool
+	end func
+	
+	+func[d0001.knd, _sndPlayLoop]playLoop()
+	end func
+	
+	+func[d0001.knd, _sndSetPos]setPos(value: float)
+	end func
+	
+	+func[d0001.knd, _sndStop]stop()
+	end func
+	
+	+func[d0001.knd, _sndVolume]volume(value: float)
+	end func
+	
+	var sndBuf: int
+	var sizePerSec: int
+	var endPos: float
+	var freq2: float
+	var volume2: float
+end class
+
++func[d0001.knd, _getMainVolume]getMainVolume(): float
+end func
+
++func makeSnd(path: []char): @Snd
+	var f: file@Reader :: file@makeReader(path)
+	if(f =& null)
+		throw 0xE9170007
+	end if
+	var d: []bit8 :: f.read(f.fileSize())
+	do f.fin()
+	ret makeSndImpl(d, path)
+	
+	func[d0001.knd, _makeSnd, __mki]makeSndImpl(me2: @Snd, data: []bit8, path: []char): @Snd
+	end func
+end func
+
++func[d0001.knd, _setMainVolume]setMainVolume(value: float)
+end func

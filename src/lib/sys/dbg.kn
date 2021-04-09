@@ -1,0 +1,4 @@
+#none
++func print(str: []char)
+	; TODO:
+end func

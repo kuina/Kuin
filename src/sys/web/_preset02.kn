@@ -1,0 +1,13 @@
+func main()
+	for i(1, 100)
+		if(i % 15 = 0)
+			do cui@print("FizzBuzz\n")
+		elif(i % 3 = 0)
+			do cui@print("Fizz\n")
+		elif(i % 5 = 0)
+			do cui@print("Buzz\n")
+		else
+			do cui@print(i.toStr() ~ "\n")
+		end if
+	end for
+end func
