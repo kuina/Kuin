@@ -1,0 +1,19 @@
+#exe
+func[d1001.knd, _init]_init()
+end func
+
++func unzip(dst: []char, src: []char): bool
+	var f: file@Reader :: file@makeReader(src)
+	if(f =& null)
+		throw 0xE9170007
+	end if
+	var d: []bit8 :: f.read(f.fileSize())
+	do f.fin()
+	ret unzipImpl(dst, d)
+	
+	func[d1001.knd, _unzip]unzipImpl(outPath: []char, data: []bit8): bool
+	end func
+end func
+
++func[d1001.knd, _zip]zip(dst: []char, src: []char, compressionLevel: int): bool
+end func

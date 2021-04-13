@@ -1,0 +1,38 @@
+#exe
++enum OpenMode
+	open
+	explore
+	property
+end enum
+
++class Process()
+	*func[__ndc]ctor()
+	end func
+	
+	*func[__frc]_dtor()
+		do me.fin()
+	end func
+	
+	+func[d0000.knd, _processRun]run(waitUntilExit: bool): int
+	end func
+	
+	+func[d0000.knd, _processFin]fin()
+	end func
+	
+	+func[d0000.knd, _processRunning]running(exitCode: &int): bool
+	end func
+	
+	+func[d0000.knd, _processReadPipe]readPipe(): []char
+	end func
+	
+	var processHandle: int
+	var threadHandle: int
+	var readPipeHandle: int
+	var writePipeHandle: int
+end class
+
++func[d0000.knd, _makeProcess, __mki]makeProcess(me2: @Process, path: []char, cmdLine: []char): @Process
+end func
+
++func[d0000.knd, _taskOpen]open(path: []char, mode: @OpenMode, waitUntilExit: bool)
+end func

@@ -4,7 +4,7 @@ const itemCountMax: int :: 20
 +func load()
 	do @recent :: #list<[]char>
 	try
-		var prop: xml@Xml :: xml@makeXml(file@exeDir() ~  "sys/recent.knd")
+		var prop: xml@Xml :: xml@makeXml(wnd@exeDir() ~ "sys/recent.knd")
 		if(prop =& null)
 			ret
 		end if
@@ -17,7 +17,7 @@ const itemCountMax: int :: 20
 		end while
 	catch
 	end try
-
+	
 	do @updateUi()
 end func
 
@@ -50,8 +50,8 @@ end func
 		do @recent.next()
 	end for
 	do @recent :: newRecent
-
-	do file@delFile(file@exeDir() ~  "sys/recent.knd")
+	
+	do file@delFile(wnd@exeDir() ~ "sys/recent.knd")
 	var prop: xml@Xml :: xml@makeXmlEmpty()
 	var root: xml@Node :: prop.root()
 	var recentFiles: xml@Node :: root.addChild("recent_files")
@@ -60,8 +60,8 @@ end func
 		do recentFiles.addChild("recent_file").setValue(@recent.get())
 		do @recent.next()
 	end while
-	do prop.save(file@exeDir() ~  "sys/recent.knd", false)
-
+	do prop.save(wnd@exeDir() ~ "sys/recent.knd", false)
+	
 	do @updateUi()
 end func
 
@@ -72,8 +72,8 @@ end func
 		ret
 	end if
 	var file: []char :: @recent.get()
-
-	if (\src@chkChanged())
+	
+	if(\src@chkChanged())
 		do \src@openMainSrc(file)
 		do @save(file)
 	end if

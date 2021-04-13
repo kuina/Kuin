@@ -1,0 +1,13 @@
++class Pos()
+	+var srcName: []char
+	+var row: int
+	+var col: int
+end class
+
++func make(srcName: []char, row: int, col: int): @Pos
+	var pos: @Pos :: #@Pos
+	do pos.srcName :: srcName
+	do pos.row :: row
+	do pos.col :: col
+	ret pos
+end func

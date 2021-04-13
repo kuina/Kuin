@@ -1,0 +1,199 @@
+var inputBoxWndMain: wnd@Wnd
+var inputBoxLabelText: wnd@Label
+var inputBoxBtnOk: wnd@Btn
+var inputBoxBtnCancel: wnd@Btn
+var inputBoxEditInput: wnd@Edit
+var inputBoxValidate: func<([]char):bool>
+var inputBoxResult: []char
+
++func inputBox(parent: wnd@Wnd, text: []char, title: []char, defaultValue: []char, validate: func<([]char):bool>): []char
+	do @inputBoxWndMain :: wnd@makeWnd(parent, (%dialog $ wnd@WndStyle).or(%noMinimize), 353, 120, title)
+	var screenWidth: int
+	var screenHeight: int
+	do wnd@screenSize(&screenWidth, &screenHeight)
+	var wndWidth: int
+	var wndHeight: int
+	do @inputBoxWndMain.getPosScreen(&, &, &wndWidth, &wndHeight)
+	do @inputBoxWndMain.setPos((screenWidth - wndWidth) / 2, (screenHeight - wndHeight) / 2, wndWidth, wndHeight)
+	do @inputBoxLabelText :: wnd@makeLabel(@inputBoxWndMain, 12, 12, 270, 72, %fix, %fix, text)
+	do @inputBoxBtnOk :: wnd@makeBtn(@inputBoxWndMain, 281, 12, 60, 23, %fix, %fix, "OK")
+	do @inputBoxBtnOk.onPush :: btnOkOnPush
+	do @inputBoxBtnCancel :: wnd@makeBtn(@inputBoxWndMain, 281, 41, 60, 23, %fix, %fix, "Cancel")
+	do @inputBoxBtnCancel.onPush :: btnCancelOnPush
+	do @inputBoxEditInput :: wnd@makeEdit(@inputBoxWndMain, 12, 89, 329, 19, %fix, %fix)
+	do @inputBoxEditInput.focus()
+	if(defaultValue <>& null)
+		do @inputBoxEditInput.setText(defaultValue)
+	end if
+	do @inputBoxEditInput.setSel(0, -1)
+	do @inputBoxValidate :: validate
+	do @inputBoxResult :: null
+
+	var oldOnKeyPress: func<(wnd@Key, wnd@ShiftCtrl): bool> :: wnd@getOnKeyPress()
+	do wnd@setOnKeyPress(onKeyPress)
+	do @inputBoxWndMain.modal()
+	do wnd@setOnKeyPress(oldOnKeyPress)
+
+	var result: []char :: @inputBoxResult
+	do @inputBoxWndMain :: null
+	do @inputBoxLabelText :: null
+	do @inputBoxBtnOk :: null
+	do @inputBoxBtnCancel :: null
+	do @inputBoxEditInput :: null
+	do @inputBoxValidate :: null
+	do @inputBoxResult :: null
+	ret result
+
+	func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+		if(shiftCtrl = %none)
+			switch(key)
+			case %enter
+				do btnOkOnPush(null)
+			case %esc
+				do btnCancelOnPush(null)
+			end switch
+		end if
+	end func
+
+	func btnOkOnPush(wnd: wnd@WndBase)
+		var text: []char :: @inputBoxEditInput.getText()
+		if(@inputBoxValidate =& null | @inputBoxValidate(text))
+			do @inputBoxResult :: text
+			do @inputBoxWndMain.close()
+		end if
+	end func
+
+	func btnCancelOnPush(wnd: wnd@WndBase)
+		do @inputBoxWndMain.close()
+	end func
+end func
+
++func makeKnwnd(path: []char, parent: wnd@WndBase): wnd@WndBase
+	try
+		ret buildRecursion(xml@makeXml(path).root().firstChild().next(), parent, 0, 0)
+	catch
+		ret null
+	end try
+
+	func buildRecursion(node: xml@Node, parent: wnd@WndBase, parentX: int, parentY: int): wnd@WndBase
+		var result: wnd@WndBase
+
+		var x: int :: parseInt(node, "x") - parentX
+		var y: int :: parseInt(node, "y") - parentY
+		var width: int :: parseInt(node, "width")
+		var height: int :: parseInt(node, "height")
+		var anchorX: wnd@Anchor :: parseAnchor(node, "anchor_x")
+		var anchorY: wnd@Anchor :: parseAnchor(node, "anchor_y")
+
+		var isRoot: bool :: false
+		switch(node.getName())
+		case "root"
+			var wndStyle: wnd@WndStyle :: parseWndStyle(node, "style")
+			if(parseBool(node, "layered"))
+				do wndStyle.or(%layered)
+			end if
+			if(parseBool(node, "no_minimize"))
+				do wndStyle.or(%noMinimize)
+			end if
+			do result :: wnd@makeWnd(parent $ wnd@Wnd, wndStyle, width, height, parseStr(node, "text"))
+			do isRoot :: true
+		case "button"
+			do result :: wnd@makeBtn(parent, x, y, width, height, anchorX, anchorY, parseStr(node, "text"))
+		case "check"
+			do result :: wnd@makeChk(parent, x, y, width, height, anchorX, anchorY, parseStr(node, "text"))
+		case "group"
+			do result :: wnd@makeGroup(parent, x, y, width, height, anchorX, anchorY, parseStr(node, "text"))
+		case "label"
+			do result :: wnd@makeLabel(parent, x, y, width, height, anchorX, anchorY, parseStr(node, "text"))
+		case "list"
+			do result :: wnd@makeList(parent, x, y, width, height, anchorX, anchorY)
+		case "list_view"
+			do result :: wnd@makeListView(parent, x, y, width, height, anchorX, anchorY, false, null, null)
+		case "draw"
+			do result :: wnd@makeDraw(parent, x, y, width, height, anchorX, anchorY, parseBool(node, "equal_magnification"))
+		case "radio"
+			do result :: wnd@makeRadio(parent, x, y, width, height, anchorX, anchorY, parseStr(node, "text"))
+		case "edit"
+			do result :: wnd@makeEdit(parent, x, y, width, height, anchorX, anchorY)
+			if(parseBool(node, "readonly"))
+				do (result $ wnd@Edit).readonly(true)
+			end if
+		case "edit_multi"
+			do result :: wnd@makeEditMulti(parent, x, y, width, height, anchorX, anchorY)
+			if(parseBool(node, "readonly"))
+				do (result $ wnd@EditMulti).readonly(true)
+			end if
+		case "tree"
+			do result :: wnd@makeTree(parent, x, y, width, height, anchorX, anchorY)
+		end switch
+		do result.name :: parseStr(node, "name")
+		if(!isRoot)
+			if(!parseBool(node, "enabled"))
+				do result.setEnabled(false)
+			end if
+			if(!parseBool(node, "visible"))
+				do result.setVisible(false)
+			end if
+		end if
+
+		var child: xml@Node :: node.firstChild()
+		while(child <>& null)
+			do buildRecursion(child, result, x, y)
+			do child :: child.next()
+		end while
+
+		ret result
+
+		func parseStr(node: xml@Node, prop: []char): []char
+			var result: []char :: node.getAttr(prop)
+			ret result =& null ?("", result)
+		end func
+
+		func parseInt(node: xml@Node, prop: []char): int
+			var attr: []char :: node.getAttr(prop)
+			if(attr =& null)
+				ret 0
+			end if
+			var result: int
+			var existed: bool
+			do result :: attr.toInt(&existed)
+			if(existed)
+				ret result
+			else
+				ret 0
+			end if
+		end func
+
+		func parseBool(node: xml@Node, prop: []char): bool
+			var attr: []char :: node.getAttr(prop)
+			if(attr =& null)
+				ret false
+			end if
+			ret attr = "true"
+		end func
+
+		func parseWndStyle(node: xml@Node, prop: []char): wnd@WndStyle
+			switch(parseInt(node, prop))
+			case 1
+				ret %fix
+			case 2
+				ret %aspect
+			case 3
+				ret %popup
+			default
+				ret %normal
+			end switch
+		end func
+
+		func parseAnchor(node: xml@Node, prop: []char): wnd@Anchor
+			switch(parseInt(node, prop))
+			case 1
+				ret %move
+			case 2
+				ret %scale
+			default
+				ret %fix
+			end switch
+		end func
+	end func
+end func

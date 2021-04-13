@@ -5,7 +5,7 @@ var oldX: int
 var oldY: int
 var shownX: int
 var shownY: int
-var keywords: list<[]char>
+var keywords: [][]char
 
 +func init()
 	do @oldX :: -1
@@ -22,7 +22,7 @@ end func
 		end if
 	end if
 	if(@wndCompletion =& null)
-		do @keywords :: #list<[]char>
+		do @keywords :: #[0][]char
 		var funcHint: []char
 		try
 			do funcHint :: \dll@getKeywords(src, srcName, posX, posY, getKeywordsCallback)
@@ -39,9 +39,9 @@ end func
 			do @close()
 			ret
 		end if
-
+		
 		do @keywords.sort()
-
+		
 		do @wndCompletion :: wnd@makeWnd(\form@wndMain, (%popup $ wnd@WndStyle).or(%layered), 250, 82, null)
 		do @wndCompletion.setAlpha(230)
 		do @wndCompletion.onClose :: wndCompletionOnClose
@@ -51,14 +51,12 @@ end func
 		do @wndCompletionEditFunc :: wnd@makeEditMulti(@wndCompletion, 0, 52, 250, 30, %fix, %fix)
 		do @wndCompletionEditFunc.readonly(true)
 		do @wndCompletionEditFunc.setText(\common@langEn ?("Select...Up/Down\nDecide...Enter, Cancel...Esc, Transmit...Ctrl", "選択...Up/Down\n確定...Enter, キャンセル...Esc, 透過...Ctrl"))
-
+		
 		do @wndCompletionListKeywords.setRedraw(false)
 		do @wndCompletionListKeywords.clear()
-		do @keywords.head()
-		while(!@keywords.term())
-			do @wndCompletionListKeywords.add(@keywords.get())
-			do @keywords.next()
-		end while
+		for i(0, ^@keywords - 1)
+			do @wndCompletionListKeywords.add(@keywords[i])
+		end for
 		do @wndCompletionListKeywords.setRedraw(true)
 	else
 		if(word =& null | ^word = 0)
@@ -66,31 +64,27 @@ end func
 			ret
 		end if
 	end if
-
+	
 	do @oldX :: posX
 	do @oldY :: posY
-
+	
 	block
 		var best: int :: -1
-		var cnt: int :: 0
-		do @keywords.head()
-		while loop(!@keywords.term())
-			var keyword: []char :: @keywords.get()
+		for i(0, ^@keywords - 1)
+			var keyword: []char :: @keywords[i]
 			if(^keyword >= ^word & keyword[0] = word[0] & keyword.sub(0, ^word) = word)
-				do best :: cnt
-				break loop
+				do best :: i
+				break i
 			end if
-			do @keywords.next()
-			do cnt :+ 1
-		end while
+		end for
 		do @wndCompletionListKeywords.setRedraw(false)
 		do @wndCompletionListKeywords.setSel(best)
 		do @wndCompletionListKeywords.setRedraw(true)
 	end block
-
+	
 	do @updatePos()
-
-	func wndCompletionOnClose(wnd: wnd@Wnd): bool
+	
+	func wndCompletionOnClose(wnd: wnd@WndBase): bool
 		do @wndCompletion :: null
 		do @wndCompletionListKeywords :: null
 		do @wndCompletionEditFunc :: null
@@ -98,9 +92,9 @@ end func
 		do @oldY :: -1
 		ret true
 	end func
-
+	
 	func getKeywordsCallback(keyword: []char)
-		do @keywords.add(##keyword)
+		do @keywords :~ [##keyword]
 	end func
 end func
 
@@ -108,7 +102,7 @@ end func
 	if(@wndCompletion =& null)
 		ret
 	end if
-
+	
 	var x: int
 	var y: int
 	do wnd@getCaretPos(&x, &y)
@@ -130,7 +124,7 @@ end func
 	do \form@focusDrawEditor()
 end func
 
-+func wndCompletionListKeywordsOnSel(wnd: wnd@List)
++func wndCompletionListKeywordsOnSel(wnd: wnd@WndBase)
 	{
 		; TODO:
 	var sel: int :: wnd.getSel()
@@ -154,9 +148,9 @@ end func
 	}
 end func
 
-func wndCompletionListKeywordsOnMouseDoubleClick(wnd: wnd@List)
+func wndCompletionListKeywordsOnMouseDoubleClick(wnd: wnd@WndBase)
 	if(\src@curDoc =$ \doc_src@DocSrc)
-		do (\src@curDoc $ \doc_src@DocSrc).complementDecision()
+		do(\src@curDoc $ \doc_src@DocSrc).complementDecision()
 	end if
 end func
 

@@ -1,0 +1,1842 @@
+class KeywordListItem()
+	+*func cmp(t: kuin@Class): int
+		var t2: @KeywordListItem :: t $ @KeywordListItem
+		var m: int
+		do m :: lib@cmp(me.name, t2.name)
+		if(m <> 0)
+			ret m
+		end if
+		do m :: lib@cmp(me.ast.pos.srcName, t2.ast.pos.srcName)
+		if(m <> 0)
+			ret m
+		end if
+		if(me.first <>& null & t2.first <>& null)
+			do m :: me.first.value - t2.first.value
+			if(m <> 0)
+				ret m
+			end if
+			if(me.last <>& null & t2.last <>& null)
+				do m :: me.last.value - t2.last.value
+			end if
+		end if
+		ret m
+	end func
+	
+	+var name: []char
+	+var ast: \ast@Ast
+	+var first: lib@Int
+	+var last: lib@Int
+end class
+
+class CorrectKeywordsParam()
+	+var src: []char
+	+var keywords: list<@KeywordListItem>
+	+var first: lib@Int
+	+var last: lib@Int
+	+var parentType: \ast@TypeId
+	+var i2Data: @Interpret2Data
+end class
+
+class GetKeywordsContext()
+	+var callCallbackFunc: func<(int, []char)>
+	+var callback: int
+	+var srcName: []char
+	+var cursorX: int
+	+var cursorY: int
+	+var hintFunc: \ast@AstFunc
+	+var i2Data: @Interpret2Data
+end class
+
+class Interpret2Data()
+	+var keywordList: []@KeywordListItem
+	+var subSrcDummyAst: \ast@Ast
+end class
+
++func[__rwi]interpret2(prioritizedCode: []char): int
+	if(\err@errCnt > 0)
+		ret 0
+	end if
+	
+	var asts: dict<[]char, \ast@Ast> :: \parse@parse(#[\main@useResFlagsLen]bit8, prioritizedCode)
+	do \analyze@analyze(asts, &)
+	var i2Data: @Interpret2Data :: #@Interpret2Data
+	do i2Data.keywordList :: null
+	do i2Data.subSrcDummyAst :: \ast@getSubSrcDummyAst()
+	do @makeKeywordList(i2Data, asts)
+	ret @i2DataToInt(i2Data)
+end func
+
+func makeKeywordList(i2Data: @Interpret2Data, asts: dict<[]char, \ast@Ast>)
+	var param: @CorrectKeywordsParam :: #@CorrectKeywordsParam
+	do param.src :: null
+	do param.keywords :: #list<@KeywordListItem>
+	do param.first :: #lib@Int
+	do param.first.value :: lib@intMax
+	do param.last :: #lib@Int
+	do param.last.value :: lib@intMin
+	do param.parentType :: %none
+	do param.i2Data :: i2Data
+	do asts.forEach(@correctKeywords, param)
+	do i2Data.keywordList :: param.keywords.toArray()
+	do i2Data.keywordList.sort()
+end func
+
+func correctKeywords(srcName: []char, ast: \ast@Ast, data: kuin@Class): bool
+	var param: @CorrectKeywordsParam :: data $ @CorrectKeywordsParam
+	var param2: @CorrectKeywordsParam :: #@CorrectKeywordsParam
+	do param2.src :: param.src =& null ?(srcName, param.src)
+	do param2.keywords :: param.keywords
+	do param2.first :: param.first
+	do param2.last :: param.last
+	do param2.parentType :: param.parentType
+	do param2.i2Data :: param.i2Data
+	if(ast <>& param.i2Data.subSrcDummyAst)
+		do @correctKeywordsRecursion(param2, ast)
+	end if
+	ret true
+end func
+
+func correctKeywordsRecursion(param: @CorrectKeywordsParam, ast: \ast@Ast)
+	if(ast.pos <>& null & ast.pos.srcName = param.src & ast.pos.row <> -1 &
+		|(ast.pos.srcName[0] = '\\' | param.parentType = %root | param.parentType = %enum_ | param.parentType = %class_))
+		var row: int :: ast.pos.row
+		if(param.first.value > row)
+			do param.first.value :: row
+		end if
+		if(param.last.value < row)
+			do param.last.value :: row
+		end if
+		if(ast.name <>& null & ast.name <> "me" &
+			|!(ast.pos.srcName[0] <> '\\' & ast.name[0] = '_' & !('0' <= ast.name[1] & ast.name[1] <= '9')))
+			var keyword: @KeywordListItem :: #@KeywordListItem
+			switch(param.parentType)
+			case %root
+				do keyword.name :: "@" ~ ast.name
+			case %enum_
+				do keyword.name :: "%" ~ ast.name
+			case %class_
+				if(ast.typeId = %arg | ast.typeId = %func_)
+					do keyword.name :: "." ~ ast.name
+				else
+					do keyword.name :: ast.name
+				end if
+			default
+				do keyword.name :: ast.name
+			end switch
+			do keyword.ast :: ast
+			do keyword.first :: param.first
+			do keyword.last :: param.last
+			do param.keywords.add(keyword)
+		end if
+	end if
+	if(ast.scopeChildren <>& null)
+		var param2: @CorrectKeywordsParam :: #@CorrectKeywordsParam
+		do param2.src :: param.src
+		do param2.keywords :: param.keywords
+		do param2.first :: #lib@Int
+		do param2.first.value :: lib@intMax
+		do param2.last :: #lib@Int
+		do param2.last.value :: lib@intMin
+		do param2.parentType :: ast.typeId
+		do param2.i2Data :: param.i2Data
+		do ast.scopeChildren.forEach(@correctKeywords, param2)
+	end if
+end func
+
++func[__rwi]getKeywordsRoot(i2Data: int, str: []char, srcName: []char, x: int, y: int, callCallbackFunc: func<(int, []char)>, callback: int): []char
+	if(i2Data = 0)
+		ret null
+	end if
+	var context: @GetKeywordsContext :: #@GetKeywordsContext
+	do context.callCallbackFunc :: callCallbackFunc
+	do context.callback :: callback
+	do context.srcName :: srcName
+	do context.cursorX :: x
+	do context.cursorY :: y
+	do context.hintFunc :: null
+	do context.i2Data :: @intToI2Data(i2Data)
+	do @getKeywordsRootImpl(str, srcName, context)
+	if(context.hintFunc <>& null)
+		var hintFunc: \ast@AstFunc :: context.hintFunc
+		var hint: []char :: "func " ~ hintFunc.pos.srcName ~ "@" ~ hintFunc.name ~ "("
+		var items: list<\ast@AstArg> :: hintFunc.args
+		do items.head()
+		if(hintFunc.funcOption.and(%mki) = %mki & !items.term())
+			do items.next()
+		end if
+		var first: bool :: true
+		while(!items.term())
+			var arg: \ast@AstArg :: items.get()
+			if(first)
+				do first :: false
+				do hint :~ arg.name ~ ": " ~ @getKeywordHintTypeNameRecursion(arg.type, context)
+			else
+				do hint :~ ", " ~ arg.name ~ ": " ~ @getKeywordHintTypeNameRecursion(arg.type, context)
+			end if
+			do items.next()
+		end while
+		do hint :~ ")"
+		if(hintFunc.ret_ <>& null)
+			do hint :~ ": " ~ @getKeywordHintTypeNameRecursion(hintFunc.ret_, context)
+		end if
+		ret hint
+	end if
+	ret null
+end func
+
+func getKeywordsRootImpl(str: []char, srcName: []char, context: @GetKeywordsContext)
+	var buf: []char :: #[129]char
+	var idx: int :: 0
+	if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+		var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+		var callback: int :: context.callback
+		do callCallbackFunc(callback, "alias")
+		do callCallbackFunc(callback, "assert")
+		do callCallbackFunc(callback, "block")
+		do callCallbackFunc(callback, "break")
+		do callCallbackFunc(callback, "case")
+		do callCallbackFunc(callback, "catch")
+		do callCallbackFunc(callback, "class")
+		do callCallbackFunc(callback, "const")
+		do callCallbackFunc(callback, "default")
+		do callCallbackFunc(callback, "do")
+		do callCallbackFunc(callback, "elif")
+		do callCallbackFunc(callback, "else")
+		do callCallbackFunc(callback, "end")
+		do callCallbackFunc(callback, "enum")
+		do callCallbackFunc(callback, "excode")
+		do callCallbackFunc(callback, "finally")
+		do callCallbackFunc(callback, "for")
+		do callCallbackFunc(callback, "func")
+		do callCallbackFunc(callback, "if")
+		do callCallbackFunc(callback, "include")
+		do callCallbackFunc(callback, "ret")
+		do callCallbackFunc(callback, "skip")
+		do callCallbackFunc(callback, "switch")
+		do callCallbackFunc(callback, "throw")
+		do callCallbackFunc(callback, "try")
+		do callCallbackFunc(callback, "var")
+		do callCallbackFunc(callback, "while")
+	elif(buf[0] = 'f' & buf[1] = 'u' & buf[2] = 'n' & buf[3] = 'c' & buf[4] = '\0')
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			ret
+		end if
+		if(@getKeywordsReadUntil(str, &idx, '('))
+			ret
+		end if
+		var c: char :: @getKeywordsReadChar(str, &idx)
+		if(c = '\0')
+			ret
+		end if
+		if(c <> ')')
+			while loop(true)
+				if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+					ret
+				end if
+				if(@getKeywordsReadUntil(str, &idx, ':'))
+					ret
+				end if
+				var tmpType: []char :: ""
+				if(@getKeywordsReadType(str, &idx, &tmpType, context))
+					ret
+				end if
+				do c :: @getKeywordsReadChar(str, &idx)
+				if(c = '\0')
+					ret
+				end if
+				if(c = ')')
+					break loop
+				end if
+				if(c <> ',')
+					ret
+				end if
+			end while
+		end if
+		do c :: @getKeywordsReadChar(str, &idx)
+		if(c = '\0')
+			ret
+		end if
+		if(c = ':')
+			var tmpType: []char :: ""
+			if(@getKeywordsReadType(str, &idx, &tmpType, context))
+				ret
+			end if
+		end if
+	elif(buf[0] = 'e' & buf[1] = 'n' & buf[2] = 'd' & buf[3] = '\0')
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+			var callback: int :: context.callback
+			do callCallbackFunc(callback, "block")
+			do callCallbackFunc(callback, "class")
+			do callCallbackFunc(callback, "enum")
+			do callCallbackFunc(callback, "for")
+			do callCallbackFunc(callback, "func")
+			do callCallbackFunc(callback, "if")
+			do callCallbackFunc(callback, "switch")
+			do callCallbackFunc(callback, "try")
+			do callCallbackFunc(callback, "while")
+		end if
+	elif(buf[0] = 'b' & buf[1] = 'r' & buf[2] = 'e' & buf[3] = 'a' & buf[4] = 'k' & buf[5] = '\0')
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+			var callback: int :: context.callback
+			do callCallbackFunc(callback, "block")
+			do callCallbackFunc(callback, "for")
+			do callCallbackFunc(callback, "if")
+			do callCallbackFunc(callback, "switch")
+			do callCallbackFunc(callback, "try")
+			do callCallbackFunc(callback, "while")
+		end if
+	elif(buf[0] = 's' & buf[1] = 'k' & buf[2] = 'i' & buf[3] = 'p' & buf[4] = '\0')
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+			var callback: int :: context.callback
+			do callCallbackFunc(callback, "for")
+			do callCallbackFunc(callback, "while")
+		end if
+	elif(buf[0] = 'v' & buf[1] = 'a' & buf[2] = 'r' & buf[3] = '\0' |
+		|buf[0] = 'c' & buf[1] = 'o' & buf[2] = 'n' & buf[3] = 's' & buf[4] = 't' & buf[5] = '\0')
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			ret
+		end if
+		if(@getKeywordsReadUntil(str, &idx, ':'))
+			ret
+		end if
+		block
+			var tmpType: []char :: ""
+			if(@getKeywordsReadType(str, &idx, &tmpType, context))
+				ret
+			end if
+		end block
+		if(@getKeywordsReadUntil(str, &idx, ':'))
+			ret
+		end if
+		if(@getKeywordsReadUntil(str, &idx, ':'))
+			ret
+		end if
+		block
+			var tmpType: []char :: ""
+			if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+				ret
+			end if
+		end block
+	elif(buf[0] = 'a' & buf[1] = 'l' & buf[2] = 'i' & buf[3] = 'a' & buf[4] = 's' & buf[5] = '\0')
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			ret
+		end if
+		if(@getKeywordsReadUntil(str, &idx, ':'))
+			ret
+		end if
+		var tmpType: []char :: ""
+		if(@getKeywordsReadType(str, &idx, &tmpType, context))
+			ret
+		end if
+	elif(buf[0] = 'c' & buf[1] = 'l' & buf[2] = 'a' & buf[3] = 's' & buf[4] = 's' & buf[5] = '\0')
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			ret
+		end if
+		if(@getKeywordsReadUntil(str, &idx, '('))
+			ret
+		end if
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, true))
+			do @getKeywordsAddKeywords('c', context)
+			ret
+		end if
+	elif(buf[0] = 'd' & buf[1] = 'o' & buf[2] = '\0' |
+		|buf[0] = 'a' & buf[1] = 's' & buf[2] = 's' & buf[3] = 'e' & buf[4] = 'r' & buf[5] = 't' & buf[6] = '\0' |
+		|buf[0] = 'e' & buf[1] = 'l' & buf[2] = 'i' & buf[3] = 'f' & buf[4] = '\0' |
+		|buf[0] = 'e' & buf[1] = 'x' & buf[2] = 'c' & buf[3] = 'o' & buf[4] = 'd' & buf[5] = 'e' & buf[6] = '\0' |
+		|buf[0] = 't' & buf[1] = 'h' & buf[2] = 'r' & buf[3] = 'o' & buf[4] = 'w' & buf[5] = '\0' |
+		|buf[0] = 'r' & buf[1] = 'e' & buf[2] = 't' & buf[3] = '\0')
+		var tmpType: []char :: ""
+		if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+			ret
+		end if
+	elif(buf[0] = 'c' & buf[1] = 'a' & buf[2] = 's' & buf[3] = 'e' & buf[4] = '\0' |
+		|buf[0] = 'c' & buf[1] = 'a' & buf[2] = 't' & buf[3] = 'c' & buf[4] = 'h' & buf[5] = '\0')
+		while loop(true)
+			var tmpType: []char :: ""
+			if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+				ret
+			end if
+			var c: char :: @getKeywordsReadChar(str, &idx)
+			if(c = '\0')
+				ret
+			end if
+			if(c = ',')
+				skip loop
+			end if
+			do idx :- 1
+			if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+				var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+				var callback: int :: context.callback
+				do callCallbackFunc(callback, "to")
+				ret
+			end if
+			if(!(buf[0] = 't' & buf[1] = 'o' & buf[2] = '\0'))
+				ret
+			end if
+		end while
+	elif(buf[0] = 'f' & buf[1] = 'o' & buf[2] = 'r' & buf[3] = '\0')
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			ret
+		end if
+		if(@getKeywordsReadUntil(str, &idx, '('))
+			ret
+		end if
+		block
+			var tmpType: []char :: ""
+			if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+				ret
+			end if
+		end block
+		if(@getKeywordsReadUntil(str, &idx, ','))
+			ret
+		end if
+		block
+			var tmpType: []char :: ""
+			if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+				ret
+			end if
+		end block
+		if(@getKeywordsReadUntil(str, &idx, ','))
+			ret
+		end if
+		block
+			var tmpType: []char :: ""
+			if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+				ret
+			end if
+		end block
+	elif(buf[0] = 'w' & buf[1] = 'h' & buf[2] = 'i' & buf[3] = 'l' & buf[4] = 'e' & buf[5] = '\0')
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			ret
+		end if
+		if(@getKeywordsReadUntil(str, &idx, '('))
+			ret
+		end if
+		var tmpType: []char :: ""
+		if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+			ret
+		end if
+		if(@getKeywordsReadUntil(str, &idx, ','))
+			ret
+		end if
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+			var callback: int :: context.callback
+			do callCallbackFunc(callback, "skip")
+			ret
+		end if
+	elif(buf[0] = 'i' & buf[1] = 'f' & buf[2] = '\0' |
+		|buf[0] = 's' & buf[1] = 'w' & buf[2] = 'i' & buf[3] = 't' & buf[4] = 'c' & buf[5] = 'h' & buf[6] = '\0')
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+			ret
+		end if
+		if(@getKeywordsReadUntil(str, &idx, '('))
+			ret
+		end if
+		var tmpType: []char :: ""
+		if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+			ret
+		end if
+	end if
+end func
+
+func getKeywordsReadIdentifier(buf: []char, str: []char, idx: &int, skipSpaces: bool, refName: bool): bool
+	var ptr: int :: 0
+	var c: char :: skipSpaces ?(@getKeywordsReadChar(str, &idx), @getKeywordsRead(str, &idx))
+	if(c = '\0')
+		do buf[ptr] :: '\0'
+		ret true
+	end if
+	if(!('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | c = '_' | refName & (c = '@' | c = '\\')))
+		do idx :- 1
+		do buf[ptr] :: '\0'
+		ret false
+	end if
+	
+	var at: bool :: false
+	while('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | c = '_' | '0' <= c & c <= '9' | refName & (c = '@' | c = '\\'), skip)
+		switch(c)
+		case '@'
+			if(at)
+				do idx :- 1
+				do buf[ptr] :: '\0'
+				ret false
+			end if
+			do at :: true
+		case '\\'
+			if(at)
+				do idx :- 1
+				do buf[ptr] :: '\0'
+				ret false
+			end if
+		end switch
+		if(ptr = 128)
+			do idx :- 1
+			do buf[ptr] :: '\0'
+			ret false
+		end if
+		do buf[ptr] :: c
+		do ptr :+ 1
+		do c :: @getKeywordsRead(str, &idx)
+		if(c = '\0')
+			do buf[ptr] :: '\0'
+			ret true
+		end if
+	end while
+	do idx :- 1
+	do buf[ptr] :: '\0'
+	ret false
+end func
+
+func getKeywordsReadChar(str: []char, idx: &int): char
+	while(true)
+		var c: char :: @getKeywordsRead(str, &idx)
+		if(c <> ' ')
+			ret c
+		end if
+	end while
+end func
+
+func getKeywordsRead(str: []char, idx: &int): char
+	while(true)
+		if(idx = ^str)
+			ret '\0'
+		end if
+		var c: char :: str[idx]
+		do idx :+ 1
+		switch(c)
+		case '{'
+			do @getKeywordsReadComment(str, &idx)
+			ret ' '
+		case '\t'
+			ret ' '
+		end switch
+		ret c
+	end while
+end func
+
+func getKeywordsReadComment(str: []char, idx: &int)
+	var c: char
+	while(c <> '}', skip)
+		do c :: @getKeywordsRead(str, &idx)
+		if(c = '\0')
+			ret
+		end if
+		if(c = '"')
+			var esc: bool :: false
+			while loop(true)
+				do c :: @getKeywordsReadInStr(str, &idx)
+				if(c = '\0')
+					ret
+				end if
+				if(esc)
+					if(c = '{')
+						do @getKeywordsReadComment(str, &idx)
+					end if
+					do esc :: false
+					skip loop
+				end if
+				if(c = '"')
+					break loop
+				end if
+				if(c = '\\')
+					do esc :: true
+				end if
+			end while
+		elif(c = '\'')
+			var esc: bool :: false
+			while loop(true)
+				do c :: @getKeywordsReadInStr(str, &idx)
+				if(c = '\0')
+					ret
+				end if
+				if(esc)
+					do esc :: false
+					skip loop
+				end if
+				if(c = '\'')
+					break loop
+				end if
+				if(c = '\\')
+					do esc :: true
+				end if
+			end while
+		elif(c = ';')
+			while loop(true)
+				if(idx = ^str)
+					ret
+				end if
+				do idx :+ 1
+			end while
+		end if
+	end while
+end func
+
+func getKeywordsReadInStr(str: []char, idx: &int): char
+	while loop(true)
+		if(idx = ^str)
+			ret '\0'
+		end if
+		var c: char :: str[idx]
+		do idx :+ 1
+		switch(c)
+		case '\t'
+			skip loop
+		case '\n'
+			skip loop
+		end switch
+		ret c
+	end while
+end func
+
+func getKeywordsReadUntil(str: []char, idx: &int, c: char): bool
+	while(true)
+		var c2: char :: @getKeywordsRead(str, &idx)
+		if(c2 = '\0')
+			ret true
+		end if
+		if(c2 = c)
+			ret false
+		end if
+	end while
+end func
+
+func getKeywordsReadType(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	var c: char :: @getKeywordsReadChar(str, &idx)
+	if(c = '\0')
+		ret true
+	end if
+	if(c = '[')
+		if(@getKeywordsReadUntil(str, &idx, ']'))
+			ret true
+		end if
+		var tmpType: []char :: ""
+		if(@getKeywordsReadType(str, &idx, &tmpType, context))
+			ret true
+		end if
+		do type :: "&a" ~ tmpType
+	elif('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | c = '_' | c = '\\' | c = '@')
+		do idx :- 1
+		var buf: []char :: #[129]char
+		if(@getKeywordsReadIdentifier(buf, str, &idx, true, true))
+			var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+			var callback: int :: context.callback
+			do callCallbackFunc(callback, "bit16")
+			do callCallbackFunc(callback, "bit32")
+			do callCallbackFunc(callback, "bit64")
+			do callCallbackFunc(callback, "bit8")
+			do callCallbackFunc(callback, "bool")
+			do callCallbackFunc(callback, "char")
+			do callCallbackFunc(callback, "dict")
+			do callCallbackFunc(callback, "float")
+			do callCallbackFunc(callback, "func")
+			do callCallbackFunc(callback, "int")
+			do callCallbackFunc(callback, "list")
+			do callCallbackFunc(callback, "queue")
+			do callCallbackFunc(callback, "stack")
+			do @getKeywordsAddKeywords('t', context)
+		elif(buf[0] = 'i' & buf[1] = 'n' & buf[2] = 't' & buf[3] = '\0')
+			do type :: "int"
+			ret false
+		elif(buf[0] = 'f' & buf[1] = 'l' & buf[2] = 'o' & buf[3] = 'a' & buf[4] = 't' & buf[5] = '\0')
+			do type :: "float"
+			ret false
+		elif(buf[0] = 'c' & buf[1] = 'h' & buf[2] = 'a' & buf[3] = 'r' & buf[4] = '\0')
+			do type :: "char"
+			ret false
+		elif(buf[0] = 'b' & buf[1] = 'o' & buf[2] = 'o' & buf[3] = 'l' & buf[4] = '\0')
+			do type :: "bool"
+			ret false
+		elif(buf[0] = 'b' & buf[1] = 'i' & buf[2] = 't' & buf[3] = '8' & buf[4] = '\0')
+			do type :: "bit8"
+			ret false
+		elif(buf[0] = 'b' & buf[1] = 'i' & buf[2] = 't' & buf[3] = '1' & buf[4] = '6' & buf[5] = '\0')
+			do type :: "bit16"
+			ret false
+		elif(buf[0] = 'b' & buf[1] = 'i' & buf[2] = 't' & buf[3] = '3' & buf[4] = '2' & buf[5] = '\0')
+			do type :: "bit32"
+			ret false
+		elif(buf[0] = 'b' & buf[1] = 'i' & buf[2] = 't' & buf[3] = '6' & buf[4] = '4' & buf[5] = '\0')
+			do type :: "bit64"
+			ret false
+		elif(buf[0] = 'l' & buf[1] = 'i' & buf[2] = 's' & buf[3] = 't' & buf[4] = '\0' |
+			|buf[0] = 's' & buf[1] = 't' & buf[2] = 'a' & buf[3] = 'c' & buf[4] = 'k' & buf[5] = '\0' |
+			|buf[0] = 'q' & buf[1] = 'u' & buf[2] = 'e' & buf[3] = 'u' & buf[4] = 'e' & buf[5] = '\0')
+			if(@getKeywordsReadUntil(str, &idx, '<'))
+				ret true
+			end if
+			var tmpType: []char :: ""
+			if(@getKeywordsReadType(str, &idx, &tmpType, context))
+				ret true
+			end if
+			if(@getKeywordsReadUntil(str, &idx, '>'))
+				ret true
+			end if
+			do type :: "&" ~ buf[0].toStr() ~ tmpType
+		elif(buf[0] = 'd' & buf[1] = 'i' & buf[2] = 'c' & buf[3] = 't' & buf[4] = '\0')
+			if(@getKeywordsReadUntil(str, &idx, '<'))
+				ret true
+			end if
+			var tmpType1: []char :: ""
+			if(@getKeywordsReadType(str, &idx, &tmpType1, context))
+				ret true
+			end if
+			if(@getKeywordsReadUntil(str, &idx, ','))
+				ret true
+			end if
+			var tmpType2: []char :: ""
+			if(@getKeywordsReadType(str, &idx, &tmpType2, context))
+				ret true
+			end if
+			if(@getKeywordsReadUntil(str, &idx, '>'))
+				ret true
+			end if
+			do type :: "&d" ~ tmpType1 ~ "|" ~ tmpType2
+		elif(buf[0] = 'f' & buf[1] = 'u' & buf[2] = 'n' & buf[3] = 'c' & buf[4] = '\0')
+			if(@getKeywordsReadUntil(str, &idx, '<'))
+				ret true
+			end if
+			if(@getKeywordsReadUntil(str, &idx, '('))
+				ret true
+			end if
+			do c :: @getKeywordsReadChar(str, &idx)
+			if(c <> ')')
+				while loop(true)
+					var tmpType: []char :: ""
+					if(@getKeywordsReadType(str, &idx, &tmpType, context))
+						ret true
+					end if
+					do c :: @getKeywordsReadChar(str, &idx)
+					if(c = '\0')
+						ret true
+					end if
+					if(c = ')')
+						break loop
+					end if
+					if(c <> ',')
+						do idx :- 1
+						ret false
+					end if
+				end while
+			end if
+			do c :: @getKeywordsReadChar(str, &idx)
+			if(c = ':')
+				var tmpType: []char :: ""
+				if(@getKeywordsReadType(str, &idx, &tmpType, context))
+					ret true
+				end if
+			end if
+			do type :: ""
+		end if
+	end if
+	ret false
+end func
+
+func getKeywordsAddKeywords(kind: char, context: @GetKeywordsContext)
+	var keywordList: []@KeywordListItem :: context.i2Data.keywordList
+	if(keywordList =& null)
+		ret
+	end if
+	var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+	var callback: int :: context.callback
+	for i(0, ^keywordList - 1)
+		var item: @KeywordListItem :: keywordList[i]
+		if(^item.name = 0)
+			skip i
+		end if
+		if(item.name[0] = '%' | item.name[0] = '.')
+			skip i
+		end if
+		switch(kind)
+		case 't' {Types.}
+			if(item.ast.typeId <> %class_ & item.ast.typeId <> %enum_ & item.ast.typeId <> %alias_)
+				skip i
+			end if
+		case 'e' {Expressions.}
+			if(item.ast.typeId = %class_ | item.ast.typeId = %enum_ | item.ast.typeId = %alias_)
+				skip i
+			end if
+		case 'c' {Class names.}
+			if(item.ast.typeId <> %class_)
+				skip i
+			end if
+		end switch
+		if(item.name[0] = '@')
+			if(context.srcName = item.ast.pos.srcName)
+				do callCallbackFunc(callback, item.name)
+			else
+				if(!item.ast.publicInSrc)
+					skip i
+				end if
+				do callCallbackFunc(callback, item.ast.pos.srcName ~ item.name)
+			end if
+		elif(context.srcName = item.ast.pos.srcName & item.first.value - 1 <= context.cursorY & context.cursorY <= item.last.value - 1)
+			do callCallbackFunc(callback, item.name)
+		end if
+	end for
+end func
+
+func getKeywordsReadExpr(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	if(@getKeywordsReadExprThree(str, &idx, &type, context))
+		ret true
+	end if
+	var c: char :: @getKeywordsReadChar(str, &idx)
+	if(c = '\0')
+		ret true
+	end if
+	if(c = ':')
+		do c :: @getKeywordsReadChar(str, &idx)
+		if(c = '\0')
+			ret true
+		end if
+		switch(c)
+		case ':', '+', '-', '*', '/', '%', '^', '~'
+			if(@getKeywordsReadExpr(str, &idx, &type, context))
+				ret true
+			end if
+		default
+			do idx :- 1
+		end switch
+		ret false
+	end if
+	do idx :- 1
+	ret false
+end func
+
+func getKeywordsReadExprThree(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	if(@getKeywordsReadExprOr(str, &idx, &type, context))
+		ret true
+	end if
+	while loop(true)
+		var c: char :: @getKeywordsReadChar(str, &idx)
+		if(c = '\0')
+			ret true
+		end if
+		if(c = '?')
+			if(@getKeywordsReadUntil(str, &idx, '('))
+				ret true
+			end if
+			if(@getKeywordsReadExpr(str, &idx, &type, context))
+				ret true
+			end if
+			if(@getKeywordsReadUntil(str, &idx, ','))
+				ret true
+			end if
+			if(@getKeywordsReadExpr(str, &idx, &type, context))
+				ret true
+			end if
+			if(@getKeywordsReadUntil(str, &idx, ')'))
+				ret true
+			end if
+		else
+			do idx :- 1
+			break loop
+		end if
+	end while
+	ret false
+end func
+
+func getKeywordsReadExprOr(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	if(@getKeywordsReadExprAnd(str, &idx, &type, context))
+		ret true
+	end if
+	while loop(true)
+		var c: char :: @getKeywordsReadChar(str, &idx)
+		if(c = '\0')
+			ret true
+		end if
+		if(c = '|')
+			if(@getKeywordsReadExprAnd(str, &idx, &type, context))
+				ret true
+			end if
+		else
+			do idx :- 1
+			break loop
+		end if
+	end while
+	ret false
+end func
+
+func getKeywordsReadExprAnd(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	if(@getKeywordsReadExprCmp(str, &idx, &type, context))
+		ret true
+	end if
+	while loop(true)
+		var c: char :: @getKeywordsReadChar(str, &idx)
+		if(c = '\0')
+			ret true
+		end if
+		if(c = '&')
+			if(@getKeywordsReadExprCmp(str, &idx, &type, context))
+				ret true
+			end if
+		else
+			do idx :- 1
+			break loop
+		end if
+	end while
+	ret false
+end func
+
+func getKeywordsReadExprCmp(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	if(@getKeywordsReadExprCat(str, &idx, &type, context))
+		ret true
+	end if
+	while loop(true)
+		var c: char :: @getKeywordsReadChar(str, &idx)
+		if(c = '\0')
+			ret true
+		end if
+		switch(c)
+		case '<'
+			do c :: @getKeywordsReadChar(str, &idx)
+			switch(c)
+			case '\0'
+				ret true
+			case '='
+				if(@getKeywordsReadExprCat(str, &idx, &type, context))
+					ret true
+				end if
+			case '>'
+				do c :: @getKeywordsReadChar(str, &idx)
+				switch(c)
+				case '\0'
+					ret true
+				case '&'
+					if(@getKeywordsReadExprCat(str, &idx, &type, context))
+						ret true
+					end if
+				case '$'
+					var tmpType: []char :: ""
+					if(@getKeywordsReadType(str, &idx, &tmpType, context))
+						ret true
+					end if
+				default
+					do idx :- 1
+					if(@getKeywordsReadExprCat(str, &idx, &type, context))
+						ret true
+					end if
+				end switch
+			default
+				do idx :- 1
+				if(@getKeywordsReadExprCat(str, &idx, &type, context))
+					ret true
+				end if
+			end switch
+			do type :: "bool"
+		case '>'
+			do c :: @getKeywordsReadChar(str, &idx)
+			if(c = '\0')
+				ret true
+			end if
+			if(c <> '=')
+				do idx :- 1
+			end if
+			if(@getKeywordsReadExprCat(str, &idx, &type, context))
+				ret true
+			end if
+			do type :: "bool"
+		case '='
+			do c :: @getKeywordsReadChar(str, &idx)
+			switch(c)
+			case '\0'
+				ret true
+			case '&'
+				if(@getKeywordsReadExprCat(str, &idx, &type, context))
+					ret true
+				end if
+			case '$'
+				var tmpType: []char :: ""
+				if(@getKeywordsReadType(str, &idx, &tmpType, context))
+					ret true
+				end if
+			default
+				do idx :- 1
+				if(@getKeywordsReadExprCat(str, &idx, &type, context))
+					ret true
+				end if
+			end switch
+			do type :: "bool"
+		default
+			do idx :- 1
+			break loop
+		end switch
+	end while
+	ret false
+end func
+
+func getKeywordsReadExprCat(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	if(@getKeywordsReadExprAdd(str, &idx, &type, context))
+		ret true
+	end if
+	while loop(true)
+		var c: char :: @getKeywordsReadChar(str, &idx)
+		if(c = '\0')
+			ret true
+		end if
+		if(c = '~')
+			if(@getKeywordsReadExprAdd(str, &idx, &type, context))
+				ret true
+			end if
+		else
+			do idx :- 1
+			break loop
+		end if
+	end while
+	ret false
+end func
+
+func getKeywordsReadExprAdd(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	if(@getKeywordsReadExprMul(str, &idx, &type, context))
+		ret true
+	end if
+	while loop(true)
+		var c: char :: @getKeywordsReadChar(str, &idx)
+		switch(c)
+		case '\0'
+			ret true
+		case '+', '-'
+			if(@getKeywordsReadExprMul(str, &idx, &type, context))
+				ret true
+			end if
+		default
+			do idx :- 1
+			break loop
+		end switch
+	end while
+	ret false
+end func
+
+func getKeywordsReadExprMul(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	if(@getKeywordsReadExprPlus(str, &idx, &type, context))
+		ret true
+	end if
+	while loop(true)
+		var c: char :: @getKeywordsReadChar(str, &idx)
+		switch(c)
+		case '\0'
+			ret true
+		case '*', '/', '%'
+			if(@getKeywordsReadExprPlus(str, &idx, &type, context))
+				ret true
+			end if
+		default
+			do idx :- 1
+			break loop
+		end switch
+	end while
+	ret false
+end func
+
+func getKeywordsReadExprPlus(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	var old: int :: idx
+	if(@getKeywordsReadExprPow(str, &idx, &type, context))
+		ret true
+	end if
+	if(old <> idx)
+		ret false
+	end if
+	var c: char :: @getKeywordsReadChar(str, &idx)
+	switch(c)
+	case '\0'
+		ret true
+	case '#'
+		do c :: @getKeywordsReadChar(str, &idx)
+		switch(c)
+		case '\0'
+			ret true
+		case '['
+			while loop(true)
+				do c :: @getKeywordsReadChar(str, &idx)
+				if(c = '\0')
+					ret true
+				end if
+				if(c = ']')
+					break loop
+				end if
+				if(c <> ',')
+					do idx :- 1
+					ret false
+				end if
+			end while
+			var tmpType: []char :: ""
+			if(@getKeywordsReadType(str, &idx, &tmpType, context))
+				ret true
+			end if
+			do type :: "&a" ~ tmpType
+		case '#'
+			if(@getKeywordsReadExprPlus(str, &idx, &type, context))
+				ret true
+			end if
+		default
+			do idx :- 1
+			var tmpType: []char :: ""
+			if(@getKeywordsReadType(str, &idx, &tmpType, context))
+				ret true
+			end if
+			do type :: tmpType
+		end switch
+	case '+', '-', '!', '^'
+		if(@getKeywordsReadExprPlus(str, &idx, &type, context))
+			ret true
+		end if
+	default
+		do idx :- 1
+		ret false
+	end switch
+	ret false
+end func
+
+func getKeywordsReadExprPow(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	var old: int :: idx
+	if(@getKeywordsReadExprCall(str, &idx, &type, context))
+		ret true
+	end if
+	if(old = idx)
+		ret false {Interpret as a unary operator.}
+	end if
+	var c: char :: @getKeywordsReadChar(str, &idx)
+	if(c = '\0')
+		ret true
+	end if
+	if(c = '^')
+		if(@getKeywordsReadExprPlus(str, &idx, &type, context))
+			ret true
+		end if
+	else
+		do idx :- 1
+	end if
+	ret false
+end func
+
+func getKeywordsReadExprCall(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	var old: int :: idx
+	if(@getKeywordsReadExprValue(str, &idx, &type, context))
+		ret true
+	end if
+	if(old = idx)
+		ret false
+	end if
+	while loop(true)
+		var c: char :: @getKeywordsReadChar(str, &idx)
+		switch(c)
+		case '\0'
+			ret true
+		case '('
+			if(^type >= 2 & type[0] = '&' & type[1] = 'F')
+				do context.hintFunc :: @strToPtr(type.sub(2, 16)) $ \ast@AstFunc
+			end if
+			do c :: @getKeywordsReadChar(str, &idx)
+			if(c = '\0')
+				ret true
+			end if
+			if(c <> ')')
+				do idx :- 1
+				while loop2(true)
+					var skipVar: bool :: false
+					do c :: @getKeywordsReadChar(str, &idx)
+					if(c = '\0')
+						ret true
+					end if
+					if(c = '&')
+						do c :: @getKeywordsReadChar(str, &idx)
+						if(c = '\0')
+							ret true
+						end if
+						if(c = ',' | c = ')')
+							do skipVar :: true
+						end if
+					end if
+					do idx :- 1
+					if(!skipVar)
+						var tmpType: []char :: ""
+						if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+							ret true
+						end if
+					end if
+					do c :: @getKeywordsReadChar(str, &idx)
+					if(c = '\0')
+						ret true
+					end if
+					if(c = ')')
+						break loop2
+					end if
+					if(c <> ',')
+						do idx :- 1
+						do type :: ""
+						ret false
+					end if
+				end while
+			end if
+			if(^type >= 2 & type[0] = '&' & type[1] = 'F')
+				var retType: \ast@AstType :: @strToPtr(type.sub(2, 16)) $ \ast@AstType
+				if(retType =& null)
+					do type :: ""
+				else
+					do type :: @getKeywordTypeRecursion(retType, context)
+				end if
+			elif(^type >= 2 & type[0] = '&' & type[1] = 'f')
+				var retType: \ast@AstType :: (@strToPtr(type.sub(2, 16)) $ \ast@AstTypeFunc).ret_
+				if(retType =& null)
+					do type :: ""
+				else
+					do type :: @getKeywordTypeRecursion(retType, context)
+				end if
+			else
+				do type :: ""
+			end if
+		case '['
+			var tmpType: []char :: ""
+			if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+				ret true
+			end if
+			if(@getKeywordsReadUntil(str, &idx, ']'))
+				ret true
+			end if
+			if(^type >= 2 & type[0] = '&' & type[1] = 'a')
+				do type :: type.sub(2, -1)
+			end if
+		case '.'
+			var buf: []char :: #[129]char
+			if(@getKeywordsReadIdentifier(buf, str, &idx, true, false))
+				do @getKeywordsAddMember(type, context)
+				ret true
+			end if
+			do type :: ""
+		case '$'
+			do c :: @getKeywordsReadChar(str, &idx)
+			switch(c)
+			case '\0'
+				ret true
+			case '>', '<'
+				var tmpType: []char :: ""
+				if(@getKeywordsReadType(str, &idx, &tmpType, context))
+					ret true
+				end if
+				do type :: tmpType
+			default
+				do idx :- 1
+				var tmpType: []char :: ""
+				if(@getKeywordsReadType(str, &idx, &tmpType, context))
+					ret true
+				end if
+				do type :: tmpType
+			end switch
+		default
+			do idx :- 1
+			break loop
+		end switch
+	end while
+	ret false
+end func
+
+func getKeywordsReadExprValue(str: []char, idx: &int, type: &[]char, context: @GetKeywordsContext): bool
+	var old: int :: idx
+	var c: char :: @getKeywordsReadChar(str, &idx)
+	switch(c)
+	case '\0'
+		ret true
+	case '"'
+		var escape: bool :: false
+		while loop(true)
+			do c :: @getKeywordsReadInStr(str, &idx)
+			if(c = '\0')
+				ret true
+			end if
+			if(escape)
+				if(c = '{')
+					var tmpType: []char :: ""
+					if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+						ret true
+					end if
+					if(@getKeywordsReadUntil(str, &idx, '}'))
+						ret true
+					end if
+				end if
+				do escape :: false
+				skip loop
+			end if
+			if(c = '"')
+				break loop
+			end if
+			if(c = '\\')
+				do escape :: true
+			end if
+		end while
+		do type :: "&achar"
+		ret false
+	case '\''
+		var escape: bool :: false
+		while loop(true)
+			do c :: @getKeywordsReadInStr(str, &idx)
+			if(c = '\0')
+				ret true
+			end if
+			if(escape)
+				do escape :: false
+				skip loop
+			end if
+			if(c = '\'')
+				break loop
+			end if
+			if(c = '\\')
+				do escape :: true
+			end if
+		end while
+		do type :: "char"
+		ret false
+	case '('
+		if(@getKeywordsReadExpr(str, &idx, &type, context))
+			ret true
+		end if
+		if(@getKeywordsReadUntil(str, &idx, ')'))
+			ret true
+		end if
+		ret false
+	case '['
+		do c :: @getKeywordsReadInStr(str, &idx)
+		if(c = '\0')
+			ret true
+		end if
+		if(c <> ']')
+			do idx :- 1
+			while loop(true)
+				var tmpType: []char :: ""
+				if(@getKeywordsReadExpr(str, &idx, &tmpType, context))
+					ret true
+				end if
+				if(^type = 0 & ^tmpType <> 0)
+					do type :: "&a" ~ tmpType
+				end if
+				do c :: @getKeywordsReadInStr(str, &idx)
+				if(c = '\0')
+					ret true
+				end if
+				if(c = ']')
+					break loop
+				end if
+				if(c <> ',')
+					do idx :- 1
+					ret false
+				end if
+			end while
+		end if
+		ret false
+	case '%'
+		var buf: []char :: #[129]char
+		if(@getKeywordsReadIdentifier(buf, str, &idx, false, false))
+			var keywordList: []@KeywordListItem :: context.i2Data.keywordList
+			if(keywordList <>& null)
+				var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+				var callback: int :: context.callback
+				for i(0, ^keywordList - 1)
+					var item: @KeywordListItem :: keywordList[i]
+					if(item.name[0] = '%')
+						do callCallbackFunc(callback, item.name)
+					end if
+				end for
+			end if
+			ret true
+		end if
+		do type :: "%e"
+		ret false
+	default
+		if('0' <= c & c <= '9')
+			ret @getKeywordsReadExprNumber(str, &idx, &type, c, context)
+		end if
+		if('a' <= c & c <= 'z' | 'A' <= c & c <= 'Z' | c = '_' | c = '@' | c = '\\')
+			do idx :- 1
+			var buf: []char :: #[129]char
+			if(@getKeywordsReadIdentifier(buf, str, &idx, true, true))
+				var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+				var callback: int :: context.callback
+				do callCallbackFunc(callback, "dbg")
+				do callCallbackFunc(callback, "env")
+				do callCallbackFunc(callback, "false")
+				do callCallbackFunc(callback, "inf")
+				do callCallbackFunc(callback, "null")
+				do callCallbackFunc(callback, "super")
+				do callCallbackFunc(callback, "true")
+				do @getKeywordsAddKeywords('e', context)
+				ret true
+			end if
+			if(buf[0] = 'd' & buf[1] = 'b' & buf[2] = 'g' & buf[3] = '\0')
+				do type :: "bool"
+			elif(buf[0] = 'e' & buf[1] = 'n' & buf[2] = 'v' & buf[3] = '\0')
+				do type :: "&achar"
+			elif(buf[0] = 'f' & buf[1] = 'a' & buf[2] = 'l' & buf[3] = 's' & buf[4] = 'e' & buf[5] = '\0')
+				do type :: "bool"
+			elif(buf[0] = 'i' & buf[1] = 'n' & buf[2] = 'f' & buf[3] = '\0')
+				do type :: "float"
+			elif(buf[0] = 'n' & buf[1] = 'u' & buf[2] = 'l' & buf[3] = 'l' & buf[4] = '\0')
+				do type :: ""
+			elif(buf[0] = 's' & buf[1] = 'u' & buf[2] = 'p' & buf[3] = 'e' & buf[4] = 'r' & buf[5] = '\0')
+				do type :: ""
+			elif(buf[0] = 't' & buf[1] = 'r' & buf[2] = 'u' & buf[3] = 'e' & buf[4] = '\0')
+				do type :: "bool"
+			else
+				var len: int :: -1
+				for i(0, ^buf - 1)
+					if(buf[i] = '\0')
+						do len :: i
+						break i
+					end if
+				end for
+				do type :: @getKeywordType(buf.sub(0, len), context)
+			end if
+			ret false
+		end if
+	end switch
+	do idx :: old
+	ret false
+end func
+
+func getKeywordsReadExprNumber(str: []char, idx: &int, type: &[]char, c: char, context: @GetKeywordsContext): bool
+	do type :: "int"
+	while loop(true)
+		if(!(c = 'x' | c = '.' | '0' <= c & c <= '9' | 'A' <= c & c <= 'F'))
+			break loop
+		end if
+		if(c = '.')
+			do type :: "float"
+		end if
+		do c :: @getKeywordsRead(str, &idx)
+		if(c = '\0')
+			ret true
+		end if
+	end while
+	if(c = 'e')
+		do c :: @getKeywordsRead(str, &idx)
+		if(c = '\0')
+			ret true
+		end if
+		if(c <> '+' & c <> '-')
+			do idx :- 1
+			ret false
+		end if
+		while('0' <= c & c <= '9', skip)
+			do c :: @getKeywordsRead(str, &idx)
+			if(c = '\0')
+				ret true
+			end if
+		end while
+		do idx :- 1
+	elif(c = 'b')
+		do c :: @getKeywordsRead(str, &idx)
+		switch(c)
+		case '8'
+			do type :: "bit8"
+		case '1'
+			do c :: @getKeywordsRead(str, &idx)
+			if(c = '6')
+				do type :: "bit16"
+			else
+				do idx :- 1
+				ret false
+			end if
+		case '3'
+			do c :: @getKeywordsRead(str, &idx)
+			if(c = '2')
+				do type :: "bit32"
+			else
+				do idx :- 1
+				ret false
+			end if
+		case '6'
+			do c :: @getKeywordsRead(str, &idx)
+			if(c = '4')
+				do type :: "bit64"
+			else
+				do idx :- 1
+				ret false
+			end if
+		default
+			do idx :- 1
+			ret false
+		end switch
+	else
+		do idx :- 1
+	end if
+	ret false
+end func
+
+func getKeywordHintTypeNameRecursion(type: \ast@AstType, context: @GetKeywordsContext): []char
+	switch(type.typeId)
+	case %typeArray
+		ret "[]" ~ @getKeywordHintTypeNameRecursion((type $ \ast@AstTypeArray).itemType, context)
+	case %typeBit
+		ret "bit" ~ ((type $ \ast@AstTypeBit).size * 8).toStr()
+	case %typeFunc
+		var funcType: \ast@AstTypeFunc :: type $ \ast@AstTypeFunc
+		var hint: []char :: "func<("
+		var items: list<\ast@AstTypeFuncArg> :: funcType.args
+		var first: bool :: true
+		do items.head()
+		while(!items.term())
+			var arg: \ast@AstTypeFuncArg :: items.get()
+			if(first)
+				do first :: false
+				do hint :~ @getKeywordHintTypeNameRecursion(arg.arg, context)
+			else
+				do hint :~ ", " ~ @getKeywordHintTypeNameRecursion(arg.arg, context)
+			end if
+			do items.next()
+		end while
+		if(funcType.ret_ <>& null)
+			do hint :~ ": " ~ @getKeywordHintTypeNameRecursion(funcType.ret_, context)
+		end if
+		ret hint ~ ">"
+	case %typeGen
+		var genType: \ast@AstTypeGen :: type $ \ast@AstTypeGen
+		var hint: []char
+		switch(genType.kind)
+		case %list_
+			do hint :: "list<"
+		case %stack_
+			do hint :: "stack<"
+		case %queue_
+			do hint :: "queue<"
+		end switch
+		ret hint ~ @getKeywordHintTypeNameRecursion(genType.itemType, context) ~ ">"
+	case %typeDict
+		var dictType: \ast@AstTypeDict :: type $ \ast@AstTypeDict
+		ret "dict<" ~ @getKeywordHintTypeNameRecursion(dictType.itemTypeKey, context) ~ ", " ~ @getKeywordHintTypeNameRecursion(dictType.itemTypeValue, context) ~ ">"
+	case %typePrim
+		switch((type $ \ast@AstTypePrim).kind)
+		case %int_
+			ret "int"
+		case %float_
+			ret "float"
+		case %char_
+			ret "char"
+		case %bool_
+			ret "bool"
+		end switch
+	case %typeUser
+		ret type.refName
+	end switch
+	ret ""
+end func
+
+func getKeywordType(identifier: []char, context: @GetKeywordsContext): []char
+	var keywordList: []@KeywordListItem :: context.i2Data.keywordList
+	if(keywordList =& null)
+		ret ""
+	end if
+	var ast: \ast@Ast :: null
+	for i(0, ^keywordList - 1)
+		var item: @KeywordListItem :: keywordList[i]
+		if(item.name[0] = '.' | item.name[0] = '%')
+			skip i
+		end if
+		if(item.name[0] = '@')
+			if(context.srcName = item.ast.pos.srcName)
+				if(identifier = item.name)
+					do ast :: item.ast
+					break i
+				end if
+			else
+				if(!item.ast.publicInSrc)
+					skip i
+				end if
+				if(identifier = item.ast.pos.srcName ~ item.name)
+					do ast :: item.ast
+					break i
+				end if
+			end if
+		elif(context.srcName = item.ast.pos.srcName & item.first.value - 1 <= context.cursorY & context.cursorY <= item.last.value - 1 & identifier = item.name)
+			do ast :: item.ast
+			break i
+		end if
+	end for
+	if(ast =& null)
+		ret ""
+	end if
+	var type: \ast@AstType :: null
+	if(ast.typeId = %arg)
+		do type :: (ast $ \ast@AstArg).type
+	elif(ast.typeId = %class_)
+		ret "&c" ~ @ptrToStr(ast)
+	elif(ast.typeId = %func_)
+		ret "&F" ~ @ptrToStr(ast)
+	end if
+	if(type =& null)
+		ret ""
+	end if
+	ret @getKeywordTypeRecursion(type, context)
+end func
+
+func getKeywordTypeRecursion(type: \ast@AstType, context: @GetKeywordsContext): []char
+	switch(type.typeId)
+	case %typeArray
+		ret "&a" ~ @getKeywordTypeRecursion((type $ \ast@AstTypeArray).itemType, context)
+	case %typeBit
+		ret "bit" ~ ((type $ \ast@AstTypeBit).size * 8).toStr()
+	case %typeFunc
+		ret "&f" ~ @ptrToStr(type)
+	case %typeGen
+		var genType: \ast@AstTypeGen :: type $ \ast@AstTypeGen
+		switch(genType.kind)
+		case %list_
+			ret "&l" ~ @getKeywordTypeRecursion(genType.itemType, context)
+		case %stack_
+			ret "&s" ~ @getKeywordTypeRecursion(genType.itemType, context)
+		case %queue_
+			ret "&q" ~ @getKeywordTypeRecursion(genType.itemType, context)
+		end switch
+	case %typeDict
+		var dictType: \ast@AstTypeDict :: type $ \ast@AstTypeDict
+		ret "&d" ~ @getKeywordTypeRecursion(dictType.itemTypeKey, context) ~ "|" ~ @getKeywordTypeRecursion(dictType.itemTypeValue, context)
+	case %typePrim
+		switch((type $ \ast@AstTypePrim).kind)
+		case %int_
+			ret "int"
+		case %float_
+			ret "float"
+		case %char_
+			ret "char"
+		case %bool_
+			ret "bool"
+		end switch
+	case %typeUser
+		ret @getKeywordType(type.refName, context)
+	end switch
+	ret ""
+end func
+
+func getKeywordsAddMember(type: []char, context: @GetKeywordsContext)
+	var callCallbackFunc: func<(int, []char)> :: context.callCallbackFunc
+	var callback: int :: context.callback
+	switch(type)
+	case "bit8", "bit16", "bit32", "bit64"
+		do callCallbackFunc(callback, "and")
+		do callCallbackFunc(callback, "endian")
+		do callCallbackFunc(callback, "not")
+		do callCallbackFunc(callback, "or")
+		do callCallbackFunc(callback, "sar")
+		do callCallbackFunc(callback, "shl")
+		do callCallbackFunc(callback, "shr")
+		do callCallbackFunc(callback, "toStr")
+		do callCallbackFunc(callback, "xor")
+	case "bool"
+		do callCallbackFunc(callback, "toStr")
+	case "char"
+		do callCallbackFunc(callback, "offset")
+		do callCallbackFunc(callback, "toStr")
+	case "float"
+		do callCallbackFunc(callback, "abs")
+		do callCallbackFunc(callback, "sign")
+		do callCallbackFunc(callback, "toStr")
+		do callCallbackFunc(callback, "toStrFmt")
+	case "int"
+		do callCallbackFunc(callback, "abs")
+		do callCallbackFunc(callback, "sign")
+		do callCallbackFunc(callback, "toStr")
+		do callCallbackFunc(callback, "toStrFmt")
+	default
+		if(^type >= 2 & type[0] = '&')
+			switch(type[1])
+			case 'a'
+				if(type = "&achar")
+					do callCallbackFunc(callback, "findStr")
+					do callCallbackFunc(callback, "findStrEx")
+					do callCallbackFunc(callback, "findStrLast")
+					do callCallbackFunc(callback, "lower")
+					do callCallbackFunc(callback, "replace")
+					do callCallbackFunc(callback, "split")
+					do callCallbackFunc(callback, "toBit64")
+					do callCallbackFunc(callback, "toFloat")
+					do callCallbackFunc(callback, "toInt")
+					do callCallbackFunc(callback, "toStr")
+					do callCallbackFunc(callback, "trim")
+					do callCallbackFunc(callback, "trimLeft")
+					do callCallbackFunc(callback, "trimRight")
+					do callCallbackFunc(callback, "upper")
+				elif(type = "&a&achar")
+					do callCallbackFunc(callback, "join")
+				end if
+				do callCallbackFunc(callback, "fill")
+				do callCallbackFunc(callback, "find")
+				do callCallbackFunc(callback, "findBin")
+				do callCallbackFunc(callback, "findLast")
+				do callCallbackFunc(callback, "max")
+				do callCallbackFunc(callback, "min")
+				do callCallbackFunc(callback, "repeat")
+				do callCallbackFunc(callback, "reverse")
+				do callCallbackFunc(callback, "sort")
+				do callCallbackFunc(callback, "sub")
+			case 'c'
+				var ast: \ast@AstClass :: @strToPtr(type.sub(2, 16)) $ \ast@AstClass
+				var items: list<\ast@AstClassItem> :: ast.items
+				do items.head()
+				while(!items.term())
+					var item: \ast@AstClassItem :: items.get()
+					if(item.public)
+						var name: []char
+						if(item.def.typeId = %var_)
+							do name :: (item.def $ \ast@AstVar).arg.name
+						elif(item.def.typeId = %const_)
+							do name :: (item.def $ \ast@AstConst).arg.name
+						else
+							do name :: item.def.name
+						end if
+						if(name <>& null)
+							do callCallbackFunc(callback, name)
+						end if
+					end if
+					do items.next()
+				end while
+			case 'd'
+				do callCallbackFunc(callback, "add")
+				do callCallbackFunc(callback, "del")
+				do callCallbackFunc(callback, "exist")
+				do callCallbackFunc(callback, "forEach")
+				do callCallbackFunc(callback, "get")
+			case 'e'
+				do callCallbackFunc(callback, "and")
+				do callCallbackFunc(callback, "not")
+				do callCallbackFunc(callback, "or")
+				do callCallbackFunc(callback, "xor")
+			case 'l'
+				do callCallbackFunc(callback, "add")
+				do callCallbackFunc(callback, "del")
+				do callCallbackFunc(callback, "delNext")
+				do callCallbackFunc(callback, "find")
+				do callCallbackFunc(callback, "findLast")
+				do callCallbackFunc(callback, "get")
+				do callCallbackFunc(callback, "getOffset")
+				do callCallbackFunc(callback, "getPtr")
+				do callCallbackFunc(callback, "head")
+				do callCallbackFunc(callback, "idx")
+				do callCallbackFunc(callback, "ins")
+				do callCallbackFunc(callback, "moveOffset")
+				do callCallbackFunc(callback, "next")
+				do callCallbackFunc(callback, "prev")
+				do callCallbackFunc(callback, "setPtr")
+				do callCallbackFunc(callback, "tail")
+				do callCallbackFunc(callback, "term")
+				do callCallbackFunc(callback, "termOffset")
+				do callCallbackFunc(callback, "toArray")
+			case 'q', 's'
+				do callCallbackFunc(callback, "add")
+				do callCallbackFunc(callback, "get")
+				do callCallbackFunc(callback, "peek")
+			end switch
+		end if
+	end switch
+end func
+
+func ptrToStr(ast: \ast@Ast): []char
+	excode "auto*a_=new_(Array_<char16_t>)();\n"
+	excode "a_->L=16;\n"
+	excode "a_->B=newPrimArray_(17,char16_t);\n"
+	excode "swprintf(reinterpret_cast<wchar_t*>(a_->B),17,L\"%016I64X\",reinterpret_cast<uint64_t>(`0`));\n"
+	excode "return a_;\n"
+end func
+
+func strToPtr(type: []char): \ast@Ast
+	ret strToPtrImpl(type, null)
+	
+	func strToPtrImpl(type: []char, dummy: \ast@Ast): \ast@Ast
+		excode "wchar_t*p_;\n"
+		excode "int64_t v_=wcstoll(reinterpret_cast<wchar_t*>(`0`->B),&p_,16);\n"
+		excode "return reinterpret_cast<decltype(`1`)>(v_);\n"
+	end func
+end func
+
+func i2DataToInt(i2Data: @Interpret2Data): int
+	excode "return reinterpret_cast<int64_t>(`0`);\n"
+end func
+
+func intToI2Data(i2Data: int): @Interpret2Data
+	ret intToI2DataImpl(i2Data, null)
+	
+	func intToI2DataImpl(i2Data: int, dummy: @Interpret2Data): @Interpret2Data
+		excode "return reinterpret_cast<decltype(`1`)>(`0`);\n"
+	end func
+end func
+
++func[__rwi]initDbgVars(): int
+	var i2Data: @Interpret2Data :: #@Interpret2Data
+	do i2Data.keywordList :: null
+	do i2Data.subSrcDummyAst :: \ast@getSubSrcDummyAst()
+	do @makeKeywordList(i2Data, \exe\output@asts)
+	ret @i2DataToInt(i2Data)
+end func
+
++func[__rwi]getDbgVars(i2Data: int, excptPosSrc: []char, excptPosRow: int, processHandle: int, contextRsp: bit64, readProcessMemoryFunc: func<(int, bit64): bit64>, callCallbackFunc: func<([]char, []char, int)>, callback: int)
+	var keywordList: []@KeywordListItem :: @intToI2Data(i2Data).keywordList
+	var str1: []char
+	var str2: []char
+	var addr: bit64
+	for i(0, ^keywordList - 1)
+		var item: @KeywordListItem :: keywordList[i]
+		if(item.name[0] = '%' | item.name[0] = '.' | item.ast.typeId <> %arg)
+			skip i
+		end if
+		if(item.name[0] = '@')
+			if(excptPosSrc = item.ast.pos.srcName)
+				do str1 :: item.name
+			else
+				if(!item.ast.publicInSrc)
+					skip i
+				end if
+				do str1 :: item.ast.pos.srcName ~ item.name
+			end if
+		elif(excptPosSrc = item.ast.pos.srcName & item.first.value <= excptPosRow & excptPosRow <= item.last.value)
+			do str1 :: item.name
+		else
+			skip i
+		end if
+		assert item.ast.typeId = %arg
+		var arg: \ast@AstArg :: item.ast $ \ast@AstArg
+		var argInfo: \exe\asm@ExeArgInfo :: \exe\asm@getExeArgInfo(arg)
+		switch(arg.kind)
+		case %global
+			do addr :: @dbgStartAddr + argInfo.addr.value $ bit64
+		case %localArg, %localVar
+			do addr :: contextRsp + argInfo.addr.value $ bit64
+		default
+			skip i
+		end switch
+		var value: bit64 :: readProcessMemoryFunc(processHandle, addr)
+		switch(arg.type.typeId)
+		case %typePrim
+			switch((arg.type $ \ast@AstTypePrim).kind)
+			case %int_
+				do str2 :: (value $ int).toStr() ~ " (" ~ (value $ bit64).toStr() ~ ")"
+			case %float_
+				do str2 :: lib@toFloatForcibly(value).toStr()
+			case %char_
+				do str2 :: "'" ~ (value $ char).toStr() ~ "' " ~ (value $ int).toStr() ~ " (" ~ (value $ bit16).toStr() ~ ")"
+			case %bool_
+				do str2 :: value = 0b64 ?("false", "true")
+			default
+				assert(false)
+			end switch
+		case %typeBit
+			switch((arg.type $ \ast@AstTypeBit).size)
+			case 1
+				do str2 :: (value $ int).toStr() ~ " (" ~ (value $ bit8).toStr() ~ ")"
+			case 2
+				do str2 :: (value $ int).toStr() ~ " (" ~ (value $ bit16).toStr() ~ ")"
+			case 4
+				do str2 :: (value $ int).toStr() ~ " (" ~ (value $ bit32).toStr() ~ ")"
+			case 8
+				do str2 :: (value $ int).toStr() ~ " (" ~ (value $ bit64).toStr() ~ ")"
+			default
+				assert(false)
+			end switch
+		default
+			if(\ast@isEnum(arg.type))
+				do str2 :: (value $ int).toStr() ~ " (" ~ value.toStr() ~ ")"
+			else
+				do str2 :: value.toStr()
+			end if
+		end switch
+		do callCallbackFunc(str1, str2, callback)
+	end for
+end func

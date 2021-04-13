@@ -26,8 +26,8 @@ var watchs: list<@Watch>
 		do @wndDbgListWatch.addColumn(\common@langEn ?("Variable Name", "変数名"))
 		do @wndDbgListWatch.addColumn(\common@langEn ?("Value", "値"))
 	end if
-
-	func wndDbgOnClose(wnd: wnd@Wnd): bool
+	
+	func wndDbgOnClose(wnd: wnd@WndBase): bool
 		do @wndDbg :: null
 		do @wndDbgListCallStack :: null
 		do @wndDbgListWatch :: null
@@ -41,7 +41,7 @@ end func
 	if(@wndDbg =& null)
 		ret
 	end if
-
+	
 	do @wndDbgEditMsg.setText("")
 	do @wndDbgListCallStack.clear()
 	do @wndDbgListWatch.clear()
@@ -51,7 +51,7 @@ end func
 	if(@wndDbg =& null)
 		ret
 	end if
-
+	
 	do @wndDbgEditMsg.setText(str)
 end func
 
@@ -59,7 +59,7 @@ end func
 	if(@wndDbg =& null)
 		ret
 	end if
-
+	
 	do @wndDbgListCallStack.add(str)
 end func
 
@@ -67,7 +67,7 @@ end func
 	if(@wndDbg =& null)
 		ret
 	end if
-
+	
 	do @wndDbgListWatch.add(str1, -1)
 	do @wndDbgListWatch.setText(@wndDbgListWatch.len() - 1, 1, str2, -1)
 end func

@@ -1,0 +1,3 @@
++func[__rwi]isReserved(word: []char): bool
+	ret \parse@isReserved(word)
+end func

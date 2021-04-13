@@ -1,0 +1,262 @@
+enum BuiltinFuncKind
+	toStr
+	bitEnum
+	char_
+	bit
+	array
+	comparableArray
+	str
+	addGenDict
+	getGenDict
+	list_
+	peekStackQueue
+	intFloat
+	arrayOfStr
+	dict_
+	comparableArrayList
+	delListDict
+	float_
+end enum
+
+var builtinFuncs: dict<[]char, @BuiltinFuncKind>
+
++func chkBuiltinFuncType(member: &[]char, type: \ast@AstType): bool
+	if(@builtinFuncs =& null)
+		do @builtinFuncs :: #dict<[]char, @BuiltinFuncKind>
+		do @builtinFuncs.add("abs", %intFloat)
+		do @builtinFuncs.add("add", %addGenDict)
+		do @builtinFuncs.add("and", %bitEnum)
+		do @builtinFuncs.add("del", %delListDict)
+		do @builtinFuncs.add("delNext", %list_)
+		do @builtinFuncs.add("endian", %bit)
+		do @builtinFuncs.add("exist", %dict_)
+		do @builtinFuncs.add("fill", %array)
+		do @builtinFuncs.add("find", %comparableArrayList)
+		do @builtinFuncs.add("findBin", %comparableArray)
+		do @builtinFuncs.add("findLast", %comparableArrayList)
+		do @builtinFuncs.add("findStr", %str)
+		do @builtinFuncs.add("findStrEx", %str)
+		do @builtinFuncs.add("findStrLast", %str)
+		do @builtinFuncs.add("forEach", %dict_)
+		do @builtinFuncs.add("get", %getGenDict)
+		do @builtinFuncs.add("getOffset", %list_)
+		do @builtinFuncs.add("getPtr", %list_)
+		do @builtinFuncs.add("head", %list_)
+		do @builtinFuncs.add("idx", %list_)
+		do @builtinFuncs.add("ins", %list_)
+		do @builtinFuncs.add("join", %arrayOfStr)
+		do @builtinFuncs.add("lower", %str)
+		do @builtinFuncs.add("max", %comparableArray)
+		do @builtinFuncs.add("min", %comparableArray)
+		do @builtinFuncs.add("moveOffset", %list_)
+		do @builtinFuncs.add("nan", %float_)
+		do @builtinFuncs.add("next", %list_)
+		do @builtinFuncs.add("not", %bitEnum)
+		do @builtinFuncs.add("offset", %char_)
+		do @builtinFuncs.add("or", %bitEnum)
+		do @builtinFuncs.add("peek", %peekStackQueue)
+		do @builtinFuncs.add("prev", %list_)
+		do @builtinFuncs.add("repeat", %array)
+		do @builtinFuncs.add("replace", %str)
+		do @builtinFuncs.add("reverse", %array)
+		do @builtinFuncs.add("sar", %bit)
+		do @builtinFuncs.add("setPtr", %list_)
+		do @builtinFuncs.add("shl", %bit)
+		do @builtinFuncs.add("shr", %bit)
+		do @builtinFuncs.add("sign", %intFloat)
+		do @builtinFuncs.add("sort", %comparableArray)
+		do @builtinFuncs.add("split", %str)
+		do @builtinFuncs.add("sub", %array)
+		do @builtinFuncs.add("tail", %list_)
+		do @builtinFuncs.add("term", %list_)
+		do @builtinFuncs.add("termOffset", %list_)
+		do @builtinFuncs.add("toArray", %list_)
+		do @builtinFuncs.add("toBit64", %str)
+		do @builtinFuncs.add("toFloat", %str)
+		do @builtinFuncs.add("toInt", %str)
+		do @builtinFuncs.add("toStr", %toStr)
+		do @builtinFuncs.add("toStrFmt", %intFloat)
+		do @builtinFuncs.add("trim", %str)
+		do @builtinFuncs.add("trimLeft", %str)
+		do @builtinFuncs.add("trimRight", %str)
+		do @builtinFuncs.add("upper", %str)
+		do @builtinFuncs.add("xor", %bitEnum)
+	end if
+	
+	var found: bool
+	var kind: @BuiltinFuncKind :: @builtinFuncs.get(member, &found)
+	if(!found)
+		ret false
+	end if
+	
+	switch(kind)
+	case %toStr
+		if(\ast@isInt(type) | \ast@isFloat(type) | \ast@isChar(type) | \ast@isBool(type) | type.typeId = %typeBit | \ast@isStr(type))
+			ret true
+		end if
+	case %bitEnum
+		if(type.typeId = %typeBit | \ast@isEnum(type))
+			ret true
+		end if
+	case %char_
+		if(\ast@isChar(type))
+			ret true
+		end if
+	case %bit
+		if(type.typeId = %typeBit)
+			ret true
+		end if
+	case %array
+		if(type.typeId = %typeArray)
+			ret true
+		end if
+	case %comparableArray
+		if(type.typeId = %typeArray)
+			if(\ast@isComparable((type $ \ast@AstTypeArray).itemType, true))
+				ret true
+			end if
+		end if
+	case %str
+		if(\ast@isStr(type))
+			ret true
+		end if
+	case %addGenDict
+		if(type.typeId = %typeGen)
+			switch((type $ \ast@AstTypeGen).kind)
+			case %list_
+				do member :: "addList"
+			case %stack_
+				do member :: "addStack"
+			case %queue_
+				do member :: "addQueue"
+			default
+				assert false
+			end switch
+			ret true
+		end if
+		if(type.typeId = %typeDict)
+			do member :: "addDict"
+			ret true
+		end if
+	case %getGenDict
+		if(type.typeId = %typeGen)
+			switch((type $ \ast@AstTypeGen).kind)
+			case %list_
+				do member :: "getList"
+			case %stack_
+				do member :: "getStack"
+			case %queue_
+				do member :: "getQueue"
+			default
+				assert false
+			end switch
+			ret true
+		end if
+		if(type.typeId = %typeDict)
+			do member :: "getDict"
+			ret true
+		end if
+	case %list_
+		if(type.typeId = %typeGen & (type $ \ast@AstTypeGen).kind = %list_)
+			ret true
+		end if
+	case %peekStackQueue
+		if(type.typeId = %typeGen)
+			if((type $ \ast@AstTypeGen).kind = %stack_)
+				do member :: "peekStack"
+				ret true
+			elif((type $ \ast@AstTypeGen).kind = %queue_)
+				do member :: "peekQueue"
+				ret true
+			end if
+		end if
+	case %intFloat
+		if(\ast@isInt(type))
+			switch(member)
+			case "abs"
+				do member :: "absInt"
+			case "clamp"
+				do member :: "clampInt"
+			case "clampMin"
+				do member :: "clampMinInt"
+			case "clampMax"
+				do member :: "clampMaxInt"
+			case "sign"
+				do member :: "signInt"
+			case "toStrFmt"
+				do member :: "toStrFmtInt"
+			default
+				assert false
+			end switch
+			ret true
+		end if
+		if(\ast@isFloat(type))
+			switch(member)
+			case "abs"
+				do member :: "absFloat"
+			case "clamp"
+				do member :: "clampFloat"
+			case "clampMin"
+				do member :: "clampMinFloat"
+			case "clampMax"
+				do member :: "clampMaxFloat"
+			case "sign"
+				do member :: "signFloat"
+			case "toStrFmt"
+				do member :: "toStrFmtFloat"
+			default
+				assert false
+			end switch
+			ret true
+		end if
+	case %arrayOfStr
+		if(type.typeId = %typeArray & \ast@isStr((type $ \ast@AstTypeArray).itemType))
+			ret true
+		end if
+	case %dict_
+		if(type.typeId = %typeDict)
+			ret true
+		end if
+	case %comparableArrayList
+		if(type.typeId = %typeArray)
+			if(\ast@isComparable((type $ \ast@AstTypeArray).itemType, true))
+				switch(member)
+				case "find"
+					do member :: "findArray"
+				case "findLast"
+					do member :: "findLastArray"
+				default
+					assert false
+				end switch
+				ret true
+			end if
+		end if
+		if(type.typeId = %typeGen & (type $ \ast@AstTypeGen).kind = %list_)
+			if(\ast@isComparable((type $ \ast@AstTypeGen).itemType, true))
+				switch(member)
+				case "find"
+					do member :: "findList"
+				case "findLast"
+					do member :: "findLastList"
+				default
+					assert false
+				end switch
+				ret true
+			end if
+		end if
+	case %delListDict
+		if(type.typeId = %typeGen & (type $ \ast@AstTypeGen).kind = %list_)
+			ret true
+		end if
+		if(type.typeId = %typeDict)
+			do member :: "delDict"
+			ret true
+		end if
+	case %float_
+		if(\ast@isFloat(type))
+			ret true
+		end if
+	end switch
+	
+	ret false
+end func

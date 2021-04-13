@@ -1,0 +1,103 @@
+func[d1003.knd, _init]_init()
+end func
+
++class Node()
+	*func[__ndc]ctor()
+	end func
+	
+	+*func cmp(t: kuin@Class): int
+		var t2: @Node :: t $ @Node
+		var a: int :: me._root $ bool ?(0, me._node)
+		var b: int :: t2._root $ bool ?(0, t2._node)
+		ret a - b
+	end func
+	
+	+func[d1003.knd, _xmlNodeAddChild, __mki]addChild(me2: @Node, name: []char): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodeDelChild]delChild(node: @Node)
+	end func
+	
+	+func[d1003.knd, _xmlNodeFindChild, __mki]findChild(me2: @Node, name: []char): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodeFindChildLast, __mki]findChildLast(me2: @Node, name: []char): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodeFindNext, __mki]findNext(me2: @Node, name: []char): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodeFindPrev, __mki]findPrev(me2: @Node, name: []char): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodeFirstChild, __mki]firstChild(me2: @Node): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodeGetAttr]getAttr(attrName: []char): []char
+	end func
+	
+	+func[d1003.knd, _xmlNodeGetName]getName(): []char
+	end func
+	
+	+func[d1003.knd, _xmlNodeGetValue]getValue(): []char
+	end func
+	
+	+func[d1003.knd, _xmlNodeInsChild, __mki]insChild(me2: @Node, node: @Node, name: []char): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodeLastChild, __mki]lastChild(me2: @Node): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodeNext, __mki]next(me2: @Node): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodeParent, __mki]parent(me2: @Node): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodePrev, __mki]prev(me2: @Node): @Node
+	end func
+	
+	+func[d1003.knd, _xmlNodeSetAttr]setAttr(attrName: []char, attrValue: []char)
+	end func
+	
+	+func[d1003.knd, _xmlNodeSetName]setName(name: []char)
+	end func
+	
+	+func[d1003.knd, _xmlNodeSetValue]setValue(value: []char)
+	end func
+	
+	+var _root: int
+	+var _node: int
+end class
+
++class Xml()
+	*func[__ndc]ctor()
+	end func
+	
+	*func[d1003.knd, _xmlDtor, __frc]_dtor()
+	end func
+	
+	+func[d1003.knd, _xmlRoot, __mki]root(me2: @Node): @Node
+	end func
+	
+	+func[d1003.knd, _xmlSave]save(path: []char, compact: bool): bool
+	end func
+	
+	var tree: int
+end class
+
++func makeXml(path: []char): @Xml
+	var f: file@Reader :: file@makeReader(path)
+	if(f =& null)
+		throw 0xE9170007
+	end if
+	var d: []bit8 :: f.read(f.fileSize())
+	do f.fin()
+	ret makeXmlImpl(d)
+	
+	func[d1003.knd, _makeXml, __mki]makeXmlImpl(me2: @Xml, data: []bit8): @Xml
+	end func
+end func
+
++func[d1003.knd, _makeXmlEmpty, __mki]makeXmlEmpty(me2: @Xml): @Xml
+end func

@@ -1,0 +1,12 @@
+func main()
+	for i(99, 2, -1)
+		do cui@print(i.toStr() ~ " bottles of beer on the wall, " ~ i.toStr() ~ " bottles of beer.\n")
+		do cui@print("Take one down, pass it around, " ~ (i - 1).toStr() ~ " bottles of beer on the wall.\n")
+	end for
+	do cui@print("2 bottles of beer on the wall, 2 bottles of beer.\n")
+	do cui@print("Take one down, pass it around, 1 bottle of beer on the wall.\n")
+	do cui@print("1 bottle of beer on the wall, 1 bottle of beer.\n")
+	do cui@print("Take one down, pass it around, no more bottles of beer on the wall.\n")
+	do cui@print("No more bottles of beer on the wall, no more bottles of beer.\n")
+	do cui@print("Go to the store and buy some more, 99 bottles of beer on the wall.\n")
+end func

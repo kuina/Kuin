@@ -1,0 +1,6 @@
+func[d1000.knd, init]_init()
+end func
+
++func init()
+	do @_init()
+end func

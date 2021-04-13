@@ -1,0 +1,245 @@
+var onKeyDown: func<(@Key, @ShiftCtrlAlt, bool)>
+var onKeyUp: func<(@Key)>
+
++enum Key
+	unknown :: 0
+	bs
+	tab
+	enter
+	shift
+	ctrl
+	alt
+	pause
+	esc
+	space
+	pageUp
+	pageDown
+	end_
+	home
+	left
+	up
+	right
+	down
+	ins
+	del
+	f1
+	f2
+	f3
+	f4
+	f5
+	f6
+	f7
+	f8
+	f9
+	f10
+	f11
+	f12
+	exclamation
+	quot
+	number
+	dollar
+	parcent
+	amp
+	apos
+	leftParenthesis
+	rightParenthesis
+	asterisk
+	plus
+	comma
+	minus
+	period
+	slash
+	_0
+	_1
+	_2
+	_3
+	_4
+	_5
+	_6
+	_7
+	_8
+	_9
+	colon
+	semicolon
+	lt
+	equal
+	gt
+	question
+	at
+	a
+	b
+	c
+	d
+	e
+	f
+	g
+	h
+	i
+	j
+	k
+	l
+	m
+	n
+	o
+	p
+	q
+	r
+	s
+	t
+	u
+	v
+	w
+	x
+	y
+	z
+	leftSquareBracket
+	backslash
+	rightSquareBracket
+	circumflex
+	underscore
+	grave
+	leftCurlyBracket
+	verticalBar
+	rightCurlyBracket
+	tilde
+end enum
+
++enum ShiftCtrlAlt
+	none
+	shift :: 0x01
+	ctrl :: 0x02
+	alt :: 0x04
+end enum
+
+func _init()
+	do setEvents(keyDown, keyUp)
+
+	func setEvents(onKeyDown: func<(@Key, @ShiftCtrlAlt, bool)>, onKeyUp: func<(@Key)>)
+		excode "D_.addEventListener(\"keydown\",function(e_){`0`(Uint32Array.from([0,c_(e_.key)]),Uint32Array.from([0,(e_.shiftKey?1:0)|(e_.ctrlKey?2:0)|(e_.altKey?4:0)]),!e_.repeat);});\n"
+		excode "D_.addEventListener(\"keyup\",function(e_){`1`(Uint32Array.from([0,c_(e_.key)]));});\n"
+		excode "function c_(k_){\n"
+		excode "switch(k_){\n"
+		excode "case \"Backspace\":return 1;\n"
+		excode "case \"Tab\":return 2;\n"
+		excode "case \"Enter\":return 3;\n"
+		excode "case \"Shift\":return 4;\n"
+		excode "case \"Control\":return 5;\n"
+		excode "case \"Alt\":return 6;\n"
+		excode "case \"Pause\":return 7;\n"
+		excode "case \"Escape\":return 8;\n"
+		excode "case \" \":return 9;\n"
+		excode "case \"PageUp\":return 10;\n"
+		excode "case \"PageDown\":return 11;\n"
+		excode "case \"End\":return 12;\n"
+		excode "case \"Home\":return 13;\n"
+		excode "case \"ArrowLeft\":return 14;\n"
+		excode "case \"ArrowUp\":return 15;\n"
+		excode "case \"ArrowRight\":return 16;\n"
+		excode "case \"ArrowDown\":return 17;\n"
+		excode "case \"Insert\":return 18;\n"
+		excode "case \"Delete\":return 19;\n"
+		excode "case \"F1\":return 20;\n"
+		excode "case \"F2\":return 21;\n"
+		excode "case \"F3\":return 22;\n"
+		excode "case \"F4\":return 23;\n"
+		excode "case \"F5\":return 24;\n"
+		excode "case \"F6\":return 25;\n"
+		excode "case \"F7\":return 26;\n"
+		excode "case \"F8\":return 27;\n"
+		excode "case \"F9\":return 28;\n"
+		excode "case \"F10\":return 29;\n"
+		excode "case \"F11\":return 30;\n"
+		excode "case \"F12\":return 31;\n"
+		excode "case \"!\":return 32;\n"
+		excode "case \"\\\"\":return 33;\n"
+		excode "case \"#\":return 34;\n"
+		excode "case \"$\":return 35;\n"
+		excode "case \"%\":return 36;\n"
+		excode "case \"&\":return 37;\n"
+		excode "case \"'\":return 38;\n"
+		excode "case \"(\":return 39;\n"
+		excode "case \")\":return 40;\n"
+		excode "case \"*\":return 41;\n"
+		excode "case \"+\":return 42;\n"
+		excode "case \",\":return 43;\n"
+		excode "case \"-\":return 44;\n"
+		excode "case \".\":return 45;\n"
+		excode "case \"/\":return 46;\n"
+		excode "case \"0\":return 47;\n"
+		excode "case \"1\":return 48;\n"
+		excode "case \"2\":return 49;\n"
+		excode "case \"3\":return 50;\n"
+		excode "case \"4\":return 51;\n"
+		excode "case \"5\":return 52;\n"
+		excode "case \"6\":return 53;\n"
+		excode "case \"7\":return 54;\n"
+		excode "case \"8\":return 55;\n"
+		excode "case \"9\":return 56;\n"
+		excode "case \":\":return 57;\n"
+		excode "case \";\":return 58;\n"
+		excode "case \"<\":return 59;\n"
+		excode "case \"=\":return 60;\n"
+		excode "case \">\":return 61;\n"
+		excode "case \"?\":return 62;\n"
+		excode "case \"@\":return 63;\n"
+		excode "case \"a\":case \"A\":return 64;\n"
+		excode "case \"b\":case \"B\":return 65;\n"
+		excode "case \"c\":case \"C\":return 66;\n"
+		excode "case \"d\":case \"D\":return 67;\n"
+		excode "case \"e\":case \"E\":return 68;\n"
+		excode "case \"f\":case \"F\":return 69;\n"
+		excode "case \"g\":case \"G\":return 70;\n"
+		excode "case \"h\":case \"H\":return 71;\n"
+		excode "case \"i\":case \"I\":return 72;\n"
+		excode "case \"j\":case \"J\":return 73;\n"
+		excode "case \"k\":case \"K\":return 74;\n"
+		excode "case \"l\":case \"L\":return 75;\n"
+		excode "case \"m\":case \"M\":return 76;\n"
+		excode "case \"n\":case \"N\":return 77;\n"
+		excode "case \"o\":case \"O\":return 78;\n"
+		excode "case \"p\":case \"P\":return 79;\n"
+		excode "case \"q\":case \"Q\":return 80;\n"
+		excode "case \"r\":case \"R\":return 81;\n"
+		excode "case \"s\":case \"S\":return 82;\n"
+		excode "case \"t\":case \"T\":return 83;\n"
+		excode "case \"u\":case \"U\":return 84;\n"
+		excode "case \"v\":case \"V\":return 85;\n"
+		excode "case \"w\":case \"W\":return 86;\n"
+		excode "case \"x\":case \"X\":return 87;\n"
+		excode "case \"y\":case \"Y\":return 88;\n"
+		excode "case \"z\":case \"Z\":return 89;\n"
+		excode "case \"[\":return 90;\n"
+		excode "case \"\\\\\":return 91;\n"
+		excode "case \"]\":return 92;\n"
+		excode "case \"^\":return 93;\n"
+		excode "case \"_\":return 94;\n"
+		excode "case \"``\":return 95;\n"
+		excode "case \"{\":return 96;\n"
+		excode "case \"|\":return 97;\n"
+		excode "case \"}\":return 98;\n"
+		excode "case \"~\":return 99;\n"
+		excode "default:return 0;\n"
+		excode "}\n"
+		excode "}\n"
+	end func
+
+	func keyDown(key: @Key, shiftCtrlAlt: @ShiftCtrlAlt, first: bool)
+		if(@onKeyDown <>& null)
+			do @onKeyDown(key, shiftCtrlAlt, first)
+		end if
+	end func
+
+	func keyUp(key: @Key)
+		if(@onKeyUp <>& null)
+			do @onKeyUp(key)
+		end if
+	end func
+end func
+
++func setOnKeyDown(event: func<(@Key, @ShiftCtrlAlt, bool)>)
+	do @onKeyDown :: event
+end func
+
++func setOnKeyUp(event: func<(@Key)>)
+	do @onKeyUp :: event
+end func

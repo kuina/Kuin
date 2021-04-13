@@ -12,27 +12,29 @@ var errList: dict<@Pos, []char>
 	+var src: []char
 	+var row: int
 	+var col: int
-
-	+*func cmp(t: @Pos): int
-		var result: int :: lib@cmp(me.src, t.src)
+	
+	+*func cmp(t: kuin@Class): int
+		var t2: @Pos :: t $ @Pos
+		var result: int :: lib@cmp(me.src, t2.src)
 		if(result <> 0)
 			ret result
 		end if
-		do result :: me.row - t.row
+		do result :: me.row - t2.row
 		if(result <> 0)
 			ret result
 		end if
-		ret me.col - t.col
+		ret me.col - t2.col
 	end func
 end class
 
 +func init()
-	do @sysDir :: file@exeDir() ~ "sys/"
+	do @sysDir :: wnd@exeDir() ~ "sys/"
 	do @runningFiles :: #list<[]char>
 	do @breakPos :: null
 end func
 
 +func fin()
+	do \dll@waitEndOfInterpret2()
 	do @clearDocs()
 end func
 
@@ -42,6 +44,7 @@ func updateMainSrcDir(dir: []char)
 end func
 
 +func newMainSrc()
+	do \dll@waitEndOfInterpret2()
 	var doc: \doc_src@DocSrc :: #\doc_src@DocSrc
 	do @curDoc :: doc
 	do @mainSrcPath :: \common@defaultDir ~ "main.kn"
@@ -51,13 +54,13 @@ end func
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add("\\main", @curDoc)
 	do @initMainSrc()
-	do @curDoc.fix()
+	do @curDoc.fix(true)
 	do \form@updateUi()
 end func
 
 +func openMainSrc(path: []char)
 	var doc: \doc_src@DocSrc :: #\doc_src@DocSrc
-	if(!doc.load(path))
+	if(!doc.load(path, false))
 		var msg: []char
 		if(\common@langEn)
 			do msg :: "Loading failed. " ~ path
@@ -67,6 +70,7 @@ end func
 		do wnd@msgBox(\form@wndMain, msg, \common@title, %err, %ok)
 		ret
 	end if
+	do \dll@waitEndOfInterpret2()
 	do @curDoc :: doc
 	do @mainSrcPath :: path
 	do @updateMainSrcDir(file@dir(path))
@@ -74,9 +78,10 @@ end func
 	do @clearDocs()
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add("\\" ~ file@delExt(file@fileName(path)), @curDoc)
+	do \form@iconPath :: ""
 	do \prop@load()
 	do @initMainSrc()
-	do @curDoc.fix()
+	do @curDoc.fix(true)
 	do \form@updateUi()
 end func
 
@@ -84,7 +89,7 @@ func initMainSrc()
 	do \completion@close()
 	do @resetErrList()
 	do \form@updateUi()
-	do \form@paintDrawEditor()
+	do \form@paintDrawEditor(false)
 	do \form@focusDrawEditor()
 end func
 
@@ -100,8 +105,9 @@ end func
 	do @docs.forEach(saveAllCallback, saveAllSuccess)
 	do \form@updateFile()
 	ret saveAllSuccess.value
-
-	func saveAllCallback(src: []char, doc: \doc@Doc, saveAllSuccess: lib@Bool): bool
+	
+	func saveAllCallback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
+		var saveAllSuccess: lib@Bool :: data $ lib@Bool
 		if(doc.getChanged() & src[0] = '\\')
 			var path: []char :: @mainSrcDir ~ src.sub(1, -1).replace("\\", "/") ~ @getExt(doc)
 			if(!file@exist(file@dir(path)))
@@ -122,7 +128,7 @@ end func
 		end if
 		ret true
 	end func
-
+	
 	func saveMainSrc(): bool
 		var file: []char :: wnd@saveFileDialog(\form@wndMain, [\common@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0, "kn")
 		if(file =& null)
@@ -134,13 +140,13 @@ end func
 			ret false
 		end if
 		var newDocs: dict<[]char, \doc@Doc> :: #dict<[]char, \doc@Doc>
-
+		
 		class DocsClass()
 			+var docs: dict<[]char, \doc@Doc>
 			+var oldMainSrcName: []char
 			+var newMainSrcName: []char
 		end class
-
+		
 		var data: DocsClass :: #DocsClass
 		do data.docs :: newDocs
 		do data.oldMainSrcName :: "\\" ~ file@delExt(file@fileName(@mainSrcPath))
@@ -152,27 +158,31 @@ end func
 		do @docs :: newDocs
 		do \recent@save(file)
 		ret true
-
-		func callback(src: []char, doc: \doc@Doc, data: DocsClass): bool
+		
+		func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
+			var data2: DocsClass :: data $ DocsClass
 			if(src[0] <> '\\')
 				ret true
 			end if
-			if(src = data.oldMainSrcName)
-				do src :: data.newMainSrcName
+			if(src = data2.oldMainSrcName)
+				do src :: data2.newMainSrcName
 			end if
 			do doc.setChanged(true)
-			do data.docs.add(src, doc)
+			do data2.docs.add(src, doc)
 			ret true
 		end func
 	end func
 end func
 
 +func setCurSrc(doc: \doc@Doc)
+	if(@curDoc =& doc)
+		ret
+	end if
 	do \completion@close()
 	do @curDoc :: doc
 	do @curDocName :: @getDocName(doc)
-	do @curDoc.fix()
-	do \form@paintDrawEditor()
+	do @curDoc.fix(false)
+	do \form@paintDrawEditor(false)
 	do \form@focusDrawEditor()
 	do \form@updateUi()
 end func
@@ -186,10 +196,11 @@ end func
 	do doc.mainSrcName :: "\\" ~ file@delExt(file@fileName(@mainSrcPath))
 	do @docs.forEach(callback, doc)
 	ret doc.value
-
-	func callback(src: []char, doc: \doc@Doc, data: RefDoc): bool
-		if(src = data.mainSrcName)
-			do data.value :: doc
+	
+	func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
+		var data2: RefDoc :: data $ RefDoc
+		if(src = data2.mainSrcName)
+			do data2.value :: doc
 			ret false
 		end if
 		ret true
@@ -216,8 +227,9 @@ end func
 		ret true
 	end if
 	ret @save(false)
-
-	func callback(src: []char, doc: \doc@Doc, chkCloseChanged: lib@Bool): bool
+	
+	func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
+		var chkCloseChanged: lib@Bool :: data $ lib@Bool
 		if(src[0] = '\\' & doc.getChanged())
 			do chkCloseChanged.value :: true
 			ret false
@@ -240,7 +252,7 @@ end func
 	if(doc <>& null)
 		ret doc.getSrc()
 	end if
-
+	
 	do doc :: @loadFileToDocs(##path)
 	if(doc <>& null)
 		ret doc.getSrc()
@@ -252,23 +264,23 @@ end func
 	do path :: file@fullPath(path)
 	var doc: \doc@Doc
 	switch(file@ext(path).lower())
-	case "kn", "knp"
+	case "kn"
 		do doc :: #\doc_src@DocSrc
 	case "kngen"
-		do doc ::  #\doc_gen@DocGen
+		do doc :: #\doc_gen@DocGen
 	default
 		ret null
 	end switch
 	var name: []char
 	if(^@sysDir <= ^path & @sysDir = path.sub(0, ^@sysDir))
-		if(!doc.load(path))
+		if(!doc.load(path, true))
 			ret null
 		end if
 		do name :: file@delExt(path.sub(^@sysDir, -1)).replace("/", "\\")
 	elif(@mainSrcDir = \common@defaultDir | !(^@mainSrcDir <= ^path & @mainSrcDir = path.sub(0, ^@mainSrcDir)))
 		ret null
 	else
-		if(!doc.load(path))
+		if(!doc.load(path, false))
 			ret null
 		end if
 		do name :: "\\" ~ file@delExt(path.sub(^@mainSrcDir, -1)).replace("/", "\\")
@@ -304,8 +316,8 @@ end func
 			do \form@listFile.setSel(sel)
 			do \form@listFileOnSel(\form@listFile)
 		end if
-		do (@curDoc $ \doc_src@DocSrc).move(pos.col - 1, pos.row - 1)
-		do \form@paintDrawEditor()
+		do(@curDoc $ \doc_src@DocSrc).move(pos.col - 1, pos.row - 1)
+		do \form@paintDrawEditor(false)
 		do \form@focusDrawEditor()
 		ret true
 	end if
@@ -334,14 +346,15 @@ end func
 		+var src: []char
 		+var doc2: \doc@Doc
 	end class
-
+	
 	var getSrcClass: GetDocNameClass :: #GetDocNameClass
 	do getSrcClass.src :: null
 	do getSrcClass.doc2 :: doc
 	do @docs.forEach(callback, getSrcClass)
 	ret getSrcClass.src
-
-	func callback(src: []char, doc: \doc@Doc, param: GetDocNameClass): bool
+	
+	func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
+		var param: GetDocNameClass :: data $ GetDocNameClass
 		if(doc =& param.doc2)
 			do param.src :: src
 			ret false
@@ -353,7 +366,7 @@ end func
 +func delRunningFiles()
 	do @runningFiles.head()
 	while loop(!@runningFiles.term())
-		var dir: []char :: file@sysDir(%appData) ~ "Kuin/" ~ @runningFiles.get() ~ "/"
+		var dir: []char :: wnd@sysDir(%appData) ~ "Kuin/" ~ @runningFiles.get() ~ "/"
 		try
 			if(file@delDir(dir))
 				do @runningFiles.del()
@@ -374,7 +387,7 @@ end func
 +func resetErrList()
 	do @errList :: #dict<@Pos, []char>
 	if(@curDoc =$ \doc_src@DocSrc)
-		do (@curDoc $ \doc_src@DocSrc).resetListInfoItem()
+		do(@curDoc $ \doc_src@DocSrc).resetListInfoItem()
 	end if
 end func
 
@@ -382,14 +395,15 @@ end func
 	if(@curDoc =$ \doc_src@DocSrc)
 		do @errList.forEach(callback, @curDoc $ \doc_src@DocSrc)
 	end if
-	do \form@paintDrawEditor()
-
-	func callback(pos: @Pos, msg: []char, doc_src: \doc_src@DocSrc): bool
+	do \form@paintDrawEditor(false)
+	
+	func callback(pos: @Pos, msg: []char, data: kuin@Class): bool
+		var doc_src: \doc_src@DocSrc :: data $ \doc_src@DocSrc
 		var listInfoItem: \doc_src@ErrListItem :: #\doc_src@ErrListItem
 		do listInfoItem.text :: msg
 		do listInfoItem.pos :: pos
 		do doc_src.addListInfoItem(listInfoItem)
-
+		
 		; Fill in words with the error color.
 		if(pos.src =& null)
 			ret true
@@ -408,7 +422,7 @@ end func
 			end if
 		end if
 		ret true
-
+		
 		func moveWordTop(src: [][]char, srcColor: [][]bit8, x: &int, y: &int, color: &bit8): bool
 			if(y < 0)
 				do y :: 0
@@ -442,7 +456,7 @@ end func
 	if(!@errList.exist(pos))
 		do @errList.add(pos, errStr(code, msg, src, row, col))
 	end if
-
+	
 	func errStr(code: []char, msg: []char, src: []char, row: int, col: int): []char
 		ret "[" ~ \common@nullStr(src) ~ ": " ~ row.toStr() ~ ", " ~ col.toStr() ~ "] " ~ \common@nullStr(code) ~ ": " ~ \common@nullStr(msg)
 	end func
@@ -453,7 +467,7 @@ func clearDocs()
 		ret
 	end if
 	do @docs.forEach(callback, null)
-
+	
 	func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
 		do doc.fin()
 		ret true

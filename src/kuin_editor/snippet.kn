@@ -44,7 +44,7 @@ end class
 	do btnDel.onPush :: btnDelOnPush
 	var btnOk: wnd@Btn :: wnd@makeBtn(@wndSnippet, 528, 370, 100, 23, %fix, %fix, "OK")
 	do btnOk.onPush :: btnOkOnPush
-
+	
 	do @wndSnippet.modal()
 	do @wndSnippet :: null
 	do @wndSnippetListSnippets :: null
@@ -52,7 +52,7 @@ end class
 	do @wndSnippetEditCode :: null
 	do @save()
 	do \form@updateUi()
-
+	
 	func listSnippetsOnSel(wnd: wnd@WndBase)
 		var snippet: @Snippet :: @findSelSnippet()
 		if(snippet =& null)
@@ -63,7 +63,7 @@ end class
 			do @wndSnippetEditCode.setText(snippet.code)
 		end if
 	end func
-
+	
 	func listSnippetsOnMoveNode(wnd: wnd@WndBase)
 		var newSnippets: list<@Snippet> :: #list<@Snippet>
 		do @snippets.head()
@@ -88,7 +88,7 @@ end class
 		end for
 		do @snippets :: newSnippets
 	end func
-
+	
 	func editNameOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
 			var snippet: @Snippet :: @findSelSnippet()
@@ -103,7 +103,7 @@ end class
 			do @wndSnippetEditName.setText(snippet.name)
 		end if
 	end func
-
+	
 	func editCodeOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
 			var snippet: @Snippet :: @findSelSnippet()
@@ -113,7 +113,7 @@ end class
 			do snippet.code :: @wndSnippetEditCode.getText()
 		end if
 	end func
-
+	
 	func btnAddOnPush(wnd: wnd@WndBase)
 		var unique: int :: 1
 		while(true)
@@ -141,7 +141,7 @@ end class
 			do unique :+ 1
 		end while
 	end func
-
+	
 	func btnDelOnPush(wnd: wnd@WndBase)
 		var sel: int :: @wndSnippetListSnippets.getSel()
 		if(sel = -1)
@@ -162,7 +162,7 @@ end class
 		end while
 		do @wndSnippetListSnippets.del(sel)
 	end func
-
+	
 	func btnOkOnPush(wnd: wnd@WndBase)
 		do @wndSnippet.close()
 	end func
@@ -186,7 +186,7 @@ end func
 		ret null
 	end if
 	do @wndPlaceSnippetCode :: snippet.code
-
+	
 	do @wndPlace :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 600, 400, \common@langEn ?("Place Snippet \"\{snippet.name}\"", "スニペット「\{snippet.name}」の配置"))
 	var labelCode: wnd@Label :: wnd@makeLabel(@wndPlace, 12, 12, 276, 12, %fix, %fix, \common@langEn ?("The following code will be placed.", "以下のコードが配置されます。"))
 	var editCode: wnd@EditMulti :: wnd@makeEditMulti(@wndPlace, 12, 30, 326, 329, %fix, %fix)
@@ -199,7 +199,7 @@ end func
 	var btnCancel: wnd@Btn :: wnd@makeBtn(@wndPlace, 488, 365, 100, 23, %fix, %fix, \common@langEn ?("Cancel", "キャンセル"))
 	do btnCancel.onPush :: btnCancelOnPush
 	do @wndPlaceResult :: null
-
+	
 	do @wndPlaceVariables :: #dict<[]char, wnd@Edit>
 	if(@regexVariableSearch =& null)
 		do @regexVariableSearch :: regex@makeRegex("\\{\\{(.+?)\\}\\}")
@@ -218,27 +218,28 @@ end func
 			end if
 		end for
 	end if
-
+	
 	do @wndPlace.modal()
 	do @wndPlace :: null
 	do @wndPlaceSnippetCode :: null
 	do @wndPlaceVariables :: null
-
+	
 	ret @wndPlaceResult
-
+	
 	func btnPlaceOnPush(wnd: wnd@WndBase)
 		var data: lib@Str :: #lib@Str
 		do data.value :: @wndPlaceSnippetCode
 		do @wndPlaceVariables.forEach(callback, data)
 		do @wndPlaceResult :: data.value
 		do @wndPlace.close()
-
-		func callback(key: []char, value: wnd@Edit, data: lib@Str): bool
-			do data.value :: data.value.replace("{{\{key}}}", value.getText().trim())
+		
+		func callback(key: []char, value: wnd@Edit, data: kuin@Class): bool
+			var data2: lib@Str :: data $ lib@Str
+			do data2.value :: data2.value.replace("{{\{key}}}", value.getText().trim())
 			ret true
 		end func
 	end func
-
+	
 	func btnCancelOnPush(wnd: wnd@WndBase)
 		do @wndPlace.close()
 	end func
@@ -246,9 +247,9 @@ end func
 
 +func load()
 	do @snippets :: #list<@Snippet>
-	do loadXml(file@exeDir() ~  "sys/snippet.knd", false)
-	do loadXml(file@exeDir() ~  "sys/snippet_user.knd", true)
-
+	do loadXml(wnd@exeDir() ~ "sys/snippet.knd", false)
+	do loadXml(wnd@exeDir() ~ "sys/snippet_user.knd", true)
+	
 	func loadXml(path: []char, removable: bool)
 		try
 			var prop: xml@Xml :: xml@makeXml(path)
@@ -278,9 +279,9 @@ end func
 end func
 
 func save()
-	do saveXml(file@exeDir() ~  "sys/snippet.knd", false)
-	do saveXml(file@exeDir() ~  "sys/snippet_user.knd", true)
-
+	do saveXml(wnd@exeDir() ~ "sys/snippet.knd", false)
+	do saveXml(wnd@exeDir() ~ "sys/snippet_user.knd", true)
+	
 	func saveXml(path: []char, removable: bool)
 		do file@delFile(path)
 		var prop: xml@Xml :: xml@makeXmlEmpty()
@@ -304,7 +305,7 @@ end func
 	if(code =& null)
 		ret
 	end if
-
+	
 	var name: []char :: wndex@inputBox(\form@wndMain, \common@langEn ?("Input the snippet name.", "スニペットの名前を入力してください。"), \common@title, null, @validate)
 	if(name <>& null)
 		do name :: name.trim()
@@ -331,7 +332,7 @@ end func
 
 func findSelSnippet(): @Snippet
 	var sel: int :: @wndSnippetListSnippets.getSel()
-	if (sel = -1)
+	if(sel = -1)
 		ret null
 	end if
 	var name: []char :: @wndSnippetListSnippets.getText(&, sel, 0)

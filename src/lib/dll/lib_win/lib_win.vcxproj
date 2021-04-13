@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_dbg|x64">
+      <Configuration>Release_dbg</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_rls|x64">
+      <Configuration>Release_rls</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <ProjectGuid>{36364803-1FE7-40BD-A8BA-8582EE13CF1C}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>lib_win</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_rls|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_dbg|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release_rls|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release_dbg|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)output\$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_rls|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)output\$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_dbg|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)output\$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>DBG;_DEBUG;_WINDOWS;_USRDLL;LIBCOMMON_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+    </Link>
+    <CustomBuild>
+      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp /Zi /Zd %(FullPath)</Command>
+      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
+    </CustomBuild>
+    <PostBuildEvent>
+      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)..\..\..\build\libs\$(Configuration)\d0001.knd</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_rls|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;LIBCOMMON_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <DebugInformationFormat>None</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+    </Link>
+    <CustomBuild>
+      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp %(FullPath)</Command>
+      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
+    </CustomBuild>
+    <PostBuildEvent>
+      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)..\..\..\build\libs\$(Configuration)\d0001.knd</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_dbg|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>DBG;NDEBUG;_WINDOWS;_USRDLL;LIBCOMMON_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <DebugInformationFormat>None</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+    </Link>
+    <CustomBuild>
+      <Command>ml64 /Fo $(Platform)\$(Configuration)\%(Filename).obj /c /Cp %(FullPath)</Command>
+      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj</Outputs>
+    </CustomBuild>
+    <PostBuildEvent>
+      <Command>echo F | xcopy /y /r $(TargetPath) $(SolutionDir)..\..\..\build\libs\$(Configuration)\d0001.knd</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\common.c" />
+    <ClCompile Include="bc_decoder.cpp" />
+    <ClCompile Include="bins\box_knobj.c" />
+    <ClCompile Include="bins\circle_line_ps_bin.cpp" />
+    <ClCompile Include="bins\circle_ps_bin.cpp" />
+    <ClCompile Include="bins\circle_vs_bin.cpp" />
+    <ClCompile Include="bins\filter_monotone_ps_bin.cpp" />
+    <ClCompile Include="bins\filter_none_ps_bin.cpp" />
+    <ClCompile Include="bins\filter_vs_bin.cpp" />
+    <ClCompile Include="bins\font_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_fast_joint_sm_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_fast_joint_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_fast_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_fast_sm_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_fast_sm_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_fast_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_flat_fast_joint_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_flat_fast_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_flat_joint_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_flat_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_flat_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_joint_sm_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_joint_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_outline_joint_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_outline_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_outline_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_shadow_joint_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_shadow_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_sm_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_sm_vs_bin.cpp" />
+    <ClCompile Include="bins\obj_toon_fast_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_toon_fast_sm_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_toon_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_toon_sm_ps_bin.cpp" />
+    <ClCompile Include="bins\obj_vs_bin.cpp" />
+    <ClCompile Include="bins\particle_2d_ps_bin.cpp" />
+    <ClCompile Include="bins\particle_2d_vs_bin.cpp" />
+    <ClCompile Include="bins\particle_updating_ps_bin.cpp" />
+    <ClCompile Include="bins\particle_updating_vs_bin.cpp" />
+    <ClCompile Include="bins\plane_knobj.c" />
+    <ClCompile Include="bins\rect_vs_bin.cpp" />
+    <ClCompile Include="bins\sphere_knobj.c" />
+    <ClCompile Include="bins\tex_ps_bin.cpp" />
+    <ClCompile Include="bins\tex_rot_vs_bin.cpp" />
+    <ClCompile Include="bins\tex_vs_bin.cpp" />
+    <ClCompile Include="bins\toon_ramp_png.c" />
+    <ClCompile Include="bins\tri_ps_bin.cpp" />
+    <ClCompile Include="bins\tri_vs_bin.cpp" />
+    <ClCompile Include="draw_common.cpp" />
+    <ClCompile Include="draw_ctrl.cpp" />
+    <ClCompile Include="draw_device.cpp" />
+    <ClCompile Include="draw_font.cpp" />
+    <ClCompile Include="draw_obj.cpp" />
+    <ClCompile Include="draw_particle.cpp" />
+    <ClCompile Include="draw_primitive.cpp" />
+    <ClCompile Include="draw_shadow.cpp" />
+    <ClCompile Include="draw_tex.cpp" />
+    <ClCompile Include="input.cpp" />
+    <ClCompile Include="jpg_decoder.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="png_decoder.cpp" />
+    <ClCompile Include="snd.cpp" />
+    <ClCompile Include="wav_decoder.cpp" />
+    <ClCompile Include="wnd_common.cpp" />
+    <ClCompile Include="wnd_ctrl.cpp" />
+    <ClCompile Include="wnd_wnd.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\common.h" />
+    <ClInclude Include="bc_decoder.h" />
+    <ClInclude Include="draw_common.h" />
+    <ClInclude Include="draw_ctrl.h" />
+    <ClInclude Include="draw_device.h" />
+    <ClInclude Include="draw_font.h" />
+    <ClInclude Include="draw_obj.h" />
+    <ClInclude Include="draw_particle.h" />
+    <ClInclude Include="draw_primitive.h" />
+    <ClInclude Include="draw_shadow.h" />
+    <ClInclude Include="draw_tex.h" />
+    <ClInclude Include="input.h" />
+    <ClInclude Include="jpg_decoder.h" />
+    <ClInclude Include="main.h" />
+    <ClInclude Include="png_decoder.h" />
+    <ClInclude Include="snd.h" />
+    <ClInclude Include="wav_decoder.h" />
+    <ClInclude Include="wnd_common.h" />
+    <ClInclude Include="wnd_ctrl.h" />
+    <ClInclude Include="wnd_wnd.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\low_level.asm">
+      <FileType>Document</FileType>
+    </CustomBuild>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

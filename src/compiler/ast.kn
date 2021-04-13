@@ -1,0 +1,551 @@
++enum TypeId
+	none :: 0x00
+	root :: 0x01
+	func_ :: 0x0100
+	var_ :: 0x02
+	const_ :: 0x03
+	alias_ :: 0x04
+	class_ :: 0x05
+	enum_ :: 0x06
+	arg :: 0x07
+	stat :: 0x0200
+	statBreakable :: 0x00010200
+	statSkipable :: 0x01010200
+	statEnd :: 0x0201
+	statFunc :: 0x0202
+	statVar :: 0x0203
+	statConst :: 0x0204
+	statAlias :: 0x0205
+	statClass :: 0x0206
+	statEnum :: 0x0207
+	statIf :: 0x00010201
+	statElIf :: 0x0208
+	statElse :: 0x0209
+	statSwitch :: 0x00010202
+	statCase :: 0x020A
+	statDefault :: 0x020B
+	statWhile :: 0x01010201
+	statFor :: 0x01010202
+	statTry :: 0x00010203
+	statCatch :: 0x020C
+	statFinally :: 0x020D
+	statThrow :: 0x020E
+	statBlock :: 0x00010204
+	statRet :: 0x020F
+	statDo :: 0x0210
+	statBreak :: 0x0211
+	statSkip :: 0x0212
+	statAssert :: 0x0213
+	statExcode :: 0x0214
+	type :: 0x0400
+	typeNullable :: 0x00010400
+	typeArray :: 0x00010401
+	typeBit :: 0x0401
+	typeFunc :: 0x00010402
+	typeGen :: 0x00010403
+	typeDict :: 0x00010404
+	typePrim :: 0x0402
+	typeUser :: 0x00010405
+	typeNull :: 0x0403
+	typeEnumElement :: 0x0404
+	expr :: 0x0800
+	expr1 :: 0x0801
+	expr2 :: 0x0802
+	expr3 :: 0x0803
+	exprNew :: 0x0804
+	exprNewArray :: 0x0805
+	exprAs :: 0x0806
+	exprToBin :: 0x0807
+	exprFromBin :: 0x0808
+	exprCall :: 0x0809
+	exprArray :: 0x080A
+	exprDot :: 0x080B
+	exprValue :: 0x00010800
+	exprValuePrim :: 0x00010801
+	exprValueStr :: 0x00010802
+	exprValueEnumElement :: 0x00010803
+	exprValueFloat :: 0x00010804
+	exprValueArray :: 0x080C
+	exprRef :: 0x080E
+	info :: 0x10000000
+end enum
+
++class HasType()
+	+var typeId: @TypeId
+end class
+
++class Ast(@HasType)
+	+*func cmp(t: kuin@Class): int
+		var meAddr: bit64 :: lib@addr(me)
+		var tAddr: bit64 :: lib@addr(t $ @Ast)
+		ret meAddr > tAddr ?(1, meAddr < tAddr ?(-1, 0))
+	end func
+	
+	+var pos: \pos@Pos
+	+var name: []char
+	+var scopeParent: @Ast
+	+var scopeChildren: dict<[]char, @Ast>
+	+var refName: []char
+	+var refItem: @Ast
+	+var extra: @HasType {'AnalyzedCache' etc.}
+	+var publicInSrc: bool
+end class
+
++class ScopeRefedItem()
+	+var def: @Ast
+	+var scope: @Ast
+end class
+
++class AstRoot(@Ast)
+	+var items: list<@Ast>
+	+var scopeRefedItems: list<@ScopeRefedItem>
+end class
+
++enum AstFuncOption
+	none :: 0x00
+	any :: 0x01 {Ignore type checking of 'me' and the add the type of it to the second argument.}
+	tme :: 0x02 {The function receives a value of the same type as 'me' in the third argument.}
+	rme :: 0x04 {The function returns a value of the same type as 'me'.}
+	tch :: 0x08 {The function receives a value of the type of elements of 'me' in the third argument.}
+	rch :: 0x10 {The function returns a value of the type of elements of 'me'.}
+	tkv :: 0x20 {The function receives a value of the type of 'key' in the third argument and a value of the type of 'value' in the fourth.}
+	rac :: 0x40 {The function returns an array of the type of list elements of 'me'.}
+	frc :: 0x0080 {Force to define a method that cannot be overridden.}
+	kvf :: 0x0100 {The function receives a callback function that receives key-value pairs.}
+	mki :: 0x0200 {Make an instance automatically.}
+	ndc :: 0x0400 {Instance of the class should not be created directly.}
+	ext :: 0x100000000 {'exe': 'exit'.}
+	rwi :: 0x200000000 {'cpp', 'web': 'raw identifier'.}
+end enum
+
++class AstFunc(@Ast)
+	+var funcOption: @AstFuncOption
+	+var funcAttr: list<[]char>
+	+var args: list<@AstArg>
+	+var ret_: @AstType
+	+var stats: list<@AstStat>
+end class
+
++class AstVar(@Ast)
+	+var arg: @AstArg
+end class
+
++class AstConst(@Ast)
+	+var arg: @AstArg
+end class
+
++class AstAlias(@Ast)
+	+var type: @AstType
+end class
+
++class AstClassItem()
+	+var public: bool
+	+var override: bool
+	+var def: @Ast
+	+var parentItem: @AstClassItem
+	+var extra: kuin@Class
+end class
+
++class AstClass(@Ast)
+	+var items: list<@AstClassItem>
+end class
+
++class AstEnum(@Ast)
+	+var items: list<@AstExpr>
+end class
+
++enum AstArgKind
+	unknown
+	global
+	localArg
+	localVar
+	const_
+	member
+end enum
+
++class AstArg(@Ast)
+	+var kind: @AstArgKind
+	+var refVar: bool
+	+var type: @AstType
+	+var expr: @AstExpr
+end class
+
++class AstStat(@Ast)
+end class
+
++class AstStatBreakable(@AstStat)
+	+var blockVar: @AstArg
+end class
+
++class AstStatSkipable(@AstStatBreakable)
+end class
+
++class AstStatFunc(@AstStat)
+	+var def: @AstFunc
+end class
+
++class AstStatVar(@AstStat)
+	+var def: @AstVar
+end class
+
++class AstStatConst(@AstStat)
+	+var def: @AstConst
+end class
+
++class AstStatAlias(@AstStat)
+	+var def: @AstAlias
+end class
+
++class AstStatClass(@AstStat)
+	+var def: @AstClass
+end class
+
++class AstStatEnum(@AstStat)
+	+var def: @AstEnum
+end class
+
++class AstStatIf(@AstStatBreakable)
+	+var cond: @AstExpr
+	+var statBlock: @AstStatBlock
+	+var elIfs: list<@AstStatElIf>
+	+var elseStatBlock: @AstStatBlock
+end class
+
++class AstStatElIf(@AstStat)
+	+var cond: @AstExpr
+	+var statBlock: @AstStatBlock
+end class
+
++class AstStatSwitch(@AstStatBreakable)
+	+var cond: @AstExpr
+	+var cases: list<@AstStatCase>
+	+var defaultStatBlock: @AstStatBlock
+end class
+
++class AstExprPair()
+	+var expr0: @AstExpr
+	+var expr1: @AstExpr
+end class
+
++class AstStatCase(@AstStat)
+	+var conds: list<@AstExprPair>
+	+var statBlock: @AstStatBlock
+end class
+
++class AstStatWhile(@AstStatSkipable)
+	+var cond: @AstExpr
+	+var skip_: bool
+	+var stats: list<@AstStat>
+end class
+
++class AstStatFor(@AstStatSkipable)
+	+var start: @AstExpr
+	+var cond: @AstExpr
+	+var step: @AstExpr
+	+var stats: list<@AstStat>
+end class
+
++class AstStatTry(@AstStatBreakable)
+	+var statBlock: @AstStatBlock
+	+var catches: list<@AstStatCatch>
+	+var finallyStatBlock: @AstStatBlock
+end class
+
++class AstStatCatch(@AstStat)
+	+var conds: list<@AstExprPair>
+	+var statBlock: @AstStatBlock
+end class
+
++class AstStatThrow(@AstStat)
+	+var code: @AstExpr
+end class
+
++class AstStatBlock(@AstStatBreakable)
+	+var stats: list<@AstStat>
+end class
+
++class AstStatRet(@AstStat)
+	+var value: @AstExpr
+end class
+
++class AstStatDo(@AstStat)
+	+var expr: @AstExpr
+end class
+
++class AstStatAssert(@AstStat)
+	+var cond: @AstExpr
+end class
+
++class AstStatExcode(@AstStat)
+	+var code: @AstExpr
+end class
+
++class AstType(@Ast)
+end class
+
++class AstTypeNullable(@AstType)
+end class
+
++class AstTypeArray(@AstTypeNullable)
+	+var itemType: @AstType
+end class
+
++class AstTypeBit(@AstType)
+	+var size: int
+end class
+
++class AstTypeFuncArg()
+	+var arg: @AstType
+	+var refVar: bool
+end class
+
++class AstTypeFunc(@AstTypeNullable)
+	+var funcOption: @AstFuncOption
+	+var args: list<@AstTypeFuncArg>
+	+var ret_: @AstType
+end class
+
++enum AstTypeGenKind
+	list_
+	stack_
+	queue_
+end enum
+
++class AstTypeGen(@AstTypeNullable)
+	+var kind: @AstTypeGenKind
+	+var itemType: @AstType
+end class
+
++class AstTypeDict(@AstTypeNullable)
+	+var itemTypeKey: @AstType
+	+var itemTypeValue: @AstType
+end class
+
++enum AstTypePrimKind
+	int_
+	float_
+	char_
+	bool_
+end enum
+
++class AstTypePrim(@AstType)
+	+var kind: @AstTypePrimKind
+end class
+
++class AstTypeUser(@AstTypeNullable)
+end class
+
++class AstTypeNull(@AstType)
+end class
+
++class AstTypeEnumElement(@AstType)
+end class
+
++enum AstExprVarKind
+	unknown
+	value
+	localVar
+	globalVar
+	refVar
+end enum
+
++class AstExpr(@Ast)
+	+var type: @AstType
+	+var varKind: @AstExprVarKind
+end class
+
++enum AstExpr1Kind
+	plus
+	minus
+	not
+	copy
+	len
+end enum
+
++class AstExpr1(@AstExpr)
+	+var kind: @AstExpr1Kind
+	+var child: @AstExpr
+end class
+
++enum AstExpr2Kind
+	assign
+	assignAdd
+	assignSub
+	assignMul
+	assignDiv
+	assignMod
+	assignPow
+	assignCat
+	or
+	and
+	lt
+	gt
+	le
+	ge
+	eq
+	nEq
+	eqRef
+	nEqRef
+	cat
+	add
+	sub
+	mul
+	div
+	mod
+	pow
+end enum
+
++class AstExpr2(@AstExpr)
+	+var kind: @AstExpr2Kind
+	+var children0: @AstExpr
+	+var children1: @AstExpr
+end class
+
++class AstExpr3(@AstExpr)
+	+var children0: @AstExpr
+	+var children1: @AstExpr
+	+var children2: @AstExpr
+end class
+
++class AstExprNew(@AstExpr)
+	+var itemType: @AstType
+	+var direct: bool
+end class
+
++class AstExprNewArray(@AstExpr)
+	+var idces: list<@AstExpr>
+	+var itemType: @AstType
+end class
+
++enum AstExprAsKind
+	as
+	is
+	nIs
+end enum
+
++class AstExprAs(@AstExpr)
+	+var kind: @AstExprAsKind
+	+var child: @AstExpr
+	+var childType: @AstType
+end class
+
++class AstExprToBin(@AstExpr)
+	+var child: @AstExpr
+	+var childType: @AstType
+end class
+
++class AstExprFromBin(@AstExpr)
+	+var child: @AstExpr
+	+var childType: @AstType
+	+var offset: @AstExpr
+end class
+
++class AstExprCallArg()
+	+var arg: @AstExpr
+	+var refVar: bool
+	+var skipVar: bool
+end class
+
++class AstExprCall(@AstExpr)
+	+var func_: @AstExpr
+	+var args: list<@AstExprCallArg>
+end class
+
++class AstExprArray(@AstExpr)
+	+var var_: @AstExpr
+	+var idx: @AstExpr
+end class
+
++class AstExprDot(@AstExpr)
+	+var var_: @AstExpr
+	+var member: []char
+	+var classItem: @AstClassItem {For caching to store class references.}
+end class
+
++class AstExprValue(@AstExpr)
+end class
+
++class AstExprValuePrim(@AstExprValue)
+	+var value: bit64
+end class
+
++class AstExprValueStr(@AstExprValue)
+	+var value: []char
+end class
+
++class AstExprValueEnumElement(@AstExprValue)
+	+var identifier: []char
+end class
+
++class AstExprValueFloat(@AstExprValue)
+	+var value: float
+end class
+
++class AstExprValueArray(@AstExpr)
+	+var values: list<@AstExpr>
+end class
+
++func isInt(type: @AstType): bool
+	ret type.typeId = %typePrim & (type $ @AstTypePrim).kind = %int_
+end func
+
++func isFloat(type: @AstType): bool
+	ret type.typeId = %typePrim & (type $ @AstTypePrim).kind = %float_
+end func
+
++func isChar(type: @AstType): bool
+	ret type.typeId = %typePrim & (type $ @AstTypePrim).kind = %char_
+end func
+
++func isBool(type: @AstType): bool
+	ret type.typeId = %typePrim & (type $ @AstTypePrim).kind = %bool_
+end func
+
++func isRef(type: @AstType): bool
+	var typeId: @TypeId :: type.typeId
+	ret typeId = %typeArray | typeId = %typeGen | typeId = %typeDict | @isClass(type)
+end func
+
++func isNullable(type: @AstType): bool
+	ret type.typeId.and(%typeNullable) = %typeNullable & !@isEnum(type)
+end func
+
++func isClass(type: @AstType): bool
+	ret type.typeId = %typeUser & type.refItem.typeId = %class_
+end func
+
++func isEnum(type: @AstType): bool
+	ret type.typeId = %typeUser & type.refItem.typeId = %enum_
+end func
+
++func isStr(type: @AstType): bool
+	if(type.typeId = %typeArray)
+		var itemType: @AstType :: (type $ @AstTypeArray).itemType
+		if(itemType.typeId = %typePrim & (itemType $ @AstTypePrim).kind = %char_)
+			ret true
+		end if
+	end if
+	ret false
+end func
+
++func isComparable(type: @AstType, lessOrGreater: bool): bool
+	; Note: 'null' itself is an incomparable type.
+	; The following types can be compared.
+	if(type.typeId = %typeBit | @isInt(type) | @isFloat(type) | @isChar(type) | @isEnum(type) | @isClass(type) | @isStr(type) | type.typeId = %typeEnumElement)
+		ret true
+	end if
+	
+	; 'bool' can be just determined whether the values match.
+	if(!lessOrGreater & @isBool(type))
+		ret true
+	end if
+	ret false
+end func
+
+var subSrcDummyAst: @Ast
++func getSubSrcDummyAst(): @Ast
+	if(@subSrcDummyAst =& null)
+		do @subSrcDummyAst :: #@Ast {Dummy source to prevent 'subSrc' from being reprocessed.}
+	end if
+	ret @subSrcDummyAst
+end func

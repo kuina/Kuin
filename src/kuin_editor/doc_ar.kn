@@ -1,9 +1,8 @@
 +class DocAr(\doc_gen@DocDesigner)
 	*func ctor()
 		do super(me)
-		do me.undo :: #undo@Undo
-		do me.undo.init(1024)
-
+		do me.undo :: undo@makeUndo(8192)
+		
 		do me.nodes :: #list<@Obj>
 		do me.holds :: #list<@Obj>
 		do me.clipboard :: #list<@Obj>
@@ -14,11 +13,11 @@
 		do me.mode :: %none
 		do me.updatingProp :: false
 	end func
-
+	
 	+*func getSrc(): [][]char
 		ret me.src
 	end func
-
+	
 	+*func draw(width: int, height: int)
 		do draw@rect(0.0, 0.0, width $ float, height $ float, \common@colorBack)
 		block
@@ -85,12 +84,12 @@
 			end if
 			do me.nodes.next()
 		end while
-
+		
 		if(me.mode = %sel)
 			do draw@rectLine((me.holdOriginX - me.pageX) $ float * \form@zoom, (me.holdOriginY - me.pageY) $ float * \form@zoom, (me.curOriginX - me.holdOriginX) $ float * \form@zoom, (me.curOriginY - me.holdOriginY) $ float * \form@zoom, 0xFF6666FF)
 		end if
 	end func
-
+	
 	+*func mouseDownL(x: int, y: int)
 		var x2: int :: (x $ float / \form@zoom) $ int + me.pageX
 		var y2: int :: (y $ float / \form@zoom) $ int + me.pageY
@@ -98,7 +97,7 @@
 		do me.holdOriginY :: y2
 		do me.curOriginX :: x2
 		do me.curOriginY :: y2
-
+		
 		var idx: int :: \form@listLt.getSel()
 		if(idx <= 0)
 			var sel: @Obj :: null
@@ -114,7 +113,7 @@
 			if(sel =& null & me.root.x <= x2 & x2 <= me.root.x + me.root.width & me.root.y <= y2 & y2 <= me.root.y + me.root.height)
 				do sel :: me.root
 			end if
-
+			
 			if(sel =& null)
 				do me.mode :: %sel
 			elif(sel <> me.root)
@@ -122,7 +121,7 @@
 				var resizeAreaY: int
 				do @getResizeArea(&resizeAreaX, &resizeAreaY, sel.width, sel.height)
 				if(sel.x + sel.width - resizeAreaX <= x2)
-					if (\form@getLockingEditor())
+					if(\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
 					end if
@@ -134,7 +133,7 @@
 						do me.mode :: %resizeR
 					end if
 				elif(x2 <= sel.x + resizeAreaX)
-					if (\form@getLockingEditor())
+					if(\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
 					end if
@@ -146,13 +145,13 @@
 						do me.mode :: %resizeL
 					end if
 				elif(sel.y + sel.height - resizeAreaY <= y2)
-					if (\form@getLockingEditor())
+					if(\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
 					end if
 					do me.mode :: %resizeB
 				elif(y2 <= sel.y + resizeAreaY)
-					if (\form@getLockingEditor())
+					if(\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
 					end if
@@ -165,7 +164,7 @@
 				var resizeAreaY: int
 				do @getResizeArea(&resizeAreaX, &resizeAreaY, sel.width, sel.height)
 				if(sel.x + sel.width - resizeAreaX <= x2)
-					if (\form@getLockingEditor())
+					if(\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
 					end if
@@ -175,7 +174,7 @@
 						do me.mode :: %resizeR
 					end if
 				elif(sel.y + sel.height - resizeAreaY <= y2)
-					if (\form@getLockingEditor())
+					if(\form@getLockingEditor())
 						do \form@showMsgRunning()
 						ret
 					end if
@@ -184,7 +183,7 @@
 					do me.mode :: %sel
 				end if
 			end if
-
+			
 			if(sel =& me.root)
 				do sel :: null
 			end if
@@ -194,7 +193,7 @@
 				end if
 			else
 				do me.holds.head()
-				if (!me.holds.find(sel))
+				if(!me.holds.find(sel))
 					if(wnd@key(%shift) | wnd@key(%ctrl))
 						do me.holds.add(sel)
 					else
@@ -205,7 +204,7 @@
 			end if
 			do \form@updateUi()
 		else
-			if (\form@getLockingEditor())
+			if(\form@getLockingEditor())
 				do \form@showMsgRunning()
 				ret
 			end if
@@ -235,13 +234,13 @@
 			do me.undo.recordEnd()
 			do \form@updateUi()
 		end if
-		do \form@paintDrawEditor()
+		do \form@paintDrawEditor(false)
 	end func
-
+	
 	+*func mouseUpL(x: int, y: int)
 		switch(me.mode)
 		case %put, %move, %resizeLT, %resizeRT, %resizeLB, %resizeRB, %resizeL, %resizeT, %resizeR, %resizeB
-			if (\form@getLockingEditor())
+			if(\form@getLockingEditor())
 				do \form@showMsgRunning()
 				ret
 			end if
@@ -271,17 +270,21 @@
 				do \form@listLt.setSel(0)
 			end if
 			do \form@updateUi()
-			do \form@paintDrawEditor()
+			do \form@paintDrawEditor(false)
 		case %sel
 			var x1: int :: me.holdOriginX
 			var y1: int :: me.holdOriginY
 			var x2: int :: (x $ float / \form@zoom) $ int + me.pageX
 			var y2: int :: (y $ float / \form@zoom) $ int + me.pageY
 			if(x1 > x2)
-				do x1 :$ x2
+				var tmp: int :: x1
+				do x1 :: x2
+				do x2 :: tmp
 			end if
 			if(y1 > y2)
-				do y1 :$ y2
+				var tmp: int :: y1
+				do y1 :: y2
+				do y2 :: tmp
 			end if
 			if(!wnd@key(%shift) & !wnd@key(%ctrl))
 				do me.holds :: #list<@Obj>
@@ -296,17 +299,17 @@
 			end while
 			do me.mode :: %none
 			do \form@updateUi()
-			do \form@paintDrawEditor()
+			do \form@paintDrawEditor(false)
 		end switch
 	end func
-
+	
 	+*func mouseDoubleClick(x: int, y: int)
 	end func
-
+	
 	+*func mouseMove(x: int, y: int)
 		switch(me.mode)
 		case %put, %move, %resizeLT, %resizeRT, %resizeLB, %resizeRB, %resizeL, %resizeT, %resizeR, %resizeB
-			if (\form@getLockingEditor())
+			if(\form@getLockingEditor())
 				do \form@showMsgRunning()
 				ret
 			end if
@@ -316,20 +319,20 @@
 			do me.curOriginX :: arrangedX
 			do me.curOriginY :: arrangedY
 			do me.updateProp()
-			do \form@paintDrawEditor()
+			do \form@paintDrawEditor(true)
 		case %sel
 			do me.curOriginX :: (x $ float / \form@zoom) $ int + me.pageX
 			do me.curOriginY :: (y $ float / \form@zoom) $ int + me.pageY
-			do \form@paintDrawEditor()
+			do \form@paintDrawEditor(true)
 		end switch
 	end func
-
+	
 	+*func focus(isFocus: bool)
 		if(isFocus)
 			do me.updateScrollBar()
 		end if
 	end func
-
+	
 	+*func updateScrollBar()
 		var padding: int :: (50.0 / \form@zoom) $ int
 		var screenWidth: int
@@ -338,44 +341,44 @@
 		if(me.pageX > me.root.width + padding - me.scrollOffsetX - ((screenWidth $ float / \form@zoom) $ int - me.scrollOffsetX))
 			do me.pageX :: me.root.width + padding - me.scrollOffsetX - ((screenWidth $ float / \form@zoom) $ int - me.scrollOffsetX)
 		end if
-		if (me.pageX < -me.scrollOffsetX)
+		if(me.pageX < -me.scrollOffsetX)
 			do me.pageX :: -me.scrollOffsetX
 		end if
 		if(me.pageY > me.root.height + padding - me.scrollOffsetY - ((screenHeight $ float / \form@zoom) $ int - me.scrollOffsetY))
 			do me.pageY :: me.root.height + padding - me.scrollOffsetY - ((screenHeight $ float / \form@zoom) $ int - me.scrollOffsetY)
 		end if
-		if (me.pageY < -me.scrollOffsetY)
+		if(me.pageY < -me.scrollOffsetY)
 			do me.pageY :: -me.scrollOffsetY
 		end if
 		do \form@scrollXSrc.setState(me.root.x, me.root.width + padding, (screenWidth $ float / \form@zoom) $ int - me.scrollOffsetX, me.pageX + me.scrollOffsetX)
 		do \form@scrollYSrc.setState(me.root.y, me.root.height + padding, (screenHeight $ float / \form@zoom) $ int - me.scrollOffsetY, me.pageY + me.scrollOffsetY)
 	end func
-
+	
 	+*func keyDown(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 	end func
-
+	
 	+*func keyUp(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl)
 	end func
-
+	
 	+*func keyChar(key: char)
 	end func
-
+	
 	+*func scrollX(pos: int)
 		do me.pageX :: pos - me.scrollOffsetX
-		do \form@paintDrawEditor()
+		do \form@paintDrawEditor(true)
 	end func
-
+	
 	+*func scrollY(pos: int)
 		do me.pageY :: pos - me.scrollOffsetY
-		do \form@paintDrawEditor()
+		do \form@paintDrawEditor(true)
 	end func
-
+	
 	+*func wheelX(wheel: int)
 	end func
-
+	
 	+*func wheelY(wheel: int)
 	end func
-
+	
 	+*func setMouseImg(): wnd@MouseImg
 		switch(me.mode)
 		case %none
@@ -439,9 +442,9 @@
 			ret %cross
 		case %move
 			ret %move
-		case %resizeLT,%resizeRB
+		case %resizeLT, %resizeRB
 			ret %resizeLTRB
-		case %resizeRT,%resizeLB
+		case %resizeRT, %resizeLB
 			ret %resizeRTLB
 		case %resizeL
 			ret %resizeH
@@ -457,7 +460,7 @@
 			assert false
 		end switch
 	end func
-
+	
 	+*func cmdUndo()
 		if(\form@getLockingEditor())
 			do \form@showMsgRunning()
@@ -465,9 +468,9 @@
 		end if
 		do me.undo.undo()
 		do \form@updateUi()
-		do \form@paintDrawEditor()
+		do \form@paintDrawEditor(false)
 	end func
-
+	
 	+*func cmdRedo()
 		if(\form@getLockingEditor())
 			do \form@showMsgRunning()
@@ -475,9 +478,9 @@
 		end if
 		do me.undo.redo()
 		do \form@updateUi()
-		do \form@paintDrawEditor()
+		do \form@paintDrawEditor(false)
 	end func
-
+	
 	+*func cmdCut()
 		if(^me.holds = 0)
 			ret
@@ -485,7 +488,7 @@
 		do me.cmdCopy()
 		do me.cmdDel()
 	end func
-
+	
 	+*func cmdCopy()
 		if(^me.holds = 0)
 			ret
@@ -497,7 +500,7 @@
 			do me.holds.next()
 		end while
 	end func
-
+	
 	+*func cmdPaste()
 		if(^me.clipboard = 0)
 			ret
@@ -513,9 +516,9 @@
 		end while
 		do me.undo.recordEnd()
 		do \form@updateUi()
-		do \form@paintDrawEditor()
+		do \form@paintDrawEditor(false)
 	end func
-
+	
 	+*func cmdDel()
 		do me.undo.recordBegin()
 		do me.holds.head()
@@ -525,9 +528,9 @@
 		end while
 		do me.undo.recordEnd()
 		do \form@updateUi()
-		do \form@paintDrawEditor()
+		do \form@paintDrawEditor(false)
 	end func
-
+	
 	+*func cmdSelAll()
 		do me.holds :: #list<@Obj>
 		do me.nodes.head()
@@ -536,9 +539,9 @@
 			do me.nodes.next()
 		end while
 		do \form@updateUi()
-		do \form@paintDrawEditor()
+		do \form@paintDrawEditor(false)
 	end func
-
+	
 	+*func undoImpl(undo2: \doc@UndoCmd)
 		if(undo2 =$ UndoArPut)
 			var undo3: UndoArPut :: undo2 $ UndoArPut
@@ -566,11 +569,11 @@
 			assert false
 		end if
 	end func
-
+	
 	+*func getSelCode(): []char
 		ret null
 	end func
-
+	
 	+*func updateUi()
 		do \form@listLt.setRedraw(false)
 		do \form@listLt.clear()
@@ -578,7 +581,7 @@
 		do \form@listLt.add(\common@langEn ?("Pointer", "ポインタ"), 0)
 		do me.updateLt()
 		do \form@listLt.setRedraw(true)
-
+		
 		do \form@listLb.setRedraw(false)
 		do \form@listLb.clear()
 		do \form@listLb.style(%list_)
@@ -598,10 +601,10 @@
 			do me.nodes.next()
 		end while
 		do \form@listLb.setRedraw(true)
-
+		
 		do me.updateProp()
 	end func
-
+	
 	+*func onEvent(event: \doc@Event)
 		if(me.updatingProp)
 			ret
@@ -619,7 +622,7 @@
 				end if
 			end for
 			do me.updateProp()
-			do \form@paintDrawEditor()
+			do \form@paintDrawEditor(true)
 		case %listLbOnMoveNode
 			var len: int :: \form@listLb.len()
 			var names: [][]char :: #[len][]char
@@ -629,7 +632,7 @@
 			do me.undo.recordBegin()
 			do me.order(names, true)
 			do me.undo.recordEnd()
-			do \form@paintDrawEditor()
+			do \form@paintDrawEditor(false)
 			do \form@updateUi()
 		case %listRbOnMouseClick
 		case %editRbArNameOnKillFocus
@@ -644,20 +647,20 @@
 				do me.undo.recordBegin()
 				do me.rename(obj.name, name, true)
 				do me.undo.recordEnd()
-				do \form@paintDrawEditor()
+				do \form@paintDrawEditor(false)
 			end if
 			do \form@updateUi()
 		case %chkRbArVisibleOnPush
 			var data: lib@Bool :: #lib@Bool
 			do data.value :: \form@chkRbArVisible.getChk()
 			do me.updateMultiple(chk, apply, data)
-
-			func chk(obj: @Obj, data: lib@Bool): bool
-				ret obj.visible <> data.value
+			
+			func chk(obj: @Obj, data: kuin@Class): bool
+				ret obj.visible <> (data $ lib@Bool).value
 			end func
-
-			func apply(me_: @DocAr, obj: @Obj, data: lib@Bool)
-				do me_.visible(obj =& me_.root ?(null, obj.name), data.value, true)
+			
+			func apply(me_: @DocAr, obj: @Obj, data: kuin@Class)
+				do me_.visible(obj =& me_.root ?(null, obj.name), (data $ lib@Bool).value, true)
 			end func
 		case %editRbArXOnKillFocus
 			if(^me.holds = 0)
@@ -676,13 +679,13 @@
 			else
 				do \form@updateUi()
 			end if
-
-			func chk(obj: @Obj, data: lib@Int): bool
-				ret obj.x <> data.value
+			
+			func chk(obj: @Obj, data: kuin@Class): bool
+				ret obj.x <> (data $ lib@Int).value
 			end func
-
-			func apply(me_: @DocAr, obj: @Obj, data: lib@Int)
-				do me_.move(obj =& me_.root ?(null, obj.name), data.value, obj.y, obj.width, obj.height, true)
+			
+			func apply(me_: @DocAr, obj: @Obj, data: kuin@Class)
+				do me_.move(obj =& me_.root ?(null, obj.name), (data $ lib@Int).value, obj.y, obj.width, obj.height, true)
 			end func
 		case %editRbArYOnKillFocus
 			if(^me.holds = 0)
@@ -701,13 +704,13 @@
 			else
 				do \form@updateUi()
 			end if
-
-			func chk(obj: @Obj, data: lib@Int): bool
-				ret obj.y <> data.value
+			
+			func chk(obj: @Obj, data: kuin@Class): bool
+				ret obj.y <> (data $ lib@Int).value
 			end func
-
-			func apply(me_: @DocAr, obj: @Obj, data: lib@Int)
-				do me_.move(obj =& me_.root ?(null, obj.name), obj.x, data.value, obj.width, obj.height, true)
+			
+			func apply(me_: @DocAr, obj: @Obj, data: kuin@Class)
+				do me_.move(obj =& me_.root ?(null, obj.name), obj.x, (data $ lib@Int).value, obj.width, obj.height, true)
 			end func
 		case %editRbArWidthOnKillFocus
 			var success: bool
@@ -719,9 +722,9 @@
 			else
 				do \form@updateUi()
 			end if
-
-			func chk(obj: @Obj, data: lib@Int): bool
-				var value: int :: data.value
+			
+			func chk(obj: @Obj, data: kuin@Class): bool
+				var value: int :: (data $ lib@Int).value
 				var minValue: int
 				var maxValue: int
 				do obj.getMinMax(&minValue, &, &maxValue, &)
@@ -732,9 +735,9 @@
 				end if
 				ret obj.width <> value
 			end func
-
-			func apply(me_: @DocAr, obj: @Obj, data: lib@Int)
-				var value: int :: data.value
+			
+			func apply(me_: @DocAr, obj: @Obj, data: kuin@Class)
+				var value: int :: (data $ lib@Int).value
 				var minValue: int
 				var maxValue: int
 				do obj.getMinMax(&minValue, &, &maxValue, &)
@@ -755,9 +758,9 @@
 			else
 				do \form@updateUi()
 			end if
-
-			func chk(obj: @Obj, data: lib@Int): bool
-				var value: int :: data.value
+			
+			func chk(obj: @Obj, data: kuin@Class): bool
+				var value: int :: (data $ lib@Int).value
 				var minValue: int
 				var maxValue: int
 				do obj.getMinMax(&, &minValue, &, &maxValue)
@@ -768,9 +771,9 @@
 				end if
 				ret obj.height <> value
 			end func
-
-			func apply(me_: @DocAr, obj: @Obj, data: lib@Int)
-				var value: int :: data.value
+			
+			func apply(me_: @DocAr, obj: @Obj, data: kuin@Class)
+				var value: int :: (data $ lib@Int).value
 				var minValue: int
 				var maxValue: int
 				do obj.getMinMax(&, &minValue, &, &maxValue)
@@ -795,10 +798,10 @@
 				end for
 			end if
 			do \form@updateUi()
-			do \form@paintDrawEditor()
+			do \form@paintDrawEditor(false)
 		end switch
 	end func
-
+	
 	+*func loadImpl(xmlNode: xml@Node)
 		var root: xml@Node :: xmlNode.findChild("root").firstChild()
 		do me.root :: me.makeObj(root.getName())
@@ -812,7 +815,7 @@
 			do child :: child.next()
 		end while
 	end func
-
+	
 	+*func saveImpl(xmlNode: xml@Node)
 		var root: xml@Node :: xmlNode.addChild("root")
 		block
@@ -828,13 +831,13 @@
 			do me.nodes.next()
 		end while
 	end func
-
+	
 	func makeObj(name: []char): @Obj
 	end func
-
+	
 	func updateLt()
 	end func
-
+	
 	enum Mode
 		none
 		put
@@ -849,7 +852,7 @@
 		resizeB
 		sel
 	end enum
-
+	
 	var src: [][]char
 	+var root: @Obj
 	var nodes: list<@Obj>
@@ -865,7 +868,7 @@
 	var pageY: int
 	var mode: Mode
 	var updatingProp: bool
-
+	
 	func resizeObj(obj: @Obj, x: int, y: int, objX: &int, objY: &int, objWidth: &int, objHeight: &int)
 		var x2: int :: x - me.holdOriginX
 		var y2: int :: y - me.holdOriginY
@@ -929,7 +932,7 @@
 			do objWidth :: obj.width
 			do objHeight :: round(&, obj.height + y2)
 		end switch
-
+		
 		var minWidth: int
 		var minHeight: int
 		var maxWidth: int
@@ -951,7 +954,7 @@
 		elif(objHeight > maxHeight)
 			do objHeight :: maxHeight
 		end if
-
+		
 		func round(mod: &int, value: int): int
 			if(\form@snap)
 				do mod :: value % \form@snapValue
@@ -962,7 +965,7 @@
 			end if
 		end func
 	end func
-
+	
 	func arrange(x: &int, y: &int)
 		if(wnd@key(%shift))
 			if((x - me.holdOriginX).abs() > (y - me.holdOriginY).abs())
@@ -972,13 +975,13 @@
 			end if
 		end if
 	end func
-
+	
 	class UndoAr(\doc@UndoCmd)
 		+*func cmd()
 			do me.doc.undoImpl(me)
 		end func
 	end class
-
+	
 	class UndoArPut(UndoAr)
 		+var parent: []char
 		+var kind: []char
@@ -990,11 +993,11 @@
 		+var height: int
 		+var props: dict<[]char, []char>
 	end class
-
+	
 	class UndoArDel(UndoAr)
 		+var name: []char
 	end class
-
+	
 	class UndoArMove(UndoAr)
 		+var name: []char
 		+var x: int
@@ -1002,30 +1005,30 @@
 		+var width: int
 		+var height: int
 	end class
-
+	
 	class UndoArOrder(UndoAr)
 		+var names: [][]char
 	end class
-
+	
 	class UndoArRename(UndoAr)
 		+var name: []char
 		+var newName: []char
 	end class
-
+	
 	class UndoArVisible(UndoAr)
 		+var name: []char
 		+var value: bool
 	end class
-
+	
 	class UndoArProp(UndoAr)
 		+var name: []char
 		+var prop: []char
 		+var value: []char
 	end class
-
+	
 	func updateProp()
 		do me.updatingProp :: true
-
+		
 		var name: []char
 		var visible: bool
 		var objXStr: []char
@@ -1107,10 +1110,10 @@
 		do \form@editRbArWidth.setText(objWidthStr)
 		do \form@editRbArHeight.setText(objHeightStr)
 		do \form@groupRbAr.setRedraw(true)
-
+		
 		do me.updatingProp :: false
 	end func
-
+	
 	func find(nodes: list<@Obj>, name: []char)
 		do nodes.head()
 		while(!nodes.term())
@@ -1120,7 +1123,7 @@
 			do nodes.next()
 		end while
 	end func
-
+	
 	func put(parent: []char, kind: []char, name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>, recordUndo: bool): @Obj
 		if(recordUndo)
 			var undo: UndoArDel :: #UndoArDel
@@ -1157,7 +1160,7 @@
 		do me.changed :: true
 		ret obj
 	end func
-
+	
 	func del(name: []char, recordUndo: bool)
 		do me.find(me.nodes, name)
 		if(recordUndo)
@@ -1188,7 +1191,7 @@
 		do me.nodes.del()
 		do me.changed :: true
 	end func
-
+	
 	+func move(name: []char, x: int, y: int, width: int, height: int, recordUndo: bool)
 		var obj: @Obj
 		if(name =& null)
@@ -1223,7 +1226,7 @@
 		do obj.height :: height
 		do me.changed :: true
 	end func
-
+	
 	func order(names: [][]char, recordUndo: bool)
 		if(recordUndo)
 			var oldNames: [][]char :: #[^me.nodes][]char
@@ -1250,7 +1253,7 @@
 		do me.nodes :: newNodes
 		do me.changed :: true
 	end func
-
+	
 	func rename(name: []char, newName: []char, recordUndo: bool)
 		if(recordUndo)
 			var undo: UndoArRename :: #UndoArRename
@@ -1267,7 +1270,7 @@
 		do me.nodes.get().name :: newName
 		do me.changed :: true
 	end func
-
+	
 	+func visible(name: []char, value: bool, recordUndo: bool)
 		var obj: @Obj
 		if(name =& null)
@@ -1290,10 +1293,10 @@
 		do obj.visible :: value
 		do me.changed :: true
 	end func
-
+	
 	func prop(name: []char, prop: []char, value: []char, recordUndo: bool)
 	end func
-
+	
 	func cloneObj(src: @Obj): @Obj
 		var dst: @Obj :: me.makeObj(src.kind())
 		do dst.name :: src.name
@@ -1305,7 +1308,7 @@
 		do dst.props :: ##src.props
 		ret dst
 	end func
-
+	
 	func updateMultiple(chk: func<(@Obj, kuin@Class): bool>, apply: func<(@DocAr, @Obj, kuin@Class)>, data: kuin@Class)
 		if(^me.holds <= 1)
 			var obj: @Obj
@@ -1319,7 +1322,7 @@
 				do me.undo.recordBegin()
 				do apply(me, obj, data)
 				do me.undo.recordEnd()
-				do \form@paintDrawEditor()
+				do \form@paintDrawEditor(false)
 			end if
 		else
 			var diff: bool :: false
@@ -1342,7 +1345,7 @@
 					do me.holds.next()
 				end while
 				do me.undo.recordEnd()
-				do \form@paintDrawEditor()
+				do \form@paintDrawEditor(false)
 			end if
 		end if
 		do \form@updateUi()
@@ -1363,7 +1366,7 @@ end enum
 	+*func cmp(t: kuin@Class): int
 		ret t =& me ?(0, 1)
 	end func
-
+	
 	+func load(node: xml@Node)
 		var props: dict<[]char, []char> :: #dict<[]char, []char>
 		var propsNames: [][]char :: me.propsNames()
@@ -1382,7 +1385,7 @@ end enum
 		do me.init(node.getAttr("name"), node.getAttr("visible") = "true", node.getAttr("x").toInt(&), node.getAttr("y").toInt(&), node.getAttr("width").toInt(&), node.getAttr("height").toInt(&), props)
 		do me.reloadRes()
 	end func
-
+	
 	+func save(node: xml@Node)
 		do node.setAttr("name", me.name)
 		do node.setAttr("visible", me.visible ?("true", "false"))
@@ -1395,29 +1398,29 @@ end enum
 			do node.setAttr(propsNames[i], me.props.get(propsNames[i], &))
 		end for
 	end func
-
+	
 	+func draw(x: float, y: float, width: float, height: float, zoom: float)
 	end func
-
+	
 	+func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
 		do minWidth :: 10
 		do minHeight :: 10
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func
-
+	
 	+func getDefaultSize(width: &int, height: &int)
 		do width :: 10
 		do height :: 10
 	end func
-
+	
 	+func kind(): []char
 	end func
-
+	
 	+func icon(): int
-		ret -1
+		ret - 1
 	end func
-
+	
 	+func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
 		do me.name :: name
 		do me.visible :: visible
@@ -1427,26 +1430,26 @@ end enum
 		do me.height :: height
 		do me.props :: props =& null ?(#dict<[]char, []char>, props)
 	end func
-
+	
 	+func fin()
 	end func
-
+	
 	+func becomeParent(): bool
 		ret false
 	end func
-
+	
 	+func propsNames(): [][]char
 	end func
-
+	
 	+func propsTypes(): []@PropType
 	end func
-
+	
 	+func propsTypeDatas(): [][][]char
 	end func
-
+	
 	+func reloadRes()
 	end func
-
+	
 	+var name: []char
 	+var visible: bool
 	+var x: int

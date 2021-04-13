@@ -1,0 +1,92 @@
+func[d0004.knd, _init]_init()
+end func
+
+func[d0004.knd, _fin]_fin()
+end func
+
++class Http()
+	*func[__ndc]ctor()
+	end func
+	
+	*func[__frc]_dtor()
+		do me.fin()
+	end func
+	
+	+func[d0004.knd, _httpFin]fin()
+	end func
+	
+	+func[d0004.knd, _httpGet]get(): []char
+	end func
+	
+	var handleOpen: int
+	var handleCorrect: int
+	var handleRequest: int
+	var threadExit: int
+	var totalSize: int
+	var dataTop: int
+	var dataBottom: int
+	var mutex: int
+	var threadHandle: int
+end class
+
++class Tcp()
+	*func[__ndc]ctor()
+	end func
+	
+	*func[__frc]_dtor()
+		do me.fin()
+	end func
+	
+	+func[d0004.knd, _tcpConnecting]connecting(): bool
+	end func
+	
+	+func[d0004.knd, _tcpFin]fin()
+	end func
+	
+	+func[d0004.knd, _tcpReceive]receive(size: int): []bit8
+	end func
+	
+	+func[d0004.knd, _tcpReceivedSize]receivedSize(): int
+	end func
+	
+	+func[d0004.knd, _tcpSend]send(data: []bit8)
+	end func
+	
+	var socket: int
+	var threadExit: int
+	var data: int
+	var dataTopBottom: int
+	var mutex: int
+	var threadHandle: int
+end class
+
++class TcpServer()
+	*func[__ndc]ctor()
+	end func
+	
+	*func[__frc]_dtor()
+		do me.fin()
+	end func
+	
+	+func[d0004.knd, _tcpServerFin]fin()
+	end func
+	
+	+func[d0004.knd, _tcpServerGet, __mki]get(me2: @Tcp): @Tcp
+	end func
+	
+	var socket: int
+	var threadExit: int
+	var connectTop: int
+	var connectBottom: int
+	var mutex: int
+	var threadHandle: int
+end class
+
++func[d0004.knd, _makeHttp, __mki]makeHttp(me2: @Http, url: []char, post: bool, agent: []char): @Http
+end func
+
++func[d0004.knd, _makeTcpClient, __mki]makeTcpClient(me2: @Tcp, host: []char, port: int): @Tcp
+end func
+
++func[d0004.knd, _makeTcpServer, __mki]makeTcpServer(me2: @TcpServer, port: int): @TcpServer
+end func

@@ -89,8 +89,8 @@ end func
 		do @wndFindChkDistinguishCase.setChk(@wndFindChkDistinguishCaseLast)
 		do @wndFindChkOnlyWord.setChk(@wndFindChkOnlyWordLast)
 		do @wndFindChkRegularExpression.setChk(@wndFindChkRegularExpressionLast)
-
-		do @tabOrderFind :: wnd@makeTabOrder([@wndFindEditPattern $ wnd@WndBase, @wndFindEditReplace, @wndFindBtnPrev, @wndFindBtnNext, @wndFindBtnReplace, @wndFindBtnReplaceAll])
+		
+		do @tabOrderFind :: wnd@makeTabOrder([@wndFindEditPattern $ wnd@WndBase, @wndFindEditReplace $ wnd@WndBase, @wndFindBtnPrev $ wnd@WndBase, @wndFindBtnNext $ wnd@WndBase, @wndFindBtnReplace $ wnd@WndBase, @wndFindBtnReplaceAll $ wnd@WndBase])
 	else
 		do @wndFind.setPos(x + w - 380 - 17, y, 380, 332)
 		do @wndFind.activate()
@@ -100,10 +100,10 @@ end func
 	do wndFindChkRegularExpressionOnPush(null)
 	do @wndFindEditPattern.focus()
 	do @wndFindEditPattern.setSel(0, -1)
-
-	func wndFindOnClose(wnd: wnd@Wnd): bool
+	
+	func wndFindOnClose(wnd: wnd@WndBase): bool
 		do @tabOrderFind :: null
-
+		
 		do @wndFindEditPatternLast :: @wndFindEditPattern.getText()
 		do @wndFindEditReplaceLast :: @wndFindEditReplace.getText()
 		if(@wndFindRadioAll.getChk())
@@ -116,7 +116,7 @@ end func
 		do @wndFindChkDistinguishCaseLast :: @wndFindChkDistinguishCase.getChk()
 		do @wndFindChkOnlyWordLast :: @wndFindChkOnlyWord.getChk()
 		do @wndFindChkRegularExpressionLast :: @wndFindChkRegularExpression.getChk()
-
+		
 		do @wndFind :: null
 		do @wndFindTabFind :: null
 		do @wndFindEditPattern :: null
@@ -133,43 +133,43 @@ end func
 		do @wndFindBtnReplaceAll :: null
 		ret true
 	end func
-
-	func wndFindTabFindOnSel(wnd: wnd@Tab)
+	
+	func wndFindTabFindOnSel(wnd: wnd@WndBase)
 		do updateUi()
 	end func
-
-	func wndFindEditPatternOnChange(wnd: wnd@Edit)
+	
+	func wndFindEditPatternOnChange(wnd: wnd@WndBase)
 		do @wndFindEditPatternLast :: @wndFindEditPattern.getText()
 	end func
-
-	func wndFindEditReplaceOnChange(wnd: wnd@Edit)
+	
+	func wndFindEditReplaceOnChange(wnd: wnd@WndBase)
 		do @wndFindEditReplaceLast :: @wndFindEditReplace.getText()
 	end func
-
-	func wndFindRadioDocAllSelOnPush(wnd: wnd@Radio)
+	
+	func wndFindRadioDocAllSelOnPush(wnd: wnd@WndBase)
 		do updateUi()
 	end func
-
-	func wndFindChkDistinguishCaseOnPush(wnd: wnd@Chk)
+	
+	func wndFindChkDistinguishCaseOnPush(wnd: wnd@WndBase)
 		do @wndFindChkDistinguishCaseLast :: @wndFindChkDistinguishCase.getChk()
 	end func
-
-	func wndFindChkOnlyWordOnPush(wnd: wnd@Chk)
+	
+	func wndFindChkOnlyWordOnPush(wnd: wnd@WndBase)
 		do @wndFindChkOnlyWordLast :: @wndFindChkOnlyWord.getChk()
 	end func
-
-	func wndFindChkRegularExpressionOnPush(wnd: wnd@Chk)
+	
+	func wndFindChkRegularExpressionOnPush(wnd: wnd@WndBase)
 		do @wndFindChkRegularExpressionLast :: @wndFindChkRegularExpression.getChk()
 		do @wndFindChkDistinguishCase.setEnabled(!@wndFindChkRegularExpressionLast)
 		do @wndFindChkOnlyWord.setEnabled(!@wndFindChkRegularExpressionLast)
 	end func
-
-	func wndFindBtnReplaceOnPush(wnd: wnd@Btn)
+	
+	func wndFindBtnReplaceOnPush(wnd: wnd@WndBase)
 		do @replaceOne(@wndFindEditPatternLast, @wndFindEditReplaceLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 		do \form@focusDrawEditor()
 	end func
-
-	func wndFindBtnReplaceAllOnPush(wnd: wnd@Btn)
+	
+	func wndFindBtnReplaceAllOnPush(wnd: wnd@WndBase)
 		if(@wndFindRadioDoc.getChk())
 			do @replaceAll(@wndFindEditPatternLast, @wndFindEditReplaceLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 		elif(@wndFindRadioAll.getChk())
@@ -179,7 +179,7 @@ end func
 		end if
 		do \form@focusDrawEditor()
 	end func
-
+	
 	func updateUi()
 		var replace: bool :: @wndFindTabFind.getSel() = 1
 		if(@wndFindRadioDoc.getChk())
@@ -196,7 +196,7 @@ end func
 	end func
 end func
 
-func wndFindBtnNextOnPush(wnd: wnd@Btn)
+func wndFindBtnNextOnPush(wnd: wnd@WndBase)
 	class FindData()
 		+var list_: wnd@List
 		+var poses: list<\src@Pos>
@@ -205,7 +205,7 @@ func wndFindBtnNextOnPush(wnd: wnd@Btn)
 		+var onlyWord: bool
 		+var regularExpression: bool
 	end class
-
+	
 	if(@wndFindEditPatternLast <>& null)
 		if(@wndFindRadioDoc.getChk())
 			do @findNext()
@@ -227,25 +227,26 @@ func wndFindBtnNextOnPush(wnd: wnd@Btn)
 				do data.regularExpression :: @wndFindChkRegularExpressionLast
 				do \src@docs.forEach(findAll, data)
 			elif(\src@curDoc =$ \doc_src@DocSrc)
-				do (\src@curDoc $ \doc_src@DocSrc).findSel(@wndResultListItems, @resultPoses, \src@curDocName, @wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+				do(\src@curDoc $ \doc_src@DocSrc).findSel(@wndResultListItems, @resultPoses, \src@curDocName, @wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 			end if
 			do \form@focusDrawEditor()
 		end if
 	end if
-
-	func findAll(key: []char, value: \doc@Doc, data: FindData): bool
+	
+	func findAll(key: []char, value: \doc@Doc, data: kuin@Class): bool
+		var data2: FindData :: data $ FindData
 		if(value <>$ \doc_src@DocSrc)
 			ret true
 		end if
 		if(key[0] <> '\\')
 			ret true
 		end if
-		do (value $ \doc_src@DocSrc).findAll(data.list_, data.poses, key, data.pattern, data.distinguishCase, data.onlyWord, data.regularExpression)
+		do(value $ \doc_src@DocSrc).findAll(data2.list_, data2.poses, key, data2.pattern, data2.distinguishCase, data2.onlyWord, data2.regularExpression)
 		ret true
 	end func
-
-	func wndResultListItemsOnSel(wnd: wnd@List)
-		var sel: int :: wnd.getSel()
+	
+	func wndResultListItemsOnSel(wnd: wnd@WndBase)
+		var sel: int :: (wnd $ wnd@List).getSel()
 		if(sel = -1)
 			ret
 		end if
@@ -254,7 +255,7 @@ func wndFindBtnNextOnPush(wnd: wnd@Btn)
 	end func
 end func
 
-func wndFindBtnPrevOnPush(wnd: wnd@Btn)
+func wndFindBtnPrevOnPush(wnd: wnd@WndBase)
 	if(@wndFindEditPatternLast <>& null)
 		do @findPrev()
 	end if
@@ -346,7 +347,7 @@ func replaceAllInAllDocs(pattern: []char, replaceStr: []char, distinguishCase: b
 		+var onlyWord_: bool
 		+var regularExpression_: bool
 	end class
-
+	
 	var msg: []char
 	if(\common@langEn)
 		do msg :: "Do you want to replace all \"" ~ pattern ~ "\" with \"" ~ replaceStr ~ "\" in all documents?"
@@ -370,15 +371,16 @@ func replaceAllInAllDocs(pattern: []char, replaceStr: []char, distinguishCase: b
 		do msg :: data.cnt.toStr() ~ "個の文字列を置換しました。"
 	end if
 	do wnd@msgBox(@wndFind, msg, \common@title, %info, %ok)
-
-	func replaceAll(key: []char, value: \doc@Doc, data: FindData): bool
+	
+	func replaceAll(key: []char, value: \doc@Doc, data: kuin@Class): bool
+		var data2: FindData :: data $ FindData
 		if(value <>$ \doc_src@DocSrc)
 			ret true
 		end if
 		if(key[0] <> '\\')
 			ret true
 		end if
-		do data.cnt :+ (value $ \doc_src@DocSrc).replaceAll(data.pattern_, data.replaceStr_, data.distinguishCase_, data.onlyWord_, data.regularExpression_)
+		do data2.cnt :+ (value $ \doc_src@DocSrc).replaceAll(data2.pattern_, data2.replaceStr_, data2.distinguishCase_, data2.onlyWord_, data2.regularExpression_)
 		ret true
 	end func
 end func

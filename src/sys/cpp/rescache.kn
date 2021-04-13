@@ -1,0 +1,60 @@
++class Instance()
+	+var instance: kuin@Class
+	+var cnt: int
+end class
+
++class ResCache()
+	*func ctor()
+		do me.instances :: #dict<[]char, @Instance>
+		do me.baseDir :: ""
+	end func
+
+	+func add(key: []char): @Instance
+		var success: bool
+		var instance: @Instance :: me.instances.get(key, &success)
+		if(success)
+			do instance.cnt :+ 1
+			ret instance
+		end if
+		do instance :: #@Instance
+		do instance.instance :: null
+		do instance.cnt :: 1
+		do me.instances.add(key, instance)
+		ret instance
+	end func
+
+	+func del(instance: kuin@Class)
+		class Data()
+			+var target: kuin@Class
+			+var key: []char
+		end class
+
+		var data: Data :: #Data
+		do data.target :: instance
+		do data.key :: null
+		do me.instances.forEach(freeRecursion, data)
+		if(data.key <>& null)
+			do me.instances.del(data.key)
+		end if
+
+		func freeRecursion(key: []char, value: @Instance, data: kuin@Class): bool
+			var data2: Data :: data $ Data
+			if(value.instance <>& data2.target)
+				ret true
+			end if
+
+			do value.cnt :- 1
+			if(value.cnt = 0)
+				do data2.key :: key
+			end if
+			ret false
+		end func
+	end func
+
+	+func setBaseDir(dir: []char)
+		do me.baseDir :: dir
+	end func
+
+	var instances: dict<[]char, @Instance>
+	var baseDir: []char
+end class

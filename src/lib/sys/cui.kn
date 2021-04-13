@@ -1,0 +1,188 @@
+const bufSizeMin: int :: 1024
+var delimiters: []char :: " ,\n"
+
++func delimiter(delimiters_: []char)
+	do @delimiters :: delimiters_
+end func
+
+#exe
++func[d0000.knd, _flush]flush()
+#cpp,web
++func flush()
+#cpp
+	excode "fflush(stdout);\n"
+#web
+#any
+end func
+
++func input(): []char
+#exe,cpp
+	var buf: []char :: #[@bufSizeMin]char
+	var ptr: int :: 0
+	while loop(true)
+		var c: char :: @inputLetter()
+		if(c = '\u000D')
+			skip loop
+		end if
+		if(c = '\uFFFF')
+			if(ptr = 0)
+				ret null
+			end if
+			break loop
+		end if
+		if(c = '\n')
+			break loop
+		end if
+		if(ptr = ^buf)
+			do buf :~ #[^buf]char
+		end if
+		do buf[ptr] :: c
+		do ptr :+ 1
+	end while
+	ret buf.sub(0, ptr)
+#web
+	ret null
+#any
+end func
+
++func inputChar(): char
+#exe,cpp
+	while loop(true)
+		var c: char :: @inputCharWithDelimiter()
+		if(c <> '\0')
+			if(c = '\uFFFF')
+				throw 0xE9170008
+			end if
+			ret c
+		end if
+	end while
+#web
+	ret 0 $ char
+#any
+end func
+
++func inputFloat(): float
+#exe,cpp
+	var s: []char :: @inputStr()
+	var b: bool
+	var r: float :: s.toFloat(&b)
+	if(!b)
+		throw 0xE9170008
+	end if
+	ret r
+#web
+	ret 0.0
+#any
+end func
+
++func inputInt(): int
+#exe,cpp
+	var s: []char :: @inputStr()
+	var b: bool
+	var r: int :: s.toInt(&b)
+	if(!b)
+		throw 0xE9170008
+	end if
+	ret r
+#web
+	ret 0
+#any
+end func
+
+#exe
++func[d0000.knd, _inputLetter]inputLetter(): char
+#cpp,web
++func inputLetter(): char
+#cpp
+	excode "#if defined(_WIN32)\n"
+	excode "wchar_t c_=fgetwc(stdin);\n"
+	excode "return static_cast<char16_t>(c_==WEOF?0xffff:c_);\n"
+	excode "#else\n"
+	excode "int l_;\n"
+	excode "char c_;\n"
+	excode "do{c_=fgetc(stdin);}while((c_&0xc0)==0x80);\n"
+	excode "if((c_&0x80)==0x00)l_=0;\n"
+	excode "else if((c_&0xe0)==0xc0){l_=1;c_&=0x1f;}\n"
+	excode "else if((c_&0xf0)==0xe0){l_=2;c_&=0x0f;}\n"
+	excode "else if((c_&0xf8)==0xf0){l_=3;c_&=0x07;}\n"
+	excode "else if((c_&0xfc)==0xf8){l_=4;c_&=0x03;}\n"
+	excode "else if((c_&0xfe)==0xfc){l_=5;c_&=0x01;}\n"
+	excode "else return 0xffff;\n"
+	excode "uint32_t u_=static_cast<uint32_t>(c_);\n"
+	excode "for(int i_=0;i_<l_;i_++)u_=(u_<<6)|(static_cast<uint32_t>(fgetc(stdin))&0x3f);\n"
+	excode "return static_cast<char16_t>(u_);\n"
+	excode "#endif\n"
+#web
+	ret 0 $ char
+#any
+end func
+
++func inputStr(): []char
+#exe,cpp
+	var buf: []char :: #[@bufSizeMin]char
+	var ptr: int :: 0
+	while loop(true)
+		var c: char :: @inputCharWithDelimiter()
+		if(c = '\uFFFF')
+			if(ptr = 0)
+				throw 0xE9170008
+			end if
+			break loop
+		end if
+		if(c = '\0')
+			if(ptr = 0)
+				skip loop
+			end if
+			break loop
+		end if
+		if(ptr = ^buf)
+			do buf :~ #[^buf]char
+		end if
+		do buf[ptr] :: c
+		do ptr :+ 1
+	end while
+	ret buf.sub(0, ptr)
+#web
+	ret null
+#any
+end func
+
+#exe
++func[d0000.knd, _print]print(str: []char)
+#cpp,web
++func print(str: []char)
+#cpp
+	excode "if(`0`==nullptr){\n"
+	excode "fputs(\"(null)\",stdout);\n"
+	excode "return;\n"
+	excode "}\n"
+	excode "#if defined(_WIN32)\n"
+	excode "fputws(reinterpret_cast<const wchar_t*>(`0`->B),stdout);\n"
+	excode "#else\n"
+	excode "std::u16string s_=`0`->B;\n"
+	excode "const std::string&t_=utf16ToUtf8_(s_);\n"
+	excode "fputs(t_.c_str(),stdout);\n"
+	excode "#endif\n"
+#web
+	excode "if(`0`==null)`0`={S:\"(null)\"};\n"
+	excode "if(O_&&O_.print){O_.print(`0`.S);return;}\n"
+	excode "console.log(`0`.S);\n"
+#any
+end func
+
+#exe,cpp
+func inputCharWithDelimiter(): char
+	while loop(true)
+		var c: char :: @inputLetter()
+		for i(0, ^@delimiters - 1)
+			if(c = @delimiters[i] | (c = '\u000D' & @delimiters[i] = '\n'))
+				ret '\0'
+			end if
+		end for
+		if(c = '\u000D')
+			skip loop
+		end if
+		ret c
+	end while
+end func
+#any

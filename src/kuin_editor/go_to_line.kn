@@ -1,0 +1,46 @@
++var wndGoToLine: wnd@Wnd
+var wndEditLineNumber: wnd@Edit
+var wndBtnOk: wnd@Btn
+var wndBtnCancel: wnd@Btn
+
++func show()
+	var x: int
+	var y: int
+	var w: int
+	do \form@drawEditor.getPosScreen(&x, &y, &w, &)
+	if(@wndGoToLine =& null)
+		do @wndGoToLine :: wnd@makeWnd(\form@wndMain, %fix $ wnd@WndStyle, 380, 332, \common@langEn ?("Go To Line", "指定行へ移動"))
+		do @wndGoToLine.setPos(x + w - 380 - 17, y, 300, 130)
+		do @wndGoToLine.onClose :: wndGoToLineOnClose
+		do wnd@makeLabel(@wndGoToLine, 15, 8, 250, 15, %fix, %fix, \common@langEn ?("Line number:", "行番号:"))
+		do @wndEditLineNumber :: wnd@makeEdit(@wndGoToLine, 15, 26, 250, 19, %scale, %fix)
+		do @wndEditLineNumber.focus()
+		do @wndBtnOk :: wnd@makeBtn(@wndGoToLine, 110, 56, 75, 23, %fix, %fix, \common@langEn ?("OK", "OK"))
+		do @wndBtnOk.onPush :: wndBtnOkOnPush
+		do @wndBtnCancel :: wnd@makeBtn(@wndGoToLine, 190, 56, 75, 23, %fix, %fix, \common@langEn ?("Cancel", "キャンセル"))
+		do @wndBtnCancel.onPush :: wndBtnCancelOnPush
+	end if
+	
+	func wndGoToLineOnClose(wnd: wnd@WndBase): bool
+		do @wndGoToLine :: null
+		ret true
+	end func
+	
+	func wndBtnOkOnPush(wnd: wnd@WndBase)
+		do @goToLine()
+	end func
+	
+	func wndBtnCancelOnPush(wnd: wnd@WndBase)
+		do @wndGoToLine.close()
+	end func
+end func
+
++func goToLine()
+	var line: int :: @wndEditLineNumber.getText().toInt(&) - 1
+	do(\src@curDoc $ \doc_src@DocSrc).move(0, line - 10)
+	do(\src@curDoc $ \doc_src@DocSrc).move(0, line + 10)
+	do(\src@curDoc $ \doc_src@DocSrc).move(0, line)
+	do \form@paintDrawEditor(false)
+	do \form@focusDrawEditor()
+	do @wndGoToLine.close()
+end func

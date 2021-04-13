@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	<icon></icon>
+	<env>wnd</env>
+	<snap>5</snap>
+	<zoom>1</zoom>
+	<related_files />
+	<resources>
+		<resource>add_file.kn</resource>
+		<resource>common.kn</resource>
+		<resource>completion.kn</resource>
+		<resource>dbgwnd.kn</resource>
+		<resource>dll.kn</resource>
+		<resource>doc.kn</resource>
+		<resource>doc_ar.kn</resource>
+		<resource>doc_ar_2d.kn</resource>
+		<resource>doc_ar_wnd.kn</resource>
+		<resource>doc_gen.kn</resource>
+		<resource>doc_src.kn</resource>
+		<resource>find.kn</resource>
+		<resource>form.kn</resource>
+		<resource>go_to_line.kn</resource>
+		<resource>knobj_maker.kn</resource>
+		<resource>obj_prop.kn</resource>
+		<resource>proj_settings.kn</resource>
+		<resource>prop.kn</resource>
+		<resource>recent.kn</resource>
+		<resource>snippet.kn</resource>
+		<resource>src.kn</resource>
+		<resource>web_server.kn</resource>
+	</resources>
+</configuration>

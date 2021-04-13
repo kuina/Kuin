@@ -1,0 +1,1638 @@
+include assemble
+include excpt_func
+
++class Pack()
+	+var asms: list<@Asm>
+	+var readonlyData: list<@ReadonlyData>
+	+var dllImport: list<@DllImport>
+	+var excptTable: list<@ExcptTable>
+	+var writableData: dict<[]char, @WritableData>
+	+var classTable: list<@ClassTable>
+	+var resEntries: list<@ResEntry>
+	+var refValueList: list<@RefValueAddr>
+	+var excptFunc: lib@Int
+	+var resIconNum: int
+	+var resIconBinSize: []int
+	+var resIconHeaderBins: [][]bit8
+	+var resIconBins: [][]bit8
+	+var funcAddrs: dict<\ast@AstFunc, []@Asm>
+end class
+
++class ExeClassInfo(\ast@HasType)
+	+var addr: lib@Int
+	+var varSize: int
+	+var funcSize: int
+end class
+
++func getExeClassInfo(ast: \ast@AstClass): @ExeClassInfo
+	if(ast.extra =& null | ast.extra.typeId <> %info)
+		var info: @ExeClassInfo :: #@ExeClassInfo
+		do info.typeId :: %info
+		do info.addr :: @newAddr()
+		do info.varSize :: 0
+		do info.funcSize :: 0
+		do ast.extra :: info
+	end if
+	ret ast.extra $ @ExeClassInfo
+end func
+
++class ExeFuncInfo(\ast@HasType)
+	+var addrTop: lib@Int
+	+var addrBottom: int
+	+var retPoint: @AsmLabel
+	+var rawAsms: list<@Asm>
+	+var rawArgNum: int
+	+var rawHeader: list<@Asm>
+end class
+
++func getExeFuncInfo(ast: \ast@AstFunc): @ExeFuncInfo
+	if(ast.extra =& null | ast.extra.typeId <> %info)
+		var info: @ExeFuncInfo :: #@ExeFuncInfo
+		do info.typeId :: %info
+		do info.addrTop :: @newAddr()
+		do info.addrBottom :: -1
+		do info.retPoint :: null
+		do info.rawAsms :: null
+		do info.rawArgNum :: -1
+		do info.rawHeader :: null
+		do ast.extra :: info
+	end if
+	ret ast.extra $ @ExeFuncInfo
+end func
+
++class ExeClassItemInfo()
+	+var addr: int
+end class
+
++func getExeClassItemInfo(item: \ast@AstClassItem): @ExeClassItemInfo
+	if(item.extra =& null)
+		var info: @ExeClassItemInfo :: #@ExeClassItemInfo
+		do info.addr :: -1
+		do item.extra :: info
+	end if
+	ret item.extra $ @ExeClassItemInfo
+end func
+
++class ExeArgInfo(\ast@HasType)
+	+var addr: lib@Int
+end class
+
++func getExeArgInfo(ast: \ast@AstArg): @ExeArgInfo
+	if(ast.extra =& null | ast.extra.typeId <> %info)
+		var info: @ExeArgInfo :: #@ExeArgInfo
+		do info.typeId :: %info
+		do info.addr :: @newAddr()
+		do ast.extra :: info
+	end if
+	ret ast.extra $ @ExeArgInfo
+end func
+
++class ExeStatInfo(\ast@HasType)
+	+var asmTop: @Asm
+	+var asmBottom: @Asm
+	+var breakPoint: @AsmLabel
+	+var skipPoint: @AsmLabel
+end class
+
++func getExeStatInfo(ast: \ast@AstStat): @ExeStatInfo
+	if(ast.extra =& null | ast.extra.typeId <> %info)
+		var info: @ExeStatInfo :: #@ExeStatInfo
+		do info.typeId :: %info
+		do info.asmTop :: null
+		do info.asmBottom :: null
+		do info.breakPoint :: ast.typeId.and(%statBreakable) = %statBreakable ?(@asmLabel(), null)
+		do info.skipPoint :: ast.typeId.and(%statSkipable) = %statSkipable ?(@asmLabel(), null)
+		do ast.extra :: info
+	end if
+	ret ast.extra $ @ExeStatInfo
+end func
+
++class ReadonlyData()
+	+var align128: bool
+	+var buf: []bit8
+	+var addr: lib@Int
+end class
+
++class DllImportFunc()
+	+var funcName: []bit8
+	+var addr: lib@Int
+end class
+
++class DllImport()
+	+var dllName: []bit8
+	+var addr: int
+	+var funcs: list<@DllImportFunc>
+end class
+
++class ExcptTableTry()
+	+var begin: @AsmLabel
+	+var end_: @AsmLabel
+	+var catchFunc: lib@Int
+end class
+
++class ExcptTable()
+	+var begin: @AsmLabel
+	+var end_: @AsmLabel
+	+var postPrologue: @AsmLabel
+	+var tryScopes: list<@ExcptTableTry>
+	+var stackSize: int
+	+var addr: int
+end class
+
++class WritableData()
+	+var addr: lib@Int
+	+var size: int
+end class
+
++class ClassTable()
+	+var addr: lib@Int
+	+var parent: lib@Int
+	+var class_: \ast@AstClass
+end class
+
++class ResEntry()
+	+var value: int
+	+var children: list<@ResEntry>
+	+var addr: int
+end class
+
++enum RefValueTypeId
+	refValue
+	addr
+end enum
+
++class RefValue()
+	+var typeId: @RefValueTypeId
+	+var value: bit64
+end class
+
++class RefValueAddr(@RefValue)
+	+var pos: int
+	+var bottom: int {The address at the end of operation.}
+	+var addr: lib@Int
+	+var relative: bool
+end class
+
++enum ValTypeId
+	val
+	imm
+	reg
+	mem
+	rip
+end enum
+
++class Val()
+	+var typeId: @ValTypeId
+	+var size: int
+end class
+
++class ValImm(@Val)
+	+var value: @RefValue
+end class
+
++enum Reg
+	ax :: 0x00
+	cx :: 0x01
+	dx :: 0x02
+	bx :: 0x03
+	sp :: 0x04
+	bp :: 0x05
+	si :: 0x06
+	di :: 0x07
+	r8 :: 0x08
+	r9 :: 0x09
+	r10 :: 0x0A
+	r11 :: 0x0B
+	r12 :: 0x0C
+	r13 :: 0x0D
+	r14 :: 0x0E
+	r15 :: 0x0F
+	spl :: 0x14
+	bpl :: 0x15
+	sil :: 0x16
+	dil :: 0x17
+	xmm0 :: 0x18
+	xmm1 :: 0x19
+	xmm2 :: 0x1A
+	xmm3 :: 0x1B
+	xmm4 :: 0x1C
+	xmm5 :: 0x1D
+	xmm6 :: 0x1E
+	xmm7 :: 0x1F
+	xmm8 :: 0x20
+	xmm9 :: 0x21
+	xmm10 :: 0x22
+	xmm11 :: 0x23
+	xmm12 :: 0x24
+	xmm13 :: 0x25
+	xmm14 :: 0x26
+	xmm15 :: 0x27
+end enum
+
++class ValReg(@Val)
+	+var reg: @Reg
+end class
+
++class ValMem(@Val)
+	+var base: @ValReg
+	+var idx: @ValReg
+	+var disp: @RefValue
+end class
+
++class ValRip(@Val)
+	+var disp: @RefValue
+end class
+
++enum AsmTypeId
+	none :: 0x00
+	label :: 0x01
+	machine :: 0x02
+	addGroup :: 0x0100
+	addsdGroup :: 0x0200
+	incGroup :: 0x0400
+	jeGroup :: 0x0800
+	movsdGroup :: 0x1000
+	repGroup :: 0x2000
+	shlGroup :: 0x4000
+	comisdGroup :: 0x8000
+	add :: 0x0101
+	addsd :: 0x0201
+	and :: 0x0102
+	call :: 0x03
+	cdq :: 0x04
+	cmp :: 0x0103
+	comisd :: 0x8001
+	cvtsd2si :: 0x0202
+	cvtsd2ss :: 0x0203
+	cvtsi2sd :: 0x0204
+	cvtss2sd :: 0x0205
+	dec :: 0x0401
+	div :: 0x0402
+	divsd :: 0x0206
+	idiv :: 0x0403
+	imul :: 0x05
+	inc :: 0x0404
+	int_ :: 0x06
+	ja :: 0x0801
+	jae :: 0x0802
+	jb :: 0x0803
+	jbe :: 0x0804
+	je :: 0x0805
+	jg :: 0x0806
+	jge :: 0x0807
+	jl :: 0x0808
+	jle :: 0x0809
+	jmp :: 0x07
+	jne :: 0x080A
+	jno :: 0x080B
+	jns :: 0x080C
+	jo :: 0x080D
+	js :: 0x080E
+	ldmxcsr :: 0x08
+	lea :: 0x09
+	mov :: 0x0A
+	movsd :: 0x1001
+	movss :: 0x1002
+	movsx :: 0x0B
+	movups :: 0x0C
+	movzx :: 0x0D
+	mulsd :: 0x0207
+	neg :: 0x0405
+	nop :: 0x0E
+	not :: 0x0406
+	or :: 0x0104
+	repmovs :: 0x2001
+	repstos :: 0x2002
+	ret_ :: 0x0F
+	sar :: 0x4001
+	shl :: 0x4002
+	shr :: 0x4003
+	sub :: 0x0105
+	subsd :: 0x0208
+	test :: 0x10
+	xor :: 0x0106
+	xorpd :: 0x8002
+end enum
+
++class Asm()
+	+var typeId: @AsmTypeId
+	+var addr: lib@Int
+end class
+
++class AsmLabel(@Asm)
+end class
+
++class AsmMachine(@Asm)
+	+var data: []bit8
+end class
+
++class AsmAddGroup(@Asm)
+	+var a: @Val
+	+var b: @Val
+	+var rate: bit8
+end class
+
++class AsmAddsdGroup(@Asm)
+	+var a: @Val
+	+var b: @Val
+	+var double: bool
+	+var code: bit8
+end class
+
++class AsmIncGroup(@Asm)
+	+var a: @Val
+	+var code: bit8
+	+var rate: bit8
+end class
+
++class AsmJeGroup(@Asm)
+	+var a: @Val
+	+var code: bit8
+end class
+
++class AsmMovsdGroup(@Asm)
+	+var a: @Val
+	+var b: @Val
+	+var code: bit8
+	+var codeRm: bit8
+	+var codeMr: bit8
+end class
+
++class AsmRepGroup(@Asm)
+	+var a: @Val
+	+var code: bit8
+end class
+
++class AsmShlGroup(@Asm)
+	+var a: @Val
+	+var b: @Val
+	+var rate: bit8
+end class
+
++class AsmComisdGroup(@Asm)
+	+var a: @Val
+	+var b: @Val
+	+var double: bool
+	+var code: bit8
+end class
+
++class Asm1(@Asm)
+	+var a: @Val
+end class
+
++class Asm2(@Asm)
+	+var a: @Val
+	+var b: @Val
+end class
+
++class Asm3(@Asm)
+	+var a: @Val
+	+var b: @Val
+	+var c: @Val
+end class
+
++func refValue(value: bit64): @RefValue
+	var r: @RefValue :: #@RefValue
+	do r.typeId :: %refValue
+	do r.value :: value
+	ret r
+end func
+
++func refValueAddr(addr: lib@Int, relative: bool): @RefValue
+	var r: @RefValueAddr :: #@RefValueAddr
+	do r.typeId :: %addr
+	do r.value :: 0xFFFFFFFFFFFFFFFFb64
+	do r.pos :: -1
+	do r.bottom :: -1
+	do r.addr :: addr
+	do r.relative :: relative
+	ret r
+end func
+
++func valImm(size: int, value: @RefValue): @Val
+	var r: @ValImm :: #@ValImm
+	assert value <>& null
+	do r.typeId :: %imm
+	do r.size :: size
+	do r.value :: value
+	ret r
+end func
+
++func valImmS(size: int, value: int): @Val
+	var r: @ValImm :: #@ValImm
+	do r.typeId :: %imm
+	var value2: bit64 :: value $ bit64
+	var sign: bool :: value2.and(0x8000000000000000b64) = 0x8000000000000000b64
+	if(size = 8 & (sign & value2.and(0xFFFFFFFF80000000b64) = 0xFFFFFFFF80000000b64 | !sign & value2.and(0xFFFFFFFF80000000b64) = 0b64))
+		do size :: 4
+	end if
+	if(size = 4 & (sign & value2.and(0xFFFFFFFFFFFF8000b64) = 0xFFFFFFFFFFFF8000b64 | !sign & value2.and(0xFFFFFFFFFFFF8000b64) = 0b64))
+		do size :: 2
+	end if
+	if(size = 2 & (sign & value2.and(0xFFFFFFFFFFFFFF80b64) = 0xFFFFFFFFFFFFFF80b64 | !sign & value2.and(0xFFFFFFFFFFFFFF80b64) = 0b64))
+		do size :: 1
+	end if
+	do r.size :: size
+	do r.value :: @refValue(value2)
+	ret r
+end func
+
++func valImmU(size: int, value: bit64): @Val
+	var r: @ValImm :: #@ValImm
+	do r.typeId :: %imm
+	if(size = 8 & value.and(0xFFFFFFFF00000000b64) = 0b64)
+		do size :: 4
+	end if
+	if(size = 4 & value.and(0xFFFFFFFFFFFF0000b64) = 0b64)
+		do size :: 2
+	end if
+	if(size = 2 & value.and(0xFFFFFFFFFFFFFF00b64) = 0b64)
+		do size :: 1
+	end if
+	do r.size :: size
+	do r.value :: @refValue(value)
+	ret r
+end func
+
++func valReg(size: int, reg: @Reg): @Val
+	var r: @ValReg :: #@ValReg
+	do r.typeId :: %reg
+	if(size = 1)
+		switch(reg)
+		case %sp
+			do reg :: %spl
+		case %bp
+			do reg :: %bpl
+		case %si
+			do reg :: %sil
+		case %di
+			do reg :: %dil
+		end switch
+	end if
+	do r.size :: size
+	do r.reg :: reg
+	ret r
+end func
+
++func valMem(size: int, base: @Val, idx: @Val, disp: @RefValue): @Val
+	var r: @ValMem :: #@ValMem
+	assert disp <>& null
+	assert base =& null | base.typeId = %reg & !@isXmm(base $ @ValReg)
+	assert idx =& null | idx.typeId = %reg & !@isXmm(idx $ @ValReg)
+	do r.typeId :: %mem
+	assert !(base <>& null & @isXmm(base $ @ValReg) | idx <>& null & @isXmm(idx $ @ValReg)) {'XMM' should not be specified here.}
+	do r.size :: size
+	do r.base :: base $ @ValReg
+	do r.idx :: idx $ @ValReg
+	do r.disp :: disp
+	ret r
+end func
+
++func valMemS(size: int, base: @Val, idx: @Val, disp: int): @Val
+	ret @valMem(size, base, idx, @refValue(disp $ bit64))
+end func
+
++func valRip(size: int, disp: @RefValue): @Val
+	var r: @ValRip :: #@ValRip
+	do r.typeId :: %rip
+	do r.size :: size
+	do r.disp :: disp
+	ret r
+end func
+
+func isXmm(reg: @ValReg): bool
+	var v: bit8 :: (reg.reg $ bit8).and(0xF8b8)
+	ret v = 0x18b8 | v = 0x20b8
+end func
+
+func isAx(val: @Val): bool
+	ret val.typeId = %reg & (val $ @ValReg).reg = %ax
+end func
+
+func isMem(val: @Val): bool
+	switch(val.typeId)
+	case %reg, %mem, %rip
+		ret true
+	end switch
+	ret false
+end func
+
+func isRxReg(reg: @ValReg): bool
+	var v: bit8 :: (reg.reg $ bit8).and(0xF8b8)
+	ret v = 0x08b8 | v = 0x20b8
+end func
+
+func isSplReg(reg: @ValReg): bool
+	ret(reg.reg $ bit8).and(0xF8b8) = 0x10b8
+end func
+
+func getRegCode(reg: @ValReg): bit8
+	ret(reg.reg $ bit8).and(0x07b8)
+end func
+
++func newAddr(): lib@Int
+	var r: lib@Int :: #lib@Int
+	do r.value :: -1
+	ret r
+end func
+
++func asmLabel(): @AsmLabel
+	var r: @AsmLabel :: #@AsmLabel
+	do r.typeId :: %label
+	do r.addr :: @newAddr()
+	ret r
+end func
+
++func asmMachine(data: []bit8): @AsmMachine
+	var r: @AsmMachine :: #@AsmMachine
+	do r.typeId :: %machine
+	do r.addr :: @newAddr()
+	do r.data :: data
+	ret r
+end func
+
++func asmAdd(a: @Val, b: @Val): @AsmAddGroup
+	var r: @AsmAddGroup :: #@AsmAddGroup
+	do r.typeId :: %add
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.rate :: 0x00b8
+	ret r
+end func
+
++func asmAddsd(a: @Val, b: @Val): @AsmAddsdGroup
+	var r: @AsmAddsdGroup :: #@AsmAddsdGroup
+	do r.typeId :: %addsd
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.double :: true
+	do r.code :: 0x58b8
+	ret r
+end func
+
++func asmAnd(a: @Val, b: @Val): @AsmAddGroup
+	var r: @AsmAddGroup :: #@AsmAddGroup
+	do r.typeId :: %and
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.rate :: 0x04b8
+	ret r
+end func
+
++func asmCall(a: @Val): @Asm1
+	var r: @Asm1 :: #@Asm1
+	do r.typeId :: %call
+	do r.addr :: @newAddr()
+	do r.a :: a
+	ret r
+end func
+
++func asmCdq(a: @Val): @Asm1
+	var r: @Asm1 :: #@Asm1
+	do r.typeId :: %cdq
+	do r.addr :: @newAddr()
+	do r.a :: a
+	ret r
+end func
+
++func asmCmp(a: @Val, b: @Val): @AsmAddGroup
+	var r: @AsmAddGroup :: #@AsmAddGroup
+	do r.typeId :: %cmp
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.rate :: 0x07b8
+	ret r
+end func
+
++func asmComisd(a: @Val, b: @Val): @AsmComisdGroup
+	var r: @AsmComisdGroup :: #@AsmComisdGroup
+	do r.typeId :: %comisd
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.double :: true
+	do r.code :: 0x2Fb8
+	ret r
+end func
+
++func asmCvtsd2si(a: @Val, b: @Val): @AsmAddsdGroup
+	var r: @AsmAddsdGroup :: #@AsmAddsdGroup
+	do r.typeId :: %cvtsd2si
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.double :: true
+	do r.code :: 0x2Db8
+	ret r
+end func
+
++func asmCvtsd2ss(a: @Val, b: @Val): @AsmAddsdGroup
+	var r: @AsmAddsdGroup :: #@AsmAddsdGroup
+	do r.typeId :: %cvtsd2ss
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.double :: true
+	do r.code :: 0x5Ab8
+	ret r
+end func
+
++func asmCvtsi2sd(a: @Val, b: @Val): @AsmAddsdGroup
+	var r: @AsmAddsdGroup :: #@AsmAddsdGroup
+	do r.typeId :: %cvtsi2sd
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.double :: true
+	do r.code :: 0x2Ab8
+	ret r
+end func
+
++func asmCvtss2sd(a: @Val, b: @Val): @AsmAddsdGroup
+	var r: @AsmAddsdGroup :: #@AsmAddsdGroup
+	do r.typeId :: %cvtss2sd
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.double :: false
+	do r.code :: 0x5Ab8
+	ret r
+end func
+
++func asmDec(a: @Val): @AsmIncGroup
+	var r: @AsmIncGroup :: #@AsmIncGroup
+	do r.typeId :: %dec
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0xFEb8
+	do r.rate :: 0x01b8
+	ret r
+end func
+
++func asmDiv(a: @Val): @AsmIncGroup
+	var r: @AsmIncGroup :: #@AsmIncGroup
+	do r.typeId :: %div
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0xF6b8
+	do r.rate :: 0x06b8
+	ret r
+end func
+
++func asmDivsd(a: @Val, b: @Val): @AsmAddsdGroup
+	var r: @AsmAddsdGroup :: #@AsmAddsdGroup
+	do r.typeId :: %divsd
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.double :: true
+	do r.code :: 0x5Eb8
+	ret r
+end func
+
++func asmIdiv(a: @Val): @AsmIncGroup
+	var r: @AsmIncGroup :: #@AsmIncGroup
+	do r.typeId :: %idiv
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0xF6b8
+	do r.rate :: 0x07b8
+	ret r
+end func
+
++func asmImul(a: @Val, b: @Val, c: @Val): @Asm3
+	var r: @Asm3 :: #@Asm3
+	do r.typeId :: %imul
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.c :: c
+	ret r
+end func
+
++func asmInc(a: @Val): @AsmIncGroup
+	var r: @AsmIncGroup :: #@AsmIncGroup
+	do r.typeId :: %inc
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0xFEb8
+	do r.rate :: 0x00b8
+	ret r
+end func
+
++func asmInt(a: @Val): @Asm1
+	var r: @Asm1 :: #@Asm1
+	do r.typeId :: %int_
+	do r.addr :: @newAddr()
+	do r.a :: a
+	ret r
+end func
+
++func asmJa(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %ja
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x77b8
+	ret r
+end func
+
++func asmJae(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jae
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x73b8
+	ret r
+end func
+
++func asmJb(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jb
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x72b8
+	ret r
+end func
+
++func asmJbe(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jbe
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x76b8
+	ret r
+end func
+
++func asmJe(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %je
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x74b8
+	ret r
+end func
+
++func asmJg(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jg
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x7Fb8
+	ret r
+end func
+
++func asmJge(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jge
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x7Db8
+	ret r
+end func
+
++func asmJl(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jl
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x7Cb8
+	ret r
+end func
+
++func asmJle(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jle
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x7Eb8
+	ret r
+end func
+
++func asmJmp(a: @Val): @Asm1
+	var r: @Asm1 :: #@Asm1
+	do r.typeId :: %jmp
+	do r.addr :: @newAddr()
+	do r.a :: a
+	ret r
+end func
+
++func asmJne(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jne
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x75b8
+	ret r
+end func
+
++func asmJno(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jno
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x71b8
+	ret r
+end func
+
++func asmJns(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jns
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x79b8
+	ret r
+end func
+
++func asmJo(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %jo
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x70b8
+	ret r
+end func
+
++func asmJs(a: @Val): @AsmJeGroup
+	var r: @AsmJeGroup :: #@AsmJeGroup
+	do r.typeId :: %js
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0x78b8
+	ret r
+end func
+
++func asmLdmxcsr(a: @Val): @Asm1
+	var r: @Asm1 :: #@Asm1
+	do r.typeId :: %ldmxcsr
+	do r.addr :: @newAddr()
+	do r.a :: a
+	ret r
+end func
+
++func asmLea(a: @Val, b: @Val): @Asm2
+	var r: @Asm2 :: #@Asm2
+	do r.typeId :: %lea
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	ret r
+end func
+
++func asmMov(a: @Val, b: @Val): @Asm2
+	var r: @Asm2 :: #@Asm2
+	do r.typeId :: %mov
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	ret r
+end func
+
++func asmMovsd(a: @Val, b: @Val): @AsmMovsdGroup
+	var r: @AsmMovsdGroup :: #@AsmMovsdGroup
+	do r.typeId :: %movsd
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.code :: 0xF2b8
+	do r.codeRm :: 0x10b8
+	do r.codeMr :: 0x11b8
+	ret r
+end func
+
++func asmMovss(a: @Val, b: @Val): @AsmMovsdGroup
+	var r: @AsmMovsdGroup :: #@AsmMovsdGroup
+	do r.typeId :: %movss
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.code :: 0xF3b8
+	do r.codeRm :: 0x10b8
+	do r.codeMr :: 0x11b8
+	ret r
+end func
+
++func asmMovsx(a: @Val, b: @Val): @Asm2
+	var r: @Asm2 :: #@Asm2
+	do r.typeId :: %movsx
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	ret r
+end func
+
++func asmMovups(a: @Val, b: @Val): @Asm2
+	var r: @Asm2 :: #@Asm2
+	do r.typeId :: %movups
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	ret r
+end func
+
++func asmMovzx(a: @Val, b: @Val): @Asm2
+	var r: @Asm2 :: #@Asm2
+	do r.typeId :: %movzx
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	ret r
+end func
+
++func asmMulsd(a: @Val, b: @Val): @AsmAddsdGroup
+	var r: @AsmAddsdGroup :: #@AsmAddsdGroup
+	do r.typeId :: %mulsd
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.double :: true
+	do r.code :: 0x59b8
+	ret r
+end func
+
++func asmNeg(a: @Val): @AsmIncGroup
+	var r: @AsmIncGroup :: #@AsmIncGroup
+	do r.typeId :: %neg
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0xF6b8
+	do r.rate :: 0x03b8
+	ret r
+end func
+
++func asmNop(): @Asm
+	var r: @Asm :: #@Asm
+	do r.typeId :: %nop
+	do r.addr :: @newAddr()
+	ret r
+end func
+
++func asmNot(a: @Val): @AsmIncGroup
+	var r: @AsmIncGroup :: #@AsmIncGroup
+	do r.typeId :: %not
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0xF6b8
+	do r.rate :: 0x02b8
+	ret r
+end func
+
++func asmOr(a: @Val, b: @Val): @AsmAddGroup
+	var r: @AsmAddGroup :: #@AsmAddGroup
+	do r.typeId :: %or
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.rate :: 0x01b8
+	ret r
+end func
+
++func asmRepmovs(a: @Val): @AsmRepGroup
+	var r: @AsmRepGroup :: #@AsmRepGroup
+	do r.typeId :: %repmovs
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0xA4b8
+	ret r
+end func
+
++func asmRepstos(a: @Val): @AsmRepGroup
+	var r: @AsmRepGroup :: #@AsmRepGroup
+	do r.typeId :: %repstos
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.code :: 0xAAb8
+	ret r
+end func
+
++func asmRet(): @Asm
+	var r: @Asm :: #@Asm
+	do r.typeId :: %ret_
+	do r.addr :: @newAddr()
+	ret r
+end func
+
++func asmSar(a: @Val, b: @Val): @AsmShlGroup
+	var r: @AsmShlGroup :: #@AsmShlGroup
+	do r.typeId :: %sar
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.rate :: 0x07b8
+	ret r
+end func
+
++func asmShl(a: @Val, b: @Val): @AsmShlGroup
+	var r: @AsmShlGroup :: #@AsmShlGroup
+	do r.typeId :: %shl
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.rate :: 0x04b8
+	ret r
+end func
+
++func asmShr(a: @Val, b: @Val): @AsmShlGroup
+	var r: @AsmShlGroup :: #@AsmShlGroup
+	do r.typeId :: %shr
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.rate :: 0x05b8
+	ret r
+end func
+
++func asmSub(a: @Val, b: @Val): @AsmAddGroup
+	var r: @AsmAddGroup :: #@AsmAddGroup
+	do r.typeId :: %sub
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.rate :: 0x05b8
+	ret r
+end func
+
++func asmSubsd(a: @Val, b: @Val): @AsmAddsdGroup
+	var r: @AsmAddsdGroup :: #@AsmAddsdGroup
+	do r.typeId :: %subsd
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.double :: true
+	do r.code :: 0x5Cb8
+	ret r
+end func
+
++func asmTest(a: @Val, b: @Val): @Asm2
+	var r: @Asm2 :: #@Asm2
+	do r.typeId :: %test
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	ret r
+end func
+
++func asmXor(a: @Val, b: @Val): @AsmAddGroup
+	var r: @AsmAddGroup :: #@AsmAddGroup
+	do r.typeId :: %xor
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.rate :: 0x06b8
+	ret r
+end func
+
++func asmXorpd(a: @Val, b: @Val): @AsmComisdGroup
+	var r: @AsmComisdGroup :: #@AsmComisdGroup
+	do r.typeId :: %xorpd
+	do r.addr :: @newAddr()
+	do r.a :: a
+	do r.b :: b
+	do r.double :: true
+	do r.code :: 0x57b8
+	ret r
+end func
+
++func writeAsmBin(writer: file@Writer, refValueList: list<@RefValueAddr>, addr: int, asm: @Asm)
+	var typeId: @AsmTypeId :: asm.typeId
+	do asm.addr.value :: addr
+	if(typeId.and(%addGroup) = %addGroup)
+		var asm2: @AsmAddGroup :: asm $ @AsmAddGroup
+		if(@isAx(asm2.a) & asm2.b.typeId = %imm)
+			do writeAxImm(writer, refValueList, asm2.rate * 0x08b8 + 0x04b8, asm2.a, asm2.b)
+		elif(@isMem(asm2.a) & asm2.b.typeId = %imm)
+			if(asm2.a.size <> 1 & asm2.b.size = 1)
+				do writeRegImm2(writer, refValueList, 0x83b8, asm2.a, asm2.b, asm2.rate)
+			else
+				do writeRegImm(writer, refValueList, 0x80b8, asm2.a, asm2.b, asm2.rate)
+			end if
+		elif(@isMem(asm2.a) & asm2.b.typeId = %reg)
+			do writeMemReg(writer, refValueList, asm2.rate * 0x08b8, asm2.a, asm2.b)
+		else
+			assert asm2.a.typeId = %reg & @isMem(asm2.b)
+			do writeMemReg(writer, refValueList, asm2.rate * 0x08b8 + 0x02b8, asm2.b, asm2.a)
+		end if
+	elif(typeId.and(%addsdGroup) = %addsdGroup)
+		var asm2: @AsmAddsdGroup :: asm $ @AsmAddsdGroup
+		assert asm2.a.typeId = %reg & @isMem(asm2.b)
+		do writer.write([asm2.double ?(0xF2b8, 0xF3b8)])
+		do rex(writer, asm2.b, asm2.a)
+		do writer.write([0x0Fb8, asm2.code])
+		do writeValMem(writer, refValueList, asm2.b, asm2.a)
+	elif(typeId.and(%incGroup) = %incGroup)
+		var asm2: @AsmIncGroup :: asm $ @AsmIncGroup
+		assert @isMem(asm2.a)
+		do writeMemOnly(writer, refValueList, asm2.code, asm2.a, asm2.rate)
+	elif(typeId.and(%jeGroup) = %jeGroup)
+		var asm2: @AsmJeGroup :: asm $ @AsmJeGroup
+		assert asm2.a.typeId = %imm
+		if(asm2.a.size = 1)
+			do writer.write([asm2.code])
+			var addr2: bit8 :: getRefValue((asm2.a $ @ValImm).value, writer, refValueList) $ bit8
+			do writer.write([addr2])
+		else
+			assert asm2.a.size <= 4
+			do writer.write([0x0Fb8, asm2.code + 0x10b8])
+			var addr2: bit32 :: getRefValue((asm2.a $ @ValImm).value, writer, refValueList) $ bit32
+			do writer.write(\convert@bit32ToBin(addr2))
+		end if
+	elif(typeId.and(%movsdGroup) = %movsdGroup)
+		var asm2: @AsmMovsdGroup :: asm $ @AsmMovsdGroup
+		do writer.write([asm2.code])
+		if(asm2.a.typeId = %reg & @isMem(asm2.b))
+			do rex(writer, asm2.b, asm2.a)
+			do writer.write([0x0Fb8, asm2.codeRm])
+			do writeValMem(writer, refValueList, asm2.b, asm2.a)
+		else
+			assert @isMem(asm2.a) & asm2.b.typeId = %reg
+			do rex(writer, asm2.a, asm2.b)
+			do writer.write([0x0Fb8, asm2.codeMr])
+			do writeValMem(writer, refValueList, asm2.a, asm2.b)
+		end if
+	elif(typeId.and(%repGroup) = %repGroup)
+		var asm2: @AsmRepGroup :: asm $ @AsmRepGroup
+		do writer.write([0xF3b8])
+		assert @isAx(asm2.a)
+		do rex(writer, asm2.a, null)
+		if(asm2.a.size = 1)
+			do writer.write([asm2.code])
+		else
+			assert asm2.a.size = 2 | asm2.a.size = 4 | asm2.a.size = 8
+			do writer.write([asm2.code + 1b8])
+		end if
+	elif(typeId.and(%shlGroup) = %shlGroup)
+		var asm2: @AsmShlGroup :: asm $ @AsmShlGroup
+		do rex(writer, asm2.a, asm2.b)
+		if(@isMem(asm2.a) & asm2.b.typeId = %imm & asm2.b.size = 1)
+			var addr2: bit64 :: getRefValue((asm2.b $ @ValImm).value, writer, refValueList)
+			if(addr2 = 1b64)
+				if(asm2.a.size = 1)
+					do writer.write([0xD0b8])
+				else
+					assert asm2.a.size = 2 | asm2.a.size = 4 | asm2.a.size = 8
+					do writer.write([0xD1b8])
+				end if
+				do writeValMemS(writer, refValueList, asm2.a, asm2.rate)
+			else
+				if(asm2.a.size = 1)
+					do writer.write([0xC0b8])
+				else
+					assert asm2.a.size = 2 | asm2.a.size = 4 | asm2.a.size = 8
+					do writer.write([0xC1b8])
+				end if
+				do writeValMemS(writer, refValueList, asm2.a, asm2.rate)
+				assert addr2 = addr2 $ bit8 $ bit64
+				do writer.write([addr2 $ bit8])
+			end if
+		else
+			assert @isMem(asm2.a) & asm2.b.typeId = %reg & (asm2.b $ @ValReg).reg = %cx & asm2.b.size = 1
+			if(asm2.a.size = 1)
+				do writer.write([0xD2b8])
+			else
+				assert asm2.a.size = 2 | asm2.a.size = 4 | asm2.a.size = 8
+				do writer.write([0xD3b8])
+			end if
+			do writeValMemS(writer, refValueList, asm2.a, asm2.rate)
+		end if
+	elif(typeId.and(%comisdGroup) = %comisdGroup)
+		var asm2: @AsmComisdGroup :: asm $ @AsmComisdGroup
+		assert asm2.a.typeId = %reg & @isMem(asm2.b)
+		if(asm2.double)
+			do writer.write([0x66b8])
+		end if
+		do rex(writer, asm2.b, asm2.a)
+		do writer.write([0x0Fb8, asm2.code])
+		do writeValMem(writer, refValueList, asm2.b, asm2.a)
+	else
+		switch(typeId)
+		case %label
+			; Do nothing.
+		case %machine
+			var asm2: @AsmMachine :: asm $ @AsmMachine
+			do writer.write(asm2.data)
+		case %call
+			var asm2: @Asm1 :: asm $ @Asm1
+			if(asm2.a.typeId = %imm & asm2.a.size <= 4)
+				do writer.write([0xE8b8])
+				var addr2: bit32 :: getRefValue((asm2.a $ @ValImm).value, writer, refValueList) $ bit32
+				do writer.write(\convert@bit32ToBin(addr2))
+			else
+				assert @isMem(asm2.a) & asm2.a.size = 8
+				var tmp: int :: asm2.a.size
+				do asm2.a.size :: 4
+				do rex(writer, asm2.a, null)
+				do asm2.a.size :: tmp
+				do writer.write([0xFFb8])
+				do writeValMemS(writer, refValueList, asm2.a, 0x02b8)
+			end if
+		case %cdq
+			var asm2: @Asm1 :: asm $ @Asm1
+			assert @isAx(asm2.a)
+			do rex(writer, asm2.a, null)
+			do writer.write([0x99b8])
+		case %imul
+			var asm2: @Asm3 :: asm $ @Asm3
+			if(@isMem(asm2.a) & asm2.b =& null)
+				assert asm2.c =& null
+				do writeMemOnly(writer, refValueList, 0xF6b8, asm2.a, 0x05b8)
+			else
+				assert asm2.a.typeId = %reg & @isMem(asm2.b)
+				do rex(writer, asm2.b, asm2.a)
+				if(asm2.c =& null)
+					assert asm2.a.size = 2 & asm2.b.size = 2 | asm2.a.size = 4 & asm2.b.size = 4 | asm2.a.size = 8 & asm2.b.size = 8
+					do writer.write([0x0Fb8, 0xAFb8])
+					do writeValMem(writer, refValueList, asm2.b, asm2.a)
+				else
+					assert asm2.c.typeId = %imm
+					if(asm2.c.size = 1)
+						assert asm2.a.size = 2 & asm2.b.size = 2 | asm2.a.size = 4 & asm2.b.size = 4 | asm2.a.size = 8 & asm2.b.size = 8
+						do writer.write([0x6Bb8])
+						do writeValMem(writer, refValueList, asm2.b, asm2.a)
+						var addr2: bit8 :: getRefValue((asm2.c $ @ValImm).value, writer, refValueList) $ bit8
+						do writer.write([addr2])
+					else
+						do writer.write([0x69b8])
+						do writeValMem(writer, refValueList, asm2.b, asm2.a)
+						if(asm2.a.size = 2 & asm2.b.size = 2 & asm2.c.size = 2)
+							var addr2: bit16 :: getRefValue((asm2.c $ @ValImm).value, writer, refValueList) $ bit16
+							do writer.write(\convert@bit16ToBin(addr2))
+						else
+							assert(asm2.a.size = 4 & asm2.b.size = 4 | asm2.a.size = 8 & asm2.b.size = 8) & asm2.c.size = 4
+							var addr2: bit32 :: getRefValue((asm2.c $ @ValImm).value, writer, refValueList) $ bit32
+							do writer.write(\convert@bit32ToBin(addr2))
+						end if
+					end if
+				end if
+			end if
+		case %int_
+			var asm2: @Asm1 :: asm $ @Asm1
+			assert asm2.a.typeId = %imm & asm2.a.size = 1
+			var value: @RefValue :: (asm2.a $ @ValImm).value
+			if(value.value = 0x03b64)
+				do writer.write([0xCCb8])
+			else
+				do writer.write([0xCDb8])
+				var addr2: bit8 :: getRefValue(value, writer, refValueList) $ bit8
+				do writer.write([addr2])
+			end if
+		case %jmp
+			var asm2: @Asm1 :: asm $ @Asm1
+			if(asm2.a.typeId = %imm)
+				if(asm2.a.size = 1)
+					do writer.write([0xEBb8])
+					var addr2: bit8 :: getRefValue((asm2.a $ @ValImm).value, writer, refValueList) $ bit8
+					do writer.write([addr2])
+				else
+					assert asm2.a.size = 4
+					do writer.write([0xE9b8])
+					var addr2: bit32 :: getRefValue((asm2.a $ @ValImm).value, writer, refValueList) $ bit32
+					do writer.write(\convert@bit32ToBin(addr2))
+				end if
+			else
+				assert @isMem(asm2.a) & asm2.a.size = 8
+				do writer.write([0xFFb8])
+				do writeValMemS(writer, refValueList, asm2.a, 0x04b8)
+			end if
+		case %ldmxcsr
+			var asm2: @Asm1 :: asm $ @Asm1
+			assert asm2.a.typeId = %mem & asm2.a.size = 4
+			do rex(writer, asm2.a, null)
+			do writer.write([0x0Fb8, 0xAEb8])
+			do writeValMemS(writer, refValueList, asm2.a, 0x02b8)
+		case %lea
+			var asm2: @Asm2 :: asm $ @Asm2
+			assert asm2.a.typeId = %reg & @isMem(asm2.b)
+			do rex(writer, asm2.b, asm2.a)
+			assert asm2.a.size = 2 & asm2.b.size = 2 | asm2.a.size = 4 & asm2.b.size = 4 | asm2.a.size = 8 & asm2.b.size = 8
+			do writer.write([0x8Db8])
+			do writeValMem(writer, refValueList, asm2.b, asm2.a)
+		case %mov
+			var asm2: @Asm2 :: asm $ @Asm2
+			if(@isMem(asm2.a) & asm2.b.typeId = %reg)
+				do writeMemReg(writer, refValueList, 0x88b8, asm2.a, asm2.b)
+			elif(asm2.a.typeId = %reg & @isMem(asm2.b))
+				do writeMemReg(writer, refValueList, 0x8Ab8, asm2.b, asm2.a)
+			elif(asm2.a.typeId = %reg & asm2.b.typeId = %imm)
+				do rex(writer, asm2.a, asm2.b)
+				var code: bit8 :: 0xB0b8 + @getRegCode(asm2.a $ @ValReg)
+				if(asm2.a.size = 1 & asm2.b.size = 1)
+					do writer.write([code])
+					var addr2: bit8 :: getRefValue((asm2.b $ @ValImm).value, writer, refValueList) $ bit8
+					do writer.write([addr2])
+				elif(asm2.a.size = 2 & asm2.b.size <= 2)
+					do writer.write([code + 0x08b8])
+					var addr2: bit16 :: getRefValue((asm2.b $ @ValImm).value, writer, refValueList) $ bit16
+					do writer.write(\convert@bit16ToBin(addr2))
+				elif(asm2.a.size = 4 & asm2.b.size <= 4)
+					do writer.write([code + 0x08b8])
+					var addr2: bit32 :: getRefValue((asm2.b $ @ValImm).value, writer, refValueList) $ bit32
+					do writer.write(\convert@bit32ToBin(addr2))
+				else
+					assert asm2.a.size = 8 & asm2.b.size <= 8
+					do writer.write([code + 0x08b8])
+					var addr2: bit64 :: getRefValue((asm2.b $ @ValImm).value, writer, refValueList)
+					do writer.write(\convert@bit64ToBin(addr2))
+				end if
+			else
+				assert(@isMem(asm2.a) & asm2.b.typeId = %imm)
+				do writeRegImm(writer, refValueList, 0xC6b8, asm2.a, asm2.b, 0x00b8)
+			end if
+		case %movsx
+			var asm2: @Asm2 :: asm $ @Asm2
+			assert asm2.a.typeId = %reg & @isMem(asm2.b)
+			var tmp: int :: asm2.b.size
+			do asm2.b.size :: asm2.a.size
+			do rex(writer, asm2.b, asm2.a)
+			do asm2.b.size :: tmp
+			if((asm2.a.size = 2 | asm2.a.size = 4 | asm2.a.size = 8) & asm2.b.size = 1)
+				do writer.write([0x0Fb8, 0xBEb8])
+				do writeValMem(writer, refValueList, asm2.b, asm2.a)
+			elif((asm2.a.size = 4 | asm2.a.size = 8) & asm2.b.size = 2)
+				do writer.write([0x0Fb8, 0xBFb8])
+				do writeValMem(writer, refValueList, asm2.b, asm2.a)
+			else
+				assert asm2.a.size = 8 & asm2.b.size = 4
+				do writer.write([0x63b8])
+				do writeValMem(writer, refValueList, asm2.b, asm2.a)
+			end if
+		case %movups
+			var asm2: @Asm2 :: asm $ @Asm2
+			if(asm2.a.typeId = %reg & @isMem(asm2.b))
+				do writer.write([0x0Fb8, 0x10b8])
+				do writeValMem(writer, refValueList, asm2.b, asm2.a)
+			else
+				assert @isMem(asm2.a) & asm2.b.typeId = %reg
+				do writer.write([0x0Fb8, 0x11b8])
+				do writeValMem(writer, refValueList, asm2.a, asm2.b)
+			end if
+		case %movzx
+			var asm2: @Asm2 :: asm $ @Asm2
+			assert asm2.a.typeId = %reg & @isMem(asm2.b)
+			var tmp: int :: asm2.b.size
+			do asm2.b.size :: asm2.a.size
+			do rex(writer, asm2.b, asm2.a)
+			do asm2.b.size :: tmp
+			do writer.write([0x0Fb8])
+			if((asm2.a.size = 2 | asm2.a.size = 4 | asm2.a.size = 8) & asm2.b.size = 1)
+				do writer.write([0xB6b8])
+			else
+				assert(asm2.a.size = 4 | asm2.a.size = 8) & asm2.b.size = 2
+				do writer.write([0xB7b8])
+			end if
+			do writeValMem(writer, refValueList, asm2.b, asm2.a)
+		case %nop
+			do writer.write([0x90b8])
+		case %ret_
+			do writer.write([0xC3b8])
+		case %test
+			var asm2: @Asm2 :: asm $ @Asm2
+			if(@isAx(asm2.a) & asm2.b.typeId = %imm)
+				do writeAxImm(writer, refValueList, 0xA8b8, asm2.a, asm2.b)
+			else
+				assert @isMem(asm2.a)
+				if(asm2.b.typeId = %imm)
+					do writeRegImm(writer, refValueList, 0xF6b8, asm2.a, asm2.b, 0x00b8)
+				else
+					assert asm2.b.typeId = %reg
+					do writeMemReg(writer, refValueList, 0x84b8, asm2.a, asm2.b)
+				end if
+			end if
+		default
+			assert false
+		end switch
+	end if
+	
+	func rex(writer: file@Writer, a: @Val, b: @Val)
+		var bin: bit8 :: 0x40b8
+		var prefix: bool :: false
+		if(a.typeId = %reg)
+			var a2: @ValReg :: a $ @ValReg
+			if(@isRxReg(a2))
+				do bin :: bin.or(0x01b8)
+				do prefix :: true
+			elif(@isSplReg(a2))
+				do prefix :: true
+			elif(b <>& null & b.typeId = %reg & @isSplReg(b $ @ValReg))
+				assert !@isSplReg(a2)
+				do prefix :: true
+			end if
+		elif(a.typeId = %mem)
+			var a2: @ValMem :: a $ @ValMem
+			if(a2.base <>& null)
+				if(@isRxReg(a2.base))
+					do bin :: bin.or(0x01b8)
+					do prefix :: true
+				elif(@isSplReg(a2.base))
+					do prefix :: true
+				elif(b <>& null & b.typeId = %reg & @isSplReg(b $ @ValReg))
+					assert !@isSplReg(a2.base)
+					do prefix :: true
+				end if
+			end if
+			if(a2.idx <>& null & @isRxReg(a2.idx))
+				do bin :: bin.or(0x02b8)
+				do prefix :: true
+			end if
+		end if
+		if(b <>& null & b.typeId = %reg & @isRxReg(b $ @ValReg))
+			do bin :: bin.or(0x04b8)
+			do prefix :: true
+		end if
+		if(a.size = 8)
+			do bin :: bin.or(0x08b8)
+			do prefix :: true
+		end if
+		if(a.size = 2)
+			do writer.write([0x66b8])
+		end if
+		if(prefix)
+			do writer.write([bin])
+		end if
+	end func
+	
+	func writeAxImm(writer: file@Writer, refValueList: list<@RefValueAddr>, code: bit8, a: @Val, b: @Val)
+		assert b.typeId = %imm
+		do rex(writer, a, b)
+		if(a.size = 1 & b.size = 1)
+			do writer.write([code])
+			var addr: bit8 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit8
+			do writer.write([addr])
+		elif(a.size = 2 & b.size <= 2)
+			do writer.write([code + 1b8])
+			var addr: bit16 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit16
+			do writer.write(\convert@bit16ToBin(addr))
+		else
+			assert(a.size = 4 | a.size = 8) & b.size <= 4
+			do writer.write([code + 1b8])
+			var addr: bit32 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit32
+			do writer.write(\convert@bit32ToBin(addr))
+		end if
+	end func
+	
+	func writeRegImm(writer: file@Writer, refValueList: list<@RefValueAddr>, code: bit8, a: @Val, b: @Val, rate: bit8)
+		assert b.typeId = %imm
+		do rex(writer, a, b)
+		if(a.size = 1 & b.size = 1)
+			do writer.write([code])
+			do writeValMemS(writer, refValueList, a, rate)
+			var addr: bit8 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit8
+			do writer.write([addr])
+		elif(a.size = 2 & b.size <= 2)
+			do writer.write([code + 1b8])
+			do writeValMemS(writer, refValueList, a, rate)
+			var addr: bit16 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit16
+			do writer.write(\convert@bit16ToBin(addr))
+		else
+			assert(a.size = 4 | a.size = 8) & b.size <= 4
+			do writer.write([code + 1b8])
+			do writeValMemS(writer, refValueList, a, rate)
+			var addr: bit32 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit32
+			do writer.write(\convert@bit32ToBin(addr))
+		end if
+	end func
+	
+	func writeRegImm2(writer: file@Writer, refValueList: list<@RefValueAddr>, code: bit8, a: @Val, b: @Val, rate: bit8)
+		assert b.typeId = %imm
+		do rex(writer, a, b)
+		assert(a.size = 2 | a.size = 4 | a.size = 8) & b.size = 1
+		do writer.write([code])
+		do writeValMemS(writer, refValueList, a, rate)
+		var addr: bit8 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit8
+		do writer.write([addr])
+	end func
+	
+	func writeMemReg(writer: file@Writer, refValueList: list<@RefValueAddr>, code: bit8, a: @Val, b: @Val)
+		assert b.typeId = %reg
+		do rex(writer, a, b)
+		if(a.size = 1 & b.size = 1)
+			do writer.write([code])
+		else
+			assert a.size = 2 & b.size = 2 | a.size = 4 & b.size = 4 | a.size = 8 & b.size = 8
+			do writer.write([code + 1b8])
+		end if
+		do writeValMem(writer, refValueList, a, b)
+	end func
+	
+	func writeMemOnly(writer: file@Writer, refValueList: list<@RefValueAddr>, code: bit8, a: @Val, rate: bit8)
+		do rex(writer, a, null)
+		if(a.size = 1)
+			do writer.write([code])
+		else
+			assert a.size = 2 | a.size = 4 | a.size = 8
+			do writer.write([code + 1b8])
+		end if
+		do writeValMemS(writer, refValueList, a, rate)
+	end func
+	
+	func getRefValue(value: @RefValue, writer: file@Writer, refValueList: list<@RefValueAddr>): bit64
+		if(value.typeId = %addr)
+			; 'refValueList' is set to 'null' when the address is to be updated later, not now.
+			if(refValueList <>& null)
+				var value2: @RefValueAddr :: value $ @RefValueAddr
+				do value2.pos :: writer.getPos() - 0x0400 + 0x1000
+				do refValueList.add(value2)
+			end if
+			ret 0xFFFFFFFFb64
+		end if
+		assert value.typeId = %refValue
+		ret value.value
+	end func
+	
+	func writeValMemS(writer: file@Writer, refValueList: list<@RefValueAddr>, a: @Val, b: bit8)
+		if(a.typeId = %reg)
+			do writer.write([(3b8).shl(6).or(b.shl(3)).or(@getRegCode(a $ @ValReg))])
+		elif(a.typeId = %mem)
+			var a2: @ValMem :: a $ @ValMem
+			var dispRange: int :: 0
+			var disp: int :: getRefValue(a2.disp, writer, null) $ int
+			if(a2.base =& null)
+				do writer.write([(0b8).shl(6).or(b.shl(3)).or(4b8)])
+				var idx: bit8
+				if(a2.idx =& null)
+					do idx :: 4b8
+				else
+					assert a2.idx.reg <> %sp
+					do idx :: @getRegCode(a2.idx)
+				end if
+				do writer.write([(0b8).shl(6).or(idx.shl(3)).or(5b8)])
+				do dispRange :: 4
+				assert isS32Enough(disp)
+			else
+				var mod: bit8
+				if(disp = 0)
+					do mod :: 0b8
+				elif(isS8Enough(disp))
+					do mod :: 1b8
+				else
+					assert isS32Enough(disp) | disp = 0xFFFFFFFF
+					do mod :: 2b8
+				end if
+				if(mod = 0b8 & (a2.base.reg = %bp | a2.base.reg = %r13))
+					do mod :: 1b8
+				end if
+				do dispRange :: mod $ int
+				if(a2.idx =& null)
+					if(a2.base.reg = %sp | a2.base.reg = %r12)
+						do writer.write([mod.shl(6).or(b.shl(3)).or(4b8)])
+						do writer.write([(0b8).shl(6).or((4b8).shl(3)).or(@getRegCode(a2.base))])
+					else
+						do writer.write([mod.shl(6).or(b.shl(3)).or(@getRegCode(a2.base))])
+					end if
+				else
+					assert a2.idx.reg <> %sp
+					do writer.write([mod.shl(6).or(b.shl(3)).or(4b8)])
+					var scale: bit8
+					switch((a2.idx $ @Val).size)
+					case 1
+						do scale :: 0b8
+					case 2
+						do scale :: 1b8
+					case 4
+						do scale :: 2b8
+					case 8
+						do scale :: 3b8
+					default
+						assert false
+					end switch
+					do writer.write([scale.shl(6).or(@getRegCode(a2.idx).shl(3)).or(@getRegCode(a2.base))])
+				end if
+			end if
+			do getRefValue(a2.disp, writer, refValueList)
+			if(dispRange = 1)
+				do writer.write([disp $ bit8])
+			elif(dispRange = 2)
+				do writer.write(\convert@bit32ToBin(disp $ bit32))
+			end if
+		else
+			assert a.typeId = %rip
+			do writer.write([(0b8).shl(6).or(b.shl(3)).or(5b8)])
+			var disp: int :: getRefValue((a $ @ValRip).disp, writer, refValueList) $ int
+			assert isS32Enough(disp) | disp = 0xFFFFFFFF
+			do writer.write(\convert@bit32ToBin(disp $ bit32))
+		end if
+	end func
+	
+	func writeValMem(writer: file@Writer, refValueList: list<@RefValueAddr>, a: @Val, b: @Val)
+		assert b.typeId = %reg
+		do writeValMemS(writer, refValueList, a, @getRegCode(b $ @ValReg))
+	end func
+	
+	func isS8Enough(n: int): bool
+		var n2: bit64 :: n $ bit64
+		ret n2.and(0xFFFFFFFFFFFFFF80b64) = 0xFFFFFFFFFFFFFF80b64 | n2.and(0xFFFFFFFFFFFFFF80b64) = 0b64
+	end func
+	
+	func isS16Enough(n: int): bool
+		var n2: bit64 :: n $ bit64
+		ret n2.and(0xFFFFFFFFFFFF8000b64) = 0xFFFFFFFFFFFF8000b64 | n2.and(0xFFFFFFFFFFFF8000b64) = 0b64
+	end func
+	
+	func isS32Enough(n: int): bool
+		var n2: bit64 :: n $ bit64
+		ret n2.and(0xFFFFFFFF80000000b64) = 0xFFFFFFFF80000000b64 | n2.and(0xFFFFFFFF80000000b64) = 0b64
+	end func
+end func

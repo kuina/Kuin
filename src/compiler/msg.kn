@@ -1,0 +1,1064 @@
++var lang: @Lang :: %ja
+
++enum Lang
+	ja
+	en
+end enum
+
++enum Id
+	_generalErrs :: 0x00000000
+	incorrectOption
+	unexpectedOption
+	incorrectExt
+	incorrectSrcName
+	fileOpenFailed
+	fileSaveFailed
+	sysFileBroken
+	iconFileBroken
+	tooManyResources
+	archivingFilePathMustBeAscii
+	
+	_parsingErrs :: 0x00010000
+	sameIdentifierInSameScope
+	sameIdentifierInUpperScope
+	noBrace
+	tabInStr
+	lineBreakInStr
+	wrongCharacterInIdentifier
+	wrongAtInIdentifier
+	uppercaseFileName
+	wrongBackslashInIdentifier
+	tooLongIdentifier
+	incorrectBlockOrSentence
+	wrongCharacterInFuncAttr
+	tooLongFuncAttr
+	charShouldBeWritten
+	noEnd
+	overrideNonFunctionMember
+	exposeNonFunctionOrVariableMember
+	wrongEnd
+	wrongMember
+	ampersandInNonArgument
+	initializerInArgument
+	initializerInMember
+	noInitializerInConst
+	noEndUnspecified
+	wrongEndUnspecified
+	nonCorrespondingEnd
+	elifOrElseAfterElse
+	caseOrDefaultAfterDefault
+	catchOrFinallyAfterFinally
+	wrongClause
+	wrongClauseInSwitch
+	wrongWord
+	wrongOperator
+	wrongEscSequence
+	wrongCharCodeRepresentation
+	nonClosingStrLiteral
+	tooLongCharLiteral
+	emptyCharLiteral
+	noParenthesis
+	wrongNumericLiteral
+	tooLongNumericLiteral
+	wrongHexadecimalLiteral
+	wrongExponentialNotationLiteral
+	wrongFloatingPointLiteral
+	wrongBitTypeLiteral
+	integerLiteralOverflowed
+	parentOfSubsourceNotFound
+	cannotIncludeInSubsourceFile
+	
+	_analysisErrs :: 0x00020000
+	noMainFunc
+	wrongMainFunc
+	accessMemberWithoutMe
+	nonOmittingAt
+	accessUnpublishedElement
+	identifierNotFound
+	circulatingAlias
+	circulatingClass
+	overridedMemberNotFound
+	memberDuplicatedWithParentClass
+	overridingNonFunc
+	overriddenMemberNotMatchAccessModifier
+	overriddenMemberNotMatchTypeOrArg
+	notAllowedToBeOverridden
+	enumValueMustBeInt
+	enumValueExceedIntRange
+	enumValueDuplicated
+	notExistedElementName
+	valueOfGlobalVarMustBeConst
+	valueOfConstMustBeConst
+	varAndValueTypeNotMatch
+	ifCondMustBeBool
+	elIfCondMustBeBool
+	switchCondMustBeComparable
+	caseCondNotMatchSwitch
+	whileCondMustBeBool
+	forBeginValueMustBeInt
+	forEndValueMustBeInt
+	forIncreaseDecreaseValueMustBeInt
+	forIncreaseDecreaseValueMustBeConst
+	forIncreaseDecreaseValueMustBeOtherThanZero
+	catchCondMustBeConstInt
+	excptCodeMustBeInt
+	mustRetValue
+	retTypeNotMatchFunc
+	noSideEffectDo
+	mustSpecifyBlockName
+	assertCondMustBeBool
+	nonTypeWritten
+	noValuePassed
+	wrongOperatorType
+	wrongLeftValueOfAssignOperator
+	comparingNullByValue
+	enumTypeNotInferred
+	concatNull
+	dividedBy0
+	condForCondOperatorMustBeBool
+	twoValueForCondOperatorMustSameType
+	wrongTypeForNewOperator
+	numOfElementsMustBeInt
+	callNonFunction
+	wrongArgNumInFunc
+	nonRefArgPassed
+	wrongArgTypeInFunc
+	nonArrayAccess
+	arrayIdxMustBeInt
+	memberNotExist
+	refUnpublishedMember
+	elementTypesOfArrayInitNotMatch
+	nullForValueTypeArrayInit
+	allElementsAreEnum
+	allElementsAreNull
+	inaccessibleElement
+	excodeMustBeStrConst
+	dictKeyMustBeComparable
+	cannotInstantiateDirectly
+	
+	_nonErrs :: 0x00030000
+	success
+	failure
+	compilationStarted
+	parsingCompleted
+	semanticAnalysisCompleted
+	generationProcessCompleted
+end enum
+
++func get(id: @Id, args: [][]char): []char
+	switch(id)
+	case %incorrectOption
+		switch(@lang)
+		case %ja
+			ret "オプション「\{args[0]}」の使われ方が正しくありません。"
+		default
+			ret "The option '\{args[0]}' was used incorrectly."
+		end switch
+	case %unexpectedOption
+		switch(@lang)
+		case %ja
+			ret "不明なオプション「\{args[0]}」が指定されました。"
+		default
+			ret "Unexpected option: '\{args[0]}'."
+		end switch
+	case %incorrectExt
+		switch(@lang)
+		case %ja
+			ret "入力ファイル「\{args[0]}」の拡張子は「.kn」でなければなりません。"
+		default
+			ret "The extension of the input file '\{args[0]}' must be '.kn'."
+		end switch
+	case %incorrectSrcName
+		switch(@lang)
+		case %ja
+			ret "ソースファイル名「\{args[0]}」に使えない文字が含まれています。"
+		default
+			ret "The source file name '\{args[0]}' contains characters that cannot be used."
+		end switch
+	case %fileOpenFailed
+		switch(@lang)
+		case %ja
+			ret "ファイル「\{args[0]}」が開けません。"
+		default
+			ret "Cannot open file '\{args[0]}'."
+		end switch
+	case %fileSaveFailed
+		switch(@lang)
+		case %ja
+			ret "ファイル「\{args[0]}」が保存できません。"
+		default
+			ret "Cannot save file '\{args[0]}'."
+		end switch
+	case %sysFileBroken
+		switch(@lang)
+		case %ja
+			ret "システムファイル「\{args[0]}」が壊れています。"
+		default
+			ret "The system file '\{args[0]}' is broken."
+		end switch
+	case %iconFileBroken
+		switch(@lang)
+		case %ja
+			ret "アイコンファイル「\{args[0]}」が壊れています。"
+		default
+			ret "The icon file '\{args[0]}' is broken."
+		end switch
+	case %tooManyResources
+		switch(@lang)
+		case %ja
+			ret "リソースファイルの数「\{args[0]}」が多すぎます。 65535個以下でなければなりません。"
+		default
+			ret "The number of resource files '\{args[0]}' is too large. Must be 65535 or less."
+		end switch
+	case %archivingFilePathMustBeAscii
+		switch(@lang)
+		case %ja
+			ret "アーカイブするファイルパス「\{args[0]}」に使える文字はASCIIのみです。 全角文字などは使えません。"
+		default
+			ret "Only ASCII characters can be used in the file path '\{args[0]}' to be archived."
+		end switch
+	case %sameIdentifierInSameScope
+		switch(@lang)
+		case %ja
+			ret "同じスコープ内に既に同じ識別子「\{args[0]}」が存在します。"
+		default
+			ret "The same identifier '\{args[0]}' already exists in the same scope."
+		end switch
+	case %sameIdentifierInUpperScope
+		switch(@lang)
+		case %ja
+			ret "上位のスコープ内に既に同じ識別子「\{args[0]}」が存在します。"
+		default
+			ret "The same identifier '\{args[0]}' already exists in the upper scope."
+		end switch
+	case %noBrace
+		switch(@lang)
+		case %ja
+			ret "コメントの「{」に対応する「}」が存在しません。"
+		default
+			ret "There is no '}' corresponding to '{' for comment."
+		end switch
+	case %tabInStr
+		switch(@lang)
+		case %ja
+			ret "文字リテラルや文字列リテラル中にタブ文字は記述できません。 エスケープシーケンス「\\t」を代用してください。"
+		default
+			ret "Tab characters cannot be written in character literals and string literals. Use the escape sequence '\\t' instead."
+		end switch
+	case %lineBreakInStr
+		switch(@lang)
+		case %ja
+			ret "文字リテラルや文字列リテラル中では改行できません。 エスケープシーケンス「\\n」を代用してください。"
+		default
+			ret "Line breaks are not allowed in character literals and string literals. Use the escape sequence '\\n' instead."
+		end switch
+	case %wrongCharacterInIdentifier
+		switch(@lang)
+		case %ja
+			ret "識別子には使えない文字「\{args[0]}」が記述されました。"
+		default
+			ret "The character '\{args[0]}' that cannot be used in identifiers was written."
+		end switch
+	case %wrongAtInIdentifier
+		switch(@lang)
+		case %ja
+			ret "識別子に正しくない形式で「@」が記述されました。"
+		default
+			ret "Incorrect '@' was written in an identifier."
+		end switch
+	case %uppercaseFileName
+		switch(@lang)
+		case %ja
+			ret "ソースファイル名の指定「\{args[0]}」に大文字が含まれています。"
+		default
+			ret "A source file name description '\{args[0]}' contains uppercase letters."
+		end switch
+	case %wrongBackslashInIdentifier
+		switch(@lang)
+		case %ja
+			ret "識別子に正しくない形式で「\\」が記述されました。"
+		default
+			ret "Incorrect '\\' was written in an identifier."
+		end switch
+	case %tooLongIdentifier
+		switch(@lang)
+		case %ja
+			ret "識別子「\{args[0]}...」が長すぎます。 128文字以下でなければなりません。"
+		default
+			ret "The identifier '\{args[0]}...' is too long. Must be 128 characters or less."
+		end switch
+	case %incorrectBlockOrSentence
+		switch(@lang)
+		case %ja
+			ret "不正な形式のブロックもしくは文「\{args[0]}」が記述されました。"
+		default
+			ret "An incorrect block or sentence '\{args[0]}' was written."
+		end switch
+	case %wrongCharacterInFuncAttr
+		switch(@lang)
+		case %ja
+			ret "関数属性には使えない文字「\{args[0]}」が記述されました。"
+		default
+			ret "The character '\{args[0]}' that cannot be used in function attributes was written."
+		end switch
+	case %tooLongFuncAttr
+		switch(@lang)
+		case %ja
+			ret "関数属性「\{args[0]}...」が長すぎます。 128文字以下でなければなりません。"
+		default
+			ret "The function attribute '\{args[0]}...' is too long. Must be 128 characters or less."
+		end switch
+	case %charShouldBeWritten
+		switch(@lang)
+		case %ja
+			ret "文字「\{args[0]}」が記述されるべき箇所に、不正な文字「\{args[1]}」が記述されました。"
+		default
+			ret "An invalid character '\{args[1]}' was written in a place where the character '\{args[0]}' should be written."
+		end switch
+	case %noEnd
+		switch(@lang)
+		case %ja
+			ret "「\{args[0]}」に対応する「end \{args[0]}」が存在しません。"
+		default
+			ret "There is no 'end \{args[0]}' corresponding to '\{args[0]}'."
+		end switch
+	case %overrideNonFunctionMember
+		switch(@lang)
+		case %ja
+			ret "関数以外のメンバ「\{args[0]}」をオーバーライドしようとしました。"
+		default
+			ret "Overridden non-function member '\{args[0]}'."
+		end switch
+	case %exposeNonFunctionOrVariableMember
+		switch(@lang)
+		case %ja
+			ret "関数および変数以外のメンバ「\{args[0]}」を公開しようとしました。"
+		default
+			ret "The member '\{args[0]}' other than functions and variables has been released."
+		end switch
+	case %wrongEnd
+		switch(@lang)
+		case %ja
+			ret "「\{args[0]}」が「end \{args[0]}」ではなく不正な「end \{args[1]}」で閉じられました。"
+		default
+			ret "'\{args[0]}' was closed with invalid 'end \{args[1]}' instead of 'end \{args[0]}'."
+		end switch
+	case %wrongMember
+		switch(@lang)
+		case %ja
+			ret "正しくない形式のメンバ「\{args[0]}」が記述されました。"
+		default
+			ret "Incorrectly formatted member '\{args[0]}' was written."
+		end switch
+	case %ampersandInNonArgument
+		switch(@lang)
+		case %ja
+			ret "引数以外の変数に不正な「&」が記述されました。"
+		default
+			ret "An invalid '&' was written in other than an argument."
+		end switch
+	case %initializerInArgument
+		switch(@lang)
+		case %ja
+			ret "引数に初期化子「::」を記述することはできません。"
+		default
+			ret "The initializer '::' cannot be written in arguments."
+		end switch
+	case %initializerInMember
+		switch(@lang)
+		case %ja
+			ret "メンバに初期化子「::」を記述することはできません。"
+		default
+			ret "The initializer '::' cannot be written in members."
+		end switch
+	case %noInitializerInConst
+		switch(@lang)
+		case %ja
+			ret "const文には初期化子「::」を記述しなければなりません。"
+		default
+			ret "The initializer '::' must be written in const statements."
+		end switch
+	case %noEndUnspecified
+		switch(@lang)
+		case %ja
+			ret "ブロックに対応する「end」が存在しません。"
+		default
+			ret "There is no 'end' corresponding to a block."
+		end switch
+	case %wrongEndUnspecified
+		switch(@lang)
+		case %ja
+			ret "「end \{args[0]}」は不正な形式です。"
+		default
+			ret "'end \{args[0]}' is incorrectly formatted."
+		end switch
+	case %nonCorrespondingEnd
+		switch(@lang)
+		case %ja
+			ret "ブロックと対応しない不正な「end \{args[0]}」で閉じられました。"
+		default
+			ret "Closed with invalid 'end \{args[0]}' that does not correspond to the block."
+		end switch
+	case %elifOrElseAfterElse
+		switch(@lang)
+		case %ja
+			ret "「if」ブロックで「else」節の後に不正な「elif」節や「else」節が記述されました。"
+		default
+			ret "In an 'if' block, an invalid 'elif' or 'else' clauses is written after an 'else' clause."
+		end switch
+	case %caseOrDefaultAfterDefault
+		switch(@lang)
+		case %ja
+			ret "「switch」ブロックで「default」節の後に不正な「case」節や「default」節が記述されました。"
+		default
+			ret "In a 'switch' block, an invalid 'case' or 'default' clauses is written after a 'default' clause."
+		end switch
+	case %catchOrFinallyAfterFinally
+		switch(@lang)
+		case %ja
+			ret "「try」ブロックで「finally」節の後に不正な「catch」節や「finally」節が記述されました。"
+		default
+			ret "In a 'try' block, an invalid 'catch' or 'finally' clauses is written after a 'finally' clause."
+		end switch
+	case %wrongClause
+		switch(@lang)
+		case %ja
+			ret "「\{args[0]}」ブロック以外で不正な「\{args[1]}」節が記述されました。"
+		default
+			ret "A invalid '\{args[1]}' clause was written outside '\{args[0]}' blocks."
+		end switch
+	case %wrongClauseInSwitch
+		switch(@lang)
+		case %ja
+			ret "「switch」ブロックで「case」「default」「end switch」のいずれかが記述されるべき箇所にそれ以外が記述されました。"
+		default
+			ret "In a 'switch' block, clauses other than 'case', 'default' and 'end switch' were written."
+		end switch
+	case %wrongWord
+		switch(@lang)
+		case %ja
+			ret "「\{args[0]}」が記述されるべき箇所に不正な「\{args[1]}」が記述されました。"
+		default
+			ret "An invalid '\{args[1]}' was written where '\{args[0]}' should be written."
+		end switch
+	case %wrongOperator
+		switch(@lang)
+		case %ja
+			ret "「不正な形式の演算子「\{args[0]}」が記述されました。"
+		default
+			ret "An incorrect operator '\{args[0]}' was written."
+		end switch
+	case %wrongEscSequence
+		switch(@lang)
+		case %ja
+			ret "不正な形式のエスケープシーケンス「\\\{args[0]}」が記述されました。"
+		default
+			ret "A invalid escape sequence '\\\{args[0]}' was written."
+		end switch
+	case %wrongCharCodeRepresentation
+		switch(@lang)
+		case %ja
+			ret "文字コード表記は「\\u」に続いて、数字または大文字アルファベットで4桁の16進数を記述しなければなりません。"
+		default
+			ret "Character code representations must be '\\u' followed by a 4-digit hexadecimal number in numbers or capital letters."
+		end switch
+	case %nonClosingStrLiteral
+		switch(@lang)
+		case %ja
+			ret "文字リテラルもしくは文字列リテラルが閉じられていません。"
+		default
+			ret "A character literal or string literal is not closed."
+		end switch
+	case %tooLongCharLiteral
+		switch(@lang)
+		case %ja
+			ret "文字リテラル「\{args[0]}...」が長すぎます。 1文字分を記述しなければなりません。"
+		default
+			ret "The character literal '\{args[0]}...' is too long. A character literal must contain one character."
+		end switch
+	case %emptyCharLiteral
+		switch(@lang)
+		case %ja
+			ret "文字リテラルが空です。 1文字分を記述しなければなりません。"
+		default
+			ret "There is an empty character literal. A character literal must contain one character."
+		end switch
+	case %noParenthesis
+		switch(@lang)
+		case %ja
+			ret "括弧「(」に対応する「)」が、あるべき場所に存在しません。"
+		default
+			ret "The ')' corresponding to the parenthesis '(' does not exist where it should be."
+		end switch
+	case %wrongNumericLiteral
+		switch(@lang)
+		case %ja
+			ret "数値リテラルに不正な形式の「\{args[0]}」が記述されました。"
+		default
+			ret "An invalid '\{args[0]}' was written in a numeric literal."
+		end switch
+	case %tooLongNumericLiteral
+		switch(@lang)
+		case %ja
+			ret "数値リテラル「\{args[0]}...」が長すぎます。 1024文字以下でなければなりません。"
+		default
+			ret "The numeric literal '\{args[0]}' is too long. Must be 1024 characters or less."
+		end switch
+	case %wrongHexadecimalLiteral
+		switch(@lang)
+		case %ja
+			ret "16進数リテラルは「0x」から始めなければなりません。"
+		default
+			ret "Hexadecimal literals must start with '0x'."
+		end switch
+	case %wrongExponentialNotationLiteral
+		switch(@lang)
+		case %ja
+			ret "指数表記リテラルは「e+」もしくは「e-」から始めて指数部を記述しなければなりません。"
+		default
+			ret "Exponential notation literals must start with 'e+' or 'e-' and write the exponent part."
+		end switch
+	case %wrongFloatingPointLiteral
+		switch(@lang)
+		case %ja
+			ret "浮動小数点リテラル「\{args[0]}」が解釈できませんでした。 値が大きすぎる可能性があります。"
+		default
+			ret "The floating point literal '\{args[0]}' could not be interpreted. The value may be too large."
+		end switch
+	case %wrongBitTypeLiteral
+		switch(@lang)
+		case %ja
+			ret "ビット型リテラル「\{args[0]}」の接尾辞は「b8」「b16」「b32」「b64」のいずれかでなければなりません。"
+		default
+			ret "The suffix of bit type literal '\{args[0]}' must be either 'b8', 'b16', 'b32' or 'b64'."
+		end switch
+	case %integerLiteralOverflowed
+		switch(@lang)
+		case %ja
+			ret "整数リテラル「\{args[0]}」がオーバーフローしました。"
+		default
+			ret "The integer literal '\{args[0]}' has overflowed."
+		end switch
+	case %parentOfSubsourceNotFound
+		switch(@lang)
+		case %ja
+			ret "サブソースファイル「\{args[0]}」の親ファイルが見つかりませんでした。"
+		default
+			ret "The parent file of the subsource file '\{args[0]}' was not found."
+		end switch
+	case %cannotIncludeInSubsourceFile
+		switch(@lang)
+		case %ja
+			ret "サブソースファイル内でファイル「\{args[0]}」に対し「include」文を使うことはできません。"
+		default
+			ret "An 'include' cannot be used for the file '\{args[0]}' in a subsource file."
+		end switch
+	case %noMainFunc
+		switch(@lang)
+		case %ja
+			ret "「main」関数が存在しません。 コンパイルするソースファイルに「func main()」を定義してください。"
+		default
+			ret "'main' function does not exist. Define 'func main()' in the source files to be compiled."
+		end switch
+	case %wrongMainFunc
+		switch(@lang)
+		case %ja
+			ret "「main」関数の定義は「func main()」としなければなりません。"
+		default
+			ret "The definition of the 'main' function must be 'func main()'."
+		end switch
+	case %accessMemberWithoutMe
+		switch(@lang)
+		case %ja
+			ret "メンバもしくは変数「\{args[0]}」に、「me」を介さず直接アクセスしたか、関数を超えてアクセスしました。"
+		default
+			ret "The member or variable '\{args[0]}' was accessed directly without 'me', or accessed beyond the function."
+		end switch
+	case %nonOmittingAt
+		switch(@lang)
+		case %ja
+			ret "「\{args[0]}@」について、自身のソースファイルのグローバル要素を参照するときは、「@」の前のソース名を省略しなければなりません。"
+		default
+			ret "For '\{args[0]}@', when referring to global elements in its own source file, the source name before the '@' must be omitted."
+		end switch
+	case %accessUnpublishedElement
+		switch(@lang)
+		case %ja
+			ret "他のソースファイルの公開されていない要素「\{args[0]}」を参照しました。要素の先頭に「+」が付いている必要があります。"
+		default
+			ret "A non-public element '\{args[0]}' in another souce file was referenced. The element must start with a '+'."
+		end switch
+	case %identifierNotFound
+		switch(@lang)
+		case %ja
+			ret "識別子「\{args[0]}」の定義が見つかりません。名前を間違えている可能性があります。"
+		default
+			ret "The definition of identifier '\{args[0]}' was not be found. The name may have been written incorrectly."
+		end switch
+	case %circulatingAlias
+		switch(@lang)
+		case %ja
+			ret "「alias \{args[0]}」の定義が循環しています。"
+		default
+			ret "The definition of 'alias \{args[0]}' is circulating."
+		end switch
+	case %circulatingClass
+		switch(@lang)
+		case %ja
+			ret "「class \{args[0]}」の継承が循環しています。"
+		default
+			ret "The inheritance of 'class \{args[0]}' is circulating."
+		end switch
+	case %overridedMemberNotFound
+		switch(@lang)
+		case %ja
+			ret "オーバーライドする親クラスのメンバ「\{args[0]}」が見つかりません。"
+		default
+			ret "The member '\{args[0]}' of the parent class to override cannot be found."
+		end switch
+	case %memberDuplicatedWithParentClass
+		switch(@lang)
+		case %ja
+			ret "メンバ名「\{args[0]}」が親クラスのものと重複しています。 オーバーライドする場合は「*」を付けてください。"
+		default
+			ret "The member name '\{args[0]}' is duplicated with that of the parent class. Add '*' when overriding."
+		end switch
+	case %overridingNonFunc
+		switch(@lang)
+		case %ja
+			ret "関数以外のメンバ「\{args[0]}」をオーバーライドしようとしました。"
+		default
+			ret "Overridden non-function member '\{args[0]}'."
+		end switch
+	case %overriddenMemberNotMatchAccessModifier
+		switch(@lang)
+		case %ja
+			ret "オーバーライドしたメンバ「\{args[0]}」とアクセス修飾子が一致しません。"
+		default
+			ret "The access modifier does not match that of the overridden member '\{args[0]}'."
+		end switch
+	case %overriddenMemberNotMatchTypeOrArg
+		switch(@lang)
+		case %ja
+			ret "オーバーライドしたメンバ「\{args[0]}」と型もしくは引数名が一致しません。"
+		default
+			ret "The types or argument names do not match that of the overridden member '\{args[0]}'."
+		end switch
+	case %notAllowedToBeOverridden
+		switch(@lang)
+		case %ja
+			ret "オーバーライドが許可されていないメンバ「\{args[0]}」をオーバーライドしようとしました。"
+		default
+			ret "The member '\{args[0]}' that is not allowed to be overridden was overridden."
+		end switch
+	case %enumValueMustBeInt
+		switch(@lang)
+		case %ja
+			ret "列挙型「\{args[0]}」の要素「%\{args[1]}」の値はコンパイル時に定数にできる「int」型の値でなければなりません。"
+		default
+			ret "The value of the element '%\{args[1]}' of enumeration type '\{args[0]}' must be an 'int' value that can be made a constant at compile time."
+		end switch
+	case %enumValueExceedIntRange
+		switch(@lang)
+		case %ja
+			ret "列挙型「\{args[0]}」の要素「%\{args[1]}」の値が「int」型の有効範囲を超えました。"
+		default
+			ret "The value of the element '%\{args[1]}' of enumeration type '\{args[0]}' exceeds the valid range of 'int' type."
+		end switch
+	case %enumValueDuplicated
+		switch(@lang)
+		case %ja
+			ret "列挙型「\{args[0]}」の要素「%\{args[1]}」の値「\{args[2]}」が別の要素の値と重複しています。"
+		default
+			ret "The value '\{args[2]}' of the element '%\{args[1]}' of enumeration type '\{args[0]}' is duplicated with the value of another element."
+		end switch
+	case %notExistedElementName
+		switch(@lang)
+		case %ja
+			ret "列挙型内に存在しない要素名「%\{args[0]}」が記述されました。"
+		default
+			ret "The element name '%\{args[0]}' that does not exist in the enumeration type was written."
+		end switch
+	case %valueOfGlobalVarMustBeConst
+		switch(@lang)
+		case %ja
+			ret "グローバル変数「\{args[0]}」の値はコンパイル時に定数にできる値でなければなりません。"
+		default
+			ret "The value of global variable '\{args[0]}' must be a constant at compile time."
+		end switch
+	case %valueOfConstMustBeConst
+		switch(@lang)
+		case %ja
+			ret "「const」文「\{args[0]}」の値はコンパイル時に定数にできる値でなければなりません。"
+		default
+			ret "The value of 'const' statement '\{args[0]}' must be a constant at compile time."
+		end switch
+	case %varAndValueTypeNotMatch
+		switch(@lang)
+		case %ja
+			ret "変数「\{args[0]}」の型と値の型が一致しません。"
+		default
+			ret "The type of the variable '\{args[0]}' does not match the value type."
+		end switch
+	case %ifCondMustBeBool
+		switch(@lang)
+		case %ja
+			ret "「if」ブロックの条件式は「bool」型でなければなりません。"
+		default
+			ret "The conditional expression of the 'if' block must be 'bool' type."
+		end switch
+	case %elIfCondMustBeBool
+		switch(@lang)
+		case %ja
+			ret "「elif」節の条件式は「bool」型でなければなりません。"
+		default
+			ret "The conditional expression of the 'elif' clause must be 'bool' type."
+		end switch
+	case %switchCondMustBeComparable
+		switch(@lang)
+		case %ja
+			ret "「switch」ブロックの条件式は比較可能な型でなければなりません。"
+		default
+			ret "The conditional expression of the 'switch' block must be a comparable type."
+		end switch
+	case %caseCondNotMatchSwitch
+		switch(@lang)
+		case %ja
+			ret "「case」節の型が「switch」ブロックの条件式の型と一致しません。"
+		default
+			ret "The type of the 'case' clause does not match the type of the conditional expression in the 'switch' block."
+		end switch
+	case %whileCondMustBeBool
+		switch(@lang)
+		case %ja
+			ret "「while」ブロックの条件式は「bool」型でなければなりません。"
+		default
+			ret "The conditional expression of the 'while' block must be 'bool' type."
+		end switch
+	case %forBeginValueMustBeInt
+		switch(@lang)
+		case %ja
+			ret "「for」ブロックの初期値は「int」型でなければなりません。"
+		default
+			ret "The begin value of the 'for' block must be 'int' type."
+		end switch
+	case %forEndValueMustBeInt
+		switch(@lang)
+		case %ja
+			ret "「for」ブロックの終値は「int」型でなければなりません。"
+		default
+			ret "The end value of the 'for' block must be 'int' type."
+		end switch
+	case %forIncreaseDecreaseValueMustBeInt
+		switch(@lang)
+		case %ja
+			ret "「for」ブロックの増減値は「int」型でなければなりません。"
+		default
+			ret "The increase / decrease value of the 'for' block must be 'int' type."
+		end switch
+	case %forIncreaseDecreaseValueMustBeConst
+		switch(@lang)
+		case %ja
+			ret "「for」ブロックの増減値はコンパイル時に定数にできる値でなければなりません。"
+		default
+			ret "The increase / decrease value of the 'for' block must be a constant at compile time."
+		end switch
+	case %forIncreaseDecreaseValueMustBeOtherThanZero
+		switch(@lang)
+		case %ja
+			ret "「for」ブロックの増減値は「0」以外でなければなりません。"
+		default
+			ret "The increase / decrease value of the 'for' block must be other than '0'."
+		end switch
+	case %catchCondMustBeConstInt
+		switch(@lang)
+		case %ja
+			ret "「catch」節の条件値はコンパイル時に定数にできる「int」型の値でなければなりません。"
+		default
+			ret "The condition value in the 'catch' clause must be an 'int' value that can be a constant at compile time."
+		end switch
+	case %excptCodeMustBeInt
+		switch(@lang)
+		case %ja
+			ret "「throw」文の例外コードは「int」型でなければなりません。"
+		default
+			ret "The exception code for the 'throw' statement must be 'int'."
+		end switch
+	case %mustRetValue
+		switch(@lang)
+		case %ja
+			ret "戻り値を返す関数では「ret」文は値を返さなければなりません。"
+		default
+			ret "For functions that return a value, 'ret' statements must return a value."
+		end switch
+	case %retTypeNotMatchFunc
+		switch(@lang)
+		case %ja
+			ret "「ret」文の値の型が関数の戻り値の型と一致しません。"
+		default
+			ret "The type of the 'ret' statement does not match the return type of the function."
+		end switch
+	case %noSideEffectDo
+		switch(@lang)
+		case %ja
+			ret "「do」文で最後に行う演算は「::」演算子や関数呼び出しなどの副作用のある演算でなければなりません。"
+		default
+			ret "The last operation in 'do' statements must be with side effects such as '::' operator or function calls."
+		end switch
+	case %mustSpecifyBlockName
+		switch(@lang)
+		case %ja
+			ret "「\{args[0]}」文にはブロック名を指定しなければなりません。"
+		default
+			ret "'\{args[0]}' statements must be given block names."
+		end switch
+	case %assertCondMustBeBool
+		switch(@lang)
+		case %ja
+			ret "「assert」文の条件式は「bool」型でなければなりません。"
+		default
+			ret "The conditional expression of the 'assert' statement must be 'bool' type."
+		end switch
+	case %nonTypeWritten
+		switch(@lang)
+		case %ja
+			ret "型を記述すべきところに型以外が記述されました。"
+		default
+			ret "A non-type was written where a type should be written."
+		end switch
+	case %noValuePassed
+		switch(@lang)
+		case %ja
+			ret "値が設定されるべき場所に値が渡されませんでした。"
+		default
+			ret "No value was passed where some value should be set."
+		end switch
+	case %wrongOperatorType
+		switch(@lang)
+		case %ja
+			ret "演算子の型が正しくありません。"
+		default
+			ret "Incorrect type for operator."
+		end switch
+	case %wrongLeftValueOfAssignOperator
+		switch(@lang)
+		case %ja
+			ret "代入演算子の左辺値が代入可能な変数ではありません。"
+		default
+			ret "The left value of the assignment operator is not an assignable variable."
+		end switch
+	case %comparingNullByValue
+		switch(@lang)
+		case %ja
+			ret "「null」は値比較ができません。"
+		default
+			ret "'null' cannot be compared by value."
+		end switch
+	case %enumTypeNotInferred
+		switch(@lang)
+		case %ja
+			ret "「enum」の要素名「\{args[0]}」から型が推測できませんでした。"
+		default
+			ret "The type could not be inferred from the element name '\{args[0]}' of 'enum'."
+		end switch
+	case %concatNull
+		switch(@lang)
+		case %ja
+			ret "「null」は「~」演算子で連結できません。"
+		default
+			ret "'null' cannot be concatenated with the '~' operator."
+		end switch
+	case %dividedBy0
+		switch(@lang)
+		case %ja
+			ret "0で除算しました。"
+		default
+			ret "Divided by 0."
+		end switch
+	case %condForCondOperatorMustBeBool
+		switch(@lang)
+		case %ja
+			ret "「?(,)」演算子の条件式は「bool」型でなければなりません。"
+		default
+			ret "The conditional expression for the '?(,)' operator must be 'bool'."
+		end switch
+	case %twoValueForCondOperatorMustSameType
+		switch(@lang)
+		case %ja
+			ret "「?(,)」演算子の括弧内の2つの値は同じ型でなければなりません。"
+		default
+			ret "The two values in the parenthesis for the '?(,)' operator must be the same type."
+		end switch
+	case %wrongTypeForNewOperator
+		switch(@lang)
+		case %ja
+			ret "「#」演算子はクラスや「list」「dict」などの参照型にしか使えません。"
+		default
+			ret "The '#' operator can only be used for reference types such as classes, 'list' and 'dict'."
+		end switch
+	case %numOfElementsMustBeInt
+		switch(@lang)
+		case %ja
+			ret "「#」演算子に記述する配列の要素数の値は「int」型でなければなりません。"
+		default
+			ret "The number of array elements written in the '#' operator must be 'int'."
+		end switch
+	case %callNonFunction
+		switch(@lang)
+		case %ja
+			ret "関数でないものを関数呼び出ししようとしました。"
+		default
+			ret "A non-function was called as if it were a function."
+		end switch
+	case %wrongArgNumInFunc
+		switch(@lang)
+		case %ja
+			ret "\{args[0]}個の引数を受け取る関数呼び出しに\{args[1]}個の引数が指定されました。 関数の型は「\{args[2]}」です。"
+		default
+			ret "\{args[1]} arguments were written in the function call that received \{args[0]} arguments. The function type is '\{args[2]}'"
+		end switch
+	case %nonRefArgPassed
+		switch(@lang)
+		case %ja
+			ret "関数呼び出しの\{args[0]}番目の参照渡しの引数に、参照を取れない値が渡されました。"
+		default
+			ret "A value that cannot be referenced was passed to the \{args[0]}th/st/nd/rd argument, which is a reference argument, of the function call."
+		end switch
+	case %wrongArgTypeInFunc
+		switch(@lang)
+		case %ja
+			ret "関数呼び出しの引数の型が異なります。 \{args[0]}番目の引数で「\{args[1]}」を指定すべきところに「\{args[2]}」が渡されました。"
+		default
+			ret "The type of arguments of the function call is different. '\{args[2]}' has been passed where '\{args[1]}' should be written in the \{args[0]}th/st/nd/rd argument."
+		end switch
+	case %nonArrayAccess
+		switch(@lang)
+		case %ja
+			ret "配列でないものに配列アクセスしようとしました。"
+		default
+			ret "A non-array was accessed as an array."
+		end switch
+	case %arrayIdxMustBeInt
+		switch(@lang)
+		case %ja
+			ret "配列の添字は「int」型でなければなりません。"
+		default
+			ret "Array indices must be 'int'."
+		end switch
+	case %memberNotExist
+		switch(@lang)
+		case %ja
+			ret "参照先のメンバ「\{args[0]}」が存在しません。"
+		default
+			ret "The referenced member '\{args[0]}' does not exist."
+		end switch
+	case %refUnpublishedMember
+		switch(@lang)
+		case %ja
+			ret "公開されていないメンバ「\{args[0]}」を参照しました。"
+		default
+			ret "An unpublished member '\{args[0]}' was referenced."
+		end switch
+	case %elementTypesOfArrayInitNotMatch
+		switch(@lang)
+		case %ja
+			ret "配列初期化子「[]」の要素の型が一致していません。"
+		default
+			ret "The element types of the array initializer '[]' do not match."
+		end switch
+	case %nullForValueTypeArrayInit
+		switch(@lang)
+		case %ja
+			ret "値型の配列初期化子「[]」に「null」が記述されました。"
+		default
+			ret "'null' was written in the value type array initializer '[]'."
+		end switch
+	case %allElementsAreEnum
+		switch(@lang)
+		case %ja
+			ret "配列初期化子「[]」のすべての要素が「enum」の要素名のため、型が決定できませんでした。 いずれかの要素名をキャストして型を示してください。"
+		default
+			ret "The type could not be determined because all elements of the array initializer '[]' are element names of 'enum'. Cast one of the element names to indicate the type."
+		end switch
+	case %allElementsAreNull
+		switch(@lang)
+		case %ja
+			ret "配列初期化子「[]」のすべての要素が「null」のため、型が決定できませんでした。 いずれかの「null」をキャストして型を示してください。"
+		default
+			ret "The type could not be determined because all elements of the array initializer '[]' are 'null'. Cast one of 'null' to indicate the type."
+		end switch
+	case %inaccessibleElement
+		switch(@lang)
+		case %ja
+			ret "アクセスできない要素「\{args[0]}」にアクセスしました。"
+		default
+			ret "Accessed inaccessible element '\{args[0]}'."
+		end switch
+	case %excodeMustBeStrConst
+		switch(@lang)
+		case %ja
+			ret "「excode」文の式は「[]char」型の定数でなければなりません。"
+		default
+			ret "The expression of the 'excode' statement must be a constant of '[]char' type."
+		end switch
+	case %dictKeyMustBeComparable
+		switch(@lang)
+		case %ja
+			ret "「dict」型のキーは比較可能な型でなければなりません。"
+		default
+			ret "The key of 'dict' must be a comparable type."
+		end switch
+	case %cannotInstantiateDirectly
+		switch(@lang)
+		case %ja
+			ret "クラス「\{args[0]}」のインスタンスは#演算子で生成できません。"
+		default
+			ret "The class '\{args[0]}' cannot instantiate directly."
+		end switch
+	case %success
+		switch(@lang)
+		case %ja
+			ret "成功。"
+		default
+			ret "Success."
+		end switch
+	case %failure
+		switch(@lang)
+		case %ja
+			ret "失敗。"
+		default
+			ret "Failure."
+		end switch
+	case %compilationStarted
+		switch(@lang)
+		case %ja
+			ret "コンパイル開始: \{args[0]}秒。"
+		default
+			ret "Compilation started: \{args[0]}s."
+		end switch
+	case %parsingCompleted
+		switch(@lang)
+		case %ja
+			ret "字句構文解析完了: \{args[0]}秒。"
+		default
+			ret "Parsing is complete: \{args[0]}s."
+		end switch
+	case %semanticAnalysisCompleted
+		switch(@lang)
+		case %ja
+			ret "意味解析完了: \{args[0]}秒。"
+		default
+			ret "Semantic analysis is complete: \{args[0]}s."
+		end switch
+	case %generationProcessCompleted
+		switch(@lang)
+		case %ja
+			ret "生成処理完了: \{args[0]}秒。"
+		default
+			ret "Generation process is complete: \{args[0]}s."
+		end switch
+	default
+		assert false
+	end switch
+	ret "An unknown error occurred."
+end func

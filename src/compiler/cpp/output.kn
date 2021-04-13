@@ -1,0 +1,2005 @@
+var funcs: queue<\ast@AstFunc>
+var classes: queue<\ast@AstClass>
+
+var uniqueId: []char
+var classPrototypes: list<[]char>
+var classDefs: list<[]char>
+var funcPrototypes: list<[]char>
+var codes: list<[]char>
+var classFuncs: list<[]char>
+var tmpVars: list<@TmpVar>
+var globalVars: list<\ast@AstArg>
+var localVars: list<\ast@AstArg>
+var classTable: list<[]char>
+var funcTypeIds: dict<[]char, []char>
+var gc: bool
+var curFunc: \ast@AstFunc
+
++class CppInfo(\ast@HasType)
+	+var id: []char
+	+var breakLabel: []char
+	+var skipLabel: []char
+	+var classTableOffset: int
+	+var alreadyWritten: bool
+	+var breakLabelUsed: bool
+	+var skipLabelUsed: bool
+end class
+
+class TmpVar()
+	+var identifier: []char
+	+var type: []char
+end class
+
+const nonGcBufSize: []char :: "0x2000000"
+
++func output(entry: \ast@AstFunc, funcAttrs: dict<[]char, dict<[]char, bool>>): bool
+	do @gc :: !\option@extra.get("nogc", &)
+	do @funcs :: #queue<\ast@AstFunc>
+	do @funcs.add(entry)
+	do @classes :: #queue<\ast@AstClass>
+	
+	do @uniqueId :: "a"
+	do @classPrototypes :: #list<[]char>
+	do @classDefs :: #list<[]char>
+	do @funcPrototypes :: #list<[]char>
+	do @codes :: #list<[]char>
+	do @classFuncs :: #list<[]char>
+	do @tmpVars :: #list<@TmpVar>
+	do @globalVars :: #list<\ast@AstArg>
+	do @localVars :: #list<\ast@AstArg>
+	do @classTable :: #list<[]char>
+	do @funcTypeIds :: #dict<[]char, []char>
+	
+	while(^@funcs > 0 | ^@classes > 0)
+		while(^@funcs > 0)
+			var func_: \ast@AstFunc :: @funcs.get()
+			do @curFunc :: func_
+			do @buildFunc(func_)
+		end while
+		while(^@classes > 0)
+			var class_: \ast@AstClass :: @classes.get()
+			do @buildClass(class_)
+		end while
+	end while
+	
+	do @write(funcAttrs)
+	if(!@deploy(funcAttrs))
+		ret false
+	end if
+	ret true
+end func
+
+func buildFunc(ast: \ast@AstFunc)
+	var info: @CppInfo :: @getInfo(ast)
+	if(info.alreadyWritten)
+		ret
+	end if
+	do info.alreadyWritten :: true
+	
+	var template: []char :: ""
+	if(ast.funcOption.and(%any) = %any)
+		if(ast.funcOption.and(%tkv) = %tkv)
+			do template :: "template<typename T_,typename K_,typename V_>"
+		elif(ast.funcOption.and(%tch) = %tch)
+			if(ast.funcOption.and(%rch) = %rch)
+				do template :: "template<typename T_,typename C_,typename R_>"
+			else
+				do template :: "template<typename T_,typename C_>"
+			end if
+		elif(ast.funcOption.and(%rch) = %rch)
+			do template :: "template<typename T_,typename R_>"
+		elif(ast.funcOption.and(%kvf) = %kvf)
+			do template :: "template<typename T_,typename K_,typename V_,typename F_>"
+		elif(ast.funcOption.and(%rac) = %rac)
+			do template :: "template<typename T_,typename C_>"
+		else
+			do template :: "template<typename T_>"
+		end if
+	end if
+	
+	var retType: []char
+	if(ast.funcOption.and(%rch) = %rch)
+		do retType :: "R_"
+	elif(ast.funcOption.and(%rme) = %rme)
+		do retType :: "T_"
+	elif(ast.funcOption.and(%rac) = %rac)
+		do retType :: "type_(Array_<C_>)"
+	else
+		do retType :: @getType(ast.ret_)
+	end if
+	
+	var arg: []char :: ""
+	var dtor: bool :: false
+	if(ast.name <>& null & ast.name = "_dtor" & ^ast.args = 1)
+		var items: list<\ast@AstArg> :: ast.args
+		do items.head()
+		var me_: \ast@AstArg :: items.get()
+		if(!me_.refVar & \ast@isClass(me_.type))
+			var ref: \ast@Ast :: me_.type.refItem
+			do @refClass(ref $ \ast@AstClass)
+			var info2: @CppInfo :: @getInfo(ref)
+			do arg :: info2.id ~ "* " ~ @getInfo(me_).id
+			do dtor :: true
+		end if
+	end if
+	if(!dtor)
+		var idx: int :: 0
+		var items: list<\ast@AstArg> :: ast.args
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstArg :: items.get()
+			if(idx <> 0)
+				do arg :~ ", "
+			end if
+			var info2: @CppInfo :: @getInfo(item)
+			if(ast.funcOption.and(%any) = %any & idx = 0)
+				assert \ast@isInt(item.type)
+				do arg :~ "T_"
+			elif(ast.funcOption.and(%tkv) = %tkv & idx = 2)
+				assert \ast@isInt(item.type)
+				do arg :~ "K_"
+			elif(ast.funcOption.and(%tkv) = %tkv & idx = 3)
+				assert \ast@isInt(item.type)
+				do arg :~ "V_"
+			elif(ast.funcOption.and(%tch) = %tch & idx = 2)
+				assert \ast@isInt(item.type)
+				do arg :~ "C_"
+			elif(ast.funcOption.and(%tme) = %tme & idx = 2)
+				assert \ast@isInt(item.type)
+				do arg :~ "T_"
+			elif(ast.funcOption.and(%kvf) = %kvf & idx = 2)
+				assert \ast@isInt(item.type)
+				do arg :~ "F_"
+			else
+				do arg :~ "\{@getType(item.type)}"
+			end if
+			if(item.refVar)
+				do arg :~ "*"
+			end if
+			do arg :~ " \{info2.id}"
+			if(item.name <>& null)
+				do arg :~ " /*\{item.name}*/"
+			end if
+			do items.next()
+			do idx :+ 1
+		end while
+	end if
+	
+	if(ast.name <>& null)
+		do @codes.add("// \{ast.name}\n")
+	end if
+	block
+		var static: []char :: ast.funcOption.and(%rwi) = %rwi ?("", "static ")
+		do @funcPrototypes.add("\{template}\{static}\{retType} \{info.id}(\{arg});\n")
+		do @codes.add("\{template}\{static}\{retType} \{info.id}(\{arg}){\n")
+	end block
+	
+	do @codes.tail()
+	var listPtr: kuin@ListPtr :: @codes.getPtr()
+	
+	do @buildStats(ast.stats, null, null)
+	if(^ast.funcAttr >= 2)
+		do @codes.add("#if defined(_WIN32)\n")
+		do ast.funcAttr.head()
+		var attr1: []char :: ast.funcAttr.get()
+		do ast.funcAttr.next()
+		var attr2: []char :: ast.funcAttr.get()
+		var name: []char
+		do ast.funcAttr.next()
+		do name :: "k_dll_\{file@delExt(attr1)}_\{attr2}"
+		var s: []char :: ast.ret_ =& null ?("", "return ")
+		do s :~ "reinterpret_cast<\{@getType(ast.ret_)}(*)("
+		block
+			var first: bool :: true
+			var items: list<\ast@AstArg> :: ast.args
+			do items.head()
+			while(!items.term())
+				var arg2: \ast@AstArg :: items.get()
+				if(first)
+					do first :: false
+				else
+					do s :~ ","
+				end if
+				if(\ast@isRef(arg2.type))
+					do s :~ "void*"
+				else
+					do s :~ @getType(arg2.type)
+				end if
+				if(arg2.refVar)
+					do s :~ "*"
+				end if
+				do items.next()
+			end while
+		end block
+		do s :~ ")>(\{name})("
+		block
+			var first: bool :: true
+			var items: list<\ast@AstArg> :: ast.args
+			do items.head()
+			while(!items.term())
+				var arg2: \ast@AstArg :: items.get()
+				var info2: @CppInfo :: @getInfo(arg2)
+				if(first)
+					do first :: false
+				else
+					do s :~ ","
+				end if
+				switch(arg2.type.typeId)
+				case %typeArray
+					do s :~ info2.id ~ "->B"
+				case %typeUser
+					if(\ast@isClass(arg2.type) & @gc & !dtor)
+						do s :~ info2.id ~ ".get()"
+					else
+						do s :~ info2.id
+					end if
+				default
+					do s :~ info2.id
+				end switch
+				do items.next()
+			end while
+		end block
+		do s :~ ");\n"
+		do @codes.add(s)
+		do @codes.add("#endif\n")
+	end if
+	
+	do @codes.add("}\n")
+	
+	do @codes.setPtr(listPtr)
+	do @codes.next()
+	do @localVars.head()
+	while(!@localVars.term())
+		var localVar: \ast@AstArg :: @localVars.get()
+		var info2: @CppInfo :: @getInfo(localVar)
+		if(localVar.name =& null)
+			do @codes.ins("\{@getType(localVar.type)} \{info2.id};\n")
+		else
+			do @codes.ins("\{@getType(localVar.type)} \{info2.id}; // \{localVar.name}\n")
+		end if
+		do @localVars.del()
+	end while
+	do @tmpVars.head()
+	while(!@tmpVars.term())
+		var tmpVar: @TmpVar :: @tmpVars.get()
+		do @codes.ins("\{tmpVar.type} \{tmpVar.identifier};\n")
+		do @tmpVars.del()
+	end while
+end func
+
+func buildClass(ast: \ast@AstClass)
+	var parentId: []char :: null
+	if(ast.refItem <>& null)
+		do parentId :: @refClass(ast.refItem $ \ast@AstClass)
+	end if
+	if(parentId =& null)
+		do parentId :: "Class_"
+	end if
+	var info: @CppInfo :: @getInfo(ast)
+	do @classPrototypes.add("class \{info.id};\n")
+	if(ast.name <>& null)
+		do @classDefs.add("// \{ast.name}\n")
+	end if
+	do @classDefs.add("class \{info.id} : public \{parentId}{\npublic:\n")
+	do @classDefs.add("\{info.id}();\n")
+	do @classDefs.add("virtual ~\{info.id}();\n")
+	do @classFuncs.add("\{info.id}::\{info.id}(): \{parentId}()")
+	block
+		var items: list<\ast@AstClassItem> :: ast.items
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstClassItem :: items.get()
+			if(item.def.typeId = %var_)
+				var var_: \ast@AstVar :: item.def $ \ast@AstVar
+				var info2: @CppInfo :: @getInfo(var_.arg)
+				do @classFuncs.add(", \{info2.id}()")
+			end if
+			do items.next()
+		end while
+	end block
+	do @classFuncs.add("{ Y = \{info.classTableOffset}; }\n")
+	block
+		var dtor: \ast@AstFunc :: @findFunc(ast, "_dtor")
+		assert dtor <>& null
+		var dtorInfo: @CppInfo :: @getInfo(dtor)
+		do @classFuncs.add("\{info.id}::~\{info.id}(){\n")
+		do @classFuncs.add("\{dtorInfo.id}(this);\n")
+		do @classFuncs.add("}\n")
+	end block
+	block
+		var items: list<\ast@AstClassItem> :: ast.items
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstClassItem :: items.get()
+			if(item.def.typeId = %var_)
+				var var_: \ast@AstVar :: item.def $ \ast@AstVar
+				var info2: @CppInfo :: @getInfo(var_.arg)
+				if(var_.arg.name =& null)
+					do @classDefs.add("\{@getType(var_.arg.type)} \{info2.id};\n")
+				else
+					do @classDefs.add("\{@getType(var_.arg.type)} \{info2.id}; // \{var_.arg.name}\n")
+				end if
+			end if
+			do items.next()
+		end while
+	end block
+	do @classDefs.add("};\n")
+end func
+
+func buildStats(stats: list<\ast@AstStat>, breakStat: \ast@AstStat, skipStat: \ast@AstStat)
+	do stats.head()
+	while(!stats.term())
+		var stat: \ast@AstStat :: stats.get()
+		switch(stat.typeId)
+		case %statIf
+			do @buildIf(stat $ \ast@AstStatIf, breakStat, skipStat)
+		case %statSwitch
+			do @buildSwitch(stat $ \ast@AstStatSwitch, breakStat, skipStat)
+		case %statWhile
+			do @buildWhile(stat $ \ast@AstStatWhile, breakStat, skipStat)
+		case %statFor
+			do @buildFor(stat $ \ast@AstStatFor, breakStat, skipStat)
+		case %statTry
+			do @buildTry(stat $ \ast@AstStatTry, breakStat, skipStat)
+		case %statThrow
+			do @buildThrow(stat $ \ast@AstStatThrow)
+		case %statBlock
+			do @buildBlock(stat $ \ast@AstStatBlock, breakStat, skipStat)
+		case %statRet
+			do @buildRet(stat $ \ast@AstStatRet)
+		case %statDo
+			do @buildDo(stat $ \ast@AstStatDo)
+		case %statBreak
+			do @buildBreak(stat $ \ast@AstStat, breakStat)
+		case %statSkip
+			do @buildSkip(stat $ \ast@AstStat, skipStat)
+		case %statAssert
+			do @buildAssert(stat $ \ast@AstStatAssert)
+		case %statExcode
+			do @buildExcode(stat $ \ast@AstStatExcode)
+		default
+			assert false
+		end switch
+		do stats.next()
+	end while
+end func
+
+func buildIf(ast: \ast@AstStatIf, breakStat: \ast@AstStat, skipStat: \ast@AstStat)
+	var infoMe: @CppInfo :: @getInfo(ast)
+	if(ast.cond =& null)
+		; Optimized code.
+		do @buildBlock(ast.statBlock, breakStat, skipStat)
+		if(infoMe.breakLabel <>& null & infoMe.breakLabelUsed)
+			do @codes.add("\{infoMe.breakLabel}:;\n")
+		end if
+		ret
+	end if
+	
+	do @codes.add("if(")
+	do @buildExpr(ast.cond)
+	do @codes.add("){\n")
+	do @buildBlock(ast.statBlock, breakStat, skipStat)
+	do @codes.add("}\n")
+	block
+		var items: list<\ast@AstStatElIf> :: ast.elIfs
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstStatElIf :: items.get()
+			do @codes.add("else if(")
+			do @buildExpr(item.cond)
+			do @codes.add("){\n")
+			do @buildBlock(item.statBlock, breakStat, skipStat)
+			do @codes.add("}\n")
+			do items.next()
+		end while
+	end block
+	if(ast.elseStatBlock <>& null)
+		do @codes.add("else{\n")
+		do @buildBlock(ast.elseStatBlock, breakStat, skipStat)
+		do @codes.add("}\n")
+	end if
+	if(infoMe.breakLabel <>& null & infoMe.breakLabelUsed)
+		do @codes.add("\{infoMe.breakLabel}:;\n")
+	end if
+end func
+
+func buildSwitch(ast: \ast@AstStatSwitch, breakStat: \ast@AstStat, skipStat: \ast@AstStat)
+	var infoMe: @CppInfo :: @getInfo(ast)
+	var info: @CppInfo :: @getInfo(ast.blockVar)
+	if(!info.alreadyWritten)
+		do info.alreadyWritten :: true
+		do @localVars.add(ast.blockVar)
+	end if
+	var useSwitch: bool :: false
+	if chk(\ast@isInt(ast.cond.type) | \ast@isChar(ast.cond.type) | \ast@isEnum(ast.cond.type) | ast.cond.type.typeId = %typeBit)
+		do useSwitch :: true
+		var items: list<\ast@AstStatCase> :: ast.cases
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstStatCase :: items.get()
+			var items2: list<\ast@AstExprPair> :: item.conds
+			do items2.head()
+			while(!items2.term())
+				var exprs: \ast@AstExprPair :: items2.get()
+				if(exprs.expr0.typeId.and(%exprValue) <> %exprValue | exprs.expr1 <>& null)
+					do useSwitch :: false
+					break chk
+				end if
+				do items2.next()
+			end while
+			do items.next()
+		end while
+	end if
+	do @codes.add("\{info.id} = ")
+	do @buildExpr(ast.cond)
+	do @codes.add(";\n")
+	if(useSwitch)
+		do @codes.add("switch(\{info.id}){\n")
+		block
+			var items: list<\ast@AstStatCase> :: ast.cases
+			do items.head()
+			while(!items.term())
+				var item: \ast@AstStatCase :: items.get()
+				var items2: list<\ast@AstExprPair> :: item.conds
+				do items2.head()
+				while(!items2.term())
+					var exprs: \ast@AstExprPair :: items2.get()
+					assert exprs.expr1 =& null
+					do @codes.add("case ")
+					do @buildExpr(exprs.expr0)
+					do @codes.add(":\n")
+					do items2.next()
+				end while
+				do @buildBlock(item.statBlock, ast, skipStat)
+				do @codes.add("break;\n")
+				do items.next()
+			end while
+		end block
+		if(ast.defaultStatBlock <>& null)
+			do @codes.add("default:\n")
+			do @buildBlock(ast.defaultStatBlock, ast, skipStat)
+			do @codes.add("break;\n")
+		end if
+		do @codes.add("}\n")
+	else
+		var first: bool :: true
+		var items: list<\ast@AstStatCase> :: ast.cases
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstStatCase :: items.get()
+			if(first)
+				do first :: false
+				do @codes.add("if(")
+			else
+				do @codes.add("else if(")
+			end if
+			var first2: bool :: true
+			var items2: list<\ast@AstExprPair> :: item.conds
+			do items2.head()
+			while(!items2.term())
+				var exprs: \ast@AstExprPair :: items2.get()
+				if(first2)
+					do first2 :: false
+				else
+					do @codes.add(" || ")
+				end if
+				if(exprs.expr1 =& null)
+					if(\ast@isRef(ast.cond.type))
+						if(\ast@isStr(ast.cond.type) & exprs.expr0.typeId.and(%exprValue) = %exprValue)
+							var value: []char :: (exprs.expr0 $ \ast@AstExprValueStr).value
+							do @codes.add("(\{info.id}->L==\{^value}")
+							for i(0, ^value - 1)
+								do @codes.add("&&\{info.id}->B[\{i}]==\{value[i] $ int}")
+							end for
+							do @codes.add(")")
+						else
+							do @codes.add("cmp_(\{info.id}, (")
+							do @buildExpr(exprs.expr0)
+							do @codes.add(")) == 0")
+						end if
+					else
+						do @codes.add("\{info.id} == (")
+						do @buildExpr(exprs.expr0)
+						do @codes.add(")")
+					end if
+				else
+					if(\ast@isRef(ast.cond.type))
+						do @codes.add("(cmp_(\{info.id}, (")
+						do @buildExpr(exprs.expr0)
+						do @codes.add(")) >= 0 && cmp_(\{info.id}, (")
+						do @buildExpr(exprs.expr1)
+						do @codes.add(")) <= 0)")
+					else
+						do @codes.add("((")
+						do @buildExpr(exprs.expr0)
+						do @codes.add(") <= \{info.id} && \{info.id} <= (")
+						do @buildExpr(exprs.expr1)
+						do @codes.add("))")
+					end if
+				end if
+				do items2.next()
+			end while
+			do @codes.add("){\n")
+			do @buildBlock(item.statBlock, breakStat, skipStat)
+			do @codes.add("}\n")
+			do items.next()
+		end while
+		if(ast.defaultStatBlock <>& null)
+			if(^items = 0)
+				do @codes.add("{")
+			else
+				do @codes.add("else{")
+			end if
+			do @buildBlock(ast.defaultStatBlock, breakStat, skipStat)
+			do @codes.add("}\n")
+		end if
+	end if
+	
+	if(infoMe.breakLabel <>& null & infoMe.breakLabelUsed)
+		do @codes.add("\{infoMe.breakLabel}:;\n")
+	end if
+end func
+
+func buildWhile(ast: \ast@AstStatWhile, breakStat: \ast@AstStat, skipStat: \ast@AstStat)
+	var infoMe: @CppInfo :: @getInfo(ast)
+	if(ast.cond =& null)
+		do @codes.add("for(;;){\n")
+		do @buildStats(ast.stats, ast, ast)
+		if(infoMe.skipLabel <>& null & infoMe.skipLabelUsed)
+			do @codes.add("\{infoMe.skipLabel}:;\n")
+		end if
+		do @codes.add("}\n")
+		if(infoMe.breakLabel <>& null & infoMe.breakLabelUsed)
+			do @codes.add("\{infoMe.breakLabel}:;\n")
+		end if
+		ret
+	end if
+	if(ast.skip_)
+		do @codes.add("do{\n")
+		do @buildStats(ast.stats, ast, ast)
+		if(infoMe.skipLabel <>& null & infoMe.skipLabelUsed)
+			do @codes.add("\{infoMe.skipLabel}:;\n")
+		end if
+		do @codes.add("}while(")
+		do @buildExpr(ast.cond)
+		do @codes.add(");\n")
+		if(infoMe.breakLabel <>& null & infoMe.breakLabelUsed)
+			do @codes.add("\{infoMe.breakLabel}:;\n")
+		end if
+		ret
+	end if
+	do @codes.add("while(")
+	do @buildExpr(ast.cond)
+	do @codes.add("){\n")
+	do @buildStats(ast.stats, ast, ast)
+	if(infoMe.skipLabel <>& null & infoMe.skipLabelUsed)
+		do @codes.add("\{infoMe.skipLabel}:;\n")
+	end if
+	do @codes.add("}\n")
+	if(infoMe.breakLabel <>& null & infoMe.breakLabelUsed)
+		do @codes.add("\{infoMe.breakLabel}:;\n")
+	end if
+end func
+
+func buildFor(ast: \ast@AstStatFor, breakStat: \ast@AstStat, skipStat: \ast@AstStat)
+	var infoMe: @CppInfo :: @getInfo(ast)
+	var info: @CppInfo :: @getInfo(ast.blockVar)
+	if(!info.alreadyWritten)
+		do info.alreadyWritten :: true
+		do @localVars.add(ast.blockVar)
+	end if
+	var endId: []char :: @addTmpVar(@getType(ast.cond.type))
+	do @codes.add("for(\{info.id} = (")
+	do @buildExpr(ast.start)
+	do @codes.add("), \{endId} = (")
+	do @buildExpr(ast.cond)
+	do @codes.add("); \{info.id} ")
+	assert ast.step.typeId = %exprValuePrim & \ast@isInt(ast.cond.type)
+	var step: int :: (ast.step $ \ast@AstExprValuePrim).value $ int
+	if(step > 0)
+		do @codes.add("<=")
+	else
+		do @codes.add(">=")
+	end if
+	do @codes.add(" \{endId}; \{info.id} += (")
+	do @buildExpr(ast.step)
+	do @codes.add(")){\n")
+	do @buildStats(ast.stats, ast, ast)
+	if(infoMe.skipLabel <>& null & infoMe.skipLabelUsed)
+		do @codes.add("\{infoMe.skipLabel}:;\n")
+	end if
+	do @codes.add("}\n")
+	if(infoMe.breakLabel <>& null & infoMe.breakLabelUsed)
+		do @codes.add("\{infoMe.breakLabel}:;\n")
+	end if
+end func
+
+func buildTry(ast: \ast@AstStatTry, breakStat: \ast@AstStat, skipStat: \ast@AstStat)
+	var infoMe: @CppInfo :: @getInfo(ast)
+	var info: @CppInfo :: @getInfo(ast.blockVar)
+	if(!info.alreadyWritten)
+		do info.alreadyWritten :: true
+		do @localVars.add(ast.blockVar)
+	end if
+	if(ast.finallyStatBlock <>& null)
+		do @codes.add("try{\n")
+	end if
+	do @codes.add("try{\n")
+	do @buildBlock(ast.statBlock, breakStat, skipStat)
+	if(ast.finallyStatBlock <>& null)
+		do @buildBlock(ast.finallyStatBlock, breakStat, skipStat)
+	end if
+	do @codes.add("}catch(int64_t \{info.id}){\n")
+	block
+		var first: bool :: true
+		var items: list<\ast@AstStatCatch> :: ast.catches
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstStatCatch :: items.get()
+			if(first)
+				do first :: false
+				do @codes.add("if(")
+			else
+				do @codes.add("else if(")
+			end if
+			var first2: bool :: true
+			var items2: list<\ast@AstExprPair> :: item.conds
+			do items2.head()
+			while(!items2.term())
+				var exprs: \ast@AstExprPair :: items2.get()
+				if(first2)
+					do first2 :: false
+				else
+					do @codes.add(" || ")
+				end if
+				if(exprs.expr1 =& null)
+					do @codes.add("\{info.id} == (")
+					do @buildExpr(exprs.expr0)
+					do @codes.add(")")
+				else
+					do @codes.add("((")
+					do @buildExpr(exprs.expr0)
+					do @codes.add(") <= \{info.id} && \{info.id} <= (")
+					do @buildExpr(exprs.expr1)
+					do @codes.add("))")
+				end if
+				do items2.next()
+			end while
+			do @codes.add("){\n")
+			do @buildBlock(item.statBlock, breakStat, skipStat)
+			do @codes.add("}\n")
+			do items.next()
+		end while
+		if(first)
+			do @codes.add("{\n")
+		else
+			do @codes.add("else{\n")
+		end if
+		do @codes.add("throw;\n}\n")
+	end block
+	do @codes.add("}\n")
+	if(ast.finallyStatBlock <>& null)
+		do @codes.add("}\ncatch(...){\n")
+		do @buildBlock(ast.finallyStatBlock, breakStat, skipStat)
+		do @codes.add("throw;\n}\n")
+	end if
+	if(infoMe.breakLabel <>& null & infoMe.breakLabelUsed)
+		do @codes.add("\{infoMe.breakLabel}:;\n")
+	end if
+end func
+
+func buildThrow(ast: \ast@AstStatThrow)
+	do @codes.add("throw ")
+	do @buildExpr(ast.code)
+	do @codes.add(";\n")
+end func
+
+func buildBlock(ast: \ast@AstStatBlock, breakStat: \ast@AstStat, skipStat: \ast@AstStat)
+	var infoMe: @CppInfo :: @getInfo(ast)
+	do @buildStats(ast.stats, breakStat, skipStat)
+	if(infoMe.breakLabel <>& null & infoMe.breakLabelUsed)
+		do @codes.add("\{infoMe.breakLabel}:;\n")
+	end if
+end func
+
+func buildRet(ast: \ast@AstStatRet)
+	if(ast.value =& null)
+		do @codes.add("return;\n")
+	else
+		do @codes.add("return ")
+		do @buildExpr(ast.value)
+		do @codes.add(";\n")
+	end if
+end func
+
+func buildDo(ast: \ast@AstStatDo)
+	do @buildExpr(ast.expr)
+	do @codes.add(";\n")
+end func
+
+func buildBreak(ast: \ast@AstStat, breakStat: \ast@AstStat)
+	assert ast.refItem.typeId.and(%statBreakable) = %statBreakable
+	if(ast.refItem =& breakStat)
+		do @codes.add("break;\n")
+	else
+		var info: @CppInfo :: @getInfo(ast.refItem)
+		do info.breakLabelUsed :: true
+		do @codes.add("goto \{info.breakLabel};\n")
+	end if
+end func
+
+func buildSkip(ast: \ast@AstStat, skipStat: \ast@AstStat)
+	assert ast.refItem.typeId.and(%statSkipable) = %statSkipable
+	if(ast.refItem =& skipStat)
+		do @codes.add("continue;\n")
+	else
+		var info: @CppInfo :: @getInfo(ast.refItem)
+		do info.skipLabelUsed :: true
+		do @codes.add("goto \{info.skipLabel};\n")
+	end if
+end func
+
+func buildAssert(ast: \ast@AstStatAssert)
+	do @codes.add("if(!(")
+	do @buildExpr(ast.cond)
+	do @codes.add(")){\nthrow \{excpt@dbgAssertFailed $ bit32}U;\n}\n")
+end func
+
+func buildExcode(ast: \ast@AstStatExcode)
+	do @codes.add(\convert@parseExcode(ast, @curFunc, getIdCode))
+	
+	func getIdCode(arg: \ast@AstArg): []char
+		ret @getInfo(arg).id
+	end func
+end func
+
+func buildExpr(ast: \ast@AstExpr)
+	switch(ast.typeId)
+	case %expr1
+		do @buildExpr1(ast $ \ast@AstExpr1)
+	case %expr2
+		do @buildExpr2(ast $ \ast@AstExpr2)
+	case %expr3
+		do @buildExpr3(ast $ \ast@AstExpr3)
+	case %exprNew
+		do @buildExprNew(ast $ \ast@AstExprNew)
+	case %exprNewArray
+		do @buildExprNewArray(ast $ \ast@AstExprNewArray)
+	case %exprAs
+		do @buildExprAs(ast $ \ast@AstExprAs)
+	case %exprToBin
+		do @buildExprToBin(ast $ \ast@AstExprToBin)
+	case %exprFromBin
+		do @buildExprFromBin(ast $ \ast@AstExprFromBin)
+	case %exprCall
+		do @buildExprCall(ast $ \ast@AstExprCall)
+	case %exprArray
+		do @buildExprArray(ast $ \ast@AstExprArray)
+	case %exprDot
+		do @buildExprDot(ast $ \ast@AstExprDot)
+	case %exprValue
+		do @buildExprValue(ast $ \ast@AstExprValue)
+	case %exprValuePrim
+		do @buildExprValuePrim(ast $ \ast@AstExprValuePrim)
+	case %exprValueStr
+		do @buildExprValueStr(ast $ \ast@AstExprValueStr)
+	case %exprValueFloat
+		do @buildExprValueFloat(ast $ \ast@AstExprValueFloat)
+	case %exprValueArray
+		do @buildExprValueArray(ast $ \ast@AstExprValueArray)
+	case %exprRef
+		do @buildExprRef(ast)
+	default
+		assert false
+	end switch
+end func
+
+func buildExpr1(ast: \ast@AstExpr1)
+	assert ast.varKind <> %unknown
+	switch(ast.kind)
+	case %plus
+		assert false
+	case %minus
+		do @codes.add("-(")
+		do @buildExpr(ast.child)
+		do @codes.add(")")
+	case %not
+		do @codes.add("!(")
+		do @buildExpr(ast.child)
+		do @codes.add(")")
+	case %copy
+		do @codes.add("copy_<\{@getType(ast.child.type)}>()(")
+		do @buildExpr(ast.child)
+		do @codes.add(")")
+	case %len
+		do @codes.add("(")
+		do @buildExpr(ast.child)
+		do @codes.add(")->Len()")
+	default
+		assert false
+	end switch
+end func
+
+func buildExpr2(ast: \ast@AstExpr2)
+	assert ast.varKind <> %unknown
+	var type: \ast@AstType :: ast.children0.type
+	switch(ast.kind)
+	case %assign
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(") = (")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %or
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(") || (")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %and
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(") && (")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %lt
+		if(\ast@isRef(type))
+			do @codes.add("cmp_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("), (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")) < 0")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(") < (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %gt
+		if(\ast@isRef(type))
+			do @codes.add("cmp_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("), (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")) > 0")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(") > (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %le
+		if(\ast@isRef(type))
+			do @codes.add("cmp_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("), (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")) <= 0")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(") <= (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %ge
+		if(\ast@isRef(type))
+			do @codes.add("cmp_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("), (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")) >= 0")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(") >= (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %eq
+		if(\ast@isRef(type))
+			if(\ast@isStr(type))
+				if(ast.children0.typeId.and(%exprValue) = %exprValue)
+					do strEq(ast.children1, ast.children0 $ \ast@AstExprValueStr)
+					ret
+				end if
+				if(ast.children1.typeId.and(%exprValue) = %exprValue)
+					do strEq(ast.children0, ast.children1 $ \ast@AstExprValueStr)
+					ret
+				end if
+			end if
+			do @codes.add("cmp_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("), (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")) == 0")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(") == (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %nEq
+		if(\ast@isRef(type))
+			if(\ast@isStr(type))
+				if(ast.children0.typeId.and(%exprValue) = %exprValue)
+					do strNEq(ast.children1, ast.children0 $ \ast@AstExprValueStr)
+					ret
+				end if
+				if(ast.children1.typeId.and(%exprValue) = %exprValue)
+					do strNEq(ast.children0, ast.children1 $ \ast@AstExprValueStr)
+					ret
+				end if
+			end if
+			do @codes.add("cmp_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("), (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")) != 0")
+		else
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(") != (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		end if
+	case %eqRef
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(") == (")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %nEqRef
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(") != (")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %cat
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(")->Cat(")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %add
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(") + (")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %sub
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(") - (")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %mul
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(") * (")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %div
+		do @codes.add("(")
+		do @buildExpr(ast.children0)
+		do @codes.add(") / (")
+		do @buildExpr(ast.children1)
+		do @codes.add(")")
+	case %mod
+		if(\ast@isInt(type) | type.typeId.and(%typeBit) = %typeBit)
+			do @codes.add("(")
+			do @buildExpr(ast.children0)
+			do @codes.add(") % (")
+			do @buildExpr(ast.children1)
+			do @codes.add(")")
+		else
+			assert \ast@isFloat(type)
+			do @codes.add("fmod((")
+			do @buildExpr(ast.children0)
+			do @codes.add("), (")
+			do @buildExpr(ast.children1)
+			do @codes.add("))")
+		end if
+	case %pow
+		if(\ast@isInt(type) | type.typeId.and(%typeBit) = %typeBit)
+			do @codes.add("powI_((")
+			do @buildExpr(ast.children0)
+			do @codes.add("), (")
+			do @buildExpr(ast.children1)
+			do @codes.add("))")
+		else
+			assert \ast@isFloat(type)
+			do @codes.add("pow((")
+			do @buildExpr(ast.children0)
+			do @codes.add("), (")
+			do @buildExpr(ast.children1)
+			do @codes.add("))")
+		end if
+	default
+		assert false
+	end switch
+	
+	func strEq(v: \ast@AstExpr, c: \ast@AstExprValueStr)
+		var tmp: []char :: @addTmpVar(@getType(v.type))
+		var value: []char :: c.value
+		do @codes.add("\{tmp}=(")
+		do @buildExpr(v)
+		do @codes.add("),\{tmp}->L==\{^value}")
+		for i(0, ^value - 1)
+			do @codes.add("&&\{tmp}->B[\{i}]==\{value[i] $ int}")
+		end for
+	end func
+	
+	func strNEq(v: \ast@AstExpr, c: \ast@AstExprValueStr)
+		var tmp: []char :: @addTmpVar(@getType(v.type))
+		var value: []char :: c.value
+		do @codes.add("\{tmp}=(")
+		do @buildExpr(v)
+		do @codes.add("),\{tmp}->L!=\{^value}")
+		for i(0, ^value - 1)
+			do @codes.add("||\{tmp}->B[\{i}]!=\{value[i] $ int}")
+		end for
+	end func
+end func
+
+func buildExpr3(ast: \ast@AstExpr3)
+	assert ast.varKind <> %unknown
+	do @codes.add("(")
+	do @buildExpr(ast.children0)
+	do @codes.add(") ? (")
+	do @buildExpr(ast.children1)
+	do @codes.add(") : (")
+	do @buildExpr(ast.children2)
+	do @codes.add(")")
+end func
+
+func buildExprNew(ast: \ast@AstExprNew)
+	assert ast.varKind <> %unknown
+	if(\ast@isClass(ast.itemType))
+		var class_: \ast@AstClass :: ast.itemType.refItem $ \ast@AstClass
+		var id: []char :: @refClass(class_)
+		var ctor: \ast@AstFunc :: @findFunc(class_, "ctor")
+		if(ctor =& null)
+			do @codes.add("new_(\{id})()")
+		else
+			var tmpVar: []char :: @addTmpVar("type_(\{id})")
+			var ctorInfo: @CppInfo :: @getInfo(ctor)
+			do @codes.add("\{tmpVar} = new_(\{id})(), \{ctorInfo.id}(\{tmpVar}), \{tmpVar}")
+		end if
+	else
+		if(ast.itemType.typeId = %typeGen)
+			var gen: \ast@AstTypeGen :: ast.itemType $ \ast@AstTypeGen
+			switch(gen.kind)
+			case %list_
+				do @codes.add("new_(List_<\{@getType(gen.itemType)}>)()")
+			case %stack_
+				do @codes.add("new_(Stack_<\{@getType(gen.itemType)}>)()")
+			case %queue_
+				do @codes.add("new_(Queue_<\{@getType(gen.itemType)}>)()")
+			default
+				assert false
+			end switch
+		else
+			assert ast.itemType.typeId = %typeDict
+			var dict_: \ast@AstTypeDict :: ast.itemType $ \ast@AstTypeDict
+			do @codes.add("new_(Dict_<\{@getType(dict_.itemTypeKey)}, \{@getType(dict_.itemTypeValue)}>)()")
+		end if
+	end if
+end func
+
+func buildExprNewArray(ast: \ast@AstExprNewArray)
+	assert ast.varKind <> %unknown
+	do @codes.add("newArrays_<\{@getType(ast.type)}>(")
+	block
+		var first: bool :: true
+		var items: list<\ast@AstExpr> :: ast.idces
+		do items.head()
+		while(!items.term())
+			if(first)
+				do first :: false
+				do @codes.add("(")
+			else
+				do @codes.add(", (")
+			end if
+			do @buildExpr(items.get())
+			do @codes.add(")")
+			do items.next()
+		end while
+	end block
+	do @codes.add(")")
+end func
+
+func buildExprAs(ast: \ast@AstExprAs)
+	assert ast.varKind <> %unknown
+	switch(ast.kind)
+	case %as
+		var t1: \ast@AstType :: ast.child.type
+		var t2: \ast@AstType :: ast.childType
+		if(\ast@isClass(t1))
+			assert \ast@isClass(t2)
+			var id: []char :: @refClass(t2.refItem $ \ast@AstClass)
+			var info: @CppInfo :: @getInfo(t2.refItem)
+			do @codes.add("as_<\{id}>(classTable_, (")
+			do @buildExpr(ast.child)
+			do @codes.add("), \{info.classTableOffset})")
+		else
+			do @codes.add("static_cast<\{@getType(ast.childType)}>(")
+			do @buildExpr(ast.child)
+			do @codes.add(")")
+		end if
+	case %is
+		do @refClass(ast.childType.refItem $ \ast@AstClass)
+		var info: @CppInfo :: @getInfo(ast.childType.refItem)
+		do @codes.add("is_(classTable_, (")
+		do @buildExpr(ast.child)
+		do @codes.add("), \{info.classTableOffset})")
+	case %nIs
+		do @refClass(ast.childType.refItem $ \ast@AstClass)
+		var info: @CppInfo :: @getInfo(ast.childType.refItem)
+		do @codes.add("!is_(classTable_, (")
+		do @buildExpr(ast.child)
+		do @codes.add("), \{info.classTableOffset})")
+	default
+		assert false
+	end switch
+end func
+
+func buildExprToBin(ast: \ast@AstExprToBin)
+	assert ast.varKind <> %unknown
+	if(ast.child.type.typeId = %typeFunc)
+		do @codes.add("toBinFunc_<\{@getType(ast.child.type)}>((")
+	else
+		do @codes.add("toBin_<\{@getType(ast.child.type)}>()((")
+	end if
+	do @buildExpr(ast.child)
+	do @codes.add("))")
+end func
+
+func buildExprFromBin(ast: \ast@AstExprFromBin)
+	assert ast.varKind <> %unknown
+	if(ast.childType.typeId = %typeFunc)
+		do @codes.add("fromBinFunc_<\{@getType(ast.childType)}>((")
+	else
+		do @codes.add("fromBin_<\{@getType(ast.childType)}>()((")
+	end if
+	do @buildExpr(ast.child)
+	do @codes.add("), (")
+	if(ast.offset.typeId.and(%exprValue) = %exprValue)
+		var tmp: []char :: @addTmpVar(@getType(ast.offset.type))
+		do @codes.add("\{tmp} = (")
+		do @buildExpr(ast.offset)
+		do @codes.add("), \{tmp}")
+	else
+		do @buildExpr(ast.offset)
+	end if
+	do @codes.add("))")
+end func
+
+func buildExprCall(ast: \ast@AstExprCall)
+	assert ast.varKind <> %unknown
+	var funcType: \ast@AstTypeFunc :: ast.func_.type $ \ast@AstTypeFunc
+	var template: []char :: null
+	if(funcType <>& null & funcType.funcOption.and(%any) = %any)
+		var items: list<\ast@AstExprCallArg> :: ast.args
+		do items.head()
+		var meType: \ast@AstType :: items.get().arg.type
+		if(funcType.funcOption.and(%tkv) = %tkv)
+			do template :: "<\{@getType(meType)}, \{@getType((meType $ \ast@AstTypeDict).itemTypeKey)}, \{@getType((meType $ \ast@AstTypeDict).itemTypeValue)}>"
+		elif(funcType.funcOption.and(%tch) = %tch)
+			if(funcType.funcOption.and(%rch) = %rch)
+				do template :: "<\{@getType(meType)}, "
+				if(meType.typeId = %typeGen)
+					do template :~ "\{@getType((meType $ \ast@AstTypeGen).itemType)}, "
+				else
+					assert meType.typeId = %typeDict
+					do template :~ "\{@getType((meType $ \ast@AstTypeDict).itemTypeKey)}, "
+				end if
+				do template :~ "\{@getType(funcType.ret_)}>"
+			else
+				do template :: "<\{@getType(meType)}, "
+				if(meType.typeId = %typeArray)
+					do template :~ "\{@getType((meType $ \ast@AstTypeArray).itemType)}>"
+				elif(meType.typeId = %typeGen)
+					do template :~ "\{@getType((meType $ \ast@AstTypeGen).itemType)}>"
+				else
+					assert meType.typeId = %typeDict
+					do template :~ "\{@getType((meType $ \ast@AstTypeDict).itemTypeKey)}>"
+				end if
+			end if
+		elif(funcType.funcOption.and(%rch) = %rch)
+			do template :: "<\{@getType(meType)}, \{@getType(funcType.ret_)}>"
+		elif(funcType.funcOption.and(%kvf) = %kvf)
+			do items.next()
+			do items.next()
+			do template :: "<\{@getType(meType)}, \{@getType((meType $ \ast@AstTypeDict).itemTypeKey)}, \{@getType((meType $ \ast@AstTypeDict).itemTypeValue)}, \{@getType(items.get().arg.type)}>"
+		elif(funcType.funcOption.and(%rac) = %rac)
+			do template :: "<\{@getType(meType)}, \{@getType((meType $ \ast@AstTypeGen).itemType)}>"
+		else
+			do template :: "<\{@getType(meType)}>"
+		end if
+	end if
+	if(template =& null)
+		do @codes.add("(")
+		do @buildExpr(ast.func_)
+		do @codes.add(")")
+	else
+		do @buildExpr(ast.func_)
+		do @codes.add(template)
+	end if
+	do @codes.add("(")
+	block
+		var first: bool :: true
+		var items: list<\ast@AstExprCallArg> :: ast.args
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstExprCallArg :: items.get()
+			if(first)
+				do first :: false
+				do @codes.add("(")
+			else
+				do @codes.add(", (")
+			end if
+			if(item.skipVar)
+				assert item.refVar
+				var tmp: []char :: @addTmpVar(@getType(item.arg.type))
+				do @codes.add("std::memset(&\{tmp}, 0, sizeof(\{@getType(item.arg.type)})), &\{tmp}")
+			else
+				if(item.refVar)
+					do @codes.add("&")
+				end if
+				do @buildExpr(item.arg)
+			end if
+			do @codes.add(")")
+			do items.next()
+		end while
+	end block
+	do @codes.add(")")
+	
+	block
+		var type: \ast@AstType :: ast.type
+		if(type <>& null)
+			if(\ast@isClass(type))
+				do @refClass(type.refItem $ \ast@AstClass)
+			end if
+		end if
+	end block
+end func
+
+func buildExprArray(ast: \ast@AstExprArray)
+	assert ast.varKind <> %unknown
+	do @codes.add("(")
+	do @buildExpr(ast.var_)
+	do @codes.add(")->At(")
+	do @buildExpr(ast.idx)
+	do @codes.add(")")
+end func
+
+func buildExprDot(ast: \ast@AstExprDot)
+	assert ast.varKind <> %unknown
+	if(\ast@isClass(ast.var_.type))
+		var classItem: \ast@AstClassItem :: ast.classItem
+		assert classItem <>& null
+		do @refClass(ast.var_.type.refItem $ \ast@AstClass)
+		var info: @CppInfo
+		if(classItem.def.typeId = %var_)
+			do info :: @getInfo((classItem.def $ \ast@AstVar).arg)
+			do @codes.add("(")
+			do @buildExpr(ast.var_)
+			do @codes.add(")->\{info.id}")
+		else
+			assert classItem.def.typeId = %func_
+			do info :: @getInfo(classItem.def)
+			do @codes.add("reinterpret_cast<\{@getType(ast.type)}>(classTable_[(")
+			do @buildExpr(ast.var_)
+			do @codes.add(")->Y + \{info.classTableOffset}])")
+		end if
+	else
+		assert ast.refItem.typeId = %exprRef
+		do @buildExprRef(ast.refItem $ \ast@AstExpr)
+	end if
+end func
+
+func buildExprValue(ast: \ast@AstExprValue)
+	assert ast.type.typeId = %typeNull
+	do @codes.add("nullptr")
+end func
+
+func buildExprValuePrim(ast: \ast@AstExprValuePrim)
+	var type: \ast@AstType :: ast.type
+	if(\ast@isInt(type) | \ast@isEnum(type))
+		var s: []char :: (ast.value $ int).toStr()
+		if(s = "-9223372036854775808")
+			do @codes.add("-9223372036854775807LL-1LL")
+		else
+			do @codes.add(s ~ "LL")
+		end if
+	elif(\ast@isChar(type))
+		do @codes.add("u'\\u\{(ast.value $ bit16).toStr().sub(2, -1)}'")
+	elif(\ast@isBool(type))
+		do @codes.add(ast.value = 0b64 ?("false", "true"))
+	elif(type.typeId = %typeBit)
+		switch((type $ \ast@AstTypeBit).size)
+		case 1
+			do @codes.add("static_cast<uint8_t>(\{ast.value $ bit8}U)")
+		case 2
+			do @codes.add("static_cast<uint16_t>(\{ast.value $ bit16}U)")
+		case 4
+			do @codes.add("\{ast.value $ bit32}U")
+		case 8
+			do @codes.add("\{ast.value $ bit64}ULL")
+		default
+			assert false
+		end switch
+	else
+		assert false
+	end if
+end func
+
+func buildExprValueStr(ast: \ast@AstExprValueStr)
+	var value: []char :: ast.value
+	var s: []char :: "newArrayBin_<char16_t>(\{^value},\""
+	for i(0, ^value - 1)
+		var v: bit16 :: value[i] $ bit16
+		do s :~ "\\x" ~ (v $ bit8).toStr().sub(2, -1) ~ "\\x" ~ (v.shr(8) $ bit8).toStr().sub(2, -1)
+	end for
+	do s :~ "\")"
+	do @codes.add(s)
+end func
+
+func buildExprValueFloat(ast: \ast@AstExprValueFloat)
+	var value: []char :: ast.value.toStr()
+	if(value = "inf")
+		do @codes.add("std::numeric_limits<double>::infinity()")
+	elif(value.find('.', -1) = -1)
+		do @codes.add(value ~ ".0")
+	else
+		do @codes.add(value)
+	end if
+end func
+
+func buildExprValueArray(ast: \ast@AstExprValueArray)
+	; Note that constant string values are handled by 'ExprValueStr'.
+	var itemType: \ast@AstType :: (ast.type $ \ast@AstTypeArray).itemType
+	if(itemType.typeId = %typeBit & (itemType $ \ast@AstTypeBit).size = 1 & chkValue(ast.values))
+		var s: []char :: "newArrayBin_<uint8_t>(\{^ast.values},\""
+		var items: list<\ast@AstExpr> :: ast.values
+		do items.head()
+		while(!items.term())
+			var value: bit8 :: (items.get() $ \ast@AstExprValuePrim).value $ bit8
+			do s :~ "\\x" ~ (value.toStr().sub(2, -1))
+			do items.next()
+		end while
+		do s :~ "\")"
+		do @codes.add(s)
+		ret
+	end if
+	
+	block
+		do @codes.add("new_(Array_<\{@getType((ast.type $ \ast@AstTypeArray).itemType)}>)(")
+		var first: bool :: true
+		var items: list<\ast@AstExpr> :: ast.values
+		assert ^ items > 0
+		do items.head()
+		while(!items.term())
+			if(first)
+				do first :: false
+				do @codes.add("(")
+			else
+				do @codes.add(", (")
+			end if
+			do @buildExpr(items.get())
+			do @codes.add(")")
+			do items.next()
+		end while
+		do @codes.add(")")
+	end block
+	
+	func chkValue(items: list<\ast@AstExpr>): bool
+		do items.head()
+		while(!items.term())
+			if(items.get().typeId.and(%exprValue) <> %exprValue)
+				ret false
+			end if
+			do items.next()
+		end while
+		ret true
+	end func
+end func
+
+func buildExprRef(ast: \ast@AstExpr)
+	var ast2: \ast@Ast :: ast.refItem
+	var info: @CppInfo :: @getInfo(ast2)
+	if(ast2.typeId = %func_)
+		do @funcs.add(ast2 $ \ast@AstFunc)
+	else
+		assert ast2.typeId = %arg
+		var arg: \ast@AstArg :: ast2 $ \ast@AstArg
+		switch(arg.kind)
+		case %global
+			if(!info.alreadyWritten)
+				do info.alreadyWritten :: true
+				do @globalVars.add(arg)
+				do @getType(arg.type)
+			end if
+		case %localArg
+			; Do nothing.
+		case %localVar
+			if(!info.alreadyWritten)
+				do info.alreadyWritten :: true
+				do @localVars.add(arg)
+			end if
+		default
+			assert false
+		end switch
+		if(arg.refVar)
+			do @codes.add("*")
+		end if
+	end if
+	do @codes.add(info.id)
+end func
+
+func write(funcAttrs: dict<[]char, dict<[]char, bool>>)
+	; TODO:
+	{
+	if(\option@extra.get("merge", &))
+	}
+	var writer: file@Writer :: file@makeWriter(\option@outputFile ~ ".cpp", false)
+	if(writer =& null)
+		do \err@err(%fileSaveFailed, null, [\option@outputFile ~ ".cpp"])
+		ret
+	end if
+	do writeCommonCode(writer)
+	var reader: file@Reader :: file@makeReader(\option@sysDir ~ "common.h")
+	if(reader =& null)
+		do \err@err(%fileOpenFailed, null, [\option@sysDir ~ "common.h"])
+		do writer.fin()
+		ret
+	end if
+	while(!reader.term())
+		var s: []char :: reader.readLine()
+		do writer.writeStr(s ~ "\n")
+	end while
+	do reader.fin()
+	do writeCpp(writer, funcAttrs)
+	do writer.fin()
+	; TODO:
+	{
+	else
+		do file@copyFile(\option@outputDir ~ "common.h", \option@sysDir ~ "common.h")
+		
+		var writer: file@Writer :: file@makeWriter(\option@outputFile ~ ".cpp", false)
+		if(writer =& null)
+			do \err@err(%fileSaveFailed, null, [\option@outputFile ~ ".cpp"])
+			ret
+		end if
+		do writeCommonCode(writer)
+		do writer.writeStr("#include \"common.h\"\n")
+		do writeCpp(writer, funcAttrs)
+		do writer.fin()
+	end if
+	}
+	
+	func writeCommonCode(writer: file@Writer)
+		do writer.writeStr("#if defined(_WIN32)\n")
+		do writer.writeStr("#define _CRT_SECURE_NO_WARNINGS\n")
+		do writer.writeStr("#else\n")
+		do writer.writeStr("#define _FILE_OFFSET_BITS 64\n")
+		do writer.writeStr("#endif\n")
+		do writer.writeStr("#include <cstddef>\n")
+		do writer.writeStr("#include <cstdint>\n")
+		if(^@classTable = 0)
+			do writer.writeStr("static int64_t classTable_[1];\n")
+		else
+			do writer.writeStr("static int64_t classTable_[\{^@classTable}];\n")
+		end if
+		if(@gc)
+			do writer.writeStr("#include <memory>\n")
+			do writer.writeStr("#define new_(...) std::make_shared<__VA_ARGS__>\n")
+			do writer.writeStr("#define type_(...) std::shared_ptr<__VA_ARGS__>\n")
+			do writer.writeStr("#define newPrim_(...) new __VA_ARGS__\n")
+			do writer.writeStr("#define delPrim_(x) delete x\n")
+			do writer.writeStr("#define newPrimArray_(x, ...) new __VA_ARGS__[x]\n")
+			do writer.writeStr("#define delPrimArray_(x) delete[] x\n")
+			do writer.writeStr("#define dcast_(...) std::dynamic_pointer_cast<__VA_ARGS__>\n")
+			do writer.writeStr("#define addr_(...) (__VA_ARGS__==nullptr?0:reinterpret_cast<uint64_t>(__VA_ARGS__.get()))\n")
+		else
+			var db: bool :: \option@extra.get("nogcdb", &)
+			do writer.writeStr("#define new_(...) newImpl_<__VA_ARGS__>\n")
+			do writer.writeStr("#define type_(...) __VA_ARGS__*\n")
+			do writer.writeStr("#define newPrim_(...) newImpl_<__VA_ARGS__>\n")
+			do writer.writeStr("#define delPrim_(x)\n")
+			do writer.writeStr("#define newPrimArray_(x, ...) newArrayImpl_<__VA_ARGS__>(x)\n")
+			do writer.writeStr("#define delPrimArray_(x)\n")
+			do writer.writeStr("#define dcast_(...) reinterpret_cast<__VA_ARGS__*>\n")
+			do writer.writeStr("#define addr_(...) reinterpret_cast<uint64_t>(__VA_ARGS__)\n")
+			do writer.writeStr("struct MemList_{ uint8_t* B; MemList_* N; };\n")
+			do writer.writeStr("static MemList_* TopMem_;\n")
+			do writer.writeStr("static MemList_* CurMem_;\n")
+			do writer.writeStr("static void* CurMemBuf_;\n")
+			if(db)
+				do writer.writeStr("static MemList_* TopMemOld_;\n")
+			end if
+			do writer.writeStr("template<typename T>\n")
+			do writer.writeStr("T* newArrayImpl_(std::size_t n){\n")
+			do writer.writeStr("if (sizeof(T) * n > \{@nonGcBufSize}){\n")
+			do writer.writeStr("MemList_* m = new MemList_();\n")
+			do writer.writeStr("m->B = new uint8_t[sizeof(T) * n];\n")
+			do writer.writeStr("m->N = TopMem_;\n")
+			do writer.writeStr("TopMem_ = m;\n")
+			do writer.writeStr("return reinterpret_cast<T*>(m->B);\n")
+			do writer.writeStr("}else{\n")
+			do writer.writeStr("if (static_cast<uint8_t*>(CurMemBuf_) + sizeof(T) * n > CurMem_->B + \{@nonGcBufSize}){\n")
+			do writer.writeStr("MemList_* m = new MemList_();\n")
+			do writer.writeStr("m->B = new uint8_t[\{@nonGcBufSize}];\n")
+			do writer.writeStr("m->N = nullptr;\n")
+			do writer.writeStr("CurMem_->N = m;\n")
+			do writer.writeStr("CurMem_ = m;\n")
+			do writer.writeStr("CurMemBuf_ = CurMem_->B;\n")
+			do writer.writeStr("}\n")
+			do writer.writeStr("T* r= static_cast<T*>(CurMemBuf_);\n")
+			do writer.writeStr("CurMemBuf_ = static_cast<uint8_t*>(CurMemBuf_) + sizeof(T) * n + (7 - ((sizeof(T) * n + 7) & 0x07));\n")
+			do writer.writeStr("return r;\n")
+			do writer.writeStr("}\n")
+			do writer.writeStr("}\n")
+			do writer.writeStr("template<typename T, typename... A>\n")
+			do writer.writeStr("T* newImpl_(A... a){\n")
+			do writer.writeStr("return new(newArrayImpl_<T>(1))T(a...);\n")
+			do writer.writeStr("}\n")
+			do writer.writeStr("static void initMem_(){\n")
+			do writer.writeStr("CurMem_ = new MemList_();\n")
+			do writer.writeStr("CurMem_->B = new uint8_t[\{@nonGcBufSize}];\n")
+			do writer.writeStr("CurMem_->N = nullptr;\n")
+			do writer.writeStr("TopMem_ = CurMem_;\n")
+			do writer.writeStr("CurMemBuf_ = CurMem_->B;\n")
+			do writer.writeStr("}\n")
+			do writer.writeStr("static void finMem_(){\n")
+			if(db)
+				do writer.writeStr("if(TopMemOld_!=nullptr){\n")
+				do writer.writeStr("MemList_*p_=TopMemOld_;\n")
+			else
+				do writer.writeStr("MemList_* p_ = TopMem_;\n")
+			end if
+			do writer.writeStr("while (p_ != nullptr){\n")
+			do writer.writeStr("MemList_* p2_ = p_;\n")
+			do writer.writeStr("delete[] p_->B;\n")
+			do writer.writeStr("p_ = p_->N;\n")
+			do writer.writeStr("delete p2_;\n")
+			do writer.writeStr("}\n")
+			if(db)
+				do writer.writeStr("}\n")
+				do writer.writeStr("TopMemOld_=TopMem_;\n")
+			end if
+			do writer.writeStr("TopMem_=nullptr;\n")
+			do writer.writeStr("CurMem_=nullptr;\n")
+			do writer.writeStr("CurMemBuf_=nullptr;\n")
+			do writer.writeStr("}\n")
+			do writer.writeStr("void resetMem_(){\n")
+			do writer.writeStr("finMem_();\n")
+			do writer.writeStr("initMem_();\n")
+			do writer.writeStr("}\n")
+		end if
+	end func
+	
+	func writeCpp(writer: file@Writer, funcAttrs: dict<[]char, dict<[]char, bool>>)
+		var lib: bool :: \option@extra.get("lib", &)
+		if(^funcAttrs <> 0)
+			do writer.writeStr("#if defined(_WIN32)\n")
+			do funcAttrs.forEach(writeDllDef, writer)
+			do writer.writeStr("#endif;\n")
+		end if
+		var globalVarDefs: list<[]char> :: #list<[]char>
+		do @globalVars.head()
+		while(!@globalVars.term())
+			var globalVar: \ast@AstArg :: @globalVars.get()
+			var info: @CppInfo :: @getInfo(globalVar)
+			do globalVarDefs.add("static \{@getType(globalVar.type)} \{info.id};\n")
+			do @globalVars.next()
+		end while
+		do @classPrototypes.head()
+		while(!@classPrototypes.term())
+			do writer.writeStr(@classPrototypes.get())
+			do @classPrototypes.next()
+		end while
+		do @funcPrototypes.head()
+		while(!@funcPrototypes.term())
+			do writer.writeStr(@funcPrototypes.get())
+			do @funcPrototypes.next()
+		end while
+		do writer.writeStr("static int64_t argc_;\n")
+		do writer.writeStr("static char** argv_;\n")
+		do @classDefs.head()
+		while(!@classDefs.term())
+			do writer.writeStr(@classDefs.get())
+			do @classDefs.next()
+		end while
+		do globalVarDefs.head()
+		while(!globalVarDefs.term())
+			do writer.writeStr(globalVarDefs.get())
+			do globalVarDefs.next()
+		end while
+		do @classFuncs.head()
+		while(!@classFuncs.term())
+			do writer.writeStr(@classFuncs.get())
+			do @classFuncs.next()
+		end while
+		do @codes.head()
+		while(!@codes.term())
+			do writer.writeStr(@codes.get())
+			do @codes.next()
+		end while
+		if(lib)
+			do writer.writeStr("void initLib(){\n")
+			do @globalVars.head()
+			while(!@globalVars.term())
+				var globalVar: \ast@AstArg :: @globalVars.get()
+				var info: @CppInfo :: @getInfo(globalVar)
+				do writer.writeStr("\{info.id}=(\{@getType(globalVar.type)})0;\n")
+				do @globalVars.next()
+			end while
+		else
+			do writer.writeStr("int main(int c, char** v){\n")
+			do writer.writeStr("argc_ = static_cast<int64_t>(c) - 1;\n")
+			do writer.writeStr("argv_ = v + 1;\n")
+		end if
+		if(!@gc)
+			do writer.writeStr("initMem_();\n")
+		end if
+		block
+			do @classTable.head()
+			while(!@classTable.term())
+				var item: []char :: @classTable.get()
+				do writer.writeStr(item)
+				do @classTable.next()
+			end while
+		end block
+		if(^funcAttrs <> 0)
+			do writer.writeStr("#if defined(_WIN32)\n")
+			do funcAttrs.forEach(writeDllInit, writer)
+			do writer.writeStr("#endif;\n")
+		end if
+		do writer.writeStr("init_();\n")
+		if(lib)
+			do writer.writeStr("k_init_();\n")
+			do writer.writeStr("}\n")
+			do writer.writeStr("void finLib(){\n")
+			do writer.writeStr("k_fin_();\n")
+		else
+			do writer.writeStr("k_main_();\n")
+		end if
+		if(^funcAttrs <> 0)
+			do writer.writeStr("#if defined(_WIN32)\n")
+			do funcAttrs.forEach(writeDllFin, writer)
+			do writer.writeStr("#endif;\n")
+		end if
+		if(!@gc)
+			do writer.writeStr("finMem_();\n")
+		end if
+		if(!lib)
+			do writer.writeStr("return static_cast<int>(exitCode_);\n")
+		end if
+		do writer.writeStr("}\n")
+		
+		func writeDllDef(key: []char, value: dict<[]char, bool>, data: kuin@Class): bool
+			class Data()
+				+var writer: file@Writer
+				+var dllName: []char
+			end class
+			var data2: Data :: #Data
+			do data2.writer :: data $ file@Writer
+			do data2.dllName :: file@delExt(key)
+			do data2.writer.writeStr("static HMODULE k_dll_\{data2.dllName};\n")
+			do value.forEach(writeDllFuncDef, data2)
+			ret true
+			
+			func writeDllFuncDef(key: []char, value: bool, data: kuin@Class): bool
+				var data2: Data :: data $ Data
+				do data2.writer.writeStr("static const void*k_dll_\{data2.dllName}_\{key};\n")
+				ret true
+			end func
+		end func
+		
+		func writeDllInit(key: []char, value: dict<[]char, bool>, data: kuin@Class): bool
+			class Data()
+				+var writer: file@Writer
+				+var dllName: []char
+			end class
+			var data2: Data :: #Data
+			do data2.writer :: data $ file@Writer
+			do data2.dllName :: file@delExt(key)
+			do data2.writer.writeStr("k_dll_\{data2.dllName}=::LoadLibraryW(L\"data\\\\\{key}\");\n")
+			do value.forEach(writeDllFuncInit, data2)
+			ret true
+			
+			func writeDllFuncInit(key: []char, value: bool, data: kuin@Class): bool
+				var data2: Data :: data $ Data
+				do data2.writer.writeStr("k_dll_\{data2.dllName}_\{key}=GetProcAddress(k_dll_\{data2.dllName},\"\{key}\");\n")
+				ret true
+			end func
+		end func
+		
+		func writeDllFin(key: []char, value: dict<[]char, bool>, data: kuin@Class): bool
+			var writer: file@Writer :: data $ file@Writer
+			do writer.writeStr("::FreeLibrary(k_dll_\{file@delExt(key)});\n")
+			ret true
+		end func
+	end func
+end func
+
+func getType(type: \ast@AstType): []char
+	if(type =& null)
+		ret "void"
+	end if
+	switch(type.typeId)
+	case %typeArray
+		ret "type_(Array_<\{@getType((type $ \ast@AstTypeArray).itemType)}>)"
+	case %typeBit
+		ret "uint\{(type $ \ast@AstTypeBit).size * 8}_t"
+	case %typeFunc
+		var func_: \ast@AstTypeFunc :: type $ \ast@AstTypeFunc
+		var t: []char
+		block
+			var arg: []char :: ""
+			var first: bool :: true
+			var items: list<\ast@AstTypeFuncArg> :: func_.args
+			do items.head()
+			while(!items.term())
+				var item: \ast@AstTypeFuncArg :: items.get()
+				if(first)
+					do first :: false
+				else
+					do arg :~ ", "
+				end if
+				do arg :~ "\{@getType(item.arg)}"
+				if(item.refVar)
+					do arg :~ "*"
+				end if
+				do items.next()
+			end while
+			do t :: "\{@getType(func_.ret_)}(*)(\{arg})"
+		end block
+		var id: []char :: @funcTypeIds.get(t, &)
+		if(id =& null)
+			do id :: @getId()
+			do @funcPrototypes.add("using \{id}=\{t};\n")
+			do @funcTypeIds.add(t, id)
+		end if
+		ret id
+	case %typeGen
+		var gen: \ast@AstTypeGen :: type $ \ast@AstTypeGen
+		switch(gen.kind)
+		case %list_
+			ret "type_(List_<\{@getType(gen.itemType)}>)"
+		case %stack_
+			ret "type_(Stack_<\{@getType(gen.itemType)}>)"
+		case %queue_
+			ret "type_(Queue_<\{@getType(gen.itemType)}>)"
+		default
+			assert false
+		end switch
+	case %typeDict
+		var dict_: \ast@AstTypeDict :: type $ \ast@AstTypeDict
+		ret "type_(Dict_<\{@getType(dict_.itemTypeKey)}, \{@getType(dict_.itemTypeValue)}>)"
+	case %typePrim
+		var prim: \ast@AstTypePrim :: type $ \ast@AstTypePrim
+		switch(prim.kind)
+		case %int_
+			ret "int64_t"
+		case %float_
+			ret "double"
+		case %char_
+			ret "char16_t"
+		case %bool_
+			ret "bool"
+		default
+			assert false
+		end switch
+	case %typeUser
+		var ref: \ast@Ast :: type.refItem
+		if(ref.typeId = %class_)
+			do @refClass(ref $ \ast@AstClass)
+			var info: @CppInfo :: @getInfo(ref)
+			ret "type_(" ~ info.id ~ ")"
+		else
+			assert ref.typeId = %enum_
+			ret "int64_t"
+		end if
+	case %typeNull
+		assert false
+	default
+		assert false
+	end switch
+	ret ""
+end func
+
+func getId(): []char
+	var curId: []char :: @uniqueId
+	var newId: []char :: ##@uniqueId
+	var idx: int :: ^newId - 1
+	while loop(true)
+		if(newId[idx] = 'z')
+			if(idx = 0)
+				do newId :: #[^newId + 1]char
+				do newId.fill('a')
+			else
+				do newId[idx] :: 'a'
+				do idx :- 1
+				skip loop
+			end if
+		else
+			do newId[idx] :: newId[idx].offset(1)
+		end if
+		break loop
+	end while
+	do @uniqueId :: newId
+	ret "k_" ~ curId
+end func
+
++func getInfo(ast: \ast@Ast): @CppInfo
+	if(ast.extra =& null | ast.extra.typeId <> %info)
+		var info: @CppInfo :: #@CppInfo
+		do info.typeId :: %info
+		if(ast.typeId = %func_ & (ast $ \ast@AstFunc).funcOption.and(%rwi) = %rwi)
+			do info.id :: ast.name
+		else
+			do info.id :: @getId()
+		end if
+		if(ast.typeId.and(%statBreakable) = %statBreakable & ast.name <>& null & ast.name <> "$")
+			do info.breakLabel :: @getId()
+			if(ast.typeId.and(%statSkipable) = %statSkipable)
+				do info.skipLabel :: @getId()
+			else
+				do info.skipLabel :: null
+			end if
+		else
+			do info.breakLabel :: null
+			do info.skipLabel :: null
+		end if
+		do info.classTableOffset :: -1
+		do info.alreadyWritten :: false
+		do info.breakLabelUsed :: false
+		do info.skipLabelUsed :: false
+		do ast.extra :: info
+	end if
+	ret ast.extra $ @CppInfo
+end func
+
+func addTmpVar(type: []char): []char
+	var tmpVar: @TmpVar :: #@TmpVar
+	do tmpVar.identifier :: @getId()
+	do tmpVar.type :: type
+	do @tmpVars.add(tmpVar)
+	ret tmpVar.identifier
+end func
+
+func refClass(ast: \ast@AstClass): []char
+	var info: @CppInfo :: @getInfo(ast)
+	if(info.alreadyWritten)
+		ret info.id
+	end if
+	do info.alreadyWritten :: true
+	if(ast.refItem <>& null)
+		do @refClass(ast.refItem $ \ast@AstClass)
+	end if
+	do @classes.add(ast)
+	block
+		var parentOffset: int
+		if(ast.refItem =& null)
+			do parentOffset :: 0
+		else
+			var parentInfo: @CppInfo :: @getInfo(ast.refItem)
+			assert parentInfo.classTableOffset <> -1
+			do parentOffset :: parentInfo.classTableOffset
+		end if
+		if(info.classTableOffset = -1)
+			do info.classTableOffset :: ^@classTable
+		end if
+		do @classTable.add("classTable_[\{info.classTableOffset}] = \{parentOffset};\n")
+		var funcs: dict<int, \ast@AstFunc> :: #dict<int, \ast@AstFunc>
+		do setFuncOffsetRecursion(&, funcs, ast, false)
+		do funcs.forEach(addFuncPosCallback, null)
+	end block
+	block
+		var items: list<\ast@AstClassItem> :: ast.items
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstClassItem :: items.get()
+			if(item.def.typeId = %func_)
+				var func_: \ast@AstFunc :: item.def $ \ast@AstFunc
+				if(func_.ret_ <>& null)
+					do @getType(func_.ret_)
+				end if
+				var items2: list<\ast@AstArg> :: func_.args
+				do items2.head()
+				while(!items2.term())
+					var arg: \ast@AstArg :: items2.get()
+					do @getType(arg.type)
+					do items2.next()
+				end while
+			elif(item.def.typeId = %var_)
+				var var_: \ast@AstVar :: item.def $ \ast@AstVar
+				do @getType(var_.arg.type)
+			end if
+			do items.next()
+		end while
+	end block
+	ret info.id
+	
+	func setFuncOffsetRecursion(idx: &int, funcs: dict<int, \ast@AstFunc>, ast: \ast@AstClass, parent: bool)
+		if(ast.refItem <>& null)
+			do setFuncOffsetRecursion(&idx, funcs, ast.refItem $ \ast@AstClass, true)
+		end if
+		var items: list<\ast@AstClassItem> :: ast.items
+		do items.head()
+		while(!items.term())
+			var item: \ast@AstClassItem :: items.get()
+			if(item.def.typeId = %func_)
+				var func_: \ast@AstFunc :: item.def $ \ast@AstFunc
+				var info: @CppInfo :: @getInfo(func_)
+				if(item.override)
+					var parentItem: \ast@AstClassItem :: item.parentItem
+					assert parentItem <>& null
+					var parentInfo: @CppInfo :: @getInfo(parentItem.def)
+					assert parentInfo.classTableOffset <> -1
+					do info.classTableOffset :: parentInfo.classTableOffset
+				else
+					do idx :+ 1
+					if(info.classTableOffset = -1)
+						do info.classTableOffset :: idx
+					else
+						assert info.classTableOffset = idx
+					end if
+				end if
+				do funcs.add(info.classTableOffset, func_)
+				do @funcs.add(func_)
+			end if
+			do items.next()
+		end while
+	end func
+	
+	func addFuncPosCallback(key: int, value: \ast@AstFunc, data: kuin@Class): bool
+		var info: @CppInfo :: @getInfo(value)
+		do @classTable.add("classTable_[\{^@classTable}] = reinterpret_cast<int64_t>(\{info.id});\n")
+		ret true
+	end func
+end func
+
+func findFunc(ast: \ast@AstClass, name: []char): \ast@AstFunc
+	var items: list<\ast@AstClassItem> :: ast.items
+	do items.head()
+	while(!items.term())
+		var item: \ast@AstClassItem :: items.get()
+		if(item.def.typeId = %func_ & item.def.name = name)
+			ret item.def $ \ast@AstFunc
+		end if
+		do items.next()
+	end while
+	ret null
+end func
+
+func deploy(funcAttrs: dict<[]char, dict<[]char, bool>>): bool
+	if(^funcAttrs = 0)
+		ret true
+	end if
+	block
+		var dataPath: []char :: \option@outputDir ~ "data/"
+		if(!file@makeDir(dataPath))
+			ret true
+		end if
+	end block
+	if(!funcAttrs.forEach(deployDll, null))
+		ret false
+	end if
+	ret \convert@writeResFiles()
+	
+	func deployDll(key: []char, value: dict<[]char, bool>, data: kuin@Class): bool
+		var cfg: []char :: \option@rls ?("rls/", "dbg/")
+		if(!file@copyFile(\option@outputDir ~ "data/" ~ key, \option@sysDir ~ "data/" ~ cfg ~ key))
+			do \err@err(%fileSaveFailed, null, [\option@sysDir ~ "data/" ~ cfg ~ key])
+			ret false
+		end if
+		ret true
+	end func
+end func

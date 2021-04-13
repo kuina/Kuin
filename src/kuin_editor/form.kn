@@ -37,6 +37,7 @@ var groupConfig: wnd@Group
 var groupEnv: wnd@Group
 var radioEnvWnd: wnd@Radio
 var radioEnvCui: wnd@Radio
+var radioEnvWeb: wnd@Radio
 var btnProjSettings: wnd@Btn
 var btnRls: wnd@Btn
 +var listFile: wnd@List
@@ -60,10 +61,17 @@ var drag: bool
 +var zoom: float
 +var iconPath: []char
 +var relatedFiles: list<[]char>
+var redrawingRequired: bool
+var interpret2Required: bool
+var completionRequired: bool
+
+enum SourceCodeKind
+	cpp
+end enum
 
 +func makeWnd()
 	do @lockUi :: true
-
+	
 	do @wndMain :: wnd@makeWnd(null, %normal, 1224, 768, \common@title)
 	do @wndMain.minMax(930, 640, -1, -1)
 	do @wndMain.acceptDraggedFiles(true)
@@ -75,11 +83,11 @@ var drag: bool
 	do @listLt :: wnd@makeListView(@wndMain, 12, 12, 244, 272, %fix, %fix, false, null, ["res/obj_none.png", "res/obj_btn.png", "res/obj_chk.png", "res/obj_edit.png", "res/obj_label.png", "res/obj_group.png", "res/obj_rect.png", "res/obj_circle.png", "res/obj_text.png", "res/obj_img.png", "res/obj_roundrect.png", "res/obj_particle.png", "res/obj_edit_multi.png"])
 	do @listLt.setVisible(false)
 	do @listLt.onMouseClick :: listLtOnMouseClick
-
+	
 	func listLtOnMouseClick(wnd: wnd@WndBase)
 		do \src@curDoc.onEvent(%listLtOnMouseClick)
 	end func
-
+	
 	do @listLt.style(%list_)
 	do @treeLb :: wnd@makeTree(@wndMain, 12, 290, 244, 466, %fix, %scale)
 	do @treeLb.setVisible(false)
@@ -87,17 +95,17 @@ var drag: bool
 	do @listLb.setVisible(false)
 	do @listLb.draggable(true)
 	do @listLb.onMouseClick :: listLbOnMouseClick
-
+	
 	func listLbOnMouseClick(wnd: wnd@WndBase)
 		do \src@curDoc.onEvent(%listLbOnMouseClick)
 	end func
-
+	
 	do @listLb.onMoveNode :: listLbOnMoveNode
-
+	
 	func listLbOnMoveNode(wnd: wnd@WndBase)
 		do \src@curDoc.onEvent(%listLbOnMoveNode)
 	end func
-
+	
 	do @btnCode :: wnd@makeBtn(@wndMain, 262, 12, 100, 23, %fix, %fix, \common@langEn ?("Show Designer", "デザイナを表示"))
 	do @btnCode.setEnabled(false)
 	do @btnCode.onPush :: @btnCodeOnPush
@@ -113,14 +121,14 @@ var drag: bool
 	do @listRb :: wnd@makeListView(@wndMain, 262, 621, 391, 135, %scale, %move, false, null, null)
 	do @listRb.setVisible(false)
 	do @listRb.onMouseClick :: listRbOnMouseClick
-
+	
 	func listRbOnMouseClick(wnd: wnd@WndBase)
 		do \src@curDoc.onEvent(%listRbOnMouseClick)
 	end func
-
+	
 	do @groupRbAr :: wnd@makeGroup(@wndMain, 262, 621, 391, 135, %scale, %move, "")
 	do @groupRbAr.setVisible(false)
-
+	
 	do @labelRbArName :: wnd@makeLabel(@groupRbAr, 6, 21, 35, 12, %fix, %fix, \common@langEn ?("Name", "名前"))
 	do @editRbArName :: wnd@makeEdit(@groupRbAr, 65, 18, 95, 19, %fix, %fix)
 	do @editRbArName.onFocus :: editRbArNameOnFocus
@@ -151,52 +159,52 @@ var drag: bool
 	do @btnRbArZoomOut.onPush :: btnRbArZoomOutOnPush
 	do @btnRbArZoomIn :: wnd@makeBtn(@groupRbAr, 301, 110, 23, 23, %fix, %fix, "+")
 	do @btnRbArZoomIn.onPush :: btnRbArZoomInOnPush
-	do @tabOrderRbAr :: wnd@makeTabOrder([@editRbArName $ wnd@WndBase, @editRbArX, @editRbArY, @editRbArWidth, @editRbArHeight, @editRbArSnap, @editRbArZoom])
-
+	do @tabOrderRbAr :: wnd@makeTabOrder([@editRbArName $ wnd@WndBase, @editRbArX $ wnd@WndBase, @editRbArY $ wnd@WndBase, @editRbArWidth $ wnd@WndBase, @editRbArHeight $ wnd@WndBase, @editRbArSnap $ wnd@WndBase, @editRbArZoom $ wnd@WndBase])
+	
 	func editRbArNameOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
 			do \src@curDoc.onEvent(%editRbArNameOnKillFocus)
 		end if
 	end func
-
+	
 	func chkRbArVisibleOnPush(wnd: wnd@WndBase)
 		do \src@curDoc.onEvent(%chkRbArVisibleOnPush)
 	end func
-
+	
 	func editRbArXOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
 			do \src@curDoc.onEvent(%editRbArXOnKillFocus)
 		end if
 	end func
-
+	
 	func editRbArYOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
 			do \src@curDoc.onEvent(%editRbArYOnKillFocus)
 		end if
 	end func
-
+	
 	func editRbArWidthOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
 			do \src@curDoc.onEvent(%editRbArWidthOnKillFocus)
 		end if
 	end func
-
+	
 	func editRbArHeightOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
 			do \src@curDoc.onEvent(%editRbArHeightOnKillFocus)
 		end if
 	end func
-
+	
 	func btnRbArPropOnPush(wnd: wnd@WndBase)
 		do \src@curDoc.onEvent(%btnRbArPropOnPush)
 	end func
-
+	
 	func chkRbArSnapOnPush(wnd: wnd@WndBase)
 		do @snap :: @chkRbArSnap.getChk()
 		do \prop@changeProp()
 		do @updateUi()
 	end func
-
+	
 	func editRbArSnapOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
 			var success: bool
@@ -213,7 +221,7 @@ var drag: bool
 			do @updateUi()
 		end if
 	end func
-
+	
 	func editRbArZoomOnFocus(wnd: wnd@WndBase, focused: bool)
 		if(!focused)
 			var success: bool
@@ -228,35 +236,37 @@ var drag: bool
 				if(@zoom <> value)
 					do @zoom :: value
 					do \prop@changeProp()
-					do @paintDrawEditor()
+					do @paintDrawEditor(false)
 				end if
 			end if
 			do @updateUi()
 		end if
 	end func
-
+	
 	func btnRbArZoomOutOnPush(wnd: wnd@WndBase)
 		do @wndMainOnPushMenu(@wndMain, 0x0051)
 	end func
-
+	
 	func btnRbArZoomInOnPush(wnd: wnd@WndBase)
 		do @wndMainOnPushMenu(@wndMain, 0x0050)
 	end func
-
+	
 	do @editLog :: wnd@makeEditMulti(@wndMain, 659, 621, 553, 135, %move, %move)
 	do @editLog.readonly(true)
 	do @btnCompile :: wnd@makeBtn(@wndMain, 1027, 12, 185, 23, %move, %fix, \common@langEn ?("Compile && Run", "コンパイル＆実行"))
 	do @btnCompile.onPush :: @btnCompileOnPush
-	do @groupConfig :: wnd@makeGroup(@wndMain, 1027, 41, 185, 115, %move, %fix, \common@langEn ?("Configuration", "設定"))
-	do @groupEnv :: wnd@makeGroup(@wndMain, 1033, 59, 173, 62, %move, %fix, \common@langEn ?("Environment", "実行環境"))
+	do @groupConfig :: wnd@makeGroup(@wndMain, 1027, 41, 185, 137, %move, %fix, \common@langEn ?("Configuration", "設定"))
+	do @groupEnv :: wnd@makeGroup(@wndMain, 1033, 59, 173, 84, %move, %fix, \common@langEn ?("Environment", "実行環境"))
 	do @radioEnvWnd :: wnd@makeRadio(@groupEnv, 6, 18, 161, 16, %fix, %fix, \common@langEn ?("Window", "ウインドウ"))
 	do @radioEnvWnd.setChk(true)
 	do @radioEnvWnd.onPush :: @radioEnvOnPush
 	do @radioEnvCui :: wnd@makeRadio(@groupEnv, 6, 40, 161, 16, %fix, %fix, \common@langEn ?("CUI", "CUI"))
 	do @radioEnvCui.onPush :: @radioEnvOnPush
-	do @btnProjSettings :: wnd@makeBtn(@wndMain, 1033, 127, 120, 23, %move, %fix, \common@langEn ?("Other Settings...", "その他の設定..."))
+	do @radioEnvWeb :: wnd@makeRadio(@groupEnv, 6, 62, 161, 16, %fix, %fix, \common@langEn ?("Web", "Web"))
+	do @radioEnvWeb.onPush :: @radioEnvOnPush
+	do @btnProjSettings :: wnd@makeBtn(@wndMain, 1033, 149, 120, 23, %move, %fix, \common@langEn ?("Other Settings...", "その他の設定..."))
 	do @btnProjSettings.onPush :: btnProjSettingsOnPush
-	do @btnRls :: wnd@makeBtn(@wndMain, 1027, 162, 185, 23, %move, %fix, \common@langEn ?("Release Build...", "リリースビルド..."))
+	do @btnRls :: wnd@makeBtn(@wndMain, 1027, 184, 185, 23, %move, %fix, \common@langEn ?("Release Build...", "リリースビルド..."))
 	do @btnRls.onPush :: @btnRlsOnPush
 	do @listFile :: wnd@makeList(@wndMain, 1027, 255, 185, 337, %move, %scale)
 	do @listFile.onSel :: @listFileOnSel
@@ -299,6 +309,7 @@ var drag: bool
 	do @popupMainEdit.add(0x003A, \common@langEn ?("&Replace...\tCtrl+H", "置換(&R)...\tCtrl+H"))
 	do @popupMainEdit.add(0x003B, \common@langEn ?("Find Pre&vious\tShift+F3", "前を検索(&V)\tShift+F3"))
 	do @popupMainEdit.add(0x003C, \common@langEn ?("Find &Next\tF3", "次を検索(&N)\tF3"))
+	do @popupMainEdit.add(0x0041, \common@langEn ?("&Go To Line...\tCtrl+G", "指定行へ移動(&G)...\tCtrl+G"))
 	do @popupMainEdit.addLine()
 	do @popupMainEdit.add(0x0060, \common@langEn ?("Other Settings...", "その他の設定..."))
 	do @menuMain.addPopup(\common@langEn ?("&Edit", "編集(&E)"), @popupMainEdit)
@@ -306,6 +317,8 @@ var drag: bool
 	do @popupMainBuild.add(0x0020, \common@langEn ?("&Compile && Run\tF5", "コンパイル＆実行(&C)\tF5"))
 	do @popupMainBuild.addLine()
 	do @popupMainBuild.add(0x0021, \common@langEn ?("&Release Build...\tCtrl+Shift+B", "リリースビルド(&R)...\tCtrl+Shift+B"))
+	do @popupMainBuild.addLine()
+	do @popupMainBuild.add(0x0022, \common@langEn ?("Output C++ &Source Code...", "C++のソースコードを出力(試験中)(&S)..."))
 	do @menuMain.addPopup(\common@langEn ?("&Build", "ビルド(&B)"), @popupMainBuild)
 	do @popupMainDbg :: wnd@makePopup()
 	do @popupMainDbg.add(0x0040, \common@langEn ?("Toggle &Breakpoint\tF9", "ブレークポイントの設定/解除(&B)\tF9"))
@@ -319,14 +332,14 @@ var drag: bool
 	do @popupMainHelp.add(0x0011, \common@langEn ?("&About Kuin...", "Kuinについて(&A)..."))
 	do @menuMain.addPopup(\common@langEn ?("&Help", "ヘルプ(&H)"), @popupMainHelp)
 	do @wndMain.setMenu(@menuMain)
-
+	
 	do @popupMainArranger :: wnd@makePopup()
 	do @popupMainArranger.add(0x0050, \common@langEn ?("Zoom &In\tCtrl++", "ズームイン(&I)\tCtrl++"))
 	do @popupMainArranger.add(0x0051, \common@langEn ?("Zoom &Out\tCtrl+-", "ズームアウト(&O)\tCtrl+-"))
 	do @popupMainArranger.add(0x0052, "&100%\tCtrl+1")
-
+	
 	do wnd@setOnKeyPress(@onKeyPress)
-
+	
 	do @lockingEditor :: false
 	do @lockUi :: false
 	do @editLog.setText("")
@@ -336,11 +349,14 @@ var drag: bool
 	do @zoom :: 1.0
 	do @iconPath :: ""
 	do @relatedFiles :: #list<[]char>
-
+	do @redrawingRequired :: false
+	do @interpret2Required :: false
+	do @completionRequired :: false
+	
 	func btnFileAddOnPush(wnd: wnd@WndBase)
 		do @wndMainOnPushMenu(@wndMain, 0x0030)
 	end func
-
+	
 	func btnFileDelOnPush(wnd: wnd@WndBase)
 		if("\\" ~ file@delExt(file@fileName(\src@mainSrcPath)) = \src@curDocName)
 			do wnd@msgBox(@wndMain, \common@langEn ?("The main source file cannot be deleted.", "メインのソースファイルは削除できません。"), \common@title, %err, %ok)
@@ -354,7 +370,7 @@ var drag: bool
 			do \src@setCurSrc(\src@mainDoc())
 		end if
 	end func
-
+	
 	func btnProjSettingsOnPush(wnd: wnd@WndBase)
 		do @wndMainOnPushMenu(@wndMain, 0x0060)
 	end func
@@ -404,6 +420,9 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 			switch(key)
 			case %f
 				do @wndMainOnPushMenu(@wndMain, 0x0039)
+				ret true
+			case %g
+				do @wndMainOnPushMenu(@wndMain, 0x0041)
 				ret true
 			case %h
 				do @wndMainOnPushMenu(@wndMain, 0x003A)
@@ -478,6 +497,9 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 				end if
 			case %f
 				do @wndMainOnPushMenu(@wndMain, 0x0039)
+				ret true
+			case %g
+				do @wndMainOnPushMenu(@wndMain, 0x0041)
 				ret true
 			case %h
 				do @wndMainOnPushMenu(@wndMain, 0x003A)
@@ -554,6 +576,31 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		if(\completion@displayed() & key <> %ctrl & !editFocused)
 			ret \src@curDoc.keyDown(key, shiftCtrl)
 		end if
+	elif(\go_to_line@wndGoToLine <>& null & \go_to_line@wndGoToLine.focusedWnd())
+		switch(shiftCtrl)
+		case %none
+			switch(key)
+			case %esc
+				do \go_to_line@wndGoToLine.close()
+				ret true
+			case %enter
+				do \go_to_line@goToLine()
+				ret true
+			case %bs, %del
+				ret false
+			case %up, %right, %down, %left
+				ret false
+			case %_0 to %_9
+				ret false
+			end switch
+			ret true
+		end switch
+	elif(\obj_prop@wndObjProp <>& null & \obj_prop@wndObjProp.focusedWnd())
+		if(key = %tab | key = %enter)
+			if(\obj_prop@runTabOrder(%tab, shiftCtrl))
+				ret true
+			end if
+		end if
 	end if
 	ret false
 end func
@@ -565,7 +612,7 @@ func wndMainOnClose(wnd: wnd@WndBase): bool
 	end if
 	if(\src@chkChanged())
 		do \src@delRunningFiles()
-		var dir: []char :: file@sysDir(%appData) ~ "Kuin/"
+		var dir: []char :: wnd@sysDir(%appData) ~ "Kuin/"
 		try
 			do file@delDir(dir)
 		catch
@@ -588,7 +635,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			do @showMsgRunning()
 			ret
 		end if
-		if (\src@chkChanged())
+		if(\src@chkChanged())
 			do \src@newMainSrc()
 		end if
 	case 0x0002
@@ -596,7 +643,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			do @showMsgRunning()
 			ret
 		end if
-		if (\src@chkChanged())
+		if(\src@chkChanged())
 			var file: []char :: wnd@openFileDialog(@wndMain, [\common@langEn ?("Kuin source code (*.kn)", "Kuinソースコード (*.kn)"), "*.kn"], 0)
 			if(file <>& null)
 				do \src@openMainSrc(file)
@@ -610,7 +657,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	case 0x0005
 		do @wndMain.close()
 	case 0x0010
-		do task@open("http://kuina.ch/kuin")
+		do task@open("https://kuina.ch/kuin", %open, false)
 	case 0x0011
 		block
 			var major: int
@@ -627,6 +674,12 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			ret
 		end if
 		do @btnRlsOnPush(@btnRls)
+	case 0x0022
+		if(@lockingEditor)
+			do @showMsgRunning()
+			ret
+		end if
+		do @outputSourceCode(%cpp)
 	case 0x0030
 		if(@lockingEditor)
 			do @showMsgRunning()
@@ -663,7 +716,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 		do \find@findNext()
 	case 0x003D
 		do \snippet@add(\src@curDoc.getSelCode())
-		do \src@curDoc.fix()
+		do \src@curDoc.fix(false)
 	case 0x003E
 		if(@lockingEditor)
 			do @showMsgRunning()
@@ -673,13 +726,15 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	case 0x003F
 		do \snippet@showSnippet()
 	case 0x0040
-		if (\src@curDoc =$ \doc_src@DocSrc)
+		if(\src@curDoc =$ \doc_src@DocSrc)
 			if(\src@breakPos =& null & @lockingEditor)
 				do @showMsgRunning()
 				ret
 			end if
-			do (\src@curDoc $ \doc_src@DocSrc).toggleBreakPoint()
+			do(\src@curDoc $ \doc_src@DocSrc).toggleBreakPoint()
 		end if
+	case 0x0041
+		do \go_to_line@show()
 	case 0x0050
 		if(@zoom < 0.25)
 			do @zoom :: 0.25
@@ -697,7 +752,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			do @zoom :: 8.0
 		end if
 		do \prop@changeProp()
-		do @paintDrawEditor()
+		do @paintDrawEditor(false)
 		do @updateUi()
 	case 0x0051
 		if(@zoom > 4.0)
@@ -716,13 +771,13 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 			do @zoom :: 0.1
 		end if
 		do \prop@changeProp()
-		do @paintDrawEditor()
+		do @paintDrawEditor(false)
 		do @updateUi()
 	case 0x0052
 		if(@zoom <> 1.0)
 			do @zoom :: 1.0
 			do \prop@changeProp()
-			do @paintDrawEditor()
+			do @paintDrawEditor(false)
 		end if
 		do @updateUi()
 	case 0x0060
@@ -746,7 +801,7 @@ func wndMainOnDropFiles(wnd: wnd@WndBase, files: [][]char)
 		do @showMsgRunning()
 		ret
 	end if
-	if (\src@chkChanged())
+	if(\src@chkChanged())
 		do \src@openMainSrc(files[0])
 		do \recent@save(files[0])
 	end if
@@ -766,11 +821,11 @@ func btnCodeOnPush(wnd: wnd@WndBase)
 	end if
 	do @lockUi :: true
 	if(\src@curDoc =$ \doc_gen@DocGen)
-		do (\src@curDoc $ \doc_gen@DocGen).swapMode()
+		do(\src@curDoc $ \doc_gen@DocGen).swapMode()
 	end if
 	do @lockUi :: false
 	do @updateUi()
-	do @paintDrawEditor()
+	do @paintDrawEditor(false)
 end func
 
 func drawEditorOnPaint(wnd: wnd@WndBase, width: int, height: int)
@@ -844,7 +899,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		ret
 	end if
 	do @lockEditor(true)
-	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/" ~ \src@addRunningFileName() ~ "/"
+	var tmp: []char :: wnd@sysDir(%appData) ~ "Kuin/" ~ \src@addRunningFileName() ~ "/"
 	var out: []char :: tmp ~ "out.exe"
 	try
 		do file@makeDir(tmp)
@@ -858,28 +913,52 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
 		ret
 	end try
+	do \src@docs.forEach(@fixAll, null)
+	do @updateState()
+	if(\dll@interpret2Running())
+		do \dll@waitEndOfInterpret2()
+	end if
 	do \dll@resetMemAllocator()
 	do @editLog.setText("")
 	var cmd: []char :: out
 	try
 		do \src@resetErrList()
-		do \src@docs.forEach(fixAll, null)
-		if(\dll@build(\src@mainSrcPath, \src@getSrc, null, out, @iconPath, @relatedFiles, false, @getEnv(), @log, \common@langEn ?(1, 0), 0))
-			if (\src@mainSrcDir <> \common@defaultDir)
-				var filePtr: file@Writer :: file@makeWriter(tmp ~ "_curdir_.txt", false)
-				do filePtr.writeStr(\src@mainSrcDir)
-				do filePtr.writeChar('\n')
-				do filePtr.fin()
-			end if
-			do @editLog.addText(\common@langEn ?("IK9999: Run.", "IK9999: 実行。\n"))
-			do \dbgwnd@show()
-			if(\dll@runDbg(cmd, null, idleFunc, eventFunc, breakPointsFunc, breakFunc, dbgFunc))
-				do @editLog.addText(\common@langEn ?("\nIK9999: Succees.\n", "\nIK9999: 正常終了。\n"))
+		var option: list<[]char> :: #list<[]char>
+		do option.add("-i")
+		do option.add(\src@mainSrcPath)
+		do option.add("-o")
+		do option.add(out)
+		if(@iconPath <> "")
+			do option.add("-c")
+			do option.add(@iconPath)
+		end if
+		do option.add("-x")
+		do option.add("hint")
+		do @addEnv(option)
+		do @makeRelatedFileText(tmp ~ "_related_files_.txt", option)
+		if(\dll@build(option.toArray(), \src@getSrc, @log))
+			do file@delFile(tmp ~ "_related_files_.txt")
+			if(@radioEnvWeb.getChk())
+				do @editLog.addText(\common@langEn ?("0x0003FFFF: Run.", "0x0003FFFF: 実行。\n"))
+				do \web_server@run(tmp)
+				do @editLog.addText(\common@langEn ?("\n0x0003FFFF: Succees.\n", "\n0x0003FFFF: 正常終了。\n"))
 			else
-				do @editLog.addText(\common@langEn ?("\nIK9999: Failure.\n", "\nIK9999: 実行失敗。\n"))
-				do wnd@msgBox(@wndMain, \common@langEn ?("Could not run.", "実行できませんでした。"), \common@title, %err, %ok)
+				if(\src@mainSrcDir <> \common@defaultDir)
+					var filePtr: file@Writer :: file@makeWriter(tmp ~ "_resdir_.txt", false)
+					do filePtr.writeStr(\src@mainSrcDir)
+					do filePtr.writeChar('\n')
+					do filePtr.fin()
+				end if
+				do @editLog.addText(\common@langEn ?("0x0003FFFF: Run.", "0x0003FFFF: 実行。\n"))
+				do \dbgwnd@show()
+				if(\dll@runDbg(cmd, null, idleFunc, eventFunc, breakPointsFunc, breakFunc, dbgFunc))
+					do @editLog.addText(\common@langEn ?("\n0x0003FFFF: Succees.\n", "\n0x0003FFFF: 正常終了。\n"))
+				else
+					do @editLog.addText(\common@langEn ?("\n0x0003FFFF: Failure.\n", "\n0x0003FFFF: 実行失敗。\n"))
+					do wnd@msgBox(@wndMain, \common@langEn ?("Could not run.", "実行できませんでした。"), \common@title, %err, %ok)
+				end if
+				do \src@delRunningFiles()
 			end if
-			do \src@delRunningFiles()
 		end if
 		do \src@updateErrList()
 	catch
@@ -891,51 +970,47 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 	do @updateUi()
 	do @lockEditor(false)
 	do @wndMain.activate()
-
-	func fixAll(key: []char, value: \doc@Doc, data: kuin@Class): bool
-		do value.fix()
-		ret true
-	end func
-
+	
 	func idleFunc()
 		do wnd@act()
 	end func
-
+	
 	func eventFunc(type: int, str: []char): int
 		switch(type)
 		case 0
 			do @editLog.addText(str.sub(4, -1))
 		end switch
 	end func
-
+	
 	func breakPointsFunc()
 		class BreakPoint()
 			+var items: list<\src@Pos>
 		end class
-
+		
 		var breakPoint: BreakPoint :: #BreakPoint
 		do breakPoint.items :: #list<\src@Pos>
 		do \src@docs.forEach(callback, breakPoint)
 		var itemsArray: []\src@Pos :: breakPoint.items.toArray()
 		for i(0, ^itemsArray - 1)
-			do (\src@docs.get(itemsArray[i].src, &) $ \doc_src@DocSrc).unsetBreakPoint(itemsArray[i].row - 1)
+			do(\src@docs.get(itemsArray[i].src, &) $ \doc_src@DocSrc).unsetBreakPoint(itemsArray[i].row - 1)
 		end for
 		do \dll@setBreakPoints(itemsArray)
 		for i(0, ^itemsArray - 1)
 			if(itemsArray[i].row <> -1)
-				do (\src@docs.get(itemsArray[i].src, &) $ \doc_src@DocSrc).setBreakPoint(itemsArray[i].row - 1)
+				do(\src@docs.get(itemsArray[i].src, &) $ \doc_src@DocSrc).setBreakPoint(itemsArray[i].row - 1)
 			end if
 		end for
-		do @paintDrawEditor()
-
-		func callback(key: []char, value: \doc@Doc, data: BreakPoint): bool
+		do @paintDrawEditor(false)
+		
+		func callback(key: []char, value: \doc@Doc, data: kuin@Class): bool
+			var data2: BreakPoint :: data $ BreakPoint
 			if(value =$ \doc_src@DocSrc & key[0] = '\\')
-				do (value $ \doc_src@DocSrc).getBreakPoints(key, data.items)
+				do(value $ \doc_src@DocSrc).getBreakPoints(key, data2.items)
 			end if
 			ret true
 		end func
 	end func
-
+	
 	func breakFunc(code: int, pos: \src@Pos, msg: []char)
 		do \dbgwnd@setMsg(msg)
 		if(code <> 0x80000003)
@@ -951,16 +1026,17 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do \src@breakPos :: pos2
 		do @btnCompile.setText(\common@langEn ?("Continue", "続行"))
 		do @btnCompile.setEnabled(true)
-		if (!\src@jumpSrc(pos))
-			do @paintDrawEditor()
+		if(!\src@jumpSrc(pos))
+			do @paintDrawEditor(false)
 			do @focusDrawEditor()
 		end if
 		while(\src@breakPos <>& null & wnd@act())
+			do @updateState()
 		end while
 		do @btnCompile.setEnabled(false)
 		do @btnCompile.setText(\common@langEn ?("Compile && Run", "コンパイル＆実行"))
 	end func
-
+	
 	func dbgFunc(mode: int, str1: []char, str2: []char)
 		switch(mode)
 		case 0
@@ -991,7 +1067,7 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 	end if
 	do @lockEditor(true)
 	var fileName: []char :: file@delExt(file@fileName(file))
-	var tmp: []char :: file@sysDir(%appData) ~ "Kuin/" ~ \src@addRunningFileName() ~ "/" ~ fileName ~ "/"
+	var tmp: []char :: wnd@sysDir(%appData) ~ "Kuin/" ~ \src@addRunningFileName() ~ "/" ~ fileName ~ "/"
 	var out: []char :: tmp ~ fileName ~ ".exe"
 	try
 		do file@makeDir(tmp)
@@ -1005,31 +1081,29 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 		do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
 		ret
 	end try
+	do \src@docs.forEach(@fixAll, null)
+	do @updateState()
+	if(\dll@interpret2Running())
+		do \dll@waitEndOfInterpret2()
+	end if
 	do \dll@resetMemAllocator()
 	do @editLog.setText("")
 	try
 		do \src@resetErrList()
-		var appCode: int :: lib@rnd(1, lib@intMax) * (lib@rnd(0, 1) = 0 ?(1, -1))
-		if(appCode = 0)
-			do appCode :: 1 {Since it is not convenient when 'AppCode' becomes 0, it is set to 1.}
+		var option: list<[]char> :: #list<[]char>
+		do option.add("-i")
+		do option.add(\src@mainSrcPath)
+		do option.add("-o")
+		do option.add(out)
+		if(@iconPath <> "")
+			do option.add("-c")
+			do option.add(@iconPath)
 		end if
-		if(\dll@build(\src@mainSrcPath, \src@getSrc, null, out, @iconPath, @relatedFiles, true, @getEnv(), @log, \common@langEn ?(1, 0), appCode))
-			if(\src@mainSrcDir <> \common@defaultDir)
-				var resSrc: []char :: \src@mainSrcDir ~ "res/"
-				if(file@exist(resSrc))
-					var resDst: []char :: tmp ~ "res.knd"
-					if(!\dll@archive(resDst, resSrc, appCode))
-						var msg: []char
-						if(\common@langEn)
-							do msg :: "Could not make the resource file. " ~ resDst
-						else
-							do msg :: "リソースファイルを作成できませんでした。 " ~ resDst
-						end if
-						do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
-						ret
-					end if
-				end if
-			end if
+		do option.add("-r")
+		do @addEnv(option)
+		do @makeRelatedFileText(tmp ~ "_related_files_.txt", option)
+		if(\dll@build(option.toArray(), \src@getSrc, @log))
+			do file@delFile(tmp ~ "_related_files_.txt")
 			if(zip@zip(file, tmp, -1))
 				do wnd@msgBox(@wndMain, \common@langEn ?("The build succeeded.", "ビルドが成功しました。"), \common@title, %info, %ok)
 			else
@@ -1043,6 +1117,78 @@ func btnRlsOnPush(wnd: wnd@WndBase)
 				ret
 			end if
 			do \src@delRunningFiles()
+		end if
+		do \src@updateErrList()
+	catch
+		do wnd@msgBox(@wndMain, \common@langEn ?("Unexpected error.", "予期せぬエラーです。"), \common@title, %err, %ok)
+	end try
+	do @updateUi()
+	do @lockEditor(false)
+end func
+
+func outputSourceCode(sourceCodeKind: @SourceCodeKind)
+	if(@lockingEditor)
+		do @showMsgRunning()
+		ret
+	end if
+	var file: []char
+	switch(sourceCodeKind)
+	case %cpp
+		do file :: wnd@saveFileDialog(@wndMain, [\common@langEn ?("C++ Source Code (*.cpp)", "C++ソースコード (*.cpp)"), "*.cpp"], 0, "cpp")
+	end switch
+	if(file =& null)
+		ret
+	end if
+	do @lockEditor(true)
+	var fileName: []char :: file@delExt(file@fileName(file))
+	var tmp: []char :: wnd@sysDir(%appData) ~ "Kuin/" ~ \src@addRunningFileName() ~ "/" ~ fileName ~ "/"
+	var ext: []char
+	switch(sourceCodeKind)
+	case %cpp
+		do ext :: ".cpp"
+	end switch
+	var out: []char :: tmp ~ fileName ~ ext
+	try
+		do file@makeDir(tmp)
+	catch
+		var msg: []char
+		if(\common@langEn)
+			do msg :: "Could not delete. " ~ tmp
+		else
+			do msg :: "削除できませんでした。 " ~ tmp
+		end if
+		do wnd@msgBox(@wndMain, msg, \common@title, %err, %ok)
+		ret
+	end try
+	do \src@docs.forEach(@fixAll, null)
+	do @updateState()
+	if(\dll@interpret2Running())
+		do \dll@waitEndOfInterpret2()
+	end if
+	do \dll@resetMemAllocator()
+	do @editLog.setText("")
+	try
+		do \src@resetErrList()
+		var option: list<[]char> :: #list<[]char>
+		do option.add("-i")
+		do option.add(\src@mainSrcPath)
+		do option.add("-o")
+		do option.add(out)
+		if(@iconPath <> "")
+			do option.add("-c")
+			do option.add(@iconPath)
+		end if
+		do option.add("-r")
+		switch(sourceCodeKind)
+		case %cpp
+			do option.add("-e")
+			do option.add("cpp")
+		end switch
+		if(\dll@build(option.toArray(), \src@getSrc, @log))
+			if(file@copyFile(file, out))
+				do wnd@msgBox(@wndMain, \common@langEn ?("The build succeeded.", "ビルドが成功しました。"), \common@title, %info, %ok)
+				do \src@delRunningFiles()
+			end if
 		end if
 		do \src@updateErrList()
 	catch
@@ -1068,12 +1214,12 @@ end func
 
 +func updateFile()
 	do @editFile.setText("")
-
+	
 	do @listFile.setRedraw(false)
 	do @listFile.clear()
 	do \src@docs.forEach(callback, null)
 	do @listFile.setRedraw(true)
-
+	
 	func callback(src: []char, doc: \doc@Doc, data: kuin@Class): bool
 		if(src[0] <> '\\')
 			ret true
@@ -1103,7 +1249,7 @@ end func
 	do @editRbArSnap.setEnabled(@snap)
 	do @editRbArSnap.setText(@snapValue.toStr())
 	do @editRbArZoom.setText(@zoom.toStr())
-
+	
 	do @menuMain.delPopup(@popupMainArranger)
 	if(\src@curDoc =$ \doc_gen@DocGen)
 		if((\src@curDoc $ \doc_gen@DocGen).designer =$ \doc_ar@DocAr)
@@ -1111,7 +1257,7 @@ end func
 		end if
 	end if
 	do @wndMain.updateMenu()
-
+	
 	do @lockUi :: false
 end func
 
@@ -1121,12 +1267,34 @@ func lockEditor(lock: bool)
 	do @btnRls.setEnabled(!lock)
 end func
 
-+func paintDrawEditor()
-	do @drawEditor.paint()
++func paintDrawEditor(immediate: bool)
+	if(immediate)
+		do @drawEditor.paint()
+		do @redrawingRequired :: false
+	else
+		do @redrawingRequired :: true
+	end if
 end func
 
 +func focusDrawEditor()
 	do @drawEditor.focus()
+end func
+
+func addEnv(option: list<[]char>)
+	if(@radioEnvWnd.getChk())
+		do option.add("-e")
+		do option.add("exe")
+		do option.add("-x")
+		do option.add("wnd")
+	elif(@radioEnvCui.getChk())
+		do option.add("-e")
+		do option.add("exe")
+		do option.add("-x")
+		do option.add("pause")
+	elif(@radioEnvWeb.getChk())
+		do option.add("-e")
+		do option.add("web")
+	end if
 end func
 
 +func getEnv(): []char
@@ -1134,6 +1302,8 @@ end func
 		ret "wnd"
 	elif(@radioEnvCui.getChk())
 		ret "cui"
+	elif(@radioEnvWeb.getChk())
+		ret "web"
 	end if
 	ret "wnd"
 end func
@@ -1147,6 +1317,8 @@ end func
 		do @radioEnvWnd.setChk(true)
 	case "cui"
 		do @radioEnvCui.setChk(true)
+	case "web"
+		do @radioEnvWeb.setChk(true)
 	end switch
 	do @lockUi :: false
 end func
@@ -1165,7 +1337,7 @@ func log(args: [][]char, row: int, col: int)
 	do \src@addErrList(pos, args[0], args[1], args[2], row, col)
 end func
 
-+func logForInterpret(args: [][]char, row: int, col: int)
+func logForInterpret(args: [][]char, row: int, col: int)
 	var pos: \src@Pos :: #\src@Pos
 	do pos.src :: args[2] =& null ?("", ##args[2])
 	do pos.row :: row
@@ -1197,5 +1369,67 @@ func openResFolder()
 			ret
 		end if
 	end if
-	do task@open(path)
+	do task@open(path, %open, false)
+end func
+
+func fixAll(key: []char, value: \doc@Doc, data: kuin@Class): bool
+	do value.fix(false)
+	ret true
+end func
+
++func updateState()
+	if(@redrawingRequired)
+		do @drawEditor.paint()
+		do @redrawingRequired :: false
+	end if
+	if(@interpret2Required & !\dll@interpret2Running())
+		do \src@resetErrList()
+		do \dll@resetMemAllocator()
+		var option: list<[]char> :: #list<[]char>
+		do option.add("-i")
+		do option.add(\src@mainSrcPath)
+		do option.add("-x")
+		do option.add("hint")
+		do @addEnv(option)
+		var prioritizedCode: []char :: \src@curDocName
+		var pos: int :: prioritizedCode.find('.', -1)
+		if(pos <> -1)
+			do prioritizedCode :: prioritizedCode.sub(0, pos)
+		end if
+		do \dll@interpret2(option.toArray(), \src@getSrc, @logForInterpret, complete, prioritizedCode)
+		do @interpret2Required :: false
+	end if
+	if(@completionRequired)
+		do \src@updateErrList()
+		do @updateUi()
+		do @completionRequired :: false
+	end if
+	
+	func complete()
+		do @completionRequired :: true
+	end func
+end func
+
++func callInterpret2()
+	do @interpret2Required :: true
+end func
+
+func makeRelatedFileText(txtPath: []char, option: list<[]char>)
+	if(^@relatedFiles = 0)
+		ret
+	end if
+	var writer: file@Writer :: file@makeWriter(txtPath, false)
+	if(writer =& null)
+		ret
+	end if
+	do @relatedFiles.head()
+	while(!@relatedFiles.term())
+		var inPath: []char :: @relatedFiles.get()
+		do writer.writeStr(inPath ~ "\n")
+		do writer.writeStr("data/" ~ file@fileName(inPath) ~ "\n")
+		do @relatedFiles.next()
+	end while
+	do writer.fin()
+	do option.add("-f")
+	do option.add(txtPath)
 end func

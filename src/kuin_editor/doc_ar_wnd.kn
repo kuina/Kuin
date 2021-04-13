@@ -7,28 +7,28 @@
 		do me.root.getDefaultSize(&width, &height)
 		do me.root.init("wndMain", true, 0, 0, width, height, null)
 	end func
-
-	+*func fix()
+	
+	+*func fix(first: bool)
 		var lines: list<[]char> :: #list<[]char>
 		do lines.add("+var \{me.root.name}: \{(me.root $ @ObjArWnd).type()}")
-
+		
 		do me.nodes.head()
 		while(!me.nodes.term())
 			var node: @ObjArWnd :: me.nodes.get() $ @ObjArWnd
 			do lines.add("+var \{node.name}: \{node.type()}")
 			do me.nodes.next()
 		end while
-
+		
 		do lines.add("")
 		do lines.add("+func show()")
 		do lines.add("\tif(@\{me.root.name} <>& null)")
 		do lines.add("\t\tret")
 		do lines.add("\tend if")
-		do (me.root $ @ObjArWnd).getSrcMake(1, lines, "null")
+		do(me.root $ @ObjArWnd).getSrcMake(1, lines, "null")
 		if(!me.root.visible)
 			do lines.add("\tdo @\{me.root.name}.setVisible(false)")
 		end if
-
+		
 		var parentStack: stack<\doc_ar@Obj> :: #stack<\doc_ar@Obj>
 		do me.nodes.head()
 		while(!me.nodes.term())
@@ -53,7 +53,7 @@
 			end if
 			do me.nodes.next()
 		end while
-
+		
 		do lines.add("end func")
 		do lines.add("")
 		do lines.add("+func close()")
@@ -62,17 +62,17 @@
 		do lines.add("\tend if")
 		do lines.add("\tdo @\{me.root.name}.close()")
 		do lines.add("\tdo @\{me.root.name} :: null")
-
+		
 		do me.nodes.head()
 		while(!me.nodes.term())
 			do lines.add("\tdo @\{me.nodes.get().name} :: null")
 			do me.nodes.next()
 		end while
-
+		
 		do lines.add("end func")
 		do me.src :: lines.toArray()
 	end func
-
+	
 	*func makeObj(name: []char): \doc_ar@Obj
 		switch(name)
 		case "Wnd"
@@ -92,7 +92,7 @@
 		end switch
 		ret null
 	end func
-
+	
 	*func updateLt()
 		do \form@listLt.add("Btn", 1)
 		do \form@listLt.add("Chk", 2)
@@ -106,10 +106,10 @@ end class
 class ObjArWnd(\doc_ar@Obj)
 	+func type(): []char
 	end func
-
+	
 	+func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 	end func
-
+	
 	func addEvent(indent: int, lines: list<[]char>, name: []char)
 		var value: []char :: me.props.get(name, &)
 		if(value = "" | value = "null")
@@ -126,23 +126,23 @@ class ObjWnd(@ObjArWnd)
 		do draw@rectLine((x - 1.0) * zoom, (y - 31.0) * zoom, (width + 2.0) * zoom, (height + 32.0) * zoom, 0xFF1883D7)
 		do \common@fontP.drawScale((x + 30.0) * zoom, (y - 30.0 + 6.0) * zoom, zoom, zoom, me.props.get("text", &), draw@black)
 	end func
-
+	
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
 		do minWidth :: 50
 		do minHeight :: 50
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func
-
+	
 	+*func getDefaultSize(width: &int, height: &int)
 		do width :: 640
 		do height :: 480
 	end func
-
+	
 	+*func kind(): []char
 		ret "Wnd"
 	end func
-
+	
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
 		do super(me, name, visible, x, y, width, height, props)
 		if(props <>& null)
@@ -157,23 +157,23 @@ class ObjWnd(@ObjArWnd)
 		do me.props.add("onResize", "")
 		do me.reloadRes()
 	end func
-
+	
 	+*func propsNames(): [][]char
-		ret ["style", "text", "onClose", "onActivate", "onPushMenu", "onDropFiles", "onResize"]
+		ret["style", "text", "onClose", "onActivate", "onPushMenu", "onDropFiles", "onResize"]
 	end func
-
+	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %str, %str, %str, %str, %str, %str]
+		ret[%enum_ $ \doc_ar@PropType, %str, %str, %str, %str, %str, %str]
 	end func
-
+	
 	+*func propsTypeDatas(): [][][]char
-		ret [["%normal", "%fix", "%aspect", "%popup"], null, null, null, null, null, null]
+		ret[["%normal", "%fix", "%aspect", "%popup"], null, null, null, null, null, null]
 	end func
-
+	
 	+*func type(): []char
 		ret "wnd@Wnd"
 	end func
-
+	
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeWnd(\{parent}, \{me.props.get("style", &)}, \{me.width}, \{me.height}, \"\{me.props.get("text", &)}\")")
 		do me.addEvent(indent, lines, "onClose")
@@ -191,27 +191,27 @@ class ObjBtn(@ObjArWnd)
 		var text: []char :: me.props.get("text", &)
 		do \common@fontP.drawScale(lib@floor(x + (width - \common@fontP.calcWidth(text)) / 2.0) * zoom, lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0) * zoom, zoom, zoom, text, draw@black)
 	end func
-
+	
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
 		do minWidth :: 10
 		do minHeight :: 23
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func
-
+	
 	+*func getDefaultSize(width: &int, height: &int)
 		do width :: 75
 		do height :: 23
 	end func
-
+	
 	+*func kind(): []char
 		ret "Btn"
 	end func
-
+	
 	+*func icon(): int
 		ret 0
 	end func
-
+	
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
 		do super(me, name, visible, x, y, width, height, props)
 		if(props <>& null)
@@ -223,23 +223,23 @@ class ObjBtn(@ObjArWnd)
 		do me.props.add("onPush", "")
 		do me.reloadRes()
 	end func
-
+	
 	+*func propsNames(): [][]char
-		ret ["anchorX", "anchorY", "text", "onPush"]
+		ret["anchorX", "anchorY", "text", "onPush"]
 	end func
-
+	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %enum_, %str, %str]
+		ret[%enum_ $ \doc_ar@PropType, %enum_, %str, %str]
 	end func
-
+	
 	+*func propsTypeDatas(): [][][]char
-		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null]
+		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null]
 	end func
-
+	
 	+*func type(): []char
 		ret "wnd@Btn"
 	end func
-
+	
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeBtn(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)}, \"\{me.props.get("text", &)}\")")
 		do me.addEvent(indent, lines, "onPush")
@@ -259,27 +259,27 @@ class ObjEdit(@ObjArWnd)
 			do \common@fontP.drawScale((x + 5.0) * zoom, (y + 3.0) * zoom, zoom, zoom, text, draw@black)
 		end if
 	end func
-
+	
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
 		do minWidth :: 10
 		do minHeight :: 19
 		do maxWidth :: lib@intMax
 		do maxHeight :: 19
 	end func
-
+	
 	+*func getDefaultSize(width: &int, height: &int)
 		do width :: 100
 		do height :: 19
 	end func
-
+	
 	+*func kind(): []char
 		ret "Edit"
 	end func
-
+	
 	+*func icon(): int
 		ret 2
 	end func
-
+	
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
 		do super(me, name, visible, x, y, width, height, props)
 		if(props <>& null)
@@ -294,23 +294,23 @@ class ObjEdit(@ObjArWnd)
 		do me.props.add("onFocus", "")
 		do me.reloadRes()
 	end func
-
+	
 	+*func propsNames(): [][]char
-		ret ["anchorX", "anchorY", "readonly", "rightAligned", "text", "onChange", "onFocus"]
+		ret["anchorX", "anchorY", "readonly", "rightAligned", "text", "onChange", "onFocus"]
 	end func
-
+	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %bool_, %str, %str, %str]
+		ret[%enum_ $ \doc_ar@PropType, %enum_, %bool_, %bool_, %str, %str, %str]
 	end func
-
+	
 	+*func propsTypeDatas(): [][][]char
-		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null, null]
+		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null, null]
 	end func
-
+	
 	+*func type(): []char
 		ret "wnd@Edit"
 	end func
-
+	
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeEdit(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)})")
 		var readonly: []char :: me.props.get("readonly", &)
@@ -337,27 +337,27 @@ class ObjEditMulti(@ObjArWnd)
 		var text: []char :: me.props.get("text", &)
 		do \common@fontP.drawScale((x + 5.0) * zoom, (y + 3.0) * zoom, zoom, zoom, text, draw@black)
 	end func
-
+	
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
 		do minWidth :: 10
 		do minHeight :: 19
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func
-
+	
 	+*func getDefaultSize(width: &int, height: &int)
 		do width :: 100
 		do height :: 19
 	end func
-
+	
 	+*func kind(): []char
 		ret "EditMulti"
 	end func
-
+	
 	+*func icon(): int
 		ret 11
 	end func
-
+	
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
 		do super(me, name, visible, x, y, width, height, props)
 		if(props <>& null)
@@ -371,23 +371,23 @@ class ObjEditMulti(@ObjArWnd)
 		do me.props.add("onFocus", "")
 		do me.reloadRes()
 	end func
-
+	
 	+*func propsNames(): [][]char
-		ret ["anchorX", "anchorY", "readonly", "text", "onChange", "onFocus"]
+		ret["anchorX", "anchorY", "readonly", "text", "onChange", "onFocus"]
 	end func
-
+	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str, %str]
+		ret[%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str, %str]
 	end func
-
+	
 	+*func propsTypeDatas(): [][][]char
-		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null]
+		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null]
 	end func
-
+	
 	+*func type(): []char
 		ret "wnd@EditMulti"
 	end func
-
+	
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeEditMulti(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)})")
 		var readonly: []char :: me.props.get("readonly", &)
@@ -409,27 +409,27 @@ class ObjLabel(@ObjArWnd)
 		var text: []char :: me.props.get("text", &)
 		do \common@fontP.drawScale(x * zoom, y * zoom, zoom, zoom, text, draw@black)
 	end func
-
+	
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
 		do minWidth :: 10
 		do minHeight :: 12
 		do maxWidth :: lib@intMax
 		do maxHeight :: 12
 	end func
-
+	
 	+*func getDefaultSize(width: &int, height: &int)
 		do width :: 35
 		do height :: 12
 	end func
-
+	
 	+*func kind(): []char
 		ret "Label"
 	end func
-
+	
 	+*func icon(): int
 		ret 3
 	end func
-
+	
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
 		do super(me, name, visible, x, y, width, height, props)
 		if(props <>& null)
@@ -440,23 +440,23 @@ class ObjLabel(@ObjArWnd)
 		do me.props.add("text", me.name)
 		do me.reloadRes()
 	end func
-
+	
 	+*func propsNames(): [][]char
-		ret ["anchorX", "anchorY", "text"]
+		ret["anchorX", "anchorY", "text"]
 	end func
-
+	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %enum_, %str]
+		ret[%enum_ $ \doc_ar@PropType, %enum_, %str]
 	end func
-
+	
 	+*func propsTypeDatas(): [][][]char
-		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
+		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
 	end func
-
+	
 	+*func type(): []char
 		ret "wnd@Label"
 	end func
-
+	
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeLabel(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)}, \"\{me.props.get("text", &)}\")")
 	end func
@@ -469,27 +469,27 @@ class ObjChk(@ObjArWnd)
 		var text: []char :: me.props.get("text", &)
 		do \common@fontP.drawScale((x + 18.0) * zoom, lib@floor(y + (height - \common@fontP.maxHeight()) / 2.0) * zoom, zoom, zoom, text, draw@black)
 	end func
-
+	
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
 		do minWidth :: 16
 		do minHeight :: 16
 		do maxWidth :: lib@intMax
 		do maxHeight :: 16
 	end func
-
+	
 	+*func getDefaultSize(width: &int, height: &int)
 		do width :: 80
 		do height :: 16
 	end func
-
+	
 	+*func kind(): []char
 		ret "Chk"
 	end func
-
+	
 	+*func icon(): int
 		ret 1
 	end func
-
+	
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
 		do super(me, name, visible, x, y, width, height, props)
 		if(props <>& null)
@@ -502,23 +502,23 @@ class ObjChk(@ObjArWnd)
 		do me.props.add("onPush", "")
 		do me.reloadRes()
 	end func
-
+	
 	+*func propsNames(): [][]char
-		ret ["anchorX", "anchorY", "chk", "text", "onPush"]
+		ret["anchorX", "anchorY", "chk", "text", "onPush"]
 	end func
-
+	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str]
+		ret[%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str]
 	end func
-
+	
 	+*func propsTypeDatas(): [][][]char
-		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null]
+		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null]
 	end func
-
+	
 	+*func type(): []char
 		ret "wnd@Chk"
 	end func
-
+	
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeChk(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)}, \"\{me.props.get("text", &)}\")")
 		var chk: []char :: me.props.get("chk", &)
@@ -539,27 +539,27 @@ class ObjGroup(@ObjArWnd)
 		do draw@line((x + width) * zoom, (y + 6.0) * zoom, (x + 7.0 + \common@fontP.calcWidth(text)) * zoom, (y + 6.0) * zoom, 0xFFDCDCDC)
 		do \common@fontP.drawScale((x + 7.0) * zoom, y * zoom, zoom, zoom, text, draw@black)
 	end func
-
+	
 	+*func getMinMax(minWidth: &int, minHeight: &int, maxWidth: &int, maxHeight: &int)
 		do minWidth :: 10
 		do minHeight :: 10
 		do maxWidth :: lib@intMax
 		do maxHeight :: lib@intMax
 	end func
-
+	
 	+*func getDefaultSize(width: &int, height: &int)
 		do width :: 200
 		do height :: 100
 	end func
-
+	
 	+*func kind(): []char
 		ret "Group"
 	end func
-
+	
 	+*func icon(): int
 		ret 4
 	end func
-
+	
 	+*func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
 		do super(me, name, visible, x, y, width, height, props)
 		if(props <>& null)
@@ -570,27 +570,27 @@ class ObjGroup(@ObjArWnd)
 		do me.props.add("text", me.name)
 		do me.reloadRes()
 	end func
-
+	
 	+*func becomeParent(): bool
 		ret true
 	end func
-
+	
 	+*func propsNames(): [][]char
-		ret ["anchorX", "anchorY", "text"]
+		ret["anchorX", "anchorY", "text"]
 	end func
-
+	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret [%enum_ $ \doc_ar@PropType, %enum_, %str]
+		ret[%enum_ $ \doc_ar@PropType, %enum_, %str]
 	end func
-
+	
 	+*func propsTypeDatas(): [][][]char
-		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
+		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
 	end func
-
+	
 	+*func type(): []char
 		ret "wnd@Group"
 	end func
-
+	
 	+*func getSrcMake(indent: int, lines: list<[]char>, parent: []char)
 		do lines.add("\t".repeat(indent) ~ "do @\{me.name} :: wnd@makeGroup(\{parent}, \{me.x}, \{me.y}, \{me.width}, \{me.height}, \{me.props.get("anchorX", &)}, \{me.props.get("anchorY", &)}, \"\{me.props.get("text", &)}\")")
 	end func

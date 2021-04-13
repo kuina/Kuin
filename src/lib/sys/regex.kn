@@ -1,0 +1,31 @@
+#exe
+func[d1002.knd, _init]_init()
+end func
+
++class Regex()
+	*func[__ndc]ctor()
+	end func
+	
+	*func[d1002.knd, _regexDtor, __frc]_dtor()
+	end func
+	
+	+func[d1002.knd, _regexFind]find(pos: &int, text: []char, start: int): [][]char
+	end func
+	
+	+func[d1002.knd, _regexFindAll]findAll(pos: &[]int, text: []char): [][][]char
+	end func
+	
+	+func[d1002.knd, _regexFindLast]findLast(pos: &int, text: []char, start: int): [][]char
+	end func
+	
+	+func[d1002.knd, _regexMatch]match(text: []char): [][]char
+	end func
+	
+	+func[d1002.knd, _regexReplace]replace(text: []char, newText: []char, all: bool): []char
+	end func
+	
+	var pattern: int
+end class
+
++func[d1002.knd, _makeRegex, __mki]makeRegex(me2: @Regex, pattern: []char): @Regex
+end func

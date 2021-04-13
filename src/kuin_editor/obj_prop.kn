@@ -1,4 +1,4 @@
-var wndObjProp: wnd@Wnd
++var wndObjProp: wnd@Wnd
 var result: bool
 
 class PropInfo()
@@ -14,12 +14,13 @@ end class
 
 var propInfos: []@PropInfo
 var targets: []\doc_ar@Obj
+var tabOrder: wnd@TabOrder
 
 func getPropInfos(objs: []\doc_ar@Obj): []@PropInfo
 	var propsNames: [][]char :: objs[0].propsNames()
 	var propsTypes: []\doc_ar@PropType :: objs[0].propsTypes()
 	var propsTypeDatas: [][][]char :: objs[0].propsTypeDatas()
-	assert ^propsNames = ^propsTypes & ^propsTypes = ^propsTypeDatas
+	assert ^ propsNames = ^propsTypes & ^propsTypes = ^propsTypeDatas
 	var propInfos: dict<[]char, @PropInfo> :: #dict<[]char, @PropInfo>
 	for i(0, ^propsNames - 1)
 		var propInfo: @PropInfo :: #@PropInfo
@@ -46,25 +47,44 @@ func getPropInfos(objs: []\doc_ar@Obj): []@PropInfo
 		end if
 		do propInfos.add(propsNames[i], propInfo)
 	end for
-	ret propInfos.toArrayValue()
+	
+	class Data()
+		+var array: []@PropInfo
+		+var idx: int
+	end class
+	var data: Data :: #Data
+	do data.array :: #[^propInfos]@PropInfo
+	do data.idx :: 0
+	do propInfos.forEach(toArrayValue, data)
+	ret data.array
+	
+	func toArrayValue(key: []char, value: @PropInfo, data: kuin@Class): bool
+		var data2: Data :: data $ Data
+		do data2.array[data2.idx] :: value
+		do data2.idx :+ 1
+		ret true
+	end func
 end func
 
 +func show(objs: []\doc_ar@Obj): bool
 	do @targets :: objs
 	do @wndObjProp :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 300, 480, ^objs = 1 ?(objs[0].name, \common@langEn ?("Multiple Objects", "複数のオブジェクト")))
-
+	
 	do @propInfos :: @getPropInfos(objs)
+	var tabTargets: list<wnd@WndBase> :: #list<wnd@WndBase>
 	for i(0, ^@propInfos - 1)
 		do @propInfos[i].label :: wnd@makeLabel(@wndObjProp, 12, 15 + 25 * i, 60, 12, %fix, %fix, @propInfos[i].name)
 		switch(@propInfos[i].type)
 		case %str, %int_, %float_
 			var edit: wnd@Edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * i, 180, 19, %fix, %fix)
 			do edit.setText(@propInfos[i].value)
-			do @propInfos[i].ctrls :: [edit]
+			do @propInfos[i].ctrls :: [edit $ wnd@WndBase]
+			do tabTargets.add(edit)
 		case %bool_
 			var chk: wnd@Chk :: wnd@makeChk(@wndObjProp, 92, 12 + 25 * i, 180, 16, %fix, %fix, @propInfos[i].name)
 			do chk.setChk(@propInfos[i].value = "true")
-			do @propInfos[i].ctrls :: [chk]
+			do @propInfos[i].ctrls :: [chk $ wnd@WndBase]
+			do tabTargets.add(chk)
 		case %enum_
 			var combo: wnd@Combo :: wnd@makeCombo(@wndObjProp, 92, 12 + 25 * i, 180, 20, %fix, %fix)
 			var value: []char :: @propInfos[i].value
@@ -75,20 +95,23 @@ end func
 					do combo.setSel(j)
 				end if
 			end for
-			do @propInfos[i].ctrls :: [combo]
+			do @propInfos[i].ctrls :: [combo $ wnd@WndBase]
+			do tabTargets.add(combo)
 		case %color
 			var edit: wnd@Edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * i, 105, 19, %fix, %fix)
 			do edit.setText(@propInfos[i].value)
 			var btn: wnd@Btn :: wnd@makeBtn(@wndObjProp, 197, 12 + 25 * i, 75, 23, %fix, %fix, \common@langEn ?("Browse...", "参照..."))
 			do btn.onPush :: btnColorOnPush
 			do @propInfos[i].ctrls :: [edit $ wnd@WndBase, btn $ wnd@WndBase]
+			do tabTargets.add(edit)
 		case %file
 			var edit: wnd@Edit :: wnd@makeEdit(@wndObjProp, 92, 12 + 25 * i, 105, 19, %fix, %fix)
 			do edit.setText(@propInfos[i].value)
 			var btn: wnd@Btn :: wnd@makeBtn(@wndObjProp, 197, 12 + 25 * i, 75, 23, %fix, %fix, \common@langEn ?("Browse...", "参照..."))
 			do @propInfos[i].ctrls :: [edit $ wnd@WndBase, btn $ wnd@WndBase]
+			do tabTargets.add(edit)
 		end switch
-
+		
 		if(!@propInfos[i].same)
 			var btnReset: wnd@Btn :: wnd@makeBtn(@wndObjProp, 92, 12 + 25 * i, 100, 23, %fix, %fix, \common@langEn ?("Edit Values", "複数の編集"))
 			do btnReset.onPush :: btnResetOnPush
@@ -98,21 +121,25 @@ end func
 			end for
 		end if
 	end for
-
+	
 	var btnOk: wnd@Btn :: wnd@makeBtn(@wndObjProp, 72, 445, 75, 23, %fix, %fix, "OK")
 	do btnOk.onPush :: btnOkOnPush
 	var btnCancel: wnd@Btn :: wnd@makeBtn(@wndObjProp, 153, 445, 75, 23, %fix, %fix, \common@langEn ?("Cancel", "キャンセル"))
 	do btnCancel.onPush :: btnCancelOnPush
-
+	
+	do tabTargets.add(btnOk)
+	do tabTargets.add(btnCancel)
+	do @tabOrder :: wnd@makeTabOrder(tabTargets.toArray())
+	
 	do @result :: false
 	do @wndObjProp.modal()
-
+	
 	do @wndObjProp :: null
 	do @propInfos :: null
 	do @targets :: null
-
+	
 	ret @result
-
+	
 	func btnOkOnPush(wnd: wnd@WndBase)
 		for i(0, ^@propInfos - 1)
 			if(!@propInfos[i].same)
@@ -150,18 +177,18 @@ end func
 		do @result :: true
 		do @wndObjProp.close()
 	end func
-
+	
 	func btnCancelOnPush(wnd: wnd@WndBase)
 		do @wndObjProp.close()
 	end func
-
+	
 	func btnColorOnPush(wnd: wnd@WndBase)
 		for i(0, ^@propInfos - 1)
 			if(^@propInfos[i].ctrls >= 2 & @propInfos[i].ctrls[1] =& wnd)
 				var edit: wnd@Edit :: @propInfos[i].ctrls[0] $ wnd@Edit
 				var color: int :: edit.getText().toInt(&)
 				; var value: []char :: \color_sel@show(@wndObjProp, color)
-				do color :: wnd@colorDialog(@wndObjProp, color.clamp(0, 0xFFFFFFFF) % 0x1000000)
+				do color :: wnd@colorDialog(@wndObjProp, lib@clamp(color, 0, 0xFFFFFFFF) % 0x1000000)
 				if(color <> -1)
 					do edit.setText("0xFF" ~ color.toStrFmt("06X"))
 				end if
@@ -169,7 +196,7 @@ end func
 			end if
 		end for
 	end func
-
+	
 	func btnResetOnPush(wnd: wnd@WndBase)
 		for i(0, ^@propInfos - 1)
 			if(@propInfos[i].btnReset =& wnd)
@@ -181,4 +208,11 @@ end func
 			end if
 		end for
 	end func
+end func
+
++func runTabOrder(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+	if(@tabOrder <>& null & @tabOrder.chk(key, shiftCtrl))
+		ret true
+	end if
+	ret false
 end func

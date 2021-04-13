@@ -1,0 +1,114 @@
+const bufSizeMin: int :: 1024
+var delimiters: []char :: " ,\n"
+
++func delimiter(delimiters_: []char)
+	do @delimiters :: delimiters_
+end func
+
++func[d0000.knd, _flush]flush()
+end func
+
++func input(): []char
+	var buf: []char :: #[@bufSizeMin]char
+	var ptr: int :: 0
+	while loop(true)
+		var c: char :: @inputLetter()
+		if(c = '\u000D')
+			skip loop
+		end if
+		if(c = '\uFFFF')
+			if(ptr = 0)
+				ret null
+			end if
+			break loop
+		end if
+		if(c = '\n')
+			break loop
+		end if
+		if(ptr = ^buf)
+			do buf :~ #[^buf]char
+		end if
+		do buf[ptr] :: c
+		do ptr :+ 1
+	end while
+	ret buf.sub(0, ptr)
+end func
+
++func inputChar(): char
+	while loop(true)
+		var c: char :: @inputCharWithDelimiter()
+		if(c <> '\0')
+			if(c = '\uFFFF')
+				throw 0xE9170008
+			end if
+			ret c
+		end if
+	end while
+end func
+
++func inputFloat(): float
+	var s: []char :: @inputStr()
+	var b: bool
+	var r: float :: s.toFloat(&b)
+	if(!b)
+		throw 0xE9170008
+	end if
+	ret r
+end func
+
++func inputInt(): int
+	var s: []char :: @inputStr()
+	var b: bool
+	var r: int :: s.toInt(&b)
+	if(!b)
+		throw 0xE9170008
+	end if
+	ret r
+end func
+
++func[d0000.knd, _inputLetter]inputLetter(): char
+end func
+
++func inputStr(): []char
+	var buf: []char :: #[@bufSizeMin]char
+	var ptr: int :: 0
+	while loop(true)
+		var c: char :: @inputCharWithDelimiter()
+		if(c = '\uFFFF')
+			if(ptr = 0)
+				throw 0xE9170008
+			end if
+			break loop
+		end if
+		if(c = '\0')
+			if(ptr = 0)
+				skip loop
+			end if
+			break loop
+		end if
+		if(ptr = ^buf)
+			do buf :~ #[^buf]char
+		end if
+		do buf[ptr] :: c
+		do ptr :+ 1
+	end while
+	ret buf.sub(0, ptr)
+end func
+
++func[d0000.knd, _print]print(str: []char)
+end func
+
+func inputCharWithDelimiter(): char
+	while loop(true)
+		var c: char :: @inputLetter()
+		for i(0, ^@delimiters - 1)
+			if(c = @delimiters[i] | (c = '\u000D' & @delimiters[i] = '\n'))
+				ret '\0'
+			end if
+		end for
+		if(c = '\u000D')
+			skip loop
+		end if
+		ret c
+	end while
+end func

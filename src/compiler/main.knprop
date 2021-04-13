@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	<icon></icon>
+	<env>cui</env>
+	<snap>5</snap>
+	<zoom>1</zoom>
+	<related_files />
+	<resources>
+		<resource>analyze.kn</resource>
+		<resource>ast.kn</resource>
+		<resource>builtin_func.kn</resource>
+		<resource>convert.kn</resource>
+		<resource>cpp\output.kn</resource>
+		<resource>err.kn</resource>
+		<resource>exe\asm.kn</resource>
+		<resource>exe\asm.assemble.kn</resource>
+		<resource>exe\asm.excpt_func.kn</resource>
+		<resource>exe\machine.kn</resource>
+		<resource>exe\manifest.kn</resource>
+		<resource>exe\output.kn</resource>
+		<resource>interpret.kn</resource>
+		<resource>interpret.debugger.kn</resource>
+		<resource>interpret.i1.kn</resource>
+		<resource>interpret.i2.kn</resource>
+		<resource>msg.kn</resource>
+		<resource>option.kn</resource>
+		<resource>parse.kn</resource>
+		<resource>pos.kn</resource>
+		<resource>web\builtin.kn</resource>
+		<resource>web\output.kn</resource>
+	</resources>
+</configuration>
