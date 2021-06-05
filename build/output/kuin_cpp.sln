@@ -3,9 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29503.13
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kuin_cpp", "kuin_cpp.vcxproj", "{19F742DD-A456-4347-A56D-C770A6F4C8B4}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kuin_cpp_ja", "kuin_cpp_ja.vcxproj", "{19F742DD-A456-4347-A56D-C770A6F4C8B4}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kuin_dll", "kuin_dll.vcxproj", "{E55951CE-C2DC-4622-9244-E157F5AD143C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kuin_dll_ja", "kuin_dll_ja.vcxproj", "{E55951CE-C2DC-4622-9244-E157F5AD143C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kuin_dll_en", "kuin_dll_en.vcxproj", "{07000038-FBEE-4694-8B8D-63BF69FEA113}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kuin_cpp_en", "kuin_cpp_en.vcxproj", "{D69B8B10-74C1-42C2-BA92-790C506D4116}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +25,14 @@ Global
 		{E55951CE-C2DC-4622-9244-E157F5AD143C}.Debug|x64.Build.0 = Debug|x64
 		{E55951CE-C2DC-4622-9244-E157F5AD143C}.Release|x64.ActiveCfg = Release|x64
 		{E55951CE-C2DC-4622-9244-E157F5AD143C}.Release|x64.Build.0 = Release|x64
+		{07000038-FBEE-4694-8B8D-63BF69FEA113}.Debug|x64.ActiveCfg = Debug|x64
+		{07000038-FBEE-4694-8B8D-63BF69FEA113}.Debug|x64.Build.0 = Debug|x64
+		{07000038-FBEE-4694-8B8D-63BF69FEA113}.Release|x64.ActiveCfg = Release|x64
+		{07000038-FBEE-4694-8B8D-63BF69FEA113}.Release|x64.Build.0 = Release|x64
+		{D69B8B10-74C1-42C2-BA92-790C506D4116}.Debug|x64.ActiveCfg = Debug|x64
+		{D69B8B10-74C1-42C2-BA92-790C506D4116}.Debug|x64.Build.0 = Debug|x64
+		{D69B8B10-74C1-42C2-BA92-790C506D4116}.Release|x64.ActiveCfg = Release|x64
+		{D69B8B10-74C1-42C2-BA92-790C506D4116}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

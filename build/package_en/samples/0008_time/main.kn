@@ -1,0 +1,30 @@
+; Time Sample (C)Kuina-chan
+
+func main()
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Time Sample")
+	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false)
+	var font: draw@Font :: draw@makeFont(null, 28, false, false, false, 30.0)
+	var year: int
+	var month: int
+	var day: int
+	var hour: int
+	var minute: int
+	var second: int
+	var dayOfWeek: int
+	while(wnd@act())
+		do font.draw(100.0, 50.0, "System Time: " ~ lib@sysTime().toStr(), draw@white)
+		do font.draw(100.0, 100.0, "Unix Time  : " ~ lib@now().toStr(), draw@white)
+		; 現在日時をUTCに分解
+		do dayOfWeek :: lib@intToDate(lib@now(), &year, &month, &day, &hour, &minute, &second)
+		do font.draw(100.0, 200.0, "[UTC]", draw@white)
+		do font.draw(100.0, 250.0, "Year  : " ~ year.toStr(), draw@white)
+		do font.draw(100.0, 300.0, "Month : " ~ month.toStr(), draw@white)
+		do font.draw(100.0, 350.0, "Day   : " ~ day.toStr(), draw@white)
+		do font.draw(100.0, 400.0, "Hour  : " ~ hour.toStr(), draw@white)
+		do font.draw(100.0, 450.0, "Minute: " ~ minute.toStr(), draw@white)
+		do font.draw(100.0, 500.0, "Second: " ~ second.toStr(), draw@white)
+		do font.draw(100.0, 550.0, "Day of Week: " ~ dayOfWeek.toStr(), draw@white)
+		do font.draw(100.0, 600.0, "Unix Time  : " ~ lib@dateToInt(year, month, day, hour, minute, second).toStr(), draw@white)
+		do draw@render(60)
+	end while
+end func

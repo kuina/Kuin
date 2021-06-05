@@ -1,0 +1,31 @@
+; Draw 3D Sample (C)Kuina-chan
+
+func main()
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Draw 3D Sample") {ウインドウの生成}
+	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
+	var objBoard: draw@Obj :: draw@makeObj("res/board.knobj") {板モデルの読み込み}
+	var texBoard: draw@Tex :: draw@makeTex("res/board.png") {板モデル用のテクスチャの読み込み}
+	var objBox: draw@Obj :: draw@makeObj("res/box.knobj") {箱モデルの読み込み}
+	var texBox: draw@Tex :: draw@makeTex("res/box.png") {箱モデル用のテクスチャの読み込み}
+	var objSphere: draw@Obj :: draw@makeObj("res/sphere.knobj") {球モデルの読み込み}
+	var texSphere: draw@Tex :: draw@makeTex("res/sphere.png") {球モデル用のテクスチャの読み込み}
+	var objCone: draw@Obj :: draw@makeObj("res/cone.knobj") {コーンモデルの読み込み}
+	var texCone: draw@Tex :: draw@makeTexEvenArgb(1.0, 0.35, 0.1, 0.05)
+	var texConeSpecular: draw@Tex :: draw@makeTexEvenArgb(2.0, 0.3, 0.3, 0.3)
+	do draw@clearColor(0xFF999999) {背景色の設定}
+	do draw@depth(true, true) {Zバッファの設定}
+	do objBoard.pos(20.0, 20.0, 20.0, 0.0, 0.0, 0.0, 0.0, 0.0, -15.0) {板モデルの位置設定}
+	do objBox.pos(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0) {箱モデルの位置設定}
+	do objSphere.pos(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 2.0, 0.5, 0.0) {球モデルの位置設定}
+	do objCone.pos(2.0, 2.0, 2.0, 0.0, 0.0, 0.0, -2.0, 0.0, 0.0) {コーンモデルの位置設定}
+	var angle: float :: 0.0
+	while(wnd@act())
+		do angle :+ lib@pi / 120.0 {4秒間に1周させる}
+		do draw@camera(15.0 * lib@sin(angle), 4.0, 15.0 * lib@cos(angle), 0.0, 0.0, 0.0, 0.0, 1.0, 0.0) {カメラの設定}
+		do objBoard.draw(0, 0.0, texBoard, null, null) {板モデルの描画}
+		do objBox.draw(0, 0.0, texBox, null, null) {箱モデルの描画}
+		do objSphere.draw(0, 0.0, texSphere, null, null) {球モデルの描画}
+		do objCone.draw(0, 0.0, texCone, texConeSpecular, null) {コーンモデルの描画}
+		do draw@render(60)
+	end while
+end func

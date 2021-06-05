@@ -1,0 +1,6 @@
+func main()
+	var wnd: wnd@WndBase :: wndex@makeKnwnd("res/calc.knwnd", null)
+	
+	while(wnd@act())
+	end while
+end func

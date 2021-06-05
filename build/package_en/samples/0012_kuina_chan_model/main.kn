@@ -1,0 +1,24 @@
+; Draw Kuina-chan Model Sample (C)Kuina-chan
+
+func main()
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Draw Kuina-chan Model Sample") {ウインドウの生成}
+	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
+	var obj: draw@Obj :: draw@makeObj("res/kuina_chan.knobj") {くいなちゃんモデルの読み込み}
+	var texAlbedo: draw@Tex :: draw@makeTex("res/albedo.png") {くいなちゃんモデル用のアルベドテクスチャの読み込み}
+	var texNormal: draw@Tex :: draw@makeTexArgb("res/normal.png") {くいなちゃんモデル用の法線マップテクスチャの読み込み}
+	do draw@clearColor(0xFFEEEEEE) {背景色の設定}
+	do draw@depth(true, true) {Zバッファの設定}
+	do draw@ambLight(0.9, 0.9, 1.0, 1.0, 0.9, 0.9) {環境光の設定}
+	do obj.pos(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0) {くいなちゃんモデルの位置設定}
+	var angle: float :: 0.0 {カメラの角度}
+	do draw@proj(lib@pi / 180.0 * 27.0, 16.0, 9.0, 0.1, 100.0) {プロジェクションの設定}
+	var anim: float :: 0.0 {くいなちゃんのアニメーション用}
+	while(wnd@act())
+		do angle :+ lib@pi / 120.0 {4秒間に1周させる}
+		do draw@camera(80.0 * lib@sin(angle), 4.0, 80.0 * lib@cos(angle), 0.0, 0.0, 0.0, 0.0, 1.0, 0.0) {カメラの設定}
+		do obj.drawToon(0, anim, texAlbedo, null, texNormal) {くいなちゃんモデルの描画}
+		do obj.drawOutline(0, anim, 0.05, 0xFF664444) {輪郭線の描画}
+		do anim :: (anim + 0.5) % 60.0 {アニメーションを行う}
+		do draw@render(60)
+	end while
+end func

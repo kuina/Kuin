@@ -1836,7 +1836,7 @@ func test19()
 		end func
 	end block
 	
-	if(env <> "web")
+	if(env("e") <> "web")
 		do file@setCurDir("./output/")
 		do cui@print(file@delDir("./testdir/").toStr() ~ "\n")
 		do cui@print(file@delDir("./testdir/").toStr() ~ "\n")
