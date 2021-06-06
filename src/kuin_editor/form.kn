@@ -657,7 +657,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	case 0x0005
 		do @wndMain.close()
 	case 0x0010
-		do task@open("https://kuina.ch/kuin", %open, false)
+		do task@open(\common@langEn ?("https://kuina.ch/en/kuin", "https://kuina.ch/kuin"), %open, false)
 	case 0x0011
 		block
 			var major: int
