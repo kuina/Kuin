@@ -8,17 +8,17 @@ var keyBuf: []char
 
 func main()
 	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Input Sample")
-	do wndMain.onActivate :: @wndMainOnActivate {ウインドウのアクティブイベント}
+	do wndMain.onActivate :: @wndMainOnActivate {Event when a window becomes active.}
 	do @drawMain :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false)
-	do @drawMain.onMouseMove :: @drawMainOnMouseMove {マウス移動のイベント}
-	do @drawMain.onMouseDownL :: @drawMainOnMouseDownL {マウスボタンを押したときのイベント}
-	do @drawMain.onMouseUpL :: @drawMainOnMouseUpL {マウスボタンを離したときのイベント}
-	do @drawMain.onMouseEnter :: @drawMainOnMouseEnter {マウスが突入したときのイベント}
-	do @drawMain.onMouseLeave :: @drawMainOnMouseLeave {マウスが離脱したときのイベント}
-	do @drawMain.onKeyChar :: @drawMainOnKeyChar {文字が入力されたときのイベント}
+	do @drawMain.onMouseMove :: @drawMainOnMouseMove {Event when the mouse is moved.}
+	do @drawMain.onMouseDownL :: @drawMainOnMouseDownL {Event when the mouse button is pressed.}
+	do @drawMain.onMouseUpL :: @drawMainOnMouseUpL {Event when the mouse button is released.}
+	do @drawMain.onMouseEnter :: @drawMainOnMouseEnter {Event when the mouse enters the window.}
+	do @drawMain.onMouseLeave :: @drawMainOnMouseLeave {Event when the mouse leaves the window.}
+	do @drawMain.onKeyChar :: @drawMainOnKeyChar {Event when a character is entered.}
 	var font: draw@Font :: draw@makeFont(null, 28, false, false, false, 22.0)
 	do @keyBuf :: "                    "
-	do @drawMain.focus() {キーを受け取るためにフォーカスさせる}
+	do @drawMain.focus() {Make them focus to receive keys.}
 	while(wnd@act())
 		do font.draw(100.0, 50.0, "'A' button ('Z' key): " ~ input@pad(0, %a).toStr(), draw@white)
 		do font.draw(100.0, 100.0, "'B' button ('X' key): " ~ input@pad(0, %b).toStr(), draw@white)
@@ -44,12 +44,12 @@ end func
 
 func wndMainOnActivate(wnd: wnd@WndBase, active: bool, minimized: bool)
 	if(active & !minimized)
-		do @drawMain.focus() {キーを受け取るためにフォーカスさせる}
+		do @drawMain.focus() {Make them focus to receive keys.}
 	end if
 end func
 
 func drawMainOnMouseMove(wnd: wnd@WndBase, x: int, y: int)
-	; マウスが動いたら追跡する
+	; Track the mouse when it moves.
 	var width: int
 	var height: int
 	do wnd.getPos(&, &, &width, &height)
@@ -58,20 +58,20 @@ func drawMainOnMouseMove(wnd: wnd@WndBase, x: int, y: int)
 end func
 
 func drawMainOnMouseDownL(wnd: wnd@WndBase, x: int, y: int)
-	do @mouseDownL :: true {左ボタンが押された}
+	do @mouseDownL :: true {Left button pressed.}
 end func
 
 func drawMainOnMouseUpL(wnd: wnd@WndBase, x: int, y: int)
-	do @mouseDownL :: false {左ボタンが離された}
+	do @mouseDownL :: false {Left button released.}
 end func
 
 func drawMainOnMouseEnter(wnd: wnd@WndBase, x: int, y: int)
-	do @mouseDownL :: wnd@key(%mouseL) {左ボタンを押したままウインドウ外に出て入りなおす場合の対処}
-	do draw@clearColor(0xFFFF9999) {ウインドウ内に入ったら背景色をピンクにする}
+	do @mouseDownL :: wnd@key(%mouseL) {Processing when exiting and re-entering the window with the left button pressed.}
+	do draw@clearColor(0xFFFF9999) {Make the background color pink when the mouse enters the window.}
 end func
 
 func drawMainOnMouseLeave(wnd: wnd@WndBase)
-	do draw@clearColor(0xFF000000) {ウインドウ外に出たら背景色を黒にする}
+	do draw@clearColor(0xFF000000) {Make the background color black when the mouse leaves the window.}
 end func
 
 func drawMainOnKeyChar(wnd: wnd@WndBase, key: char)

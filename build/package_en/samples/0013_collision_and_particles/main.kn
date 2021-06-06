@@ -6,8 +6,8 @@ func main()
 	end class
 	
 	const itemNum: int :: 15
-	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Collision and Particles Sample") {ウインドウの生成}
-	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Collision and Particles Sample") {Creating a window.}
+	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {Creating a draw control.}
 	var particle: draw@Particle :: draw@makeParticle(30, 0xFFCCCCCC, 0x00CCCCCC, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 	var texParticle: draw@Tex :: draw@makeTex("res/tex_particle.png")
 	var rects: []Item :: #[itemNum]Item
@@ -43,7 +43,7 @@ func main()
 		do rects[i].weight :: 1.0
 	end for
 	
-	do draw@clearColor(0xFF333333) {背景色の設定}
+	do draw@clearColor(0xFF333333) {Setting the background color.}
 	while(wnd@act())
 		do draw@blend(%add)
 		do particle.draw2d(texParticle)

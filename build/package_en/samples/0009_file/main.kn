@@ -8,62 +8,62 @@ func main()
 	var edit: wnd@EditMulti :: wnd@makeEditMulti(wndMain, 12, 12, 1000, 744, %scale, %scale)
 	do edit.readonly(true)
 	try
-		do save() {ファイルに保存}
-		do edit.setText(load()) {ファイルから読み込み}
-		if(wnd@msgBox(wndMain, "生成したファイルを削除しますか？", "File Sample", %info, %yesNo) = %yes)
-			; ファイルの削除
+		do save() {Save to file.}
+		do edit.setText(load()) {Read from file.}
+		if(wnd@msgBox(wndMain, "Do you want to delete the generated files?", "File Sample", %info, %yesNo) = %yes)
+			; Deleting files.
 			do file@delFile(@fileName)
 			do file@delFile(@fileName2)
 		end if
 	catch
-		; ファイルの読み書きに失敗
+		; Failed to read/write the files.
 		do edit.setText("An error occurred.")
 	end try
 	while(wnd@act())
 	end while
 	
 	func save()
-		; "ABCDE,1234,3.14159"というデータをファイルに書き込む
-		var writer: file@Writer :: file@makeWriter(@fileName, false) {ファイルを書き込みモードで開く}
-		do writer.writeStr("ABCDE") {文字列を書き込み}
-		do writer.writeChar(',') {文字を書き込み}
-		do writer.writeInt(1234) {整数を書き込み}
+		; Write the data of the contents of "ABCDE,1234,3.14159" to a file.
+		var writer: file@Writer :: file@makeWriter(@fileName, false) {Open the file in write mode.}
+		do writer.writeStr("ABCDE") {Write a string.}
+		do writer.writeChar(',') {Write a character.}
+		do writer.writeInt(1234) {Write an integer.}
 		do writer.writeChar(',')
-		do writer.writeFloat(3.14159) {小数を書き込み}
-		do writer.fin() {ファイルを閉じる}
+		do writer.writeFloat(3.14159) {Write a decimal number.}
+		do writer.fin() {Close the file.}
 		
-		; "Hello"というデータを暗号化して書き込む
+		; Encrypt and write the data of the contents of "Hello".
 		do writer :: file@makeWriter(@fileName2, false)
-		var data: []char :: "Hello" {データを用意}
-		var encryptedData: []bit8 :: cipher@encrypt(data $> []bit8, @getKey()) {暗号化}
-		do writer.write(encryptedData) {書き込み}
+		var data: []char :: "Hello" {Prepare the data.}
+		var encryptedData: []bit8 :: cipher@encrypt(data $> []bit8, @getKey()) {Encryption.}
+		do writer.write(encryptedData) {Writing.}
 		do writer.fin()
 	end func
 	
 	func load(): []char
 		var str: []char :: ""
 		
-		; ファイルをカンマ区切りで読み込む
-		var reader: file@Reader :: file@makeReader(@fileName) {ファイルを読み込みモードで開く}
-		do reader.delimiter(['\n', ',']) {区切り文字を指定}
-		while(!reader.term()) {ファイル終端までループ}
-			do str :~ reader.readStr() ~ "\n" {区切った文字列を読み込み}
+		; Read the file as a comma-separated list.
+		var reader: file@Reader :: file@makeReader(@fileName) {Open the file in read mode.}
+		do reader.delimiter(['\n', ',']) {Specify the delimiter.}
+		while(!reader.term()) {Loop to end of file.}
+			do str :~ reader.readStr() ~ "\n" {Read a delimited string.}
 		end while
 		do reader.fin()
 		
-		; 暗号化されたファイルを読み込んで復号する
+		; Read and decrypt the encrypted file.
 		do reader :: file@makeReader(@fileName2)
-		var encryptedData: []bit8 :: reader.read(reader.fileSize()) {ファイルをすべて読み込む}
-		var data: []char :: cipher@decrypt(encryptedData, @getKey()) $< []char {復号}
+		var encryptedData: []bit8 :: reader.read(reader.fileSize()) {Load all files.}
+		var data: []char :: cipher@decrypt(encryptedData, @getKey()) $< []char {Decryption.}
 		do str :~ data
 		
 		ret str
 	end func
 end func
 
-; 暗号化の鍵を生成する関数
+; Function to generate encryption keys.
 func getKey(): []bit8
-	; 鍵は32byteでなければならない
+	; The key must be 32 bytes.
 	ret[0x12b8, 0x34b8, 0x56b8, 0x78b8, 0x9Ab8, 0xBCb8, 0xDEb8, 0xF0b8,
 	|0x75b8, 0x38b8, 0x9Bb8, 0xC4b8, 0x21b8, 0xA0b8, 0xDFb8, 0xE6b8,
 	|0x49b8, 0x2Fb8, 0xB5b8, 0x3Db8, 0x01b8, 0x68b8, 0x7Ab8, 0xCEb8,

@@ -12,7 +12,7 @@ func main()
 		do draw2d@rectLine(250.0, 100.0, 100.0, 100.0, 3.0, 0xFF33FF33) {四角形の枠線}
 		do draw2d@rect(400.0, 100.0, 100.0, 100.0, 0xFF3333FF) {四角形}
 		do draw2d@circle(600.0, 150.0, 50.0, 50.0, 0xFFFFFF33) {円}
-		do draw2d@circleLine(750.0, 150.0, 50.0, 50.0, 3.0, 0xFFFFFF33) {円}
+		do draw2d@circleLine(750.0, 150.0, 50.0, 50.0, 3.0, 0xFFFFFF33) {円の枠線}
 		do draw2d@tri(900.0, 100.0, 850.0, 200.0, 950.0, 200.0, 0xFFFF33FF) {三角形}
 		for i(0, 3)
 			do texKuin.draw(100.0 + i $ float * 200.0, 300.0, 0.0, 0.0, 150.0, 150.0, draw@white) {画像}

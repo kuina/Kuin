@@ -14,7 +14,7 @@ func main()
 	while(wnd@act())
 		do font.draw(100.0, 50.0, "System Time: " ~ lib@sysTime().toStr(), draw@white)
 		do font.draw(100.0, 100.0, "Unix Time  : " ~ lib@now().toStr(), draw@white)
-		; 現在日時をUTCに分解
+		; Decompose the current time to UTC.
 		do dayOfWeek :: lib@intToDate(lib@now(), &year, &month, &day, &hour, &minute, &second)
 		do font.draw(100.0, 200.0, "[UTC]", draw@white)
 		do font.draw(100.0, 250.0, "Year  : " ~ year.toStr(), draw@white)

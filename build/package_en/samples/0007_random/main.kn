@@ -6,9 +6,9 @@ func main()
 	do edit1.readonly(true)
 	var edit2: wnd@EditMulti :: wnd@makeEditMulti(wndMain, 500, 12, 485, 676, %scale, %scale)
 	do edit2.readonly(true)
-	var rnd: lib@Rnd :: lib@makeRnd(1234b32) {シード1234で再現性のある乱数を生成}
+	var rnd: lib@Rnd :: lib@makeRnd(1234b32) {Generate reproducible random numbers with seed 1234.}
 	
-	; 1以上6以下の整数の乱数を生成
+	; Generate integer random numbers between 1 and 6.
 	do edit1.setText("[1, 6]\n----------\n")
 	do edit2.setText("[1, 6]\n----------\n")
 	for(1, 20)
@@ -16,7 +16,7 @@ func main()
 		do edit2.setText(edit2.getText() ~ rnd.rnd(1, 6).toStr() ~ "\n")
 	end for
 	
-	; 0.0以上1.0未満の小数の乱数を生成
+	; Generate decimal random numbers greater than or equal to 0.0 and less than 1.0
 	do edit1.setText(edit1.getText() ~ "\n[0.0, 1.0)\n----------\n")
 	do edit2.setText(edit2.getText() ~ "\n[0.0, 1.0)\n----------\n")
 	for(1, 20)

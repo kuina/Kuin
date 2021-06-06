@@ -1,119 +1,119 @@
-; Kuinvaders (くいんべーだー) (C)Kuina-chan
+; Kuinvaders (C)Kuina-chan
 
-; main関数は実行直後に呼ばれ、main関数を抜けるとアプリは終了する。
+; The main function is called immediately after execution, and the application ends when the main function is exited.
 func main()
-	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Kuinvaders") {ウインドウの生成}
-	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {ドローコントロールの生成}
-	; wnd@actはウインドウ操作を処理する関数で、定期的に呼ばないとウインドウが操作できなくなる。またウインドウを閉じたらfalseを返すので、無限ループを抜けて終了するようにする。
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %aspect, 1600, 900, "Kuinvaders") {Creating a window.}
+	var drawMain: wnd@Draw :: wnd@makeDraw(wndMain, 0, 0, 1600, 900, %scale, %scale, false) {Creating a draw control.}
+	; wnd@act is a function that handles window operations and must be called periodically or the window will become inoperable. When the window is closed, it will return false, and when it does, the program will exit the infinite loop to terminate.
 	while(wnd@act())
-		do @title() {タイトル画面の呼び出し}
-		do @game() {ゲーム画面の呼び出し}
+		do @title() {Calling up the title screen.}
+		do @game() {Calling up the game screen.}
 	end while
 end func
 
-; タイトル画面。
+; Title screen.
 func title()
-	var texTitle: draw@Tex :: draw@makeTex("res/title.jpg") {タイトル画像}
-	while(wnd@act() & input@pad(0, %a) <> 1) {Aボタンが押されるまでループ}
-		do texTitle.draw(0.0, 0.0, 0.0, 0.0, 1600.0, 900.0, draw@white) {タイトル描画}
-		do draw@render(60) {画面更新および60FPSに調整。これが再度呼ばれるまでの間を1フレームと言う}
+	var texTitle: draw@Tex :: draw@makeTex("res/title.jpg") {Title image.}
+	while(wnd@act() & input@pad(0, %a) <> 1) {Loop until A button is pressed.}
+		do texTitle.draw(0.0, 0.0, 0.0, 0.0, 1600.0, 900.0, draw@white) {Drawing the title.}
+		do draw@render(60) {Screen refresh and adjust to 60FPS. The period until this is called again is called one frame.}
 	end while
 end func
 
-; ゲーム画面。
+; Game screen.
 func game()
-	var texBack: draw@Tex :: draw@makeTex("res/back.jpg") {背景画像}
-	var texGame: draw@Tex :: draw@makeTex("res/game.png") {ゲームで使う画像}
-	var stage: int :: 1 {現在のステージ}
-	class Beam() {弾クラス}
-		+var x: float {座標X}
-		+var y: float {座標Y}
+	var texBack: draw@Tex :: draw@makeTex("res/back.jpg") {Background image.}
+	var texGame: draw@Tex :: draw@makeTex("res/game.png") {Image used in the game.}
+	var stage: int :: 1 {Current stage.}
+	class Beam() {Beam class.}
+		+var x: float {Coordinate X.}
+		+var y: float {Coordinate Y.}
 	end class
-	; ステージごとのループ。
+	; Loop per stage.
 	while loopStage(wnd@act())
-		var playerX: float :: 800.0 {自機座標X}
-		var playerY: float :: 800.0 {自機座標Y}
-		var beams: list<Beam> :: #list<Beam> {自機の弾のリスト}
-		var enemies: []int :: #[5 * 6]int {敵を5行6列で作成。値は体力}
-		do enemies.fill(1) {敵の体力に1を代入}
-		var enemyX: float :: 200.0 / 2.0 {敵群の座標X}
-		var enemyY: float :: 100.0 {敵群の座標Y}
-		var enemyVeloX: float :: 1.0 + stage $ float + 30.0 / (5.0 * 6.0) {敵群の速度X}
-		var enemyTargetY: float :: 0.0 {敵群のY方向の目的座標(下向きに移動するときに使用)}
-		var enemyLeft: int :: 0 {生きている敵の左端。移動を折り返す判定に使用}
-		var enemyRight: int :: 5 {生きている敵の右端。移動を折り返す判定に使用}
-		var enemyBottom: int :: 4 {生きている敵の下端。ラインを超える判定に使用}
-		var enemyNum: int :: 5 * 6 {生きている敵の数}
-		var enemyBeams: list<Beam> :: #list<Beam> {敵の弾のリスト}
-		var gameover: int :: 0 {ゲームオーバーフラグ。0=ゲーム中、1=ステージクリア、2=死亡}
-		; フレームごとのループ。
+		var playerX: float :: 800.0 {Player coordinate X.}
+		var playerY: float :: 800.0 {Player coordinate Y.}
+		var beams: list<Beam> :: #list<Beam> {List of player beams.}
+		var enemies: []int :: #[5 * 6]int {Create 5 rows and 6 columns of enemies. The value is life.}
+		do enemies.fill(1) {Assign 1 to the life of the enemies.}
+		var enemyX: float :: 200.0 / 2.0 {Coordinates X of enemy group.}
+		var enemyY: float :: 100.0 {Coordinates Y of enemy group.}
+		var enemyVeloX: float :: 1.0 + stage $ float + 30.0 / (5.0 * 6.0) {Velocity X of enemy group.}
+		var enemyTargetY: float :: 0.0 {Objective coordinate of enemy group in Y direction (used for downward movement).}
+		var enemyLeft: int :: 0 {Left edge of the living enemies. Used to determine if their move should be folded.}
+		var enemyRight: int :: 5 {Right edge of the living enemies. Used to determine if their move should be folded.}
+		var enemyBottom: int :: 4 {Bottom edge of the living enemies. Used to determine if the line has been crossed.}
+		var enemyNum: int :: 5 * 6 {Number of the living enemies.}
+		var enemyBeams: list<Beam> :: #list<Beam> {List of enemy beams.}
+		var gameover: int :: 0 {Game over flag. 0=In Game, 1=Clear The Stage, 2=Death.}
+		; Loop per frame.
 		while(wnd@act())
-			; 背景描画。
+			; Drawing the background.
 			do texBack.draw(0.0, 0.0, 0.0, 0.0, 1600.0, 900.0, draw@white)
-			; 自機移動。
-			if(input@pad(0, %left) > 0) {左ボタン押し続け}
-				do playerX :- 12.0 {左に移動}
+			; Player movement.
+			if(input@pad(0, %left) > 0) {Press and hold left button.}
+				do playerX :- 12.0 {Move left.}
 			end if
-			if(input@pad(0, %right) > 0) {右ボタン押し続け}
-				do playerX :+ 12.0 {右に移動}
+			if(input@pad(0, %right) > 0) {Press and hold right button.}
+				do playerX :+ 12.0 {Move right.}
 			end if
-			if(input@pad(0, %up) > 0) {上ボタン押し続け}
-				do playerY :- 12.0 {上に移動}
+			if(input@pad(0, %up) > 0) {Press and hold up button.}
+				do playerY :- 12.0 {Move up.}
 			end if
-			if(input@pad(0, %down) > 0) {下ボタン押し続け}
-				do playerY :+ 12.0 {下に移動}
+			if(input@pad(0, %down) > 0) {Press and hold down button.}
+				do playerY :+ 12.0 {Move down.}
 			end if
-			; 自機が移動可能な範囲を超えないようにクランプする。
+			; Clamp the coordinates so that the player does not exceed the range of possible movement.
 			do playerX :: lib@clampFloat(playerX, 140.0 / 2.0, 1600.0 - 140.0 / 2.0)
 			do playerY :: lib@clampFloat(playerY, 700.0, 900.0)
-			; 自機の弾発射およびゲームオーバー時のボタン処理。
+			; The process of the player firing the beam and the button process when the game is over.
 			if(input@pad(0, %a) = 1)
 				if(gameover = 1)
 					do stage :+ 1
-					skip loopStage {ステージクリアにつき次のステージへ}
+					skip loopStage {The stage is clear, so go to the next stage.}
 				elif(gameover = 2)
-					break loopStage {死亡につきタイトル画面へ}
+					break loopStage {Return to title screen due to death.}
 				end if
 				var beam: Beam :: #Beam
 				do beam.x :: playerX
 				do beam.y :: playerY - 220.0 / 2.0
-				do beams.add(beam) {リストに弾を追加}
+				do beams.add(beam) {Add beams to the list.}
 			end if
-			; 自機描画。Kuin@Cnt関数は1フレームごとに1ずつ増える値を返す。
+			; Drawing the player. The Kuin@Cnt function returns a value that increases by one per frame.
 			if(gameover <> 2)
 				do texGame.draw(playerX - 140.0 / 2.0, playerY - 220.0 / 2.0, (draw@cnt() / 10 % 3) $ float * 140.0, 0.0, 140.0, 220.0, draw@white)
 			end if
-			; 敵全体の移動。
+			; Movement of the entire enemy.
 			if(gameover = 0)
 				if(enemyTargetY <> 0.0)
-					do enemyY :+ 8.0 {画面端で下向きに移動する}
+					do enemyY :+ 8.0 {Move downward at the edge of the screen.}
 					if(enemyY >= enemyTargetY)
-						do enemyTargetY :: 0.0 {目的座標まで到達したら目的座標をリセット}
+						do enemyTargetY :: 0.0 {Reset the target coordinates when the target coordinates are reached.}
 					end if
 					if(enemyY + enemyBottom $ float * 45.0 > 700.0)
-						do gameover :: 2 {敵が下ラインを超えたら死亡}
+						do gameover :: 2 {If an enemy crosses the bottom line, the player dies.}
 					end if
 				else
-					do enemyX :+ enemyVeloX {左右への移動}
-					if(enemyX <= 200.0 / 2.0 - enemyLeft $ float * 100.0) {左端に到達}
+					do enemyX :+ enemyVeloX {Moving to the left or right.}
+					if(enemyX <= 200.0 / 2.0 - enemyLeft $ float * 100.0) {Reaching the left edge.}
 						do enemyX :: 200.0 / 2.0 - enemyLeft $ float * 100.0
-						do enemyVeloX :: 2.0 + stage $ float + 30.0 / enemyNum $ float {残り敵数に応じた速度で右向きに折り返す}
-						do enemyTargetY :: enemyY + 60.0 {下向きに移動する}
+						do enemyVeloX :: 2.0 + stage $ float + 30.0 / enemyNum $ float {Turn back to the right at a speed based on the number of enemies remaining.}
+						do enemyTargetY :: enemyY + 60.0 {Move downward.}
 					end if
 					if(enemyX >= 1600.0 - 200.0 / 2.0 - enemyRight $ float * 100.0)
 						do enemyX :: 1600.0 - 200.0 / 2.0 - enemyRight $ float * 100.0
-						do enemyVeloX :: -(2.0 + stage $ float + 30.0 / enemyNum $ float) {残り敵数に応じた速度で左向きに折り返す}
-						do enemyTargetY :: enemyY + 60.0 {下向きに移動する}
+						do enemyVeloX :: -(2.0 + stage $ float + 30.0 / enemyNum $ float) {Turn back to the left at a speed based on the number of enemies remaining.}
+						do enemyTargetY :: enemyY + 60.0 {Move downward.}
 					end if
 				end if
 			end if
-			; 敵処理および描画。
+			; Enemy processing and drawing.
 			for i(0, 4)
 				for j(0, 5)
 					if(enemies[i * 6 + j] = 0)
-						skip j {敵が消えた箇所はスキップ}
+						skip j {Skip the part where the enemy disappears.}
 					end if
-					if(lib@rnd(0, 60 * enemyNum / lib@min(stage, 30)) = 0) {一定確率で弾を発射する}
+					if(lib@rnd(0, 60 * enemyNum / lib@min(stage, 30)) = 0) {Fires a beam at a certain rate.}
 						var beam: Beam :: #Beam
 						do beam.x :: enemyX + j $ float * 100.0
 						do beam.y :: enemyY + i $ float * 45.0
@@ -122,24 +122,24 @@ func game()
 					do texGame.draw(enemyX - 200.0 / 2.0 + j $ float * 100.0, enemyY - 120.0 / 2.0 + i $ float * 45.0, (draw@cnt() / 10 % 3) $ float * 200.0, 220.0, 200.0, 120.0, draw@white)
 				end for
 			end for
-			; 自機の弾移動および描画。
-			do beams.head() {beamsリストを先頭から順に走査}
+			; Player beams movement and drawing.
+			do beams.head() {Scan the beams list in order from the top.}
 			while loopBeams(!beams.term())
 				var beam: Beam :: beams.get()
-				do beam.y :- 20.0 {上方向に移動}
+				do beam.y :- 20.0 {Move upward.}
 				if(beam.y < -90.0 / 2.0)
-					do beams.del() {画面外に出たら削除}
-					skip loopBeams {要素を.del()したときは.next()をしなくても次の要素を指している}
+					do beams.del() {If it goes off screen, delete it.}
+					skip loopBeams {When an element is deleted, it points to the next element without calling the .next() function.}
 				end if
-				; 敵との衝突判定
+				; Collision detection with enemies.
 				for i(0, 4)
 					for j(0, 5)
-						if(enemies[i * 6 + j] > 0 & lib@dist(enemyX + j $ float * 100.0, enemyY + i $ float * 45.0, beam.x, beam.y) <= 120.0 / 2.0 + 90.0 / 2.0) {距離が半径の合計以下なら衝突}
-							do enemies[i * 6 + j] :- 1 {敵のライフを減少}
+						if(enemies[i * 6 + j] > 0 & lib@dist(enemyX + j $ float * 100.0, enemyY + i $ float * 45.0, beam.x, beam.y) <= 120.0 / 2.0 + 90.0 / 2.0) {Collision if distance is less than or equal to total radius.}
+							do enemies[i * 6 + j] :- 1 {Reduction of enemy life.}
 							if(enemies[i * 6 + j] = 0)
-								do enemyNum :- 1 {敵のライフが0なら敵の合計数を減らす}
+								do enemyNum :- 1 {If the enemy has 0 life, the total number of enemies will be reduced.}
 							end if
-							do beams.del() {自機の弾も消滅させる}
+							do beams.del() {It also makes the beam of the player disappear.}
 							skip loopBeams
 						end if
 					end for
@@ -147,44 +147,44 @@ func game()
 				do texGame.draw(beam.x - 90.0 / 2.0, beam.y - 90.0 / 2.0, 420.0, 0.0, 90.0, 90.0, draw@white)
 				do beams.next()
 			end while
-			if(enemyNum = 0) {敵の数が0ならステージクリア}
+			if(enemyNum = 0) {If the number of enemies is zero, the stage is cleared.}
 				do gameover :: 1
-			else {敵が生きているなら各種敵座標の更新}
+			else {Update various enemy coordinates if the enemy is still alive.}
 				while loopEnemyLeft(true)
 					for i(0, 4)
 						if(enemies[i * 6 + enemyLeft] > 0)
-							break loopEnemyLeft {左端に敵が存在している}
+							break loopEnemyLeft {Enemies are present on the left edge.}
 						end if
 					end for
-					do enemyLeft :+ 1 {敵の左端が全滅したなら、左端座標を更新}
+					do enemyLeft :+ 1 {If the left edge of the enemy has been wiped out, update the left edge coordinates.}
 				end while
 				while loopEnemyRight(true)
 					for i(0, 4)
 						if(enemies[i * 6 + enemyRight] > 0)
-							break loopEnemyRight {右端に敵が存在している}
+							break loopEnemyRight {Enemies are present on the right edge.}
 						end if
 					end for
-					do enemyRight :- 1 {敵の右端が全滅したなら、右端座標を更新}
+					do enemyRight :- 1 {If the right edge of the enemy has been wiped out, update the right edge coordinates.}
 				end while
 				while loopEnemyBottom(true)
 					for i(0, 5)
 						if(enemies[enemyBottom * 6 + i] > 0)
-							break loopEnemyBottom {下端に敵が存在している}
+							break loopEnemyBottom {Enemies are present on the bottom edge.}
 						end if
 					end for
-					do enemyBottom :- 1 {敵の下端が全滅したなら、下端座標を更新}
+					do enemyBottom :- 1 {If the bottom edge of the enemy has been wiped out, update the bottom edge coordinates.}
 				end while
 			end if
-			; 敵の弾移動および描画。
+			; Movement and drawing of enemy beams.
 			do enemyBeams.head()
 			while loopEnemyBeams(!enemyBeams.term())
 				var beam: Beam :: enemyBeams.get()
 				do beam.y :+ 10.0
 				if(gameover = 0 & lib@dist(beam.x, beam.y, playerX, playerY) <= 70.0 / 2.0 + 140.0 / 2.0)
-					do gameover :: 2 {敵の弾に当たったら即ゲームオーバー}
+					do gameover :: 2 {If the player is hit by an enemy beam, the game is over immediately.}
 				end if
 				if(beam.y > 900.0 + 100.0 / 2.0)
-					do enemyBeams.del() {画面外に出たら削除}
+					do enemyBeams.del() {If it goes off screen, delete it.}
 					skip loopEnemyBeams
 				end if
 				do texGame.draw(beam.x - 70.0 / 2.0, beam.y - 100.0 / 2.0, 420.0, 90.0, 70.0, 100.0, draw@white)

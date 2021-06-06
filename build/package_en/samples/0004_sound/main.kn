@@ -4,29 +4,29 @@ var sndSe: snd@Snd
 var sndBgm: snd@Snd
 
 func main()
-	do ogg@init() {Oggライブラリの初期化}
+	do ogg@init() {Initializing the Ogg library.}
 	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %normal, 1024, 768, "Sound Sample")
-	var btnSe: wnd@Btn :: wnd@makeBtn(wndMain, 12, 12, 150, 23, %fix, %fix, "Play SE") {SEボタンの作成}
-	do btnSe.onPush :: btnSeOnPush {SEボタンが押されたときのイベント}
-	var btnBgm: wnd@Btn :: wnd@makeBtn(wndMain, 168, 12, 150, 23, %fix, %fix, "Play BGM") {BGMボタンの作成}
-	do btnBgm.onPush :: btnBgmOnPush {BGMボタンが押されたときのイベント}
-	do @sndSe :: snd@makeSnd("res/se.wav") {サウンドを非ストリーミングで読み込む}
-	do @sndBgm :: snd@makeSnd("res/bgm.ogg") {サウンドをストリーミングで読み込む}
+	var btnSe: wnd@Btn :: wnd@makeBtn(wndMain, 12, 12, 150, 23, %fix, %fix, "Play SE") {Creating the SE button.}
+	do btnSe.onPush :: btnSeOnPush {Event when the SE button is pressed.}
+	var btnBgm: wnd@Btn :: wnd@makeBtn(wndMain, 168, 12, 150, 23, %fix, %fix, "Play BGM") {Creating the BGM button.}
+	do btnBgm.onPush :: btnBgmOnPush {Event when the BGM button is pressed.}
+	do @sndSe :: snd@makeSnd("res/se.wav") {Load sound as non-streaming.}
+	do @sndBgm :: snd@makeSnd("res/bgm.ogg") {Load sound as streaming.}
 	while(wnd@act())
 	end while
 	
 	func btnSeOnPush(wnd: wnd@WndBase)
-		do @sndSe.setPos(0.0) {再生位置を0秒に設定}
-		do @sndSe.play() {SEボタンが押されたらSEを再生}
+		do @sndSe.setPos(0.0) {Set the playback position to 0 seconds.}
+		do @sndSe.play() {Play SE when the SE button is pressed.}
 	end func
 	
 	func btnBgmOnPush(wnd: wnd@WndBase)
 		var btn: wnd@Btn :: wnd $ wnd@Btn
 		if(@sndBgm.playing())
-			do @sndBgm.stop() {BGMボタンが押されたら再生中ならBGMを停止}
+			do @sndBgm.stop() {When the BGM button is pressed, stop BGM if it is playing.}
 			do btn.setText("Play BGM")
 		else
-			do @sndBgm.playLoop() {BGMボタンが押されたら停止中ならBGMをループ再生}
+			do @sndBgm.playLoop() {When the BGM button is pressed, play BGM in a loop if it is stopped.}
 			do btn.setText("Stop BGM")
 		end if
 	end func

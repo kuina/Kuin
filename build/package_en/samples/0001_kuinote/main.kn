@@ -1,16 +1,16 @@
-; Kuinote (くいのーと) (C)Kuina-chan
+; Kuinote (C)Kuina-chan
 
-; ウインドウやコントロール
+; Windows and controls.
 var wndMain: wnd@Wnd
 var editText: wnd@EditMulti
 
 func main()
-	; ウインドウの作成
+	; Creating a window.
 	do @wndMain :: wnd@makeWnd(null, %normal, 1024, 768, "Kuinote")
-	do @wndMain.onClose :: @wndMainOnClose {ウインドウが閉じられたときのイベントを登録}
-	do @wndMain.onPushMenu :: @wndMainOnPushMenu {メニューが選択されたときのイベントを登録}
+	do @wndMain.onClose :: @wndMainOnClose {Register an event when the window is closed.}
+	do @wndMain.onPushMenu :: @wndMainOnPushMenu {Register an event when a menu item is selected.}
 	do @editText :: wnd@makeEditMulti(@wndMain, 12, 12, 1000, 744, %scale, %scale)
-	; メニューの作成
+	; Creating a menu.
 	var menuMain: wnd@Menu :: wnd@makeMenu()
 	var popupMainFile: wnd@Popup :: wnd@makePopup()
 	do menuMain.addPopup("&File", popupMainFile)
@@ -20,30 +20,30 @@ func main()
 	var popupMainHelp: wnd@Popup :: wnd@makePopup()
 	do menuMain.addPopup("&Help", popupMainHelp)
 	do popupMainHelp.add(0x1001, "&About Kuinote...")
-	; メニューの登録
+	; Registering the menu.
 	do @wndMain.setMenu(menuMain)
-	; ユーザが操作を行うのを待機する
+	; Wait for the user to perform an operation.
 	while(wnd@act())
 	end while
 end func
 
-; ウインドウが閉じられたときに呼ばれるイベント関数
+; Event function called when the window is closed.
 func wndMainOnClose(wnd: wnd@WndBase): bool
-	var result: wnd@MsgBoxResult :: wnd@msgBox(@wndMain, "終了しても良いですか？", "Kuinote", %warn, %yesNoCancel)
+	var result: wnd@MsgBoxResult :: wnd@msgBox(@wndMain, "Do you want to close the application?", "Kuinote", %warn, %yesNoCancel)
 	if(result = %yes)
-		ret true {trueを返すとウインドウは閉じる}
+		ret true {If true is returned, the window will be closed.}
 	else
-		ret false {falseを返すとウインドウは閉じない}
+		ret false {If false is returned, the window will not be closed.}
 	end if
 end func
 
-; メニューが選択されたときに呼ばれるイベント関数
+; Event function called when a menu item is selected.
 func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 	switch(id)
 	case 0x0001 {New}
-		do @editText.setText("") {テキストを空にする}
+		do @editText.setText("") {Empty the text.}
 	case 0x0002 {Exit}
-		do @wndMain.close() {ウインドウを閉じる}
+		do @wndMain.close() {Close the window.}
 	case 0x1001 {About Kuinote}
 		do wnd@msgBox(@wndMain, "Kuinote\nVersion 1.0.0\n(C)Kuina-chan", "Kuinote", %info, %ok)
 	end switch

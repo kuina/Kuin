@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <snippets>
 	<snippet>
-		<name>mainと空のウインドウ</name>
+		<name>main And An Empty Window</name>
 		<code>var {{wndMain}}: wnd@Wnd
 
 func main()
@@ -13,7 +13,7 @@ end func
 </code>
 	</snippet>
 	<snippet>
-		<name>mainとdrawコントロール</name>
+		<name>main And A draw Control</name>
 		<code>var {{wndMain}}: wnd@Wnd
 var {{drawMain}}: wnd@Draw
 
@@ -28,7 +28,7 @@ end func
 </code>
 	</snippet>
 	<snippet>
-		<name>listの走査</name>
+		<name>Scanning A list</name>
 		<code>do {{x}}.head()
 while(!{{x}}.term())
 var {{item}}: {{itemType}} :: {{x}}.get()
@@ -38,7 +38,7 @@ end while
 </code>
 	</snippet>
 	<snippet>
-		<name>dictの走査</name>
+		<name>Scanning A dict</name>
 		<code>do {{x}}.forEach({{callback}}, null)
 
 func {{callback}}(key: {{keyType}}, value: {{valueType}}, data: kuin@Class): bool

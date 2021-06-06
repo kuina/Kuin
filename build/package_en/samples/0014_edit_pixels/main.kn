@@ -6,11 +6,11 @@ var vx: int
 var vy: int
 
 func main()
-	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %fix, 640, 707, "Edit Pixels Sample") {ウインドウの生成}
-	var drawMain: wnd@Draw :: wnd@makeDrawEditable(wndMain, 0, 0, 640, 707) {編集可能なドローコントロールの生成}
+	var wndMain: wnd@Wnd :: wnd@makeWnd(null, %fix, 640, 707, "Edit Pixels Sample") {Creating a window.}
+	var drawMain: wnd@Draw :: wnd@makeDrawEditable(wndMain, 0, 0, 640, 707) {Creating a editable draw control.}
 	do draw@autoClear(false)
 	
-	; 明示的にクリア
+	; Explicitly clear.
 	do draw@clearColor(0xFF111111)
 	do draw@clear()
 	
