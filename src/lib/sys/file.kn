@@ -771,11 +771,9 @@ func openAsReadingImpl(path: []char, pack: bool, success: &bool): int
 		excode "return reinterpret_cast<int64_t>(f_);\n"
 	end if
 #web
-	excode "if(!`1`){`2`.$=false;return null;}\n"
 	excode "let f_=null,p_=`0`.S;\n"
 	excode "if(O_&&O_.readFile)f_=O_.readFile(p_);\n"
-	excode "if(f_==null)\n"
-	excode "f_=F_(p_,true);\n"
+	excode "if(f_==null&&`1`)f_=F_(p_,true);\n"
 	excode "if(f_==null){`2`.$=false;return null;}\n"
 	excode "`2`.$=true;return{F:f_,I:0,P:true};\n"
 #any
