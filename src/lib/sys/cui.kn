@@ -16,7 +16,6 @@ end func
 end func
 
 +func input(): []char
-#exe,cpp
 	var buf: []char :: #[@bufSizeMin]char
 	var ptr: int :: 0
 	while loop(true)
@@ -40,13 +39,9 @@ end func
 		do ptr :+ 1
 	end while
 	ret buf.sub(0, ptr)
-#web
-	ret null
-#any
 end func
 
 +func inputChar(): char
-#exe,cpp
 	while loop(true)
 		var c: char :: @inputCharWithDelimiter()
 		if(c <> '\0')
@@ -56,13 +51,9 @@ end func
 			ret c
 		end if
 	end while
-#web
-	ret 0 $ char
-#any
 end func
 
 +func inputFloat(): float
-#exe,cpp
 	var s: []char :: @inputStr()
 	var b: bool
 	var r: float :: s.toFloat(&b)
@@ -70,13 +61,9 @@ end func
 		throw 0xE9170008
 	end if
 	ret r
-#web
-	ret 0.0
-#any
 end func
 
 +func inputInt(): int
-#exe,cpp
 	var s: []char :: @inputStr()
 	var b: bool
 	var r: int :: s.toInt(&b)
@@ -84,9 +71,6 @@ end func
 		throw 0xE9170008
 	end if
 	ret r
-#web
-	ret 0
-#any
 end func
 
 #exe
@@ -113,12 +97,12 @@ end func
 	excode "return static_cast<char16_t>(u_);\n"
 	excode "#endif\n"
 #web
-	ret 0 $ char
+	excode "if(O_&&O_.inputLetter){return O_.inputLetter();}\n"
+	excode "return 0xffff;\n"
 #any
 end func
 
 +func inputStr(): []char
-#exe,cpp
 	var buf: []char :: #[@bufSizeMin]char
 	var ptr: int :: 0
 	while loop(true)
@@ -142,9 +126,6 @@ end func
 		do ptr :+ 1
 	end while
 	ret buf.sub(0, ptr)
-#web
-	ret null
-#any
 end func
 
 #exe
@@ -170,7 +151,6 @@ end func
 #any
 end func
 
-#exe,cpp
 func inputCharWithDelimiter(): char
 	while loop(true)
 		var c: char :: @inputLetter()
