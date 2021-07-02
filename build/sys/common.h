@@ -930,7 +930,7 @@ static int64_t cmp_(type_(Array_<char16_t>) a, type_(Array_<char16_t>) b) {
 	return a->L > b->L ? 1 : (a->L < b->L ? -1 : 0);
 }
 static int64_t cmp_(type_(Class_) a, type_(Class_) b) { return reinterpret_cast<int64_t(*)(type_(Class_), type_(Class_))>(classTable_[a->Y + 3])(a, b); }
-static int64_t cmp_(int64_t a, int64_t b) { return a - b; }
+static int64_t cmp_(int64_t a, int64_t b) { return a > b ? 1LL : (a < b ? -1LL : 0LL); }
 static int64_t cmp_(char16_t a, char16_t b) { return static_cast<int64_t>(a) - static_cast<int64_t>(b); }
 static int64_t cmp_(double a, double b) { return a > b ? 1LL : (a < b ? -1LL : 0LL); }
 static int64_t cmp_(uint8_t a, uint8_t b) { return static_cast<int64_t>(a) - static_cast<int64_t>(b); }
