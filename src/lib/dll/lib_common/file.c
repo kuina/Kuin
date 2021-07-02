@@ -628,8 +628,8 @@ static Bool CopyDirRecursion(const Char* dst, const Char* src)
 				Char src2[KUIN_MAX_PATH + 1];
 				memcpy(src2, src, sizeof(Char) * len_src);
 				memcpy(src2 + len_src, name, sizeof(Char) * (len_name + 1));
-				memcpy(dst2, dst, sizeof(Char) * len_src);
-				memcpy(dst2 + len_src, name, sizeof(Char) * (len_name + 1));
+				memcpy(dst2, dst, sizeof(Char) * len_dst);
+				memcpy(dst2 + len_dst, name, sizeof(Char) * (len_name + 1));
 				if (!CopyFile(src2, dst2, FALSE))
 				{
 					continue_loop = False;
@@ -653,10 +653,10 @@ static Bool CopyDirRecursion(const Char* dst, const Char* src)
 				memcpy(src2 + len_src, name, sizeof(Char) * len_name);
 				src2[len_src + len_name] = '/';
 				src2[len_src + len_name + 1] = 0;
-				memcpy(dst2, dst, sizeof(Char) * len_src);
-				memcpy(dst2 + len_src, name, sizeof(Char) * len_name);
-				dst2[len_src + len_name] = '/';
-				dst2[len_src + len_name + 1] = 0;
+				memcpy(dst2, dst, sizeof(Char) * len_dst);
+				memcpy(dst2 + len_dst, name, sizeof(Char) * len_name);
+				dst2[len_dst + len_name] = '/';
+				dst2[len_dst + len_name + 1] = 0;
 				if (!CopyDirRecursion(dst2, src2))
 				{
 					continue_loop = False;

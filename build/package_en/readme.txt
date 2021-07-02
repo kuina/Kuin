@@ -45,6 +45,8 @@ v.2021.6.17
 4. Update History
 -------------------------------------------------------------------------------
 
+v.2021.7.17
+    - Fixed an issue where the file@copyDir function might not work properly.
 v.2021.6.17
     - English version support.
 v.2021.4.17
