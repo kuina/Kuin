@@ -47,6 +47,8 @@ v.2021.6.17
 
 v.2021.7.17
     - Fixed an issue where the file@copyDir function might not work properly.
+    - Fixed a problem that the comparison result of int type may not be correct
+      when the environment is cpp.
 v.2021.6.17
     - English version support.
 v.2021.4.17
