@@ -30,7 +30,7 @@ rem Kuin2.cpp ->[Visual Studio]->Kuin2.exe
 pause
 
 rem Kuin2.kn ->[Kuin2.exe]-> Kuin2.cpp
-.\output\x64\Release\kuin_cpp_ja\kuin_cpp_ja.exe -i "%~dp0../src/compiler/main.kn" -o "%~dp0output/kuin_cpp_ja2" -s "%~dp0output/test_res/sys/" -e cpp -x nogc -x lang=ja
+.\output\x64\Release\kuin_cpp_ja\kuin_cpp_ja.exe -i "%~dp0../src/compiler/main.kn" -o "%~dp0output/kuin_cpp_ja2" -s "%~dp0output/test_res/sys/" -e cpp -r -x nogc -x lang=ja
 
 rem Compare Kuin2.cpp
 fc /N "%~dp0output\kuin_cpp_ja.cpp" "%~dp0output\kuin_cpp_ja2.cpp"
