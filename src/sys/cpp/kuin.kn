@@ -447,6 +447,28 @@ func[__any]_next(me_: int, type: []int)
 	excode "++`0`->I;\n"
 end func
 
+func[__any]_nextPermutation(me_: int, type: []int): bool
+	excode "int64_t n_=`0`->L;\n"
+	excode "int64_t l_=n_-2;\n"
+	excode "while(l_>=0&&cmp_(`0`->B[l_],`0`->B[l_+1])>=0)l_-=1;\n"
+	excode "if(l_<0)return false;\n"
+	excode "int64_t r_=n_-1;\n"
+	excode "while(cmp_(`0`->B[l_],`0`->B[r_])>=0)r_-=1;\n"
+	excode "int64_t t_=`0`->B[l_];\n"
+	excode "`0`->B[l_]=`0`->B[r_];\n"
+	excode "`0`->B[r_]=t_;\n"
+	excode "l_+=1;\n"
+	excode "r_=n_-1;\n"
+	excode "while(l_<r_){\n"
+	excode "t_=`0`->B[l_];\n"
+	excode "`0`->B[l_]=`0`->B[r_];\n"
+	excode "`0`->B[r_]=t_;\n"
+	excode "l_+=1;\n"
+	excode "r_-=1;\n"
+	excode "}\n"
+	excode "return true;\n"
+end func
+
 func[__any, __rme]_not(me_: int, type: []int): int
 	excode "return ~`0`;\n"
 end func

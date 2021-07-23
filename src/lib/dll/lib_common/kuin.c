@@ -1480,6 +1480,39 @@ EXPORT void _next(void* me_, const U8* type)
 	*(void**)((U8*)me_ + 0x20) = *(void**)((U8*)ptr + 0x08);
 }
 
+EXPORT Bool _nextPermutation(const void* me_, const U8* type)
+{
+	THROWDBG(me_ == NULL, EXCPT_ACCESS_VIOLATION);
+	size_t size = GetSize(type[1]);
+	int(*cmp)(const void* a, const void* b) = GetCmpFunc(type + 1);
+	ASSERT(cmp != NULL);
+	S64 len = *(S64*)((U8*)me_ + 0x08);
+	U8* ptr0 = (U8*)me_ + 0x10;
+	U8* left = ptr0 + (size_t)(len - 2) * size;
+	while (left >= ptr0 && cmp(left, left + size) >= 0)
+		left -= size;
+	if (left < ptr0)
+		return False;
+	U8* right = ptr0 + (size_t)(len - 1) * size;
+	while (cmp(left, right) >= 0)
+		right -= size;
+	void* tmp;
+	memcpy(&tmp, left, size);
+	memcpy(left, right, size);
+	memcpy(right, &tmp, size);
+	left += size;
+	right = ptr0 + (size_t)(len - 1) * size;
+	while (left < right)
+	{
+		memcpy(&tmp, left, size);
+		memcpy(left, right, size);
+		memcpy(right, &tmp, size);
+		left += size;
+		right -= size;
+	}
+	return True;
+}
+
 EXPORT S64 _not(const void* me_, const U8* type)
 {
 	switch (*type)

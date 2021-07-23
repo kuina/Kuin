@@ -51,6 +51,7 @@ EXPORT void* _min(const void* me_, const U8* type);
 EXPORT void _moveOffset(void* me_, const U8* type, S64 offset);
 EXPORT Bool _nan(double me_);
 EXPORT void _next(void* me_, const U8* type);
+EXPORT Bool _nextPermutation(const void* me_, const U8* type);
 EXPORT S64 _not(const void* me_, const U8* type);
 EXPORT S64 _or(const void* me_, const U8* type, const void* n);
 EXPORT void* _peek(void* me_, const U8* type);

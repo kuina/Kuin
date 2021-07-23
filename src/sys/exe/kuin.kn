@@ -297,6 +297,9 @@ end func
 func[d0000.knd, __any]_next(me_: int, type: []int)
 end func
 
+func[d0000.knd, __any]_nextPermutation(me_: int, type: []int): bool
+end func
+
 func[d0000.knd, __any, __rme]_not(me_: int, type: []int): int
 end func
 

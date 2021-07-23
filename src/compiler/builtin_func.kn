@@ -51,6 +51,7 @@ var builtinFuncs: dict<[]char, @BuiltinFuncKind>
 		do @builtinFuncs.add("moveOffset", %list_)
 		do @builtinFuncs.add("nan", %float_)
 		do @builtinFuncs.add("next", %list_)
+		do @builtinFuncs.add("nextPermutation", %comparableArray)
 		do @builtinFuncs.add("not", %bitEnum)
 		do @builtinFuncs.add("offset", %char_)
 		do @builtinFuncs.add("or", %bitEnum)
