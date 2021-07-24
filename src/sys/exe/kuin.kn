@@ -319,6 +319,9 @@ end func
 func[d0000.knd, __any]_prev(me_: int, type: []int)
 end func
 
+func[d0000.knd, __any]_prevPermutation(me_: int, type: []int): bool
+end func
+
 func[d0000.knd, __any, __rme]_repeat(me_: int, type: []int, len: int): int
 end func
 

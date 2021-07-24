@@ -612,6 +612,48 @@ func[__any]_prev(me_: int, type: []int)
 	excode "`0`.P=`0`.P.P;\n"
 end func
 
+func[__any]_prevPermutation(me_: int, type: []int): bool
+	excode "if(`1`[1]==0x02){\n"
+	excode "let n_=`0`.S.length;\n"
+	excode "let l_=n_-2;\n"
+	excode "while(l_>=0&&`0`.S.charCodeAt(l_)<=`0`.S.charCodeAt(l_+1)){l_-=1;}\n"
+	excode "if(l_<0){return false;}\n"
+	excode "let r_=n_-1;\n"
+	excode "while(`0`.S.charCodeAt(l_)<=`0`.S.charCodeAt(r_)){r_-=1;}\n"
+	excode "let s_=`0`.S;"
+	excode "`0`.S=`0`.S.substring(0,l_)+`0`.S.charAt(r_)+`0`.S.substring(l_+1,r_)+`0`.S.charAt(l_)+`0`.S.substring(r_+1);\n"
+	excode "l_+=1;\n"
+	excode "r_=n_-1;\n"
+	excode "while(l_<r_){\n"
+	excode "`0`.S=`0`.S.substring(0,l_)+`0`.S.charAt(r_)+`0`.S.substring(l_+1,r_)+`0`.S.charAt(l_)+`0`.S.substring(r_+1);\n"
+	excode "l_+=1;\n"
+	excode "r_-=1;\n"
+	excode "}\n"
+	excode "return true;\n"
+	excode "}else{\n"
+	excode "let n_=`0`.length;\n"
+	excode "let l_=n_-2;\n"
+	excode "let m_=CM_(`1`[1]);\n"
+	excode "while(l_>=0&&m_(`0`[l_],`0`[l_+1])<=0){l_-=1;}\n"
+	excode "if(l_<0){return false;}\n"
+	excode "let r_=n_-1;\n"
+	excode "while(m_(`0`[l_],`0`[r_])<=0){r_-=1;}\n"
+	excode "let t_=`0`[l_];\n"
+	excode "`0`[l_]=`0`[r_];\n"
+	excode "`0`[r_]=t_;\n"
+	excode "l_+=1;\n"
+	excode "r_=n_-1;\n"
+	excode "while(l_<r_){\n"
+	excode "t_=`0`[l_];\n"
+	excode "`0`[l_]=`0`[r_];\n"
+	excode "`0`[r_]=t_;\n"
+	excode "l_+=1;\n"
+	excode "r_-=1;\n"
+	excode "}\n"
+	excode "return true;\n"
+	excode "}\n"
+end func
+
 func[__any, __rme]_repeat(me_: int, type: []int, len: int): int
 	if(dbg)
 		if(len < 0)

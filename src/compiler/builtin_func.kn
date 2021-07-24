@@ -57,6 +57,7 @@ var builtinFuncs: dict<[]char, @BuiltinFuncKind>
 		do @builtinFuncs.add("or", %bitEnum)
 		do @builtinFuncs.add("peek", %peekStackQueue)
 		do @builtinFuncs.add("prev", %list_)
+		do @builtinFuncs.add("prevPermutation", %comparableArray)
 		do @builtinFuncs.add("repeat", %array)
 		do @builtinFuncs.add("replace", %str)
 		do @builtinFuncs.add("reverse", %array)

@@ -56,6 +56,7 @@ EXPORT S64 _not(const void* me_, const U8* type);
 EXPORT S64 _or(const void* me_, const U8* type, const void* n);
 EXPORT void* _peek(void* me_, const U8* type);
 EXPORT void _prev(void* me_, const U8* type);
+EXPORT Bool _prevPermutation(const void* me_, const U8* type);
 EXPORT void* _repeat(const void* me_, const U8* type, S64 len);
 EXPORT void _reverse(void* me_, const U8* type);
 EXPORT S64 _sar(const void* me_, const U8* type, S64 n);
