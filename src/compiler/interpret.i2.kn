@@ -1655,7 +1655,7 @@ func getKeywordsAddMember(type: []char, context: @GetKeywordsContext)
 					do callCallbackFunc(callback, "trimLeft")
 					do callCallbackFunc(callback, "trimRight")
 					do callCallbackFunc(callback, "upper")
-				elif(type = "&a&achar" | type = "&a&aint" | type = "&a&afloat")
+				elif(type = "&a&achar" | type = "&aint" | type = "&afloat")
 					do callCallbackFunc(callback, "join")
 				end if
 				do callCallbackFunc(callback, "fill")
