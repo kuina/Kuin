@@ -427,7 +427,7 @@ func[__any, __tch]_ins(me_: int, type: []int, item: int)
 	excode "`0`.L++;\n"
 end func
 
-func _join(me_: [][]char, delimiter: []char): []char
+func _joinStr(me_: [][]char, delimiter: []char): []char
 	var t: int :: ^delimiter * (^me_ - 1)
 	for i(0, ^me_ - 1)
 		do t :+ ^me_[i]
@@ -448,6 +448,22 @@ func _join(me_: [][]char, delimiter: []char): []char
 		end for
 	end for
 	ret r
+end func
+
+func _joinFloat(me_: []float, delimiter: []char): []char
+	var strs: [][]char :: #[^me_][]char
+	for i(0, ^me_ - 1)
+		do strs[i] :: me_[i].toStr()
+	end for
+	ret strs.join(delimiter)
+end func
+
+func _joinInt(me_: []int, delimiter: []char): []char
+	var strs: [][]char :: #[^me_][]char
+	for i(0, ^me_ - 1)
+		do strs[i] :: me_[i].toStr()
+	end for
+	ret strs.join(delimiter)
 end func
 
 func _lower(me_: []char): []char

@@ -355,22 +355,6 @@ end func
 	excode "return r_< 0.0?r_+2.0*3.14159265358979323846:r_;\n"
 end func
 
-+func joinFloat(array: []float, delimiter: []char): []char
-	var strs: [][]char :: #[^array][]char
-	for i(0, ^array - 1)
-		do strs[i] :: array[i].toStr()
-	end for
-	ret strs.join(delimiter)
-end func
-
-+func joinInt(array: []int, delimiter: []char): []char
-	var strs: [][]char :: #[^array][]char
-	for i(0, ^array - 1)
-		do strs[i] :: array[i].toStr()
-	end for
-	ret strs.join(delimiter)
-end func
-
 +func lerp(first: float, last: float, rate: float): float
 	if(rate < 0.0)
 		do rate :: 0.0
