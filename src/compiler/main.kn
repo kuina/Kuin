@@ -1,5 +1,5 @@
 const major: int :: 2021
-const minor: int :: 7
+const minor: int :: 8
 const micro: int :: 17
 
 +const useResFlagsLen: int :: 1

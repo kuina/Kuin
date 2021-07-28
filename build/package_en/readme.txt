@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 Kuin Programming Language
-v.2021.7.17
+v.2021.8.17
 (C) Kuina-chan
 -------------------------------------------------------------------------------
 
@@ -45,6 +45,7 @@ v.2021.7.17
 4. Update History
 -------------------------------------------------------------------------------
 
+v.2021.8.17
 v.2021.7.17
     - Fixed an issue where the file@copyDir function might not work properly.
     - Fixed a problem that the comparison result of int type may not be correct

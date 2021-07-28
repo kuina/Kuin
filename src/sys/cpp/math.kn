@@ -156,6 +156,60 @@ end func
 	ret @modPowUnsigned(value $ bit64, exponent $ bit64, modulus $ bit64) $ int
 end func
 
++func permutationNext(array: []int): bool
+	var left: int :: ^array - 2
+	while(left >= 0 & array[left] >= array[left + 1])
+		do left :- 1
+	end while
+	if(left < 0)
+		ret false
+	end if
+	var right: int :: ^array - 1
+	while(array[left] >= array[right])
+		do right :- 1
+	end while
+	var tmp: int :: array[left]
+	do array[left] :: array[right]
+	do array[right] :: tmp
+	do left :+ 1
+	do right :: ^array - 1
+	while(left < right)
+		do tmp :: array[left]
+		do array[left] :: array[right]
+		do array[right] :: tmp
+		do left :+ 1
+		do right :- 1
+	end while
+	ret true
+end func
+
++func permutationPrev(array: []int): bool
+	var left: int :: ^array - 2
+	while(left >= 0 & array[left] <= array[left + 1])
+		do left :- 1
+	end while
+	if(left < 0)
+		ret false
+	end if
+	var right: int :: ^array - 1
+	while(array[left] <= array[right])
+		do right :- 1
+	end while
+	var tmp: int :: array[left]
+	do array[left] :: array[right]
+	do array[right] :: tmp
+	do left :+ 1
+	do right :: ^array - 1
+	while(left < right)
+		do tmp :: array[left]
+		do array[left] :: array[right]
+		do array[right] :: tmp
+		do left :+ 1
+		do right :- 1
+	end while
+	ret true
+end func
+
 +func prime(n: int): bool
 	if(n <= 1)
 		ret false
@@ -206,7 +260,7 @@ end func
 	end while
 	var i: bit64 :: 0b64
 	while loop(i < enough)
-		var x: bit64 :: @modPowUnsigned(@primes[i $ int	], d, n2)
+		var x: bit64 :: @modPowUnsigned(@primes[i $ int], d, n2)
 		if(x = 1b64 | x = n2 - 1b64)
 			do i :+ 1b64
 			skip loop
@@ -304,6 +358,58 @@ end func
 		do seed :: x
 		ret x $ bit64
 	end func
+end func
+
++func searchBreadthFirst(itemNum: int, maxDepth: int, callback: func<([]int, kuin@Class): bool>, data: kuin@Class): bool
+	var q: queue<[]int> :: #queue<[]int>
+	if(maxDepth > 0)
+		for i(0, itemNum - 1)
+			do q.add([i])
+		end for
+	end if
+	while(^q > 0)
+		var items: []int :: q.get()
+		if(!callback(items, data))
+			ret false
+		end if
+		if(^items < maxDepth)
+			for i(0, itemNum - 1)
+				do q.add(items ~ [i])
+			end for
+		end if
+	end while
+	ret true
+end func
+
++func searchDepthFirst(itemNum: int, maxDepth: int, callback: func<([]int, kuin@Class): bool>, data: kuin@Class): bool
+	var s: stack<[]int> :: #stack<[]int>
+	if(maxDepth > 0)
+		for i(itemNum - 1, 0, -1)
+			do s.add([i])
+		end for
+	end if
+	while(^s > 0)
+		var items: []int :: s.get()
+		if(!callback(items, data))
+			ret false
+		end if
+		if(^items < maxDepth)
+			for i(itemNum - 1, 0, -1)
+				do s.add(items ~ [i])
+			end for
+		end if
+	end while
+	ret true
+end func
+
++func searchPermutation(itemNum: int, callback: func<([]int, kuin@Class): bool>, data: kuin@Class): bool
+	var array: []int :: lib@range(0, itemNum - 1, 1)
+	while(@permutationNext(array), skip)
+		if(!callback(array, data))
+			ret false
+		end if
+	end while
+	ret true
 end func
 
 func modPowUnsigned(value: bit64, exponent: bit64, modulus: bit64): bit64

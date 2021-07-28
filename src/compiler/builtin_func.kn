@@ -11,7 +11,7 @@ enum BuiltinFuncKind
 	list_
 	peekStackQueue
 	intFloat
-	arrayOfStr
+	join
 	dict_
 	comparableArrayList
 	delListDict
@@ -44,7 +44,7 @@ var builtinFuncs: dict<[]char, @BuiltinFuncKind>
 		do @builtinFuncs.add("head", %list_)
 		do @builtinFuncs.add("idx", %list_)
 		do @builtinFuncs.add("ins", %list_)
-		do @builtinFuncs.add("join", %arrayOfStr)
+		do @builtinFuncs.add("join", %join)
 		do @builtinFuncs.add("lower", %str)
 		do @builtinFuncs.add("max", %comparableArray)
 		do @builtinFuncs.add("min", %comparableArray)
@@ -209,9 +209,19 @@ var builtinFuncs: dict<[]char, @BuiltinFuncKind>
 			end switch
 			ret true
 		end if
-	case %arrayOfStr
-		if(type.typeId = %typeArray & \ast@isStr((type $ \ast@AstTypeArray).itemType))
-			ret true
+	case %join
+		if(type.typeId = %typeArray)
+			var itemType: \ast@AstType :: (type $ \ast@AstTypeArray).itemType
+			if(\ast@isStr(itemType))
+				do member :: "joinStr"
+				ret true
+			elif(\ast@isInt(itemType))
+				do member :: "joinInt"
+				ret true
+			elif(\ast@isFloat(itemType))
+				do member :: "joinFloat"
+				ret true
+			end if
 		end if
 	case %dict_
 		if(type.typeId = %typeDict)
