@@ -327,6 +327,22 @@ end func
 +func[d0000.knd, _invRot]invRot(x: float, y: float, centerX: float, centerY: float): float
 end func
 
++func joinFloat(array: []float, delimiter: []char): []char
+	var strs: [][]char :: #[^array][]char
+	for i(0, ^array - 1)
+		do strs[i] :: array[i].toStr()
+	end for
+	ret strs.join(delimiter)
+end func
+
++func joinInt(array: []int, delimiter: []char): []char
+	var strs: [][]char :: #[^array][]char
+	for i(0, ^array - 1)
+		do strs[i] :: array[i].toStr()
+	end for
+	ret strs.join(delimiter)
+end func
+
 +func lerp(first: float, last: float, rate: float): float
 	if(rate < 0.0)
 		do rate :: 0.0
