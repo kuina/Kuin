@@ -53,6 +53,7 @@ end func
 		do me.cursorY :: 0
 		do me.areaX :: -1
 		do me.areaY :: -1
+		do me.absoluteX :: 0
 		do me.lineNumWidth :: 0
 		do me.setSrc(null)
 		do me.resetListInfoItem()
@@ -224,6 +225,7 @@ end func
 			do me.areaX :: me.cursorX
 			do me.areaY :: me.cursorY
 		end if
+		do me.absoluteX :: 0
 		do me.interpret1SetDirty(me.cursorY, false, false)
 		do \completion@close()
 		do \form@paintDrawEditor(false)
@@ -238,6 +240,7 @@ end func
 		do me.refreshCursor(false, true, true)
 		do me.areaX :: me.cursorX
 		do me.areaY :: me.cursorY
+		do me.absoluteX :: 0
 		if(me.cursorX = ^me.src.src[me.cursorY])
 			do me.areaX :- 1
 			if(me.areaX < 0)
@@ -388,6 +391,7 @@ end func
 		case %end_
 			do me.setArea(shiftCtrl)
 			do me.cursorX :: lib@intMax
+			do me.absoluteX :: 0
 			if(shiftCtrl.and(%ctrl) <> %none)
 				do me.cursorY :: lib@intMax
 			end if
@@ -399,6 +403,7 @@ end func
 		case %home
 			do me.setArea(shiftCtrl)
 			do me.cursorX :: 0
+			do me.absoluteX :: 0
 			if(shiftCtrl.and(%ctrl) <> %none)
 				do me.cursorY :: 0
 			end if
@@ -413,6 +418,7 @@ end func
 			else
 				do me.setArea(shiftCtrl)
 				do me.cursorX :- 1
+				do me.absoluteX :: 0
 				do me.refreshCursor(false, true, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
 			end if
@@ -441,6 +447,7 @@ end func
 			else
 				do me.setArea(shiftCtrl)
 				do me.cursorX :+ 1
+				do me.absoluteX :: 0
 				do me.refreshCursor(true, true, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
 			end if
@@ -607,6 +614,7 @@ end func
 		do me.areaY :: 0
 		do me.cursorX :: lib@intMax
 		do me.cursorY :: lib@intMax
+		do me.absoluteX :: 0
 		do me.refreshCursor(false, true, true)
 		do me.interpret1SetDirty(me.cursorY, false, false)
 		do \form@paintDrawEditor(false)
@@ -834,6 +842,7 @@ end func
 				do me.areaY :: i
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
+				do me.absoluteX :: 0
 				do me.refreshCursor(false, true, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor(false)
@@ -847,6 +856,7 @@ end func
 				do me.areaY :: i
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
+				do me.absoluteX :: 0
 				do me.refreshCursor(false, true, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor(false)
@@ -875,6 +885,7 @@ end func
 				do me.areaY :: i
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
+				do me.absoluteX :: 0
 				do me.refreshCursor(false, true, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor(false)
@@ -888,6 +899,7 @@ end func
 				do me.areaY :: i
 				do me.cursorX :: pos + ^found
 				do me.cursorY :: i
+				do me.absoluteX :: 0
 				do me.refreshCursor(false, true, true)
 				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor(false)
@@ -918,6 +930,7 @@ end func
 		do me.cursorY :: areaY1
 		do me.areaX :: -1
 		do me.areaY :: -1
+		do me.absoluteX :: 0
 		while loop(true)
 			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
 			var oldY: int :: me.cursorY
@@ -943,6 +956,7 @@ end func
 		do me.cursorY :: 0
 		do me.areaX :: -1
 		do me.areaY :: -1
+		do me.absoluteX :: 0
 		while loop(true)
 			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
 			var oldY: int :: me.cursorY
@@ -1016,6 +1030,7 @@ end func
 		do me.cursorY :: areaY1
 		do me.areaX :: -1
 		do me.areaY :: -1
+		do me.absoluteX :: 0
 		var cnt: int :: 0
 		while loop(true)
 			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
@@ -1039,6 +1054,7 @@ end func
 		do me.cursorY :: 0
 		do me.areaX :: -1
 		do me.areaY :: -1
+		do me.absoluteX :: 0
 		var cnt: int :: 0
 		while loop(true)
 			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
@@ -1062,6 +1078,7 @@ end func
 		do me.cursorY :: row
 		do me.areaX :: -1
 		do me.areaY :: -1
+		do me.absoluteX :: 0
 		do me.refreshCursor(false, true, true)
 		do me.interpret1SetDirty(me.cursorY, false, false)
 	end func
@@ -1157,6 +1174,7 @@ end func
 	var cursorY: int
 	var areaX: int
 	var areaY: int
+	var absoluteX: int
 	var lineNumWidth: int
 	+var errList: []@ErrListItem
 	var dirtyLine: int
@@ -1350,11 +1368,13 @@ end func
 			var charWidth2: int :: me.charWidth(me.src.src[me.cursorY][i], absoluteX)
 			do absoluteX :+ charWidth2
 		end for
-		ret absoluteX
+		do me.absoluteX :: lib@max(me.absoluteX, absoluteX)
+		ret me.absoluteX
 	end func
 	
 	func setAbsoluteX(absoluteX: int)
 		if(me.cursorY < 0 | ^me.src.src <= me.cursorY)
+			do me.absoluteX :: 0
 			ret
 		end if
 		var x: int :: 0
@@ -1367,6 +1387,7 @@ end func
 			do x :+ charWidth2
 			do me.cursorX :+ 1
 		end for
+		do me.absoluteX :: lib@max(me.absoluteX, x)
 	end func
 	
 	func copyAreaStr()
@@ -1550,6 +1571,7 @@ end func
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
+		do me.absoluteX :: 0
 		do me.changed :: true
 	end func
 	
@@ -1596,6 +1618,7 @@ end func
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
+		do me.absoluteX :: 0
 		do me.changed :: true
 	end func
 	
@@ -1638,6 +1661,7 @@ end func
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
+		do me.absoluteX :: 0
 		do me.changed :: true
 	end func
 	
