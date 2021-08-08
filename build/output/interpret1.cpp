@@ -41,6 +41,7 @@ bool InterpretImpl1(void* str, void* color, void* comment_level, void* flags, in
 	{
 		int64_t line_len = *(int64_t*)((uint8_t*)str + 0x08);
 		int64_t comment_level_context = 0;
+		int64_t comment_level_context_prev = 0;
 		uint64_t flags_context = 0;
 		int64_t tab_context = 0;
 		int64_t i;
@@ -79,7 +80,8 @@ bool InterpretImpl1(void* str, void* color, void* comment_level, void* flags, in
 				comment_level2 = (int64_t*)((uint8_t*)comment_level + 0x10 + 0x08 * (size_t)i);
 				flags2 = (uint64_t*)((uint8_t*)flags + 0x10 + 0x08 * (size_t)i);
 			}
-			*comment_level2 = comment_level_context;
+			*comment_level2 = comment_level_context_prev;
+			comment_level_context_prev = comment_level_context;
 			*flags2 = (*flags2 & 0x02) | flags_context;
 
 			{
