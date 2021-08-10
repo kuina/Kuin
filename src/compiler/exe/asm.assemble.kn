@@ -262,7 +262,7 @@ func getSize(type: \ast@AstType): int
 	end if
 	switch(typeId)
 	case %typeBit
-		ret(type $ \ast@AstTypeBit).size
+		ret (type $ \ast@AstTypeBit).size
 	case %typePrim
 		switch((type $ \ast@AstTypePrim).kind)
 		case %int_, %float_

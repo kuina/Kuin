@@ -227,7 +227,7 @@ end func
 			ret false
 		end if
 		var m: bit64 :: n2 / 6b64 * 2b64 + (l = 1b64 ?(0b64, 1b64))
-		ret(@primesBin[m.shr(4) $ int] $ bit16).and((1b16).shl(m.and(15b64) $ int)) <> 0b16
+		ret (@primesBin[m.shr(4) $ int] $ bit16).and((1b16).shl(m.and(15b64) $ int)) <> 0b16
 	end if
 	
 	var enough: bit64

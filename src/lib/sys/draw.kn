@@ -352,7 +352,7 @@ end func
 #web
 func blend(kind: @Blend)
 	do impl(@cur, kind)
-	func impl(cur: web@Draw, kind:@Blend)
+	func impl(cur: web@Draw, kind: @Blend)
 		switch(kind)
 		case %none
 			excode "`0`.`.gl`.disable(`0`.`.gl`.BLEND);\n"
@@ -663,7 +663,7 @@ func initDraw(draw: web@Draw)
 	excode "gl_Position.w=1.0;"
 	excode "}\");\n"
 	excode "`0`.`.gl`.compileShader(triVs_);\n"
-
+	
 	excode "let triPs_=`0`.`.gl`.createShader(`0`.`.gl`.FRAGMENT_SHADER);\n"
 	excode "`0`.`.gl`.shaderSource(triPs_,\""
 	excode "precision mediump float;"
@@ -729,7 +729,7 @@ func initDraw(draw: web@Draw)
 	excode "vTex=vecs1.rg+vecs1.ba*weight;"
 	excode "}\");\n"
 	excode "`0`.`.gl`.compileShader(texVs_);\n"
-
+	
 	excode "let texPs_=`0`.`.gl`.createShader(`0`.`.gl`.FRAGMENT_SHADER);\n"
 	excode "`0`.`.gl`.shaderSource(texPs_,\""
 	excode "precision mediump float;"

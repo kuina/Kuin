@@ -1826,5 +1826,5 @@ func findStr(found: &[]char, text: []char, fromLast: bool, first: int, last: int
 		end if
 		ret pos
 	end if
-	ret - 1
+	ret -1
 end func

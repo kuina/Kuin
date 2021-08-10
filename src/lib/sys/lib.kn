@@ -9,7 +9,7 @@ end func
 
 +class Bool()
 	+*func cmp(t: kuin@Class): int
-		ret(me.value $ int - (t $ @Bool).value $ int).sign()
+		ret (me.value $ int - (t $ @Bool).value $ int).sign()
 	end func
 	
 	+*func toStr(): []char
@@ -21,7 +21,7 @@ end class
 
 +class Char()
 	+*func cmp(t: kuin@Class): int
-		ret(me.value $ int - (t $ @Char).value $ int).sign()
+		ret (me.value $ int - (t $ @Char).value $ int).sign()
 	end func
 	
 	+*func toStr(): []char
@@ -33,7 +33,7 @@ end class
 
 +class Float()
 	+*func cmp(t: kuin@Class): int
-		ret(me.value - (t $ @Float).value).sign() $ int
+		ret (me.value - (t $ @Float).value).sign() $ int
 	end func
 	
 	+*func toStr(): []char
@@ -45,7 +45,7 @@ end class
 
 +class Int()
 	+*func cmp(t: kuin@Class): int
-		ret(me.value - (t $ @Int).value).sign()
+		ret (me.value - (t $ @Int).value).sign()
 	end func
 	
 	+*func toStr(): []char
@@ -75,12 +75,12 @@ end class
 				do r :: me.rndBit64()
 			end while
 		end if
-		ret(r % n) $ int + min
+		ret (r % n) $ int + min
 	end func
 	
 	+func rndBit64(): bit64
 		var t: bit32 :: me.xs128()
-		ret(t $ bit64).shl(32).or(me.xs128() $ bit64)
+		ret (t $ bit64).shl(32).or(me.xs128() $ bit64)
 	end func
 	
 	+func rndFloat(min: float, max: float): float
@@ -300,7 +300,7 @@ end func
 			ret -1
 		end if
 	end for
-	ret ^ s1 > ^s2 ?(1, ^s1 < ^s2 ?(-1, 0))
+	ret ^s1 > ^s2 ?(1, ^s1 < ^s2 ?(-1, 0))
 end func
 
 +func cmpEx(s1: []char, s2: []char, len: int, ignoreCase: bool): int
@@ -356,7 +356,7 @@ end func
 	var b: int :: (a >= 0 ?(a, a - 399)) / 400
 	var c: int :: a - b * 400
 	var d: int :: (153 * (month + (month > 2 ?(-3, 9))) + 2) / 5 + day - 1
-	ret(b * 146097 + c * 365 + c / 4 - c / 100 + d - 719468) * 86400 + hour * 3600 + minute * 60 + second
+	ret (b * 146097 + c * 365 + c / 4 - c / 100 + d - 719468) * 86400 + hour * 3600 + minute * 60 + second
 end func
 
 #exe
@@ -564,7 +564,7 @@ end func
 			throw 0xE9170006
 		end if
 	end if
-	ret(align - 1) - (value + align - 1) % align
+	ret (align - 1) - (value + align - 1) % align
 end func
 
 +func qerp(first: float, last: float, easeIn: bool, rate: float): float
@@ -666,7 +666,7 @@ end func
 		ret i1 = i2
 	end if
 	var diff: int :: (i1 - i2) $ int
-	ret - 24 <= diff & diff <= 24
+	ret -24 <= diff & diff <= 24
 end func
 
 +func shuffle(n: int): []int

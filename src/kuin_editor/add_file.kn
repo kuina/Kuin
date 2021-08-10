@@ -30,10 +30,10 @@ var wndAddFileListType: wnd@ListView
 			do doc :: #\doc_src@DocSrc
 		case 1
 			do doc :: #\doc_gen@DocGen
-			do(doc $ \doc_gen@DocGen).create(#\doc_ar_wnd@DocArWnd)
+			do (doc $ \doc_gen@DocGen).create(#\doc_ar_wnd@DocArWnd)
 		case 2
 			do doc :: #\doc_gen@DocGen
-			do(doc $ \doc_gen@DocGen).create(#\doc_ar_2d@DocAr2d)
+			do (doc $ \doc_gen@DocGen).create(#\doc_ar_2d@DocAr2d)
 		end switch
 		if(doc <>& null)
 			do doc.setChanged(true)

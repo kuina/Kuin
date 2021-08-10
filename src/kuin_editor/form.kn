@@ -733,7 +733,7 @@ func wndMainOnPushMenu(wnd: wnd@WndBase, id: int)
 				do @showMsgRunning()
 				ret
 			end if
-			do(\src@curDoc $ \doc_src@DocSrc).toggleBreakPoint()
+			do (\src@curDoc $ \doc_src@DocSrc).toggleBreakPoint()
 		end if
 	case 0x0041
 		do \go_to_line@show()
@@ -823,7 +823,7 @@ func btnCodeOnPush(wnd: wnd@WndBase)
 	end if
 	do @lockUi :: true
 	if(\src@curDoc =$ \doc_gen@DocGen)
-		do(\src@curDoc $ \doc_gen@DocGen).swapMode()
+		do (\src@curDoc $ \doc_gen@DocGen).swapMode()
 	end if
 	do @lockUi :: false
 	do @updateUi()
@@ -994,12 +994,12 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		do \src@docs.forEach(callback, breakPoint)
 		var itemsArray: []\src@Pos :: breakPoint.items.toArray()
 		for i(0, ^itemsArray - 1)
-			do(\src@docs.get(itemsArray[i].src, &) $ \doc_src@DocSrc).unsetBreakPoint(itemsArray[i].row - 1)
+			do (\src@docs.get(itemsArray[i].src, &) $ \doc_src@DocSrc).unsetBreakPoint(itemsArray[i].row - 1)
 		end for
 		do \dll@setBreakPoints(itemsArray)
 		for i(0, ^itemsArray - 1)
 			if(itemsArray[i].row <> -1)
-				do(\src@docs.get(itemsArray[i].src, &) $ \doc_src@DocSrc).setBreakPoint(itemsArray[i].row - 1)
+				do (\src@docs.get(itemsArray[i].src, &) $ \doc_src@DocSrc).setBreakPoint(itemsArray[i].row - 1)
 			end if
 		end for
 		do @paintDrawEditor(false)
@@ -1007,7 +1007,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 		func callback(key: []char, value: \doc@Doc, data: kuin@Class): bool
 			var data2: BreakPoint :: data $ BreakPoint
 			if(value =$ \doc_src@DocSrc & key[0] = '\\')
-				do(value $ \doc_src@DocSrc).getBreakPoints(key, data2.items)
+				do (value $ \doc_src@DocSrc).getBreakPoints(key, data2.items)
 			end if
 			ret true
 		end func

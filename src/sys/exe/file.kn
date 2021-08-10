@@ -28,7 +28,7 @@ end enum
 	*func[__frc]_dtor()
 		do me.fin()
 	end func
-
+	
 	+func _init(handle: int)
 		do me.handle :: handle
 		do me.delimiters :: " ,\n"
@@ -304,7 +304,7 @@ end class
 		end if
 		do @writerFlushImpl(me.handle)
 	end func
-
+	
 	+func getPos(): int
 		if(dbg)
 			if(me.size < 0)

@@ -150,7 +150,7 @@ end func
 
 func wndCompletionListKeywordsOnMouseDoubleClick(wnd: wnd@WndBase)
 	if(\src@curDoc =$ \doc_src@DocSrc)
-		do(\src@curDoc $ \doc_src@DocSrc).complementDecision()
+		do (\src@curDoc $ \doc_src@DocSrc).complementDecision()
 	end if
 end func
 

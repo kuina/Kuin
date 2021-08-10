@@ -1,7 +1,7 @@
 +class Obj()
 	+func draw()
 	end func
-
+	
 	+func init(x: float, y: float, width: float, height: float, visible: bool)
 		do me.x :: x
 		do me.y :: y
@@ -9,10 +9,10 @@
 		do me.height :: height
 		do me.visible :: visible
 	end func
-
+	
 	+func fin(resCacheDraw: @ResCacheDraw)
 	end func
-
+	
 	+var x: float
 	+var y: float
 	+var width: float
@@ -32,7 +32,7 @@ end class
 			do draw2d@rectLine(me.x, me.y, me.width, me.height, me.strokeWidth, me.colorStroke)
 		end if
 	end func
-
+	
 	+var colorFill: int
 	+var colorStroke: int
 	+var strokeWidth: float
@@ -52,7 +52,7 @@ end class
 			do draw2d@circleLine(me.x + halfWidth, me.y + halfHeight, halfWidth, halfHeight, me.strokeWidth, me.colorStroke)
 		end if
 	end func
-
+	
 	+var colorFill: int
 	+var colorStroke: int
 	+var strokeWidth: float
@@ -90,14 +90,14 @@ end class
 			do me.font.draw(x, y, me.text, me.color)
 		end if
 	end func
-
+	
 	+*func fin(resCacheDraw: @ResCacheDraw)
 		if(me.font <>& null)
 			do resCacheDraw.del(me.font)
 			do me.font :: null
 		end if
 	end func
-
+	
 	+func setFont(resCacheDraw: @ResCacheDraw, fontName: []char, fontSize: int, bold: bool, italic: bool, proportional: bool, advance: float)
 		if(me.font <>& null)
 			do resCacheDraw.del(me.font)
@@ -105,7 +105,7 @@ end class
 		end if
 		do me.font :: resCacheDraw.makeFont(fontName, fontSize, bold, italic, proportional, advance)
 	end func
-
+	
 	var font: draw@Font
 	+var text: []char
 	+var color: int
@@ -122,14 +122,14 @@ end class
 			do me.tex.drawScale(me.x, me.y, me.width, me.height, me.srcX, me.srcY, me.srcWidth, me.srcHeight, me.color)
 		end if
 	end func
-
+	
 	+*func fin(resCacheDraw: @ResCacheDraw)
 		if(me.tex <>& null)
 			do resCacheDraw.del(me.tex)
 			do me.tex :: null
 		end if
 	end func
-
+	
 	+func setTex(resCacheDraw: @ResCacheDraw, texPath: []char)
 		if(me.tex <>& null)
 			do resCacheDraw.del(me.tex)
@@ -137,7 +137,7 @@ end class
 		end if
 		do me.tex :: resCacheDraw.makeTex(texPath)
 	end func
-
+	
 	var tex: draw@Tex
 	+var srcX: float
 	+var srcY: float
@@ -158,7 +158,7 @@ end class
 			do draw2d@roundRectLine(me.x, me.y, me.width, me.height, me.radiusX, me.radiusY, me.strokeWidth, me.colorStroke)
 		end if
 	end func
-
+	
 	+var colorFill: int
 	+var colorStroke: int
 	+var radiusX: float
@@ -176,7 +176,7 @@ end class
 			do me.particle.draw2d(me.tex)
 		end if
 	end func
-
+	
 	+*func fin(resCacheDraw: @ResCacheDraw)
 		if(me.particle <>& null)
 			do resCacheDraw.del(me.particle)
@@ -187,7 +187,7 @@ end class
 			do me.tex :: null
 		end if
 	end func
-
+	
 	+func setParticle(resCacheDraw: @ResCacheDraw, lifeSpan: int, color1: int, color2: int, friction: float, accelX: float, accelY: float, accelZ: float, sizeAccel: float, rotAccel: float)
 		if(me.particle <>& null)
 			do resCacheDraw.del(me.particle)
@@ -195,7 +195,7 @@ end class
 		end if
 		do me.particle :: resCacheDraw.makeParticle(lifeSpan, color1, color2, friction, accelX, accelY, accelZ, sizeAccel, rotAccel)
 	end func
-
+	
 	+func setTex(resCacheDraw: @ResCacheDraw, texPath: []char)
 		if(me.tex <>& null)
 			do resCacheDraw.del(me.tex)
@@ -203,7 +203,7 @@ end class
 		end if
 		do me.tex :: resCacheDraw.makeTex(texPath)
 	end func
-
+	
 	var particle: draw@Particle
 	var tex: draw@Tex
 	+var srcX: float
@@ -221,7 +221,7 @@ end class
 		end if
 		ret instance.instance $ draw@Font
 	end func
-
+	
 	+func makeTex(texPath: []char): draw@Tex
 		var instance: rescache@Instance :: me.add("tex,\{texPath}")
 		if(instance.instance =& null)
@@ -229,7 +229,7 @@ end class
 		end if
 		ret instance.instance $ draw@Tex
 	end func
-
+	
 	+func makeParticle(lifeSpan: int, color1: int, color2: int, friction: float, accelX: float, accelY: float, accelZ: float, sizeAccel: float, rotAccel: float): draw@Particle
 		var instance: rescache@Instance :: me.add("particle,\{lifeSpan},\{color1},\{color2},\{friction},\{accelX},\{accelY},\{accelZ},\{sizeAccel},\{rotAccel}")
 		if(instance.instance =& null)

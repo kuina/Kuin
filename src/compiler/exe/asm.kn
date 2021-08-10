@@ -523,11 +523,11 @@ func isRxReg(reg: @ValReg): bool
 end func
 
 func isSplReg(reg: @ValReg): bool
-	ret(reg.reg $ bit8).and(0xF8b8) = 0x10b8
+	ret (reg.reg $ bit8).and(0xF8b8) = 0x10b8
 end func
 
 func getRegCode(reg: @ValReg): bit8
-	ret(reg.reg $ bit8).and(0x07b8)
+	ret (reg.reg $ bit8).and(0x07b8)
 end func
 
 +func newAddr(): lib@Int

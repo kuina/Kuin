@@ -37,9 +37,9 @@ end func
 
 +func goToLine()
 	var line: int :: @wndEditLineNumber.getText().toInt(&) - 1
-	do(\src@curDoc $ \doc_src@DocSrc).move(0, line - 10)
-	do(\src@curDoc $ \doc_src@DocSrc).move(0, line + 10)
-	do(\src@curDoc $ \doc_src@DocSrc).move(0, line)
+	do (\src@curDoc $ \doc_src@DocSrc).move(0, line - 10)
+	do (\src@curDoc $ \doc_src@DocSrc).move(0, line + 10)
+	do (\src@curDoc $ \doc_src@DocSrc).move(0, line)
 	do \form@paintDrawEditor(false)
 	do \form@focusDrawEditor()
 	do @wndGoToLine.close()

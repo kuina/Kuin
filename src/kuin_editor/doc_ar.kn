@@ -1418,7 +1418,7 @@ end enum
 	end func
 	
 	+func icon(): int
-		ret - 1
+		ret -1
 	end func
 	
 	+func init(name: []char, visible: bool, x: int, y: int, width: int, height: int, props: dict<[]char, []char>)
