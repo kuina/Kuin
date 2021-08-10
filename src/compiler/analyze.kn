@@ -2123,7 +2123,7 @@ func rebuildExpr2(ast: \ast@AstExpr2): \ast@AstExpr
 				do type.kind :: %bool_
 				if(ast.children0.type.typeId = %typeEnumElement)
 					if(ast.children1.type.typeId = %typeEnumElement)
-						assert(ast.children0.typeId = %exprValueEnumElement)
+						assert (ast.children0.typeId = %exprValueEnumElement)
 						do \err@err(%enumTypeNotInferred, ast.pos, [(ast.children0 $ \ast@AstExprValueEnumElement).identifier])
 						ret null
 					end if
@@ -2218,7 +2218,7 @@ func rebuildExpr2(ast: \ast@AstExpr2): \ast@AstExpr
 				do type.kind :: %bool_
 				if(ast.children0.type.typeId = %typeEnumElement)
 					if(ast.children1.type.typeId = %typeEnumElement)
-						assert(ast.children0.typeId = %exprValueEnumElement)
+						assert (ast.children0.typeId = %exprValueEnumElement)
 						do \err@err(%enumTypeNotInferred, ast.pos, [(ast.children0 $ \ast@AstExprValueEnumElement).identifier])
 						ret null
 					end if
@@ -2835,7 +2835,7 @@ func rebuildExprCall(ast: \ast@AstExprCall): \ast@AstExpr
 				if(^ast.args = 1)
 					do ast.args.add(meType)
 				else
-					assert ^ ast.args >= 2
+					assert ^ast.args >= 2
 					do ast.args.head()
 					do ast.args.next()
 					do ast.args.ins(meType)
@@ -2988,7 +2988,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 				var func_: \ast@AstTypeFunc :: expr.type $ \ast@AstTypeFunc
 				if(func_.funcOption.and(%any) <> %none)
 					if(dbg)
-						assert ^ func_.args >= 2
+						assert ^func_.args >= 2
 						do func_.args.head()
 						assert \ast@isInt(func_.args.get().arg)
 						do func_.args.next()
@@ -3004,7 +3004,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 						assert func_.funcOption.and(%tch) = %none
 						assert func_.funcOption.and(%tkv) = %none
 						assert func_.funcOption.and(%kvf) = %none
-						assert ^ func_.args >= 3
+						assert ^func_.args >= 3
 						do func_.args.head()
 						do func_.args.next()
 						do func_.args.next()
@@ -3021,7 +3021,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 						assert func_.funcOption.and(%tme) = %none
 						assert func_.funcOption.and(%tkv) = %none
 						assert func_.funcOption.and(%kvf) = %none
-						assert ^ func_.args >= 3
+						assert ^func_.args >= 3
 						do func_.args.head()
 						do func_.args.next()
 						do func_.args.next()
@@ -3045,7 +3045,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 						assert func_.funcOption.and(%tme) = %none
 						assert func_.funcOption.and(%tch) = %none
 						assert func_.funcOption.and(%kvf) = %none
-						assert ^ func_.args >= 4
+						assert ^func_.args >= 4
 						do func_.args.head()
 						do func_.args.next()
 						do func_.args.next()
@@ -3067,7 +3067,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 						assert func_.funcOption.and(%tme) = %none
 						assert func_.funcOption.and(%tch) = %none
 						assert func_.funcOption.and(%tkv) = %none
-						assert ^ func_.args >= 3
+						assert ^func_.args >= 3
 						do func_.args.head()
 						do func_.args.next()
 						do func_.args.next()
@@ -3138,7 +3138,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 						assert func_.funcOption.and(%rch) = %none
 						assert \ast@isInt(func_.ret_)
 						assert varType.typeId = %typeGen
-						assert(varType $ \ast@AstTypeGen).kind = %list_
+						assert (varType $ \ast@AstTypeGen).kind = %list_
 					end if
 					var type: \ast@AstTypeArray :: #\ast@AstTypeArray
 					do @initAst(type, %typeArray, ast.pos)

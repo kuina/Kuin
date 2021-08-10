@@ -517,7 +517,7 @@ func pushRegs(regI: int, regF: int): @TmpVars
 	end if
 	var asms: list<@Asm> :: @pack.asms
 	var tmp: @TmpVars :: #@TmpVars
-	assert - 1 <= regI & regI < ^@regI & -1 <= regF & regF < ^@regF
+	assert -1 <= regI & regI < ^@regI & -1 <= regF & regF < ^@regF
 	do tmp.iVars :: #[regI + 1]\ast@AstArg
 	for i(0, ^tmp.iVars - 1)
 		do tmp.iVars[i] :: @makeTmpVar(8, null)
@@ -1579,7 +1579,7 @@ func assembleSwitch(ast: \ast@AstStatSwitch)
 					do asms.add(@asmCmp(@valReg(8, %di), @valImmU(8, 0x00b64)))
 					do sign :: true
 				else
-					assert(\ast@isClass(type))
+					assert (\ast@isClass(type))
 					var tmpRegI: \ast@AstArg :: @makeTmpVar(8, null)
 					do asms.add(@asmMov(@valMem(8, @valReg(8, %sp), null, @refValueAddr(@refLocalVar(tmpRegI), false)), @valReg(8, @regI[0])))
 					; The second argument.

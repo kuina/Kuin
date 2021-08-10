@@ -20,7 +20,7 @@ func getPropInfos(objs: []\doc_ar@Obj): []@PropInfo
 	var propsNames: [][]char :: objs[0].propsNames()
 	var propsTypes: []\doc_ar@PropType :: objs[0].propsTypes()
 	var propsTypeDatas: [][][]char :: objs[0].propsTypeDatas()
-	assert ^ propsNames = ^propsTypes & ^propsTypes = ^propsTypeDatas
+	assert ^propsNames = ^propsTypes & ^propsTypes = ^propsTypeDatas
 	var propInfos: dict<[]char, @PropInfo> :: #dict<[]char, @PropInfo>
 	for i(0, ^propsNames - 1)
 		var propInfo: @PropInfo :: #@PropInfo

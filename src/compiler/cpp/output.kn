@@ -1381,7 +1381,7 @@ func buildExprValueArray(ast: \ast@AstExprValueArray)
 		do @codes.add("new_(Array_<\{@getType((ast.type $ \ast@AstTypeArray).itemType)}>)(")
 		var first: bool :: true
 		var items: list<\ast@AstExpr> :: ast.values
-		assert ^ items > 0
+		assert ^items > 0
 		do items.head()
 		while(!items.term())
 			if(first)
