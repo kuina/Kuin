@@ -79,6 +79,7 @@ end func
 	do @docs :: #dict<[]char, \doc@Doc>
 	do @docs.add("\\" ~ file@delExt(file@fileName(path)), @curDoc)
 	do \form@iconPath :: ""
+	do \form@cmdLine :: ""
 	do \prop@load()
 	do @initMainSrc()
 	do @curDoc.fix(true)

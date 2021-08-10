@@ -428,6 +428,9 @@ func[__any, __tch]_ins(me_: int, type: []int, item: int)
 end func
 
 func _joinStr(me_: [][]char, delimiter: []char): []char
+	if(^me_ = 0)
+		ret ""
+	end if
 	var t: int :: ^delimiter * (^me_ - 1)
 	for i(0, ^me_ - 1)
 		do t :+ ^me_[i]

@@ -14,6 +14,7 @@
 		do relatedFiles.addChild("path").setValue(\form@relatedFiles.get())
 		do \form@relatedFiles.next()
 	end while
+	do cfg.addChild("cmdline").setValue(\form@cmdLine)
 	
 	class Data()
 		+var reses: xml@Node
@@ -83,6 +84,13 @@ end func
 				do \form@relatedFiles.add(relatedFiles.getValue())
 				do relatedFiles :: relatedFiles.next()
 			end while
+		catch
+		end try
+		try
+			do \form@cmdLine :: cfg.findChild("cmdline").getValue()
+			if(\form@cmdLine =& null)
+				do \form@cmdLine :: ""
+			end if
 		catch
 		end try
 		try

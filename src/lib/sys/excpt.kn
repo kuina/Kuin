@@ -14,3 +14,4 @@
 +const invalidDataFmt: int :: 0xE9170008
 +const deviceInitFailed: int :: 0xE9170009
 +const dbgInoperableState: int :: 0xE917000A
++const creatingInvalidArray: int :: 0xE917000B

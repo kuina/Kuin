@@ -1,13 +1,14 @@
 var wndProjSettings: wnd@Wnd
 var editIcon: wnd@Edit
 var listRelatedFile: wnd@List
+var editCmdLine: wnd@Edit
 
 +func show()
 	do @wndProjSettings :: wnd@makeWnd(\form@wndMain, (%fix $ wnd@WndStyle).or(%noMinimize), 640, 405, \common@langEn ?("Other Settings", "その他の設定"))
 	var labelIcon: wnd@Label :: wnd@makeLabel(@wndProjSettings, 6, 6, 35, 12, %fix, %fix, \common@langEn ?("Icon", "アイコン"))
-	do @editIcon :: wnd@makeEdit(@wndProjSettings, 47, 6, 243, 19, %move, %fix)
+	do @editIcon :: wnd@makeEdit(@wndProjSettings, 47, 6, 243, 19, %fix, %fix)
 	do @editIcon.setText(\form@iconPath)
-	var btnIcon: wnd@Btn :: wnd@makeBtn(@wndProjSettings, 290, 6, 30, 19, %move, %fix, "...")
+	var btnIcon: wnd@Btn :: wnd@makeBtn(@wndProjSettings, 290, 6, 30, 19, %fix, %fix, "...")
 	do btnIcon.onPush :: btnIconOnPush
 	
 	var labelRelatedFile: wnd@Label :: wnd@makeLabel(@wndProjSettings, 6, 35, 314, 12, %fix, %fix, \common@langEn ?("Related Files (They are copied into the data folder.)", "関連ファイル (dataフォルダ以下にコピーされます)"))
@@ -27,10 +28,15 @@ var listRelatedFile: wnd@List
 	var btnCancel: wnd@Btn :: wnd@makeBtn(@wndProjSettings, 528, 370, 100, 23, %fix, %fix, "キャンセル")
 	do btnCancel.onPush :: btnCancelOnPush
 	
+	var labelCmdLine: wnd@Label :: wnd@makeLabel(@wndProjSettings, 332, 6, 302, 12, %fix, %fix, \common@langEn ?("Command Line", "コマンドライン"))
+	do @editCmdLine :: wnd@makeEdit(@wndProjSettings, 332, 30, 302, 19, %fix, %fix)
+	do @editCmdLine.setText(\form@cmdLine)
+	
 	do @wndProjSettings.modal()
 	do @wndProjSettings :: null
 	do @editIcon :: null
 	do @listRelatedFile :: null
+	do @editCmdLine :: null
 	
 	func btnIconOnPush(wnd: wnd@WndBase)
 		var file: []char :: wnd@openFileDialog(@wndProjSettings, [\common@langEn ?("Icon (*.ico,*.icon)", "アイコン (*.ico,*.icon)"), "*.ico;*.icon"], 0)
@@ -68,6 +74,7 @@ var listRelatedFile: wnd@List
 		for i(0, len - 1)
 			do \form@relatedFiles.add(relatedFiles[i])
 		end for
+		do \form@cmdLine :: @editCmdLine.getText().trim()
 		do \prop@changeProp()
 		do @wndProjSettings.close()
 	end func
