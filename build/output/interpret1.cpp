@@ -393,6 +393,11 @@ static void InterpretImpl1Align(int* ptr_buf, int* ptr_str, wchar_t* buf, const 
 					if (*tab_context < 0)
 						*tab_context = 0;
 				}
+				else if (str[begin] == L'r' && str[begin + 1] == L'e' && str[begin + 2] == L't' && *ptr_str == begin + 3 ||
+					str[begin] == L'd' && str[begin + 1] == L'o' && *ptr_str == begin + 2)
+				{
+					prev = AlignmentToken_Comma;
+				}
 				if (enum_depth != -1)
 					(*flags) |= 2;
 				else
