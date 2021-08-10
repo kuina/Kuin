@@ -46,6 +46,13 @@ v.2021.8.17
 -------------------------------------------------------------------------------
 
 v.2021.8.17
+    - Added the feature that allows command line arguments to be specified in
+      KuinEditor.
+    - Add the math@permutationNext, math@permutationPrev,
+      math@searchBreadthFirst, math@searchDepthFirst, and
+      math@searchPermutation functions.
+    - Extended the .join method to []int and []float.
+    - Improved usability of KuinEditor.
 v.2021.7.17
     - Fixed an issue where the file@copyDir function might not work properly.
     - Fixed a problem that the comparison result of int type may not be correct

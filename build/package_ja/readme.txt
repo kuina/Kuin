@@ -46,6 +46,11 @@ v.2021.8.17
 -------------------------------------------------------------------------------
 
 v.2021.8.17
+    - KuinEditorにコマンドライン引数が指定できる機能の追加
+    - math@permutationNext、math@permutationPrev、math@searchBreadthFirst、
+      math@searchDepthFirst、math@searchPermutation関数の追加
+    - .joinメソッドを[]int、[]floatに拡張
+    - KuinEditorの操作性の向上
 v.2021.7.17
     - file@copyDir関数が正しく動作しないことがある問題の修正
     - 環境がcppのときのint型の比較結果が正しくないことがある不具合の修正
