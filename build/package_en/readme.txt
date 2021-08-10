@@ -48,7 +48,7 @@ v.2021.8.17
 v.2021.8.17
     - Added the feature that allows command line arguments to be specified in
       KuinEditor.
-    - Add the math@permutationNext, math@permutationPrev,
+    - Added the math@permutationNext, math@permutationPrev,
       math@searchBreadthFirst, math@searchDepthFirst, and
       math@searchPermutation functions.
     - Extended the .join method to []int and []float.
