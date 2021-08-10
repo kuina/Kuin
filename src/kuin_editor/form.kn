@@ -61,6 +61,7 @@ var drag: bool
 +var zoom: float
 +var iconPath: []char
 +var relatedFiles: list<[]char>
++var cmdLine: []char
 var redrawingRequired: bool
 var interpret2Required: bool
 var completionRequired: bool
@@ -349,6 +350,7 @@ end enum
 	do @zoom :: 1.0
 	do @iconPath :: ""
 	do @relatedFiles :: #list<[]char>
+	do @cmdLine :: ""
 	do @redrawingRequired :: false
 	do @interpret2Required :: false
 	do @completionRequired :: false
@@ -951,7 +953,7 @@ func btnCompileOnPush(wnd: wnd@WndBase)
 				end if
 				do @editLog.addText(\common@langEn ?("0x0003FFFF: Run.", "0x0003FFFF: 実行。\n"))
 				do \dbgwnd@show()
-				if(\dll@runDbg(cmd, null, idleFunc, eventFunc, breakPointsFunc, breakFunc, dbgFunc))
+				if(\dll@runDbg(cmd, "\"\{out}\" " ~ @cmdLine, idleFunc, eventFunc, breakPointsFunc, breakFunc, dbgFunc))
 					do @editLog.addText(\common@langEn ?("\n0x0003FFFF: Succees.\n", "\n0x0003FFFF: 正常終了。\n"))
 				else
 					do @editLog.addText(\common@langEn ?("\n0x0003FFFF: Failure.\n", "\n0x0003FFFF: 実行失敗。\n"))
