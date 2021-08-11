@@ -162,6 +162,7 @@ end func
 		do left :- 1
 	end while
 	if(left < 0)
+		do array.reverse()
 		ret false
 	end if
 	var right: int :: ^array - 1
@@ -189,6 +190,7 @@ end func
 		do left :- 1
 	end while
 	if(left < 0)
+		do array.reverse()
 		ret false
 	end if
 	var right: int :: ^array - 1
