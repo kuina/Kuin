@@ -1815,7 +1815,7 @@ end func
 			case %bool_
 				do str2 :: value = 0b64 ?("false", "true")
 			default
-				assert(false)
+				assert (false)
 			end switch
 		case %typeBit
 			switch((arg.type $ \ast@AstTypeBit).size)
@@ -1828,7 +1828,7 @@ end func
 			case 8
 				do str2 :: (value $ int).toStr() ~ " (" ~ (value $ bit64).toStr() ~ ")"
 			default
-				assert(false)
+				assert (false)
 			end switch
 		default
 			if(\ast@isEnum(arg.type))

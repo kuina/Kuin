@@ -19,7 +19,7 @@ end func
 +func[d0917.knd, ResetMemAllocator]resetMemAllocator()
 end func
 
-; TODO: +func [d0917.knd, GetHint] getHint(bufIdx: int, src: []char, row: int, keyword: []char, hintSrc: &[]char, hintRow: &int, hintCol: &int): []char
+; TODO: +func[d0917.knd, GetHint]getHint(bufIdx: int, src: []char, row: int, keyword: []char, hintSrc: &[]char, hintRow: &int, hintCol: &int): []char
 ; end func
 
 +func[d0917.knd, GetKeywords]getKeywords(src: kuin@Class, srcName: []char, x: int, y: int, callback: func<([]char)>): []char

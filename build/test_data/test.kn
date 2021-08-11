@@ -498,7 +498,7 @@ func test5()
 		do cui@print(f(5).toStr() ~ "\n")
 		
 		func g(n: [][]char, m: [][]char): [][]char
-			ret[n[0], m[0]]
+			ret [n[0], m[0]]
 		end func
 		
 		var s: [][]char :: ["ab", "cd"]
@@ -2019,7 +2019,7 @@ func test21()
 		do cui@print("\n")
 		do cui@print("\{cipher@decrypt(b, key) $< int}\n")
 	end block
-
+	
 	block
 		var n: list<char> :: #list<char>
 		do n.add('a')

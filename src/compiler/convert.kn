@@ -178,15 +178,15 @@ end func
 end func
 
 +func bit16ToBin(n: bit16): []bit8
-	ret[n $ bit8, n.shr(8) $ bit8]
+	ret [n $ bit8, n.shr(8) $ bit8]
 end func
 
 +func bit32ToBin(n: bit32): []bit8
-	ret[n $ bit8, n.shr(8) $ bit8, n.shr(16) $ bit8, n.shr(24) $ bit8]
+	ret [n $ bit8, n.shr(8) $ bit8, n.shr(16) $ bit8, n.shr(24) $ bit8]
 end func
 
 +func bit64ToBin(n: bit64): []bit8
-	ret[n $ bit8, n.shr(8) $ bit8, n.shr(16) $ bit8, n.shr(24) $ bit8, n.shr(32) $ bit8, n.shr(40) $ bit8, n.shr(48) $ bit8, n.shr(56) $ bit8]
+	ret [n $ bit8, n.shr(8) $ bit8, n.shr(16) $ bit8, n.shr(24) $ bit8, n.shr(32) $ bit8, n.shr(40) $ bit8, n.shr(48) $ bit8, n.shr(56) $ bit8]
 end func
 
 +func getResFiles(): list<[]char>

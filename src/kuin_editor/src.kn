@@ -317,7 +317,7 @@ end func
 			do \form@listFile.setSel(sel)
 			do \form@listFileOnSel(\form@listFile)
 		end if
-		do(@curDoc $ \doc_src@DocSrc).move(pos.col - 1, pos.row - 1)
+		do (@curDoc $ \doc_src@DocSrc).move(pos.col - 1, pos.row - 1)
 		do \form@paintDrawEditor(false)
 		do \form@focusDrawEditor()
 		ret true
@@ -388,7 +388,7 @@ end func
 +func resetErrList()
 	do @errList :: #dict<@Pos, []char>
 	if(@curDoc =$ \doc_src@DocSrc)
-		do(@curDoc $ \doc_src@DocSrc).resetListInfoItem()
+		do (@curDoc $ \doc_src@DocSrc).resetListInfoItem()
 	end if
 end func
 

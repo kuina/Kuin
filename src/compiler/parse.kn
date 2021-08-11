@@ -76,7 +76,7 @@ func parseSrc(key: []char, value: \ast@Ast, data: kuin@Class): bool
 		do \err@err(%incorrectSrcName, null, [key])
 		ret true
 	end if
-	do(data $ lib@Bool).value :: false
+	do (data $ lib@Bool).value :: false
 	
 	var truePath: []char
 	if(key[0] = '\\')
@@ -283,9 +283,9 @@ func parseRoot(parentAstRoot: \ast@AstRoot): \ast@AstRoot
 		end block
 		
 		if(item.typeId = %var_)
-			do(item $ \ast@AstVar).arg.publicInSrc :: itemPublic
+			do (item $ \ast@AstVar).arg.publicInSrc :: itemPublic
 		elif(item.typeId = %const_)
-			do(item $ \ast@AstConst).arg.publicInSrc :: itemPublic
+			do (item $ \ast@AstConst).arg.publicInSrc :: itemPublic
 		else
 			do item.publicInSrc :: itemPublic
 		end if

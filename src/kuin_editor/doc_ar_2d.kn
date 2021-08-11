@@ -193,11 +193,11 @@ class ObjRect(@ObjAr2d)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["colorFill", "colorStroke", "strokeWidth"]
+		ret ["colorFill", "colorStroke", "strokeWidth"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%color $ \doc_ar@PropType, %color, %float_]
+		ret [%color $ \doc_ar@PropType, %color, %float_]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
@@ -262,11 +262,11 @@ class ObjCircle(@ObjAr2d)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["colorFill", "colorStroke", "strokeWidth"]
+		ret ["colorFill", "colorStroke", "strokeWidth"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%color $ \doc_ar@PropType, %color, %float_]
+		ret [%color $ \doc_ar@PropType, %color, %float_]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
@@ -370,15 +370,15 @@ class ObjText(@ObjAr2d)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["text", "color", "alignHorizontal", "alignVertical", "fontName", "fontSize", "bold", "italic", "proportional", "advance"]
+		ret ["text", "color", "alignHorizontal", "alignVertical", "fontName", "fontSize", "bold", "italic", "proportional", "advance"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%str $ \doc_ar@PropType, %color, %enum_, %enum_, %str, %int_, %bool_, %bool_, %bool_, %float_]
+		ret [%str $ \doc_ar@PropType, %color, %enum_, %enum_, %str, %int_, %bool_, %bool_, %bool_, %float_]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
-		ret[null, null, ["%left", "%center", "%right"], ["%top", "%center", "%bottom"], null, null, null, null, null, null]
+		ret [null, null, ["%left", "%center", "%right"], ["%top", "%center", "%bottom"], null, null, null, null, null, null]
 	end func
 	
 	+*func reloadRes()
@@ -462,11 +462,11 @@ class ObjImg(@ObjAr2d)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["texPath", "srcX", "srcY", "srcWidth", "srcHeight", "color"]
+		ret ["texPath", "srcX", "srcY", "srcWidth", "srcHeight", "color"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%str $ \doc_ar@PropType, %int_, %int_, %int_, %int_, %color]
+		ret [%str $ \doc_ar@PropType, %int_, %int_, %int_, %int_, %color]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
@@ -550,11 +550,11 @@ class ObjRoundRect(@ObjAr2d)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["colorFill", "colorStroke", "radiusX", "radiusY", "strokeWidth"]
+		ret ["colorFill", "colorStroke", "radiusX", "radiusY", "strokeWidth"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%color $ \doc_ar@PropType, %color, %int_, %int_, %float_]
+		ret [%color $ \doc_ar@PropType, %color, %int_, %int_, %float_]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
@@ -635,11 +635,11 @@ class ObjParticle(@ObjAr2d)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["lifespan", "friction", "accelX", "accelY", "color1", "color2", "sizeAccel", "rotAccel", "texPath"]
+		ret ["lifespan", "friction", "accelX", "accelY", "color1", "color2", "sizeAccel", "rotAccel", "texPath"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%int_ $ \doc_ar@PropType, %float_, %float_, %float_, %color, %color, %float_, %float_, %str]
+		ret [%int_ $ \doc_ar@PropType, %float_, %float_, %float_, %color, %color, %float_, %float_, %str]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char

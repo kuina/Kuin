@@ -143,7 +143,7 @@ func rebuild(mainFunc: \ast@AstFunc): \ast@AstFunc
 		do @rebuildFunc(entry)
 		var root: \ast@Ast :: @asts.get("\\" ~ \option@inputName, &)
 		assert root =$ \ast@AstRoot
-		do(root $ \ast@AstRoot).items.add(entry)
+		do (root $ \ast@AstRoot).items.add(entry)
 	end block
 	
 	do @asts.forEach(@rebuildRoot, null)
@@ -1885,7 +1885,7 @@ func rebuildType(ast: \ast@AstType, parentAlias: \ast@AstAlias): \ast@AstType
 			ret null
 		end switch
 	case %typeArray
-		do(ast $ \ast@AstTypeArray).itemType :: @rebuildType((ast $ \ast@AstTypeArray).itemType, parentAlias)
+		do (ast $ \ast@AstTypeArray).itemType :: @rebuildType((ast $ \ast@AstTypeArray).itemType, parentAlias)
 	case %typeFunc
 		var ast2: \ast@AstTypeFunc :: ast $ \ast@AstTypeFunc
 		var items: list<\ast@AstTypeFuncArg> :: ast2.args
@@ -1899,7 +1899,7 @@ func rebuildType(ast: \ast@AstType, parentAlias: \ast@AstAlias): \ast@AstType
 			do ast2.ret_ :: @rebuildType(ast2.ret_, parentAlias)
 		end if
 	case %typeGen
-		do(ast $ \ast@AstTypeGen).itemType :: @rebuildType((ast $ \ast@AstTypeGen).itemType, parentAlias)
+		do (ast $ \ast@AstTypeGen).itemType :: @rebuildType((ast $ \ast@AstTypeGen).itemType, parentAlias)
 	case %typeDict
 		var ast2: \ast@AstTypeDict :: ast $ \ast@AstTypeDict
 		do ast2.itemTypeKey :: @rebuildType(ast2.itemTypeKey, parentAlias)
@@ -2123,7 +2123,7 @@ func rebuildExpr2(ast: \ast@AstExpr2): \ast@AstExpr
 				do type.kind :: %bool_
 				if(ast.children0.type.typeId = %typeEnumElement)
 					if(ast.children1.type.typeId = %typeEnumElement)
-						assert(ast.children0.typeId = %exprValueEnumElement)
+						assert (ast.children0.typeId = %exprValueEnumElement)
 						do \err@err(%enumTypeNotInferred, ast.pos, [(ast.children0 $ \ast@AstExprValueEnumElement).identifier])
 						ret null
 					end if
@@ -2218,7 +2218,7 @@ func rebuildExpr2(ast: \ast@AstExpr2): \ast@AstExpr
 				do type.kind :: %bool_
 				if(ast.children0.type.typeId = %typeEnumElement)
 					if(ast.children1.type.typeId = %typeEnumElement)
-						assert(ast.children0.typeId = %exprValueEnumElement)
+						assert (ast.children0.typeId = %exprValueEnumElement)
 						do \err@err(%enumTypeNotInferred, ast.pos, [(ast.children0 $ \ast@AstExprValueEnumElement).identifier])
 						ret null
 					end if
@@ -2835,7 +2835,7 @@ func rebuildExprCall(ast: \ast@AstExprCall): \ast@AstExpr
 				if(^ast.args = 1)
 					do ast.args.add(meType)
 				else
-					assert ^ ast.args >= 2
+					assert ^ast.args >= 2
 					do ast.args.head()
 					do ast.args.next()
 					do ast.args.ins(meType)
@@ -2857,7 +2857,7 @@ func rebuildExprCall(ast: \ast@AstExprCall): \ast@AstExpr
 				var argExpr: \ast@AstExprCallArg :: itemsExpr.get()
 				var argType: \ast@AstTypeFuncArg :: itemsType.get()
 				if(argExpr.skipVar)
-					do(argExpr.arg.refItem $ \ast@AstArg).type :: argType.arg
+					do (argExpr.arg.refItem $ \ast@AstArg).type :: argType.arg
 				end if
 				do argExpr.arg :: @rebuildExpr(argExpr.arg, false)
 				if(argExpr.arg <>& null)
@@ -2988,7 +2988,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 				var func_: \ast@AstTypeFunc :: expr.type $ \ast@AstTypeFunc
 				if(func_.funcOption.and(%any) <> %none)
 					if(dbg)
-						assert ^ func_.args >= 2
+						assert ^func_.args >= 2
 						do func_.args.head()
 						assert \ast@isInt(func_.args.get().arg)
 						do func_.args.next()
@@ -3004,7 +3004,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 						assert func_.funcOption.and(%tch) = %none
 						assert func_.funcOption.and(%tkv) = %none
 						assert func_.funcOption.and(%kvf) = %none
-						assert ^ func_.args >= 3
+						assert ^func_.args >= 3
 						do func_.args.head()
 						do func_.args.next()
 						do func_.args.next()
@@ -3021,7 +3021,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 						assert func_.funcOption.and(%tme) = %none
 						assert func_.funcOption.and(%tkv) = %none
 						assert func_.funcOption.and(%kvf) = %none
-						assert ^ func_.args >= 3
+						assert ^func_.args >= 3
 						do func_.args.head()
 						do func_.args.next()
 						do func_.args.next()
@@ -3045,7 +3045,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 						assert func_.funcOption.and(%tme) = %none
 						assert func_.funcOption.and(%tch) = %none
 						assert func_.funcOption.and(%kvf) = %none
-						assert ^ func_.args >= 4
+						assert ^func_.args >= 4
 						do func_.args.head()
 						do func_.args.next()
 						do func_.args.next()
@@ -3067,7 +3067,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 						assert func_.funcOption.and(%tme) = %none
 						assert func_.funcOption.and(%tch) = %none
 						assert func_.funcOption.and(%tkv) = %none
-						assert ^ func_.args >= 3
+						assert ^func_.args >= 3
 						do func_.args.head()
 						do func_.args.next()
 						do func_.args.next()
@@ -3138,7 +3138,7 @@ func rebuildExprDot(ast: \ast@AstExprDot): \ast@AstExpr
 						assert func_.funcOption.and(%rch) = %none
 						assert \ast@isInt(func_.ret_)
 						assert varType.typeId = %typeGen
-						assert(varType $ \ast@AstTypeGen).kind = %list_
+						assert (varType $ \ast@AstTypeGen).kind = %list_
 					end if
 					var type: \ast@AstTypeArray :: #\ast@AstTypeArray
 					do @initAst(type, %typeArray, ast.pos)
@@ -3592,7 +3592,7 @@ func cmpType(type1: \ast@AstType, type2: \ast@AstType, strict: @CmpTypeStrict): 
 		ret @cmpType((type1 $ \ast@AstTypeArray).itemType, (type2 $ \ast@AstTypeArray).itemType, %strict)
 	end if
 	if(typeId1 = %typeBit & typeId2 = %typeBit)
-		ret(type1 $ \ast@AstTypeBit).size = (type2 $ \ast@AstTypeBit).size
+		ret (type1 $ \ast@AstTypeBit).size = (type2 $ \ast@AstTypeBit).size
 	end if
 	if(typeId1 = %typeFunc & typeId2 = %typeFunc)
 		var func1: \ast@AstTypeFunc :: type1 $ \ast@AstTypeFunc
@@ -3633,7 +3633,7 @@ func cmpType(type1: \ast@AstType, type2: \ast@AstType, strict: @CmpTypeStrict): 
 		ret @cmpType(dict1.itemTypeKey, dict2.itemTypeKey, %strict) & @cmpType(dict1.itemTypeValue, dict2.itemTypeValue, %strict)
 	end if
 	if(typeId1 = %typePrim & typeId2 = %typePrim)
-		ret(type1 $ \ast@AstTypePrim).kind = (type2 $ \ast@AstTypePrim).kind
+		ret (type1 $ \ast@AstTypePrim).kind = (type2 $ \ast@AstTypePrim).kind
 	end if
 	if(typeId1 = %typeUser & typeId2 = %typeUser)
 		assert type1.refItem.typeId <> %alias_ & type2.refItem.typeId <> %alias_
@@ -3706,7 +3706,7 @@ func searchEnumElementValue(ast: \ast@AstExprValueEnumElement, enum_: \ast@AstEn
 			if(item.typeId <> %exprValuePrim)
 				ret 0b64
 			end if
-			ret(item $ \ast@AstExprValuePrim).value
+			ret (item $ \ast@AstExprValuePrim).value
 		end if
 		do items.next()
 	end while
@@ -3834,7 +3834,7 @@ func getTypeName(type: \ast@AstType): []char
 			assert false
 		end switch
 	case %typeUser
-		ret(type.refName = "@" ?(type.pos.srcName, "")) ~ type.refName
+		ret (type.refName = "@" ?(type.pos.srcName, "")) ~ type.refName
 	case %typeEnumElement
 		ret "(UNKNOWN)"
 	default

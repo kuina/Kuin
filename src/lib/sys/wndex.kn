@@ -3,10 +3,10 @@ var inputBoxLabelText: wnd@Label
 var inputBoxBtnOk: wnd@Btn
 var inputBoxBtnCancel: wnd@Btn
 var inputBoxEditInput: wnd@Edit
-var inputBoxValidate: func<([]char):bool>
+var inputBoxValidate: func<([]char): bool>
 var inputBoxResult: []char
 
-+func inputBox(parent: wnd@Wnd, text: []char, title: []char, defaultValue: []char, validate: func<([]char):bool>): []char
++func inputBox(parent: wnd@Wnd, text: []char, title: []char, defaultValue: []char, validate: func<([]char): bool>): []char
 	do @inputBoxWndMain :: wnd@makeWnd(parent, (%dialog $ wnd@WndStyle).or(%noMinimize), 353, 120, title)
 	var screenWidth: int
 	var screenHeight: int
@@ -28,12 +28,12 @@ var inputBoxResult: []char
 	do @inputBoxEditInput.setSel(0, -1)
 	do @inputBoxValidate :: validate
 	do @inputBoxResult :: null
-
+	
 	var oldOnKeyPress: func<(wnd@Key, wnd@ShiftCtrl): bool> :: wnd@getOnKeyPress()
 	do wnd@setOnKeyPress(onKeyPress)
 	do @inputBoxWndMain.modal()
 	do wnd@setOnKeyPress(oldOnKeyPress)
-
+	
 	var result: []char :: @inputBoxResult
 	do @inputBoxWndMain :: null
 	do @inputBoxLabelText :: null
@@ -43,7 +43,7 @@ var inputBoxResult: []char
 	do @inputBoxValidate :: null
 	do @inputBoxResult :: null
 	ret result
-
+	
 	func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		if(shiftCtrl = %none)
 			switch(key)
@@ -54,7 +54,7 @@ var inputBoxResult: []char
 			end switch
 		end if
 	end func
-
+	
 	func btnOkOnPush(wnd: wnd@WndBase)
 		var text: []char :: @inputBoxEditInput.getText()
 		if(@inputBoxValidate =& null | @inputBoxValidate(text))
@@ -62,7 +62,7 @@ var inputBoxResult: []char
 			do @inputBoxWndMain.close()
 		end if
 	end func
-
+	
 	func btnCancelOnPush(wnd: wnd@WndBase)
 		do @inputBoxWndMain.close()
 	end func
@@ -74,17 +74,17 @@ end func
 	catch
 		ret null
 	end try
-
+	
 	func buildRecursion(node: xml@Node, parent: wnd@WndBase, parentX: int, parentY: int): wnd@WndBase
 		var result: wnd@WndBase
-
+		
 		var x: int :: parseInt(node, "x") - parentX
 		var y: int :: parseInt(node, "y") - parentY
 		var width: int :: parseInt(node, "width")
 		var height: int :: parseInt(node, "height")
 		var anchorX: wnd@Anchor :: parseAnchor(node, "anchor_x")
 		var anchorY: wnd@Anchor :: parseAnchor(node, "anchor_y")
-
+		
 		var isRoot: bool :: false
 		switch(node.getName())
 		case "root"
@@ -135,20 +135,20 @@ end func
 				do result.setVisible(false)
 			end if
 		end if
-
+		
 		var child: xml@Node :: node.firstChild()
 		while(child <>& null)
 			do buildRecursion(child, result, x, y)
 			do child :: child.next()
 		end while
-
+		
 		ret result
-
+		
 		func parseStr(node: xml@Node, prop: []char): []char
 			var result: []char :: node.getAttr(prop)
 			ret result =& null ?("", result)
 		end func
-
+		
 		func parseInt(node: xml@Node, prop: []char): int
 			var attr: []char :: node.getAttr(prop)
 			if(attr =& null)
@@ -163,7 +163,7 @@ end func
 				ret 0
 			end if
 		end func
-
+		
 		func parseBool(node: xml@Node, prop: []char): bool
 			var attr: []char :: node.getAttr(prop)
 			if(attr =& null)
@@ -171,7 +171,7 @@ end func
 			end if
 			ret attr = "true"
 		end func
-
+		
 		func parseWndStyle(node: xml@Node, prop: []char): wnd@WndStyle
 			switch(parseInt(node, prop))
 			case 1
@@ -184,7 +184,7 @@ end func
 				ret %normal
 			end switch
 		end func
-
+		
 		func parseAnchor(node: xml@Node, prop: []char): wnd@Anchor
 			switch(parseInt(node, prop))
 			case 1

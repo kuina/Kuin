@@ -24,7 +24,7 @@
 		do lines.add("\tif(@\{me.root.name} <>& null)")
 		do lines.add("\t\tret")
 		do lines.add("\tend if")
-		do(me.root $ @ObjArWnd).getSrcMake(1, lines, "null")
+		do (me.root $ @ObjArWnd).getSrcMake(1, lines, "null")
 		if(!me.root.visible)
 			do lines.add("\tdo @\{me.root.name}.setVisible(false)")
 		end if
@@ -159,15 +159,15 @@ class ObjWnd(@ObjArWnd)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["style", "text", "onClose", "onActivate", "onPushMenu", "onDropFiles", "onResize"]
+		ret ["style", "text", "onClose", "onActivate", "onPushMenu", "onDropFiles", "onResize"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%enum_ $ \doc_ar@PropType, %str, %str, %str, %str, %str, %str]
+		ret [%enum_ $ \doc_ar@PropType, %str, %str, %str, %str, %str, %str]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
-		ret[["%normal", "%fix", "%aspect", "%popup"], null, null, null, null, null, null]
+		ret [["%normal", "%fix", "%aspect", "%popup"], null, null, null, null, null, null]
 	end func
 	
 	+*func type(): []char
@@ -225,15 +225,15 @@ class ObjBtn(@ObjArWnd)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["anchorX", "anchorY", "text", "onPush"]
+		ret ["anchorX", "anchorY", "text", "onPush"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%enum_ $ \doc_ar@PropType, %enum_, %str, %str]
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %str, %str]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
-		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null]
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null]
 	end func
 	
 	+*func type(): []char
@@ -296,15 +296,15 @@ class ObjEdit(@ObjArWnd)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["anchorX", "anchorY", "readonly", "rightAligned", "text", "onChange", "onFocus"]
+		ret ["anchorX", "anchorY", "readonly", "rightAligned", "text", "onChange", "onFocus"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%enum_ $ \doc_ar@PropType, %enum_, %bool_, %bool_, %str, %str, %str]
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %bool_, %str, %str, %str]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
-		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null, null]
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null, null]
 	end func
 	
 	+*func type(): []char
@@ -373,15 +373,15 @@ class ObjEditMulti(@ObjArWnd)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["anchorX", "anchorY", "readonly", "text", "onChange", "onFocus"]
+		ret ["anchorX", "anchorY", "readonly", "text", "onChange", "onFocus"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str, %str]
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str, %str]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
-		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null]
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null, null]
 	end func
 	
 	+*func type(): []char
@@ -442,15 +442,15 @@ class ObjLabel(@ObjArWnd)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["anchorX", "anchorY", "text"]
+		ret ["anchorX", "anchorY", "text"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%enum_ $ \doc_ar@PropType, %enum_, %str]
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %str]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
-		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
 	end func
 	
 	+*func type(): []char
@@ -504,15 +504,15 @@ class ObjChk(@ObjArWnd)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["anchorX", "anchorY", "chk", "text", "onPush"]
+		ret ["anchorX", "anchorY", "chk", "text", "onPush"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str]
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %bool_, %str, %str]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
-		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null]
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null, null, null]
 	end func
 	
 	+*func type(): []char
@@ -576,15 +576,15 @@ class ObjGroup(@ObjArWnd)
 	end func
 	
 	+*func propsNames(): [][]char
-		ret["anchorX", "anchorY", "text"]
+		ret ["anchorX", "anchorY", "text"]
 	end func
 	
 	+*func propsTypes(): []\doc_ar@PropType
-		ret[%enum_ $ \doc_ar@PropType, %enum_, %str]
+		ret [%enum_ $ \doc_ar@PropType, %enum_, %str]
 	end func
 	
 	+*func propsTypeDatas(): [][][]char
-		ret[["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
+		ret [["%fix", "%move", "%scale"], ["%fix", "%move", "%scale"], null]
 	end func
 	
 	+*func type(): []char

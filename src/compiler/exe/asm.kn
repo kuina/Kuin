@@ -523,11 +523,11 @@ func isRxReg(reg: @ValReg): bool
 end func
 
 func isSplReg(reg: @ValReg): bool
-	ret(reg.reg $ bit8).and(0xF8b8) = 0x10b8
+	ret (reg.reg $ bit8).and(0xF8b8) = 0x10b8
 end func
 
 func getRegCode(reg: @ValReg): bit8
-	ret(reg.reg $ bit8).and(0x07b8)
+	ret (reg.reg $ bit8).and(0x07b8)
 end func
 
 +func newAddr(): lib@Int
@@ -1261,7 +1261,7 @@ end func
 							var addr2: bit16 :: getRefValue((asm2.c $ @ValImm).value, writer, refValueList) $ bit16
 							do writer.write(\convert@bit16ToBin(addr2))
 						else
-							assert(asm2.a.size = 4 & asm2.b.size = 4 | asm2.a.size = 8 & asm2.b.size = 8) & asm2.c.size = 4
+							assert (asm2.a.size = 4 & asm2.b.size = 4 | asm2.a.size = 8 & asm2.b.size = 8) & asm2.c.size = 4
 							var addr2: bit32 :: getRefValue((asm2.c $ @ValImm).value, writer, refValueList) $ bit32
 							do writer.write(\convert@bit32ToBin(addr2))
 						end if
@@ -1338,7 +1338,7 @@ end func
 					do writer.write(\convert@bit64ToBin(addr2))
 				end if
 			else
-				assert(@isMem(asm2.a) & asm2.b.typeId = %imm)
+				assert (@isMem(asm2.a) & asm2.b.typeId = %imm)
 				do writeRegImm(writer, refValueList, 0xC6b8, asm2.a, asm2.b, 0x00b8)
 			end if
 		case %movsx
@@ -1380,7 +1380,7 @@ end func
 			if((asm2.a.size = 2 | asm2.a.size = 4 | asm2.a.size = 8) & asm2.b.size = 1)
 				do writer.write([0xB6b8])
 			else
-				assert(asm2.a.size = 4 | asm2.a.size = 8) & asm2.b.size = 2
+				assert (asm2.a.size = 4 | asm2.a.size = 8) & asm2.b.size = 2
 				do writer.write([0xB7b8])
 			end if
 			do writeValMem(writer, refValueList, asm2.b, asm2.a)
@@ -1466,7 +1466,7 @@ end func
 			var addr: bit16 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit16
 			do writer.write(\convert@bit16ToBin(addr))
 		else
-			assert(a.size = 4 | a.size = 8) & b.size <= 4
+			assert (a.size = 4 | a.size = 8) & b.size <= 4
 			do writer.write([code + 1b8])
 			var addr: bit32 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit32
 			do writer.write(\convert@bit32ToBin(addr))
@@ -1487,7 +1487,7 @@ end func
 			var addr: bit16 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit16
 			do writer.write(\convert@bit16ToBin(addr))
 		else
-			assert(a.size = 4 | a.size = 8) & b.size <= 4
+			assert (a.size = 4 | a.size = 8) & b.size <= 4
 			do writer.write([code + 1b8])
 			do writeValMemS(writer, refValueList, a, rate)
 			var addr: bit32 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit32
@@ -1498,7 +1498,7 @@ end func
 	func writeRegImm2(writer: file@Writer, refValueList: list<@RefValueAddr>, code: bit8, a: @Val, b: @Val, rate: bit8)
 		assert b.typeId = %imm
 		do rex(writer, a, b)
-		assert(a.size = 2 | a.size = 4 | a.size = 8) & b.size = 1
+		assert (a.size = 2 | a.size = 4 | a.size = 8) & b.size = 1
 		do writer.write([code])
 		do writeValMemS(writer, refValueList, a, rate)
 		var addr: bit8 :: getRefValue((b $ @ValImm).value, writer, refValueList) $ bit8

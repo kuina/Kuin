@@ -227,7 +227,7 @@ func wndFindBtnNextOnPush(wnd: wnd@WndBase)
 				do data.regularExpression :: @wndFindChkRegularExpressionLast
 				do \src@docs.forEach(findAll, data)
 			elif(\src@curDoc =$ \doc_src@DocSrc)
-				do(\src@curDoc $ \doc_src@DocSrc).findSel(@wndResultListItems, @resultPoses, \src@curDocName, @wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
+				do (\src@curDoc $ \doc_src@DocSrc).findSel(@wndResultListItems, @resultPoses, \src@curDocName, @wndFindEditPatternLast, @wndFindChkDistinguishCaseLast, @wndFindChkOnlyWordLast, @wndFindChkRegularExpressionLast)
 			end if
 			do \form@focusDrawEditor()
 		end if
@@ -241,7 +241,7 @@ func wndFindBtnNextOnPush(wnd: wnd@WndBase)
 		if(key[0] <> '\\')
 			ret true
 		end if
-		do(value $ \doc_src@DocSrc).findAll(data2.list_, data2.poses, key, data2.pattern, data2.distinguishCase, data2.onlyWord, data2.regularExpression)
+		do (value $ \doc_src@DocSrc).findAll(data2.list_, data2.poses, key, data2.pattern, data2.distinguishCase, data2.onlyWord, data2.regularExpression)
 		ret true
 	end func
 	

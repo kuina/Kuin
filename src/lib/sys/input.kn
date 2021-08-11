@@ -141,25 +141,25 @@ end enum
 	menu
 end enum
 
-+func [d0001.knd, _enableCfgKey] enableCfgKey(enabled: bool)
++func[d0001.knd, _enableCfgKey]enableCfgKey(enabled: bool)
 end func
 
-+func [d0001.knd, _getCfg] getCfg(idx: int, btn: @PadBtn): int
++func[d0001.knd, _getCfg]getCfg(idx: int, btn: @PadBtn): int
 end func
 
-+func [d0001.knd, _inputKey] key(key_: @Key): bool
++func[d0001.knd, _inputKey]key(key_: @Key): bool
 end func
 
-+func [d0001.knd, _mousePos] mousePos(x: &int, y: &int)
++func[d0001.knd, _mousePos]mousePos(x: &int, y: &int)
 end func
 
-+func [d0001.knd, _pad] pad(idx: int, btn: @PadBtn): int
++func[d0001.knd, _pad]pad(idx: int, btn: @PadBtn): int
 end func
 
-+func [d0001.knd, _setCfg] setCfg(idx: int, btn: @PadBtn, newBtn: int)
++func[d0001.knd, _setCfg]setCfg(idx: int, btn: @PadBtn, newBtn: int)
 end func
 
-+func [d0001.knd, _setCfgKey] setCfgKey(idx: int, btn: @PadBtn, keys: []@Key)
++func[d0001.knd, _setCfgKey]setCfgKey(idx: int, btn: @PadBtn, keys: []@Key)
 end func
 #web
 var onKeyDown: func<(@Key, @ShiftCtrlAlt, bool)>
@@ -277,7 +277,7 @@ end enum
 
 func _init()
 	do setEvents(keyDown, keyUp)
-
+	
 	func setEvents(onKeyDown: func<(@Key, @ShiftCtrlAlt, bool)>, onKeyUp: func<(@Key)>)
 		excode "D_.addEventListener(\"keydown\",function(e_){`0`(Uint32Array.from([0,c_(e_.key)]),Uint32Array.from([0,(e_.shiftKey?1:0)|(e_.ctrlKey?2:0)|(e_.altKey?4:0)]),!e_.repeat);});\n"
 		excode "D_.addEventListener(\"keyup\",function(e_){`1`(Uint32Array.from([0,c_(e_.key)]));});\n"
@@ -386,13 +386,13 @@ func _init()
 		excode "}\n"
 		excode "}\n"
 	end func
-
+	
 	func keyDown(key: @Key, shiftCtrlAlt: @ShiftCtrlAlt, first: bool)
 		if(@onKeyDown <>& null)
 			do @onKeyDown(key, shiftCtrlAlt, first)
 		end if
 	end func
-
+	
 	func keyUp(key: @Key)
 		if(@onKeyUp <>& null)
 			do @onKeyUp(key)

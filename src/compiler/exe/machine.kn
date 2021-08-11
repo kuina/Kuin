@@ -152,7 +152,7 @@ var importLen: int
 	do @writer.fin()
 	
 	func dosHeader(): []bit8
-		ret[
+		ret [
 		|0x4Db8, 0x5Ab8, {Magic number(MZ)}
 		|0x90b8, 0x00b8, {Bytes on last page of file}
 		|0x03b8, 0x00b8, {Pages in file}
@@ -192,7 +192,7 @@ var importLen: int
 	end func
 	
 	func peHeader(): []bit8
-		ret[
+		ret [
 		|0x50b8, 0x45b8, 0x00b8, 0x00b8, {PE}
 		|0x64b8, 0x86b8, {Machine = IMAGE_FILE_MACHINE_AMD64}
 		|0x05b8, 0x00b8, {Number of sections}
@@ -249,7 +249,7 @@ var importLen: int
 	end func
 	
 	func sectionHeader(): []bit8
-		ret[
+		ret [
 		|0x2Eb8, 0x74b8, 0x65b8, 0x78b8, 0x74b8, 0x00b8, 0x00b8, 0x00b8, {.text}
 		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Misc}
 		|0x00b8, 0x00b8, 0x00b8, 0x00b8, {Virtual address}
@@ -304,7 +304,7 @@ var importLen: int
 end func
 
 func padding(value: int, align: int): int
-	ret(align - 1) - (value + align - 1) % align
+	ret (align - 1) - (value + align - 1) % align
 end func
 
 func write(addr: int, data: []bit8)
@@ -332,7 +332,7 @@ func writeCode()
 		end if
 		var addr2: int :: @writer.getPos() - @code.dataPos $ int + @code.imgPos $ int
 		while(!refValueList.term())
-			do(refValueList.get()).bottom :: addr2
+			do (refValueList.get()).bottom :: addr2
 			do refValueList.next()
 		end while
 		do items.next()
