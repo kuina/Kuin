@@ -44,7 +44,9 @@ copy /Y ".\libs\Release_rls\*.knd" ".\deploy_exe_en\sys\data\rls\"
 copy /Y ".\output\x64\Release\kuin_dll_en\kuin_dll_en.dll" "%~dp0deploy_exe_en\data\d0917.knd"
 
 copy /Y ".\output\kuin_cpp_ja.cpp" "%~dp0package_src_ja\kuin.cpp"
+xcopy /s /e /q /i /y "%~dp0deploy_exe_ja\sys" "%~dp0package_src_ja\sys"
 copy /Y ".\output\kuin_cpp_en.cpp" "%~dp0package_src_en\kuin.cpp"
+xcopy /s /e /q /i /y "%~dp0deploy_exe_en\sys" "%~dp0package_src_en\sys"
 
 pause
 
