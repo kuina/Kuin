@@ -1785,6 +1785,7 @@ func write()
 		
 		do writer.writeStr("function F_(p,f){\n")
 		block
+			var resDirLen: int :: ^file@fullPath(\option@resDir)
 			var first: bool :: true
 			do resFiles.head()
 			while(!resFiles.term())
@@ -1795,7 +1796,7 @@ func write()
 				else
 					do writer.writeStr("else if(p==\"res/")
 				end if
-				for i(^file@fullPath(\option@resDir), ^resFile - 1)
+				for i(resDirLen, ^resFile - 1)
 					do writer.writeStr(@escapeChar(resFile[i]))
 				end for
 				do writer.writeStr("\")\n")
@@ -1830,6 +1831,7 @@ func write()
 		
 		block
 			do writer.writeStr("function FF_(){return[")
+			var inputDirLen: int :: ^\option@inputDir
 			var first: bool :: true
 			do resFiles.head()
 			while(!resFiles.term())
@@ -1840,7 +1842,7 @@ func write()
 				else
 					do writer.writeStr(",\"")
 				end if
-				for i(^\option@inputDir, ^resFile - 1)
+				for i(inputDirLen, ^resFile - 1)
 					do writer.writeStr(@escapeChar(resFile[i]))
 				end for
 				do writer.writeStr("\"")

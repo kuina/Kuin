@@ -44,7 +44,6 @@ end enum
 				if(!getArg1(&@outputFile, cmdLines, &i, c))
 					ret false
 				end if
-				do @outputFile :: file@fullPath(@outputFile)
 			case 's'
 				if(!getArg1(&@sysDir, cmdLines, &i, c))
 					ret false

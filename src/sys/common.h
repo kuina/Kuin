@@ -627,17 +627,13 @@ static bool moveDir_(const char16_t* d, const char16_t* s) {
 }
 
 static bool makeDir2_(const char16_t* p) {
-	char16_t b[512];
-	int64_t l = fullPath_(b, p);
-	if (l == 0)
-		return false;
-	const char16_t* q = b;
+	const char16_t* q = p;
 	while (*q != 0){
-		while (*q != '/')
+		while (*q != '/' && *q != '\\')
 			q++;
 		char16_t a[512];
-		memcpy(a, b, sizeof(char16_t) * static_cast<std::size_t>(q - b + 1));
-		a[q - b + 1] = 0;
+		memcpy(a, p, sizeof(char16_t) * static_cast<std::size_t>(q - p + 1));
+		a[q - p + 1] = 0;
 		if (!fileExists_(a))
 		{
 			if (!makeDir_(a))

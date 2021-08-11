@@ -202,7 +202,7 @@ end func
 	
 	func searchResFiles(path: []char, isDir: bool, data: kuin@Class): bool
 		var data2: ResFiles :: data $ ResFiles
-		do data2.files.add(path)
+		do data2.files.add(file@fullPath(path))
 		ret true
 	end func
 end func
@@ -338,7 +338,7 @@ end func
 		end if
 		
 		var trueReadingPath: []char :: file@fullPath(readingPath)
-		var trueWritingPath: []char :: file@fullPath(\option@outputDir ~ writingPath)
+		var trueWritingPath: []char :: \option@outputDir ~ writingPath
 		if(!file@copyFile(trueWritingPath, trueReadingPath))
 			do \err@err(%fileSaveFailed, null, [trueWritingPath])
 			ret false

@@ -20,7 +20,7 @@ func main()
 	end if
 	
 	if(\option@help | \option@inputFile =& null)
-		do cui@print("Usage: kuincl [-i input.kn] [-o output.kn] [-s 'sys' directory] [-e environment] [-a appcode] [-p 'res' directory] [-c icon.ico] [-f additional files] [-r] [-h] [-v] [-q] [-x extra option]\n")
+		do cui@print("Usage: kuincl [-i input.kn] [-o output] [-s 'sys' directory] [-e environment] [-a appcode] [-p 'res' directory] [-c icon.ico] [-f additional files] [-r] [-h] [-v] [-q] [-x extra option]\n")
 		do lib@exitCode(0)
 		ret
 	end if
