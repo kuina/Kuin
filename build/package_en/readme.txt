@@ -52,6 +52,8 @@ v.2021.8.17
       math@searchBreadthFirst, math@searchDepthFirst, and
       math@searchPermutation functions.
     - Extended the .join method to []int and []float.
+    - Fixed a issue that the file@Reader.readStr method sometimes skipped
+      reading the first double-byte character.
     - Improved usability of KuinEditor.
 v.2021.7.17
     - Fixed an issue where the file@copyDir function might not work properly.

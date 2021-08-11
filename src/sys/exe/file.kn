@@ -236,6 +236,7 @@ end enum
 	
 	func skipDelimiters()
 		while loop(true)
+			var pos: int :: me.getPos()
 			var c: char :: me.readLetter()
 			for i(0, ^me.delimiters - 1)
 				if(c = me.delimiters[i] | (c = '\u000D' & me.delimiters[i] = '\n'))
@@ -246,7 +247,7 @@ end enum
 				skip loop
 			end if
 			if(c <> '\uFFFF')
-				do me.setPos(%cur, -1)
+				do me.setPos(%head, pos)
 			end if
 			ret
 		end while

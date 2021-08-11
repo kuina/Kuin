@@ -50,6 +50,8 @@ v.2021.8.17
     - math@permutationNext、math@permutationPrev、math@searchBreadthFirst、
       math@searchDepthFirst、math@searchPermutation関数の追加
     - .joinメソッドを[]int、[]floatに拡張
+    - file@Reader.readStrメソッドが先頭の全角文字を読み飛ばすことがある不具合の
+      修正
     - KuinEditorの操作性の向上
 v.2021.7.17
     - file@copyDir関数が正しく動作しないことがある問題の修正
