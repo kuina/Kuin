@@ -43,6 +43,9 @@ copy /Y ".\libs\Release_rls\*.knd" ".\deploy_exe_en\sys\data\rls\"
 .\deploy_exe_en\kuincl.exe -i "%~dp0../src/kuin_editor/kuin_editor.kn" -o "%~dp0deploy_exe_en/kuin" -s "%~dp0deploy_exe_en/sys/" -e exe -r -x wnd -x lang=en
 copy /Y ".\output\x64\Release\kuin_dll_en\kuin_dll_en.dll" "%~dp0deploy_exe_en\data\d0917.knd"
 
+copy /Y ".\output\kuin_cpp_ja.cpp" "%~dp0package_src_ja\kuin.cpp"
+copy /Y ".\output\kuin_cpp_en.cpp" "%~dp0package_src_en\kuin.cpp"
+
 pause
 
 popd
