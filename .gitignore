@@ -17,3 +17,5 @@
 /build/output/
 /build/deploy_*/
 /build/package/
+/build/package_src_*/sys/
+/build/package_src_*/kuin.cpp
