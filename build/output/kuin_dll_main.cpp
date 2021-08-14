@@ -314,8 +314,8 @@ static int64_t FileSize(int64_t handle)
 	for (i = 0; i < len; i++)
 	{
 		total += *reinterpret_cast<int64_t*>(reinterpret_cast<uint8_t*>(*reinterpret_cast<void**>(ptr)) + 0x08);
-		if (total >= 2)
-			return 2; // A value of 2 or more is not distinguished.
+		if (total >= 3)
+			return 3; // A value of 3 or more is not distinguished.
 		ptr = reinterpret_cast<uint8_t*>(ptr) + 0x08;
 	}
 	return total;
