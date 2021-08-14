@@ -97,7 +97,7 @@ func parseSrc(key: []char, value: \ast@Ast, data: kuin@Class): bool
 	block
 		var reload: []char :: null
 		var fileSize: int :: @fileSizeFunc =& null ?(@filePtr.fileSize(), @fileSizeFunc(@fileHandle))
-		if(fileSize <= 2 & key = "\\" ~ \option@inputName)
+		if(fileSize <= 3 & key = "\\" ~ \option@inputName)
 			var prefix: []char :: \option@env_ = %exe & \option@extra.get("wnd", &) ?("_wnd", "")
 			if(fileSize = 0)
 				do reload :: \option@sysDir ~ \option@getEnvStr(\option@env_) ~ "/_preset00" ~ prefix ~ ".kn"
