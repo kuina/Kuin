@@ -74,11 +74,11 @@ func[__rwi]build(): bool
 	
 	do \err@errCnt :: 0
 	var beginTime: int :: lib@sysTime()
-	do \err@err(%compilationStarted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStr()])
+	do \err@err(%compilationStarted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStrFmt(".3f")])
 	
 	; 'Parse'
 	do asts :: \parse@parse(useResFlags, null)
-	do \err@err(%parsingCompleted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStr()])
+	do \err@err(%parsingCompleted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStrFmt(".3f")])
 	
 	; Convert to binary files.
 	if(\option@extra.get("binary", &))
@@ -92,7 +92,7 @@ func[__rwi]build(): bool
 	; 'Analyze'
 	var funcAttrs: dict<[]char, dict<[]char, bool>>
 	do entry :: \analyze@analyze(asts, &funcAttrs)
-	do \err@err(%semanticAnalysisCompleted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStr()])
+	do \err@err(%semanticAnalysisCompleted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStrFmt(".3f")])
 	
 	; Stop compilation if some errors occur.
 	if(\err@errCnt > 0)
@@ -126,7 +126,7 @@ func[__rwi]build(): bool
 		ret false
 	end if
 	
-	do \err@err(%generationProcessCompleted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStr()])
+	do \err@err(%generationProcessCompleted, null, [((lib@sysTime() - beginTime) $ float / 1000.0).toStrFmt(".3f")])
 	if(\err@errCnt > 0)
 		ret false
 	end if
