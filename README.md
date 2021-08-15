@@ -7,7 +7,6 @@
 ***where many programmers who challenged to read the code never came back. --***  
   
 This is the git repository for the Kuin programming language, developed by Kuina-chan.  
-It is still under development and the software shows only Japanese messages yet.  
   
 All the files here are provided under the Kuina-chan License.  
 If you have any questions, please let me know in English or Japanese.  
@@ -32,14 +31,14 @@ Kuina-chan's twitter account: <https://twitter.com/kuina_ch> (@kuina_ch)
 #### # ビルド方法  
 Kuinコンパイラを手元でビルドする場合には、Visual C++ 2019が必要です。  
   
-/build/deploy_for_exe.batを実行すると、以下の段階を経て/build/deploy_exe内にKuinコンパイラが生成されます。  
+/build/deploy_for_exe.batを実行すると、以下の段階を経て/build/deploy_exe_ja内にKuinコンパイラ及びKuinエディタが生成されます。  
 1. 仮のKuinコンパイラ(/build/kuincl.exe)を使って、/src/compilerのソースからKuinコンパイラが/build/output/kuin.exeに生成されます。  
-2. 生成されたコンパイラを使って、/src/compilerのソースからC++のKuinコンパイラ(/build/output/kuin_cpp.cppおよび/build/output/kuin_dll.cpp)が生成されます。  
-3. Visual C++を使って、C++のKuinコンパイラから最終的なKuinコンパイラ/build/deploy_exe/kuincl.exeが生成されます。  
+2. 生成されたコンパイラを使って、/src/compilerのソースからC++のKuinコンパイラ(/build/output/kuin_cpp_ja.cppおよび/build/output/kuin_dll_ja.cpp)が生成されます。  
+3. Visual C++を使って、C++のKuinコンパイラから最終的なKuinコンパイラ/build/deploy_exe_ja/kuincl.exeが生成されます。  
 C++を経ているのは、Visual C++の強力な最適化によってパフォーマンスを高めるためです。  
+4. 最終的なKuinコンパイラを使って、/src/kuin_editorのソースからKuinエディタが/build/deploy_exe_ja/kuin.exeに生成されます。  
   
-その後、/build/build_editor.batを実行すると、Kuinエディタが/build/deploy_exe/kuin.exeに生成されます。  
-/build/deploy_exe/内の全ファイルを/build/package/内にコピーすると、パッケージが完成します。  
+その後、/build/deploy_exe_ja/内の全ファイルを/build/package_ja/内にコピーすると、パッケージが完成します。  
   
 すべてのファイルは「くいなちゃんライセンス( <https://kuina.ch/others/license> )」でご自由にお使いいただけます。  
 その他、あらゆるご質問はくいなちゃんまでどうぞ。  
