@@ -63,6 +63,7 @@ end func
 		do me.caretY :: -1
 		do me.caretShown :: false
 		do me.sys :: false
+		do me.clipboardLineStr :: ""
 	end func
 	
 	+*func fix(first: bool)
@@ -558,20 +559,33 @@ end func
 		if(me.locked())
 			ret
 		end if
+		do me.undo.recordBegin()
 		if(me.areaSel())
 			do me.copyAreaStr()
-			do me.undo.recordBegin()
 			do me.delAreaStr()
-			do me.interpret1SetDirty(me.cursorY, true, false)
-			do me.undo.recordEnd()
-			do me.refreshCursor(false, true, true)
-			do \form@paintDrawEditor(false)
+		else
+			do me.copyLineStr()
+			do me.del(me.cursorX, me.cursorY, 0, true) { for undoing }
+			do me.areaX :: 0
+			do me.areaY :: me.cursorY
+			var cursorX: int :: me.cursorX
+			do me.cursorX :: 0
+			do me.cursorY :+ 1
+			do me.delAreaStr()
+			do me.cursorX :: lib@min(cursorX, ^me.src.src[me.cursorY])
+			do me.del(me.cursorX, me.cursorY, 0, true) { for redoing }
 		end if
+		do me.interpret1SetDirty(me.cursorY, true, false)
+		do me.undo.recordEnd()
+		do me.refreshCursor(false, true, true)
+		do \form@paintDrawEditor(false)
 	end func
 	
 	+*func cmdCopy()
 		if(me.areaSel())
 			do me.copyAreaStr()
+		else
+			do me.copyLineStr()
 		end if
 	end func
 	
@@ -582,10 +596,24 @@ end func
 		var str: []char :: wnd@getClipboardStr()
 		if(str <>& null)
 			do me.undo.recordBegin()
+			var cursorX: int :: 0
+			if(str = me.clipboardLineStr)
+				if(!me.areaSel())
+					do me.del(me.cursorX, me.cursorY, 0, true) { for undoing }
+					do cursorX :: me.cursorX
+					do me.cursorX :: 0
+				end if
+			else
+				do me.clipboardLineStr :: ""
+			end if
 			if(me.areaSel())
 				do me.delAreaStr()
 			end if
 			do me.ins(me.cursorX, me.cursorY, str, true)
+			if(cursorX <> 0)
+				do me.cursorX :: lib@min(cursorX, ^me.src.src[me.cursorY])
+				do me.del(me.cursorX, me.cursorY, 0, true) { for redoing }
+			end if
 			do me.interpret1SetDirty(me.cursorY, true, false)
 			do me.undo.recordEnd()
 			do me.refreshCursor(false, true, true)
@@ -1184,6 +1212,7 @@ end func
 	var caretShown: bool
 	var sys: bool
 	var lock: bool
+	var clipboardLineStr: []char
 	
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
@@ -1416,7 +1445,13 @@ end func
 			end for
 			do str :~ me.src.src[y2].sub(0, x2)
 		end if
+		do me.clipboardLineStr :: ""
 		do wnd@setClipboardStr(str)
+	end func
+	
+	func copyLineStr()
+		do me.clipboardLineStr :: me.src.src[me.cursorY].sub(0, -1) ~ "\n"
+		do wnd@setClipboardStr(me.clipboardLineStr)
 	end func
 	
 	func delAreaStr()
