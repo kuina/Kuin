@@ -1069,7 +1069,16 @@ end func
 +func[d0001.knd, _screenSize]screenSize(width: &int, height: &int)
 end func
 
-+func[d0001.knd, _setClipboardStr]setClipboardStr(str: []char)
++func[d0001.knd, _setClipboardStr]setClipboardStr(str: []char): bool
+end func
+
++func[d0001.knd, _setClipboard]setClipboard(format: int, str: []bit8): bool
+end func
+
++func[d0001.knd, _registerClipboardFormat]registerClipboardFormat(formatName: []char): int
+end func
+
++func[d0001.knd, _isClipboardFormatAvailable]isClipboardFormatAvailable(format: int): bool
 end func
 
 +func[d0001.knd, _setOnKeyPress]setOnKeyPress(onKeyPressFunc: func<(@Key, @ShiftCtrl): bool>)
