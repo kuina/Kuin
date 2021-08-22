@@ -432,6 +432,23 @@ end func
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(-1)
 				do \form@paintDrawEditor(false)
+			elif(wnd@key(%alt))
+				if(me.cursorY <> 0 & !me.areaSel())
+					do me.undo.recordBegin()
+					var src: []char :: me.src.src[me.cursorY] ~ "\n"
+					var x: int :: me.cursorX
+					var y: int :: me.cursorY
+					var isLastLine: bool :: y = ^me.src.src - 1
+					do me.delLine(x, y, true)
+					do me.insLine(x, y - 1, src, true)
+					if(isLastLine)
+						do me.bs(0, y + 1, 1, true)
+					end if
+					do me.cursorX :: x
+					do me.cursorY :: y - 1
+					do me.interpret1SetDirty(me.cursorY, true, false)
+					do me.undo.recordEnd()
+				end if
 			else
 				do me.setArea(shiftCtrl)
 				var absoluteX: int :: me.getAbsoluteX()
@@ -461,6 +478,23 @@ end func
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(1)
 				do \form@paintDrawEditor(false)
+			elif(wnd@key(%alt))
+				if(me.cursorY <> ^me.src.src - 1 & !me.areaSel())
+					do me.undo.recordBegin()
+					var x: int :: me.cursorX
+					var y: int :: me.cursorY
+					var isLastLine: bool :: y + 1 = ^me.src.src - 1
+					var src: []char :: me.src.src[y + 1] ~ "\n"
+					do me.delLine(x, y + 1, true)
+					do me.insLine(x, y, src, true)
+					if(isLastLine)
+						do me.bs(0, y + 2, 1, true)
+					end if
+					do me.cursorX :: x
+					do me.cursorY :: y + 1
+					do me.interpret1SetDirty(me.cursorY, true, false)
+					do me.undo.recordEnd()
+				end if
 			else
 				do me.setArea(shiftCtrl)
 				var absoluteX: int :: me.getAbsoluteX()
@@ -565,15 +599,7 @@ end func
 			do me.delAreaStr()
 		else
 			do me.copyLineStr()
-			do me.del(me.cursorX, me.cursorY, 0, true) { for undoing }
-			do me.areaX :: 0
-			do me.areaY :: me.cursorY
-			var cursorX: int :: me.cursorX
-			do me.cursorX :: 0
-			do me.cursorY :+ 1
-			do me.delAreaStr()
-			do me.cursorX :: lib@min(cursorX, ^me.src.src[me.cursorY])
-			do me.del(me.cursorX, me.cursorY, 0, true) { for redoing }
+			do me.delLine(me.cursorX, me.cursorY, true)
 		end if
 		do me.interpret1SetDirty(me.cursorY, true, false)
 		do me.undo.recordEnd()
@@ -597,22 +623,13 @@ end func
 		if(str <>& null)
 			do me.undo.recordBegin()
 			var cursorX: int :: 0
-			if(str = me.clipboardLineStr)
-				if(!me.areaSel())
-					do me.del(me.cursorX, me.cursorY, 0, true) { for undoing }
-					do cursorX :: me.cursorX
-					do me.cursorX :: 0
-				end if
-			else
-				do me.clipboardLineStr :: ""
-			end if
 			if(me.areaSel())
 				do me.delAreaStr()
-			end if
-			do me.ins(me.cursorX, me.cursorY, str, true)
-			if(cursorX <> 0)
-				do me.cursorX :: lib@min(cursorX, ^me.src.src[me.cursorY])
-				do me.del(me.cursorX, me.cursorY, 0, true) { for redoing }
+				do me.ins(me.cursorX, me.cursorY, str, true)
+			elif(str <> me.clipboardLineStr)
+				do me.ins(me.cursorX, me.cursorY, str, true)
+			else
+				do me.insLine(me.cursorX, me.cursorY, str, true)
 			end if
 			do me.interpret1SetDirty(me.cursorY, true, false)
 			do me.undo.recordEnd()
@@ -665,6 +682,20 @@ end func
 				default
 					assert false
 				end switch
+			end block
+		elif(undo2 =$ UndoSrcInsLine)
+			block
+				var undo3: UndoSrcInsLine :: undo2 $ UndoSrcInsLine
+				do me.insLine(undo3.x, undo3.y, undo3.str, false)
+				if(undo2 =$ UndoSrcInsLineUndo)
+					do me.cursorX :: undo3.x
+					do me.cursorY :: undo3.y
+				end if
+			end block
+		elif(undo2 =$ UndoSrcDelLine)
+			block
+				var undo3: UndoSrcDelLine :: undo2 $ UndoSrcDelLine
+				do me.delLine(undo3.x, undo3.y, false)
 			end block
 		else
 			assert false
@@ -1188,6 +1219,20 @@ end func
 		+var len: int
 	end class
 	
+	class UndoSrcInsLine(UndoSrc)
+		+var x: int
+		+var y: int
+		+var str: []char
+	end class
+	
+	class UndoSrcInsLineUndo(UndoSrcInsLine)
+	end class
+	
+	class UndoSrcDelLine(UndoSrc)
+		+var x: int
+		+var y: int
+	end class
+	
 	class UndoSrcReplaceAll(UndoSrc)
 		+var x: []int
 		+var y: []int
@@ -1611,6 +1656,31 @@ end func
 		do me.changed :: true
 	end func
 	
+	func insLine(x: int, y: int, str: []char, recordUndo: bool)
+		var redo: UndoSrcInsLine
+		if(recordUndo)
+			do redo :: #UndoSrcInsLine
+			do redo.doc :: me
+			do redo.x :: x
+			do redo.y :: y
+			do redo.str :: str
+		end if
+		do me.cursorX :: x
+		do me.cursorY :: y
+		var absoluteX: int :: me.getAbsoluteX()
+		do me.ins(0, y, str, false)
+		do me.setAbsoluteX(absoluteX)
+		if(recordUndo)
+			var undo: UndoSrcDelLine :: #UndoSrcDelLine
+			do undo.doc :: me
+			do undo.x :: x
+			do undo.y :: y
+			do me.undo.add(undo, redo)
+		end if
+		do me.absoluteX :: 0
+		do me.changed :: true
+	end func
+	
 	func bs(x: int, y: int, len: int, recordUndo: bool)
 		var redo: UndoSrcBsDel
 		if(recordUndo)
@@ -1697,6 +1767,32 @@ end func
 		end if
 		do me.cursorX :: x
 		do me.cursorY :: y
+		do me.absoluteX :: 0
+		do me.changed :: true
+	end func
+	
+	func delLine(x: int, y: int, recordUndo: bool)
+		var redo: UndoSrcDelLine
+		if(recordUndo)
+			do redo :: #UndoSrcDelLine
+			do redo.doc :: me
+			do redo.x :: x
+			do redo.y :: y
+		end if
+		var undoStr: []char :: me.src.src[y] ~ (y = ^me.src.src - 1 ?("", "\n"))
+		do me.cursorX :: x
+		do me.cursorY :: y
+		var absoluteX: int :: me.getAbsoluteX()
+		do me.del(0, y, ^me.src.src[y] + 1, false)
+		do me.setAbsoluteX(absoluteX)
+		if(recordUndo)
+			var undo: UndoSrcInsLineUndo :: #UndoSrcInsLineUndo
+			do undo.doc :: me
+			do undo.x :: x
+			do undo.y :: y
+			do undo.str :: undoStr
+			do me.undo.add(undo, redo)
+		end if
 		do me.absoluteX :: 0
 		do me.changed :: true
 	end func

@@ -577,6 +577,8 @@ func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
 		end switch
 		if(\completion@displayed() & key <> %ctrl & !editFocused)
 			ret \src@curDoc.keyDown(key, shiftCtrl)
+		elif(wnd@key(%alt) & (key = %up | key = %down))
+			ret \src@curDoc.keyDown(key, shiftCtrl)
 		end if
 	elif(\go_to_line@wndGoToLine <>& null & \go_to_line@wndGoToLine.focusedWnd())
 		switch(shiftCtrl)
