@@ -432,6 +432,23 @@ end func
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(-1)
 				do \form@paintDrawEditor(false)
+			elif(wnd@key(%alt))
+				if(me.cursorY <> 0 & !me.areaSel())
+					do me.undo.recordBegin()
+					var src: []char :: me.src.src[me.cursorY] ~ "\n"
+					var x: int :: me.cursorX
+					var y: int :: me.cursorY
+					var isLastLine: bool :: y = ^me.src.src - 1
+					do me.delLine(x, y, true)
+					do me.insLine(x, y - 1, src, true)
+					if(isLastLine)
+						do me.bs(0, y + 1, 1, true)
+					end if
+					do me.cursorX :: x
+					do me.cursorY :: y - 1
+					do me.interpret1SetDirty(me.cursorY, true, false)
+					do me.undo.recordEnd()
+				end if
 			else
 				do me.setArea(shiftCtrl)
 				var absoluteX: int :: me.getAbsoluteX()
@@ -461,6 +478,23 @@ end func
 			elif(shiftCtrl = %ctrl)
 				do me.scrollPageY(1)
 				do \form@paintDrawEditor(false)
+			elif(wnd@key(%alt))
+				if(me.cursorY <> ^me.src.src - 1 & !me.areaSel())
+					do me.undo.recordBegin()
+					var x: int :: me.cursorX
+					var y: int :: me.cursorY
+					var isLastLine: bool :: y + 1 = ^me.src.src - 1
+					var src: []char :: me.src.src[y + 1] ~ "\n"
+					do me.delLine(x, y + 1, true)
+					do me.insLine(x, y, src, true)
+					if(isLastLine)
+						do me.bs(0, y + 2, 1, true)
+					end if
+					do me.cursorX :: x
+					do me.cursorY :: y + 1
+					do me.interpret1SetDirty(me.cursorY, true, false)
+					do me.undo.recordEnd()
+				end if
 			else
 				do me.setArea(shiftCtrl)
 				var absoluteX: int :: me.getAbsoluteX()
