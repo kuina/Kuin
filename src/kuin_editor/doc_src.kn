@@ -295,14 +295,14 @@ end func
 				ret true
 			end if
 			if(shiftCtrl = %none)
-				do me.undo.recordBegin()
+				do me.undoRecordBegin()
 				if(me.areaSel())
 					do me.delAreaStr()
 				else
 					do me.bs(me.cursorX, me.cursorY, 1, true)
 				end if
 				do me.interpret1SetDirty(me.cursorY, true, false)
-				do me.undo.recordEnd()
+				do me.undoRecordEnd()
 				do me.refreshCursor(false, true, true)
 				do \form@paintDrawEditor(false)
 				ret true
@@ -314,10 +314,10 @@ end func
 					ret true
 				end if
 				if(!me.areaSel())
-					do me.undo.recordBegin()
+					do me.undoRecordBegin()
 					do me.ins(me.cursorX, me.cursorY, "\t", true)
 					do me.interpret1SetDirty(me.cursorY, true, false)
-					do me.undo.recordEnd()
+					do me.undoRecordEnd()
 					do me.refreshCursor(false, true, true)
 					do \form@paintDrawEditor(false)
 				else
@@ -343,13 +343,13 @@ end func
 			end if
 			if(shiftCtrl = %none)
 				if(!me.complementImpl())
-					do me.undo.recordBegin()
+					do me.undoRecordBegin()
 					if(me.areaSel())
 						do me.delAreaStr()
 					end if
 					do me.ins(me.cursorX, me.cursorY, "\n", true)
 					do me.interpret1SetDirty(me.cursorY, true, false)
-					do me.undo.recordEnd()
+					do me.undoRecordEnd()
 					do me.refreshCursor(false, true, true)
 					do \form@paintDrawEditor(false)
 				end if
@@ -434,7 +434,7 @@ end func
 				do \form@paintDrawEditor(false)
 			elif(wnd@key(%alt))
 				if(me.cursorY <> 0 & !me.areaSel())
-					do me.undo.recordBegin()
+					do me.undoRecordBegin()
 					var src: []char :: me.src.src[me.cursorY] ~ "\n"
 					var x: int :: me.cursorX
 					var y: int :: me.cursorY
@@ -447,7 +447,7 @@ end func
 					do me.cursorX :: x
 					do me.cursorY :: y - 1
 					do me.interpret1SetDirty(me.cursorY, true, false)
-					do me.undo.recordEnd()
+					do me.undoRecordEnd()
 				end if
 			else
 				do me.setArea(shiftCtrl)
@@ -480,7 +480,7 @@ end func
 				do \form@paintDrawEditor(false)
 			elif(wnd@key(%alt))
 				if(me.cursorY <> ^me.src.src - 1 & !me.areaSel())
-					do me.undo.recordBegin()
+					do me.undoRecordBegin()
 					var x: int :: me.cursorX
 					var y: int :: me.cursorY
 					var isLastLine: bool :: y + 1 = ^me.src.src - 1
@@ -493,7 +493,7 @@ end func
 					do me.cursorX :: x
 					do me.cursorY :: y + 1
 					do me.interpret1SetDirty(me.cursorY, true, false)
-					do me.undo.recordEnd()
+					do me.undoRecordEnd()
 				end if
 			else
 				do me.setArea(shiftCtrl)
@@ -530,13 +530,13 @@ end func
 		if(\completion@displayed() & !('a' <= key & key <= 'z' | 'A' <= key & key <= 'Z' | '0' <= key & key <= '9' | key = '_' | key = '@' | key = '\\'))
 			do me.complementImpl()
 		end if
-		do me.undo.recordBegin()
+		do me.undoRecordBegin()
 		if(me.areaSel())
 			do me.delAreaStr()
 		end if
 		do me.ins(me.cursorX, me.cursorY, [key], true)
 		do me.interpret1SetDirty(me.cursorY, true, true)
-		do me.undo.recordEnd()
+		do me.undoRecordEnd()
 		do me.refreshCursor(false, true, true)
 		do \form@paintDrawEditor(false)
 	end func
@@ -593,7 +593,7 @@ end func
 		if(me.locked())
 			ret
 		end if
-		do me.undo.recordBegin()
+		do me.undoRecordBegin()
 		if(me.areaSel())
 			do me.copyAreaStr()
 			do me.delAreaStr()
@@ -602,7 +602,7 @@ end func
 			do me.delLine(me.cursorX, me.cursorY, true)
 		end if
 		do me.interpret1SetDirty(me.cursorY, true, false)
-		do me.undo.recordEnd()
+		do me.undoRecordEnd()
 		do me.refreshCursor(false, true, true)
 		do \form@paintDrawEditor(false)
 	end func
@@ -621,7 +621,7 @@ end func
 		end if
 		var str: []char :: wnd@getClipboardStr()
 		if(str <>& null)
-			do me.undo.recordBegin()
+			do me.undoRecordBegin()
 			var cursorX: int :: 0
 			if(me.areaSel())
 				do me.delAreaStr()
@@ -632,7 +632,7 @@ end func
 				do me.insLine(me.cursorX, me.cursorY, str, true)
 			end if
 			do me.interpret1SetDirty(me.cursorY, true, false)
-			do me.undo.recordEnd()
+			do me.undoRecordEnd()
 			do me.refreshCursor(false, true, true)
 			do \form@paintDrawEditor(false)
 		end if
@@ -642,14 +642,14 @@ end func
 		if(me.locked())
 			ret
 		end if
-		do me.undo.recordBegin()
+		do me.undoRecordBegin()
 		if(me.areaSel())
 			do me.delAreaStr()
 		else
 			do me.del(me.cursorX, me.cursorY, 1, true)
 		end if
 		do me.interpret1SetDirty(me.cursorY, true, false)
-		do me.undo.recordEnd()
+		do me.undoRecordEnd()
 		do me.refreshCursor(false, true, true)
 		do \form@paintDrawEditor(false)
 	end func
@@ -687,15 +687,19 @@ end func
 			block
 				var undo3: UndoSrcInsLine :: undo2 $ UndoSrcInsLine
 				do me.insLine(undo3.x, undo3.y, undo3.str, false)
-				if(undo2 =$ UndoSrcInsLineUndo)
-					do me.cursorX :: undo3.x
-					do me.cursorY :: undo3.y
-				end if
 			end block
 		elif(undo2 =$ UndoSrcDelLine)
 			block
 				var undo3: UndoSrcDelLine :: undo2 $ UndoSrcDelLine
 				do me.delLine(undo3.x, undo3.y, false)
+			end block
+		elif(undo2 =$ UndoSrcCursor)
+			block
+				var undo3: UndoSrcCursor :: undo2 $ UndoSrcCursor
+				do me.cursorX :: undo3.cursorX
+				do me.cursorY :: undo3.cursorY
+				do me.areaX :: undo3.areaX
+				do me.areaY :: undo3.areaY
 			end block
 		else
 			assert false
@@ -818,13 +822,13 @@ end func
 			if(code =& null)
 				ret
 			end if
-			do me.undo.recordBegin()
+			do me.undoRecordBegin()
 			if(me.areaSel())
 				do me.delAreaStr()
 			end if
 			do me.ins(me.cursorX, me.cursorY, code, true)
 			do me.interpret1SetDirty(me.cursorY, true, false)
-			do me.undo.recordEnd()
+			do me.undoRecordEnd()
 			do me.refreshCursor(false, true, true)
 			do \form@paintDrawEditor(false)
 		case %listRbOnMouseClick
@@ -1060,11 +1064,11 @@ end func
 			if(regex <>& null)
 				do replaceStr :: regex.replace(found, replaceStr, false)
 			end if
-			do me.undo.recordBegin()
+			do me.undoRecordBegin()
 			do me.del(x1, me.cursorY, ^found, true)
 			do me.ins(x1, me.cursorY, replaceStr, true)
 			do me.interpret1SetDirty(me.cursorY, true, false)
-			do me.undo.recordEnd()
+			do me.undoRecordEnd()
 		end if
 	end func
 	
@@ -1225,12 +1229,16 @@ end func
 		+var str: []char
 	end class
 	
-	class UndoSrcInsLineUndo(UndoSrcInsLine)
-	end class
-	
 	class UndoSrcDelLine(UndoSrc)
 		+var x: int
 		+var y: int
+	end class
+	
+	class UndoSrcCursor(UndoSrc)
+		+var cursorX: int
+		+var cursorY: int
+		+var areaX: int
+		+var areaY: int
 	end class
 	
 	class UndoSrcReplaceAll(UndoSrc)
@@ -1552,7 +1560,7 @@ end func
 		if(x2 = 0)
 			do y2 :- 1
 		end if
-		do me.undo.recordBegin()
+		do me.undoRecordBegin()
 		for i(y1, y2)
 			if(^me.src.src[i] <> 0)
 				if(i = oldAreaY)
@@ -1565,7 +1573,7 @@ end func
 			end if
 		end for
 		do me.interpret1SetDirty(y2, true, false)
-		do me.undo.recordEnd()
+		do me.undoRecordEnd()
 		do me.areaX :: oldAreaX
 		do me.areaY :: oldAreaY
 		do me.cursorX :: oldCursorX
@@ -1594,7 +1602,7 @@ end func
 		if(x2 = 0)
 			do y2 :- 1
 		end if
-		do me.undo.recordBegin()
+		do me.undoRecordBegin()
 		for i(y1, y2)
 			if(^me.src.src[i] > 0 & me.src.src[i][0] = '\t')
 				if(i = oldAreaY & oldAreaX > 0 & oldAreaX < ^me.src.src[i] & me.src.src[i][oldAreaX] <> '\t')
@@ -1607,7 +1615,7 @@ end func
 			end if
 		end for
 		do me.interpret1SetDirty(y2, true, false)
-		do me.undo.recordEnd()
+		do me.undoRecordEnd()
 		do me.areaX :: oldAreaX
 		do me.areaY :: oldAreaY
 		do me.cursorX :: oldCursorX
@@ -1786,7 +1794,7 @@ end func
 		do me.del(0, y, ^me.src.src[y] + 1, false)
 		do me.setAbsoluteX(absoluteX)
 		if(recordUndo)
-			var undo: UndoSrcInsLineUndo :: #UndoSrcInsLineUndo
+			var undo: UndoSrcInsLine :: #UndoSrcInsLine
 			do undo.doc :: me
 			do undo.x :: x
 			do undo.y :: y
@@ -1933,6 +1941,30 @@ end func
 			ret true
 		end if
 		ret me.lock
+	end func
+	
+	func undoRecordBegin()
+		do me.undo.recordBegin()
+		
+		var undo: UndoSrcCursor :: #UndoSrcCursor
+		do undo.doc :: me
+		do undo.cursorX :: me.cursorX
+		do undo.cursorY :: me.cursorY
+		do undo.areaX :: me.areaX
+		do undo.areaY :: me.areaY
+		do me.undo.add(undo, undo)
+	end func
+	
+	func undoRecordEnd()
+		var undo: UndoSrcCursor :: #UndoSrcCursor
+		do undo.doc :: me
+		do undo.cursorX :: me.cursorX
+		do undo.cursorY :: me.cursorY
+		do undo.areaX :: me.areaX
+		do undo.areaY :: me.areaY
+		do me.undo.add(undo, undo)
+		
+		do me.undo.recordEnd()
 	end func
 end class
 
