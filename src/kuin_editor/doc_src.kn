@@ -1064,11 +1064,11 @@ end func
 			if(regex <>& null)
 				do replaceStr :: regex.replace(found, replaceStr, false)
 			end if
-			do me.undoRecordBegin()
+			do me.undo.recordBegin()
 			do me.del(x1, me.cursorY, ^found, true)
 			do me.ins(x1, me.cursorY, replaceStr, true)
 			do me.interpret1SetDirty(me.cursorY, true, false)
-			do me.undoRecordEnd()
+			do me.undo.recordEnd()
 		end if
 	end func
 	
