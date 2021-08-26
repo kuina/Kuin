@@ -22,6 +22,7 @@ end enum
 end class
 
 var srcCharColor: []int
+var lineClipboardFormats: []int
 
 +func init()
 	do @srcCharColor :: #[%max $ @CharColor $ int]int
@@ -35,6 +36,11 @@ var srcCharColor: []int
 	do @srcCharColor[%lineComment $ @CharColor $ int] :: 0xFF1EB000
 	do @srcCharColor[%comment $ @CharColor $ int] :: 0xFF1EB000
 	do @srcCharColor[%symbol $ @CharColor $ int] :: 0xFF666666
+	var lineClipboardFormatNames: [][]char :: ["MSDEVLineSelect", "VisualStudioEditorOperationsLineCutCopyClipboardTag"]
+	do @lineClipboardFormats :: #[^lineClipboardFormatNames]int
+	for i(0, ^lineClipboardFormatNames - 1)
+		do @lineClipboardFormats[i] :: wnd@registerClipboardFormat(lineClipboardFormatNames[i])
+	end for
 end func
 
 +class DocSrc(\doc@Doc)
@@ -63,7 +69,6 @@ end func
 		do me.caretY :: -1
 		do me.caretShown :: false
 		do me.sys :: false
-		do me.clipboardLineStr :: ""
 	end func
 	
 	+*func fix(first: bool)
@@ -660,7 +665,7 @@ end func
 			if(me.areaSel())
 				do me.delAreaStr()
 				do me.ins(me.cursorX, me.cursorY, str, true)
-			elif(str <> me.clipboardLineStr)
+			elif(!isLinePaste())
 				do me.ins(me.cursorX, me.cursorY, str, true)
 			else
 				do me.insLine(me.cursorX, me.cursorY, str, true)
@@ -670,6 +675,15 @@ end func
 			do me.refreshCursor(false, true, true)
 			do \form@paintDrawEditor(false)
 		end if
+		
+		func isLinePaste(): bool
+			for i(0, ^@lineClipboardFormats - 1)
+				if(wnd@isClipboardFormatAvailable(@lineClipboardFormats[i]))
+					ret true
+				end if
+			end for
+			ret false
+		end func
 	end func
 	
 	+*func cmdDel()
@@ -1299,7 +1313,6 @@ end func
 	var caretShown: bool
 	var sys: bool
 	var lock: bool
-	var clipboardLineStr: []char
 	
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
@@ -1532,13 +1545,14 @@ end func
 			end for
 			do str :~ me.src.src[y2].sub(0, x2)
 		end if
-		do me.clipboardLineStr :: ""
-		do wnd@setClipboardStr(str)
+		do @setClipboardStr(str)
 	end func
 	
 	func copyLineStr()
-		do me.clipboardLineStr :: me.src.src[me.cursorY].sub(0, -1) ~ "\n"
-		do wnd@setClipboardStr(me.clipboardLineStr)
+		do @setClipboardStr(me.src.src[me.cursorY] ~ "\n")
+		for i(0, ^@lineClipboardFormats - 1)
+			do @setClipboard(@lineClipboardFormats[i], [1b8])
+		end for
 	end func
 	
 	func delAreaStr()
@@ -2021,4 +2035,22 @@ func findStr(found: &[]char, text: []char, fromLast: bool, first: int, last: int
 		ret pos
 	end if
 	ret -1
+end func
+
+func setClipboardStr(str: []char)
+	for(1, 10)
+		if(wnd@setClipboardStr(str))
+			ret
+		end if
+		do lib@sleep(1)
+	end for
+end func
+
+func setClipboard(format: int, str: []bit8)
+	for(1, 10)
+		if(wnd@setClipboard(format, str))
+			ret
+		end if
+		do lib@sleep(1)
+	end for
 end func
