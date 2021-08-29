@@ -1112,11 +1112,16 @@ end func
 			if(regex <>& null)
 				do replaceStr :: regex.replace(found, replaceStr, false)
 			end if
-			do me.undo.recordBegin()
+			var record: bool :: !me.undo.recording()
+			if(record)
+				do me.undo.recordBegin()
+			end if
 			do me.del(x1, me.cursorY, ^found, true)
 			do me.ins(x1, me.cursorY, replaceStr, true)
 			do me.interpret1SetDirty(me.cursorY, true, false)
-			do me.undo.recordEnd()
+			if(record)
+				do me.undo.recordEnd()
+			end if
 		end if
 	end func
 	
@@ -1124,43 +1129,55 @@ end func
 		if(!me.areaSel())
 			ret 0
 		end if
-		var areaX1: int :: me.cursorX
-		var areaY1: int :: me.cursorY
-		var areaX2: int :: me.areaX
-		var areaY2: int :: me.areaY
-		if(areaY1 > areaY2 | areaY1 = areaY2 & areaX1 > areaX2)
-			var tmp: int
-			do tmp :: areaX1
-			do areaX1 :: areaX2
-			do areaX2 :: tmp
-			do tmp :: areaY1
-			do areaY1 :: areaY2
-			do areaY2 :: tmp
-		end if
-		do me.cursorX :: areaX1
-		do me.cursorY :: areaY1
+		var area0: SelArea :: me.getSelArea()
+		var area: SelArea :: ##area0
+		var swapFlag: bool :: area.normalize()
+		do me.cursorX :: area.x1
+		do me.cursorY :: area.y1
 		do me.areaX :: -1
 		do me.areaY :: -1
 		do me.absoluteX :: 0
 		var cnt: int :: 0
+		var areaOld: SelArea :: me.getSelArea()
+		do areaOld.normalize()
 		while loop(true)
-			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
-			var oldY: int :: me.cursorY
 			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
 				break loop
 			end if
-			var newX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
-			var newY: int :: me.cursorY
-			if(newY < oldY | newY = oldY & newX <= oldX | newY > areaY2 | newY = areaY2 & newX + ^pattern > areaX2)
+			var areaNew: SelArea :: me.getSelArea()
+			do areaNew.normalize()
+			if(areaNew.y1 < areaOld.y1 | areaNew.y1 = areaOld.y1 & areaNew.x1 < areaOld.x1 | areaNew.y2 > area.y2 | areaNew.y2 = area.y2 & areaNew.x2 > area.x2)
 				break loop
 			end if
+			if(cnt = 0)
+				var areaCur: SelArea :: me.getSelArea()
+				do me.setSelArea(area0)
+				do me.undoRecordBegin()
+				do me.setSelArea(areaCur)
+			end if
 			do me.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+			do areaOld :: me.getSelArea()
+			do areaOld.normalize()
+			do area.y2 :+ areaOld.y2 - areaNew.y2
+			if(area.y2 = areaOld.y2)
+				do area.x2 :+ areaOld.x2 - areaNew.x2
+			end if
 			do cnt :+ 1
 		end while
+		if(cnt = 0)
+			do me.setSelArea(area0)
+		else
+			if(swapFlag)
+				do area.swap()
+			end if
+			do me.setSelArea(area)
+			do me.undoRecordEnd()
+		end if
 		ret cnt
 	end func
 	
 	+func replaceAll(pattern: []char, replaceStr: []char, distinguishCase: bool, onlyWord: bool, regularExpression: bool): int
+		var area0: SelArea :: me.getSelArea()
 		do me.cursorX :: 0
 		do me.cursorY :: 0
 		do me.areaX :: -1
@@ -1168,19 +1185,28 @@ end func
 		do me.absoluteX :: 0
 		var cnt: int :: 0
 		while loop(true)
-			var oldX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
-			var oldY: int :: me.cursorY
+			var areaOld: SelArea :: me.getSelArea()
+			do areaOld.normalize()
 			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
 				break loop
 			end if
-			var newX: int :: me.cursorX < me.areaX ?(me.cursorX, me.areaX)
-			var newY: int :: me.cursorY
-			if(newY < oldY | newY = oldY & newX <= oldX)
+			var areaNew: SelArea :: me.getSelArea()
+			do areaNew.normalize()
+			if(areaNew.y1 < areaOld.y1 | areaNew.y1 = areaOld.y1 & areaNew.x1 < areaOld.x1)
 				break loop
+			end if
+			if(cnt = 0)
+				var areaCur: SelArea :: me.getSelArea()
+				do me.setSelArea(area0)
+				do me.undoRecordBegin()
+				do me.setSelArea(areaCur)
 			end if
 			do me.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
 			do cnt :+ 1
 		end while
+		if(cnt <> 0)
+			do me.undoRecordEnd()
+		end if
 		ret cnt
 	end func
 	
@@ -1317,6 +1343,45 @@ end func
 	
 	func areaSel(): bool
 		ret me.areaX <> -1 & (me.areaX <> me.cursorX | me.areaY <> me.cursorY)
+	end func
+	
+	class SelArea()
+		+var x1: int
+		+var y1: int
+		+var x2: int
+		+var y2: int
+		+func normalize(): bool
+			if(me.y1 > me.y2 | me.y1 = me.y2 & me.x1 > me.x2)
+				do me.swap()
+				ret true
+			end if
+			ret false
+		end func
+		+func swap()
+			var tmp: int
+			do tmp :: me.x1
+			do me.x1 :: me.x2
+			do me.x2 :: tmp
+			do tmp :: me.y1
+			do me.y1 :: me.y2
+			do me.y2 :: tmp
+		end func
+	end class
+	
+	func getSelArea(): SelArea
+		var area: SelArea :: #SelArea
+		do area.x1 :: me.areaX
+		do area.y1 :: me.areaY
+		do area.x2 :: me.cursorX
+		do area.y2 :: me.cursorY
+		ret area
+	end func
+	
+	func setSelArea(area: SelArea)
+		do me.areaX :: area.x1
+		do me.areaY :: area.y1
+		do me.cursorX :: area.x2
+		do me.cursorY :: area.y2
 	end func
 	
 	func charWidth(c: char, x: int): int
