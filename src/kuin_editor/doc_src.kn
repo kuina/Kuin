@@ -1137,13 +1137,14 @@ end func
 		var cnt: int :: 0
 		var areaOld: SelArea :: me.getSelArea()
 		do areaOld.normalize()
+		do areaOld.y1 :: areaOld.y2
 		while loop(true)
 			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
 				break loop
 			end if
 			var areaNew: SelArea :: me.getSelArea()
 			do areaNew.normalize()
-			if(areaNew.y1 < areaOld.y1 | areaNew.y1 = areaOld.y1 & areaNew.x1 < areaOld.x1 | areaNew.y2 > area.y2 | areaNew.y2 = area.y2 & areaNew.x2 > area.x2)
+			if(areaNew.y1 < areaOld.y1 | areaNew.y1 = areaOld.y1 & areaNew.x1 <= areaOld.x1 | areaNew.y2 > area.y2 | areaNew.y2 = area.y2 & areaNew.x2 > area.x2)
 				break loop
 			end if
 			if(cnt = 0)
@@ -1183,15 +1184,16 @@ end func
 		do me.areaY :: -1
 		do me.absoluteX :: 0
 		var cnt: int :: 0
+		var areaOld: SelArea :: me.getSelArea()
+		do areaOld.normalize()
+		do areaOld.y1 :: areaOld.y2
 		while loop(true)
-			var areaOld: SelArea :: me.getSelArea()
-			do areaOld.normalize()
 			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
 				break loop
 			end if
 			var areaNew: SelArea :: me.getSelArea()
 			do areaNew.normalize()
-			if(areaNew.y1 < areaOld.y1 | areaNew.y1 = areaOld.y1 & areaNew.x1 < areaOld.x1)
+			if(areaNew.y1 < areaOld.y1 | areaNew.y1 = areaOld.y1 & areaNew.x1 <= areaOld.x1)
 				break loop
 			end if
 			if(cnt = 0)
@@ -1201,6 +1203,8 @@ end func
 				do me.setSelArea(areaCur)
 			end if
 			do me.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+			do areaOld :: me.getSelArea()
+			do areaOld.normalize()
 			do cnt :+ 1
 		end while
 		if(cnt <> 0)
@@ -1366,6 +1370,9 @@ end func
 			do tmp :: me.y1
 			do me.y1 :: me.y2
 			do me.y2 :: tmp
+		end func
+		+*func toStr(): []char
+			ret "(\{me.x1}, \{me.y1})-(\{me.x2}, \{me.y2})"
 		end func
 	end class
 	
