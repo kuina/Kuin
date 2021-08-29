@@ -1213,6 +1213,7 @@ end func
 		else
 			do line :: -1 - line
 			do me.ins(^me.src.src[line], line, ##str, true)
+			do me.forceToInterpret1 :: false
 		end if
 	end func
 	
