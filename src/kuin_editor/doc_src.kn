@@ -748,6 +748,7 @@ end func
 				do me.cursorY :: undo3.cursorY
 				do me.areaX :: undo3.areaX
 				do me.areaY :: undo3.areaY
+				do me.interpret1SetDirty(me.cursorY, true, false)
 			end block
 		else
 			assert false
