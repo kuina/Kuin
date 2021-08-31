@@ -955,7 +955,6 @@ end func
 				do me.cursorY :: i
 				do me.absoluteX :: 0
 				do me.refreshCursor(false, true, true)
-				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor(false)
 				ret true
 			end if
@@ -969,7 +968,6 @@ end func
 				do me.cursorY :: i
 				do me.absoluteX :: 0
 				do me.refreshCursor(false, true, true)
-				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor(false)
 				ret true
 			end if
@@ -998,7 +996,6 @@ end func
 				do me.cursorY :: i
 				do me.absoluteX :: 0
 				do me.refreshCursor(false, true, true)
-				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor(false)
 				ret true
 			end if
@@ -1012,7 +1009,6 @@ end func
 				do me.cursorY :: i
 				do me.absoluteX :: 0
 				do me.refreshCursor(false, true, true)
-				do me.interpret1SetDirty(me.cursorY, false, false)
 				do \form@paintDrawEditor(false)
 				ret true
 			end if
@@ -1114,13 +1110,14 @@ end func
 			end if
 			var record: bool :: !me.undo.recording()
 			if(record)
-				do me.undo.recordBegin()
+				do me.undoRecordBegin()
 			end if
 			do me.del(x1, me.cursorY, ^found, true)
 			do me.ins(x1, me.cursorY, replaceStr, true)
-			do me.interpret1SetDirty(me.cursorY, true, false)
 			if(record)
-				do me.undo.recordEnd()
+				do me.forceToInterpret1 :: true
+				do me.interpret1SetDirty(me.cursorY, true, false)
+				do me.undoRecordEnd()
 			end if
 		end if
 	end func
@@ -1140,13 +1137,14 @@ end func
 		var cnt: int :: 0
 		var areaOld: SelArea :: me.getSelArea()
 		do areaOld.normalize()
+		do areaOld.y1 :: areaOld.y2
 		while loop(true)
 			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
 				break loop
 			end if
 			var areaNew: SelArea :: me.getSelArea()
 			do areaNew.normalize()
-			if(areaNew.y1 < areaOld.y1 | areaNew.y1 = areaOld.y1 & areaNew.x1 < areaOld.x1 | areaNew.y2 > area.y2 | areaNew.y2 = area.y2 & areaNew.x2 > area.x2)
+			if(areaNew.y1 < areaOld.y1 | areaNew.y1 = areaOld.y1 & areaNew.x1 <= areaOld.x1 | areaNew.y2 > area.y2 | areaNew.y2 = area.y2 & areaNew.x2 > area.x2)
 				break loop
 			end if
 			if(cnt = 0)
@@ -1171,6 +1169,8 @@ end func
 				do area.swap()
 			end if
 			do me.setSelArea(area)
+			do me.forceToInterpret1 :: true
+			do me.interpret1SetDirty(me.cursorY, true, false)
 			do me.undoRecordEnd()
 		end if
 		ret cnt
@@ -1184,15 +1184,16 @@ end func
 		do me.areaY :: -1
 		do me.absoluteX :: 0
 		var cnt: int :: 0
+		var areaOld: SelArea :: me.getSelArea()
+		do areaOld.normalize()
+		do areaOld.y1 :: areaOld.y2
 		while loop(true)
-			var areaOld: SelArea :: me.getSelArea()
-			do areaOld.normalize()
 			if(!me.findNext(pattern, distinguishCase, onlyWord, regularExpression))
 				break loop
 			end if
 			var areaNew: SelArea :: me.getSelArea()
 			do areaNew.normalize()
-			if(areaNew.y1 < areaOld.y1 | areaNew.y1 = areaOld.y1 & areaNew.x1 < areaOld.x1)
+			if(areaNew.y1 < areaOld.y1 | areaNew.y1 = areaOld.y1 & areaNew.x1 <= areaOld.x1)
 				break loop
 			end if
 			if(cnt = 0)
@@ -1202,9 +1203,13 @@ end func
 				do me.setSelArea(areaCur)
 			end if
 			do me.replaceOne(pattern, replaceStr, distinguishCase, onlyWord, regularExpression)
+			do areaOld :: me.getSelArea()
+			do areaOld.normalize()
 			do cnt :+ 1
 		end while
 		if(cnt <> 0)
+			do me.forceToInterpret1 :: true
+			do me.interpret1SetDirty(me.cursorY, true, false)
 			do me.undoRecordEnd()
 		end if
 		ret cnt
@@ -1365,6 +1370,9 @@ end func
 			do tmp :: me.y1
 			do me.y1 :: me.y2
 			do me.y2 :: tmp
+		end func
+		+*func toStr(): []char
+			ret "(\{me.x1}, \{me.y1})-(\{me.x2}, \{me.y2})"
 		end func
 	end class
 	
@@ -2035,7 +2043,9 @@ end func
 			do me.cursorX :: first
 			do me.areaX :: first + ^word
 			do me.areaY :: me.cursorY
+			do me.undo.recordBegin()
 			do me.replaceOne(word, replaceStr, true, false, false)
+			do me.undo.recordEnd()
 			do me.cursorX :: first + ^replaceStr
 			do me.areaX :: -1
 			do me.areaY :: -1
