@@ -2044,9 +2044,9 @@ func parseExprCall(): \ast@AstExpr
 end func
 
 func parseExprValue(): \ast@AstExpr
+	var c: char :: @readChar()
 	var row: int :: @row
 	var col: int :: @col
-	var c: char :: @readChar()
 	var pos: \pos@Pos :: \pos@make(@srcName, row, col)
 	switch(c)
 	case '"'
