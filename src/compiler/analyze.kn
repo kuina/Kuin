@@ -1822,8 +1822,8 @@ func rebuildSkip(ast: \ast@AstStat, retType: \ast@AstType, parentFunc: \ast@AstF
 	end if
 	do ast.extra :: ast
 	
-	if(ast.refItem =& null | ast.refItem.typeId.and(%statBreakable) <> %statBreakable)
-		do \err@err(%mustSpecifyBlockName, ast.pos, ["skip"])
+	if(ast.refItem =& null | ast.refItem.typeId.and(%statSkipable) <> %statSkipable)
+		do \err@err(%mustSpecifyBlockNameForSkip, ast.pos, null)
 		ret null
 	end if
 	do ast.refItem :: @rebuildStat(ast.refItem $ \ast@AstStat, retType, parentFunc)

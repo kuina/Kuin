@@ -128,6 +128,7 @@
 	excodeMustBeStrConst
 	dictKeyMustBeComparable
 	cannotInstantiateDirectly
+	mustSpecifyBlockNameForSkip
 	
 	_nonErrs :: 0x00030000
 	success
@@ -1008,6 +1009,13 @@ end enum
 			ret "クラス「\{args[0]}」のインスタンスは#演算子で生成できません。"
 		default
 			ret "The class '\{args[0]}' cannot instantiate directly."
+		end switch
+	case %mustSpecifyBlockNameForSkip
+		switch(lang)
+		case "ja"
+			ret "「skip」文には「for」あるいは「while」のブロック名を指定しなければなりません。"
+		default
+			ret "'skip' statements must be given block names for 'for' or 'while'."
 		end switch
 	case %success
 		switch(lang)
