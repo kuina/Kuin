@@ -802,9 +802,9 @@ end enum
 	case %mustSpecifyBlockName
 		switch(lang)
 		case "ja"
-			ret "「\{args[0]}」文にはブロック名を指定しなければなりません。"
+			ret "「\{args[0]}」文には「\{args[0]}」用のブロック名を指定しなければなりません。"
 		default
-			ret "'\{args[0]}' statements must be given block names."
+			ret "'\{args[0]}' statements must be given block names for '\{args[0]}'."
 		end switch
 	case %assertCondMustBeBool
 		switch(lang)

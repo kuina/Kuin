@@ -1822,7 +1822,7 @@ func rebuildSkip(ast: \ast@AstStat, retType: \ast@AstType, parentFunc: \ast@AstF
 	end if
 	do ast.extra :: ast
 	
-	if(ast.refItem =& null | ast.refItem.typeId.and(%statBreakable) <> %statBreakable)
+	if(ast.refItem =& null | ast.refItem.typeId.and(%statSkipable) <> %statSkipable)
 		do \err@err(%mustSpecifyBlockName, ast.pos, ["skip"])
 		ret null
 	end if
