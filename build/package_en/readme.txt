@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 Kuin Programming Language
-v.2021.8.17
+v.2021.9.17
 (C) Kuina-chan
 -------------------------------------------------------------------------------
 
@@ -45,6 +45,8 @@ v.2021.8.17
 4. Update History
 -------------------------------------------------------------------------------
 
+v.2021.9.17
+    - Improved usability of KuinEditor.
 v.2021.8.17
     - Added the feature that allows command line arguments to be specified in
       KuinEditor.
