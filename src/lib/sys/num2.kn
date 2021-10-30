@@ -1,0 +1,170 @@
+func main()
+	var a: @BigInt :: @makeBigIntFromInt(5)
+	do cui@print(a.toInt().toStr() ~ "\n")
+end func
+
++class BigInt()
+	*func[__ndc]ctor()
+	end func
+	
+	+*func cmp(t: kuin@Class): int
+		var t2: @BigInt :: t $ @BigInt
+		if(me.minus <> t2.minus)
+			ret me.minus ?(-1, 1)
+		elif(^me.value <> ^t2.value)
+			if(^me.value > ^t2.value)
+				ret me.minus ?(-1, 1)
+			else
+				ret me.minus ?(1, -1)
+			end if
+		else
+			for i(^me.value - 1, 0, -1)
+				if(me.value[i] > t2.value[i])
+					ret me.minus ?(-1, 1)
+				elif(me.value[i] < t2.value[i])
+					ret me.minus ?(1, -1)
+				end if
+			end for
+			ret 0
+		end if
+	end func
+	
+	+*func toStr(): []char
+		; TODO:
+	end func
+	
+	+func fromInt(value: int)
+		if(value >= 0)
+			do me.value :: [value $ bit64]
+			do me.minus :: false
+		else
+			do me.value :: [(-value) $ bit64]
+			do me.minus :: true
+		end if
+	end func
+	
+	+func fromStr(value: []char)
+		var tmp: @BigInt :: @makeBigInt()
+		var tmp2: @BigInt :: @makeBigIntFromInt(1000000000000000000)
+		var success: bool
+		var start: int
+		var minus: bool
+		if(^value >= 1 & value[0] = '-')
+			do start :: 1
+			do minus :: true
+		else
+			do start :: 0
+			do minus :: false
+		end if
+		do me.value :: [0b64]
+		do me.minus :: false
+		while(start < ^value & value[start] = '0')
+			do start :+ 1
+		end while
+		var ptr: int :: ^value - 1
+		while(ptr - 17 >= start)
+			do tmp.value :: [value.sub(ptr - 17, 18).toBit64(&success)]
+			if(!success)
+				throw 0xE9170008
+			end if
+			do tmp.minus :: false
+			do me.mulImpl(tmp2)
+			do me.addImpl(tmp)
+			do ptr :- 18
+		end while
+		if(ptr >= start)
+			do tmp.value :: [value.sub(start, ptr - start + 1).toBit64(&success)]
+			if(!success)
+				throw 0xE9170008
+			end if
+			do tmp.minus :: false
+			do me.mulImpl(tmp2)
+			do me.addImpl(tmp)
+		end if
+		if(^me.value = 1 & me.value[0] = 0b64)
+			do me.minus :: false
+		end if
+	end func
+	
+	+func toInt(): int
+		if(me.minus)
+			ret -(me.value[0] $ int)
+		else
+			ret me.value[0] $ int
+		end if
+	end func
+	
+	+func[__mki]add(me2: @BigInt, value: @BigInt): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]addInt(me2: @BigInt, value: int): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]sub(me2: @BigInt, value: @BigInt): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]subInt(me2: @BigInt, value: int): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]mul(me2: @BigInt, value: @BigInt): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]mulInt(me2: @BigInt, value: int): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]div(me2: @BigInt, value: @BigInt): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]divInt(me2: @BigInt, value: int): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]mod(me2: @BigInt, value: @BigInt): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]modInt(me2: @BigInt, value: int): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]powInt(me2: @BigInt, value: int): @BigInt
+		; TODO:
+	end func
+	
+	+func[__mki]abs(me2: @BigInt): @BigInt
+		; TODO:
+	end func
+	
+	func addImpl(value: @BigInt)
+		; TODO:
+	end func
+	
+	func mulImpl(value: @BigInt)
+		; TODO:
+	end func
+	
+	+var value: []bit64
+	+var minus: bool
+end class
+
++func[__mki]makeBigInt(me2: @BigInt): @BigInt
+	do me2.fromInt(0)
+	ret me2
+end func
+
++func[__mki]makeBigIntFromInt(me2: @BigInt, value: int): @BigInt
+	do me2.fromInt(value)
+	ret me2
+end func
+
++func[__mki]makeBigIntFromStr(me2: @BigInt, value: []char): @BigInt
+	do me2.fromStr(value)
+	ret me2
+end func
