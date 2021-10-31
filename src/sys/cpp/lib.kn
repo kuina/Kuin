@@ -1,3 +1,4 @@
++const bit64Max: bit64 :: 0xFFFFFFFFFFFFFFFFb64
 +const e: float :: 2.71828182845904523536
 +const intMax: int :: 9223372036854775807
 +const intMin: int :: -9223372036854775807 - 1

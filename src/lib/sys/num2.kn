@@ -1,6 +1,10 @@
 func main()
-	var a: @BigInt :: @makeBigIntFromInt(5)
+	var a: @BigInt :: @makeBigIntFromStr("1000000000000000000000000000000000000000000000000000")
+	var b: @BigInt :: @makeBigIntFromStr("1000000000000000000000000000000000000000000000000000")
+	var c: @BigInt :: a.add(b)
 	do cui@print(a.toInt().toStr() ~ "\n")
+	do cui@print(b.toInt().toStr() ~ "\n")
+	do cui@print(c.toInt().toStr() ~ "\n")
 end func
 
 +class BigInt()
@@ -68,8 +72,8 @@ end func
 				throw 0xE9170008
 			end if
 			do tmp.minus :: false
-			do me.mulImpl(tmp2)
-			do me.addImpl(tmp)
+			do @mulImpl(me, tmp2)
+			do @addImpl(me, tmp)
 			do ptr :- 18
 		end while
 		if(ptr >= start)
@@ -78,9 +82,10 @@ end func
 				throw 0xE9170008
 			end if
 			do tmp.minus :: false
-			do me.mulImpl(tmp2)
-			do me.addImpl(tmp)
+			do @mulImpl(me, tmp2)
+			do @addImpl(me, tmp)
 		end if
+		do me.minus :: minus
 		if(^me.value = 1 & me.value[0] = 0b64)
 			do me.minus :: false
 		end if
@@ -95,26 +100,23 @@ end func
 	end func
 	
 	+func[__mki]add(me2: @BigInt, value: @BigInt): @BigInt
-		; TODO:
-	end func
-	
-	+func[__mki]addInt(me2: @BigInt, value: int): @BigInt
-		; TODO:
+		do me2.value :: me.value
+		do me2.minus :: me.minus
+		do @addImpl(me2, value)
+		ret me2
 	end func
 	
 	+func[__mki]sub(me2: @BigInt, value: @BigInt): @BigInt
-		; TODO:
-	end func
-	
-	+func[__mki]subInt(me2: @BigInt, value: int): @BigInt
-		; TODO:
+		var tmpMinus: bool :: value.minus
+		do me2.value :: me.value
+		do me2.minus :: me.minus
+		do value.minus :: !value.minus
+		do @addImpl(me2, value)
+		do value.minus :: tmpMinus
+		ret me2
 	end func
 	
 	+func[__mki]mul(me2: @BigInt, value: @BigInt): @BigInt
-		; TODO:
-	end func
-	
-	+func[__mki]mulInt(me2: @BigInt, value: int): @BigInt
 		; TODO:
 	end func
 	
@@ -122,15 +124,7 @@ end func
 		; TODO:
 	end func
 	
-	+func[__mki]divInt(me2: @BigInt, value: int): @BigInt
-		; TODO:
-	end func
-	
 	+func[__mki]mod(me2: @BigInt, value: @BigInt): @BigInt
-		; TODO:
-	end func
-	
-	+func[__mki]modInt(me2: @BigInt, value: int): @BigInt
 		; TODO:
 	end func
 	
@@ -139,14 +133,6 @@ end func
 	end func
 	
 	+func[__mki]abs(me2: @BigInt): @BigInt
-		; TODO:
-	end func
-	
-	func addImpl(value: @BigInt)
-		; TODO:
-	end func
-	
-	func mulImpl(value: @BigInt)
 		; TODO:
 	end func
 	
@@ -167,4 +153,92 @@ end func
 +func[__mki]makeBigIntFromStr(me2: @BigInt, value: []char): @BigInt
 	do me2.fromStr(value)
 	ret me2
+end func
+
+func addImpl(a: @BigInt, b: @BigInt)
+	if(a.minus)
+		if(b.minus)
+			do a.value :: @addBit64s(a.value, b.value)
+		else
+			do a.value :: @subBit64s(b.value, a.value, &a.minus)
+		end if
+	else
+		if(b.minus)
+			do a.value :: @subBit64s(a.value, b.value, &a.minus)
+		else
+			do a.value :: @addBit64s(a.value, b.value)
+		end if
+	end if
+end func
+
+func mulImpl(a: @BigInt, b: @BigInt)
+	; TODO:
+end func
+
+func addBit64s(a: []bit64, b: []bit64): []bit64
+	var r: []bit64 :: #[^a >= ^b ?(^a, ^b)]bit64
+	var carry: bool :: false
+	for i(0, ^r - 1)
+		var a2: bit64 :: i >= ^a ?(0b64, a[i])
+		var b2: bit64 :: i >= ^b ?(0b64, b[i])
+		var r2: bit64 :: 0b64
+		var carry2: bool :: false
+		if(a2 > lib@bit64Max - b2)
+			do carry2 :: true
+		end if
+		do r2 :: a2 + b2
+		if(carry)
+			if(r2 > lib@bit64Max - 1b64)
+				do carry2 :: true
+			end if
+			do r2 :+ 1b64
+		end if
+		do r[i] :: r2
+		do carry :: carry2
+	end for
+	if(carry)
+		do r :~ [1b64]
+	end if
+	ret r
+end func
+
+func subBit64s(a: []bit64, b: []bit64, carry: &bool): []bit64
+	var r: []bit64 :: #[^a >= ^b ?(^a, ^b)]bit64
+	do carry :: false
+	for i(0, ^r - 1)
+		var a2: bit64 :: i >= ^a ?(0b64, a[i])
+		var b2: bit64 :: i >= ^b ?(0b64, b[i])
+		var r2: bit64 :: 0b64
+		var carry2: bool :: false
+		if(a2 < b2)
+			do carry2 :: true
+		end if
+		do r2 :: a2 - b2
+		if(carry)
+			if(r2 < 1b64)
+				do carry2 :: true
+			end if
+			do r2 :- 1b64
+		end if
+		do r[i] :: r2
+		do carry :: carry2
+	end for
+	if(carry)
+		var added: bool :: false
+		for i(0, ^r - 1)
+			do r[i] :: r[i].not()
+			if(!added)
+				if(r[i] <> lib@bit64Max)
+					do added :: true
+				end if
+				do r[i] :+ 1b64
+			end if
+		end for
+	end if
+	for i(^r - 1, 0, -1)
+		if(r[i] <> 0b64)
+			ret i = ^r - 1 ?(r, r.sub(0, i + 1))
+		end if
+	end for
+	ret [0b64]
 end func

@@ -482,7 +482,7 @@
 	do writer.writeStr("a[0]+=~b[0]+(((x&y)|((x|y)&z))>>>31);\n")
 	do writer.writeStr("}\n")
 	
-	; 'mul' for 'bit64'.
+	; 'mul' for 'bit64' and 'int'.
 	do writer.writeStr("function NM_(a,b){\n")
 	do writer.writeStr("let r=new Uint32Array(2),x,y;\n")
 	do writer.writeStr("if(UC_(a,b)<0){x=Uint32Array.from(b);y=Uint32Array.from(a);}else{x=Uint32Array.from(a);y=Uint32Array.from(b);}\n")
@@ -503,7 +503,7 @@
 	do writer.writeStr("let r=0,x,y;\n")
 	do writer.writeStr("if(a<b){x=b;y=a}else{x=a;y=b}\n")
 	do writer.writeStr("while(y){\n")
-	do writer.writeStr("if(y&1)r+=x;\n")
+	do writer.writeStr("if(y&1)r=(r+x)>>0;\n")
 	do writer.writeStr("y>>>=1;\n")
 	do writer.writeStr("x<<=1;\n")
 	do writer.writeStr("}\n")
