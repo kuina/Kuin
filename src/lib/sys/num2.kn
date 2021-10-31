@@ -1,7 +1,7 @@
 func main()
-	var a: @BigInt :: @makeBigIntFromStr("1000000000000000000000000000000000000000000000000000")
-	var b: @BigInt :: @makeBigIntFromStr("1000000000000000000000000000000000000000000000000000")
-	var c: @BigInt :: a.add(b)
+	var a: @BigInt :: @makeBigIntFromStr("1000000000000000")
+	var b: @BigInt :: @makeBigIntFromStr("1000000000000000")
+	var c: @BigInt :: a.mul(b)
 	do cui@print(a.toInt().toStr() ~ "\n")
 	do cui@print(b.toInt().toStr() ~ "\n")
 	do cui@print(c.toInt().toStr() ~ "\n")
@@ -117,7 +117,10 @@ end func
 	end func
 	
 	+func[__mki]mul(me2: @BigInt, value: @BigInt): @BigInt
-		; TODO:
+		do me2.value :: me.value
+		do me2.minus :: me.minus
+		do @mulImpl(me2, value)
+		ret me2
 	end func
 	
 	+func[__mki]div(me2: @BigInt, value: @BigInt): @BigInt
@@ -160,11 +163,11 @@ func addImpl(a: @BigInt, b: @BigInt)
 		if(b.minus)
 			do a.value :: @addBit64s(a.value, b.value)
 		else
-			do a.value :: @subBit64s(b.value, a.value, &a.minus)
+			do a.value :: @trim(@subBit64s(b.value, a.value, &a.minus))
 		end if
 	else
 		if(b.minus)
-			do a.value :: @subBit64s(a.value, b.value, &a.minus)
+			do a.value :: @trim(@subBit64s(a.value, b.value, &a.minus))
 		else
 			do a.value :: @addBit64s(a.value, b.value)
 		end if
@@ -172,7 +175,71 @@ func addImpl(a: @BigInt, b: @BigInt)
 end func
 
 func mulImpl(a: @BigInt, b: @BigInt)
-	; TODO:
+	var a2: []bit64 :: a.value
+	var b2: []bit64 :: b.value
+	var size: int :: 1
+	while(size < ^a2 | size < ^b2)
+		do size :* 2
+	end while
+	if(^a2 < size)
+		do a2 :: a2 ~ #[size - ^a2]bit64
+	elif(^b2 < size)
+		do b2 :: b2 ~ #[size - ^b2]bit64
+	end if
+	do a.value :: @trim(mul64Recursion(a2, b2))
+	do a.minus :: a.minus <> b.minus
+	if(^a.value = 1 & a.value[0] = 0b64)
+		do a.minus :: false
+	end if
+	
+	func mul64Recursion(a: []bit64, b: []bit64): []bit64
+		if(^a = 1)
+			ret mul64Last(a[0], b[0])
+		end if
+		var half: int :: ^a / 2
+		var x0: []bit64 :: a.sub(0, half)
+		var y0: []bit64 :: b.sub(0, half)
+		var x1: []bit64 :: a.sub(half, -1)
+		var y1: []bit64 :: b.sub(half, -1)
+		var z2: []bit64 :: mul64Recursion(x1, y1)
+		var z0: []bit64 :: mul64Recursion(x0, y0)
+		var minus0: bool
+		var x1x0: []bit64 :: @subBit64s(x1, x0, &minus0)
+		var minus1: bool
+		var y1y0: []bit64 :: @subBit64s(y1, y0, &minus1)
+		var z1: []bit64
+		if(minus0 = minus1)
+			do z1 :: @subBit64s(@addBit64s(z2, z0), mul64Recursion(x1x0, y1y0), &)
+		else
+			do z1 :: @addBit64s(@addBit64s(z2, z0), mul64Recursion(x1x0, y1y0))
+		end if
+		ret @addBit64s(@addBit64s(#[^a]bit64 ~ z2, #[half]bit64 ~ z1), z0)
+	end func
+	
+	func mul64Last(a: bit64, b: bit64): []bit64
+		var x0: bit64 :: a.and(0xFFFFFFFFb64)
+		var y0: bit64 :: b.and(0xFFFFFFFFb64)
+		var x1: bit64 :: a.shr(32)
+		var y1: bit64 :: b.shr(32)
+		var z2Array: []bit64 :: [x1 * y1]
+		var z0Array: []bit64 :: [x0 * y0]
+		var minus0: bool :: x1 < x0
+		var x1x0: bit64 :: minus0 ?(x0 - x1, x1 - x0)
+		var minus1: bool :: y1 < y0
+		var y1y0: bit64 :: minus1 ?(y0 - y1, y1 - y0)
+		var z1: []bit64
+		if(minus0 = minus1)
+			do z1 :: @subBit64s(@addBit64s(z2Array, z0Array), [x1x0 * y1y0], &)
+		else
+			do z1 :: @addBit64s(@addBit64s(z2Array, z0Array), [x1x0 * y1y0])
+		end if
+		if(^z1 = 1)
+			do z1 :: [z1[0].and(0xFFFFFFFFb64).shl(32), z1[0].shr(32)]
+		else
+			do z1 :: [z1[0].and(0xFFFFFFFFb64).shl(32), z1[0].shr(32).or(z1[1].and(0xFFFFFFFFb64).shl(32))]
+		end if
+		ret @addBit64s(@addBit64s(#[1]bit64 ~ z2Array, z1), z0Array)
+	end func
 end func
 
 func addBit64s(a: []bit64, b: []bit64): []bit64
@@ -235,9 +302,13 @@ func subBit64s(a: []bit64, b: []bit64, carry: &bool): []bit64
 			end if
 		end for
 	end if
-	for i(^r - 1, 0, -1)
-		if(r[i] <> 0b64)
-			ret i = ^r - 1 ?(r, r.sub(0, i + 1))
+	ret r
+end func
+
+func trim(n: []bit64): []bit64
+	for i(^n - 1, 0, -1)
+		if(n[i] <> 0b64)
+			ret i = ^n - 1 ?(n, n.sub(0, i + 1))
 		end if
 	end for
 	ret [0b64]
