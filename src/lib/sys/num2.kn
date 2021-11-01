@@ -1,7 +1,7 @@
 func main()
-	var a: @BigInt :: @makeBigIntFromStr("1000000000000000")
-	var b: @BigInt :: @makeBigIntFromStr("1000000000000000")
-	var c: @BigInt :: a.mul(b)
+	var a: @BigInt :: @makeBigIntFromStr("1000000000000000000000")
+	var b: @BigInt :: @makeBigIntFromStr("10000000000000000000")
+	var c: @BigInt :: a.div(b)
 	do cui@print(a.toInt().toStr() ~ "\n")
 	do cui@print(b.toInt().toStr() ~ "\n")
 	do cui@print(c.toInt().toStr() ~ "\n")
@@ -15,22 +15,8 @@ end func
 		var t2: @BigInt :: t $ @BigInt
 		if(me.minus <> t2.minus)
 			ret me.minus ?(-1, 1)
-		elif(^me.value <> ^t2.value)
-			if(^me.value > ^t2.value)
-				ret me.minus ?(-1, 1)
-			else
-				ret me.minus ?(1, -1)
-			end if
-		else
-			for i(^me.value - 1, 0, -1)
-				if(me.value[i] > t2.value[i])
-					ret me.minus ?(-1, 1)
-				elif(me.value[i] < t2.value[i])
-					ret me.minus ?(1, -1)
-				end if
-			end for
-			ret 0
 		end if
+		ret @cmpImpl(me.value, t2.value) * (me.minus ?(-1, 1))
 	end func
 	
 	+*func toStr(): []char
@@ -124,7 +110,10 @@ end func
 	end func
 	
 	+func[__mki]div(me2: @BigInt, value: @BigInt): @BigInt
-		; TODO:
+		do me2.value :: me.value
+		do me2.minus :: me.minus
+		do @divModImpl(me2, value, false)
+		ret me2
 	end func
 	
 	+func[__mki]mod(me2: @BigInt, value: @BigInt): @BigInt
@@ -242,6 +231,41 @@ func mulImpl(a: @BigInt, b: @BigInt)
 	end func
 end func
 
+func divModImpl(a: @BigInt, b: @BigInt, mod: bool)
+	var a2: []bit64 :: a.value
+	var b2: []bit64 :: b.value
+	var q: []bit64 :: #[^a2]bit64
+	var r: []bit64 :: [0b64]
+	for i(^a2 - 1, 0, -1)
+		for j(63, 0, -1)
+			var carry: bool :: r[^r - 1].shr(63) = 1b64
+			for k(^r - 1, 0, -1)
+				do r[k] :: r[k].shl(1)
+				if(k > 0)
+					do r[k] :: r[k].or(r[k - 1].shr(63))
+				end if
+			end for
+			if(carry)
+				do r :~ [1b64]
+			end if
+			do r[0] :: r[0].or(a2[i].shr(j).and(1b64))
+			if(@cmpImpl(r, b2) >= 0)
+				do r :: @subBit64s(r, b2, &)
+				do q[i] :: q[i].or((1b64).shl(j))
+			end if
+		end for
+	end for
+	if(mod)
+		do a.value :: r
+	else
+		do a.value :: @trim(q)
+		do a.minus :: a.minus <> b.minus
+	end if
+	if(^a.value = 1 & a.value[0] = 0b64)
+		do a.minus :: false
+	end if
+end func
+
 func addBit64s(a: []bit64, b: []bit64): []bit64
 	var r: []bit64 :: #[^a >= ^b ?(^a, ^b)]bit64
 	var carry: bool :: false
@@ -312,4 +336,23 @@ func trim(n: []bit64): []bit64
 		end if
 	end for
 	ret [0b64]
+end func
+
+func cmpImpl(a: []bit64, b: []bit64): int
+	if(^a <> ^b)
+		if(^a > ^b)
+			ret 1
+		else
+			ret -1
+		end if
+	end if
+	
+	for i(^a - 1, 0, -1)
+		if(a[i] > b[i])
+			ret 1
+		elif(a[i] < b[i])
+			ret -1
+		end if
+	end for
+	ret 0
 end func
