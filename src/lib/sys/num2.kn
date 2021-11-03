@@ -1,10 +1,10 @@
 func main()
-	var a: @BigInt :: @makeBigIntFromStr("1000000000000000000000")
-	var b: @BigInt :: @makeBigIntFromStr("10000000000000000000")
-	var c: @BigInt :: a.div(b)
-	do cui@print(a.toInt().toStr() ~ "\n")
-	do cui@print(b.toInt().toStr() ~ "\n")
-	do cui@print(c.toInt().toStr() ~ "\n")
+	var a: @BigInt :: @makeBigIntFromStr("-3")
+	var b: @BigInt :: @makeBigIntFromStr("200")
+	var c: @BigInt :: a.pow(b)
+	do cui@print(a.toStr() ~ "\n")
+	do cui@print(b.toStr() ~ "\n")
+	do cui@print(c.toStr() ~ "\n")
 end func
 
 +class BigInt()
@@ -20,7 +20,30 @@ end func
 	end func
 	
 	+*func toStr(): []char
-		; TODO:
+		if(^me.value = 1 & me.value[0] = 0b64)
+			ret "0"
+		end if
+		var s: []char :: ""
+		var tmp: @BigInt :: @makeBigInt()
+		do tmp.value :: me.value
+		do tmp.minus :: false
+		var tmp2: @BigInt :: @makeBigInt()
+		do tmp2.minus :: false
+		var tmp3: @BigInt :: @makeBigIntFromInt(1000000000000000000)
+		while(^tmp.value <> 1 | tmp.value[0] <> 0b64)
+			do tmp2.value :: tmp.value
+			do @divModImpl(tmp, tmp3, false)
+			do @divModImpl(tmp2, tmp3, true)
+			var s2: []char :: (tmp2.value[0] $ int).toStr()
+			if((^tmp.value <> 1 | tmp.value[0] <> 0b64) & ^s2 < 18)
+				do s2 :: "0".repeat(18 - ^s2) ~ s2
+			end if
+			do s :: s2 ~ s
+		end while
+		if(me.minus)
+			do s :: "-" ~ s
+		end if
+		ret s
 	end func
 	
 	+func fromInt(value: int)
@@ -36,6 +59,7 @@ end func
 	+func fromStr(value: []char)
 		var tmp: @BigInt :: @makeBigInt()
 		var tmp2: @BigInt :: @makeBigIntFromInt(1000000000000000000)
+		var tmp3: @BigInt :: @makeBigIntFromInt(1)
 		var success: bool
 		var start: int
 		var minus: bool
@@ -58,8 +82,9 @@ end func
 				throw 0xE9170008
 			end if
 			do tmp.minus :: false
-			do @mulImpl(me, tmp2)
+			do @mulImpl(tmp, tmp3)
 			do @addImpl(me, tmp)
+			do @mulImpl(tmp3, tmp2)
 			do ptr :- 18
 		end while
 		if(ptr >= start)
@@ -68,7 +93,7 @@ end func
 				throw 0xE9170008
 			end if
 			do tmp.minus :: false
-			do @mulImpl(me, tmp2)
+			do @mulImpl(tmp, tmp3)
 			do @addImpl(me, tmp)
 		end if
 		do me.minus :: minus
@@ -117,19 +142,198 @@ end func
 	end func
 	
 	+func[__mki]mod(me2: @BigInt, value: @BigInt): @BigInt
-		; TODO:
+		do me2.value :: me.value
+		do me2.minus :: me.minus
+		do @divModImpl(me2, value, true)
+		ret me2
 	end func
 	
-	+func[__mki]powInt(me2: @BigInt, value: int): @BigInt
-		; TODO:
+	+func[__mki]pow(me2: @BigInt, value: @BigInt): @BigInt
+		if(^value.value = 1 & !value.minus)
+			switch(value.value[0])
+			case 0b64
+				do me2.value :: [1b64]
+				do me2.minus :: false
+				ret me2
+			case 1b64
+				do me2.value :: me.value
+				do me2.minus :: me.minus
+				ret me2
+			case 2b64
+				do me2.value :: me.value
+				do me2.minus :: me.minus
+				do @mulImpl(me2, me2)
+				ret me2
+			end switch
+		end if
+		if(^me.value = 1 & me.value[0] <= 1b64)
+			if(me.minus)
+				do me2.value :: [1b64]
+				do me2.minus :: value.value[0].and(1b64) = 1b64
+			else
+				do me2.value :: me.value
+				do me2.minus :: false
+			end if
+			ret me2
+		end if
+		if(value.minus)
+			do me2.value :: [0b64]
+			do me2.minus :: false
+			ret me2
+		end if
+		var a: @BigInt :: @makeBigInt()
+		do a.value :: me.value
+		do a.minus :: me.minus
+		do me2.value :: [1b64]
+		do me2.minus :: false
+		var c: []bit64 :: ##value.value
+		while loop(true)
+			if(c[0].and(1b64) = 1b64)
+				do @mulImpl(me2, a)
+			end if
+			do c[0] :: c[0].shr(1)
+			var notZero: int :: 0
+			for i(1, ^c - 1)
+				do c[i - 1] :: c[i - 1].or(c[i].shl(63))
+				do c[i] :: c[i].shr(1)
+				if(c[i] <> 0b64)
+					do notZero :: i
+				end if
+			end for
+			if(notZero = 0 & c[0] = 0b64)
+				break loop
+			end if
+			do @mulImpl(a, a)
+		end while
+		ret me2
 	end func
 	
 	+func[__mki]abs(me2: @BigInt): @BigInt
-		; TODO:
+		do me2.value :: me.value
+		do me2.minus :: false
+		ret me2
 	end func
 	
 	+var value: []bit64
 	+var minus: bool
+end class
+
++class BigFloat()
+	*func[__ndc]ctor()
+	end func
+	
+	+*func cmp(t: kuin@Class): int
+		; TODO:
+	end func
+	
+	+*func toStr(): []char
+		; TODO:
+	end func
+	
+	+func toFloat(): float
+		; TODO:
+	end func
+	
+	+func[__mki]add(me2: @BigFloat, value: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]sub(me2: @BigFloat, value: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]mul(me2: @BigFloat, value: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]div(me2: @BigFloat, value: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]mod(me2: @BigFloat, value: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]pow(me2: @BigFloat, value: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]exp(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]ln(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]sqrt(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]floor(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]ceil(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]cos(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]sin(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]tan(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]acos(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]asin(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]atan(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]cosh(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]sinh(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]tanh(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]acosh(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]asinh(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]atanh(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+func[__mki]abs(me2: @BigFloat): @BigFloat
+		; TODO:
+	end func
+	
+	+var significand: []bit64
+	+var exponent: []bit64
+	+var minusSignificand: bool
+	+var minusExponent: bool
 end class
 
 +func[__mki]makeBigInt(me2: @BigInt): @BigInt
@@ -145,6 +349,26 @@ end func
 +func[__mki]makeBigIntFromStr(me2: @BigInt, value: []char): @BigInt
 	do me2.fromStr(value)
 	ret me2
+end func
+
++func[__mki]makeBigFloat(me2: @BigFloat): @BigFloat
+	; TODO:
+end func
+
++func[__mki]makeBigFloatE(me2: @BigFloat): @BigFloat
+	; TODO:
+end func
+
++func[__mki]makeBigFloatFromFloat(me2: @BigFloat, value: float): @BigFloat
+	; TODO:
+end func
+
++func[__mki]makeBigFloatFromStr(me2: @BigFloat, value: []char): @BigFloat
+	; TODO:
+end func
+
++func[__mki]makeBigFloatPi(me2: @BigFloat): @BigFloat
+	; TODO:
 end func
 
 func addImpl(a: @BigInt, b: @BigInt)
