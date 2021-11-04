@@ -1,13 +1,13 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromFloat(-1.000000001)
-	var b: @BigFloat :: @makeBigFloatFromFloat(-3.0)
-	var c: @BigFloat :: a.mul(b)
+	var a: @BigFloat :: @makeBigFloatFromFloat(1.234)
+	var b: @BigFloat :: @makeBigFloatFromFloat(5.678)
+	var c: @BigFloat :: a.div(b)
 	do cui@print(a.toFloat().toStr() ~ "\n")
 	do cui@print(b.toFloat().toStr() ~ "\n")
 	do cui@print(c.toFloat().toStr() ~ "\n")
 end func
 
-const bigFloatSize: int :: 8
+const bigFloatSize: int :: 4
 
 +class BigInt()
 	*func[__ndc]ctor()
@@ -343,10 +343,11 @@ end class
 			ret me2
 		end if
 		if(me.inf_() | value.inf_())
-			do me2.significand :: @makeBigInt()
-			do me2.significand.value :: #[0]bit64
-			do me2.significand.minus :: me.significand.minus <> value.significand.minus
-			do me2.exponent :: 0
+			do @setInf(me2, me.significand.minus <> value.significand.minus)
+			ret me2
+		end if
+		if(^me.significand.value = 1 & me.significand.value[0] = 0b64 | ^value.significand.value = 1 & value.significand.value[0] = 0b64)
+			do @setZeroFloat(me2)
 			ret me2
 		end if
 		var len: int :: me.exponent
@@ -363,7 +364,51 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			if(value.inf_())
+				do @setNaN(me2)
+				ret me2
+			end if
+			do @setInf(me2, me.significand.minus <> value.significand.minus)
+			ret me2
+		end if
+		if(value.inf_())
+			do @setZeroFloat(me2)
+			ret me2
+		end if
+		if(^me.significand.value = 1 & me.significand.value[0] = 0b64)
+			if(^value.significand.value = 1 & value.significand.value[0] = 0b64)
+				do @setNaN(me2)
+				ret me2
+			end if
+			do @setZeroFloat(me2)
+			ret me2
+		end if
+		if(^value.significand.value = 1 & value.significand.value[0] = 0b64)
+			do @setInf(me2, me.significand.minus)
+			ret me2
+		end if
+		var as: @BigInt :: ##me.significand
+		var bs: @BigInt :: ##value.significand
+		var aPos: int :: 0
+		while(as.value[0].and((1b64).shl(aPos)) = 0b64)
+			do aPos :+ 1
+		end while
+		var bPos: int :: 0
+		while(bs.value[0].and((1b64).shl(bPos)) = 0b64)
+			do bPos :+ 1
+		end while
+		do @shr(&as.value, aPos)
+		do @shr(&bs.value, bPos)
+		do aPos :: aPos - 64 * ^as.value + 1 + me.exponent
+		do bPos :: bPos - 64 * ^bs.value + 1 + value.exponent
+		do as.value :: #[@bigFloatSize]bit64 ~ as.value
+		do aPos :- 64 * @bigFloatSize
+		var r: @BigInt :: as.div(bs)
+		do me2.significand :: r
+		do me2.exponent :: 64 * ^r.value - 1 + aPos - bPos
+		do @normalizeFloat(me2)
+		ret me2
 	end func
 	
 	+func[__mki]mod(me2: @BigFloat, value: @BigFloat): @BigFloat
@@ -802,6 +847,28 @@ func shl(n: &[]bit64, v: int)
 	end if
 end func
 
+func shr(n: &[]bit64, v: int)
+	if(^n = 1 & n[0] = 0b64 | v = 0)
+		ret
+	end if
+	if(v >= 64)
+		var offset: int :: v / 64
+		if(offset >= ^n)
+			do n :: [0b64]
+			ret
+		end if
+		do n :: n.sub(offset, -1)
+		do v :% 64
+	end if
+	for i(0, ^n - 2)
+		do n[i] :: n[i].shr(v).or(n[i + 1].shl(64 - v))
+	end for
+	do n[^n - 1] :: n[^n - 1].shr(v)
+	if(n[^n - 1] = 0b64 & ^n > 1)
+		do n :: n.sub(0, ^n - 1)
+	end if
+end func
+
 func normalizeFloat(n: @BigFloat)
 	if(^n.significand.value = 0 | ^n.significand.value = 1 & n.significand.value[0] = 0b64)
 		ret
@@ -834,19 +901,29 @@ func setNaN(n: @BigFloat)
 	do n.exponent :: 0
 end func
 
+func setInf(n: @BigFloat, minus: bool)
+	do n.significand :: @makeBigInt()
+	do n.significand.value :: #[0]bit64
+	do n.significand.minus :: minus
+	do n.exponent :: 0
+end func
+
+func setZeroFloat(n: @BigFloat)
+	do n.significand :: @makeBigInt()
+	do n.significand.value :: [0b64]
+	do n.significand.minus :: false
+	do n.exponent :: 0
+end func
+
 func addFloatImpl(a: @BigFloat, value: @BigFloat)
 	if(a.inf_())
 		if(^value.significand.value = 0 & a.significand.minus <> value.significand.minus)
-			do a.significand.value :: [0b64]
-			do a.significand.minus :: true
-			do a.exponent :: 0
+			do @setNaN(a)
 		end if
 		ret
 	end if
 	if(value.inf_())
-		do a.significand.value :: #[0]bit64
-		do a.significand.minus :: value.significand.minus
-		do a.exponent :: 0
+		do @setInf(a, value.significand.minus)
 		ret
 	end if
 	if((a.exponent - value.exponent).abs() >= @bigFloatSize * 64 | ^a.significand.value = 1 & a.significand.value[0] = 0b64 | ^value.significand.value = 1 & value.significand.value[0] = 0b64)
