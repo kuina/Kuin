@@ -1,7 +1,7 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromFloat(5.0)
-	var b: @BigFloat :: @makeBigFloatFromFloat(10.0)
-	var c: @BigFloat :: a.add(b)
+	var a: @BigFloat :: @makeBigFloatFromFloat(-1.000000001)
+	var b: @BigFloat :: @makeBigFloatFromFloat(-3.0)
+	var c: @BigFloat :: a.mul(b)
 	do cui@print(a.toFloat().toStr() ~ "\n")
 	do cui@print(b.toFloat().toStr() ~ "\n")
 	do cui@print(c.toFloat().toStr() ~ "\n")
@@ -313,138 +313,216 @@ end class
 	end func
 	
 	+func[__mki]add(me2: @BigFloat, value: @BigFloat): @BigFloat
-		if((me.exponent - value.exponent).abs() >= @bigFloatSize * 64)
-			do me2.significand :: me.significand
-			do me2.exponent :: me.exponent
+		if(me.nan() | value.nan())
+			do @setNaN(me2)
 			ret me2
 		end if
-		var a: @BigInt :: me.significand
-		var b: @BigInt :: value.significand
-		var e: int
-		var aLength: int :: me.exponent + ^a.value * 64 - 64
-		var bLength: int :: value.exponent + ^b.value * 64 - 64
-		do cui@print("a=\{a.value[0]}\n")
-		do cui@print("b=\{b.value[0]}\n")
-		do cui@print("al=\{aLength}\n")
-		do cui@print("bl=\{bLength}\n")
-		if(aLength > bLength)
-			var b2: @BigInt :: @makeBigInt()
-			do b2.value :: ##b.value
-			do @shl(&b2.value, aLength - bLength)
-			do b2.minus :: b.minus
-			do b :: b2
-			do e :: aLength
-		elif(aLength < bLength)
-			var a2: @BigInt :: @makeBigInt()
-			do a2.value :: ##a.value
-			do @shl(&a2.value, bLength - aLength)
-			do a2.minus :: a.minus
-			do a :: a2
-			do e :: bLength
-		else
-			do e :: aLength
-		end if
-		var r: @BigInt :: a.add(b)
-		do me2.significand :: r
-		do me2.exponent :: e + (^r.value - ^a.value) * 64
-		do cui@print("s=\{me2.significand.value[0]}\n")
-		do cui@print("s=\{me2.significand.value[1]}\n")
-		do cui@print("e=\{me2.exponent}\n")
-		do @normalizeFloat(me2)
-		do cui@print("s=\{me2.significand.value[0]}\n")
-		do cui@print("e=\{me2.exponent}\n")
+		do me2.significand :: me.significand
+		do me2.exponent :: me.exponent
+		do @addFloatImpl(me2, value)
 		ret me2
 	end func
 	
 	+func[__mki]sub(me2: @BigFloat, value: @BigFloat): @BigFloat
-		; TODO:
+		if(me.nan() | value.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
+		var tmpMinus: bool :: value.significand.minus
+		do me2.significand :: me.significand
+		do me2.exponent :: me.exponent
+		do value.significand.minus :: !value.significand.minus
+		do @addFloatImpl(me2, value)
+		do value.significand.minus :: tmpMinus
+		ret me2
 	end func
 	
 	+func[__mki]mul(me2: @BigFloat, value: @BigFloat): @BigFloat
-		; TODO:
+		if(me.nan() | value.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
+		if(me.inf_() | value.inf_())
+			do me2.significand :: @makeBigInt()
+			do me2.significand.value :: #[0]bit64
+			do me2.significand.minus :: me.significand.minus <> value.significand.minus
+			do me2.exponent :: 0
+			ret me2
+		end if
+		var len: int :: me.exponent
+		var pos: int :: ^me.significand.value * 64 - 1 - me.exponent + ^value.significand.value * 64 - 1 - value.exponent
+		var r: @BigInt :: me.significand.mul(value.significand)
+		do me2.significand :: r
+		do me2.exponent :: ^r.value * 64 - pos - 1
+		do @normalizeFloat(me2)
+		ret me2
 	end func
 	
 	+func[__mki]div(me2: @BigFloat, value: @BigFloat): @BigFloat
+		if(me.nan() | value.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]mod(me2: @BigFloat, value: @BigFloat): @BigFloat
+		if(me.nan() | value.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]pow(me2: @BigFloat, value: @BigFloat): @BigFloat
+		if(me.nan() | value.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]exp(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]ln(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]sqrt(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]floor(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]ceil(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]cos(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]sin(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]tan(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]acos(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]asin(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]atan(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]cosh(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]sinh(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]tanh(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]acosh(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]asinh(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]atanh(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
 	+func[__mki]abs(me2: @BigFloat): @BigFloat
+		if(me.nan())
+			do @setNaN(me2)
+			ret me2
+		end if
 		; TODO:
 	end func
 	
@@ -737,7 +815,63 @@ func normalizeFloat(n: @BigFloat)
 		do offset :+ 1
 	end while
 	do @shl(&n.significand.value, offset)
-	if(^n.significand.value > @bigFloatSize)
-		do n.significand.value :: n.significand.value.sub(^n.significand.value - @bigFloatSize, -1)
+	do n.exponent :- offset
+	
+	var pos: int :: ^n.significand.value - @bigFloatSize
+	if(pos < 0)
+		do pos :: 0
 	end if
+	while(pos < ^n.significand.value - 1 & n.significand.value[pos] = 0b64)
+		do pos :+ 1
+	end while
+	do n.significand.value :: n.significand.value.sub(pos, -1)
+end func
+
+func setNaN(n: @BigFloat)
+	do n.significand :: @makeBigInt()
+	do n.significand.value :: [0b64]
+	do n.significand.minus :: true
+	do n.exponent :: 0
+end func
+
+func addFloatImpl(a: @BigFloat, value: @BigFloat)
+	if(a.inf_())
+		if(^value.significand.value = 0 & a.significand.minus <> value.significand.minus)
+			do a.significand.value :: [0b64]
+			do a.significand.minus :: true
+			do a.exponent :: 0
+		end if
+		ret
+	end if
+	if(value.inf_())
+		do a.significand.value :: #[0]bit64
+		do a.significand.minus :: value.significand.minus
+		do a.exponent :: 0
+		ret
+	end if
+	if((a.exponent - value.exponent).abs() >= @bigFloatSize * 64 | ^a.significand.value = 1 & a.significand.value[0] = 0b64 | ^value.significand.value = 1 & value.significand.value[0] = 0b64)
+		ret
+	end if
+	var as: @BigInt :: a.significand
+	var bs: @BigInt :: value.significand
+	var aPos: int :: a.exponent - ^as.value * 64
+	var bPos: int :: value.exponent - ^bs.value * 64
+	var min: int :: lib@min(aPos, bPos)
+	if(aPos > min)
+		var a2: @BigInt :: @makeBigInt()
+		do a2.value :: ##as.value
+		do @shl(&a2.value, aPos - min)
+		do a2.minus :: as.minus
+		do as :: a2
+	elif(bPos > min)
+		var b2: @BigInt :: @makeBigInt()
+		do b2.value :: ##bs.value
+		do @shl(&b2.value, bPos - min)
+		do b2.minus :: bs.minus
+		do bs :: b2
+	end if
+	var r: @BigInt :: as.add(bs)
+	do a.significand :: r
+	do a.exponent :: min + ^r.value * 64
+	do @normalizeFloat(a)
 end func
