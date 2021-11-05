@@ -1,7 +1,7 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromFloat(1.234)
-	var b: @BigFloat :: @makeBigFloatFromFloat(5.678)
-	var c: @BigFloat :: a.div(b)
+	var a: @BigFloat :: @makeBigFloatFromStr("1234.5678")
+	var b: @BigFloat :: @makeBigFloatFromStr("1.0")
+	var c: @BigFloat :: a.add(b)
 	do cui@print(a.toFloat().toStr() ~ "\n")
 	do cui@print(b.toFloat().toStr() ~ "\n")
 	do cui@print(c.toFloat().toStr() ~ "\n")
@@ -300,7 +300,52 @@ end class
 	end func
 	
 	+func fromStr(value: []char)
-		; TODO:
+		var dot: int :: value.find('.', -1)
+		var a: []char :: dot = -1 ?(value, value.sub(0, dot))
+		var b: []char :: dot = -1 ?("0", value.sub(dot + 1, -1))
+		do me.significand :: @makeBigIntFromStr(a)
+		do me.exponent :: ^me.significand.value * 64 - 1
+		do @normalizeFloat(me)
+		var b2: []int :: #[^b]int
+		for i(0, ^b2 - 1)
+			var n: int :: b[i] $ int - '0' $ int
+			if(n < 0 | 9 < n)
+				throw 0xE9170008
+			end if
+			do b2[i] :: n
+		end for
+		var last: int :: ^b2 - 1
+		while(0 <= last & b2[last] = 0)
+			do last :- 1
+		end while
+		if(last = -1)
+			ret
+		end if
+		if(last <> ^b2 - 1)
+			do b2 :: b2.sub(0, last + 1)
+		end if
+		var pos: int :: me.exponent + 1
+		if(^me.significand.value < @bigFloatSize)
+			do me.significand.value :: #[@bigFloatSize - ^me.significand.value]bit64 ~ me.significand.value
+		end if
+		while(pos < @bigFloatSize * 64)
+			var carry: int :: 0
+			for i(^b2 - 1, 0, -1)
+				do b2[i] :: b2[i] * 2 + carry
+				if(b2[i] >= 10)
+					do b2[i] :- 10
+					do carry :: 1
+				else
+					do carry :: 0
+				end if
+			end for
+			if(carry = 1)
+				var pos2: int :: ^me.significand.value - 1 - pos / 64
+				do me.significand.value[pos2] :: me.significand.value[pos2].or((1b64).shl(63 - pos % 64))
+			end if
+			do pos :+ 1
+		end while
+		do @normalizeFloat(me)
 	end func
 	
 	+func inf_(): bool
@@ -342,20 +387,9 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		if(me.inf_() | value.inf_())
-			do @setInf(me2, me.significand.minus <> value.significand.minus)
-			ret me2
-		end if
-		if(^me.significand.value = 1 & me.significand.value[0] = 0b64 | ^value.significand.value = 1 & value.significand.value[0] = 0b64)
-			do @setZeroFloat(me2)
-			ret me2
-		end if
-		var len: int :: me.exponent
-		var pos: int :: ^me.significand.value * 64 - 1 - me.exponent + ^value.significand.value * 64 - 1 - value.exponent
-		var r: @BigInt :: me.significand.mul(value.significand)
-		do me2.significand :: r
-		do me2.exponent :: ^r.value * 64 - pos - 1
-		do @normalizeFloat(me2)
+		do me2.significand :: me.significand
+		do me2.exponent :: me.exponent
+		do @mulFloatImpl(me2, value)
 		ret me2
 	end func
 	
@@ -837,13 +871,15 @@ func shl(n: &[]bit64, v: int)
 		do n :: #[v / 64]bit64 ~ n
 		do v :% 64
 	end if
-	var carry: bit64 :: n[^n - 1].shr(64 - v)
-	for i(^n - 1, 1, -1)
-		do n[i] :: n[i].shl(v).or(n[i - 1].shr(64 - v))
-	end for
-	do n[0] :: n[0].shl(v)
-	if(carry <> 0b64)
-		do n :~ [carry]
+	if(v <> 0)
+		var carry: bit64 :: n[^n - 1].shr(64 - v)
+		for i(^n - 1, 1, -1)
+			do n[i] :: n[i].shl(v).or(n[i - 1].shr(64 - v))
+		end for
+		do n[0] :: n[0].shl(v)
+		if(carry <> 0b64)
+			do n :~ [carry]
+		end if
 	end if
 end func
 
@@ -860,17 +896,20 @@ func shr(n: &[]bit64, v: int)
 		do n :: n.sub(offset, -1)
 		do v :% 64
 	end if
-	for i(0, ^n - 2)
-		do n[i] :: n[i].shr(v).or(n[i + 1].shl(64 - v))
-	end for
-	do n[^n - 1] :: n[^n - 1].shr(v)
-	if(n[^n - 1] = 0b64 & ^n > 1)
-		do n :: n.sub(0, ^n - 1)
+	if(v <> 0)
+		for i(0, ^n - 2)
+			do n[i] :: n[i].shr(v).or(n[i + 1].shl(64 - v))
+		end for
+		do n[^n - 1] :: n[^n - 1].shr(v)
+		if(n[^n - 1] = 0b64 & ^n > 1)
+			do n :: n.sub(0, ^n - 1)
+		end if
 	end if
 end func
 
 func normalizeFloat(n: @BigFloat)
 	if(^n.significand.value = 0 | ^n.significand.value = 1 & n.significand.value[0] = 0b64)
+		do n.exponent :: 0
 		ret
 	end if
 	var v: bit64 :: n.significand.value[^n.significand.value - 1]
@@ -926,7 +965,14 @@ func addFloatImpl(a: @BigFloat, value: @BigFloat)
 		do @setInf(a, value.significand.minus)
 		ret
 	end if
-	if((a.exponent - value.exponent).abs() >= @bigFloatSize * 64 | ^a.significand.value = 1 & a.significand.value[0] = 0b64 | ^value.significand.value = 1 & value.significand.value[0] = 0b64)
+	if((a.exponent - value.exponent).abs() >= @bigFloatSize * 64 | ^value.significand.value = 1 & value.significand.value[0] = 0b64)
+		ret
+	end if
+	if(^a.significand.value = 1 & a.significand.value[0] = 0b64)
+		do a.significand :: @makeBigInt()
+		do a.significand.value :: value.significand.value
+		do a.significand.minus :: value.significand.minus
+		do a.exponent :: value.exponent
 		ret
 	end if
 	var as: @BigInt :: a.significand
@@ -950,5 +996,22 @@ func addFloatImpl(a: @BigFloat, value: @BigFloat)
 	var r: @BigInt :: as.add(bs)
 	do a.significand :: r
 	do a.exponent :: min + ^r.value * 64
+	do @normalizeFloat(a)
+end func
+
+func mulFloatImpl(a: @BigFloat, b: @BigFloat)
+	if(a.inf_() | b.inf_())
+		do @setInf(a, a.significand.minus <> b.significand.minus)
+		ret
+	end if
+	if(^a.significand.value = 1 & a.significand.value[0] = 0b64 | ^b.significand.value = 1 & b.significand.value[0] = 0b64)
+		do @setZeroFloat(a)
+		ret
+	end if
+	var len: int :: a.exponent
+	var pos: int :: ^a.significand.value * 64 - 1 - a.exponent + ^b.significand.value * 64 - 1 - b.exponent
+	var r: @BigInt :: a.significand.mul(b.significand)
+	do a.significand :: r
+	do a.exponent :: ^r.value * 64 - pos - 1
 	do @normalizeFloat(a)
 end func
