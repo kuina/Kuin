@@ -1,8 +1,10 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("-1.5")
-	var b: @BigFloat :: a.floor()
+	var a: @BigFloat :: @makeBigFloatFromStr("123.45")
+	var b: @BigFloat :: @makeBigFloatFromStr("67.8")
+	var c: @BigFloat :: a.mod(b)
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
+	do cui@print(c.toStr() ~ "\n")
 end func
 
 const bigFloatSize: int :: 3
@@ -531,11 +533,45 @@ end class
 	end func
 	
 	+func[__mki]mod(me2: @BigFloat, value: @BigFloat): @BigFloat
-		if(me.nan() | value.nan())
+		if(me.nan() | value.nan() | me.inf_() | ^value.significand.value = 1 & value.significand.value[0] = 0b64 & !value.significand.minus)
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(value.inf_() | ^me.significand.value = 1 & me.significand.value[0] = 0b64)
+			do me2.significand :: @makeBigInt()
+			do me2.significand.value :: me.significand.value
+			do me2.significand.minus :: me.significand.minus
+			do me2.exponent :: me.exponent
+			ret me2
+		end if
+		var as: @BigInt :: ##me.significand
+		var bs: @BigInt :: ##value.significand
+		var aPos: int :: 0
+		while(as.value[0].and((1b64).shl(aPos)) = 0b64)
+			do aPos :+ 1
+		end while
+		var bPos: int :: 0
+		while(bs.value[0].and((1b64).shl(bPos)) = 0b64)
+			do bPos :+ 1
+		end while
+		do @shr(&as.value, aPos)
+		do @shr(&bs.value, bPos)
+		do aPos :: aPos - 64 * ^as.value + 1 + me.exponent
+		do bPos :: bPos - 64 * ^bs.value + 1 + value.exponent
+		if(aPos > bPos)
+			do @shl(&as.value, aPos - bPos)
+		elif(aPos < bPos)
+			do @shr(&as.value, bPos - aPos)
+		end if
+		var r: @BigFloat :: @makeBigFloat()
+		do r.significand :: as.div(bs)
+		do r.exponent :: 64 * ^r.significand.value - 1
+		do @normalizeFloat(r)
+		do @mulFloatImpl(r, value)
+		do r :: me.sub(r)
+		do me2.significand :: r.significand
+		do me2.exponent :: r.exponent
+		ret me2
 	end func
 	
 	+func[__mki]pow(me2: @BigFloat, value: @BigFloat): @BigFloat
