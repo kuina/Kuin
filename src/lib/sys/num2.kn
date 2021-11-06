@@ -1,13 +1,14 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("1234.5678")
-	var b: @BigFloat :: @makeBigFloatFromStr("1.0")
-	var c: @BigFloat :: a.add(b)
-	do cui@print(a.toFloat().toStr() ~ "\n")
-	do cui@print(b.toFloat().toStr() ~ "\n")
-	do cui@print(c.toFloat().toStr() ~ "\n")
+	var a: @BigFloat :: @makeBigFloatFromStr("100.0")
+	var b: @BigFloat :: @makeBigFloatFromStr("3.0")
+	var c: @BigFloat :: a.div(b)
+	do cui@print(a.toStr() ~ "\n")
+	do cui@print(b.toStr() ~ "\n")
+	do cui@print(c.toStr() ~ "\n")
 end func
 
-const bigFloatSize: int :: 4
+const bigFloatSize: int :: 3
+const bigFloatStrSize: int :: 50
 
 +class BigInt()
 	*func[__ndc]ctor()
@@ -242,7 +243,89 @@ end class
 	end func
 	
 	+*func toStr(): []char
-		; TODO:
+		if(me.nan())
+			ret "nan"
+		end if
+		if(me.inf_())
+			if(me.significand.minus)
+				ret "-inf"
+			end if
+			ret "inf"
+		end if
+		if(^me.significand.value = 1 & me.significand.value[0] = 0b64)
+			ret "0"
+		end if
+		var v: []bit64 :: me.significand.value
+		var a: []char
+		var b: []char
+		var n: int :: me.exponent + 1
+		var a2: @BigInt :: @makeBigInt()
+		if(me.exponent >= 0)
+			var padding: int :: lib@padding(n, 64)
+			do a2.value :: #[(n + padding) / 64]bit64
+			for i(0, n - 1)
+				if(v[^v - 1 - i / 64].and((1b64).shl(63 - i % 64)) <> 0b64)
+					var index: int :: ^a2.value - 1 - (i + padding) / 64
+					do a2.value[index] :: a2.value[index].or((1b64).shl(63 - (i + padding) % 64))
+				end if
+			end for
+		else
+			do a2.value :: [0b64]
+		end if
+		var tmp: @BigInt :: @makeBigIntFromInt(1)
+		var tmp2: @BigInt :: @makeBigIntFromInt(5)
+		var tmp3: @BigInt :: @makeBigIntFromInt(10)
+		var b2: @BigInt :: @makeBigInt()
+		var last: int :: ^v * 64 - 1
+		while(n <= last & v[^v - 1 - last / 64].and((1b64).shl(63 - last % 64)) = 0b64)
+			do last :- 1
+		end while
+		for i(n, last)
+			do tmp :: tmp.mul(tmp2)
+			do b2 :: b2.mul(tmp3)
+			if(i >= 0 & v[^v - 1 - i / 64].and((1b64).shl(63 - i % 64)) <> 0b64)
+				do b2 :: b2.add(tmp)
+			end if
+		end for
+		if(^b2.value = 1 & b2.value[0] = 0b64)
+			do b :: ""
+		else
+			var s: []char :: b2.toStr()
+			if(^s < last - n + 1)
+				do s :: "0".repeat(last - n + 1 - ^s) ~ s
+			end if
+			if(^s > @bigFloatStrSize)
+				var carry: int :: (s[@bigFloatStrSize] $ int - '0' $ int) >= 5 ?(1, 0)
+				var pos: int :: @bigFloatStrSize - 1
+				while(pos >= 0 & carry = 1)
+					var n2: int :: (s[pos] $ int - '0' $ int) + 1
+					if(n2 >= 10)
+						do n2 :- 10
+					else
+						do carry :: 0
+					end if
+					do s[pos] :: (n2 + '0' $ int) $ char
+					do pos :- 1
+				end while
+				if(carry = 1)
+					do a2 :: a2.add(@makeBigIntFromInt(1))
+				end if
+				do pos :: @bigFloatStrSize - 1
+				while(pos >= 0 & s[pos] = '0')
+					do pos :- 1
+				end while
+				if(pos >= 0)
+					do s :: s.sub(0, pos + 1)
+					do b :: "." ~ s
+				else
+					do b :: ""
+				end if
+			else
+				do b :: "." ~ s
+			end if
+		end if
+		do a :: a2.toStr()
+		ret (me.significand.minus ?("-", "")) ~ a ~ b
 	end func
 	
 	+func toFloat(): float
@@ -678,7 +761,8 @@ func mulImpl(a: @BigInt, b: @BigInt)
 	end while
 	if(^a2 < size)
 		do a2 :: a2 ~ #[size - ^a2]bit64
-	elif(^b2 < size)
+	end if
+	if(^b2 < size)
 		do b2 :: b2 ~ #[size - ^b2]bit64
 	end if
 	do a.value :: @trim(mul64Recursion(a2, b2))
