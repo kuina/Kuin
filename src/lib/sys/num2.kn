@@ -1,10 +1,8 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("100.0")
-	var b: @BigFloat :: @makeBigFloatFromStr("3.0")
-	var c: @BigFloat :: a.div(b)
+	var a: @BigFloat :: @makeBigFloatFromStr("-1.5")
+	var b: @BigFloat :: a.floor()
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
-	do cui@print(c.toStr() ~ "\n")
 end func
 
 const bigFloatSize: int :: 3
@@ -404,6 +402,7 @@ end class
 		if(last = -1)
 			ret
 		end if
+		do me.significand.minus :: false
 		if(last <> ^b2 - 1)
 			do b2 :: b2.sub(0, last + 1)
 		end if
@@ -429,6 +428,9 @@ end class
 			do pos :+ 1
 		end while
 		do @normalizeFloat(me)
+		if(^a > 1 & a[0] = '-')
+			do me.significand.minus :: true
+		end if
 	end func
 	
 	+func inf_(): bool
@@ -573,7 +575,24 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			do @setInf(me2, me.significand.minus)
+			ret me2
+		end if
+		if(^me.significand.value = 1 & me.significand.value[0] = 0b64)
+			do @setZeroFloat(me2)
+			ret me2
+		end if
+		do me2.significand :: @makeBigInt()
+		do me2.significand.value :: ##me.significand.value
+		do me2.significand.minus :: me.significand.minus
+		do me2.exponent :: me.exponent
+		if(me2.significand.minus)
+			do @ceilImpl(me2)
+		else
+			do @floorImpl(me2)
+		end if
+		ret me2
 	end func
 	
 	+func[__mki]ceil(me2: @BigFloat): @BigFloat
@@ -581,7 +600,24 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			do @setInf(me2, me.significand.minus)
+			ret me2
+		end if
+		if(^me.significand.value = 1 & me.significand.value[0] = 0b64)
+			do @setZeroFloat(me2)
+			ret me2
+		end if
+		do me2.significand :: @makeBigInt()
+		do me2.significand.value :: ##me.significand.value
+		do me2.significand.minus :: me.significand.minus
+		do me2.exponent :: me.exponent
+		if(me2.significand.minus)
+			do @floorImpl(me2)
+		else
+			do @ceilImpl(me2)
+		end if
+		ret me2
 	end func
 	
 	+func[__mki]cos(me2: @BigFloat): @BigFloat
@@ -685,7 +721,11 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		do me2.significand :: @makeBigInt()
+		do me2.significand.value :: me.significand.value
+		do me2.significand.minus :: false
+		do me2.exponent :: me.exponent
+		ret me2
 	end func
 	
 	+var significand: @BigInt
@@ -997,15 +1037,14 @@ func normalizeFloat(n: @BigFloat)
 		ret
 	end if
 	var v: bit64 :: n.significand.value[^n.significand.value - 1]
-	if(v.shr(63) = 1b64)
-		ret
+	if(v.shr(63) <> 1b64)
+		var offset: int :: 1
+		while(v.shr(63 - offset) = 0b64)
+			do offset :+ 1
+		end while
+		do @shl(&n.significand.value, offset)
+		do n.exponent :- offset
 	end if
-	var offset: int :: 1
-	while(v.shr(63 - offset) = 0b64)
-		do offset :+ 1
-	end while
-	do @shl(&n.significand.value, offset)
-	do n.exponent :- offset
 	
 	var pos: int :: ^n.significand.value - @bigFloatSize
 	if(pos < 0)
@@ -1098,4 +1137,49 @@ func mulFloatImpl(a: @BigFloat, b: @BigFloat)
 	do a.significand :: r
 	do a.exponent :: ^r.value * 64 - pos - 1
 	do @normalizeFloat(a)
+end func
+
+func floorImpl(n: @BigFloat)
+	var pos: int :: n.exponent
+	if(pos < 0)
+		do @setZeroFloat(n)
+		ret
+	end if
+	var index: int :: ^n.significand.value - 1 - pos / 64
+	do n.significand.value[index] :: n.significand.value[index].and((0xFFFFFFFFFFFFFFFFb64).shl(63 - pos % 64))
+	for i(pos / 64 + 1, ^n.significand.value - 1)
+		do n.significand.value[^n.significand.value - 1 - i] :: 0b64
+	end for
+	do @normalizeFloat(n)
+end func
+
+func ceilImpl(n: @BigFloat)
+	var pos: int :: n.exponent
+	if(pos < 0)
+		do n.significand.value :: [0x8000000000000000b64]
+		do n.exponent :: 0
+		ret
+	end if
+	var index: int :: ^n.significand.value - 1 - pos / 64
+	var zero: bool :: true
+	if(n.significand.value[index].and((0xFFFFFFFFFFFFFFFFb64).shl(63 - pos % 64).not()) <> 0b64)
+		do zero :: false
+	end if
+	if(zero)
+		for i(pos / 64 + 1, ^n.significand.value - 1)
+			if(n.significand.value[^n.significand.value - 1 - i] <> 0b64)
+				do zero :: false
+				break i
+			end if
+		end for
+	end if
+	if(zero)
+		ret
+	end if
+	do @floorImpl(n)
+	if(n.significand.minus)
+		do @addFloatImpl(n, @makeBigFloatFromFloat(-1.0))
+	else
+		do @addFloatImpl(n, @makeBigFloatFromFloat(1.0))
+	end if
 end func
