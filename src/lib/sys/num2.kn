@@ -1,5 +1,5 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("123.45")
+	var a: @BigFloat :: @makeBigFloatPi()
 	var b: @BigFloat :: @makeBigFloatFromStr("67.8")
 	var c: @BigFloat :: a.mod(b)
 	do cui@print(a.toStr() ~ "\n")
@@ -792,7 +792,9 @@ end func
 
 +func[__mki]makeBigFloatE(me2: @BigFloat): @BigFloat
 	do me2.significand :: @makeBigInt()
-	; TODO:
+	do me2.significand.value :: [0xD8B9C583CE2D3695b64, 0xAFDC5620273D3CF1b64, 0xADF85458A2BB4A9Ab64]
+	do me2.exponent :: 1
+	ret me2
 end func
 
 +func[__mki]makeBigFloatFromFloat(me2: @BigFloat, value: float): @BigFloat
@@ -809,7 +811,9 @@ end func
 
 +func[__mki]makeBigFloatPi(me2: @BigFloat): @BigFloat
 	do me2.significand :: @makeBigInt()
-	; TODO:
+	do me2.significand.value :: [0x29024E088A67CC74b64, 0xC4C6628B80DC1CD1b64, 0xC90FDAA22168C234b64]
+	do me2.exponent :: 1
+	ret me2
 end func
 
 func addImpl(a: @BigInt, b: @BigInt)
