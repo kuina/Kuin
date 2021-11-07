@@ -1263,3 +1263,10 @@ func ceilImpl(n: @BigFloat)
 		do @addFloatImpl(n, @makeBigFloatFromFloat(1.0))
 	end if
 end func
+
+func[__mki]makeBigFloatLogE2(me2: @BigFloat): @BigFloat
+	do me2.significand :: @makeBigInt()
+	do me2.significand.value :: [0x40F343267298B62Cb64, 0xC9E3B39803F2F6AFb64, 0xB17217F7D1CF79ABb64]
+	do me2.exponent :: 1
+	ret me2
+end func
