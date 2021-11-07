@@ -1,10 +1,8 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatPi()
-	var b: @BigFloat :: @makeBigFloatFromStr("67.8")
-	var c: @BigFloat :: a.mod(b)
+	var a: @BigFloat :: @makeBigFloatFromStr("99999999999999999999999999999999999999999999999999999999999.999")
+	var b: @BigInt :: a.toBigInt()
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
-	do cui@print(c.toStr() ~ "\n")
 end func
 
 const bigFloatSize: int :: 3
@@ -111,6 +109,19 @@ const bigFloatStrSize: int :: 50
 		if(^me.value = 1 & me.value[0] = 0b64)
 			do me.minus :: false
 		end if
+	end func
+	
+	+func[__mki]toBigFloat(me2: @BigFloat): @BigFloat
+		if(^me.value = 1 & me.value[0] = 0b64)
+			do @setZeroFloat(me2)
+			ret me2
+		end if
+		do me2.significand :: @makeBigInt()
+		do me2.significand.value :: ##me.value
+		do me2.significand.minus :: me.minus
+		do me2.exponent :: ^me2.significand.value * 64 - 1
+		do @normalizeFloat(me2)
+		ret me2
 	end func
 	
 	+func[__mki]add(me2: @BigInt, value: @BigInt): @BigInt
@@ -264,9 +275,13 @@ end class
 			var padding: int :: lib@padding(n, 64)
 			do a2.value :: #[(n + padding) / 64]bit64
 			for i(0, n - 1)
-				if(v[^v - 1 - i / 64].and((1b64).shl(63 - i % 64)) <> 0b64)
-					var index: int :: ^a2.value - 1 - (i + padding) / 64
-					do a2.value[index] :: a2.value[index].or((1b64).shl(63 - (i + padding) % 64))
+				var index: int :: ^v - 1 - i / 64
+				if(index < 0)
+					break i
+				end if
+				if(v[index].and((1b64).shl(63 - i % 64)) <> 0b64)
+					var index2: int :: ^a2.value - 1 - (i + padding) / 64
+					do a2.value[index2] :: a2.value[index2].or((1b64).shl(63 - (i + padding) % 64))
 				end if
 			end for
 		else
@@ -288,15 +303,21 @@ end class
 			end if
 		end for
 		if(^b2.value = 1 & b2.value[0] = 0b64)
+			do a :: a2.toStr()
 			do b :: ""
 		else
+			do a :: a2.toStr()
 			var s: []char :: b2.toStr()
 			if(^s < last - n + 1)
 				do s :: "0".repeat(last - n + 1 - ^s) ~ s
 			end if
-			if(^s > @bigFloatStrSize)
-				var carry: int :: (s[@bigFloatStrSize] $ int - '0' $ int) >= 5 ?(1, 0)
-				var pos: int :: @bigFloatStrSize - 1
+			var size: int :: @bigFloatStrSize - ^a
+			if(size < 0)
+				do size :: 0
+			end if
+			if(^s > size)
+				var carry: int :: (s[size] $ int - '0' $ int) >= 5 ?(1, 0)
+				var pos: int :: size - 1
 				while(pos >= 0 & carry = 1)
 					var n2: int :: (s[pos] $ int - '0' $ int) + 1
 					if(n2 >= 10)
@@ -309,8 +330,9 @@ end class
 				end while
 				if(carry = 1)
 					do a2 :: a2.add(@makeBigIntFromInt(1))
+					do a :: a2.toStr()
 				end if
-				do pos :: @bigFloatStrSize - 1
+				do pos :: size - 1
 				while(pos >= 0 & s[pos] = '0')
 					do pos :- 1
 				end while
@@ -324,7 +346,9 @@ end class
 				do b :: "." ~ s
 			end if
 		end if
-		do a :: a2.toStr()
+		if(^a > @bigFloatStrSize)
+			do a :: a.sub(0, @bigFloatStrSize) ~ "0".repeat(^a - @bigFloatStrSize)
+		end if
 		ret (me.significand.minus ?("-", "")) ~ a ~ b
 	end func
 	
@@ -433,6 +457,22 @@ end class
 		if(^a > 1 & a[0] = '-')
 			do me.significand.minus :: true
 		end if
+	end func
+	
+	+func[__mki]toBigInt(me2: @BigInt): @BigInt
+		if(^me.significand.value = 0 | ^me.significand.value = 1 & me.significand.value[0] = 0b64)
+			do me2.value :: [0b64]
+			do me2.minus :: false
+			ret me2
+		end if
+		do me2 :: ##me.significand
+		var pos: int :: ^me2.value * 64 - 1 - me.exponent
+		if(pos > 0)
+			do @shr(&me2.value, pos)
+		elif(pos < 0)
+			do @shl(&me2.value, -pos)
+		end if
+		ret me2
 	end func
 	
 	+func inf_(): bool
