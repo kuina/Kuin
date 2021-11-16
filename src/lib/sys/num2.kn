@@ -1,6 +1,6 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("99999999999999999999999999999999999999999999999999999999999.999")
-	var b: @BigInt :: a.toBigInt()
+	var a: @BigFloat :: @makeBigFloatFromStr("-2.0")
+	var b: @BigFloat :: a.exp()
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
 end func
@@ -9,7 +9,9 @@ const bigFloatSize: int :: 3
 const bigFloatStrSize: int :: 50
 
 +class BigInt()
-	*func[__ndc]ctor()
+	*func ctor()
+		do me.value :: [0b64]
+		do me.minus :: false
 	end func
 	
 	+*func cmp(t: kuin@Class): int
@@ -25,10 +27,10 @@ const bigFloatStrSize: int :: 50
 			ret "0"
 		end if
 		var s: []char :: ""
-		var tmp: @BigInt :: @makeBigInt()
+		var tmp: @BigInt :: #@BigInt
 		do tmp.value :: me.value
 		do tmp.minus :: false
-		var tmp2: @BigInt :: @makeBigInt()
+		var tmp2: @BigInt :: #@BigInt
 		do tmp2.minus :: false
 		var tmp3: @BigInt :: @makeBigIntFromInt(1000000000000000000)
 		while(^tmp.value <> 1 | tmp.value[0] <> 0b64)
@@ -66,7 +68,7 @@ const bigFloatStrSize: int :: 50
 	end func
 	
 	+func fromStr(value: []char)
-		var tmp: @BigInt :: @makeBigInt()
+		var tmp: @BigInt :: #@BigInt
 		var tmp2: @BigInt :: @makeBigIntFromInt(1000000000000000000)
 		var tmp3: @BigInt :: @makeBigIntFromInt(1)
 		var success: bool
@@ -116,9 +118,7 @@ const bigFloatStrSize: int :: 50
 			do @setZeroFloat(me2)
 			ret me2
 		end if
-		do me2.significand :: @makeBigInt()
-		do me2.significand.value :: ##me.value
-		do me2.significand.minus :: me.minus
+		do me2.significand :: ##me
 		do me2.exponent :: ^me2.significand.value * 64 - 1
 		do @normalizeFloat(me2)
 		ret me2
@@ -195,7 +195,7 @@ const bigFloatStrSize: int :: 50
 			do me2.minus :: false
 			ret me2
 		end if
-		var a: @BigInt :: @makeBigInt()
+		var a: @BigInt :: #@BigInt
 		do a.value :: me.value
 		do a.minus :: me.minus
 		do me2.value :: [1b64]
@@ -233,7 +233,9 @@ const bigFloatStrSize: int :: 50
 end class
 
 +class BigFloat()
-	*func[__ndc]ctor()
+	*func ctor()
+		do me.significand :: #@BigInt
+		do me.exponent :: 0
 	end func
 	
 	+*func cmp(t: kuin@Class): int
@@ -270,7 +272,7 @@ end class
 		var a: []char
 		var b: []char
 		var n: int :: me.exponent + 1
-		var a2: @BigInt :: @makeBigInt()
+		var a2: @BigInt :: #@BigInt
 		if(me.exponent >= 0)
 			var padding: int :: lib@padding(n, 64)
 			do a2.value :: #[(n + padding) / 64]bit64
@@ -290,7 +292,7 @@ end class
 		var tmp: @BigInt :: @makeBigIntFromInt(1)
 		var tmp2: @BigInt :: @makeBigIntFromInt(5)
 		var tmp3: @BigInt :: @makeBigIntFromInt(10)
-		var b2: @BigInt :: @makeBigInt()
+		var b2: @BigInt :: #@BigInt
 		var last: int :: ^v * 64 - 1
 		while(n <= last & v[^v - 1 - last / 64].and((1b64).shl(63 - last % 64)) = 0b64)
 			do last :- 1
@@ -563,8 +565,8 @@ end class
 		do @shr(&bs.value, bPos)
 		do aPos :: aPos - 64 * ^as.value + 1 + me.exponent
 		do bPos :: bPos - 64 * ^bs.value + 1 + value.exponent
-		do as.value :: #[@bigFloatSize]bit64 ~ as.value
-		do aPos :- 64 * @bigFloatSize
+		do as.value :: #[@bigFloatSize * 2]bit64 ~ as.value
+		do aPos :- 64 * @bigFloatSize * 2
 		var r: @BigInt :: as.div(bs)
 		do me2.significand :: r
 		do me2.exponent :: 64 * ^r.value - 1 + aPos - bPos
@@ -578,7 +580,7 @@ end class
 			ret me2
 		end if
 		if(value.inf_() | ^me.significand.value = 1 & me.significand.value[0] = 0b64)
-			do me2.significand :: @makeBigInt()
+			do me2.significand :: #@BigInt
 			do me2.significand.value :: me.significand.value
 			do me2.significand.minus :: me.significand.minus
 			do me2.exponent :: me.exponent
@@ -603,7 +605,7 @@ end class
 		elif(aPos < bPos)
 			do @shr(&as.value, bPos - aPos)
 		end if
-		var r: @BigFloat :: @makeBigFloat()
+		var r: @BigFloat :: #@BigFloat
 		do r.significand :: as.div(bs)
 		do r.exponent :: 64 * ^r.significand.value - 1
 		do @normalizeFloat(r)
@@ -627,7 +629,31 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		var logE2: @BigFloat :: @makeBigFloatLogE2()
+		var k: @BigInt :: me.div(logE2).add(@makeBigFloatFromFloat(me.significand.minus ?(-0.5, 0.5))).toBigInt()
+		var x: @BigFloat :: me.sub(k.toBigFloat().mul(logE2))
+		var neg: bool
+		if(x.significand.minus)
+			do neg :: true
+			do x :: x.mul(@makeBigFloatFromFloat(-1.0))
+		else
+			do neg :: false
+		end if
+		var one: @BigFloat :: @makeBigFloatFromFloat(1.0)
+		var e: @BigFloat :: x.add(one)
+		var a: @BigFloat :: x
+		var i: @BigFloat :: @makeBigFloatFromFloat(2.0)
+		var prev: @BigFloat
+		while(e <> prev, skip)
+			do prev :: e
+			do a :: a.mul(x.div(i))
+			do e :: e.add(a)
+			do i :: i.add(one)
+		end while
+		if(neg)
+			do e :: one.div(e)
+		end if
+		ret @mulPow2KX(e, k.toInt())
 	end func
 	
 	+func[__mki]ln(me2: @BigFloat): @BigFloat
@@ -659,9 +685,7 @@ end class
 			do @setZeroFloat(me2)
 			ret me2
 		end if
-		do me2.significand :: @makeBigInt()
-		do me2.significand.value :: ##me.significand.value
-		do me2.significand.minus :: me.significand.minus
+		do me2.significand :: ##me.significand
 		do me2.exponent :: me.exponent
 		if(me2.significand.minus)
 			do @ceilImpl(me2)
@@ -684,9 +708,7 @@ end class
 			do @setZeroFloat(me2)
 			ret me2
 		end if
-		do me2.significand :: @makeBigInt()
-		do me2.significand.value :: ##me.significand.value
-		do me2.significand.minus :: me.significand.minus
+		do me2.significand :: ##me.significand
 		do me2.exponent :: me.exponent
 		if(me2.significand.minus)
 			do @floorImpl(me2)
@@ -797,7 +819,7 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		do me2.significand :: @makeBigInt()
+		do me2.significand :: #@BigInt
 		do me2.significand.value :: me.significand.value
 		do me2.significand.minus :: false
 		do me2.exponent :: me.exponent
@@ -807,12 +829,6 @@ end class
 	+var significand: @BigInt
 	+var exponent: int
 end class
-
-+func[__mki]makeBigInt(me2: @BigInt): @BigInt
-	do me2.value :: [0b64]
-	do me2.minus :: false
-	ret me2
-end func
 
 +func[__mki]makeBigIntFromInt(me2: @BigInt, value: int): @BigInt
 	do me2.fromInt(value)
@@ -824,33 +840,27 @@ end func
 	ret me2
 end func
 
-+func[__mki]makeBigFloat(me2: @BigFloat): @BigFloat
-	do me2.significand :: @makeBigInt()
-	do me2.exponent :: 0
-	ret me2
-end func
-
 +func[__mki]makeBigFloatE(me2: @BigFloat): @BigFloat
-	do me2.significand :: @makeBigInt()
+	do me2.significand :: #@BigInt
 	do me2.significand.value :: [0xD8B9C583CE2D3695b64, 0xAFDC5620273D3CF1b64, 0xADF85458A2BB4A9Ab64]
 	do me2.exponent :: 1
 	ret me2
 end func
 
 +func[__mki]makeBigFloatFromFloat(me2: @BigFloat, value: float): @BigFloat
-	do me2.significand :: @makeBigInt()
+	do me2.significand :: #@BigInt
 	do me2.fromFloat(value)
 	ret me2
 end func
 
 +func[__mki]makeBigFloatFromStr(me2: @BigFloat, value: []char): @BigFloat
-	do me2.significand :: @makeBigInt()
+	do me2.significand :: #@BigInt
 	do me2.fromStr(value)
 	ret me2
 end func
 
 +func[__mki]makeBigFloatPi(me2: @BigFloat): @BigFloat
-	do me2.significand :: @makeBigInt()
+	do me2.significand :: #@BigInt
 	do me2.significand.value :: [0x29024E088A67CC74b64, 0xC4C6628B80DC1CD1b64, 0xC90FDAA22168C234b64]
 	do me2.exponent :: 1
 	ret me2
@@ -1137,21 +1147,21 @@ func normalizeFloat(n: @BigFloat)
 end func
 
 func setNaN(n: @BigFloat)
-	do n.significand :: @makeBigInt()
+	do n.significand :: #@BigInt
 	do n.significand.value :: [0b64]
 	do n.significand.minus :: true
 	do n.exponent :: 0
 end func
 
 func setInf(n: @BigFloat, minus: bool)
-	do n.significand :: @makeBigInt()
+	do n.significand :: #@BigInt
 	do n.significand.value :: #[0]bit64
 	do n.significand.minus :: minus
 	do n.exponent :: 0
 end func
 
 func setZeroFloat(n: @BigFloat)
-	do n.significand :: @makeBigInt()
+	do n.significand :: #@BigInt
 	do n.significand.value :: [0b64]
 	do n.significand.minus :: false
 	do n.exponent :: 0
@@ -1172,7 +1182,7 @@ func addFloatImpl(a: @BigFloat, value: @BigFloat)
 		ret
 	end if
 	if(^a.significand.value = 1 & a.significand.value[0] = 0b64)
-		do a.significand :: @makeBigInt()
+		do a.significand :: #@BigInt
 		do a.significand.value :: value.significand.value
 		do a.significand.minus :: value.significand.minus
 		do a.exponent :: value.exponent
@@ -1184,13 +1194,13 @@ func addFloatImpl(a: @BigFloat, value: @BigFloat)
 	var bPos: int :: value.exponent - ^bs.value * 64
 	var min: int :: lib@min(aPos, bPos)
 	if(aPos > min)
-		var a2: @BigInt :: @makeBigInt()
+		var a2: @BigInt :: #@BigInt
 		do a2.value :: ##as.value
 		do @shl(&a2.value, aPos - min)
 		do a2.minus :: as.minus
 		do as :: a2
 	elif(bPos > min)
-		var b2: @BigInt :: @makeBigInt()
+		var b2: @BigInt :: #@BigInt
 		do b2.value :: ##bs.value
 		do @shl(&b2.value, bPos - min)
 		do b2.minus :: bs.minus
@@ -1265,8 +1275,28 @@ func ceilImpl(n: @BigFloat)
 end func
 
 func[__mki]makeBigFloatLogE2(me2: @BigFloat): @BigFloat
-	do me2.significand :: @makeBigInt()
+	do me2.significand :: #@BigInt
 	do me2.significand.value :: [0x40F343267298B62Cb64, 0xC9E3B39803F2F6AFb64, 0xB17217F7D1CF79ABb64]
-	do me2.exponent :: 1
+	do me2.exponent :: -1
 	ret me2
+end func
+
+func mulPow2KX(x: @BigFloat, k: int): @BigFloat
+	var w: @BigFloat
+	var k2: bit64
+	if(k >= 0)
+		do w :: @makeBigFloatFromFloat(2.0)
+		do k2 :: k $ bit64
+	else
+		do w :: @makeBigFloatFromFloat(0.5)
+		do k2 :: (-k) $ bit64
+	end if
+	while(k2 <> 0b64)
+		if(k2.and(1b64) <> 0b64)
+			do x :: x.mul(w)
+		end if
+		do w :: w.mul(w)
+		do k2 :: k2.shr(1)
+	end while
+	ret x
 end func
