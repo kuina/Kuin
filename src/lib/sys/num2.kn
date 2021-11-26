@@ -1,8 +1,10 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatE()
-	var b: @BigFloat :: a.ln()
+	var a: @BigFloat :: @makeBigFloatFromStr("-1")
+	var b: @BigFloat :: @makeBigFloatFromStr("-2")
+	var c: @BigFloat :: a.pow(b)
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
+	do cui@print(c.toStr() ~ "\n")
 end func
 
 const bigFloatSize: int :: 3
@@ -251,6 +253,12 @@ end class
 		end if
 		if(t2.inf_())
 			ret -1
+		end if
+		if(me.exponent > t2.exponent)
+			ret me.significand.minus ?(-1, 1)
+		end if
+		if(me.exponent < t2.exponent)
+			ret me.significand.minus ?(1, -1)
 		end if
 		ret @cmpImpl(me.significand.value, t2.significand.value) * (me.significand.minus ?(-1, 1))
 	end func
@@ -635,7 +643,77 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			if(value.inf_())
+				if(value.significand.minus)
+					do @setZeroFloat(me2)
+				else
+					do @setInf(me2, false)
+				end if
+				ret me2
+			end if
+			if(^value.significand.value = 1 & value.significand.value[0] = 0b64)
+				do me2.fromFloat(1.0)
+				ret me2
+			end if
+			if(value.significand.minus)
+				do @setZeroFloat(me2)
+				ret me2
+			end if
+			if(me.significand.minus)
+				var i: @BigInt :: value.toBigInt()
+				if(i.value[0].and(1b64) <> 0b64 & i.toBigFloat() = value)
+					do @setInf(me2, true)
+					ret me2
+				end if
+			end if
+			do @setInf(me2, false)
+			ret me2
+		end if
+		if(value.inf_())
+			var cmp: int :: me.abs().cmp(@makeBigFloatFromFloat(1.0))
+			if(value.significand.minus)
+				if(cmp < 0)
+					do @setInf(me2, false)
+				elif(cmp = 0)
+					do @setNaN(me2)
+				else
+					do @setZeroFloat(me2)
+				end if
+			else
+				if(cmp < 0)
+					do @setZeroFloat(me2)
+				elif(cmp = 0)
+					do @setNaN(me2)
+				else
+					do @setInf(me2, false)
+				end if
+			end if
+			ret me2
+		end if
+		if(^me.significand.value = 1 & me.significand.value[0] = 0b64 & ^value.significand.value = 1 & value.significand.value[0] = 0b64)
+			do me2.fromFloat(1.0)
+			ret me2
+		end if
+		var result: @BigFloat
+		if(me.significand.minus)
+			var i: @BigInt :: value.toBigInt()
+			if(i.toBigFloat() <> value)
+				do @setNaN(me2)
+				ret me2
+			end if
+			var x: @BigFloat :: ##me
+			do x.significand.minus :: false
+			do result :: value.mul(x.ln()).exp()
+			if(i.value[0].and(1b64) <> 0b64)
+				do result.significand.minus :: true
+			end if
+		else
+			do result :: value.mul(me.ln()).exp()
+		end if
+		do me2.significand :: result.significand
+		do me2.exponent :: result.exponent
+		ret me2
 	end func
 	
 	+func[__mki]exp(me2: @BigFloat): @BigFloat
@@ -693,8 +771,12 @@ end class
 			end if
 			ret me2
 		end if
-		if(^me.significand.value = 0 & me.significand.value[0] = 0b64)
+		if(^me.significand.value = 1 & me.significand.value[0] = 0b64)
 			do @setInf(me2, true)
+			ret me2
+		end if
+		if(me.significand.minus)
+			do @setNaN(me2)
 			ret me2
 		end if
 		var k: int :: me.div(@makeBigFloatSqrt2()).exponent - 1
