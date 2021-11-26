@@ -1,6 +1,6 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("-2.0")
-	var b: @BigFloat :: a.exp()
+	var a: @BigFloat :: @makeBigFloatE()
+	var b: @BigFloat :: a.ln()
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
 end func
@@ -351,6 +351,9 @@ end class
 		if(^a > @bigFloatStrSize)
 			do a :: a.sub(0, @bigFloatStrSize) ~ "0".repeat(^a - @bigFloatStrSize)
 		end if
+		if(a = "0" & b = "")
+			ret "0"
+		end if
 		ret (me.significand.minus ?("-", "")) ~ a ~ b
 	end func
 	
@@ -412,6 +415,17 @@ end class
 		var dot: int :: value.find('.', -1)
 		var a: []char :: dot = -1 ?(value, value.sub(0, dot))
 		var b: []char :: dot = -1 ?("0", value.sub(dot + 1, -1))
+		switch(a)
+		case "inf"
+			do @setInf(me, false)
+			ret
+		case "-inf"
+			do @setInf(me, true)
+			ret
+		case "nan"
+			do @setNaN(me)
+			ret
+		end switch
 		do me.significand :: @makeBigIntFromStr(a)
 		do me.exponent :: ^me.significand.value * 64 - 1
 		do @normalizeFloat(me)
@@ -629,6 +643,14 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
+		if(me.inf_())
+			if(me.significand.minus)
+				do @setZeroFloat(me2)
+			else
+				do @setInf(me2, false)
+			end if
+			ret me2
+		end if
 		var logE2: @BigFloat :: @makeBigFloatLogE2()
 		var k: @BigInt :: me.div(logE2).add(@makeBigFloatFromFloat(me.significand.minus ?(-0.5, 0.5))).toBigInt()
 		var x: @BigFloat :: me.sub(k.toBigFloat().mul(logE2))
@@ -653,7 +675,9 @@ end class
 		if(neg)
 			do e :: one.div(e)
 		end if
-		ret @mulPow2KX(e, k.toInt())
+		do e.exponent :+ k.toInt()
+		do @normalizeFloat(e)
+		ret e
 	end func
 	
 	+func[__mki]ln(me2: @BigFloat): @BigFloat
@@ -661,7 +685,37 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			if(me.significand.minus)
+				do @setNaN(me2)
+			else
+				do @setInf(me2, false)
+			end if
+			ret me2
+		end if
+		if(^me.significand.value = 0 & me.significand.value[0] = 0b64)
+			do @setInf(me2, true)
+			ret me2
+		end if
+		var k: int :: me.div(@makeBigFloatSqrt2()).exponent - 1
+		var one: @BigFloat :: @makeBigFloatFromFloat(1.0)
+		var two: @BigFloat :: @makeBigFloatFromFloat(2.0)
+		var l: @BigFloat :: ##one
+		do l.exponent :+ k
+		do @normalizeFloat(l)
+		var x: @BigFloat :: me.div(l)
+		do x :: x.sub(one).div(x.add(one))
+		var x2: @BigFloat :: x.mul(x)
+		var i: @BigFloat :: one
+		var s: @BigFloat :: x
+		var last: @BigFloat
+		while loop(last <> s, skip)
+			do x :: x.mul(x2)
+			do i :: i.add(two)
+			do last :: s
+			do s :: s.add(x.div(i))
+		end while
+		ret @makeBigFloatLogE2().mul(@makeBigIntFromInt(k).toBigFloat()).add(two.mul(s))
 	end func
 	
 	+func[__mki]sqrt(me2: @BigFloat): @BigFloat
@@ -970,7 +1024,7 @@ func divModImpl(a: @BigInt, b: @BigInt, mod: bool)
 			end if
 			do r[0] :: r[0].or(a2[i].shr(j).and(1b64))
 			if(@cmpImpl(r, b2) >= 0)
-				do r :: @subBit64s(r, b2, &)
+				do r :: @trim(@subBit64s(r, b2, &))
 				do q[i] :: q[i].or((1b64).shl(j))
 			end if
 		end for
@@ -1281,22 +1335,9 @@ func[__mki]makeBigFloatLogE2(me2: @BigFloat): @BigFloat
 	ret me2
 end func
 
-func mulPow2KX(x: @BigFloat, k: int): @BigFloat
-	var w: @BigFloat
-	var k2: bit64
-	if(k >= 0)
-		do w :: @makeBigFloatFromFloat(2.0)
-		do k2 :: k $ bit64
-	else
-		do w :: @makeBigFloatFromFloat(0.5)
-		do k2 :: (-k) $ bit64
-	end if
-	while(k2 <> 0b64)
-		if(k2.and(1b64) <> 0b64)
-			do x :: x.mul(w)
-		end if
-		do w :: w.mul(w)
-		do k2 :: k2.shr(1)
-	end while
-	ret x
+func[__mki]makeBigFloatSqrt2(me2: @BigFloat): @BigFloat
+	do me2.significand :: #@BigInt
+	do me2.significand.value :: [0x1D6F60BA893BA84Cb64, 0x597D89B3754ABE9Fb64, 0xB504F333F9DE6484b64]
+	do me2.exponent :: 0
+	ret me2
 end func
