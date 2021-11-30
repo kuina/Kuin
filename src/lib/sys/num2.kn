@@ -1,6 +1,6 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("0.5")
-	var b: @BigFloat :: a.sqrt()
+	var a: @BigFloat :: @makeBigFloatPi().div(@makeBigFloatFromFloat(2.0))
+	var b: @BigFloat :: a.tan()
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
 end func
@@ -907,7 +907,20 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			do @setNaN(me2)
+			ret me2
+		end if
+		var even: bool
+		var t: @BigFloat :: @urTan(me, &even)
+		if(even)
+			ret t
+		end if
+		if(^t.significand.value = 1 & t.significand.value[0] = 0b64)
+			do @setInf(me2, false)
+			ret me2
+		end if
+		ret @makeBigFloatFromFloat(-1.0).div(t)
 	end func
 	
 	+func[__mki]acos(me2: @BigFloat): @BigFloat
@@ -1454,4 +1467,36 @@ func[__mki]makeBigFloatSqrt2(me2: @BigFloat): @BigFloat
 	do me2.significand.value :: [0x1D6F60BA893BA84Cb64, 0x597D89B3754ABE9Fb64, 0xB504F333F9DE6484b64]
 	do me2.exponent :: 0
 	ret me2
+end func
+
+func[__mki]makeBigFloatPiDiv2(me2: @BigFloat): @BigFloat
+	do me2.significand :: #@BigInt
+	do me2.significand.value :: [0x29024E088A67CC74b64, 0xC4C6628B80DC1CD1b64, 0xC90FDAA22168C234b64]
+	do me2.exponent :: 0
+	ret me2
+end func
+
+func urTan(x: @BigFloat, even: &bool): @BigFloat
+	const n: int :: 43
+	var two: @BigFloat :: @makeBigFloatFromFloat(2.0)
+	var k: @BigInt :: x.div(@makeBigFloatPiDiv2()).add(@makeBigFloatFromFloat(x.significand.minus ?(-0.5, 0.5))).toBigInt()
+	do even :: k.value[0] = 0b64
+	var k2: @BigFloat :: k.toBigFloat()
+	var div3217_2048: @BigFloat :: #@BigFloat
+	do div3217_2048.significand :: #@BigInt
+	do div3217_2048.significand.value :: [0xC910000000000000b64]
+	do div3217_2048.exponent :: 0
+	var d: @BigFloat :: #@BigFloat
+	do d.significand :: #@BigInt
+	do d.significand.value :: [0xC7DDD660CE300000b64, 0x75D1FC8F8CBB5BF6b64, 0x95777A5CF72CECE6b64]
+	do d.exponent :: -18
+	do x :: x.sub(div3217_2048.mul(k2)).add(d.mul(k2))
+	var x2: @BigFloat :: x.mul(x)
+	var i2: @BigFloat :: @makeBigFloatFromFloat(n $ float)
+	var t: @BigFloat :: #@BigFloat
+	for i(n, 3, -2)
+		do t :: x2.div(i2.sub(t))
+		do i2 :: i2.sub(two)
+	end for
+	ret x.div(@makeBigFloatFromFloat(1.0).sub(t))
 end func
