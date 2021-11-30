@@ -1,10 +1,8 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("-1")
-	var b: @BigFloat :: @makeBigFloatFromStr("-2")
-	var c: @BigFloat :: a.pow(b)
+	var a: @BigFloat :: @makeBigFloatFromStr("0.5")
+	var b: @BigFloat :: a.sqrt()
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
-	do cui@print(c.toStr() ~ "\n")
 end func
 
 const bigFloatSize: int :: 3
@@ -260,7 +258,21 @@ end class
 		if(me.exponent < t2.exponent)
 			ret me.significand.minus ?(1, -1)
 		end if
-		ret @cmpImpl(me.significand.value, t2.significand.value) * (me.significand.minus ?(-1, 1))
+		var a: []bit64 :: me.significand.value
+		var b: []bit64 :: t2.significand.value
+		for i(1, lib@min(^a, ^b))
+			if(a[^a - i] > b[^b - i])
+				ret me.significand.minus ?(-1, 1)
+			elif(a[^a - i] < b[^b - i])
+				ret me.significand.minus ?(1, -1)
+			end if
+		end for
+		if(^a > ^b)
+			ret me.significand.minus ?(-1, 1)
+		elif(^a < ^b)
+			ret me.significand.minus ?(1, -1)
+		end if
+		ret 0
 	end func
 	
 	+*func toStr(): []char
@@ -805,7 +817,27 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.significand.minus)
+			do @setNaN(me2)
+			ret me2
+		end if
+		if(me.inf_())
+			do @setInf(me2, false)
+			ret me2
+		end if
+		if(^me.significand.value = 1 & me.significand.value[0] = 0b64)
+			do @setZeroFloat(me2)
+			ret me2
+		end if
+		var one: @BigFloat :: @makeBigFloatFromFloat(1.0)
+		var two: @BigFloat :: @makeBigFloatFromFloat(2.0)
+		var s: @BigFloat :: me > one ?(me, one)
+		var last: @BigFloat
+		while(s < last, skip)
+			do last :: s
+			do s :: me.div(s).add(s).div(two)
+		end while
+		ret last
 	end func
 	
 	+func[__mki]floor(me2: @BigFloat): @BigFloat
