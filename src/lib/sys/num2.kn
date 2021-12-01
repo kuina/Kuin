@@ -1,6 +1,7 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("-5")
-	var b: @BigFloat :: a.tanh()
+	var a: @BigFloat :: @makeBigFloatFromStr("1.5")
+	var b: @BigFloat :: a.atan()
+	
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
 end func
@@ -927,27 +928,56 @@ end class
 	end func
 	
 	+func[__mki]acos(me2: @BigFloat): @BigFloat
-		if(me.nan())
+		if(me.nan() | me.inf_())
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		ret @makeBigFloatPiDiv2().sub(me.asin())
 	end func
 	
 	+func[__mki]asin(me2: @BigFloat): @BigFloat
-		if(me.nan())
+		if(me.nan() | me.inf_())
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		ret me.div(@makeBigFloatFromFloat(1.0).sub(me.mul(me)).sqrt()).atan()
 	end func
 	
 	+func[__mki]atan(me2: @BigFloat): @BigFloat
+		const n: int :: 77
 		if(me.nan())
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			var r: @BigFloat :: @makeBigFloatPiDiv2()
+			if(me.significand.minus)
+				do r.significand.minus :: true
+			end if
+			ret r
+		end if
+		var one: @BigFloat :: @makeBigFloatFromFloat(1.0)
+		var two: @BigFloat :: @makeBigFloatFromFloat(2.0)
+		var x: @BigFloat :: me
+		var sgn: int
+		var cmp: int :: x.abs().cmp(one)
+		if(cmp > 0)
+			do sgn :: me2.significand.minus ?(-1, 1)
+			do x :: one.div(x)
+		end if
+		var a: @BigFloat :: #@BigFloat
+		var i2: @BigFloat :: @makeBigFloatFromFloat(n $ float)
+		for i(n, 1, -1)
+			do a :: i2.mul(i2).mul(x).mul(x).div(two.mul(i2).add(one).add(a))
+			do i2 :: i2.sub(one)
+		end for
+		if(sgn > 0)
+			ret @makeBigFloatPiDiv2().sub(x.div(one.add(a)))
+		end if
+		if(sgn < 0)
+			ret @makeBigFloatPiDiv2().mul(@makeBigFloatFromFloat(-1.0)).sub(x.div(one.add(a)))
+		end if
+		ret x.div(one.add(a))
 	end func
 	
 	+func[__mki]cosh(me2: @BigFloat): @BigFloat
