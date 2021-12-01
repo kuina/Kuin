@@ -1,6 +1,6 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("2.0")
-	var b: @BigFloat :: a.cos()
+	var a: @BigFloat :: @makeBigFloatFromStr("-5")
+	var b: @BigFloat :: a.tanh()
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
 end func
@@ -955,7 +955,12 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			do @setInf(me2, false)
+			ret me2
+		end if
+		var t: @BigFloat :: me.exp()
+		ret t.add(@makeBigFloatFromFloat(1.0).div(t)).div(@makeBigFloatFromFloat(2.0))
 	end func
 	
 	+func[__mki]sinh(me2: @BigFloat): @BigFloat
@@ -963,7 +968,12 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			do @setInf(me2, me.significand.minus)
+			ret me2
+		end if
+		var t: @BigFloat :: me.exp()
+		ret t.sub(@makeBigFloatFromFloat(1.0).div(t)).div(@makeBigFloatFromFloat(2.0))
 	end func
 	
 	+func[__mki]tanh(me2: @BigFloat): @BigFloat
@@ -971,7 +981,17 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			do me2.fromFloat(me.significand.minus ?(-1.0, 1.0))
+			ret me2
+		end if
+		var one: @BigFloat :: @makeBigFloatFromFloat(1.0)
+		var two: @BigFloat :: @makeBigFloatFromFloat(2.0)
+		if(me.significand.minus)
+			ret one.sub(two.div(two.mul(me).exp().add(one)))
+		else
+			ret two.div(one.add(@makeBigFloatFromFloat(-2.0).mul(me).exp())).sub(one)
+		end if
 	end func
 	
 	+func[__mki]acosh(me2: @BigFloat): @BigFloat
@@ -1310,13 +1330,27 @@ func normalizeFloat(n: @BigFloat)
 		do n.exponent :: 0
 		ret
 	end if
-	var v: bit64 :: n.significand.value[^n.significand.value - 1]
-	if(v.shr(63) <> 1b64)
+	if(n.significand.value[^n.significand.value - 1].shr(63) <> 1b64)
+		var nonZero: int :: -1
+		for i(^n.significand.value - 1, 0, -1)
+			if(n.significand.value[i] <> 0b64)
+				do nonZero :: i
+				break i
+			end if
+		end for
+		if(nonZero = -1)
+			do n.significand.value :: [0b64]
+			do n.significand.minus :: false
+			do n.exponent :: 0
+			ret
+		end if
+		
+		var v: bit64 :: n.significand.value[nonZero]
 		var offset: int :: 1
 		while(v.shr(63 - offset) = 0b64)
 			do offset :+ 1
 		end while
-		do @shl(&n.significand.value, offset)
+		do @shl(&n.significand.value, (^n.significand.value - 1 - nonZero) * 64 + offset)
 		do n.exponent :- offset
 	end if
 	
