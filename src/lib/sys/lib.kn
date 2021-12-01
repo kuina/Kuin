@@ -140,15 +140,8 @@ var globalRnd: @Rnd
 #any
 end func
 
-#exe
-+func[d0000.knd, _acosh]acosh(x: float): float
-#cpp,web
 +func acosh(x: float): float
-#cpp
-	excode "return std::acosh(`0`);\n"
-#web
 	ret @ln(x + @sqrt(x * x - 1.0))
-#any
 end func
 
 #exe
@@ -173,15 +166,14 @@ end func
 #any
 end func
 
-#exe
-+func[d0000.knd, _asinh]asinh(x: float): float
-#cpp,web
 +func asinh(x: float): float
-#cpp
-	excode "return std::asinh(`0`);\n"
-#web
-	ret @ln(x + @sqrt(x * x + 1.0))
-#any
+	if(x > 0.001)
+		ret @ln(@sqrt(x * x + 1.0) + x)
+	end if
+	if(x < -0.001)
+		ret -@ln(@sqrt(x * x + 1.0) - x)
+	end if
+	ret x * (1.0 - x * x / 6.0)
 end func
 
 #exe
@@ -195,15 +187,11 @@ end func
 #any
 end func
 
-#exe
-+func[d0000.knd, _atanh]atanh(x: float): float
-#cpp,web
 +func atanh(x: float): float
-#cpp
-	excode "return std::atanh(`0`);\n"
-#web
-	ret 0.5 * @ln((1.0 + x) / (1.0 - x))
-#any
+	if(x > 0.001 | x < -0.001)
+		ret 0.5 * @ln((1.0 + x) / (1.0 - x))
+	end if
+	ret x * (1.0 + x * x / 3.0)
 end func
 
 #exe

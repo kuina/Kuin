@@ -1,6 +1,6 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatFromStr("1.5")
-	var b: @BigFloat :: a.atan()
+	var a: @BigFloat :: @makeBigFloatFromStr("-1.1")
+	var b: @BigFloat :: a.atanh()
 	
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
@@ -1029,7 +1029,15 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			if(me.significand.minus)
+				do @setNaN(me2)
+			else
+				do @setInf(me2, false)
+			end if
+			ret me2
+		end if
+		ret me.add(me.mul(me).sub(@makeBigFloatFromFloat(1.0)).sqrt()).ln()
 	end func
 	
 	+func[__mki]asinh(me2: @BigFloat): @BigFloat
@@ -1037,15 +1045,24 @@ end class
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		if(me.inf_())
+			do @setInf(me2, me.significand.minus)
+			ret me2
+		end if
+		if(me.significand.minus)
+			ret me.mul(me).add(@makeBigFloatFromFloat(1.0)).sqrt().sub(me).ln().mul(@makeBigFloatFromFloat(-1.0))
+		else
+			ret me.mul(me).add(@makeBigFloatFromFloat(1.0)).sqrt().add(me).ln()
+		end if
 	end func
 	
 	+func[__mki]atanh(me2: @BigFloat): @BigFloat
-		if(me.nan())
+		if(me.nan() | me.inf_())
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		var one: @BigFloat :: @makeBigFloatFromFloat(1.0)
+		ret @makeBigFloatFromFloat(0.5).mul(one.add(me).div(one.sub(me)).ln())
 	end func
 	
 	+func[__mki]abs(me2: @BigFloat): @BigFloat

@@ -132,7 +132,8 @@ var globalRnd: @Rnd
 +func[d0000.knd, _acos]acos(x: float): float
 end func
 
-+func[d0000.knd, _acosh]acosh(x: float): float
++func acosh(x: float): float
+	ret @ln(x + @sqrt(x * x - 1.0))
 end func
 
 +func[d0000.knd, _addr]addr(class_: kuin@Class): bit64
@@ -141,13 +142,24 @@ end func
 +func[d0000.knd, _asin]asin(x: float): float
 end func
 
-+func[d0000.knd, _asinh]asinh(x: float): float
++func asinh(x: float): float
+	if(x > 0.001)
+		ret @ln(@sqrt(x * x + 1.0) + x)
+	end if
+	if(x < -0.001)
+		ret -@ln(@sqrt(x * x + 1.0) - x)
+	end if
+	ret x * (1.0 - x * x / 6.0)
 end func
 
 +func[d0000.knd, _atan]atan(x: float): float
 end func
 
-+func[d0000.knd, _atanh]atanh(x: float): float
++func atanh(x: float): float
+	if(x > 0.001 | x < -0.001)
+		ret 0.5 * @ln((1.0 + x) / (1.0 - x))
+	end if
+	ret x * (1.0 + x * x / 3.0)
 end func
 
 +func[d0000.knd, _ceil]ceil(x: float): float

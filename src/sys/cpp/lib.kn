@@ -134,7 +134,7 @@ var globalRnd: @Rnd
 end func
 
 +func acosh(x: float): float
-	excode "return std::acosh(`0`);\n"
+	ret @ln(x + @sqrt(x * x - 1.0))
 end func
 
 +func addr(class_: kuin@Class): bit64
@@ -146,7 +146,13 @@ end func
 end func
 
 +func asinh(x: float): float
-	excode "return std::asinh(`0`);\n"
+	if(x > 0.001)
+		ret @ln(@sqrt(x * x + 1.0) + x)
+	end if
+	if(x < -0.001)
+		ret -@ln(@sqrt(x * x + 1.0) - x)
+	end if
+	ret x * (1.0 - x * x / 6.0)
 end func
 
 +func atan(x: float): float
@@ -154,7 +160,10 @@ end func
 end func
 
 +func atanh(x: float): float
-	excode "return std::atanh(`0`);\n"
+	if(x > 0.001 | x < -0.001)
+		ret 0.5 * @ln((1.0 + x) / (1.0 - x))
+	end if
+	ret x * (1.0 + x * x / 3.0)
 end func
 
 +func ceil(x: float): float
