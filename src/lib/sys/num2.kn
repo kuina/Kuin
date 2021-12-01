@@ -1,6 +1,6 @@
 func main()
-	var a: @BigFloat :: @makeBigFloatPi().div(@makeBigFloatFromFloat(2.0))
-	var b: @BigFloat :: a.tan()
+	var a: @BigFloat :: @makeBigFloatFromStr("2.0")
+	var b: @BigFloat :: a.cos()
 	do cui@print(a.toStr() ~ "\n")
 	do cui@print(b.toStr() ~ "\n")
 end func
@@ -887,27 +887,30 @@ end class
 	end func
 	
 	+func[__mki]cos(me2: @BigFloat): @BigFloat
-		if(me.nan())
+		if(me.nan() | me.inf_())
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		ret @makeBigFloatPiDiv2().sub(me.abs()).sin()
 	end func
 	
 	+func[__mki]sin(me2: @BigFloat): @BigFloat
-		if(me.nan())
+		if(me.nan() | me.inf_())
 			do @setNaN(me2)
 			ret me2
 		end if
-		; TODO:
+		var two: @BigFloat :: @makeBigFloatFromFloat(2.0)
+		var even: bool
+		var t: @BigFloat :: @urTan(me.div(two), &even)
+		do t :: two.mul(t).div(@makeBigFloatFromFloat(1.0).add(t.mul(t)))
+		if(even)
+			ret t
+		end if
+		ret @makeBigFloatFromFloat(-1.0).mul(t)
 	end func
 	
 	+func[__mki]tan(me2: @BigFloat): @BigFloat
-		if(me.nan())
-			do @setNaN(me2)
-			ret me2
-		end if
-		if(me.inf_())
+		if(me.nan() | me.inf_())
 			do @setNaN(me2)
 			ret me2
 		end if
