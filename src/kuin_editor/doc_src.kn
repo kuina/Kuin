@@ -197,13 +197,11 @@ end func
 						var color: int
 						if(inArea)
 							do draw@rect(textX, textY, (\common@cellWidth * (charWidth <= 0 ?(1, charWidth))) $ float, \common@cellHeight $ float, colorAreaBack)
-							do color :: draw@white
-						elif(me.src.color[me.pageY + i][j].and(0x80b8) <> 0 $ @CharColor $ bit8)
-							do draw@rect(textX, textY, (\common@cellWidth * (charWidth <= 0 ?(1, charWidth))) $ float, \common@cellHeight $ float, colorErrBack)
-							do color :: draw@white
-						else
-							do color :: @srcCharColor[me.src.color[me.pageY + i][j].and(0x7Fb8) $ int]
 						end if
+						if(me.src.color[me.pageY + i][j].and(0x80b8) <> 0 $ @CharColor $ bit8)
+							do draw@rect(textX, textY + \common@cellHeight $ float - 2.0, (\common@cellWidth * (charWidth <= 0 ?(1, charWidth))) $ float, 2.0, colorErrUnderLine)
+						end if
+						do color :: @srcCharColor[me.src.color[me.pageY + i][j].and(0x7Fb8) $ int]
 						switch(str[j])
 						case '\t'
 							do \common@tex.draw(textX, textY, 9.0, 0.0, 9.0, 18.0, draw@white)
@@ -1265,8 +1263,8 @@ end func
 	end func
 	
 	const colorLineNum: int :: 0xFFFF7F7F
-	const colorAreaBack: int :: 0xFF808080
-	const colorErrBack: int :: 0xFFFF3333
+	const colorAreaBack: int :: 0xCC99FF99
+	const colorErrUnderLine: int :: 0xFFFF3333
 	const colorBreakPointBack: int :: 0xFFFF9999
 	const colorBreakPoint: int :: 0xFFFFFFFF
 	const colorBreakBack: int :: 0xFFCCCC99
