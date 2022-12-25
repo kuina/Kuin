@@ -442,3 +442,11 @@ func modMulUnsigned(a: bit64, b: bit64, modulus: bit64): bit64
 	end while
 	ret w
 end func
+
+func permutation(n: int, r: int): int
+	ret math@factInt(n) / math@factInt(n - r)
+end func
+
+func combination(n: int, r: int): int
+	ret math@factInt(n) / math@factInt(n - r) / math@factInt(r)
+end func
