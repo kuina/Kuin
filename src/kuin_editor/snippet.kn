@@ -219,7 +219,10 @@ end func
 		end for
 	end if
 	
+	var oldOnKeyPress: func<(wnd@Key, wnd@ShiftCtrl): bool> :: wnd@getOnKeyPress()
+	do wnd@setOnKeyPress(onKeyPress)
 	do @wndPlace.modal()
+	do wnd@setOnKeyPress(oldOnKeyPress)
 	do @wndPlace :: null
 	do @wndPlaceSnippetCode :: null
 	do @wndPlaceVariables :: null
@@ -242,6 +245,17 @@ end func
 	
 	func btnCancelOnPush(wnd: wnd@WndBase)
 		do @wndPlace.close()
+	end func
+	
+	func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+		if(shiftCtrl = %none)
+			switch(key)
+			case %enter
+				do btnPlaceOnPush(null)
+			case %esc
+				do btnCancelOnPush(null)
+			end switch
+		end if
 	end func
 end func
 
