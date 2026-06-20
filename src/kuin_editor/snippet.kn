@@ -10,6 +10,7 @@ var wndPlaceVariables: dict<[]char, wnd@Edit>
 var wndPlaceSnippetCode: []char
 
 var snippets: list<@Snippet>
+var tabOrder: wnd@TabOrder
 
 class Snippet()
 	+var name: []char
@@ -205,8 +206,10 @@ end func
 		do @regexVariableSearch :: regex@makeRegex("\\{\\{(.+?)\\}\\}")
 	end if
 	var matches: [][][]char :: @regexVariableSearch.findAll(&, @wndPlaceSnippetCode)
+	var editVariables: []wnd@WndBase :: null
+	var itemCnt: int :: 0
 	if(matches <>& null)
-		var itemCnt: int :: 0
+		do editVariables :: #[^matches]wnd@WndBase
 		for i(0, ^matches - 1)
 			var variable: []char :: matches[i][1]
 			if(!@wndPlaceVariables.exist(variable))
@@ -214,20 +217,69 @@ end func
 				var editVariable: wnd@Edit :: wnd@makeEdit(@wndPlace, 420, 48 + itemCnt * 25, 168, 19, %fix, %fix)
 				do editVariable.setText(variable)
 				do @wndPlaceVariables.add(variable, editVariable)
+				do editVariables[itemCnt] :: editVariable
 				do itemCnt :+ 1
 			end if
 		end for
 	end if
 	
+	do @tabOrder :: null
+	if(itemCnt > 0)
+		var tabCtrls: []wnd@WndBase :: #[itemCnt]wnd@WndBase
+		for i(0, itemCnt - 1)
+			do tabCtrls[i] :: editVariables[i]
+		end for
+		do @tabOrder :: wnd@makeTabOrder(tabCtrls)
+	end if
+	
 	var oldOnKeyPress: func<(wnd@Key, wnd@ShiftCtrl): bool> :: wnd@getOnKeyPress()
 	do wnd@setOnKeyPress(onKeyPress)
+	if(itemCnt > 0)
+		do clearVariableTextSel()
+		do editVariables[0].focus()
+		do selectEditText(editVariables[0])
+	end if
 	do @wndPlace.modal()
 	do wnd@setOnKeyPress(oldOnKeyPress)
 	do @wndPlace :: null
 	do @wndPlaceSnippetCode :: null
 	do @wndPlaceVariables :: null
+	do @tabOrder :: null
 	
 	ret @wndPlaceResult
+	
+	func selectEditText(wnd: wnd@WndBase)
+		var edit: wnd@Edit :: wnd $ wnd@Edit
+		do edit.setSel(0, ^edit.getText())
+	end func
+	
+	func clearVariableTextSel()
+		if(@wndPlaceVariables =& null)
+			ret
+		end if
+		do @wndPlaceVariables.forEach(callback, null)
+		
+		func callback(key: []char, value: wnd@Edit, data: kuin@Class): bool
+			do value.setSel(^value.getText(), 0)
+			ret true
+		end func
+	end func
+	
+	func selectFocusedVariableText()
+		if(@wndPlaceVariables =& null)
+			ret
+		end if
+		do @wndPlaceVariables.forEach(callback, null)
+		
+		func callback(key: []char, value: wnd@Edit, data: kuin@Class): bool
+			if(value.focused())
+				do value.setSel(0, ^value.getText())
+			else
+				do value.setSel(^value.getText(), 0)
+			end if
+			ret true
+		end func
+	end func
 	
 	func btnPlaceOnPush(wnd: wnd@WndBase)
 		var data: lib@Str :: #lib@Str
@@ -248,14 +300,25 @@ end func
 	end func
 	
 	func onKeyPress(key: wnd@Key, shiftCtrl: wnd@ShiftCtrl): bool
+		if(@tabOrder <>& null)
+			if(@tabOrder.chk(key, shiftCtrl))
+				do selectFocusedVariableText()
+				ret true
+			end if
+		end if
+		
 		if(shiftCtrl = %none)
 			switch(key)
 			case %enter
 				do btnPlaceOnPush(null)
+				ret true
 			case %esc
 				do btnCancelOnPush(null)
+				ret true
 			end switch
 		end if
+		
+		ret false
 	end func
 end func
 
