@@ -1141,8 +1141,14 @@ func assembleFunc(ast: \ast@AstFunc, entry: bool)
 		do asms.add(@asmNop())
 		do asms.add(scopeGcDec.end_)
 		; Save the return value so that it is not overwritten.
-		if(ast.ret_ <>& null & !\ast@isFloat(ast.ret_))
-			do asms.add(@asmMov(@valReg(8, %si), @valReg(8, %ax)))
+		var tmpRetFloat: \ast@AstArg :: null
+		if(ast.ret_ <>& null)
+			if(\ast@isFloat(ast.ret_))
+				do tmpRetFloat :: @makeTmpVar(8, null)
+				do asms.add(@asmMovsd(@valMem(4, @valReg(8, %sp), null, @refValueAddr(@refLocalVar(tmpRetFloat), false)), @valReg(4, %xmm0)))
+			else
+				do asms.add(@asmMov(@valReg(8, %si), @valReg(8, %ax)))
+			end if
 		end if
 		; Decrement the reference counters of local values.
 		block
@@ -1222,8 +1228,12 @@ func assembleFunc(ast: \ast@AstFunc, entry: bool)
 				do idx :+ 1
 			end while
 		end block
-		if(ast.ret_ <>& null & !\ast@isFloat(ast.ret_))
-			do asms.add(@asmMov(@valReg(8, %ax), @valReg(8, %si)))
+		if(ast.ret_ <>& null)
+			if(\ast@isFloat(ast.ret_))
+				do asms.add(@asmMovsd(@valReg(4, %xmm0), @valMem(4, @valReg(8, %sp), null, @refValueAddr(@refLocalVar(tmpRetFloat), false))))
+			else
+				do asms.add(@asmMov(@valReg(8, %ax), @valReg(8, %si)))
+			end if
 		end if
 		block
 			; Throw the exception again if it has occurred.
